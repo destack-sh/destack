@@ -159,23 +159,18 @@ impl Parser {
 
                 // load the raw token facts once and only normalize across newlines when needed
                 let mut cursor_index = self.pos_index();
-                let mut token_type = if let Some(token) = self.token_stream.active_split_token() {
-                    token.token.ty
-                } else {
-                    self.ensure_token(cursor_index);
-                    let Some(token) = self.tokens().get(cursor_index) else {
-                        break;
-                    };
-                    token.token.ty
+                self.ensure_token(cursor_index);
+                let Some(token) = self.tokens().get(cursor_index) else {
+                    break;
                 };
+                let mut token_type = token.token.ty;
                 if token_type == TokenType::End {
                     break;
                 }
 
                 let mut has_pending_newline_tokens = false;
-                let mut has_line_break_before = self
-                    .token_stream
-                    .materialized_line_terminator_before(cursor_index);
+                let mut has_line_break_before =
+                    self.lexer.materialized_line_terminator_before(cursor_index);
                 if token_type == TokenType::Newline {
                     let cursor = self.scanner_cursor_from(cursor_index);
                     token_type = cursor.token_type;
@@ -206,7 +201,7 @@ impl Parser {
                 }
 
                 // stop before static boundary so postfix parsing does not consume '>'
-                if is_in_static && token_type == TokenType::GreaterThan {
+                if is_in_static && Self::starts_type_angle_close(token_type) {
                     break;
                 }
 
@@ -654,9 +649,7 @@ impl Parser {
                                 },
                                 self.get_span_from(start),
                             );
-                            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                                speculation_stats.with_options_calls += 1;
-                            }
+                            self.stats.record_with_options_call();
                             let tuple_elements =
                                 self.with_options(self.options.not_in_position(), |parser| {
                                     parser.eat_sequence_literal_body(
@@ -721,23 +714,18 @@ impl Parser {
             loop {
                 // infix parsing only needs newline normalization when the raw token is newline
                 let mut cursor_index = self.pos_index();
-                let mut token_type = if let Some(token) = self.token_stream.active_split_token() {
-                    token.token.ty
-                } else {
-                    self.ensure_token(cursor_index);
-                    let Some(token) = self.tokens().get(cursor_index) else {
-                        break;
-                    };
-                    token.token.ty
+                self.ensure_token(cursor_index);
+                let Some(token) = self.tokens().get(cursor_index) else {
+                    break;
                 };
+                let mut token_type = token.token.ty;
                 if token_type == TokenType::End {
                     break;
                 }
 
                 let mut newline_count = 0;
-                let mut has_line_break_before = self
-                    .token_stream
-                    .materialized_line_terminator_before(cursor_index);
+                let mut has_line_break_before =
+                    self.lexer.materialized_line_terminator_before(cursor_index);
                 let mut has_pending_newline_tokens = false;
                 if token_type == TokenType::Newline {
                     let cursor = self.scanner_cursor_from(cursor_index);

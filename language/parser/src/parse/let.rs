@@ -335,12 +335,7 @@ impl Parser {
                     | TokenType::Newline
             );
             if can_use_simple_let_path {
-                let has_active_split = self.has_active_split();
-                let keyword = if has_active_split {
-                    None
-                } else {
-                    self.keyword_for_index(self.pos_index())
-                };
+                let keyword = self.keyword_for_index(self.pos_index());
                 let is_mutability_keyword =
                     matches!(keyword, Some(Keyword::Var | Keyword::Const | Keyword::Let))
                         || self.language.is_destack() && keyword == Some(Keyword::Readonly);
@@ -351,9 +346,7 @@ impl Parser {
                 } else {
                     self.identifier_equals_at(self.pos_index(), "_")
                 };
-                if !is_mutability_keyword
-                    && !has_active_split
-                    && (!is_underscore_identifier || allow_underscore_binding)
+                if !is_mutability_keyword && (!is_underscore_identifier || allow_underscore_binding)
                 {
                     let (name, name_span) = self.eat_binding_identifier_with_span()?;
                     let pattern_id = self.insert_node(

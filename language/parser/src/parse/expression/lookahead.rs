@@ -38,19 +38,14 @@ impl Parser {
         let can_use_plain_group_follow = !self.language.is_destack()
             && !ambient_context.is_in_type()
             && !expression_context.is_in_arrow_return_type()
-            && !self.has_active_split()
             && !has_parenthesized_tree_literal;
         if can_use_plain_group_follow {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_follow_token_calls += 1;
-            }
+            self.stats.record_parenthesized_follow_token_call();
 
             if let Some(close_index) = self.matching_pair_or_lex(open_index) {
                 let follow_token_type = self.token_type_at(close_index + 1);
                 if follow_token_type != TokenType::End {
-                    if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                        speculation_stats.parenthesized_follow_token_hits += 1;
-                    }
+                    self.stats.record_parenthesized_follow_token_hit();
 
                     if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
                         return Ok(DelimiterAnalysis {
@@ -78,14 +73,12 @@ impl Parser {
     fn lookahead_parenthesized_group_shape(&mut self) -> ParseResult<DelimiterAnalysis> {
         let ambient = self.options;
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.delimiter_analysis_lookups += 1;
-        }
+        self.stats.record_delimiter_analysis_lookup();
 
-        // tree literal lexing can mutate token stream state during lookahead
+        // tree literal lexing can mutate lexer state during lookahead
         let needs_snapshot = self.allow_tree_literals() && !ambient.is_in_type();
-        if needs_snapshot && let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.delimiter_analysis_snapshot_lookups += 1;
+        if needs_snapshot {
+            self.stats.record_delimiter_analysis_snapshot_lookup();
         }
         let lookahead_result = if needs_snapshot {
             let lookahead_mark = self.mark_rewind();
@@ -110,9 +103,7 @@ impl Parser {
         let ambient = self.options;
         let expression = self.options;
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.delimiter_analysis_scans += 1;
-        }
+        self.stats.record_delimiter_analysis_scan();
 
         let open_index = self.pos_index();
         if self.token_type_at(open_index) != TokenType::OpenParenthesis {
@@ -182,10 +173,9 @@ impl Parser {
             return Ok(Some(close_pos as usize));
         }
 
-        if !self.has_active_split()
-            && self
-                .token_ref_at(open_index)
-                .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
+        if self
+            .token_ref_at(open_index)
+            .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
             && let Some(close_index) = self.matching_pair_or_lex(open_index)
         {
             return Ok(Some(close_index));
@@ -269,6 +259,10 @@ impl Parser {
                     TokenType::LessThan => angle_depth += 1,
                     TokenType::GreaterThan => angle_depth = angle_depth.saturating_sub(1),
                     TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                    TokenType::ShiftRight => angle_depth = angle_depth.saturating_sub(2),
+                    TokenType::UnsignedShiftRight => {
+                        angle_depth = angle_depth.saturating_sub(3);
+                    }
                     _ => {}
                 }
             }

@@ -496,6 +496,8 @@ impl BinaryOperator {
             // shift
             TokenType::ShiftLeft => Some(BinaryOperator::ShiftLeft),
             TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
+            TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
+            TokenType::UnsignedShiftRight => Some(BinaryOperator::UnsignedShiftRight),
 
             // elementwise
             TokenType::ElementwiseAnd => Some(BinaryOperator::ElementwiseAnd),

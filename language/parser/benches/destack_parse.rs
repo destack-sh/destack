@@ -127,6 +127,7 @@ fn print_parser_timing_snapshot_once(parser: &Parser, label: &str) {
 }
 
 /// Print one parser speculation snapshot.
+#[cfg(feature = "timings")]
 fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
     if !parser_speculation_print_enabled_from_env() {
         return;
@@ -177,6 +178,10 @@ fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
         stats.async_keyword_speculative_rollbacks,
     );
 }
+
+/// Print one parser speculation snapshot.
+#[cfg(not(feature = "timings"))]
+fn print_parser_speculation_snapshot_once(_parser: &Parser, _label: &str) {}
 
 /// Parse one file through the full parser pipeline.
 fn parse_file(file: Arc<File>) -> Parser {

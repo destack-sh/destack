@@ -24,12 +24,7 @@ impl Parser {
             return false;
         }
 
-        let split_active = self.has_active_split();
-        let keyword = if split_active {
-            self.peek_any_keyword().ok()
-        } else {
-            self.keyword_for_index(self.pos_index())
-        };
+        let keyword = self.keyword_for_index(self.pos_index());
         if matches!(
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
@@ -38,7 +33,7 @@ impl Parser {
         }
 
         // contextual global and module declarations in statement position
-        if !self.options.is_in_statement_position() || split_active {
+        if !self.options.is_in_statement_position() {
             return false;
         }
 
@@ -259,23 +254,16 @@ impl Parser {
             next_token_type,
             TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
         );
-        let split_active = self.has_active_split();
-        let keyword = if split_active {
-            self.peek_any_keyword().ok()
-        } else {
-            self.keyword_for_index(pos)
-        };
+        let keyword = self.keyword_for_index(pos);
         let is_modifier_keyword = matches!(
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
         );
         let is_global_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
-            && !split_active
             && self.is_global_identifier_at(pos);
         let is_module_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
-            && !split_active
             && self.is_module_identifier_at(pos);
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
@@ -317,8 +305,7 @@ impl Parser {
                 } else {
                     None
                 };
-            let has_module_identifier_declaration =
-                !self.has_active_split() && self.is_module_identifier_at(self.pos_index());
+            let has_module_identifier_declaration = self.is_module_identifier_at(self.pos_index());
             let has_decorator_declaration_head = next_non_newline_token_type == TokenType::At
                 && export_mode != Some(DependencyMode::Default);
             let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
@@ -373,9 +360,8 @@ impl Parser {
             let is_after_export_import_equals_head = next_keyword == Some(Keyword::Import);
             let is_after_export_declaration_head = next_keyword.is_some_and(is_declaration_keyword)
                 || next_token_type == TokenType::At
-                || (!self.has_active_split()
-                    && (self.is_module_identifier_at(next_index)
-                        || self.is_global_identifier_at(next_index)));
+                || self.is_module_identifier_at(next_index)
+                || self.is_global_identifier_at(next_index);
             if is_after_export_import_equals_head || is_after_export_declaration_head {
                 self.eat_newlines_maybe()?;
 
@@ -478,7 +464,6 @@ impl Parser {
         if (descriptor.kind == DeclarationKind::Declaration
             || self.language.is_declaration()
             || self.options.is_in_declare_context())
-            && !self.has_active_split()
             && self.is_global_identifier_at(self.pos_index())
             && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
         {

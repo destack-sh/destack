@@ -1,11 +1,10 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
-use super::lexer::{Lexer, TreeExpressionEntry, TreeState};
+use super::lexer::Lexer;
 use destack_ast::{
-    Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, UnaryOperator,
-    is_identifier_continue, is_identifier_start, is_whitespace,
+    LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
+    is_identifier_start, is_whitespace,
 };
 
 use destack_source::{File, LanguageType, Span};
@@ -68,6 +67,8 @@ pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
     TokenType::SaturatingSubtract,
     TokenType::ShiftLeft,
     TokenType::SaturatingShiftLeft,
+    TokenType::ShiftRight,
+    TokenType::UnsignedShiftRight,
     TokenType::ElementwiseAnd,
     TokenType::ElementwiseXor,
     TokenType::ElementwiseOr,
@@ -149,6 +150,64 @@ fn is_ascii_non_newline_whitespace_byte(byte: u8) -> bool {
 }
 
 impl Lexer {
+    /// Parses one tree child token from the current source position.
+    pub(crate) fn advance_tree_child(&mut self) -> Token {
+        self.last_side_token_had_line_terminator = false;
+
+        // tree child text is the hot path between structural delimiters
+        if let Some(token) = self.try_eat_tree_text() {
+            if is_semantic(token.ty) && token.ty != TokenType::Newline {
+                self.options.in_tree_attribute_value = false;
+            }
+
+            return token;
+        }
+
+        let Some(first_char) = self.eat() else {
+            return Token::new(TokenType::End, 0, None);
+        };
+
+        let (token_type, literal) = match first_char {
+            '<' => (TokenType::LessThan, None),
+            '{' => {
+                self.options.parentheses_depth += 1;
+                (TokenType::OpenBrace, None)
+            }
+            '&' => {
+                if let Some(html_entity_token) = self.try_eat_html_entity() {
+                    html_entity_token
+                } else {
+                    self.eat_tree_text_after_ampersand();
+                    (TokenType::Literal, Some(LiteralType::TreeString))
+                }
+            }
+            '>' => (TokenType::GreaterThan, None),
+            '}' => {
+                self.options.parentheses_depth -= 1;
+                (TokenType::CloseBrace, None)
+            }
+            _ => {
+                while !self.is_end() {
+                    let c = self.peek();
+                    if matches!(c, '<' | '{' | '}' | '>' | '&') {
+                        break;
+                    }
+                    self.eat();
+                }
+
+                (TokenType::Literal, Some(LiteralType::TreeString))
+            }
+        };
+
+        if is_semantic(token_type) && token_type != TokenType::Newline {
+            self.options.in_tree_attribute_value = false;
+        }
+
+        let token = Token::new(token_type, self.get_pos_within_token(), literal);
+        self.reset_pos_within_token();
+        token
+    }
+
     /// Return whether `.e` or `.E` starts a decimal exponent after a dot.
     #[inline]
     fn dot_starts_decimal_exponent(&self) -> bool {
@@ -219,10 +278,6 @@ impl Lexer {
                 side_tokens.push(token_span);
             }
 
-            // track last tokens for O(1) context lookups
-            if is_semantic(token.ty) {
-                self.track_semantic_token(token_span);
-            }
             if token.ty == TokenType::End {
                 break;
             }
@@ -240,64 +295,9 @@ impl Lexer {
         (tokens, side_tokens, eof_token)
     }
 
-    /// Track semantic token context for regex and tree disambiguation.
-    pub(super) fn track_semantic_token(&mut self, token_span: TokenSpan) {
-        // update the last non-whitespace token (includes newlines)
-        self.options.last_non_whitespace_token = Some(token_span);
-
-        // update semantic token history (excludes newlines)
-        if token_span.token.ty != TokenType::Newline {
-            // remember control header grouping for close-parenthesis regex disambiguation
-            if token_span.token.ty == TokenType::OpenParenthesis {
-                let starts_control_header = self
-                    .options
-                    .last_semantic_token
-                    .as_ref()
-                    .is_some_and(|token| self.token_is_control_header_keyword(token));
-                self.options
-                    .control_header_parenthesis_stack
-                    .push(starts_control_header);
-            } else if token_span.token.ty == TokenType::CloseParenthesis {
-                self.options.last_close_parenthesis_ends_control_header = self
-                    .options
-                    .control_header_parenthesis_stack
-                    .pop()
-                    .unwrap_or(false);
-            } else {
-                self.options.last_close_parenthesis_ends_control_header = false;
-            }
-
-            self.options.prev_prev_semantic_token = self.options.prev_semantic_token;
-            self.options.prev_semantic_token = self.options.last_semantic_token;
-            self.options.last_semantic_token = Some(token_span);
-        }
-    }
-
-    /// Return true when an identifier token is a control header keyword.
-    fn token_is_control_header_keyword(&self, token: &TokenSpan) -> bool {
-        if token.token.ty != TokenType::Identifier {
-            return false;
-        }
-
-        let Ok(keyword) = Keyword::from_str(self.get_span_str(token.span)) else {
-            return false;
-        };
-        matches!(
-            keyword,
-            Keyword::If | Keyword::While | Keyword::For | Keyword::With
-        )
-    }
-
     /// Parses a token from the input string.
     pub(super) fn advance(&mut self) -> Token {
         self.last_side_token_had_line_terminator = false;
-
-        // if we're in tree content mode, try to eat tree text
-        if self.in_tree_content()
-            && let Some(token) = self.try_eat_tree_text()
-        {
-            return token;
-        }
 
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.eat() else {
@@ -319,7 +319,7 @@ impl Lexer {
                 }
             }
 
-            // slash, comments, regex, divide ops, or tree self-closing
+            // slash, comments, regex, or divide ops
             '/' => {
                 let bytes = self.as_str().as_bytes();
                 let next = bytes.first().copied();
@@ -364,35 +364,11 @@ impl Lexer {
                         }
                     }
                     _ => {
-                        // in tree opening tag mode, / is part of self-closing tag
-                        if self.tree_state() == TreeState::OpeningTag && self.peek() == '>'
-                            || self.tree_state() == TreeState::ClosingTag
-                        {
+                        if self.peek() == '=' {
+                            self.eat();
+                            (TokenType::DivideAssign, None)
+                        } else {
                             (TokenType::Divide, None)
-                        }
-                        // regex or divide
-                        else {
-                            // /regex/ only when context permits and a closing slash exists
-                            let is_regex_start = self.is_expression_start_for_regex()
-                                && self.regex_literal_has_terminator();
-
-                            // regex
-                            if is_regex_start {
-                                let has_flags = self.eat_regex_string();
-                                (
-                                    TokenType::Literal,
-                                    Some(LiteralType::RegexString { has_flags }),
-                                )
-                            }
-                            // /=
-                            else if self.peek() == '=' {
-                                self.eat();
-                                (TokenType::DivideAssign, None)
-                            }
-                            // /
-                            else {
-                                (TokenType::Divide, None)
-                            }
                         }
                     }
                 }
@@ -482,31 +458,6 @@ impl Lexer {
                 (TokenType::CloseBracket, None)
             }
             '{' => {
-                // in tree content mode, { starts an expression container
-                if self.in_tree_content() {
-                    // leave content mode (will return when } is matched)
-                    self.pop_tree_state();
-                    // track the depth and tree level so we know when to return to content mode
-                    self.options
-                        .tree_expression_stack
-                        .push(TreeExpressionEntry {
-                            parentheses_depth: self.options.parentheses_depth,
-                            tree_depth: self.options.tree_state_stack.len(),
-                            from_content: true,
-                        });
-                }
-                // in tree opening tag mode, the first { starts an attribute expression container
-                else if self.tree_state() == TreeState::OpeningTag
-                    && !self.in_tree_expression_container()
-                {
-                    self.options
-                        .tree_expression_stack
-                        .push(TreeExpressionEntry {
-                            parentheses_depth: self.options.parentheses_depth,
-                            tree_depth: self.options.tree_state_stack.len(),
-                            from_content: false,
-                        });
-                }
                 self.options.parentheses_depth += 1;
                 (TokenType::OpenBrace, None)
             }
@@ -515,8 +466,7 @@ impl Lexer {
                 self.options.parentheses_depth -= 1;
 
                 // we're at the end of a template string interpolation
-                if self.options.template_string_stack.last()
-                    == Some(&self.options.parentheses_depth)
+                if self.options.template_string_stack.peek() == Some(self.options.parentheses_depth)
                 {
                     self.options.template_string_stack.pop();
                     let is_complete = self.eat_template_string();
@@ -530,20 +480,6 @@ impl Lexer {
                         self.options.parentheses_depth += 1; // for the opening `{` (again)
                         (TokenType::TemplateStringMiddle, None)
                     }
-                }
-                // we're at the end of a tree expression container
-                else if let Some(entry) = self.options.tree_expression_stack.last()
-                    && entry.parentheses_depth == self.options.parentheses_depth
-                    && entry.tree_depth == self.options.tree_state_stack.len()
-                {
-                    let from_content = entry.from_content;
-                    self.options.tree_expression_stack.pop();
-                    // only return to content mode if we came from content mode
-                    // (not for attribute expression containers in OpeningTag mode)
-                    if from_content {
-                        self.push_tree_state(TreeState::Content);
-                    }
-                    (TokenType::CloseBrace, None)
                 } else {
                     (TokenType::CloseBrace, None)
                 }
@@ -621,37 +557,18 @@ impl Lexer {
 
             // elementwise and, logical and and their assignments
             '&' => {
-                // only decode html entities inside tree content
-                if self.in_tree_content()
-                    && let Some(html_entity_token) = self.try_eat_html_entity()
-                {
-                    html_entity_token
-                }
-                // treat invalid html entities as text content
-                else if self.in_tree_content() {
-                    self.eat_tree_text_after_ampersand();
-                    (TokenType::Literal, Some(LiteralType::TreeString))
-                }
-                // &&
-                else if self.peek() == '&' {
+                if self.peek() == '&' {
                     self.eat();
-                    // &&=
                     if self.peek() == '=' {
                         self.eat();
                         (TokenType::LogicalAndAssign, None)
-                    }
-                    // &&
-                    else {
+                    } else {
                         (TokenType::LogicalAnd, None)
                     }
-                }
-                // &=
-                else if self.peek() == '=' {
+                } else if self.peek() == '=' {
                     self.eat();
                     (TokenType::ElementwiseAndAssign, None)
-                }
-                // &
-                else {
+                } else {
                     (TokenType::ElementwiseAnd, None)
                 }
             }
@@ -708,153 +625,39 @@ impl Lexer {
                 }
             }
 
-            // less than, shift left, or tree literal opening
+            // less than or shift left
             '<' => {
-                let in_tree_opening_tag = self.tree_state() == TreeState::OpeningTag
-                    && !self.in_tree_expression_container();
-
-                // static arguments inside opening tag
-                if in_tree_opening_tag {
-                    // nested tree literal attribute value: `attr=<Tag />`
-                    let follows_attribute_value_assign = self
-                        .options
-                        .last_semantic_token
-                        .is_some_and(|token| token.token.ty == TokenType::Assign);
-                    if follows_attribute_value_assign {
-                        self.push_tree_state(TreeState::OpeningTag);
-                        (TokenType::LessThan, None)
-                    }
-                    // <<
-                    else if self.peek() == '<' {
-                        self.eat();
-                        self.options.tree_tag_angle_depth += 2;
-                        // <<|
-                        if self.peek() == '|' {
-                            self.eat();
-                            // <<|=
-                            if self.peek() == '=' {
-                                self.eat();
-                                (TokenType::SaturatingShiftLeftAssign, None)
-                            }
-                            // <<|
-                            else {
-                                (TokenType::SaturatingShiftLeft, None)
-                            }
-                        }
-                        // <<=
-                        else if self.peek() == '=' {
-                            self.eat();
-                            (TokenType::ShiftLeftAssign, None)
-                        }
-                        // <<
-                        else {
-                            (TokenType::ShiftLeft, None)
-                        }
-                    }
-                    // <=
-                    else if self.peek() == '=' {
-                        self.eat();
-                        self.options.tree_tag_angle_depth += 1;
-                        (TokenType::LessThanOrEqual, None)
-                    }
-                    // <
-                    else {
-                        self.options.tree_tag_angle_depth += 1;
-                        (TokenType::LessThan, None)
-                    }
-                }
-                // <<
-                else if self.peek() == '<' {
+                if self.peek() == '<' {
                     self.eat();
-                    // <<|
                     if self.peek() == '|' {
                         self.eat();
-                        // <<|=
                         if self.peek() == '=' {
                             self.eat();
                             (TokenType::SaturatingShiftLeftAssign, None)
-                        }
-                        // <<|
-                        else {
+                        } else {
                             (TokenType::SaturatingShiftLeft, None)
                         }
-                    }
-                    // <<=
-                    else if self.peek() == '=' {
+                    } else if self.peek() == '=' {
                         self.eat();
                         (TokenType::ShiftLeftAssign, None)
-                    }
-                    // <<
-                    else {
+                    } else {
                         (TokenType::ShiftLeft, None)
                     }
-                }
-                // <=
-                else if self.peek() == '=' {
+                } else if self.peek() == '=' {
                     self.eat();
                     (TokenType::LessThanOrEqual, None)
-                }
-                // </ - tree closing tag while lexing tree content
-                else if self.in_tree_content() && self.peek_tree_closing_after_trivia() {
-                    // pop from content mode (closing tag will finish with >)
-                    self.pop_tree_state();
-                    // push closing tag mode
-                    self.push_tree_state(TreeState::ClosingTag);
-                    (TokenType::LessThan, None)
-                }
-                // < - tree opening tag while lexing tree content
-                else if self.in_tree_content() {
-                    self.push_tree_state(TreeState::OpeningTag);
-                    (TokenType::LessThan, None)
-                }
-                // < - plain less than
-                else {
+                } else {
                     (TokenType::LessThan, None)
                 }
             }
 
-            // greater than, shift right, or tree tag close
+            // greater than or shift right
             '>' => {
-                // in tree opening tag mode, > ends the tag
-                if self.tree_state() == TreeState::OpeningTag
-                    && !self.in_tree_expression_container()
-                {
-                    if self.options.tree_tag_angle_depth > 0 {
-                        self.options.tree_tag_angle_depth -= 1;
-                        (TokenType::GreaterThan, None)
-                    } else {
-                        // check if previous token was / (self-closing tag)
-                        let prev_is_divide = self
-                            .options
-                            .last_semantic_token
-                            .map(|t| t.token.ty == TokenType::Divide)
-                            .unwrap_or(false);
-
-                        if prev_is_divide {
-                            // self-closing: just pop, no content mode
-                            self.pop_tree_state();
-                        } else {
-                            // regular opening: transition to content mode
-                            self.pop_tree_state();
-                            self.push_tree_state(TreeState::Content);
-                        }
-                        (TokenType::GreaterThan, None)
-                    }
-                }
-                // in tree closing tag mode, > ends the closing tag
-                else if self.tree_state() == TreeState::ClosingTag {
-                    // just pop closing tag mode, return to parent context
-                    self.pop_tree_state();
-                    (TokenType::GreaterThan, None)
-                }
-                // >>=
-                else if self.peek() == '>' && self.peek_next() == '=' {
+                if self.peek() == '>' && self.peek_next() == '=' {
                     self.eat(); // >
                     self.eat(); // =
                     (TokenType::ShiftRightAssign, None)
-                }
-                // >>>=
-                else if self.peek() == '>'
+                } else if self.peek() == '>'
                     && self.peek_next() == '>'
                     && self.peek_next_next() == '='
                 {
@@ -862,14 +665,17 @@ impl Lexer {
                     self.eat(); // >
                     self.eat(); // =
                     (TokenType::UnsignedShiftRightAssign, None)
-                }
-                // >=
-                else if self.peek() == '=' {
+                } else if self.peek() == '>' && self.peek_next() == '>' {
+                    self.eat(); // >
+                    self.eat(); // >
+                    (TokenType::UnsignedShiftRight, None)
+                } else if self.peek() == '>' {
+                    self.eat(); // >
+                    (TokenType::ShiftRight, None)
+                } else if self.peek() == '=' {
                     self.eat();
                     (TokenType::GreaterThanOrEqual, None)
-                }
-                // >
-                else {
+                } else {
                     (TokenType::GreaterThan, None)
                 }
             }
@@ -1085,6 +891,10 @@ impl Lexer {
 
             _ => (TokenType::Unknown, None),
         };
+
+        if is_semantic(token_type) && token_type != TokenType::Newline {
+            self.options.in_tree_attribute_value = false;
+        }
 
         let token = Token::new(token_type, self.get_pos_within_token(), literal);
         self.reset_pos_within_token();
@@ -1562,7 +1372,7 @@ impl Lexer {
     /// Return true when quoted strings can span lines in tree opening tag attributes.
     #[inline]
     fn allow_line_terminator_in_tree_attribute_string(&self) -> bool {
-        self.tree_state() == TreeState::OpeningTag && !self.in_tree_expression_container()
+        self.options.in_tree_attribute_value
     }
 
     /// Parse a single-quoted literal (excluding the initial `'`).
@@ -1771,49 +1581,9 @@ impl Lexer {
         false
     }
 
-    // detect whether a slash can terminate this regex before a line break
-    fn regex_literal_has_terminator(&self) -> bool {
-        let mut escaped = false;
-        let mut in_character_class = false;
-
-        for c in self.as_str().chars() {
-            if is_line_terminator_char(c) {
-                return false;
-            }
-
-            if escaped {
-                escaped = false;
-                continue;
-            }
-
-            if c == '\\' {
-                escaped = true;
-                continue;
-            }
-
-            if in_character_class {
-                if c == ']' {
-                    in_character_class = false;
-                }
-                continue;
-            }
-
-            if c == '[' {
-                in_character_class = true;
-                continue;
-            }
-
-            if c == '/' {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Parses a regex string (excluding first `/`, including any flags after `/`).
     /// Works exactly like JS/TS regex literals.
-    fn eat_regex_string(&mut self) -> bool {
+    pub(super) fn eat_regex_string(&mut self) -> bool {
         debug_assert!(self.prev() == '/');
         let mut escaped = false;
         let mut in_character_class = false;
@@ -1999,54 +1769,6 @@ impl Lexer {
         (false, has_line_terminator)
     }
 
-    /// Return true when a tree closing tag starts after trivia.
-    fn peek_tree_closing_after_trivia(&self) -> bool {
-        // scan forward until we hit a non trivia character
-        let mut iter = self.as_str().char_indices().peekable();
-
-        while let Some((_offset, c)) = iter.next() {
-            // skip whitespace
-            if is_whitespace(c) {
-                continue;
-            }
-
-            // handle comment prefixes and closing tags
-            if c == '/' {
-                let next = iter.peek().map(|(_, c)| *c);
-
-                // skip line comments
-                if next == Some('/') {
-                    iter.next();
-                    for (_offset, c) in iter.by_ref() {
-                        if c == '\n' {
-                            break;
-                        }
-                    }
-                    continue;
-                }
-
-                // skip block comments
-                if next == Some('*') {
-                    iter.next();
-                    let mut prev = '\0';
-                    for (_offset, c) in iter.by_ref() {
-                        if prev == '*' && c == '/' {
-                            break;
-                        }
-                        prev = c;
-                    }
-                    continue;
-                }
-
-                return true;
-            }
-
-            return false;
-        }
-
-        false
-    }
-
     /// Tries to eat tree literal text content (TSX-compatible).
     /// Returns a Literal token with TreeString type if there's text content.
     /// Text content ends at `<`, `{`, or `&` (for HTML entities).
@@ -2096,212 +1818,6 @@ impl Lexer {
                 }
             }
         }
-    }
-
-    /// Check if `/` can start a regex literal.
-    fn is_expression_start_for_regex(&self) -> bool {
-        let last_non_whitespace = self.options.last_non_whitespace_token.as_ref();
-        let Some(last_non_whitespace) = last_non_whitespace else {
-            return true;
-        };
-
-        // handle newline boundaries via statement termination rules
-        if last_non_whitespace.token.ty == TokenType::Newline {
-            let Some(last_semantic) = self.options.last_semantic_token.as_ref() else {
-                return true;
-            };
-            if self.not_token_is_postfix_non_null_assertion(
-                last_semantic,
-                self.options.prev_semantic_token.as_ref(),
-            ) {
-                return false;
-            }
-            if self.is_statement_boundary_after_newline(
-                Some(last_non_whitespace),
-                last_semantic,
-                self.options.prev_semantic_token.as_ref(),
-            ) {
-                return true;
-            }
-
-            // continue expression context across newline
-            if last_semantic.token.ty == TokenType::CloseParenthesis
-                && self.close_parenthesis_ends_control_header()
-            {
-                return true;
-            }
-            if EXPRESSION_START_TOKEN_TYPES.contains(&last_semantic.token.ty) {
-                return true;
-            }
-            if last_semantic.token.ty == TokenType::Identifier {
-                return Keyword::from_str(self.get_span_str(last_semantic.span))
-                    .map(|keyword| self.keyword_starts_expression_for_regex(keyword))
-                    .unwrap_or(false);
-            }
-
-            return false;
-        }
-
-        if self.not_token_is_postfix_non_null_assertion(
-            last_non_whitespace,
-            self.options.prev_semantic_token.as_ref(),
-        ) {
-            return false;
-        }
-
-        // control statement headers can be followed by expression statements
-        if last_non_whitespace.token.ty == TokenType::CloseParenthesis
-            && self.close_parenthesis_ends_control_header()
-        {
-            return true;
-        }
-
-        if EXPRESSION_START_TOKEN_TYPES.contains(&last_non_whitespace.token.ty) {
-            return true;
-        }
-
-        if last_non_whitespace.token.ty == TokenType::Identifier {
-            return Keyword::from_str(self.get_span_str(last_non_whitespace.span))
-                .map(|keyword| self.keyword_starts_expression_for_regex(keyword))
-                .unwrap_or(false);
-        }
-
-        false
-    }
-
-    // classify identifier keywords that still expect a right hand expression
-    fn keyword_starts_expression_for_regex(&self, keyword: Keyword) -> bool {
-        keyword.is_control()
-            || keyword == Keyword::Delete
-            || keyword == Keyword::In
-            || keyword == Keyword::InstanceOf
-            || UnaryOperator::from_prefix_keyword(keyword).is_some()
-            || keyword == Keyword::Default && self.default_follows_export()
-    }
-
-    // detect typescript postfix non null assertions before `/`
-    fn not_token_is_postfix_non_null_assertion(
-        &self,
-        not_token: &TokenSpan,
-        previous_semantic: Option<&TokenSpan>,
-    ) -> bool {
-        if !self.language.is_typescript() || not_token.token.ty != TokenType::Not {
-            return false;
-        }
-        let Some(previous_semantic) = previous_semantic else {
-            return false;
-        };
-        self.token_can_end_expression_for_non_null_assertion(previous_semantic)
-    }
-
-    // detect whether a token can end an expression before a postfix non null assertion
-    fn token_can_end_expression_for_non_null_assertion(&self, token: &TokenSpan) -> bool {
-        match token.token.ty {
-            TokenType::Identifier => {
-                let token_str = self.get_span_str(token.span);
-                match Keyword::from_str(token_str) {
-                    Ok(Keyword::This | Keyword::Super) => true,
-                    Ok(_) => false,
-                    Err(_) => true,
-                }
-            }
-            TokenType::Literal
-            | TokenType::CloseParenthesis
-            | TokenType::CloseBracket
-            | TokenType::CloseBrace
-            | TokenType::TemplateString
-            | TokenType::TemplateStringEnd
-            | TokenType::Increment
-            | TokenType::Decrement => true,
-            _ => false,
-        }
-    }
-
-    // detect `export default /regex/` context
-    fn default_follows_export(&self) -> bool {
-        let Some(previous) = self.options.prev_semantic_token.as_ref() else {
-            return false;
-        };
-        if previous.token.ty != TokenType::Identifier {
-            return false;
-        }
-        Keyword::from_str(self.get_span_str(previous.span)) == Ok(Keyword::Export)
-    }
-
-    // detect control headers ending in `)` where the body can start with `/regex/`
-    fn close_parenthesis_ends_control_header(&self) -> bool {
-        let Some(last_token) = self.options.last_semantic_token.as_ref() else {
-            return false;
-        };
-        if last_token.token.ty != TokenType::CloseParenthesis {
-            return false;
-        }
-
-        self.options.last_close_parenthesis_ends_control_header
-    }
-
-    /// Check whether a newline can terminate a statement before a tree literal.
-    fn is_statement_boundary_after_newline(
-        &self,
-        last_non_whitespace: Option<&TokenSpan>,
-        last_semantic: &TokenSpan,
-        prev_semantic: Option<&TokenSpan>,
-    ) -> bool {
-        // only treat newlines as boundaries
-        let is_newline = matches!(
-            last_non_whitespace.map(|token| token.token.ty),
-            Some(TokenType::Newline)
-        );
-        if !is_newline {
-            return false;
-        }
-
-        // semicolons always terminate statements
-        if last_semantic.token.ty == TokenType::Semicolon {
-            return true;
-        }
-
-        // block end followed by newline starts a new statement
-        if last_semantic.token.ty == TokenType::CloseBrace {
-            return true;
-        }
-
-        // regex literals can terminate a statement before another regex literal
-        if last_semantic.token.ty == TokenType::Literal
-            && matches!(
-                last_semantic.token.literal,
-                Some(LiteralType::RegexString { .. })
-            )
-        {
-            return true;
-        }
-
-        // allow after statement-terminating keywords
-        if last_semantic.token.ty == TokenType::Identifier
-            && let Ok(keyword) = Keyword::from_str(self.get_span_str(last_semantic.span))
-            && matches!(
-                keyword,
-                Keyword::Return
-                    | Keyword::Break
-                    | Keyword::Continue
-                    | Keyword::Debugger
-                    | Keyword::Yield
-            )
-        {
-            return true;
-        }
-
-        // allow after let/var declaration with newline terminator
-        if let Some(prev_token) = prev_semantic
-            && last_semantic.token.ty == TokenType::Identifier
-            && prev_token.token.ty == TokenType::Identifier
-            && let Ok(keyword) = Keyword::from_str(self.get_span_str(prev_token.span))
-            && matches!(keyword, Keyword::Let | Keyword::Var)
-        {
-            return true;
-        }
-
-        false
     }
 }
 

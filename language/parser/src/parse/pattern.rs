@@ -226,14 +226,15 @@ impl Parser {
                     )
                 }
                 // nullish literals in patterns
-                else if path.segments[0] == self.type_literal_identifiers.null_
-                    || path.segments[0] == self.type_literal_identifiers.undefined
+                else if path.segments[0] == self.state.type_literal_identifiers.null_
+                    || path.segments[0] == self.state.type_literal_identifiers.undefined
                 {
-                    let type_literal = if path.segments[0] == self.type_literal_identifiers.null_ {
-                        TypeLiteral::Null
-                    } else {
-                        TypeLiteral::Undefined
-                    };
+                    let type_literal =
+                        if path.segments[0] == self.state.type_literal_identifiers.null_ {
+                            TypeLiteral::Null
+                        } else {
+                            TypeLiteral::Undefined
+                        };
                     let expression_id = self.insert_node(
                         Expression::TypeLiteral(type_literal),
                         self.get_span_from(&start),

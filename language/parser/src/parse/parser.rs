@@ -1,4 +1,4 @@
-use crate::{TokenStream, TokenStreamMark, is_semantic};
+use crate::{Lexer, LexerSnapshot, is_semantic};
 use core::fmt;
 use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeTreeMark,
@@ -20,12 +20,18 @@ use crate::parse::timing::ParserTimings;
 use crate::parse::timing::{ParserTimingEntry, ParserTimingScope, ParserTimingTag, tags};
 use crate::{ParseError, ParseResult};
 
+use super::state::ParserState;
+#[cfg(feature = "timings")]
+use super::stats::ParserSpeculationStats;
+use super::stats::ParserStats;
+
 const ESTIMATED_TOKEN_BYTES: usize = 6;
 const ESTIMATED_STRING_COUNT_DENOMINATOR: usize = 16;
 const ESTIMATED_STRING_BYTES_DENOMINATOR: usize = 8;
 
 /// Cached string ids for type literal identifiers.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(crate) struct TypeLiteralIdentifiers {
     pub(crate) undefined: StringId,
     pub(crate) unknown: StringId,
@@ -112,65 +118,6 @@ impl Default for ParserSettings {
             retain_trivia_tokens: true,
         }
     }
-}
-
-/// Counters for speculative parser dispatch and rollback behavior.
-#[derive(Debug, Copy, Clone, Default)]
-pub struct ParserSpeculationStats {
-    /// The number of `with_options` scope switches.
-    pub with_options_calls: u64,
-    /// The number of parser rewinds.
-    pub rewind_calls: u64,
-    /// The number of parser restores with tree rollback.
-    pub restore_calls: u64,
-    /// The number of parenthesized follow-token lookups.
-    pub parenthesized_follow_token_calls: u64,
-    /// The number of parenthesized follow-token hits.
-    pub parenthesized_follow_token_hits: u64,
-    /// The number of parenthesized delimiter analysis lookups.
-    pub delimiter_analysis_lookups: u64,
-    /// The number of delimiter analyses that needed token-stream snapshots.
-    pub delimiter_analysis_snapshot_lookups: u64,
-    /// The number of delimiter analyses that executed inner scans.
-    pub delimiter_analysis_scans: u64,
-    /// The number of statement keyword dispatch calls.
-    pub statement_keyword_dispatch_calls: u64,
-    /// The number of statement keyword dispatch prefilter rejections.
-    pub statement_keyword_dispatch_prefilter_rejects: u64,
-    /// The number of statement keyword dispatch keyword rejections.
-    pub statement_keyword_dispatch_keyword_rejects: u64,
-    /// The number of direct statement keyword hits.
-    pub statement_keyword_dispatch_direct_hits: u64,
-    /// The number of direct statement keyword misses.
-    pub statement_keyword_dispatch_direct_misses: u64,
-    /// The number of fallback keyword parser hits.
-    pub statement_keyword_dispatch_fallback_hits: u64,
-    /// The number of fallback keyword parser misses.
-    pub statement_keyword_dispatch_fallback_misses: u64,
-    /// The number of parenthesized expression plain-path calls.
-    pub parenthesized_expression_plain_calls: u64,
-    /// The number of parenthesized expression plain-path hits.
-    pub parenthesized_expression_plain_hits: u64,
-    /// The number of parenthesized expression plain-path misses.
-    pub parenthesized_expression_plain_misses: u64,
-    /// The number of plain parenthesized lambda calls.
-    pub parenthesized_lambda_plain_calls: u64,
-    /// The number of plain parenthesized lambda hits.
-    pub parenthesized_lambda_plain_hits: u64,
-    /// The number of plain parenthesized lambda misses.
-    pub parenthesized_lambda_plain_misses: u64,
-    /// The number of plain identifier lambda calls.
-    pub identifier_lambda_plain_calls: u64,
-    /// The number of plain identifier lambda hits.
-    pub identifier_lambda_plain_hits: u64,
-    /// The number of plain identifier lambda misses.
-    pub identifier_lambda_plain_misses: u64,
-    /// The number of async keyword speculative attempts.
-    pub async_keyword_speculative_attempts: u64,
-    /// The number of async keyword speculative successes.
-    pub async_keyword_speculative_successes: u64,
-    /// The number of async keyword speculative rollbacks.
-    pub async_keyword_speculative_rollbacks: u64,
 }
 
 #[allow(unused)]
@@ -977,17 +924,19 @@ pub struct Parser {
     pub file: Arc<File>,
     /// The source ID.
     pub file_id: FileId,
-    /// The token stream driving the parser.
-    pub(crate) token_stream: TokenStream,
+    /// The lexer backing the parser.
+    pub(crate) lexer: Lexer,
 
     /// The current parser cursor index in the semantic token stream.
     pos: usize,
+    /// The current visible token at the parser cursor.
+    current_token: TokenSpan,
+    /// The previous semantic token end.
+    previous_token_end: u32,
+    /// The last consumed visible token.
+    last_consumed_token: TokenSpan,
     /// Whether the parser is finished.
     is_finished: bool,
-    /// Expression recursion depth for periodic stack growth checks.
-    pub(crate) expression_stack_depth: u32,
-    /// Statement recursion depth for periodic stack growth checks.
-    pub(crate) statement_stack_depth: u32,
     /// The parser options.
     pub(crate) options: ParserOptions,
 
@@ -1005,14 +954,10 @@ pub struct Parser {
     /// Optional parser timing collector.
     #[cfg(feature = "timings")]
     pub(crate) timings: Option<Rc<ParserTimings>>,
-    /// Optional speculation and dispatch counter collector.
-    pub(crate) speculation_stats: Option<ParserSpeculationStats>,
-    /// Cached identifier lookup for identifier tokens.
-    pub(crate) token_identifiers: Vec<Option<StringId>>,
-    /// Cached-state bits for identifier lookup entries.
-    pub(crate) token_identifiers_cached: Vec<bool>,
-    /// Cached identifiers used by type literal parsing.
-    pub(crate) type_literal_identifiers: TypeLiteralIdentifiers,
+    /// Optional parser stats.
+    pub(crate) stats: ParserStats,
+    /// Semantic parser bookkeeping.
+    pub(crate) state: ParserState,
 }
 
 /// Cursor information for the next non-newline token.
@@ -1063,8 +1008,8 @@ impl Parser {
     /// Create a new parser from a text File and tokenize it.
     #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
     pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
-        // initialize token stream for lazy lexing
-        let token_stream = TokenStream::new(file.clone(), language);
+        // initialize the lexer for lazy lexing
+        let lexer = Lexer::new(file.clone(), language);
 
         // size the hot buffers from source bytes up front
         let source_len = file.text().len();
@@ -1079,11 +1024,18 @@ impl Parser {
         let mut parser = Self {
             file,
             file_id,
-            token_stream,
+            lexer,
             pos: 0,
+            current_token: TokenSpan {
+                token: Token::end(),
+                span: Span::new(file_id, 0, 0),
+            },
+            previous_token_end: 0,
+            last_consumed_token: TokenSpan {
+                token: Token::end(),
+                span: Span::new(file_id, 0, 0),
+            },
             is_finished: false,
-            expression_stack_depth: 0,
-            statement_stack_depth: 0,
             options: ParserOptions::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
@@ -1092,11 +1044,8 @@ impl Parser {
             errors: Vec::new(),
             #[cfg(feature = "timings")]
             timings: timings_from_env(),
-            speculation_stats: speculation_stats_enabled_from_env()
-                .then(ParserSpeculationStats::default),
-            token_identifiers: Vec::with_capacity(estimated_tokens),
-            token_identifiers_cached: Vec::with_capacity(estimated_tokens),
-            type_literal_identifiers,
+            stats: ParserStats::new(speculation_stats_enabled_from_env()),
+            state: ParserState::new(estimated_tokens, type_literal_identifiers),
         };
 
         // reset parser state to start
@@ -1126,14 +1075,15 @@ impl Parser {
     pub fn apply_settings(&mut self, settings: ParserSettings) {
         self.options
             .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
-        self.token_stream
+        self.lexer
             .set_retain_trivia_tokens(settings.retain_trivia_tokens);
     }
 
     /// Enable or disable parser speculation counters.
     #[inline]
+    #[cfg(feature = "timings")]
     pub fn set_collect_speculation_stats(&mut self, enabled: bool) {
-        self.speculation_stats = enabled.then(ParserSpeculationStats::default);
+        self.stats.set_collect_speculation_stats(enabled);
     }
 
     /// Get the span of all side annotations.
@@ -1152,18 +1102,22 @@ impl Parser {
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.pos = 0;
-        self.token_stream.clear_split_token();
-        self.expression_stack_depth = 0;
-        self.statement_stack_depth = 0;
+        self.previous_token_end = 0;
         let mut options = ParserOptions::default();
         options.set_disallow_ambiguous_tree_literal(
             self.language.supports_jsx() && self.language.is_typescript(),
         );
         self.options = options;
         self.errors.clear();
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            *speculation_stats = ParserSpeculationStats::default();
-        }
+        self.stats.reset();
+        self.state.reset();
+
+        self.refresh_current_token();
+        self.previous_token_end = 0;
+        self.last_consumed_token = TokenSpan {
+            token: Token::end(),
+            span: Span::new(self.file_id, 0, 0),
+        };
     }
 
     /// Start a parser timing scope.
@@ -1207,14 +1161,15 @@ impl Parser {
     }
 
     /// Snapshot speculative parser dispatch counters.
+    #[cfg(feature = "timings")]
     pub fn speculation_snapshot(&self) -> Option<ParserSpeculationStats> {
-        self.speculation_stats
+        self.stats.speculation_snapshot()
     }
 
     /// Return the current semantic tokens.
     #[inline]
     pub(crate) fn tokens(&self) -> &[TokenSpan] {
-        self.token_stream.tokens()
+        self.lexer.tokens()
     }
 
     /// Return the innermost expression after skipping parenthesized wrappers.
@@ -1234,37 +1189,165 @@ impl Parser {
     #[inline]
     pub(crate) fn ensure_token(&mut self, index: usize) {
         let _timing = self.timing_scope(tags::PARSE_LEX_ENSURE_TOKEN);
-        self.token_stream.ensure_token(index);
+        self.lexer.ensure_token(index);
     }
 
     /// Return true when tree literal lexing is enabled.
     #[inline]
     pub(crate) fn allow_tree_literals(&self) -> bool {
-        self.token_stream.allow_tree_literals()
+        self.lexer.allow_tree_literals()
     }
 
     /// Set whether tree literal lexing is enabled.
     #[inline]
     pub(crate) fn set_allow_tree_literals(&mut self, allow: bool) {
-        self.token_stream.set_allow_tree_literals(allow);
+        self.lexer.set_allow_tree_literals(allow);
     }
 
-    /// Return true when lexing is currently inside a tree literal.
+    /// Eat a tree opening `<`.
     #[inline]
-    pub(crate) fn in_tree_literal(&self) -> bool {
-        self.token_stream.in_tree_literal()
+    pub(crate) fn eat_tree_opening_angle(&mut self) -> ParseResult<()> {
+        if !self.peek_is(TokenType::LessThan) {
+            return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
+        }
+
+        self.bump();
+        Ok(())
     }
 
-    /// Return true when lexing is inside any tree expression container.
+    /// Enable or disable tree attribute value lexing for the next token.
     #[inline]
-    pub(crate) fn in_tree_expression_container(&self) -> bool {
-        self.token_stream.in_tree_expression_container()
+    pub(crate) fn set_tree_attribute_value(&mut self, enabled: bool) {
+        self.lexer.set_tree_attribute_value(enabled);
     }
 
-    /// Enter tree opening tag lex mode.
+    /// Re-lex the current token as a TypeScript `<`.
     #[inline]
-    pub(crate) fn enter_tree_opening_tag(&mut self) {
-        self.token_stream.enter_tree_opening_tag();
+    pub(crate) fn re_lex_ts_l_angle(&mut self) -> bool {
+        let token_type = self.current_token.token.ty;
+        if token_type == TokenType::LessThan {
+            return true;
+        }
+
+        if !matches!(
+            token_type,
+            TokenType::ShiftLeft | TokenType::LessThanOrEqual | TokenType::ShiftLeftAssign
+        ) {
+            return false;
+        }
+
+        let token = self.lexer.re_lex_as_typescript_l_angle(self.current_token);
+        self.current_token = token;
+        true
+    }
+
+    /// Re-lex the current token as one `>`.
+    #[inline]
+    pub(crate) fn re_lex_r_angle(&mut self) -> bool {
+        let token_type = self.current_token.token.ty;
+        if token_type == TokenType::GreaterThan {
+            return true;
+        }
+
+        if !matches!(
+            token_type,
+            TokenType::ShiftRight
+                | TokenType::UnsignedShiftRight
+                | TokenType::GreaterThanOrEqual
+                | TokenType::ShiftRightAssign
+                | TokenType::UnsignedShiftRightAssign
+        ) {
+            return false;
+        }
+
+        let token = self.lexer.re_lex_as_r_angle(self.current_token);
+        self.current_token = token;
+        true
+    }
+
+    /// Re-lex the current `/` or `/=` token as a regex literal
+    #[inline]
+    pub(crate) fn re_lex_regex(&mut self) -> bool {
+        let token_type = self.current_token.token.ty;
+        if token_type == TokenType::Literal
+            && matches!(
+                self.current_token.token.literal,
+                Some(destack_ast::LiteralType::RegexString { .. })
+            )
+        {
+            return true;
+        }
+
+        if !matches!(token_type, TokenType::Divide | TokenType::DivideAssign) {
+            return false;
+        }
+
+        let token = self.lexer.re_lex_as_regex(self.current_token);
+        self.lexer.commit_current_token_re_lex(self.pos, token);
+        self.current_token = token;
+        true
+    }
+
+    /// Eat one TypeScript angle-close token.
+    #[inline]
+    pub(crate) fn eat_type_angle_close(&mut self) -> ParseResult<()> {
+        if !self.re_lex_r_angle() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        self.bump();
+        Ok(())
+    }
+
+    /// Eat one expression-position TypeScript angle-close token.
+    #[inline]
+    pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParseResult<()> {
+        if !Self::starts_expression_type_angle_close(self.peek_token_type()) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        self.eat_type_angle_close()
+    }
+
+    /// Return true when one token can begin a type-angle close sequence.
+    #[inline]
+    pub(crate) const fn starts_type_angle_close(token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::GreaterThan
+                | TokenType::ShiftRight
+                | TokenType::UnsignedShiftRight
+                | TokenType::GreaterThanOrEqual
+                | TokenType::ShiftRightAssign
+                | TokenType::UnsignedShiftRightAssign
+        )
+    }
+
+    /// Return true when one token can begin an expression-position type-angle close.
+    #[inline]
+    pub(crate) const fn starts_expression_type_angle_close(token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::GreaterThan | TokenType::ShiftRight | TokenType::UnsignedShiftRight
+        )
+    }
+
+    /// Return true when the current token can begin a type-angle close sequence.
+    #[inline]
+    pub(crate) fn peek_starts_type_angle_close(&mut self) -> bool {
+        Self::starts_type_angle_close(self.peek_token_type())
+    }
+
+    /// Return true when the current token can begin an expression-position type-angle close.
+    #[inline]
+    pub(crate) fn peek_starts_expression_type_angle_close(&mut self) -> bool {
+        Self::starts_expression_type_angle_close(self.peek_token_type())
+    }
+
+    /// Return true when the current token can begin one `>` in tree tag syntax.
+    #[inline]
+    pub(crate) fn peek_starts_tree_tag_close(&mut self) -> bool {
+        Self::starts_type_angle_close(self.peek_token_type())
     }
 
     /// Return the next non newline token index from a start index.
@@ -1277,25 +1360,6 @@ impl Parser {
     /// Return the first non-newline token index from a start index.
     #[inline]
     pub(crate) fn first_non_newline_index_from(&mut self, start: usize) -> usize {
-        // split tokens only exist in parser state, so keep parser indexed lookups here
-        if self.has_active_split() {
-            if self.token_type_at(start) != TokenType::Newline {
-                return start;
-            }
-
-            let mut index = start;
-            loop {
-                let token_type = self.token_type_at(index);
-                if token_type != TokenType::Newline {
-                    return index;
-                }
-                if token_type == TokenType::End {
-                    return index;
-                }
-                index += 1;
-            }
-        }
-
         let mut index = start;
         loop {
             let tokens = self.tokens();
@@ -1307,7 +1371,7 @@ impl Parser {
                 index += 1;
             }
 
-            if self.token_stream.is_lexed_to_end() {
+            if self.lexer.is_lexed_to_end() {
                 return index;
             }
 
@@ -1318,39 +1382,6 @@ impl Parser {
     /// Return cursor information for the first non-newline token from a start index.
     #[inline]
     pub(crate) fn scanner_cursor_from(&mut self, start: usize) -> NonNewlineTokenCursor {
-        // active split tokens only affect the current parser position
-        if let Some(token) = self.token_stream.active_split_token()
-            && start == self.pos_index()
-        {
-            let token_type = token.token.ty;
-            if token_type != TokenType::Newline {
-                return NonNewlineTokenCursor {
-                    index: start,
-                    token_type,
-                    skipped_newline_count: 0,
-                    has_line_break_before: self.line_terminator_before_index(start),
-                };
-            }
-        }
-
-        // split tokens are parser local and do not exist in token stream cursors
-        if self.has_active_split() {
-            let index = self.first_non_newline_index_from(start);
-            let token_type = self.token_type_at(index);
-            let skipped_newline_count = index.saturating_sub(start);
-            let has_line_break_before = if skipped_newline_count > 0 {
-                true
-            } else {
-                self.line_terminator_before_index(index)
-            };
-            return NonNewlineTokenCursor {
-                index,
-                token_type,
-                skipped_newline_count,
-                has_line_break_before,
-            };
-        }
-
         let index = self.first_non_newline_index_from(start);
         let token_type = self
             .tokens()
@@ -1361,7 +1392,7 @@ impl Parser {
         let has_line_break_before = if skipped_newline_count > 0 {
             true
         } else {
-            self.token_stream.materialized_line_terminator_before(index)
+            self.lexer.materialized_line_terminator_before(index)
         };
 
         NonNewlineTokenCursor {
@@ -1378,13 +1409,13 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LEX_MATCHING_PAIR);
 
         // fully materialized streams can serve pair lookups without incremental lex checks
-        if self.token_stream.is_lexed_to_end() {
-            return self.token_stream.matching_pair(index);
+        if self.lexer.is_lexed_to_end() {
+            return self.lexer.matching_pair(index);
         }
 
         // tree literal lexing needs parser driven mode switches before aggressive lookahead
         if self.allow_tree_literals() && !self.options.is_in_type() {
-            return self.token_stream.matching_pair(index);
+            return self.lexer.matching_pair(index);
         }
 
         self.ensure_token(index);
@@ -1398,12 +1429,12 @@ impl Parser {
         }
 
         loop {
-            let value = self.token_stream.matching_pair(index);
+            let value = self.lexer.matching_pair(index);
             if value.is_some() {
                 break value;
             }
 
-            if self.token_stream.is_lexed_to_end() {
+            if self.lexer.is_lexed_to_end() {
                 break None;
             }
 
@@ -1413,7 +1444,7 @@ impl Parser {
 
     /// Return owned token buffers after lexing to EOF.
     pub fn take_tokens(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
-        self.token_stream.take_tokens()
+        self.lexer.take_tokens()
     }
 
     /// Return the EOF span without forcing a full lex.
@@ -1431,7 +1462,7 @@ impl Parser {
             return Some(token);
         }
 
-        self.token_stream.token(index)
+        self.lexer.token(index)
     }
 
     /// Ensure a token exists at the given index and return a reference.
@@ -1490,35 +1521,48 @@ impl Parser {
         Err(ParseError::unexpected(span))
     }
 
-    /// Truncate token caches to match the current token count.
-    fn truncate_token_caches(&mut self) {
+    /// Truncate identifier caches to match the current token count.
+    fn truncate_identifier_caches(&mut self) {
         let len = self.tokens().len();
-        self.token_identifiers.truncate(len);
-        self.token_identifiers_cached.truncate(len);
+        self.state.truncate_identifier_caches(len);
     }
 
     /// Ensure identifier caches can index at least `index`.
     #[inline]
     pub(crate) fn ensure_identifier_cache_capacity(&mut self, index: usize) {
-        if self.token_identifiers.len() > index {
+        self.state.ensure_identifier_cache_capacity(index);
+    }
+
+    /// Refresh the parser owned current token from the backing lexer.
+    #[inline]
+    fn refresh_current_token(&mut self) {
+        self.current_token = self.lexer.token(self.pos).unwrap_or(TokenSpan {
+            token: Token::end(),
+            span: self.eof_span(),
+        });
+    }
+
+    /// Synchronize the parser owned cursor state to the current token index.
+    #[inline]
+    fn sync_cursor_to_pos(&mut self) {
+        self.refresh_current_token();
+
+        if self.pos == 0 {
+            self.previous_token_end = 0;
+            self.last_consumed_token = TokenSpan {
+                token: Token::end(),
+                span: Span::new(self.file_id, 0, 0),
+            };
             return;
         }
 
-        let required_len = index + 1;
-        let grown_len = self
-            .token_identifiers
-            .len()
-            .saturating_add(self.token_identifiers.len() / 2)
-            .saturating_add(64);
-        let new_len = required_len.max(grown_len);
-        self.token_identifiers.resize(new_len, None);
-        self.token_identifiers_cached.resize(new_len, false);
-    }
-
-    /// Return true when a split token is active.
-    #[inline]
-    pub(crate) fn has_active_split(&self) -> bool {
-        self.token_stream.has_active_split()
+        let previous_index = self.pos - 1;
+        let previous_token = self.token_at(previous_index).unwrap_or(TokenSpan {
+            token: Token::end(),
+            span: self.eof_span(),
+        });
+        self.previous_token_end = previous_token.span.end;
+        self.last_consumed_token = previous_token;
     }
 
     /// Get the current token index.
@@ -1543,13 +1587,13 @@ impl Parser {
         }
 
         let _timing = self.timing_scope(tags::PARSE_LEX_KEYWORD);
-        self.token_stream.materialized_keyword(index)
+        self.lexer.materialized_keyword(index)
     }
 
     /// Return whether an identifier token contains escape syntax.
     #[inline]
     pub(crate) fn identifier_has_escape_for_index(&mut self, index: usize) -> bool {
-        self.token_stream.identifier_has_escape(index)
+        self.lexer.identifier_has_escape(index)
     }
 
     /// Look up a pre interned identifier at a token index.
@@ -1561,8 +1605,8 @@ impl Parser {
 
         self.ensure_identifier_cache_capacity(index);
 
-        if self.token_identifiers_cached[index] {
-            return self.token_identifiers[index];
+        if self.state.token_identifiers_cached[index] {
+            return self.state.token_identifiers[index];
         }
 
         let token = self.tokens().get(index)?;
@@ -1580,8 +1624,8 @@ impl Parser {
         } else {
             None
         };
-        self.token_identifiers[index] = identifier;
-        self.token_identifiers_cached[index] = true;
+        self.state.token_identifiers[index] = identifier;
+        self.state.token_identifiers_cached[index] = true;
         identifier
     }
 
@@ -1609,27 +1653,10 @@ impl Parser {
         self.language.supports_module_declaration() && self.identifier_equals_at(index, "module")
     }
 
-    /// Return whether trivia before the token at index contains a line terminator.
-    #[inline]
-    pub(crate) fn line_terminator_before_index(&mut self, index: usize) -> bool {
-        let _timing = self.timing_scope(tags::PARSE_LEX_LINE_TERMINATOR);
-
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        self.token_stream.materialized_line_terminator_before(index)
-    }
-
-    /// Return a lookahead index adjusted for an active split token.
+    /// Return a lookahead index from the current parser position.
     #[inline]
     fn lookahead_index(&self, delta: usize) -> usize {
-        let offset = if self.has_active_split() {
-            delta.saturating_sub(1)
-        } else {
-            delta
-        };
-        self.pos + offset
+        self.pos + delta
     }
 
     /// Get the token index used by peek_next.
@@ -1650,9 +1677,9 @@ impl Parser {
         self.lookahead_index(3)
     }
 
-    /// Ensure token caches align with the current token stream after a rewind.
-    fn reset_token_caches_after_rewind(&mut self) {
-        self.truncate_token_caches();
+    /// Ensure identifier caches align with the current token count after a rewind.
+    fn reset_identifier_caches_after_rewind(&mut self) {
+        self.truncate_identifier_caches();
     }
 
     /// Parse everything as an implicit namespace with optional trivia attachment.
@@ -1707,7 +1734,7 @@ impl Parser {
         expressions: &mut Vec<LocalNodeId<Expression>>,
         consumed_to_end: bool,
     ) {
-        if !self.token_stream.retains_trivia_tokens() {
+        if !self.lexer.retains_trivia_tokens() {
             return;
         }
 
@@ -1717,10 +1744,10 @@ impl Parser {
         }
 
         // materialize the full stream before trivia ownership checks
-        self.token_stream.lex_to_end();
+        self.lexer.lex_to_end();
 
         // skip files without raw comments
-        if !self.token_stream.has_comment_tokens() {
+        if !self.lexer.has_comment_tokens() {
             return;
         }
 
@@ -1739,7 +1766,7 @@ impl Parser {
         }
 
         // directive-only files with attachable semantic tokens already have stable owners
-        if self.token_stream.has_attachable_semantic_tokens() {
+        if self.lexer.has_attachable_semantic_tokens() {
             return;
         }
 
@@ -1756,16 +1783,16 @@ impl Parser {
     /// Attach raw comments after parsing when needed.
     pub fn attach_comments(&mut self) {
         // skip comment output when trivia retention is disabled
-        if !self.token_stream.retains_trivia_tokens() {
+        if !self.lexer.retains_trivia_tokens() {
             return;
         }
 
         let _timing = self.timing_scope(tags::PARSE_COMMENTS);
 
         // materialize the stream so comment state is complete
-        self.token_stream.lex_to_end();
+        self.lexer.lex_to_end();
 
-        if !self.token_stream.has_comment_tokens() {
+        if !self.lexer.has_comment_tokens() {
             return;
         }
 
@@ -1775,7 +1802,7 @@ impl Parser {
         }
 
         // copy lexer owned comments into the parse result
-        for comment in self.token_stream.comments().iter().copied() {
+        for comment in self.lexer.comments().iter().copied() {
             self.tree.push_comment(comment);
         }
     }
@@ -1806,9 +1833,7 @@ impl Parser {
             return func(self);
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
-        }
+        self.stats.record_with_options_call();
 
         let old_options = self.swap_options(options);
         let result = func(self);
@@ -1832,15 +1857,15 @@ impl Parser {
     pub fn mark(&self) -> ParserMark {
         let _timing = self.timing_scope(tags::PARSE_ALLOC_MARK);
 
-        // snapshot token stream when tree state or split state can affect lookahead
-        let should_snapshot_token_stream = (self.allow_tree_literals()
-            && !self.options.is_in_type())
-            || self.token_stream.has_split_state();
-        let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
+        // snapshot lexer and cache state for any speculative parse
+        let lexer_mark = Some(self.lexer.snapshot());
         ParserMark::new(
             self.pos,
+            self.current_token,
+            self.previous_token_end,
+            self.last_consumed_token,
             self.tree.mark(),
-            token_stream_mark,
+            lexer_mark,
             self.errors.len(),
             self.diagnostics.len(),
         )
@@ -1849,15 +1874,15 @@ impl Parser {
     /// Get a mark for token rewinds without tree allocation snapshots.
     #[inline(always)]
     pub fn mark_rewind(&self) -> ParserMark {
-        // snapshot token stream when tree state or split state can affect lookahead
-        let should_snapshot_token_stream = (self.allow_tree_literals()
-            && !self.options.is_in_type())
-            || self.token_stream.has_split_state();
-        let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
+        // snapshot lexer and cache state for any speculative parse
+        let lexer_mark = Some(self.lexer.snapshot());
         ParserMark {
             pos: self.pos,
+            current_token: self.current_token,
+            previous_token_end: self.previous_token_end,
+            last_consumed_token: self.last_consumed_token,
             tree_mark: None,
-            token_stream_mark,
+            lexer_mark,
             error_count: None,
             diagnostic_count: None,
             span_override: None,
@@ -1869,8 +1894,11 @@ impl Parser {
     pub fn mark_span(&self) -> ParserMark {
         ParserMark {
             pos: self.pos,
+            current_token: self.current_token,
+            previous_token_end: self.previous_token_end,
+            last_consumed_token: self.last_consumed_token,
             tree_mark: None,
-            token_stream_mark: None,
+            lexer_mark: None,
             error_count: None,
             diagnostic_count: None,
             span_override: None,
@@ -1881,6 +1909,7 @@ impl Parser {
     pub(crate) fn with_pos<T>(&mut self, pos: usize, func: impl FnOnce(&mut Self) -> T) -> T {
         let mark = self.mark_rewind();
         self.pos = pos;
+        self.sync_cursor_to_pos();
         let result = func(self);
         self.rewind(mark);
         result
@@ -1888,13 +1917,14 @@ impl Parser {
 
     /// Rewind the position to the given mark and remove any nodes created since.
     pub fn rewind(&mut self, mark: ParserMark) {
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.rewind_calls += 1;
-        }
+        self.stats.record_rewind();
         self.pos = mark.pos;
-        if let Some(token_stream_mark) = mark.token_stream_mark {
-            self.token_stream.restore(token_stream_mark);
-            self.reset_token_caches_after_rewind();
+        self.current_token = mark.current_token;
+        self.previous_token_end = mark.previous_token_end;
+        self.last_consumed_token = mark.last_consumed_token;
+        if let Some(lexer_mark) = mark.lexer_mark {
+            self.lexer.restore(lexer_mark);
+            self.reset_identifier_caches_after_rewind();
         }
     }
 
@@ -1902,10 +1932,11 @@ impl Parser {
     pub fn restore(&mut self, mark: ParserMark, idx: u32) {
         let _timing = self.timing_scope(tags::PARSE_ALLOC_RESTORE);
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.restore_calls += 1;
-        }
+        self.stats.record_restore();
         self.pos = mark.pos;
+        self.current_token = mark.current_token;
+        self.previous_token_end = mark.previous_token_end;
+        self.last_consumed_token = mark.last_consumed_token;
         if let Some(tree_mark) = mark.tree_mark {
             debug_assert_eq!(tree_mark.next_global_id(), idx);
             self.tree.restore_to_mark(tree_mark);
@@ -1918,9 +1949,9 @@ impl Parser {
         if let Some(diagnostic_count) = mark.diagnostic_count {
             self.diagnostics.truncate(diagnostic_count);
         }
-        if let Some(token_stream_mark) = mark.token_stream_mark {
-            self.token_stream.restore(token_stream_mark);
-            self.reset_token_caches_after_rewind();
+        if let Some(lexer_mark) = mark.lexer_mark {
+            self.lexer.restore(lexer_mark);
+            self.reset_identifier_caches_after_rewind();
         }
     }
 
@@ -1983,12 +2014,7 @@ impl Parser {
     /// Get the previous Token.
     #[inline]
     pub fn prev(&self) -> Option<&TokenSpan> {
-        let pos = self.pos;
-        if pos > 0 {
-            self.tokens().get(pos - 1)
-        } else {
-            None
-        }
+        (self.previous_token_end > 0).then_some(&self.last_consumed_token)
     }
 
     /// Get the previous Token type.
@@ -2002,39 +2028,16 @@ impl Parser {
     /// Peek the next Token or error.
     #[inline]
     pub fn peek(&mut self) -> ParseResult<&TokenSpan> {
-        // return split token if present and not yet consumed
-        if self.has_active_split() {
-            return Ok(self
-                .token_stream
-                .active_split_token()
-                .expect("active split token should exist"));
-        }
-
-        if self.token_stream.has_split_state() {
-            self.token_stream.clear_split_token();
-        }
-
-        let pos = self.pos;
-        if pos >= self.tokens().len() {
-            self.ensure_token(pos);
-        }
-
-        self.tokens()
-            .get(pos)
-            .ok_or(ParseError::unexpected(self.eof_span()))
+        Ok(&self.current_token)
     }
 
     /// Peek the next token type, defaulting to End at EOF.
     #[inline]
     pub fn peek_token_type(&mut self) -> TokenType {
-        if let Some(token) = self.token_stream.active_split_token() {
-            return token.token.ty;
-        }
-
-        self.token_type_at(self.pos_index())
+        self.current_token.token.ty
     }
 
-    /// Peek the next token type, skipping an active split token.
+    /// Peek the next token type.
     #[inline]
     pub fn peek_next_token_type(&mut self) -> TokenType {
         self.token_type_at(self.index_for_next())
@@ -2133,33 +2136,13 @@ impl Parser {
     /// Eat the next Token or error.
     #[inline]
     pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
-        // if there's an active split token, consume it and return reference
-        if self.token_stream.mark_split_token_consumed() {
-            return Ok(self
-                .token_stream
-                .split_token_ref()
-                .expect("active split token should exist"));
-        }
+        let consumed = self.current_token;
+        self.last_consumed_token = consumed;
+        self.previous_token_end = consumed.span.end;
+        self.pos += 1;
+        self.refresh_current_token();
 
-        // clear stale split state before consuming regular tokens
-        if self.token_stream.has_split_state() {
-            self.token_stream.clear_split_token();
-        }
-
-        // normal case: consume from token stream
-        let pos = self.pos;
-        if pos >= self.tokens().len() {
-            self.ensure_token(pos);
-        }
-
-        if pos < self.tokens().len() {
-            self.pos += 1;
-            self.tokens()
-                .get(pos)
-                .ok_or(ParseError::unexpected(self.eof_span()))
-        } else {
-            Err(ParseError::unexpected(self.eof_span()))
-        }
+        Ok(&self.last_consumed_token)
     }
 
     /// Bump the Token position.
@@ -2167,24 +2150,26 @@ impl Parser {
     pub fn bump(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
 
-        // if there's an active split token, mark it as consumed instead of advancing
-        if self.has_active_split() {
-            self.token_stream.mark_split_token_consumed();
-            return;
-        }
-
-        // clear stale split state before advancing regular tokens
-        if self.token_stream.has_split_state() {
-            self.token_stream.clear_split_token();
-        }
-
-        let pos = self.pos;
-        if pos >= self.tokens().len() {
-            self.ensure_token(pos);
-        }
-
-        debug_assert!(pos < self.tokens().len(), "bump past end of tokens");
+        self.last_consumed_token = self.current_token;
+        self.previous_token_end = self.current_token.span.end;
         self.pos += 1;
+        self.refresh_current_token();
+    }
+
+    /// Advance the next token as a tree child token.
+    #[inline]
+    pub(crate) fn bump_tree_child(&mut self) {
+        debug_assert!(!self.is_finished, "parser is already finished");
+        debug_assert_eq!(
+            self.tokens().len(),
+            self.pos + 1,
+            "tree child advancement requires no materialized lookahead"
+        );
+
+        self.last_consumed_token = self.current_token;
+        self.previous_token_end = self.current_token.span.end;
+        self.pos += 1;
+        self.current_token = self.lexer.next_tree_child();
     }
 
     /// Bump the Token position by a given distance.
@@ -2192,17 +2177,15 @@ impl Parser {
     pub fn bump_by(&mut self, distance: u8) {
         debug_assert!(!self.is_finished, "parser is already finished");
 
-        if self.token_stream.has_split_state() {
-            self.token_stream.clear_split_token();
-        }
-
         let next_pos = self.pos + (distance as usize);
-        if next_pos >= self.tokens().len() {
-            self.ensure_token(next_pos);
-        }
-
-        debug_assert!(next_pos < self.tokens().len(), "bump past end of tokens");
+        self.ensure_token(next_pos);
+        self.last_consumed_token = self.current_token;
         self.pos += distance as usize;
+        self.previous_token_end = self
+            .token_at(self.pos.saturating_sub(1))
+            .map(|token| token.span.end)
+            .unwrap_or(self.previous_token_end);
+        self.refresh_current_token();
     }
 
     /// Advance the token position to a specific index.
@@ -2210,92 +2193,13 @@ impl Parser {
     pub(crate) fn advance_to(&mut self, pos: usize) {
         debug_assert!(!self.is_finished, "parser is already finished");
 
-        if self.token_stream.has_split_state() {
-            self.token_stream.clear_split_token();
-        }
-
         if pos >= self.tokens().len() {
             self.ensure_token(pos);
         }
 
         debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
         self.pos = pos;
-    }
-
-    /// Split a `<<` (ShiftLeft) token into two `<` tokens.
-    /// Consumes the ShiftLeft and stores a synthetic `<` as the pending split token.
-    /// Used when `<<` needs to become `<` + `<` in generic contexts like `Extends<<T>()...>`.
-    pub fn split_shift_left(&mut self) {
-        let pos = self.pos;
-        self.ensure_token(pos);
-        let current = &self.tokens()[pos];
-        debug_assert_eq!(
-            current.token.ty,
-            TokenType::ShiftLeft,
-            "split_shift_left called on non-ShiftLeft token"
-        );
-
-        // span for the second `<` (offset by 1 character)
-        let second_span = Span {
-            file: current.span.file,
-            start: current.span.start + 1,
-            end: current.span.end,
-        };
-
-        // store synthetic `<` token as pending
-        self.token_stream.set_split_token(TokenSpan {
-            token: Token {
-                ty: TokenType::LessThan,
-                len: 1,
-                literal: None,
-            },
-            span: second_span,
-        });
-
-        // advance past the ShiftLeft token
-        self.pos += 1;
-    }
-
-    /// Eat a single `>` token in generic close contexts.
-    ///
-    /// This handles glued operator tails like `>=`, `>>=`, and `>>>=`
-    /// by consuming one `>` and leaving the remainder as a pending split token.
-    pub fn eat_type_angle_close(&mut self) -> ParseResult<()> {
-        if self.peek_is(TokenType::GreaterThan) {
-            self.bump();
-            return Ok(());
-        }
-
-        let token = *self.peek()?;
-        let split_type = match token.token.ty {
-            TokenType::GreaterThanOrEqual => TokenType::Assign,
-            TokenType::ShiftRightAssign => TokenType::GreaterThanOrEqual,
-            TokenType::UnsignedShiftRightAssign => TokenType::ShiftRightAssign,
-            _ => return Err(ParseError::unexpected(token.span)),
-        };
-
-        let split_span = Span {
-            file: token.span.file,
-            start: token.span.start + 1,
-            end: token.span.end,
-        };
-
-        self.token_stream.set_split_token(TokenSpan {
-            token: Token {
-                ty: split_type,
-                len: token.token.len.saturating_sub(1),
-                literal: None,
-            },
-            span: split_span,
-        });
-        self.pos += 1;
-        Ok(())
-    }
-
-    /// Check if there's an active (unconsumed) split token of the given type.
-    #[inline]
-    pub fn has_split_token(&self, token_type: TokenType) -> bool {
-        self.token_stream.has_split_token(token_type)
+        self.sync_cursor_to_pos();
     }
 
     /// Peek a token at a position.
@@ -2440,6 +2344,33 @@ impl Parser {
         }
     }
 
+    /// Expect a token and advance the next token as a tree child token.
+    #[inline]
+    pub(crate) fn expect_tree_child(&mut self, token_type: TokenType) -> ParseResult<()> {
+        if !self.peek_is(token_type) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        self.bump_tree_child();
+        Ok(())
+    }
+
+    /// Eat one tree tag close token and advance in the requested mode.
+    #[inline]
+    pub(crate) fn eat_tree_tag_close(&mut self, in_tree_child: bool) -> ParseResult<()> {
+        if !self.re_lex_r_angle() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        if in_tree_child {
+            self.bump_tree_child();
+        } else {
+            self.bump();
+        }
+
+        Ok(())
+    }
+
     /// Eat a token in a list of tokens.
     #[inline]
     pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParseResult<TokenType> {
@@ -2520,7 +2451,7 @@ impl Parser {
             let token_type = token.token.ty;
 
             // recover from here and keep the separator or terminator for the caller
-            if token_type == terminator
+            if self.token_matches_terminator(token_type, terminator)
                 || Self::is_item_stop_token(token_type)
                 || Self::is_close_delimiter_token(token_type)
             {
@@ -2573,9 +2504,19 @@ impl Parser {
         }
 
         let token_type = self.peek_token_type();
-        token_type != terminator
+        !self.token_matches_terminator(token_type, terminator)
             && !Self::is_close_delimiter_token(token_type)
             && token_type != TokenType::End
+    }
+
+    /// Return true when one token satisfies one recovery terminator.
+    #[inline]
+    fn token_matches_terminator(&self, token_type: TokenType, terminator: TokenType) -> bool {
+        if terminator == TokenType::GreaterThan {
+            return Self::starts_type_angle_close(token_type);
+        }
+
+        token_type == terminator
     }
 
     /// Recover within a property or member body until a boundary token.
@@ -2887,6 +2828,7 @@ fn timings_from_env() -> Option<Rc<ParserTimings>> {
     timings_enabled_from_env().then(|| Rc::new(ParserTimings::default()))
 }
 
+#[cfg(feature = "timings")]
 fn speculation_stats_enabled_from_env() -> bool {
     std::env::var("DESTACK_PARSER_SPECULATION_STATS")
         .ok()
@@ -2900,14 +2842,25 @@ fn speculation_stats_enabled_from_env() -> bool {
         })
         .unwrap_or(false)
 }
+
+#[cfg(not(feature = "timings"))]
+fn speculation_stats_enabled_from_env() -> bool {
+    false
+}
 #[derive(Debug, Clone)]
 pub struct ParserMark {
     /// The token position.
     pos: usize,
+    /// The parser owned current token at mark time.
+    current_token: TokenSpan,
+    /// The previous semantic token end at mark time.
+    previous_token_end: u32,
+    /// The last consumed visible token at mark time.
+    last_consumed_token: TokenSpan,
     /// Tree allocation snapshot at mark time.
     tree_mark: Option<NodeTreeMark>,
-    /// The token stream mark for speculative parsing.
-    token_stream_mark: Option<TokenStreamMark>,
+    /// The lexer mark for speculative parsing.
+    lexer_mark: Option<LexerSnapshot>,
     /// The parser error count at mark time.
     error_count: Option<usize>,
     /// The parser diagnostic count at mark time.
@@ -2921,28 +2874,43 @@ impl ParserMark {
     #[inline]
     pub(crate) fn new(
         pos: usize,
+        current_token: TokenSpan,
+        previous_token_end: u32,
+        last_consumed_token: TokenSpan,
         tree_mark: NodeTreeMark,
-        token_stream_mark: Option<TokenStreamMark>,
+        lexer_mark: Option<LexerSnapshot>,
         error_count: usize,
         diagnostic_count: usize,
     ) -> Self {
         Self {
             pos,
+            current_token,
+            previous_token_end,
+            last_consumed_token,
             tree_mark: Some(tree_mark),
-            token_stream_mark,
+            lexer_mark,
             error_count: Some(error_count),
             diagnostic_count: Some(diagnostic_count),
             span_override: None,
         }
     }
 
-    /// Create a synthetic mark from a span without capturing token stream state.
+    /// Create a synthetic mark from a span without capturing lexer state.
     #[inline]
     pub(crate) fn from_span(span: Span) -> Self {
         Self {
             pos: 0,
+            current_token: TokenSpan {
+                token: Token::end(),
+                span,
+            },
+            previous_token_end: span.start,
+            last_consumed_token: TokenSpan {
+                token: Token::end(),
+                span,
+            },
             tree_mark: None,
-            token_stream_mark: None,
+            lexer_mark: None,
             error_count: None,
             diagnostic_count: None,
             span_override: Some(span),

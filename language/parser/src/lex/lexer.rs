@@ -1,69 +1,107 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use destack_ast::TokenSpan;
+use destack_ast::{Keyword, LiteralType, Token, TokenSpan, TokenType};
 use destack_source::{File, FileId, LanguageType, Span};
 
 use super::trivia::{Trivia, TriviaSnapshot};
 
 use memchr::memchr;
 
-/// Tree literal lexer state for contextual parsing (TSX-compatible).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum TreeState {
-    /// Normal code context (not in a tree literal).
-    #[default]
-    None,
-    /// Inside a tree literal opening tag (after `<Identifier`, before `>` or `/>`).
-    OpeningTag,
-    /// Inside a tree literal closing tag (after `</`, before `>`).
-    ClosingTag,
-    /// Inside tree literal content (after `>`, before `</` or `{`).
-    Content,
-}
-
-/// Entry tracking where a tree expression container started.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct TreeExpressionEntry {
-    /// The parentheses depth when this expression container started.
-    pub parentheses_depth: i32,
-    /// The tree state stack depth when this expression container started.
-    pub tree_depth: usize,
-    /// Whether this expression container came from Content mode (vs OpeningTag mode).
-    /// When `}` closes this container, we only restore Content state if this is true.
-    pub from_content: bool,
-}
-
 /// The options for the lexer.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub(super) struct LexerOptions {
     /// The nested template strings starting parentheses depth stack.
-    pub(super) template_string_stack: Vec<i32>,
+    pub(super) template_string_stack: SnapshotStack<i32>,
     /// The depth of nested template string parentheses.
     pub(super) parentheses_depth: i32 = 0,
-    /// Stack of tree literal states for nested tree elements (TSX-compatible).
-    pub(super) tree_state_stack: Vec<TreeState>,
-    /// The angle bracket depth within the current opening tag.
-    pub(super) tree_tag_angle_depth: usize,
-    /// Stack of entries tracking where tree expression containers started.
-    /// When `}` is seen at the matching depth and tree level, we return to TreeState::Content.
-    pub(super) tree_expression_stack: Vec<TreeExpressionEntry>,
-    /// The last non-whitespace token for fast context lookups (excludes comments, includes newlines).
-    /// Updated incrementally to avoid O(n) reverse scans.
-    pub(super) last_non_whitespace_token: Option<TokenSpan>,
-    /// The last semantic token (excludes whitespace, comments, and newlines).
-    /// Used for tree literal context detection.
-    pub(super) last_semantic_token: Option<TokenSpan>,
-    /// The second-to-last semantic token (excludes whitespace, comments, and newlines).
-    pub(super) prev_semantic_token: Option<TokenSpan>,
-    /// The third-to-last semantic token (excludes whitespace, comments, and newlines).
-    pub(super) prev_prev_semantic_token: Option<TokenSpan>,
-    /// Stack marking whether an open parenthesis started a control statement header.
-    pub(super) control_header_parenthesis_stack: Vec<bool>,
-    /// Whether the last semantic close parenthesis ended a control header.
-    pub(super) last_close_parenthesis_ends_control_header: bool,
     /// Whether tree literal lexing is allowed in the current context.
     pub(super) allow_tree_literals: bool,
+    /// Whether the next quoted string token is lexed as a tree attribute value.
+    pub(super) in_tree_attribute_value: bool,
+}
+
+/// One entry in a snapshot-restorable stack.
+#[derive(Debug, Copy, Clone)]
+struct SnapshotStackEntry<T: Copy> {
+    /// The stored stack value.
+    value: T,
+    /// The previous stack head.
+    prev: Option<usize>,
+}
+
+/// One snapshot-restorable stack.
+#[derive(Debug, Default)]
+pub(super) struct SnapshotStack<T: Copy> {
+    /// The append-only entry arena.
+    entries: Vec<SnapshotStackEntry<T>>,
+    /// The current stack head.
+    head: Option<usize>,
+}
+
+/// One snapshot of a snapshot-restorable stack.
+#[derive(Debug, Copy, Clone)]
+pub(super) struct SnapshotStackState {
+    /// The current stack head.
+    head: Option<usize>,
+    /// The number of entries alive at snapshot time.
+    entries_len: usize,
+}
+
+impl<T: Copy> SnapshotStack<T> {
+    /// Create one stack with preallocated entry capacity.
+    pub(super) fn with_capacity(capacity: usize) -> Self {
+        Self {
+            entries: Vec::with_capacity(capacity),
+            head: None,
+        }
+    }
+
+    /// Push one value onto the stack.
+    #[inline]
+    pub(super) fn push(&mut self, value: T) {
+        let prev = self.head;
+        self.entries.push(SnapshotStackEntry { value, prev });
+        self.head = Some(self.entries.len() - 1);
+    }
+
+    /// Pop one value from the stack.
+    #[inline]
+    pub(super) fn pop(&mut self) -> Option<T> {
+        let head = self.head?;
+        let entry = self.entries[head];
+        self.head = entry.prev;
+        Some(entry.value)
+    }
+
+    /// Peek the current stack head.
+    #[inline]
+    pub(super) fn peek(&self) -> Option<T> {
+        self.head.map(|head| self.entries[head].value)
+    }
+
+    /// Clear the active stack and drop retained entries.
+    #[inline]
+    pub(super) fn clear(&mut self) {
+        self.entries.clear();
+        self.head = None;
+    }
+
+    /// Return one snapshot of the current stack state.
+    #[inline]
+    pub(super) fn snapshot(&self) -> SnapshotStackState {
+        SnapshotStackState {
+            head: self.head,
+            entries_len: self.entries.len(),
+        }
+    }
+
+    /// Restore one previously captured stack state.
+    #[inline]
+    pub(super) fn restore(&mut self, snapshot: SnapshotStackState) {
+        self.entries.truncate(snapshot.entries_len);
+        self.head = snapshot.head;
+    }
 }
 
 /// Lexer over a source string.
@@ -89,6 +127,32 @@ pub struct Lexer {
     pub(super) has_at: bool,
     /// Whether the most recent side token contained a line terminator.
     pub(super) last_side_token_had_line_terminator: bool,
+    /// Whether side trivia buffers should be retained.
+    pub(super) retain_trivia_tokens: bool,
+    /// The semantic tokens produced so far.
+    pub(super) tokens: Vec<TokenSpan>,
+    /// The side tokens produced so far.
+    pub(super) side_tokens: Vec<TokenSpan>,
+    /// Dense metadata for semantic token indexes.
+    pub(super) token_data: Vec<SemanticTokenData>,
+    /// The stack of open parenthesis token indexes.
+    pub(super) paren_stack: SnapshotStack<usize>,
+    /// The stack of open brace token indexes.
+    pub(super) brace_stack: SnapshotStack<usize>,
+    /// The stack of open bracket token indexes.
+    pub(super) bracket_stack: SnapshotStack<usize>,
+    /// Whether side trivia since the previous semantic token had a line terminator.
+    pub(super) pending_line_terminator_before_next: bool,
+    /// Whether side trivia since the previous semantic token had a comment token.
+    pub(super) pending_comment_before_next: bool,
+    /// The number of semantic newline tokens.
+    pub(super) semantic_newline_token_count: u32,
+    /// The number of non-newline semantic tokens.
+    pub(super) attachable_semantic_token_count: u32,
+    /// Whether EOF has been reached.
+    pub(super) is_finished: bool,
+    /// The cached EOF token, when available.
+    pub(super) eof_token: Option<TokenSpan>,
 }
 
 impl Debug for Lexer {
@@ -103,6 +167,39 @@ impl Debug for Lexer {
 
 pub const EOF_CHAR: char = '\0';
 
+/// Dense metadata for one materialized semantic token.
+#[derive(Debug, Copy, Clone)]
+pub(super) struct SemanticTokenData {
+    /// The matching close token index for an opening delimiter.
+    pub(super) matching_pair: u32,
+    /// The side token count before this semantic token.
+    pub(super) side_tokens_len_before: usize,
+    /// The contextual keyword classification for identifier tokens.
+    pub(super) keyword: Option<Keyword>,
+    /// Whether trivia before this token contains a line terminator.
+    pub(super) has_line_terminator_before: bool,
+    /// Whether trivia before this token contains a comment token.
+    pub(super) has_comment_before: bool,
+}
+
+impl SemanticTokenData {
+    /// Return an empty semantic token metadata record.
+    #[inline]
+    pub(super) const fn new(
+        side_tokens_len_before: usize,
+        keyword: Option<Keyword>,
+        has_line_terminator_before: bool,
+    ) -> Self {
+        Self {
+            matching_pair: u32::MAX,
+            side_tokens_len_before,
+            keyword,
+            has_line_terminator_before,
+            has_comment_before: false,
+        }
+    }
+}
+
 /// Snapshot of lexer state for speculative parsing.
 #[derive(Debug, Clone)]
 pub struct LexerSnapshot {
@@ -112,20 +209,53 @@ pub struct LexerSnapshot {
     pub(super) token_start: usize,
     /// The most recently consumed character.
     pub(super) prev: char,
-    /// The snapshot of lexer options and stacks.
-    pub(super) options: LexerOptions,
     /// The snapshot of lexer-time trivia state.
     pub(super) trivia: TriviaSnapshot,
     /// Whether an `@` token has been observed.
     pub(super) has_at: bool,
     /// Whether the most recent side token at snapshot time had a line terminator.
     pub(super) last_side_token_had_line_terminator: bool,
+    /// The semantic token count captured in the snapshot.
+    pub(super) tokens_len: usize,
+    /// The side token count captured in the snapshot.
+    pub(super) side_tokens_len: usize,
+    /// The open parenthesis stack at snapshot time.
+    pub(super) paren_stack: SnapshotStackState,
+    /// The open brace stack at snapshot time.
+    pub(super) brace_stack: SnapshotStackState,
+    /// The open bracket stack at snapshot time.
+    pub(super) bracket_stack: SnapshotStackState,
+    /// The template stack state at snapshot time.
+    pub(super) template_string_stack: SnapshotStackState,
+    /// The parentheses depth at snapshot time.
+    pub(super) parentheses_depth: i32,
+    /// Whether tree literal lexing was enabled at snapshot time.
+    pub(super) allow_tree_literals: bool,
+    /// Whether tree attribute value lexing was enabled at snapshot time.
+    pub(super) in_tree_attribute_value: bool,
+    /// Whether side trivia since the last semantic token had a line terminator.
+    pub(super) pending_line_terminator_before_next: bool,
+    /// Whether side trivia since the last semantic token had a comment token.
+    pub(super) pending_comment_before_next: bool,
+    /// The semantic newline token count at snapshot time.
+    pub(super) semantic_newline_token_count: u32,
+    /// The non-newline semantic token count at snapshot time.
+    pub(super) attachable_semantic_token_count: u32,
+    /// Whether EOF had been reached at snapshot time.
+    pub(super) is_finished: bool,
+    /// The cached EOF token at snapshot time.
+    pub(super) eof_token: Option<TokenSpan>,
 }
 
 impl Lexer {
     /// Create a new Lexer from a file.
     pub fn new(file: Arc<File>, language: LanguageType) -> Lexer {
         let file_id = file.id;
+        let source_len = file.text().len();
+        let estimated_tokens = source_len / 6;
+        let semantic_token_capacity = estimated_tokens;
+        let side_token_capacity = estimated_tokens / 2;
+
         Lexer {
             file,
             file_id,
@@ -140,6 +270,19 @@ impl Lexer {
             trivia: Trivia::new(),
             has_at: false,
             last_side_token_had_line_terminator: false,
+            retain_trivia_tokens: true,
+            tokens: Vec::with_capacity(semantic_token_capacity),
+            side_tokens: Vec::with_capacity(side_token_capacity),
+            token_data: Vec::with_capacity(semantic_token_capacity),
+            paren_stack: SnapshotStack::with_capacity(semantic_token_capacity / 64),
+            brace_stack: SnapshotStack::with_capacity(semantic_token_capacity / 64),
+            bracket_stack: SnapshotStack::with_capacity(semantic_token_capacity / 64),
+            pending_line_terminator_before_next: false,
+            pending_comment_before_next: false,
+            semantic_newline_token_count: 0,
+            attachable_semantic_token_count: 0,
+            is_finished: false,
+            eof_token: None,
         }
     }
 
@@ -236,10 +379,24 @@ impl Lexer {
             pos: self.pos,
             token_start: self.token_start,
             prev: self.prev,
-            options: self.options.clone(),
             trivia: self.trivia.snapshot(),
             has_at: self.has_at,
             last_side_token_had_line_terminator: self.last_side_token_had_line_terminator,
+            tokens_len: self.tokens.len(),
+            side_tokens_len: self.side_tokens.len(),
+            paren_stack: self.paren_stack.snapshot(),
+            brace_stack: self.brace_stack.snapshot(),
+            bracket_stack: self.bracket_stack.snapshot(),
+            template_string_stack: self.options.template_string_stack.snapshot(),
+            parentheses_depth: self.options.parentheses_depth,
+            allow_tree_literals: self.options.allow_tree_literals,
+            in_tree_attribute_value: self.options.in_tree_attribute_value,
+            pending_line_terminator_before_next: self.pending_line_terminator_before_next,
+            pending_comment_before_next: self.pending_comment_before_next,
+            semantic_newline_token_count: self.semantic_newline_token_count,
+            attachable_semantic_token_count: self.attachable_semantic_token_count,
+            is_finished: self.is_finished,
+            eof_token: self.eof_token,
         }
     }
 
@@ -249,10 +406,111 @@ impl Lexer {
         self.pos = snapshot.pos;
         self.token_start = snapshot.token_start;
         self.prev = snapshot.prev;
-        self.options = snapshot.options;
+        self.options
+            .template_string_stack
+            .restore(snapshot.template_string_stack);
+        self.options.parentheses_depth = snapshot.parentheses_depth;
+        self.options.allow_tree_literals = snapshot.allow_tree_literals;
+        self.options.in_tree_attribute_value = snapshot.in_tree_attribute_value;
         self.trivia.restore(snapshot.trivia);
         self.has_at = snapshot.has_at;
         self.last_side_token_had_line_terminator = snapshot.last_side_token_had_line_terminator;
+        let old_tokens_len = self.tokens.len();
+
+        // clear delimiter matches introduced by the truncated suffix
+        for removed_index in (snapshot.tokens_len..old_tokens_len).rev() {
+            let removed_token = self.tokens[removed_index];
+            let removed_metadata = self.token_data[removed_index];
+
+            if matches!(
+                removed_token.token.ty,
+                TokenType::CloseParenthesis | TokenType::CloseBrace | TokenType::CloseBracket
+            ) {
+                let matching_open = removed_metadata.matching_pair as usize;
+                if matching_open < snapshot.tokens_len {
+                    self.token_data[matching_open].matching_pair = u32::MAX;
+                }
+            }
+        }
+
+        self.tokens.truncate(snapshot.tokens_len);
+        self.side_tokens.truncate(snapshot.side_tokens_len);
+        self.token_data.truncate(snapshot.tokens_len);
+        self.paren_stack.restore(snapshot.paren_stack);
+        self.brace_stack.restore(snapshot.brace_stack);
+        self.bracket_stack.restore(snapshot.bracket_stack);
+        self.pending_line_terminator_before_next = snapshot.pending_line_terminator_before_next;
+        self.pending_comment_before_next = snapshot.pending_comment_before_next;
+        self.semantic_newline_token_count = snapshot.semantic_newline_token_count;
+        self.attachable_semantic_token_count = snapshot.attachable_semantic_token_count;
+        self.is_finished = snapshot.is_finished;
+        self.eof_token = snapshot.eof_token;
+    }
+
+    /// Reset the lexer cursor after one current-token re-lex.
+    pub(crate) fn reset_cursor_after_re_lex(&mut self, end: usize) {
+        self.pos = end;
+        self.token_start = end;
+        self.prev = self.file.text()[..end].chars().next_back().unwrap_or('\0');
+    }
+
+    /// Re-lex the current `/` or `/=` token as a regex literal.
+    pub(crate) fn re_lex_as_regex(&mut self, current_token: TokenSpan) -> TokenSpan {
+        let start = current_token.span.start as usize;
+        self.pos = start + 1;
+        self.token_start = start;
+        self.prev = '/';
+
+        let has_flags = self.eat_regex_string();
+        let end = self.pos as u32;
+        let token = Token::new(
+            TokenType::Literal,
+            end - current_token.span.start,
+            Some(LiteralType::RegexString { has_flags }),
+        );
+
+        TokenSpan {
+            token,
+            span: Span {
+                file: current_token.span.file,
+                start: current_token.span.start,
+                end,
+            },
+        }
+    }
+
+    /// Re-lex the current token as a TypeScript `<`.
+    pub(crate) fn re_lex_as_typescript_l_angle(&mut self, current_token: TokenSpan) -> TokenSpan {
+        let start = current_token.span.start as usize;
+        self.pos = start + 1;
+        self.token_start = self.pos;
+        self.prev = '<';
+
+        TokenSpan {
+            token: Token::new(TokenType::LessThan, 1, None),
+            span: Span {
+                file: current_token.span.file,
+                start: current_token.span.start,
+                end: current_token.span.start + 1,
+            },
+        }
+    }
+
+    /// Re-lex the current token as one `>`.
+    pub(crate) fn re_lex_as_r_angle(&mut self, current_token: TokenSpan) -> TokenSpan {
+        let start = current_token.span.start as usize;
+        self.pos = start + 1;
+        self.token_start = self.pos;
+        self.prev = '>';
+
+        TokenSpan {
+            token: Token::new(TokenType::GreaterThan, 1, None),
+            span: Span {
+                file: current_token.span.file,
+                start: current_token.span.start,
+                end: current_token.span.start + 1,
+            },
+        }
     }
 
     /// Return whether the most recent side token contained a line terminator.
@@ -284,75 +542,6 @@ impl Lexer {
             None => {
                 self.pos = self.file.text().len();
             }
-        }
-    }
-
-    /// Gets the current tree literal state (top of stack or None).
-    #[inline]
-    pub(super) fn tree_state(&self) -> TreeState {
-        self.options
-            .tree_state_stack
-            .last()
-            .copied()
-            .unwrap_or(TreeState::None)
-    }
-
-    /// Pushes a new tree literal state onto the stack.
-    #[inline]
-    pub(super) fn push_tree_state(&mut self, state: TreeState) {
-        if state == TreeState::OpeningTag {
-            self.options.tree_tag_angle_depth = 0;
-        }
-        self.options.tree_state_stack.push(state);
-    }
-
-    /// Pops the current tree literal state from the stack.
-    #[inline]
-    pub(super) fn pop_tree_state(&mut self) -> TreeState {
-        let state = self
-            .options
-            .tree_state_stack
-            .pop()
-            .unwrap_or(TreeState::None);
-        if state == TreeState::OpeningTag {
-            self.options.tree_tag_angle_depth = 0;
-        }
-        state
-    }
-
-    /// Checks if we're currently inside tree literal content.
-    /// Returns false if we're inside a tree expression container (after `{`).
-    #[inline]
-    pub(super) fn in_tree_content(&self) -> bool {
-        // require content mode
-        if self.tree_state() != TreeState::Content {
-            return false;
-        }
-
-        // check for an active tree expression container
-        if let Some(entry) = self.options.tree_expression_stack.last() {
-            // treat deeper tree levels as tree content
-            let current_tree_depth = self.options.tree_state_stack.len();
-            if current_tree_depth > entry.tree_depth {
-                return true;
-            }
-
-            // treat same-level expression containers as code
-            if self.options.parentheses_depth > entry.parentheses_depth {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    /// Checks if we're inside any tree expression container at the current tree depth.
-    #[inline]
-    pub(super) fn in_tree_expression_container(&self) -> bool {
-        if let Some(entry) = self.options.tree_expression_stack.last() {
-            entry.tree_depth == self.options.tree_state_stack.len()
-        } else {
-            false
         }
     }
 }

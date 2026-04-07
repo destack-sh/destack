@@ -75,13 +75,6 @@ impl Parser {
     /// Eat 0 or more newlines.
     #[inline]
     pub fn eat_newlines_maybe(&mut self) -> ParseResult<()> {
-        if self.has_active_split() {
-            while self.peek_is(TokenType::Newline) {
-                self.bump();
-            }
-            return Ok(());
-        }
-
         let cursor = self.scanner_cursor_from(self.pos_index());
         if cursor.index != self.pos_index() {
             self.advance_to(cursor.index);
