@@ -177,7 +177,7 @@ impl FormatNodes for FormatNode {
             FormatNode::Space
             | FormatNode::Token { .. }
             | FormatNode::SourcePosition { .. }
-            | FormatNode::LinePostfixBoundary
+            | FormatNode::LineSuffixBoundary
             | FormatNode::Tag(_) => false,
         }
     }
@@ -194,7 +194,7 @@ impl FormatNodes for FormatNode {
             | FormatNode::Space
             | FormatNode::Token { .. }
             | FormatNode::SourcePosition { .. }
-            | FormatNode::LinePostfixBoundary
+            | FormatNode::LineSuffixBoundary
             | FormatNode::Tag(_) => false,
         }
     }
@@ -212,7 +212,7 @@ impl FormatNodes for FormatNode {
             FormatNode::Line(_)
             | FormatNode::ExpandParent
             | FormatNode::SourcePosition { .. }
-            | FormatNode::LinePostfixBoundary
+            | FormatNode::LineSuffixBoundary
             | FormatNode::Tag(_) => None,
         }
     }
@@ -238,17 +238,17 @@ impl FormatNodes for FormatNode {
 
 impl FormatNodes for [FormatNode] {
     fn will_break(&self) -> bool {
-        let mut ignore_line_postfix_depth = 0usize;
+        let mut ignore_line_suffix_depth = 0usize;
 
         for node in self {
             match node {
-                FormatNode::Tag(FormatTag::StartLinePostfix { .. }) => {
-                    ignore_line_postfix_depth += 1;
+                FormatNode::Tag(FormatTag::StartLineSuffix) => {
+                    ignore_line_suffix_depth += 1;
                 }
-                FormatNode::Tag(FormatTag::EndLinePostfix) => {
-                    ignore_line_postfix_depth = ignore_line_postfix_depth.saturating_sub(1);
+                FormatNode::Tag(FormatTag::EndLineSuffix) => {
+                    ignore_line_suffix_depth = ignore_line_suffix_depth.saturating_sub(1);
                 }
-                FormatNode::Interned(interned) if ignore_line_postfix_depth == 0 => {
+                FormatNode::Interned(interned) if ignore_line_suffix_depth == 0 => {
                     if interned.will_break() {
                         return true;
                     }
@@ -256,42 +256,42 @@ impl FormatNodes for [FormatNode] {
                 FormatNode::Line(line_mode) if line_mode.will_break() => {
                     return true;
                 }
-                node if ignore_line_postfix_depth == 0 && node.will_break() => {
+                node if ignore_line_suffix_depth == 0 && node.will_break() => {
                     return true;
                 }
                 _ => {}
             }
         }
 
-        debug_assert_eq!(ignore_line_postfix_depth, 0, "unclosed line postfix");
+        debug_assert_eq!(ignore_line_suffix_depth, 0, "unclosed line postfix");
 
         false
     }
 
     fn may_directly_break(&self) -> bool {
-        let mut ignore_line_postfix_depth = 0usize;
+        let mut ignore_line_suffix_depth = 0usize;
 
         for node in self {
             match node {
-                FormatNode::Tag(FormatTag::StartLinePostfix { .. }) => {
-                    ignore_line_postfix_depth += 1;
+                FormatNode::Tag(FormatTag::StartLineSuffix) => {
+                    ignore_line_suffix_depth += 1;
                 }
-                FormatNode::Tag(FormatTag::EndLinePostfix) => {
-                    ignore_line_postfix_depth = ignore_line_postfix_depth.saturating_sub(1);
+                FormatNode::Tag(FormatTag::EndLineSuffix) => {
+                    ignore_line_suffix_depth = ignore_line_suffix_depth.saturating_sub(1);
                 }
-                FormatNode::Interned(interned) if ignore_line_postfix_depth == 0 => {
+                FormatNode::Interned(interned) if ignore_line_suffix_depth == 0 => {
                     if interned.may_directly_break() {
                         return true;
                     }
                 }
-                node if ignore_line_postfix_depth == 0 && node.may_directly_break() => {
+                node if ignore_line_suffix_depth == 0 && node.may_directly_break() => {
                     return true;
                 }
                 _ => {}
             }
         }
 
-        debug_assert_eq!(ignore_line_postfix_depth, 0, "unclosed line postfix");
+        debug_assert_eq!(ignore_line_suffix_depth, 0, "unclosed line postfix");
 
         false
     }

@@ -188,55 +188,48 @@ fn debug_assert_no_newlines(text: &str) {
 
 /// Pushes some content to the end of the current line.
 #[inline]
-pub fn line_postfix<Content, Context>(
-    inner: &Content,
-    reserved_width: u32,
-) -> LinePostfix<'_, Context>
+pub fn line_suffix<Content, Context>(inner: &Content) -> LineSuffix<'_, Context>
 where
     Content: Format<Context>,
 {
-    LinePostfix {
+    LineSuffix {
         content: Argument::new(inner),
-        reserved_width,
     }
 }
 
 #[derive(Copy, Clone)]
-pub struct LinePostfix<'a, Context> {
+pub struct LineSuffix<'a, Context> {
     content: Argument<'a, Context>,
-    reserved_width: u32,
 }
 
-impl<Context> Format<Context> for LinePostfix<'_, Context> {
+impl<Context> Format<Context> for LineSuffix<'_, Context> {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_node(FormatNode::Tag(StartLinePostfix {
-            reserved_width: self.reserved_width,
-        }));
+        f.write_node(FormatNode::Tag(StartLineSuffix));
         Arguments::from(&self.content).format(f)?;
-        f.write_node(FormatNode::Tag(EndLinePostfix));
+        f.write_node(FormatNode::Tag(EndLineSuffix));
 
         Ok(())
     }
 }
 
-impl<Context> std::fmt::Debug for LinePostfix<'_, Context> {
+impl<Context> std::fmt::Debug for LineSuffix<'_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("LinePostfix").field(&"{{content}}").finish()
+        f.debug_tuple("LineSuffix").field(&"{{content}}").finish()
     }
 }
 
 /// Inserts a boundary for line suffixes that forces the printer to print all pending line suffixes.
 /// Helpful if a line suffix shouldn't pass a certain point.
-pub const fn line_postfix_boundary() -> LinePostfixBoundary {
-    LinePostfixBoundary
+pub const fn line_suffix_boundary() -> LineSuffixBoundary {
+    LineSuffixBoundary
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct LinePostfixBoundary;
+pub struct LineSuffixBoundary;
 
-impl<Context> Format<Context> for LinePostfixBoundary {
+impl<Context> Format<Context> for LineSuffixBoundary {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_node(FormatNode::LinePostfixBoundary);
+        f.write_node(FormatNode::LineSuffixBoundary);
 
         Ok(())
     }
@@ -1298,68 +1291,26 @@ mod tests {
 
     /// Line suffix pushes content to end of current line
     #[test]
-    fn test_line_postfix_pushes_to_end() {
+    fn test_line_suffix_pushes_to_end() {
         let nodes = format!(
             SimpleFormatContext::empty_destack(),
-            [token("a"), line_postfix(&token("c"), 0), token("b")]
+            [token("a"), line_suffix(&token("c")), token("b")]
         )
         .unwrap();
 
         assert_eq!("abc", nodes.print().unwrap().as_str());
     }
 
-    /// Line suffix with reserved width affects group breaking
-    #[test]
-    fn test_line_postfix_reserved_width_affects_breaking() {
-        let context = SimpleFormatContext::new(
-            SimpleFormatOptions {
-                line_width: 10,
-                ..SimpleFormatOptions::default()
-            },
-            File::empty_text(FileType::Destack),
-        );
-
-        let nodes = format!(
-            context,
-            [
-                // breaks due to reserved width
-                group(&format_args![
-                    if_group_breaks(&token("(")),
-                    soft_block_indent(&format_args![
-                        token("a"),
-                        line_postfix(&token(" // a comment"), 13)
-                    ]),
-                    if_group_breaks(&token(")"))
-                ]),
-                // fits without reserved width
-                group(&format_args![
-                    if_group_breaks(&token("(")),
-                    soft_block_indent(&format_args![
-                        token("a"),
-                        line_postfix(&token(" // a comment"), 0)
-                    ]),
-                    if_group_breaks(&token(")"))
-                ]),
-            ]
-        )
-        .unwrap();
-
-        assert_eq!(
-            "(\n    a // a comment\n)a // a comment",
-            nodes.print().unwrap().as_str()
-        );
-    }
-
     /// Line suffix boundary forces printing of pending line suffixes
     #[test]
-    fn test_line_postfix_boundary_forces_printing() {
+    fn test_line_suffix_boundary_forces_printing() {
         let nodes = format!(
             SimpleFormatContext::empty_destack(),
             [
                 token("a"),
-                line_postfix(&token("c"), 0),
+                line_suffix(&token("c")),
                 token("b"),
-                line_postfix_boundary(),
+                line_suffix_boundary(),
                 token("d")
             ]
         )
