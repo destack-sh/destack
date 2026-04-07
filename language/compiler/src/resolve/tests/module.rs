@@ -4,6 +4,23 @@ use destack_css::{Rule, Token};
 use destack_dir::{StaticKey, SymbolSpace};
 use destack_html::Content;
 
+/// Return whether one html name matches one expected local spelling.
+fn html_name_is(html: &destack_artifact::Html, name: &destack_html::Name, expected: &str) -> bool {
+    html.tree.strings.get(name.local) == expected
+}
+
+/// Return whether one css function name matches one expected spelling.
+fn css_function_name_is(
+    css: &destack_artifact::Css,
+    function: &destack_css::Function,
+    expected: &str,
+) -> bool {
+    css.tree
+        .strings
+        .get(function.name)
+        .eq_ignore_ascii_case(expected)
+}
+
 /// Assert one module exports a type symbol for the requested name.
 fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
     let profile = test.default_profile_id(module_id);
@@ -18,38 +35,6 @@ fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleI
     assert!(
         export.symbol.is_some() || export.item.is_some(),
         "expected type export '{name}' to carry a target",
-    );
-}
-
-/// Assert one module exports a value symbol for the requested name.
-fn assert_has_value_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
-    let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let exports = &dir.exported_symbols;
-    let name_id = test.program.strings.intern(name);
-    let key = (SymbolSpace::Value, StaticKey::Name(name_id));
-
-    let Some(export) = exports.get(&key) else {
-        panic!("expected value export '{name}'");
-    };
-    assert!(export.target.resolved().is_some());
-}
-
-/// Assert one module does not export a value symbol for the requested name.
-fn assert_missing_value_export(
-    test: &TestProgram,
-    module_id: destack_source::ModuleId,
-    name: &str,
-) {
-    let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let exports = &dir.exported_symbols;
-    let name_id = test.program.strings.intern(name);
-    let key = (SymbolSpace::Value, StaticKey::Name(name_id));
-
-    assert!(
-        !exports.contains_key(&key),
-        "expected missing value export '{name}'"
     );
 }
 
@@ -270,7 +255,7 @@ export const value = 1;
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "html" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "html") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing html element"));
@@ -278,7 +263,7 @@ export const value = 1;
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "head" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "head") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing head element"));
@@ -286,7 +271,7 @@ export const value = 1;
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "body" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "body") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing body element"));
@@ -294,7 +279,7 @@ export const value = 1;
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "link" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "link") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing link element"));
@@ -302,7 +287,9 @@ export const value = 1;
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "script" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "script") => {
+                Some(element)
+            }
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing script element"));
@@ -310,24 +297,24 @@ export const value = 1;
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "img" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "img") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing img element"));
     let stylesheet_attribute_id = *stylesheet_element
         .attributes
         .iter()
-        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "href")
+        .find(|attribute_id| html_name_is(html, &html.tree.get(**attribute_id).name, "href"))
         .unwrap_or_else(|| panic!("missing link href attribute"));
     let script_attribute_id = *script_element
         .attributes
         .iter()
-        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "src")
+        .find(|attribute_id| html_name_is(html, &html.tree.get(**attribute_id).name, "src"))
         .unwrap_or_else(|| panic!("missing script src attribute"));
     let image_attribute_id = *image_element
         .attributes
         .iter()
-        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "src")
+        .find(|attribute_id| html_name_is(html, &html.tree.get(**attribute_id).name, "src"))
         .unwrap_or_else(|| panic!("missing img src attribute"));
     let stylesheet_specifier = test.program.strings.intern("./styles.css");
     let script_specifier = test.program.strings.intern("./app.ts");
@@ -416,7 +403,7 @@ fn test_module_graph_html_link_asset_policy() {
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "html" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "html") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing html element"));
@@ -424,7 +411,7 @@ fn test_module_graph_html_link_asset_policy() {
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "head" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "head") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing head element"));
@@ -433,10 +420,10 @@ fn test_module_graph_html_link_asset_policy() {
         .iter()
         .find_map(|node| match html.tree.get(*node) {
             Content::Element(element)
-                if element.name.local == "link"
+                if html_name_is(html, &element.name, "link")
                     && element.attributes.iter().any(|attribute_id| {
                         let attribute = html.tree.get(*attribute_id);
-                        attribute.name.local == "rel"
+                        html_name_is(html, &attribute.name, "rel")
                             && attribute
                                 .value
                                 .as_ref()
@@ -448,10 +435,10 @@ fn test_module_graph_html_link_asset_policy() {
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing canonical link element"));
-    let canonical_href_attribute = *canonical_link
+    let _canonical_href_attribute = *canonical_link
         .attributes
         .iter()
-        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "href")
+        .find(|attribute_id| html_name_is(html, &html.tree.get(**attribute_id).name, "href"))
         .unwrap_or_else(|| panic!("missing canonical href attribute"));
 
     assert!(!dependencies.contains(&canonical_module_id));
@@ -507,7 +494,7 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "html" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "html") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing html element"));
@@ -515,7 +502,7 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "head" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "head") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing head element"));
@@ -523,19 +510,19 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
         .children
         .iter()
         .find_map(|node| match html.tree.get(*node) {
-            Content::Element(element) if element.name.local == "link" => Some(element),
+            Content::Element(element) if html_name_is(html, &element.name, "link") => Some(element),
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing preload link element"));
     let href_attribute_id = *preload_element
         .attributes
         .iter()
-        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "href")
+        .find(|attribute_id| html_name_is(html, &html.tree.get(**attribute_id).name, "href"))
         .unwrap_or_else(|| panic!("missing link href attribute"));
     let imagesrcset_attribute_id = *preload_element
         .attributes
         .iter()
-        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "imagesrcset")
+        .find(|attribute_id| html_name_is(html, &html.tree.get(**attribute_id).name, "imagesrcset"))
         .unwrap_or_else(|| panic!("missing link imagesrcset attribute"));
     let href_specifier = test.program.strings.intern("./hero.jpg");
     let small_specifier = test.program.strings.intern("./hero-small.jpg");
@@ -721,7 +708,7 @@ body {
                             return url_resource.as_ref().map(|resource| resource.id);
                         }
                         destack_css::ComponentValue::Function(function)
-                            if function.name.eq_ignore_ascii_case("url") =>
+                            if css_function_name_is(css, function, "url") =>
                         {
                             if function.url_resource.is_some() {
                                 return function.url_resource.as_ref().map(|resource| resource.id);
