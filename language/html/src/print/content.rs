@@ -1,4 +1,4 @@
-use crate::{Content, Element, LocalNodeId, SelfClosingStyle};
+use crate::{Content, Element, LocalNodeId, Namespace, SelfClosingStyle};
 
 use super::Printer;
 
@@ -18,9 +18,11 @@ impl<'a> Printer<'a> {
             Content::Element(element) => self.print_element(element),
             Content::Text(text) => self.write_text(&text.value, is_raw_text),
             Content::Comment(comment) => {
-                self.source.push_str("<!--");
-                self.source.push_str(&comment.value);
-                self.source.push_str("-->");
+                if !self.options.is_minified {
+                    self.source.push_str("<!--");
+                    self.source.push_str(&comment.value);
+                    self.source.push_str("-->");
+                }
             }
             Content::Instruction(instruction) => {
                 self.source.push_str("<?");
@@ -56,6 +58,8 @@ impl<'a> Printer<'a> {
 
         let start_tag_name = self.render_element_start_tag_name(element);
         let end_tag_name = self.render_element_end_tag_name(element);
+        let element_name = self.tree.string(element.name.local);
+        let is_void_element = Self::is_void_element_name(element_name.as_ref());
 
         // content
         let content = element
@@ -71,14 +75,36 @@ impl<'a> Printer<'a> {
         for attribute_id in &element.attributes {
             let attribute = self.tree.get(*attribute_id);
             let attribute_name = self.render_attribute_name(attribute);
+            let attribute_local_name = self.tree.string(attribute.name.local);
 
             self.source.push(' ');
             self.source.push_str(&attribute_name);
 
             if let Some(value) = &attribute.value {
+                let is_html_attribute_namespace =
+                    matches!(attribute.name.namespace, Namespace::Html)
+                        || matches!(
+                            &attribute.name.namespace,
+                            Namespace::Other(namespace) if namespace.is_empty()
+                        );
+
+                if self.options.is_minified
+                    && matches!(element.name.namespace, Namespace::Html)
+                    && is_html_attribute_namespace
+                    && Self::is_boolean_attribute(attribute_local_name.as_ref(), &value.value)
+                {
+                    continue;
+                }
+
                 self.source.push('=');
                 self.write_attribute_value_form(value);
             }
+        }
+
+        // minified html never needs self-closing syntax for void elements
+        if self.options.is_minified && is_void_element {
+            self.source.push('>');
+            return;
         }
 
         // self closing
@@ -96,9 +122,7 @@ impl<'a> Printer<'a> {
         self.source.push('>');
 
         // void elements
-        let element_name = self.tree.string(element.name.local);
-
-        if Self::is_void_element_name(element_name.as_ref()) {
+        if is_void_element {
             return;
         }
 
@@ -123,6 +147,30 @@ impl<'a> Printer<'a> {
         // raw text
         if is_raw_text {
             self.source.push_str(value);
+            return;
+        }
+
+        // minified text
+        if self.options.is_minified {
+            if value.chars().all(char::is_whitespace) {
+                return;
+            }
+
+            let mut is_previous_whitespace = false;
+
+            for character in value.chars() {
+                if character.is_whitespace() {
+                    if !is_previous_whitespace {
+                        self.source.push(' ');
+                    }
+
+                    is_previous_whitespace = true;
+                } else {
+                    self.source.push(character);
+                    is_previous_whitespace = false;
+                }
+            }
+
             return;
         }
 

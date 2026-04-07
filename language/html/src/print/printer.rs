@@ -1,19 +1,29 @@
 use crate::{Attribute, AttributeValue, AttributeValueForm, Element, Name, NodeTree};
 
+/// One HTML source rendering mode.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RenderOptions {
+    /// Whether the output should be minified.
+    pub is_minified: bool,
+}
+
 /// One HTML printer.
 #[derive(Debug)]
 pub(crate) struct Printer<'a> {
     /// The HTML tree being printed.
     pub(crate) tree: &'a NodeTree,
+    /// The print options.
+    pub(crate) options: RenderOptions,
     /// The emitted source.
     pub(crate) source: String,
 }
 
 impl<'a> Printer<'a> {
     /// Create one HTML printer.
-    pub(crate) fn new(tree: &'a NodeTree) -> Self {
+    pub(crate) fn new(tree: &'a NodeTree, options: RenderOptions) -> Self {
         Self {
             tree,
+            options,
             source: String::new(),
         }
     }
@@ -90,6 +100,18 @@ impl<'a> Printer<'a> {
 
     /// Write one authored attribute value form.
     pub(crate) fn write_attribute_value_form(&mut self, value: &AttributeValue) {
+        if self.options.is_minified {
+            if Self::is_unquoted_attribute_value(&value.value) {
+                self.write_unquoted_attribute_value(&value.value);
+            } else {
+                self.source.push('"');
+                self.write_double_quoted_attribute_value(&value.value);
+                self.source.push('"');
+            }
+
+            return;
+        }
+
         match value.form {
             // double-quoted
             AttributeValueForm::DoubleQuoted => {
@@ -153,5 +175,55 @@ impl<'a> Printer<'a> {
                 _ => self.source.push(character),
             }
         }
+    }
+
+    /// Return whether one attribute should serialize as one boolean attribute.
+    pub(crate) fn is_boolean_attribute(attribute_name: &str, value: &str) -> bool {
+        Self::is_html_boolean_attribute_name(attribute_name)
+            && (value.is_empty() || value.eq_ignore_ascii_case(attribute_name))
+    }
+
+    /// Return whether one attribute local name is boolean in HTML.
+    fn is_html_boolean_attribute_name(attribute_name: &str) -> bool {
+        matches!(
+            attribute_name,
+            "allowfullscreen"
+                | "async"
+                | "autofocus"
+                | "autoplay"
+                | "checked"
+                | "controls"
+                | "default"
+                | "defer"
+                | "disabled"
+                | "formnovalidate"
+                | "hidden"
+                | "inert"
+                | "ismap"
+                | "itemscope"
+                | "loop"
+                | "multiple"
+                | "muted"
+                | "nomodule"
+                | "novalidate"
+                | "open"
+                | "playsinline"
+                | "readonly"
+                | "required"
+                | "reversed"
+                | "selected"
+        )
+    }
+
+    /// Return whether one attribute value can be emitted without quotes.
+    pub(crate) fn is_unquoted_attribute_value(value: &str) -> bool {
+        if value.is_empty() {
+            return false;
+        }
+
+        value.chars().all(|character| {
+            !character.is_ascii_whitespace()
+                && !matches!(character, '"' | '\'' | '`' | '=' | '<' | '>')
+        })
     }
 }
