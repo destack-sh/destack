@@ -140,7 +140,6 @@ impl Parser {
 
     /// Eat an expression that might be parenthesized.
     pub fn eat_expression_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
         if self.peek_is(TokenType::OpenParenthesis) {
             self.bump(); // eat open parenthesis
             self.eat_newlines_maybe()?;
@@ -148,8 +147,6 @@ impl Parser {
             self.eat_newlines_maybe()?;
 
             self.eat_token(TokenType::CloseParenthesis)?;
-            self.tree
-                .set_span(expression_id, self.get_span_from(&start));
             Ok(expression_id)
         } else {
             self.eat_expression(self.options)

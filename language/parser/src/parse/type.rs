@@ -2,10 +2,10 @@ use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Annotation, Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType,
-    IntrinsicType, Keyword, LocalNodeId, Mutability, Name, NodeType, TokenType, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
-    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType,
+    Keyword, LocalNodeId, Mutability, Name, NodeType, TokenType, TypeBinaryOperator, TypeKind,
+    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
 
@@ -1245,29 +1245,11 @@ impl Parser {
                 }
 
                 // parse the super type expression
-                let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
                 let type_start = self.mark_span();
                 let ty = self.eat_expression(self.options.in_before_block())?;
-                let (inner_ty, is_parenthesized) = match self.tree.get(ty) {
-                    Expression::Parenthesized { expression } => (*expression, true),
-                    _ => (ty, false),
-                };
-                let is_grouped = starts_with_parenthesis || is_parenthesized;
                 let super_type_span = self.get_span_from(&type_start);
-                let requires_decorated_class_parenthesized_head = enforce_class_extends_head
-                    && self.super_type_requires_parenthesized_decorated_class_head(inner_ty);
-
-                // decorated class expressions in extends heads should keep explicit grouping
-                let ty = if requires_decorated_class_parenthesized_head && !is_grouped {
-                    self.insert_node(
-                        Expression::Parenthesized {
-                            expression: inner_ty,
-                        },
-                        super_type_span,
-                    )
-                } else {
-                    ty
-                };
+                let inner_ty = self.without_parentheses_expression(ty);
+                let is_grouped = inner_ty != ty;
 
                 if enforce_class_extends_head
                     && !is_grouped
@@ -1310,28 +1292,6 @@ impl Parser {
                 | Expression::Assign { .. }
                 | Expression::SequenceExpression { .. }
         )
-    }
-
-    /// Return true when a class extends head should keep one explicit parenthesized wrapper.
-    fn super_type_requires_parenthesized_decorated_class_head(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let Expression::Declaration(declaration_id) = self.tree.get(expression_id) else {
-            return false;
-        };
-        let Declaration::Class { .. } = self.tree.get(*declaration_id) else {
-            return false;
-        };
-
-        // decorated class heads own decorators on the semantic declaration node
-        let declaration_annotations = self.tree.get_annotations(declaration_id.id);
-        declaration_annotations.into_iter().any(|annotation_id| {
-            matches!(
-                self.tree.get::<Annotation>(annotation_id),
-                Annotation::Decorator { .. }
-            )
-        })
     }
 }
 

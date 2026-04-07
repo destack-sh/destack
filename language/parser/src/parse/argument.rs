@@ -1832,7 +1832,6 @@ impl Parser {
             };
 
             self.eat_newlines_maybe()?;
-            self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
 
             // continue regular positional argument lists after a real separator
@@ -1896,7 +1895,6 @@ impl Parser {
             };
 
             self.eat_newlines_maybe()?;
-            self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
 
             // continue regular argument lists after a real separator
@@ -1920,62 +1918,6 @@ impl Parser {
         }
         Ok(arguments.into_vec())
     }
-
-    /// Clamp an argument span so it never crosses one immediate separator token.
-    fn trim_argument_span_before_separator(
-        &mut self,
-        argument_id: LocalNodeId<Argument>,
-        terminator: TokenType,
-    ) {
-        // locate the immediate separator token after trivia
-        let mut token_index = self.pos() as usize;
-        let separator_token = loop {
-            let Some(token) = self.tokens().get(token_index).copied() else {
-                return;
-            };
-            match token.token.ty {
-                TokenType::Whitespace
-                | TokenType::Newline
-                | TokenType::LineComment
-                | TokenType::BlockComment
-                | TokenType::DocLineComment
-                | TokenType::DocBlockComment => {
-                    token_index += 1;
-                }
-                TokenType::Comma => break token,
-                token_type if token_type == terminator => break token,
-                _ => return,
-            }
-        };
-
-        // clamp the argument span to the separator start
-        let trim_end = separator_token.span.start;
-        let argument_span = self.tree.get_span(argument_id);
-        if argument_span.file != separator_token.span.file || argument_span.end <= trim_end {
-            return;
-        }
-
-        let trimmed_argument_span = Span::new(argument_span.file, argument_span.start, trim_end);
-        self.tree.set_span(argument_id, trimmed_argument_span);
-
-        let value_id = match self.tree.get(argument_id) {
-            Argument::Named { value, .. }
-            | Argument::Labeled { value, .. }
-            | Argument::Positional { value, .. }
-            | Argument::Spread { value, .. } => *value,
-
-            // error slots have no owned value span to trim
-            Argument::Error => return,
-        };
-        let value_span = self.tree.get_span(value_id);
-        if value_span.file != separator_token.span.file || value_span.end <= trim_end {
-            return;
-        }
-
-        // keep value spans aligned with their owning argument spans
-        let trimmed_value_span = Span::new(value_span.file, value_span.start, trim_end);
-        self.tree.set_span(value_id, trimmed_value_span);
-    }
 }
 
 #[cfg(test)]
@@ -1991,6 +1933,11 @@ mod tests {
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
+
+    /// Return the source text covered by one parser node span.
+    fn span_text(source: &str, start: u32, end: u32) -> &str {
+        &source[start as usize..end as usize]
+    }
 
     #[test]
     fn test_parse_parameter_type_only() {
@@ -2863,7 +2810,8 @@ class Test {
     #[test]
     fn test_parse_dynamic_arguments_recover_missing_close_before_next_statement() {
         // (a,b var
-        let mut test = TestParser::new("(a,b var");
+        let source = "(a,b var";
+        let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let arguments = parser.eat_dynamic_arguments().unwrap();
 
@@ -2877,6 +2825,13 @@ class Test {
         });
         assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*value), "b");
+
+            // `b`
+            let argument_span = parser.tree.get_span(arguments[1]);
+            let value_span = parser.tree.get_span(*value);
+
+            assert_eq!(span_text(source, argument_span.start, argument_span.end), "b");
+            assert_eq!(span_text(source, value_span.start, value_span.end), "b");
         });
 
         // the next statement starter stays for the caller
@@ -2904,7 +2859,8 @@ class Test {
     #[test]
     fn test_parse_dynamic_arguments_recover_missing_close_before_semicolon() {
         // (a,b;
-        let mut test = TestParser::new("(a,b;");
+        let source = "(a,b;";
+        let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let arguments = parser.eat_dynamic_arguments().unwrap();
 
@@ -2918,6 +2874,13 @@ class Test {
         });
         assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*value), "b");
+
+            // `b`
+            let argument_span = parser.tree.get_span(arguments[1]);
+            let value_span = parser.tree.get_span(*value);
+
+            assert_eq!(span_text(source, argument_span.start, argument_span.end), "b");
+            assert_eq!(span_text(source, value_span.start, value_span.end), "b");
         });
 
         // the semicolon stays for the caller

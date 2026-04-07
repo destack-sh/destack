@@ -264,7 +264,7 @@ struct Foo extends Bar {}
     }
 
     #[test]
-    fn test_parse_class_wraps_decorated_class_expression_extends_head() {
+    fn test_parse_class_keeps_unparenthesized_decorated_extends_head_unwrapped() {
         let mut test = TestParser::new_with_options(
             "class Outer extends\n@deco\nclass {} {}",
             LanguageType::JavaScript,
@@ -278,10 +278,8 @@ struct Foo extends Bar {}
         assert_node!(parser.tree, class_id, Declaration::Class { heritage, .. } => {
             let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
             assert_eq!(extends_types.len(), 1);
-            assert_node!(parser.tree, extends_types[0], Expression::Parenthesized { expression } => {
-                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Class { .. });
-                });
+            assert_node!(parser.tree, extends_types[0], Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Class { .. });
             });
         });
     }

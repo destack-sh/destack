@@ -1146,6 +1146,22 @@ while (x > y) {
     }
 
     #[test]
+    fn test_parse_while_parenthesized_condition_keeps_inner_span() {
+        let mut test = TestParser::new("while (x > y) {}");
+        let mut parser = test.prepare();
+
+        let while_id = parser.eat_while().unwrap();
+        assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { .. });
+
+            let condition_span = parser.tree.get_span(*condition);
+            let condition_text = &parser.file.text()
+                [condition_span.start as usize..condition_span.end as usize];
+            assert_eq!(condition_text, "x > y");
+        });
+    }
+
+    #[test]
     fn test_parse_do_while_loop() {
         let mut test = TestParser::new(
             r###"
@@ -1161,6 +1177,23 @@ do { x } while (true)
         assert_node!(parser.tree, do_while_id, Expression::While { kind, condition, body: _, .. } => {
             assert_eq!(*kind, WhileKind::DoWhile);
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        });
+    }
+
+    #[test]
+    fn test_parse_do_while_parenthesized_condition_keeps_inner_span() {
+        let mut test = TestParser::new("do x; while (value)");
+        let mut parser = test.prepare();
+
+        let while_id = parser.eat_while().unwrap();
+        assert_node!(parser.tree, while_id, Expression::While { kind, condition, .. } => {
+            assert_eq!(*kind, WhileKind::DoWhile);
+            assert_expression_path!(parser, parser.tree.get(*condition), "value");
+
+            let condition_span = parser.tree.get_span(*condition);
+            let condition_text = &parser.file.text()
+                [condition_span.start as usize..condition_span.end as usize];
+            assert_eq!(condition_text, "value");
         });
     }
 

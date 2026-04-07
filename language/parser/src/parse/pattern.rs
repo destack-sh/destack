@@ -8,22 +8,6 @@ use destack_ast::{
 use destack_source::Span;
 
 impl Parser {
-    /// Eat a pattern that might be paranthesized (skip the parenthesis if present).
-    pub fn eat_pattern_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
-        let start = self.mark_span();
-        if self.peek_is(TokenType::OpenParenthesis) {
-            self.bump(); // eat open parenthesis
-            self.eat_newlines_maybe()?;
-            let pattern_id = self.eat_pattern()?;
-            self.eat_newlines_maybe()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-            self.tree.set_span(pattern_id, self.get_span_from(&start));
-            Ok(pattern_id)
-        } else {
-            self.eat_pattern()
-        }
-    }
-
     /// Eat a pattern.
     ///
     /// Examples:

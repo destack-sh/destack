@@ -3,6 +3,7 @@ use super::lookahead::DelimiterAnalysis;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
+use destack_source::NodeSpanType;
 
 use destack_ast::{
     BinaryOperator, Block, BlockContext, BlockFormat, Declaration, DeclarationDescriptor,
@@ -339,8 +340,7 @@ impl Parser {
     fn eat_parenthesized_inner_expression(
         &mut self,
         preserve_type_context: bool,
-    ) -> ParseResult<(LocalNodeId<Expression>, TokenType)> {
-        let inner_start = self.pos();
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let mut inner_options = self.options.nested().with_parenthesis(true);
         inner_options.set_allow_sequence_expression(true);
         if preserve_type_context && self.options.is_in_type() {
@@ -351,7 +351,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        Ok((expression_id, self.token_type_at(inner_start as usize)))
+        Ok(expression_id)
     }
 
     /// Finish a parenthesized expression after the inner value has been parsed.
@@ -359,28 +359,13 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         expression_id: LocalNodeId<Expression>,
-        inner_token_type: TokenType,
     ) -> LocalNodeId<Expression> {
-        match self.tree.get(expression_id) {
-            Expression::TupleExpression { .. }
-                if inner_token_type != TokenType::OpenParenthesis =>
-            {
-                self.tree.set_span(expression_id, self.get_span_from(start));
-                expression_id
-            }
-            Expression::SequenceExpression { .. }
-                if inner_token_type != TokenType::OpenParenthesis =>
-            {
-                self.tree.set_span(expression_id, self.get_span_from(start));
-                expression_id
-            }
-            _ => self.insert_node(
-                Expression::Parenthesized {
-                    expression: expression_id,
-                },
-                self.get_span_from(start),
-            ),
-        }
+        self.insert_node(
+            Expression::Parenthesized {
+                expression: expression_id,
+            },
+            self.get_span_from(start),
+        )
     }
 
     /// Try to parse a parenthesized lambda from one known group shape.
@@ -524,10 +509,9 @@ impl Parser {
 
         // tuple or parenthesized expression for the remaining cases
         let preserve_type_context = !is_plain_js_or_ts_group;
-        let (expression_id, inner_token_type) =
-            self.eat_parenthesized_inner_expression(preserve_type_context)?;
+        let expression_id = self.eat_parenthesized_inner_expression(preserve_type_context)?;
 
-        Ok(self.finish_parenthesized_expression(start, expression_id, inner_token_type))
+        Ok(self.finish_parenthesized_expression(start, expression_id))
     }
 
     /// Parse an open parenthesis primary expression.
@@ -659,7 +643,6 @@ impl Parser {
         // Main expression
         // ------------------------------------------------------------
         //
-
         let left_expression_id: LocalNodeId<Expression> = {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
 
@@ -976,15 +959,19 @@ impl Parser {
                     if token_type == TokenType::ElementwiseOr
                         || token_type == TokenType::ElementwiseAnd && !self.language.is_destack()
                     {
-                        self.bump(); // eat elementwise operator
-                        if self.options.is_in_type() {
-                            self.eat_newlines_maybe()?;
-                        }
                         let leading_binary_operator = match token_type {
                             TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
                             TokenType::ElementwiseAnd => BinaryOperator::ElementwiseAnd,
                             _ => unreachable!(),
                         };
+                        let operator_start = self.mark_span();
+
+                        // separator and following trivia
+                        self.bump(); // eat elementwise operator
+                        if self.options.is_in_type() {
+                            self.eat_newlines_maybe()?;
+                        }
+                        let operator_span = self.get_span_from(&operator_start);
 
                         // eat expression
                         let expression_id = self.eat_expression_in_scope()?;
@@ -1000,9 +987,14 @@ impl Parser {
                             return Err(ParseError::unexpected(self.get_span_from(&start)));
                         }
 
-                        // expand span
+                        // preserve the full root span and explicit leading separator
                         self.tree
                             .set_span(expression_id, self.get_span_from(&start));
+                        self.tree.set_side_span(
+                            expression_id,
+                            NodeSpanType::Leading,
+                            operator_span,
+                        );
 
                         // forward the expression (no need to parse further here)
                         self.attach_pending_decorators_to_expression(

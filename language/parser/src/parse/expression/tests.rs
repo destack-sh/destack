@@ -2519,10 +2519,12 @@ fn test_parse_javascript_class_expression_with_parenthesized_sequence_extends() 
                 assert_node!(parser.tree, *class_id, Declaration::Class { heritage, .. } => {
                     let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
                     assert_eq!(extends_types.len(), 1);
-                    assert_node!(parser.tree, extends_types[0], Expression::SequenceExpression { expressions } => {
-                        assert_eq!(expressions.len(), 2);
-                        assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
-                        assert_expression_path!(parser, parser.tree.get(expressions[1]), "c");
+                    assert_node!(parser.tree, extends_types[0], Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::SequenceExpression { expressions } => {
+                            assert_eq!(expressions.len(), 2);
+                            assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
+                            assert_expression_path!(parser, parser.tree.get(expressions[1]), "c");
+                        });
                     });
                 });
             });
@@ -6424,6 +6426,33 @@ type Value =
     });
 }
 
+/// Preserve the leading separator inside one type expression span.
+#[test]
+fn test_parse_elementwise_leading_type_expression_keeps_root_span() {
+    let mut test = TestParser::new(
+        "
+type Value =
+  | string
+  | number
+        ",
+    );
+    let mut parser = test.prepare();
+    parser.eat_newline().unwrap();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // type Value = ...
+    assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+            // `Value`
+            assert_string!(parser, descriptor.name.unwrap().string(), "Value");
+
+            // `| string\n  | number`
+            let value_span = parser.tree.get_span(*value);
+            assert_eq!(parser.get_span_str(value_span), "| string\n  | number");
+        });
+    });
+}
+
 /// Parse a leading elementwise operator in a type expression with doc comments.
 #[test]
 fn test_parse_elementwise_leading_type_expression_with_docs() {
@@ -6506,6 +6535,34 @@ const value =
     });
 }
 
+/// Preserve the leading separator inside one value expression span.
+#[test]
+fn test_parse_elementwise_leading_value_expression_keeps_root_span() {
+    let mut test = TestParser::new(
+        "
+const value =
+  | 1
+  | 2
+  | 3",
+    );
+    let mut parser = test.prepare();
+    parser.eat_newline().unwrap();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // const value = ...
+    assert_node!(parser.tree, expression_id, Expression::Let { mutability, declarators, .. } => {
+        // `const`
+        assert_eq!(*mutability, Mutability::Immutable);
+        assert_eq!(declarators.len(), 1);
+
+        // `| 1\n  | 2\n  | 3`
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+            let value_span = parser.tree.get_span(value.unwrap());
+            assert_eq!(parser.get_span_str(value_span), "| 1\n  | 2\n  | 3");
+        });
+    });
+}
+
 /// Parse a statement expression.
 #[test]
 fn test_parse_statement_expression() {
@@ -6533,22 +6590,28 @@ fn test_parse_new_without_parenthesized_type_arguments_in_statement() {
     });
 }
 
-/// Comma in parentheses parses as sequence expression.
+/// Comma in parentheses preserves the explicit sequence grouping.
 #[test]
 fn test_parse_sequence_expression() {
     let options = LanguageType::JavaScript;
     let mut test = TestParser::new_with_options("(a, b, c)", options);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
     // (a, b, c)
-    assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
-        assert_eq!(expressions.len(), 3);
-        // a
-        assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
-        // b
-        assert_expression_path!(parser, parser.tree.get(expressions[1]), "b");
-        // c
-        assert_expression_path!(parser, parser.tree.get(expressions[2]), "c");
+    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 3);
+
+            // a
+            assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+
+            // b
+            assert_expression_path!(parser, parser.tree.get(expressions[1]), "b");
+
+            // c
+            assert_expression_path!(parser, parser.tree.get(expressions[2]), "c");
+        });
     });
 }
 
@@ -6889,18 +6952,24 @@ fn test_parse_sequence_expression_with_unary_void() {
     let mut test = TestParser::new_with_options("(a, void 0, 1)", options);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
     // (a, void 0, 1)
-    assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
-        assert_eq!(expressions.len(), 3);
-        // a
-        assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
-        // void 0
-        assert_node!(parser.tree, expressions[1], Expression::Unary { operator, right } => {
-            assert_eq!(*operator, UnaryOperator::Void);
-            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 3);
+
+            // a
+            assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+
+            // void 0
+            assert_node!(parser.tree, expressions[1], Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Void);
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+
+            // 1
+            assert_node!(parser.tree, expressions[2], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
-        // 1
-        assert_node!(parser.tree, expressions[2], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
     });
 }
 
