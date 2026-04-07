@@ -16,16 +16,16 @@ use crate::{
 use destack_artifact::ModuleEdgeRelation;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
-    Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
-    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, Freshness, FunctionCardinality,
-    FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, ImportTarget,
-    InferOrigin, InferScope, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind,
-    MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
-    NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ResolvedSignature,
-    ScalarLiteral, StaticKey, StringId, SymbolDecorators, SymbolSpace, Type, TypeBinaryOperator,
-    TypeElement, TypeField, TypeLiteral, TypeRelationObligationDiagnostic, TypeTable,
-    TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
+    Addressability, Argument, Asynchrony, BindingKind, BindingOperator, Block, CastOperator,
+    CastSource, Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode,
+    DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, ForEachKind,
+    Freshness, FunctionCardinality, FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId,
+    IfCondition, ImportTarget, InferOrigin, InferScope, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability,
+    NodeTree, NodeType, NormalizationMode, Pattern, PrimitiveType, Property, Resolution,
+    ResolvedSignature, ScalarLiteral, StaticKey, StringId, SymbolDecorators, SymbolSpace, Type,
+    TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeRelationObligationDiagnostic,
+    TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
@@ -606,6 +606,110 @@ impl Compiler {
             .unwrap_or(unknown_ty_id);
 
         Some((yield_ty_id, None))
+    }
+
+    /// Resolve the value type observed by a for each binding.
+    fn for_each_binding_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        iterator_ty_id: LocalTypeId,
+        asynchrony: Asynchrony,
+        kind: ForEachKind,
+    ) -> LocalTypeId {
+        let source_id = ctx.types.get_type_source(iterator_ty_id);
+
+        // for in bindings are still intentionally loose here
+        if kind == ForEachKind::In {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+
+            return ctx.types.insert_type_from_any(ty, source_id);
+        }
+
+        // arrays and tuples expose their element types directly
+        if let Some(element_ty_id) =
+            self.array_spread_element_type(&mut ctx.reborrow(), iterator_ty_id)
+        {
+            if asynchrony == Asynchrony::Async {
+                return self.unwrap_awaited_type(&mut ctx.reborrow(), element_ty_id);
+            }
+
+            return element_ty_id;
+        }
+
+        // iterators and generators expose their yielded type
+        if let Some((yield_ty_id, _, _)) =
+            self.generator_type_arguments(&mut ctx.reborrow(), iterator_ty_id)
+        {
+            if asynchrony == Asynchrony::Async {
+                return self.unwrap_awaited_type(&mut ctx.reborrow(), yield_ty_id);
+            }
+
+            return yield_ty_id;
+        }
+
+        // iterable references expose their first type argument
+        let reference = match ctx.types.get_type(iterator_ty_id).clone() {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => Some((symbol, static_arguments)),
+            _ => None,
+        };
+        if let Some((symbol, static_arguments)) = reference {
+            let canonical_symbol = self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            let iterable_symbol =
+                self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Iterable);
+            let async_iterable_symbol =
+                self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::AsyncIterable);
+            let async_iterator_symbol =
+                self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::AsyncIterator);
+            let is_iterable = iterable_symbol
+                .is_some_and(|iterable_symbol| iterable_symbol == canonical_symbol)
+                || async_iterable_symbol
+                    .is_some_and(|async_iterable_symbol| async_iterable_symbol == canonical_symbol)
+                || async_iterator_symbol
+                    .is_some_and(|async_iterator_symbol| async_iterator_symbol == canonical_symbol);
+
+            if is_iterable {
+                let resolved_arguments = self
+                    .resolve_type_reference_static_arguments(
+                        &mut ctx.reborrow(),
+                        source_id,
+                        symbol,
+                        static_arguments.as_deref(),
+                        true,
+                    )
+                    .ok()
+                    .flatten();
+                let arguments = resolved_arguments
+                    .as_ref()
+                    .or(static_arguments.as_ref())
+                    .map(|arguments| arguments.as_slice())
+                    .unwrap_or(&[]);
+                if let Some(argument) = arguments.first() {
+                    let element_ty_id =
+                        self.convert_static_argument_type(argument, source_id, ctx.types);
+                    if asynchrony == Asynchrony::Async {
+                        return self.unwrap_awaited_type(&mut ctx.reborrow(), element_ty_id);
+                    }
+
+                    return element_ty_id;
+                }
+            }
+        }
+
+        // unresolved iterator shapes should not recurse through the source type
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Unknown,
+        };
+
+        ctx.types.insert_type_from_any(ty, source_id)
     }
 
     /// Resolve a type expression or fall back to inference when unevaluated.
@@ -2555,11 +2659,11 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
-
         // reuse an inferred result when caching is enabled
         let has_flow = state.flow.is_some();
         let node_id = expression_id.into_global_any(ctx.module.id);
         let expression = ctx.tree.get(expression_id);
+
         let cache_eligible_expression = !matches!(
             expression,
             Expression::Member { .. } | Expression::PrivateMember { .. }
@@ -2824,8 +2928,8 @@ impl Compiler {
 
             // for each: void
             Expression::ForEach {
-                asynchrony: _,
-                kind: _,
+                asynchrony,
+                kind,
                 binding,
                 iterator,
                 body,
@@ -2834,6 +2938,8 @@ impl Compiler {
             } => self.infer_for_each_control_expression(
                 &mut ctx.reborrow(),
                 expression_id,
+                *asynchrony,
+                *kind,
                 binding,
                 *iterator,
                 *body,
@@ -3100,19 +3206,29 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
+        asynchrony: Asynchrony,
+        kind: ForEachKind,
         binding: &ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
         symbol: LocalSymbolId,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
+        // iterator and binding
         let iterator_ty_id = self.infer_expression(&mut ctx.reborrow(), iterator, state)?;
+        let binding_ty_id = self.for_each_binding_type(
+            &mut ctx.type_context_reborrow(),
+            iterator_ty_id,
+            asynchrony,
+            kind,
+        );
         match binding {
             ForEachBinding::Pattern { pattern, .. } | ForEachBinding::Using { pattern, .. } => {
-                self.infer_pattern(&mut ctx.reborrow(), *pattern, Some(iterator_ty_id), state)?;
+                self.infer_pattern(&mut ctx.reborrow(), *pattern, Some(binding_ty_id), state)?;
             }
         }
 
+        // loop body
         let loop_expected_type = state.expected_type;
         let loop_symbol = symbol.into_global(ctx.module.id);
         let mut loop_ctx = state.fork().with_expected_type(None).in_loop_with_symbol(

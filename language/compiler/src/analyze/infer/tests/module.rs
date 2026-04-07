@@ -2746,3 +2746,27 @@ async function read(): Promise<number> {
 
     test.analyze_module_and_check_clean(module_id);
 }
+
+/// Infer async for of bindings from yielded element types.
+#[test]
+fn test_infers_async_for_of_binding_from_element_type() {
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+    let module_id = test.add_module(
+        "main.ts",
+        r#"
+declare const source: AsyncIterable<number>;
+
+async function app() {
+    for await (const value of source) {
+        value satisfies number;
+        return value;
+    }
+
+    return 0;
+}
+"#,
+    );
+
+    test.analyze_module_and_check_clean(module_id);
+}
