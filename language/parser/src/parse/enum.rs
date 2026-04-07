@@ -1,4 +1,4 @@
-use super::annotation::PendingDecorators;
+use super::PendingDecorators;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
@@ -272,7 +272,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, CommentStyle, Declaration, DeclarationDescriptor,
+        Annotation, AnnotationPosition, CommentKind, Declaration, DeclarationDescriptor,
         DeclarationKind, Decorator, EnumField, EnumKind, Expression, Parameter, ScalarLiteral,
         WhereClause,
     };
@@ -592,9 +592,9 @@ Entry
             });
         });
         assert_eq!(parser.tree.comments().len(), 3);
-        assert_comment!(parser, 0, CommentStyle::Slash, "before-first");
-        assert_comment!(parser, 1, CommentStyle::Slash, "between");
-        assert_comment!(parser, 2, CommentStyle::Slash, "before-name");
+        assert_comment!(parser, 0, CommentKind::Line, "before-first");
+        assert_comment!(parser, 1, CommentKind::Line, "between");
+        assert_comment!(parser, 2, CommentKind::Line, "before-name");
     }
 
     #[test]
@@ -630,7 +630,7 @@ B
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "a-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "a-tail");
     }
 
     #[test]
@@ -652,6 +652,6 @@ B
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Star, " enum-body");
+        assert_comment!(parser, 0, CommentKind::SingleLineBlock, " enum-body");
     }
 }

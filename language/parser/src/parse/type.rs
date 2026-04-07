@@ -1170,19 +1170,6 @@ impl Parser {
                 .any(|terminator| self.is_keyword(*terminator))
     }
 
-    /// Unwrap an optional parenthesized super type expression.
-    #[inline]
-    fn unwrap_parenthesized_super_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> (LocalNodeId<Expression>, bool) {
-        if let Expression::Parenthesized { expression } = self.tree.get(expression_id) {
-            (*expression, true)
-        } else {
-            (expression_id, false)
-        }
-    }
-
     /// Eat super types (without the leading keyword).
     fn eat_super_type_list(
         &mut self,
@@ -1261,18 +1248,21 @@ impl Parser {
                 let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
                 let type_start = self.mark_span();
                 let ty = self.eat_expression(self.options.in_before_block())?;
-                let (ty, is_parenthesized) = self.unwrap_parenthesized_super_expression(ty);
-                let is_parenthesized = starts_with_parenthesis || is_parenthesized;
+                let (inner_ty, is_parenthesized) = match self.tree.get(ty) {
+                    Expression::Parenthesized { expression } => (*expression, true),
+                    _ => (ty, false),
+                };
+                let is_grouped = starts_with_parenthesis || is_parenthesized;
                 let super_type_span = self.get_span_from(&type_start);
                 let requires_decorated_class_parenthesized_head = enforce_class_extends_head
-                    && self.super_type_requires_parenthesized_decorated_class_head(ty);
+                    && self.super_type_requires_parenthesized_decorated_class_head(inner_ty);
 
                 // decorated class expressions in extends heads should keep explicit grouping
-                let ty = if requires_decorated_class_parenthesized_head
-                    && (!is_parenthesized || starts_with_parenthesis)
-                {
+                let ty = if requires_decorated_class_parenthesized_head && !is_grouped {
                     self.insert_node(
-                        Expression::Parenthesized { expression: ty },
+                        Expression::Parenthesized {
+                            expression: inner_ty,
+                        },
                         super_type_span,
                     )
                 } else {
@@ -1280,10 +1270,10 @@ impl Parser {
                 };
 
                 if enforce_class_extends_head
-                    && !is_parenthesized
-                    && self.super_type_has_invalid_unparenthesized_head(ty)
+                    && !is_grouped
+                    && self.super_type_has_invalid_unparenthesized_head(inner_ty)
                 {
-                    return Err(ParseError::unexpected(self.tree.get_span(ty)));
+                    return Err(ParseError::unexpected(self.tree.get_span(inner_ty)));
                 }
 
                 // record the full type span for super types
@@ -1351,7 +1341,7 @@ mod tests {
         TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
     };
     use destack_ast::{
-        Argument, BinaryOperator, BindingKind, BindingModifier, BindingOperator, CommentStyle,
+        Argument, BinaryOperator, BindingKind, BindingModifier, BindingOperator, CommentKind,
         Declaration, DeclarationKind, Expression, FunctionAbstraction, FunctionKind, FunctionMode,
         IntType, IntrinsicType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
         TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypeModifier, TypePredicateSubject,
@@ -4610,7 +4600,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "union-line");
+        assert_comment!(parser, 0, CommentKind::Line, "union-line");
     }
 
     #[test]
@@ -4638,7 +4628,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "intersection-line");
+        assert_comment!(parser, 0, CommentKind::Line, "intersection-line");
     }
 
     #[test]
@@ -4665,7 +4655,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "left-union");
+        assert_comment!(parser, 0, CommentKind::Line, "left-union");
     }
 
     #[test]
@@ -4715,7 +4705,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "left-intersection");
+        assert_comment!(parser, 0, CommentKind::Line, "left-intersection");
     }
 
     #[test]
@@ -4754,9 +4744,9 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comments().len(), 3);
-        assert_comment!(parser, 0, CommentStyle::Slash, "null-arm");
-        assert_comment!(parser, 1, CommentStyle::Slash, "object-arm");
-        assert_comment!(parser, 2, CommentStyle::Slash, "void-arm");
+        assert_comment!(parser, 0, CommentKind::Line, "null-arm");
+        assert_comment!(parser, 1, CommentKind::Line, "object-arm");
+        assert_comment!(parser, 2, CommentKind::Line, "void-arm");
     }
 
     #[test]
@@ -4784,7 +4774,7 @@ mod tests {
         });
         assert_eq!(parser.tree.comments().len(), 1);
         let comment = parser.tree.comments()[0];
-        assert!(comment.is_leading());
+        assert!(comment.is_trailing());
         assert_eq!(
             normalize_comment_payload(parser.get_span_str(comment.span)),
             "union-doc\n"

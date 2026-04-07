@@ -1058,7 +1058,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BlockContext, CommentStyle, Declaration, Expression, IfKind, LetKind, NodeType,
+        BlockContext, CommentKind, Declaration, Expression, IfKind, LetKind, NodeType,
         ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
@@ -1889,7 +1889,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         let annotations = parser.tree.get_annotations(throw_id.id);
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "throw-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "throw-tail");
     }
 
     #[test]
@@ -1914,7 +1914,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         let annotations = parser.tree.get_annotations(throw_id.id);
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "throw-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "throw-tail");
     }
 
     #[test]
@@ -1941,7 +1941,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         let annotations = parser.tree.get_annotations(return_id.id);
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "return-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "return-tail");
     }
 
     #[test]
@@ -2095,7 +2095,7 @@ const value = 1
                     let annotations = parser.tree.get_annotations(throw_id.id);
                     assert!(annotations.is_empty());
                     assert_eq!(parser.tree.comments().len(), 1);
-                    assert_comment!(parser, 0, CommentStyle::Slash, "throw-tail");
+                    assert_comment!(parser, 0, CommentKind::Line, "throw-tail");
                 });
             });
         });
@@ -2162,7 +2162,7 @@ const value = 1
         let first_annotations = parser.tree.get_annotations(expressions[0].id);
         assert!(first_annotations.is_empty());
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "<- keep-marker");
+        assert_comment!(parser, 0, CommentKind::Line, "<- keep-marker");
     }
 
     /// Parse deeply nested JavaScript if statements without overflowing the parser stack.

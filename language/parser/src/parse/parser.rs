@@ -101,7 +101,7 @@ impl Default for ParserOptions {
 pub struct ParserSettings {
     /// Whether ambiguous tree literal syntax is disallowed.
     pub disallow_ambiguous_tree_literal: bool,
-    /// Whether token side trivia should be retained for formatter and annotation attachment.
+    /// Whether token side tokens should be retained for formatter and comment output.
     pub retain_trivia_tokens: bool,
 }
 
@@ -1663,9 +1663,9 @@ impl Parser {
         // ensure one stable owner for trivia-only files
         self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
 
-        // attach trivia only in the full parse pipeline
+        // attach comments only in the full parse pipeline
         if attach_trivia {
-            self.attach_trivia();
+            self.attach_comments();
             self.is_finished = true;
         }
 
@@ -1740,22 +1740,33 @@ impl Parser {
         self.pos as u32
     }
 
-    /// Attach trivia after parsing when needed.
-    pub fn attach_trivia(&mut self) {
+    /// Attach raw comments after parsing when needed.
+    pub fn attach_comments(&mut self) {
+        // skip comment output when trivia retention is disabled
         if !self.token_stream.retains_trivia_tokens() {
             return;
         }
 
-        // materialize the stream so trivia presence flags are complete
+        let _timing = self.timing_scope(tags::PARSE_COMMENTS);
+
+        // materialize the stream so comment state is complete
         self.token_stream.lex_to_end();
 
         if !self.token_stream.has_comment_tokens() {
             return;
         }
 
-        let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_MAIN);
-        self.attach_trivia_annotations();
+        // avoid copying comments twice when direct entrypoints attach manually
+        if !self.tree.comments().is_empty() {
+            return;
+        }
+
+        // copy lexer owned comments into the parse result
+        for comment in self.token_stream.comments().iter().copied() {
+            self.tree.push_comment(comment);
+        }
     }
+
     /// Swap parser options and return the previous value.
     #[inline(always)]
     pub(crate) fn swap_options(&mut self, options: ParserOptions) -> ParserOptions {

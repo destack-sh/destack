@@ -1075,7 +1075,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BinaryOperator, BlockContext, BlockFormat, CommentStyle, Declaration,
+        Argument, Asynchrony, BinaryOperator, BlockContext, BlockFormat, CommentKind, Declaration,
         DeclarationDescriptor, Declarator, Expression, FunctionAbstraction, FunctionCardinality,
         FunctionKind, FunctionMode, IntType, NodeType, Parameter, Pattern, ScalarLiteral,
         TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
@@ -2285,13 +2285,13 @@ function onResolve(
         let function_id = parser
             .eat_function(&start, DeclarationDescriptor::default(), false, false)
             .unwrap();
-        parser.attach_trivia();
+        parser.attach_comments();
         assert_node!(parser.tree, function_id, Declaration::Function { .. } => {
             let annotations = parser.tree.get_annotations(function_id.id);
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Star, " lambda-head");
+        assert_comment!(parser, 0, CommentKind::SingleLineBlock, " lambda-head");
     }
 
     #[test]
@@ -2301,7 +2301,7 @@ function onResolve(
         let mut parser = test.prepare();
 
         let expression_id = parser.eat_expression(parser.options).unwrap();
-        parser.attach_trivia();
+        parser.attach_comments();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { body: Some(body_id), .. } => {
                 assert_expression_path!(parser, parser.tree.get(*body_id), "x");
@@ -2311,7 +2311,7 @@ function onResolve(
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "lambda-body");
+        assert_comment!(parser, 0, CommentKind::Line, "lambda-body");
     }
 
     /// Parse empty parenthesized lambda heads that only contain comments.
@@ -2322,7 +2322,7 @@ function onResolve(
         let mut parser = test.prepare();
 
         let expression_id = parser.eat_expression(parser.options).unwrap();
-        parser.attach_trivia();
+        parser.attach_comments();
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
@@ -2331,7 +2331,7 @@ function onResolve(
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Star, " empty");
+        assert_comment!(parser, 0, CommentKind::SingleLineBlock, " empty");
     }
 
     /// Reject direct calls on unparenthesized arrow functions.

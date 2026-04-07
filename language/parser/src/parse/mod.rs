@@ -1,7 +1,7 @@
-mod annotation;
 mod argument;
 mod block;
 mod call;
+mod decorator;
 mod dependency;
 mod r#enum;
 mod error;
@@ -32,6 +32,7 @@ mod r#type;
 mod visibility;
 mod r#where;
 
+pub(crate) use decorator::PendingDecorators;
 pub use expression::{DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
 pub use function::FUNCTION_MODIFIERS;
 pub use prelude::*;
