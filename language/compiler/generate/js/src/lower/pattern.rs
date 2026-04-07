@@ -2,11 +2,37 @@ use {destack_dir as dir, destack_js as js};
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
+/// The binding mutability mode for lowered JS patterns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PatternMutabilityMode {
+    /// Preserve mutability on lowered bindings and fields.
+    Keep,
+    /// Omit mutability from lowered bindings and fields.
+    Omit,
+}
+
 impl ModuleLowerer<'_> {
     /// Lower a pattern from DIR into JS AST.
     pub fn lower_pattern(
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
+    ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
+        self.lower_pattern_in_mode(pattern_id, PatternMutabilityMode::Keep)
+    }
+
+    /// Lower a declaration-shaped pattern from DIR into JS AST.
+    pub fn lower_declaration_pattern(
+        &mut self,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
+    ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
+        self.lower_pattern_in_mode(pattern_id, PatternMutabilityMode::Omit)
+    }
+
+    /// Lower a pattern from DIR into JS AST with one mutability mode.
+    fn lower_pattern_in_mode(
+        &mut self,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
+        mode: PatternMutabilityMode,
     ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
         let pattern = self.dir_tree.get(pattern_id);
         let pattern_id = match pattern {
@@ -25,7 +51,10 @@ impl ModuleLowerer<'_> {
                 pattern: _,
                 symbol,
             } => {
-                let mutability = mutability.map(|m| self.lower_mutability(m));
+                let mutability = match mode {
+                    PatternMutabilityMode::Keep => mutability.map(|m| self.lower_mutability(m)),
+                    PatternMutabilityMode::Omit => None,
+                };
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let pattern = js::Pattern::Binding { mutability, name };
                 let pattern_id = self
@@ -37,7 +66,7 @@ impl ModuleLowerer<'_> {
             dir::Pattern::Array { fields } => {
                 let fields = fields
                     .iter()
-                    .map(|field_id| self.lower_array_pattern_field(*field_id))
+                    .map(|field_id| self.lower_array_pattern_field_in_mode(*field_id, mode))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 let pattern = js::Pattern::Array { fields };
@@ -47,7 +76,7 @@ impl ModuleLowerer<'_> {
             dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { ty: _, fields } => {
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_pattern_field(*field))
+                    .map(|field| self.lower_pattern_field_in_mode(*field, mode))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let pattern = js::Pattern::Object { fields };
                 self.tree
@@ -69,6 +98,15 @@ impl ModuleLowerer<'_> {
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
+        self.lower_array_pattern_field_in_mode(pattern_field_id, PatternMutabilityMode::Keep)
+    }
+
+    /// Lower one array or tuple pattern field into JS pattern syntax with one mutability mode.
+    fn lower_array_pattern_field_in_mode(
+        &mut self,
+        pattern_field_id: dir::LocalNodeId<dir::PatternField>,
+        mode: PatternMutabilityMode,
+    ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
         let pattern_field = self.dir_tree.get(pattern_field_id);
 
         match pattern_field {
@@ -79,10 +117,14 @@ impl ModuleLowerer<'_> {
                 default,
             } => {
                 let pattern = match pattern {
-                    Some(pattern_id) => self.lower_pattern(*pattern_id)?,
+                    Some(pattern_id) => self.lower_pattern_in_mode(*pattern_id, mode)?,
                     None => {
-                        let mutability =
-                            mutability.map(|mutability| self.lower_mutability(mutability));
+                        let mutability = match mode {
+                            PatternMutabilityMode::Keep => {
+                                mutability.map(|mutability| self.lower_mutability(mutability))
+                            }
+                            PatternMutabilityMode::Omit => None,
+                        };
                         let name = self.strings.intern_from(self.source_strings, *name);
                         let pattern = js::Pattern::Binding { mutability, name };
                         self.tree
@@ -111,7 +153,12 @@ impl ModuleLowerer<'_> {
                 symbol,
                 ..
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = match mode {
+                    PatternMutabilityMode::Keep => {
+                        mutability.map(|mutability| self.lower_mutability(mutability))
+                    }
+                    PatternMutabilityMode::Omit => None,
+                };
                 let name = self.strings.intern_from(self.source_strings, *alias);
                 let pattern = js::Pattern::Binding { mutability, name };
                 let pattern_id =
@@ -143,7 +190,7 @@ impl ModuleLowerer<'_> {
                     "computed array or tuple pattern fields are not lowered to js".to_string(),
                 ),
             }),
-            _ => self.lower_pattern_field(pattern_field_id),
+            _ => self.lower_pattern_field_in_mode(pattern_field_id, mode),
         }
     }
 
@@ -151,6 +198,15 @@ impl ModuleLowerer<'_> {
     pub fn lower_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
+    ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
+        self.lower_pattern_field_in_mode(pattern_field_id, PatternMutabilityMode::Keep)
+    }
+
+    /// Lower a pattern field from DIR into JS AST with one mutability mode.
+    fn lower_pattern_field_in_mode(
+        &mut self,
+        pattern_field_id: dir::LocalNodeId<dir::PatternField>,
+        mode: PatternMutabilityMode,
     ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
         let pattern_field = self.dir_tree.get(pattern_field_id);
         let pattern_field_id = match pattern_field {
@@ -160,10 +216,15 @@ impl ModuleLowerer<'_> {
                 pattern,
                 default,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = match mode {
+                    PatternMutabilityMode::Keep => {
+                        mutability.map(|mutability| self.lower_mutability(mutability))
+                    }
+                    PatternMutabilityMode::Omit => None,
+                };
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let pattern = pattern
-                    .map(|pattern| self.lower_pattern(pattern))
+                    .map(|pattern| self.lower_pattern_in_mode(pattern, mode))
                     .transpose()?;
                 let default = default
                     .map(|default| {
@@ -189,12 +250,17 @@ impl ModuleLowerer<'_> {
                 pattern,
                 default,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = match mode {
+                    PatternMutabilityMode::Keep => {
+                        mutability.map(|mutability| self.lower_mutability(mutability))
+                    }
+                    PatternMutabilityMode::Omit => None,
+                };
                 let key = self
                     .lower_expression(*key)
                     .expect_node::<js::Expression>(key.into_global_any(self.module.id), self)?;
                 let pattern = pattern
-                    .map(|pattern| self.lower_pattern(pattern))
+                    .map(|pattern| self.lower_pattern_in_mode(pattern, mode))
                     .transpose()?;
                 let default = default
                     .map(|default| {
@@ -221,7 +287,12 @@ impl ModuleLowerer<'_> {
                 default,
                 symbol,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = match mode {
+                    PatternMutabilityMode::Keep => {
+                        mutability.map(|mutability| self.lower_mutability(mutability))
+                    }
+                    PatternMutabilityMode::Omit => None,
+                };
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let alias = self.strings.intern_from(self.source_strings, *alias);
                 let default = default
@@ -246,7 +317,7 @@ impl ModuleLowerer<'_> {
                 pattern_field_id
             }
             dir::PatternField::Positional { pattern, default } => {
-                let pattern = self.lower_pattern(*pattern)?;
+                let pattern = self.lower_pattern_in_mode(*pattern, mode)?;
                 let default = default
                     .map(|default| {
                         self.lower_expression(default)
@@ -264,9 +335,14 @@ impl ModuleLowerer<'_> {
                 mutability,
                 pattern,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = match mode {
+                    PatternMutabilityMode::Keep => {
+                        mutability.map(|mutability| self.lower_mutability(mutability))
+                    }
+                    PatternMutabilityMode::Omit => None,
+                };
                 let pattern = pattern
-                    .map(|pattern_id| self.lower_pattern(pattern_id))
+                    .map(|pattern_id| self.lower_pattern_in_mode(pattern_id, mode))
                     .transpose()?;
                 let pattern_field = js::PatternField::Spread {
                     mutability,

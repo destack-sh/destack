@@ -1359,7 +1359,10 @@ impl ModuleLowerer<'_> {
                                 pattern,
                                 declaration_kind,
                             } => (
-                                self.lower_pattern(*pattern)?,
+                                match declaration_kind {
+                                    Some(_) => self.lower_declaration_pattern(*pattern)?,
+                                    None => self.lower_pattern(*pattern)?,
+                                },
                                 declaration_kind
                                     .map(|kind| self.lower_for_each_declaration_kind(kind)),
                             ),
@@ -1387,7 +1390,10 @@ impl ModuleLowerer<'_> {
                                 pattern,
                                 declaration_kind,
                             } => (
-                                self.lower_pattern(*pattern)?,
+                                match declaration_kind {
+                                    Some(_) => self.lower_declaration_pattern(*pattern)?,
+                                    None => self.lower_pattern(*pattern)?,
+                                },
                                 declaration_kind
                                     .map(|kind| self.lower_for_each_declaration_kind(kind)),
                             ),

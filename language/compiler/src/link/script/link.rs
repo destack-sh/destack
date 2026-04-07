@@ -97,7 +97,6 @@ impl<'a> ScriptLinker<'a> {
             BundleFormat::Esm => "esm",
             BundleFormat::Cjs => "cjs",
             BundleFormat::Iife => "iife",
-            BundleFormat::Umd => "umd",
         }
     }
 
