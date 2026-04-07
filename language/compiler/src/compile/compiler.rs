@@ -420,7 +420,9 @@ impl Compiler {
             }
 
             // apply diagnostic directive overrides
-            let Some(severity) = self.error_effective_severity(&error) else {
+            let severity =
+                self.with_revision_scope(revision, |_| self.error_effective_severity(&error));
+            let Some(severity) = severity else {
                 continue;
             };
 
@@ -457,7 +459,9 @@ impl Compiler {
 
             // apply warning directive overrides
             // NOTE #Architecture: is Compiler.flush_diagnostics the right place for directive overrides?
-            let Some(severity) = self.warning_effective_severity(&warning) else {
+            let severity =
+                self.with_revision_scope(revision, |_| self.warning_effective_severity(&warning));
+            let Some(severity) = severity else {
                 continue;
             };
 
