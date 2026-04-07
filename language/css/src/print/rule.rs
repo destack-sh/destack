@@ -4,7 +4,7 @@ use crate::{
     FontFeatureValuesRule, ImportRule, KeyframeRule, LayerStatementRule, LocalNodeId,
     NamespaceRule, NamespaceUrl, NestedDeclarationsRule, PageMarginRule, PageRule, PropertyRule,
     PropertySyntax, PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier,
-    Rule, ScopeRule, SelectorList, StyleRule, UnknownRule, VendorPrefix,
+    Rule, ScopeRule, SelectorList, StyleRule, Token, UnknownRule, VendorPrefix,
 };
 
 impl<'a> Printer<'a> {
@@ -169,10 +169,12 @@ impl<'a> Printer<'a> {
 
     /// Print one import rule.
     fn print_import_rule(&mut self, rule: &ImportRule) {
+        let url = self
+            .token_renderer()
+            .render_token(&Token::String(rule.url.clone()));
+
         self.source.push_str("@import ");
-        self.source.push('"');
-        self.source.push_str(&rule.url);
-        self.source.push('"');
+        self.source.push_str(&url);
 
         if let Some(layer) = &rule.layer {
             self.source.push(' ');
