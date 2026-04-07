@@ -573,6 +573,28 @@ match self {
         });
     }
 
+    #[test]
+    fn test_parse_match_parenthesized_value_keeps_inner_span() {
+        let mut test = TestParser::new(
+            r"
+match (value) {
+    _ => result
+}
+",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let match_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, match_id, Expression::Match { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "value");
+
+            let value_span = parser.tree.get_span(*value);
+            let value_text = &parser.file.text()[value_span.start as usize..value_span.end as usize];
+            assert_eq!(value_text, "value");
+        });
+    }
+
     /// Parse a switch-case statement for #Compatibility.
     #[test]
     fn test_parse_match_from_switch_case() {

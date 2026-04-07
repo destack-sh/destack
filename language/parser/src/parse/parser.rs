@@ -1217,6 +1217,19 @@ impl Parser {
         self.token_stream.tokens()
     }
 
+    /// Return the innermost expression after skipping parenthesized wrappers.
+    #[inline]
+    pub(crate) fn without_parentheses_expression(
+        &self,
+        mut expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        while let Expression::Parenthesized { expression } = self.tree.get(expression_id) {
+            expression_id = *expression;
+        }
+
+        expression_id
+    }
+
     /// Ensure a token exists at the given index.
     #[inline]
     pub(crate) fn ensure_token(&mut self, index: usize) {

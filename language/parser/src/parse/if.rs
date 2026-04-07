@@ -329,6 +329,27 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_if_parenthesized_condition_keeps_inner_span() {
+        let mut test = TestParser::new("if (cond) {}");
+        let mut parser = test.prepare();
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, .. } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+
+            assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
+
+            let condition_span = parser.tree.get_span(condition_id);
+            let condition_text = &parser.file.text()
+                [condition_span.start as usize..condition_span.end as usize];
+            assert_eq!(condition_text, "cond");
+        });
+    }
+
+    #[test]
     fn test_parse_if_empty_statement_in_typescript() {
         let mut test = TestParser::new_with_options("if (cond);", LanguageType::TypeScript);
         let mut parser = test.prepare();

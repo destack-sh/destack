@@ -15,6 +15,8 @@ impl Parser {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
+        let expression_id = self.without_parentheses_expression(expression_id);
+
         match self.tree.get(expression_id) {
             Expression::Identifier { .. } | Expression::QualifiedReference { .. } => true,
             Expression::Member { left, name, .. } => {
@@ -22,9 +24,6 @@ impl Parser {
             }
             Expression::Instantiation { left, .. } => {
                 self.can_start_tagged_object_literal_postfix(*left)
-            }
-            Expression::Parenthesized { expression } => {
-                self.can_start_tagged_object_literal_postfix(*expression)
             }
             _ => false,
         }
@@ -76,38 +75,24 @@ impl Parser {
     /// Return true when assignment lhs syntax is invalid in ts/js grammar.
     #[inline]
     fn assignment_target_has_invalid_syntax(&self, expression_id: LocalNodeId<Expression>) -> bool {
-        let mut expression_id = expression_id;
-        let mut is_parenthesized = false;
+        let inner_expression_id = self.without_parentheses_expression(expression_id);
+        let is_parenthesized = inner_expression_id != expression_id;
 
-        loop {
-            match self.tree.get(expression_id) {
-                // parenthesized wrappers can legalize cast lhs forms
-                Expression::Parenthesized { expression } => {
-                    is_parenthesized = true;
-                    expression_id = *expression;
-                }
+        match self.tree.get(inner_expression_id) {
+            // `satisfies` lhs is valid in parse output only when parenthesized
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Satisfies,
+                ..
+            } => !is_parenthesized,
 
-                // `satisfies` lhs is valid in parse output only when parenthesized
-                Expression::TypeBinary {
-                    operator: TypeBinaryOperator::Satisfies,
-                    ..
-                } => {
-                    return !is_parenthesized;
-                }
+            // `as` cast lhs is valid only when parenthesized
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Cast,
+                ..
+            } => !is_parenthesized,
 
-                // `as` cast lhs is valid only when parenthesized
-                Expression::TypeBinary {
-                    operator: TypeBinaryOperator::Cast,
-                    ..
-                } => {
-                    return !is_parenthesized;
-                }
-
-                // all other lhs forms are handled by assignment-target validation later
-                _ => {
-                    return false;
-                }
-            }
+            // all other lhs forms are handled by assignment-target validation later
+            _ => false,
         }
     }
 
