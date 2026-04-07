@@ -42,13 +42,13 @@ The parser treats decorators and comments as different classes.
  1. Decorators are semantic attachments.
  2. Comments stay raw and token-relative.
 
-Comments are emitted during `attach_trivia()`.
-If a test or direct parser entrypoint bypasses `Parser::parse()`, it must call `attach_trivia()` before checking comment output.
+Comments are emitted during `attach_comments()`.
+If a test or direct parser entrypoint bypasses `Parser::parse()`, it must call `attach_comments()` before checking comment output.
 
-### Trivia Stream
+### Comment Stream
 
 Raw comments are stored in `NodeTree::comments()`.
-Blank lines are not stored as trivia records.
+Blank lines are not stored as comment records.
 
 ## Testing
 

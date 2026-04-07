@@ -1417,7 +1417,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, CommentStyle, Declaration, Expression, FloatType, FunctionKind,
+        Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType, FunctionKind,
         IfCondition, IfKind, IntType, Name, Parameter, ScalarLiteral, TemplateLiteral,
         TypeBinaryOperator, TypeLiteral,
     };
@@ -3699,7 +3699,7 @@ function app() {
             });
         });
         assert_eq!(parser.tree.comments().len(), 2);
-        assert_comment!(parser, 0, CommentStyle::Slash, "first-tail");
-        assert_comment!(parser, 1, CommentStyle::Star, " second-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "first-tail");
+        assert_comment!(parser, 1, CommentKind::SingleLineBlock, " second-tail");
     }
 }

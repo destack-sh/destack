@@ -5,7 +5,7 @@ use destack_ast::{
     DependencyMode, Expression, Keyword, LiteralType, TokenType,
 };
 
-use super::super::annotation::PendingDecorators;
+use super::super::PendingDecorators;
 use super::common::{DescriptorHead, is_declaration_keyword};
 
 impl Parser {

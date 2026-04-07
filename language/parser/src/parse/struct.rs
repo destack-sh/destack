@@ -139,7 +139,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, BindingKind, CommentStyle, Declaration, DeclarationDescriptor,
+        BinaryOperator, BindingKind, CommentKind, Declaration, DeclarationDescriptor,
         DeclarationKind, Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral,
         TypeLiteral, Visibility, WhereClause,
     };
@@ -253,10 +253,12 @@ struct Foo extends Bar {}
         assert_node!(parser.tree, class_id, Declaration::Class { heritage, .. } => {
             let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
             assert_eq!(extends_types.len(), 1);
-            assert_node!(parser.tree, extends_types[0], Expression::Binary { left, operator, right } => {
-                assert_eq!(*operator, BinaryOperator::Add);
-                assert_expression_path!(parser, parser.tree.get(*left), "a");
-                assert_expression_path!(parser, parser.tree.get(*right), "b");
+            assert_node!(parser.tree, extends_types[0], Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::Add);
+                    assert_expression_path!(parser, parser.tree.get(*left), "a");
+                    assert_expression_path!(parser, parser.tree.get(*right), "b");
+                });
             });
         });
     }
@@ -435,7 +437,7 @@ class Counter extends {}
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "extends-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "extends-tail");
     }
 
     #[test]
@@ -479,8 +481,8 @@ Second // impl-second
             });
         });
         assert_eq!(parser.tree.comments().len(), 2);
-        assert_comment!(parser, 0, CommentStyle::Slash, "impl-first");
-        assert_comment!(parser, 1, CommentStyle::Slash, "impl-second");
+        assert_comment!(parser, 0, CommentKind::Line, "impl-first");
+        assert_comment!(parser, 1, CommentKind::Line, "impl-second");
     }
 
     #[test]
@@ -517,7 +519,7 @@ Second // impl-second
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "box-head");
+        assert_comment!(parser, 0, CommentKind::Line, "box-head");
     }
 
     #[test]

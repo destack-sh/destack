@@ -225,40 +225,7 @@ pub mod tags {
     pub const PARSE_KEYWORD_EXPRESSION: ParserTimingTag =
         ParserTimingTag::new("parse.keyword.expression");
 
-    pub const PARSE_ANNOTATIONS_MAIN: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.main");
-    pub const PARSE_ANNOTATIONS_ATTACHED_CHECK: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attached_check");
-    pub const PARSE_ANNOTATIONS_LEX_TO_END: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.lex_to_end");
-    pub const PARSE_ANNOTATIONS_BUILD_POSITION_INDEX: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.build_position_index");
-    pub const PARSE_ANNOTATIONS_COLLECT_TOKENS: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.collect_tokens");
-    pub const PARSE_ANNOTATIONS_COLLECT_WRAPPERS: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.collect_wrappers");
-    pub const PARSE_ANNOTATIONS_COMPUTE_SIDE_SPAN: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.compute_side_span");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_SCAN: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side.scan");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_DOCS: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side.emit_docs");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_COMMENTS: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side.emit_comments");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_NEIGHBORS: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side.build_neighbors");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_OWNER_INDEX: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side.build_owner_index");
-    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_GROUP_LOOP: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.attach_side.group_loop");
-    pub const PARSE_ANNOTATIONS_GROUP_FIND_TARGET: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.group.find_target");
-    pub const PARSE_ANNOTATIONS_GROUP_EMIT: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.group.emit");
-    pub const PARSE_ANNOTATIONS_SORT: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.sort");
+    pub const PARSE_COMMENTS: ParserTimingTag = ParserTimingTag::new("parse.comments");
 
     pub const PARSE_POSITIONS_BUILD: ParserTimingTag =
         ParserTimingTag::new("parse.positions.build");

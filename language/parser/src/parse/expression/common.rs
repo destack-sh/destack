@@ -5,7 +5,7 @@ use destack_ast::{
     LocalNodeId, TokenType,
 };
 
-use super::super::annotation::PendingDecorators;
+use super::super::PendingDecorators;
 
 pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
     TokenType::Literal,

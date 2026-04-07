@@ -229,7 +229,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Block, CommentStyle, Declaration, Declarator, Expression, FunctionKind,
+        BinaryOperator, Block, CommentKind, Declaration, Declarator, Expression, FunctionKind,
         IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
     };
     use destack_source::LanguageType;
@@ -859,7 +859,7 @@ else
         });
 
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "if-head");
+        assert_comment!(parser, 0, CommentKind::Line, "if-head");
     }
 
     #[test]
@@ -886,7 +886,7 @@ else
         });
 
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "else-boundary");
+        assert_comment!(parser, 0, CommentKind::Line, "else-boundary");
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Block, BlockContext, BlockFormat,
-    Comment, CommentDirective, CommentStyle, Declaration, Decorator, Expression, LocalNodeId,
-    TokenType, normalize_comment_payload,
+    Comment, CommentKind, Declaration, Decorator, Expression, LocalNodeId, TokenType,
+    normalize_comment_payload,
 };
 use destack_source::LanguageType;
 
@@ -20,7 +20,7 @@ fn parse_block_source(source: &str, language: LanguageType) -> (Parser, LocalNod
     let block_id = parser
         .eat_block(BlockContext::Expression)
         .expect("expected block expression in test source");
-    parser.attach_trivia();
+    parser.attach_comments();
     (parser, block_id)
 }
 
@@ -90,7 +90,7 @@ fn comments(parser: &Parser) -> &[Comment] {
 }
 
 #[test]
-fn test_parse_runs_attach_trivia_for_comments() {
+fn test_parse_runs_attach_comments_for_comments() {
     let (parser, expressions) = parse_source("// lead\nvalue", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
@@ -104,7 +104,7 @@ fn test_parse_runs_attach_trivia_for_comments() {
 }
 
 #[test]
-fn test_parse_without_trivia_leaves_trivia_empty_until_attach() {
+fn test_parse_without_trivia_leaves_comments_empty_until_attach() {
     let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -112,12 +112,12 @@ fn test_parse_without_trivia_leaves_trivia_empty_until_attach() {
     assert_eq!(expressions.len(), 2);
     assert_eq!(parser.tree.comments().len(), 0);
 
-    parser.attach_trivia();
+    parser.attach_comments();
     assert_eq!(parser.tree.comments().len(), 1);
 }
 
 #[test]
-fn test_attach_trivia_on_direct_entrypoint_emits_output() {
+fn test_attach_comments_on_direct_entrypoint_emits_output() {
     let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -125,23 +125,23 @@ fn test_attach_trivia_on_direct_entrypoint_emits_output() {
     assert_eq!(expressions.len(), 2);
     assert_eq!(parser.tree.comments().len(), 0);
 
-    parser.attach_trivia();
+    parser.attach_comments();
 
     assert_eq!(parser.tree.comments().len(), 1);
 }
 
 #[test]
-fn test_attach_trivia_is_idempotent() {
+fn test_attach_comments_is_idempotent() {
     let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     let expressions = parser.parse_without_trivia();
     assert_eq!(expressions.len(), 2);
 
-    parser.attach_trivia();
+    parser.attach_comments();
     let first_comment_count = parser.tree.comments().len();
 
-    parser.attach_trivia();
+    parser.attach_comments();
     assert_eq!(parser.tree.comments().len(), first_comment_count);
 }
 
@@ -161,7 +161,7 @@ fn test_comment_only_file_gets_stub_expression_and_trivia() {
 }
 
 #[test]
-fn test_comment_trivia_directive_classification() {
+fn test_comment_trivia_keeps_directive_comments_raw() {
     let (parser, expressions) = parse_source(
         "// @ts-ignore\na\n/* @__PURE__ */\nb\n// prettier-ignore\nc\n// prettier-ignore-start\nd\n// prettier-ignore-end\ne",
         LanguageType::TypeScript,
@@ -177,19 +177,10 @@ fn test_comment_trivia_directive_classification() {
     let fifth = comments(&parser)[4];
 
     assert_eq!(comment_text(&parser, first), "@ts-ignore");
-    assert_eq!(first.directive, CommentDirective::TypeScript);
-
     assert_eq!(comment_text(&parser, second), " @__PURE__");
-    assert_eq!(second.directive, CommentDirective::Pure);
-
     assert_eq!(comment_text(&parser, third), "prettier-ignore");
-    assert_eq!(third.directive, CommentDirective::FormatIgnore);
-
     assert_eq!(comment_text(&parser, fourth), "prettier-ignore-start");
-    assert_eq!(fourth.directive, CommentDirective::FormatIgnoreStart);
-
     assert_eq!(comment_text(&parser, fifth), "prettier-ignore-end");
-    assert_eq!(fifth.directive, CommentDirective::FormatIgnoreEnd);
 }
 
 #[test]
@@ -202,11 +193,11 @@ fn test_comment_trivia_normalizes_payload_and_style() {
 
     let first = comments(&parser)[0];
     assert_eq!(comment_text(&parser, first), "line");
-    assert_eq!(first.style, CommentStyle::Slash);
+    assert_eq!(first.kind, CommentKind::Line);
 
     let second = comments(&parser)[1];
     assert_eq!(comment_text(&parser, second), " block");
-    assert_eq!(second.style, CommentStyle::Star);
+    assert_eq!(second.kind, CommentKind::SingleLineBlock);
 }
 
 #[test]
@@ -280,7 +271,7 @@ fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
 
                 assert_eq!(comments(&parser).len(), 1);
                 let comment = comments(&parser)[0];
-                assert!(comment.is_leading());
+                assert!(comment.is_trailing());
                 assert!(parser.get_span_str(comment.span).starts_with("/**"));
                 assert!(comment_text(&parser, comment).contains("keep-doc"));
                 assert_comment_boundary_tokens(
@@ -541,6 +532,50 @@ fn test_comment_between_ternary_then_and_colon_emits_unowned_seam_trivia() {
 }
 
 #[test]
+fn test_comment_before_ternary_question_attaches_to_question_boundary() {
+    let (parser, expressions) = parse_source(
+        "const result = cond /* cond-note */ ? left : right",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let comment = comments(&parser)[0];
+    assert!(comment.is_leading());
+    assert_eq!(comment_text(&parser, comment), " cond-note");
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Identifier),
+        Some(TokenType::Maybe),
+    );
+    assert_comment_newline_shape(comment, false, false);
+}
+
+#[test]
+fn test_comment_before_less_than_comparison_attaches_to_operator_boundary() {
+    let (parser, expressions) = parse_source(
+        "const result = left /* marker */ < right",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let comment = comments(&parser)[0];
+    assert!(comment.is_leading());
+    assert_eq!(comment_text(&parser, comment), " marker");
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Identifier),
+        Some(TokenType::LessThan),
+    );
+    assert_comment_newline_shape(comment, false, false);
+}
+
+#[test]
 fn test_comments_between_if_chain_branches_emit_unowned_seam_trivia() {
     let (parser, expressions) = parse_source(
         r#"if (cond1) {
@@ -704,7 +739,7 @@ fn test_empty_doc_block_comment_falls_back_to_raw_comments() {
     assert_eq!(comments(&parser).len(), 1);
 
     let comment = comments(&parser)[0];
-    assert_eq!(comment.style, CommentStyle::Star);
+    assert!(comment.is_block());
 }
 
 #[test]
@@ -857,7 +892,7 @@ fn test_comment_inside_function_body_attaches_to_block_infix() {
 }
 
 #[test]
-fn test_comment_between_parameter_name_and_type_emits_unowned_seam_trivia() {
+fn test_comment_between_parameter_name_and_type_attaches_to_type_boundary() {
     let (parser, expressions) = parse_source(
         "function f(x /* a */ : number) {}",
         LanguageType::TypeScript,
@@ -868,10 +903,55 @@ fn test_comment_between_parameter_name_and_type_emits_unowned_seam_trivia() {
 
     let trivia = comments(&parser)[0];
     assert_eq!(comment_text(&parser, trivia), " a");
+    assert!(trivia.is_leading());
     assert_comment_boundary_tokens(
         &parser,
         trivia,
         Some(TokenType::Identifier),
+        Some(TokenType::Colon),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_between_parameter_pattern_and_type_attaches_to_type_boundary() {
+    let (parser, expressions) = parse_source(
+        "function f({ value } /* a */ : Box) {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    assert!(trivia.is_leading());
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::CloseBrace),
+        Some(TokenType::Colon),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_optional_parameter_marker_attaches_to_type_boundary() {
+    let (parser, expressions) = parse_source(
+        "function f(x? /* a */ : number) {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    assert!(trivia.is_leading());
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Maybe),
         Some(TokenType::Colon),
     );
     assert_comment_newline_shape(trivia, false, false);
@@ -965,7 +1045,7 @@ call // optional
         Some(TokenType::OpenParenthesis),
     );
     assert_comment_newline_shape(trivia[0], false, true);
-    assert_comment!(parser, 0, CommentStyle::Slash, "direct");
+    assert_comment!(parser, 0, CommentKind::Line, "direct");
 
     assert_comment_boundary_tokens(
         &parser,
@@ -974,7 +1054,7 @@ call // optional
         Some(TokenType::Maybe),
     );
     assert_comment_newline_shape(trivia[1], false, true);
-    assert_comment!(parser, 1, CommentStyle::Slash, "optional");
+    assert_comment!(parser, 1, CommentKind::Line, "optional");
 }
 
 #[test]
@@ -997,7 +1077,7 @@ call/* optional */?.()"#,
         Some(TokenType::OpenParenthesis),
     );
     assert_comment_newline_shape(trivia[0], false, false);
-    assert_comment!(parser, 0, CommentStyle::Star, " direct");
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " direct");
 
     assert_comment_boundary_tokens(
         &parser,
@@ -1006,7 +1086,46 @@ call/* optional */?.()"#,
         Some(TokenType::Maybe),
     );
     assert_comment_newline_shape(trivia[1], false, false);
-    assert_comment!(parser, 1, CommentStyle::Star, " optional");
+    assert_comment!(parser, 1, CommentKind::SingleLineBlock, " optional");
+}
+
+#[test]
+fn test_comment_before_optional_chain_question_attaches_forward() {
+    let (parser, expressions) = parse_source("call /* optional */ ?.()", LanguageType::JavaScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let comment = comments(&parser)[0];
+    assert!(comment.is_leading());
+    assert_eq!(comment_text(&parser, comment), " optional");
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Identifier),
+        Some(TokenType::Maybe),
+    );
+    assert_comment_newline_shape(comment, false, false);
+}
+
+#[test]
+fn test_comment_before_postfix_static_arguments_attaches_forward() {
+    let (parser, expressions) =
+        parse_source("call /* marker */ <string>(1)", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let comment = comments(&parser)[0];
+    assert!(comment.is_leading());
+    assert_eq!(comment_text(&parser, comment), " marker");
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Identifier),
+        Some(TokenType::LessThan),
+    );
+    assert_comment_newline_shape(comment, false, false);
 }
 
 #[test]
@@ -1028,7 +1147,7 @@ call?.(); // optional"#,
         assert_comment!(
             parser,
             index,
-            CommentStyle::Slash,
+            CommentKind::Line,
             if index == 0 { "direct" } else { "optional" }
         );
     }
@@ -1055,7 +1174,7 @@ if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
             previous_boundary_token_type(&parser, trivia),
             Some(TokenType::Semicolon)
         );
-        assert_comment!(parser, index, CommentStyle::Slash, "for dev");
+        assert_comment!(parser, index, CommentKind::Line, "for dev");
     }
 }
 
@@ -1086,7 +1205,7 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
             Some(TokenType::Literal),
         );
         assert_comment_newline_shape(first_trivia, true, true);
-        assert_comment!(parser, 0, CommentStyle::Slash, "first");
+        assert_comment!(parser, 0, CommentKind::Line, "first");
 
         let second_trivia = comments(&parser)[1];
         assert_comment_boundary_tokens(
@@ -1096,7 +1215,7 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
             Some(TokenType::Literal),
         );
         assert_comment_newline_shape(second_trivia, true, true);
-        assert_comment!(parser, 1, CommentStyle::Slash, "second");
+        assert_comment!(parser, 1, CommentKind::Line, "second");
     });
 }
 
@@ -1119,7 +1238,7 @@ fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
             Some(TokenType::Identifier),
         );
         assert_comment_newline_shape(trivia, false, false);
-        assert_comment!(parser, 0, CommentStyle::Star, " keep");
+        assert_comment!(parser, 0, CommentKind::SingleLineBlock, " keep");
     });
 }
 
@@ -1144,7 +1263,7 @@ fn test_trailing_collection_comments_before_close_remain_unowned() {
         Some(TokenType::CloseBracket),
     );
     assert_comment_newline_shape(trivia, true, true);
-    assert_comment!(parser, 0, CommentStyle::Slash, "tail");
+    assert_comment!(parser, 0, CommentKind::Line, "tail");
 }
 
 #[test]
@@ -1171,7 +1290,7 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
                 Some(TokenType::OpenBracket),
             );
             assert_comment_newline_shape(trivia, true, true);
-            assert_comment!(parser, 0, CommentStyle::Slash, "body");
+            assert_comment!(parser, 0, CommentKind::Line, "body");
         });
     });
 }
@@ -1195,7 +1314,7 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
                 Some(TokenType::OpenBracket),
             );
             assert_comment_newline_shape(trivia, false, false);
-            assert_comment!(parser, 0, CommentStyle::Star, " body");
+            assert_comment!(parser, 0, CommentKind::SingleLineBlock, " body");
         });
     });
 }
@@ -1236,8 +1355,7 @@ fn test_doc_comment_attaches_to_class_extends_expression() {
             assert!(annotations.is_empty());
 
             let comment = comments(&parser)[0];
-            assert!(comment.is_trailing());
-            assert_eq!(comment.attached_to, 0);
+            assert!(comment.is_leading());
             assert_comment_boundary_tokens(
                 &parser,
                 comment,

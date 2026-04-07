@@ -1,5 +1,5 @@
 use destack_ast::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, CommentStyle,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, CommentKind,
     Declaration, DeclarationDescriptor, Declarator, DependencyAttributeClauseKind, DependencyItem,
     DependencyKind, DependencyMode, EnumField, EnumKind, Expression, FunctionCardinality,
     FunctionKind, FunctionMode, IfCondition, IfKind, ImportAliasTarget, ImportSource, ImportTarget,
@@ -225,7 +225,7 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.attach_trivia();
+    parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert!(dynamic_arguments.is_empty());
@@ -248,8 +248,8 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     });
 
     assert_eq!(parser.tree.comments().len(), 2);
-    assert_comment!(parser, 0, CommentStyle::Star, " hop-a");
-    assert_comment!(parser, 1, CommentStyle::Star, " hop-b");
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " hop-a");
+    assert_comment!(parser, 1, CommentKind::SingleLineBlock, " hop-b");
 }
 
 /// Parse private member access with a newline before dot in TypeScript.
@@ -276,7 +276,7 @@ fn test_parse_member_expression_with_line_comment_before_dot_typescript() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.attach_trivia();
+    parser.attach_comments();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_node!(
@@ -295,7 +295,7 @@ fn test_parse_member_expression_with_line_comment_before_dot_typescript() {
 
     assert_eq!(parser.tree.comments().len(), 1);
     let comment = parser.tree.comments()[0];
-    assert_comment!(parser, 0, CommentStyle::Slash, "marker");
+    assert_comment!(parser, 0, CommentKind::Line, "marker");
 
     let token_before = parser
         .tokens()
@@ -326,12 +326,12 @@ fn test_parse_function_member_comment_seam_before_dot_typescript() {
     );
     let mut parser = test.prepare();
     let _ = parser.eat_expression(parser.options).unwrap();
-    parser.attach_trivia();
+    parser.attach_comments();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_eq!(parser.tree.comments().len(), 1);
     let comment = parser.tree.comments()[0];
-    assert_comment!(parser, 0, CommentStyle::Slash, "marker");
+    assert_comment!(parser, 0, CommentKind::Line, "marker");
 
     let token_before = parser
         .tokens()
@@ -350,6 +350,33 @@ fn test_parse_function_member_comment_seam_before_dot_typescript() {
         .copied()
         .expect("line comment should have one following token");
     assert_eq!(token_before.token.ty, TokenType::Identifier);
+    assert_eq!(token_after.token.ty, TokenType::Dot);
+}
+
+/// Attach block comments before member continuations to the dot boundary.
+#[test]
+fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
+    let mut test = TestParser::new_with_options(
+        "(activeService as unknown as QuickInputController) /* TS fail */ .pick()",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let _ = parser.eat_expression(parser.options).unwrap();
+    parser.attach_comments();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    assert_eq!(parser.tree.comments().len(), 1);
+
+    let comment = parser.tree.comments()[0];
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " TS fail");
+    assert!(comment.is_leading());
+
+    let token_after = parser
+        .tokens()
+        .iter()
+        .find(|token| token.span.start == comment.attached_to)
+        .copied()
+        .expect("member hop comment should attach to one boundary token");
     assert_eq!(token_after.token.ty, TokenType::Dot);
 }
 
@@ -1727,7 +1754,7 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.attach_trivia();
+    parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected ternary else branch");
@@ -1745,8 +1772,8 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     });
 
     assert_eq!(parser.tree.comments().len(), 2);
-    assert_comment!(parser, 0, CommentStyle::Slash, "then-seam");
-    assert_comment!(parser, 1, CommentStyle::Slash, "else-seam");
+    assert_comment!(parser, 0, CommentKind::Line, "then-seam");
+    assert_comment!(parser, 1, CommentKind::Line, "else-seam");
 }
 
 /// Parse a ternary if expression with parenthesis (disambiguate from call expression).
@@ -7203,14 +7230,14 @@ fn test_parse_no_semi_for_of_fixture_slice_trailing_block_comment_is_not_duplica
     let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
     let mut parser = test.prepare();
     let _ = parser.parse();
-    parser.attach_trivia();
+    parser.attach_comments();
 
     let trailing_block_comment_count = parser
         .tree
         .comments()
         .iter()
         .filter(|comment| {
-            if comment.style != CommentStyle::Star {
+            if !comment.is_block() {
                 return false;
             }
 

@@ -10,7 +10,7 @@ use destack_ast::{
     UnaryOperator,
 };
 
-use super::super::annotation::PendingDecorators;
+use super::super::PendingDecorators;
 
 /// The recursion interval for stack growth checks in expression parsing.
 #[cfg(not(debug_assertions))]

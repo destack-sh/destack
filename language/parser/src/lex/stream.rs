@@ -71,23 +71,6 @@ impl SemanticTokenData {
     }
 }
 
-/// Dense retained trivia bounds for one semantic token.
-#[derive(Debug, Copy, Clone)]
-pub struct SideRange {
-    /// The starting side token index.
-    pub start: u32,
-    /// The ending side token index.
-    pub end: u32,
-}
-
-impl SideRange {
-    /// Return one empty side range.
-    #[inline]
-    const fn new(start: u32, end: u32) -> Self {
-        Self { start, end }
-    }
-}
-
 /// Snapshot of token stream state for speculative parsing.
 #[derive(Debug, Clone)]
 pub struct TokenStreamMark {
@@ -97,24 +80,16 @@ pub struct TokenStreamMark {
     pub(super) tokens_len: usize,
     /// The number of side tokens captured in the mark.
     pub(super) side_tokens_len: usize,
-    /// The number of comment side token indexes captured in the mark.
-    pub(super) comment_side_tokens_len: usize,
     /// The open parenthesis stack at mark time.
     pub(super) paren_stack: Vec<usize>,
     /// The open brace stack at mark time.
     pub(super) brace_stack: Vec<usize>,
     /// The open bracket stack at mark time.
     pub(super) bracket_stack: Vec<usize>,
-    /// Side trivia ranges per semantic token from the mark tail.
-    pub(super) leading_side_ranges_tail: Vec<SideRange>,
-    /// The pending side trivia start index for the next semantic token.
-    pub(super) pending_leading_side_start: usize,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
     /// Whether side trivia since the last semantic token had a comment token.
     pub(super) pending_comment_before_next: bool,
-    /// Whether this stream snapshot has comment style side annotations.
-    pub(super) has_comment_side_tokens: bool,
     /// Whether this stream snapshot has semantic newline tokens.
     pub(super) has_semantic_newline_tokens: bool,
     /// Whether this stream snapshot has non-newline semantic tokens.
@@ -136,14 +111,8 @@ pub struct TokenStream {
     tokens: Vec<TokenSpan>,
     /// The side tokens produced so far.
     side_tokens: Vec<TokenSpan>,
-    /// Indexes of comment-like side tokens in `side_tokens`.
-    comment_side_token_indexes: Vec<u32>,
     /// Dense metadata for semantic token indexes.
     token_data: Vec<SemanticTokenData>,
-    /// Side trivia ranges before each semantic token.
-    leading_side_ranges_by_token: Vec<SideRange>,
-    /// Side trivia start index for the next semantic token.
-    pending_leading_side_start: usize,
     /// The stack of open parenthesis token indexes.
     paren_stack: Vec<usize>,
     /// The stack of open brace token indexes.
@@ -154,8 +123,6 @@ pub struct TokenStream {
     pending_line_terminator_before_next: bool,
     /// Whether side trivia since the previous semantic token had a comment token.
     pending_comment_before_next: bool,
-    /// Whether any comment style side trivia token was seen.
-    has_comment_side_tokens: bool,
     /// Whether any semantic newline token was seen.
     has_semantic_newline_tokens: bool,
     /// Whether any non-newline semantic token was seen.
@@ -188,16 +155,12 @@ impl TokenStream {
             retain_trivia_tokens: true,
             tokens,
             side_tokens,
-            comment_side_token_indexes: Vec::with_capacity(estimated_tokens / 24),
             token_data: Vec::with_capacity(semantic_token_capacity),
-            leading_side_ranges_by_token: Vec::with_capacity(semantic_token_capacity),
-            pending_leading_side_start: 0,
             paren_stack: Vec::with_capacity(semantic_token_capacity / 64),
             brace_stack: Vec::with_capacity(semantic_token_capacity / 64),
             bracket_stack: Vec::with_capacity(semantic_token_capacity / 64),
             pending_line_terminator_before_next: false,
             pending_comment_before_next: false,
-            has_comment_side_tokens: false,
             has_semantic_newline_tokens: false,
             has_attachable_semantic_tokens: false,
             is_finished: false,
@@ -235,37 +198,10 @@ impl TokenStream {
         &self.side_tokens
     }
 
-    /// Return side token indexes for comment-like trivia tokens.
+    /// Return raw comments collected during lexing.
     #[inline]
-    pub fn comment_side_token_indexes(&self) -> &[u32] {
-        &self.comment_side_token_indexes
-    }
-
-    /// Return the leading side trivia range for a semantic token index.
-    #[inline]
-    pub fn leading_side_range(&mut self, index: usize) -> (usize, usize) {
-        self.ensure_token(index);
-        self.leading_side_range_materialized(index)
-    }
-
-    /// Return the leading side trivia range for a semantic token index.
-    #[inline]
-    fn leading_side_range_materialized(&self, index: usize) -> (usize, usize) {
-        if index >= self.leading_side_ranges_by_token.len() {
-            let side_len = self.side_tokens.len();
-            return (side_len, side_len);
-        }
-
-        let range = self.leading_side_ranges_by_token[index];
-        let start = range.start as usize;
-        let end = range.end as usize;
-        (start, end)
-    }
-
-    /// Return leading side trivia ranges for semantic tokens.
-    #[inline]
-    pub fn leading_side_ranges(&self) -> &[SideRange] {
-        &self.leading_side_ranges_by_token
+    pub fn comments(&self) -> &[destack_ast::Comment] {
+        self.lexer.trivia.comments()
     }
 
     /// Return true once EOF has been reached.
@@ -371,15 +307,11 @@ impl TokenStream {
             lexer: self.lexer.snapshot(),
             tokens_len: self.tokens.len(),
             side_tokens_len: self.side_tokens.len(),
-            comment_side_tokens_len: self.comment_side_token_indexes.len(),
             paren_stack: self.paren_stack.clone(),
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
-            leading_side_ranges_tail: self.leading_side_ranges_by_token.to_vec(),
-            pending_leading_side_start: self.pending_leading_side_start,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
             pending_comment_before_next: self.pending_comment_before_next,
-            has_comment_side_tokens: self.has_comment_side_tokens,
             has_semantic_newline_tokens: self.has_semantic_newline_tokens,
             has_attachable_semantic_tokens: self.has_attachable_semantic_tokens,
             split_token: self.split_token,
@@ -393,15 +325,11 @@ impl TokenStream {
             lexer,
             tokens_len,
             side_tokens_len,
-            comment_side_tokens_len,
             paren_stack,
             brace_stack,
             bracket_stack,
-            leading_side_ranges_tail,
-            pending_leading_side_start,
             pending_line_terminator_before_next,
             pending_comment_before_next,
-            has_comment_side_tokens,
             has_semantic_newline_tokens,
             has_attachable_semantic_tokens,
             split_token,
@@ -415,12 +343,8 @@ impl TokenStream {
         if side_tokens_changed {
             self.side_tokens.truncate(side_tokens_len);
         }
-        self.comment_side_token_indexes
-            .truncate(comment_side_tokens_len);
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
         self.pending_comment_before_next = pending_comment_before_next;
-        self.pending_leading_side_start = pending_leading_side_start;
-        self.has_comment_side_tokens = has_comment_side_tokens;
         self.has_semantic_newline_tokens = has_semantic_newline_tokens;
         self.has_attachable_semantic_tokens = has_attachable_semantic_tokens;
         self.split_token = split_token;
@@ -433,12 +357,6 @@ impl TokenStream {
 
         self.tokens.truncate(tokens_len);
         self.token_data.truncate(tokens_len);
-        self.leading_side_ranges_by_token.truncate(tokens_len);
-
-        // restore leading side data
-        for (offset, side_range) in leading_side_ranges_tail.into_iter().enumerate() {
-            self.leading_side_ranges_by_token[offset] = side_range;
-        }
 
         // restore matching pair cache and open delimiter stacks
         for open_index in paren_stack
@@ -509,16 +427,6 @@ impl TokenStream {
 
     /// Ensure all tokens are lexed.
     pub fn lex_to_end(&mut self) {
-        // fast path: one-pass full-file lex for non tree literal sources
-        if !self.is_finished
-            && !self.allow_tree_literals()
-            && self.tokens.is_empty()
-            && self.side_tokens.is_empty()
-        {
-            self.lex_to_end_non_tree();
-            return;
-        }
-
         while !self.is_finished {
             self.lex_next();
         }
@@ -532,18 +440,14 @@ impl TokenStream {
         // drain token buffers
         let tokens = std::mem::take(&mut self.tokens);
         let side_tokens = std::mem::take(&mut self.side_tokens);
-        self.comment_side_token_indexes.clear();
 
         // reset caches and stacks for any follow-up access
         self.token_data.clear();
-        self.leading_side_ranges_by_token.clear();
-        self.pending_leading_side_start = 0;
         self.paren_stack.clear();
         self.brace_stack.clear();
         self.bracket_stack.clear();
         self.pending_line_terminator_before_next = false;
         self.pending_comment_before_next = false;
-        self.has_comment_side_tokens = false;
         self.has_semantic_newline_tokens = false;
         self.has_attachable_semantic_tokens = false;
         self.clear_split_token();
@@ -653,13 +557,6 @@ impl TokenStream {
         self.lex_one();
     }
 
-    /// Lex all tokens in a single pass for non tree literal sources.
-    fn lex_to_end_non_tree(&mut self) {
-        while !self.is_finished {
-            self.lex_one();
-        }
-    }
-
     /// Lex one token and route it through the shared stream update path.
     #[inline]
     fn lex_one(&mut self) {
@@ -690,18 +587,30 @@ impl TokenStream {
     /// Push a side token and update stream flags that depend on side tokens.
     #[inline]
     fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
-        let is_comment = matches!(
-            token_span.token.ty,
-            TokenType::LineComment
-                | TokenType::DocLineComment
-                | TokenType::BlockComment
-                | TokenType::DocBlockComment
-        );
-        if self.retain_trivia_tokens && is_comment {
-            self.has_comment_side_tokens = true;
+        let raw_comment = self.lexer.get_span_str(token_span.span).to_string();
+
+        match token_span.token.ty {
+            TokenType::LineComment | TokenType::DocLineComment => {
+                self.lexer.trivia.add_line_comment(token_span, &raw_comment);
+            }
+            TokenType::BlockComment | TokenType::DocBlockComment => {
+                self.lexer
+                    .trivia
+                    .add_block_comment(token_span, &raw_comment);
+            }
+            _ => {}
+        }
+
+        if self.retain_trivia_tokens
+            && matches!(
+                token_span.token.ty,
+                TokenType::LineComment
+                    | TokenType::DocLineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocBlockComment
+            )
+        {
             self.pending_comment_before_next = true;
-            let side_index = self.side_tokens.len() as u32;
-            self.comment_side_token_indexes.push(side_index);
         }
 
         if self.retain_trivia_tokens {
@@ -727,11 +636,6 @@ impl TokenStream {
             .push(SemanticTokenData::new(keyword, has_line_terminator_before));
         if self.retain_trivia_tokens {
             self.token_data[token_index].has_comment_before = self.pending_comment_before_next;
-            let leading_side_start = self.pending_leading_side_start as u32;
-            let leading_side_end = self.side_tokens.len() as u32;
-            self.leading_side_ranges_by_token
-                .push(SideRange::new(leading_side_start, leading_side_end));
-            self.pending_leading_side_start = self.side_tokens.len();
         }
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
         self.pending_comment_before_next = false;
@@ -745,6 +649,13 @@ impl TokenStream {
 
         // update lexer context for regex and tree rules
         self.lexer.track_semantic_token(token_span);
+
+        // newline stays trivia-only for comment attachment
+        if token_span.token.ty == TokenType::Newline {
+            self.lexer.trivia.handle_newline();
+        } else {
+            self.lexer.trivia.handle_token(token_span);
+        }
 
         // update matching pairs for brackets
         match token_span.token.ty {
@@ -770,16 +681,10 @@ impl TokenStream {
         }
     }
 
-    /// Return true when comment style side annotation tokens were seen.
+    /// Return true when any raw comments were collected.
     #[inline]
     pub fn has_comment_tokens(&self) -> bool {
-        self.has_comment_side_tokens
-    }
-
-    /// Return true when semantic newline tokens were seen.
-    #[inline]
-    pub fn has_blank_line_tokens(&self) -> bool {
-        self.has_semantic_newline_tokens
+        self.lexer.trivia.has_comments()
     }
 
     /// Return true when non-newline semantic tokens were seen.

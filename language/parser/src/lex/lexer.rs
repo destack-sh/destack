@@ -4,6 +4,8 @@ use std::sync::Arc;
 use destack_ast::TokenSpan;
 use destack_source::{File, FileId, LanguageType, Span};
 
+use super::trivia::{Trivia, TriviaSnapshot};
+
 use memchr::memchr;
 
 /// Tree literal lexer state for contextual parsing (TSX-compatible).
@@ -81,6 +83,8 @@ pub struct Lexer {
     /// The language type for parsing behavior.
     #[allow(unused)]
     pub(super) language: LanguageType,
+    /// Lexer-time raw comment attachment.
+    pub(super) trivia: Trivia,
     /// Whether an `@` token was seen.
     pub(super) has_at: bool,
     /// Whether the most recent side token contained a line terminator.
@@ -110,6 +114,8 @@ pub struct LexerSnapshot {
     pub(super) prev: char,
     /// The snapshot of lexer options and stacks.
     pub(super) options: LexerOptions,
+    /// The snapshot of lexer-time trivia state.
+    pub(super) trivia: TriviaSnapshot,
     /// Whether an `@` token has been observed.
     pub(super) has_at: bool,
     /// Whether the most recent side token at snapshot time had a line terminator.
@@ -131,6 +137,7 @@ impl Lexer {
             token_start: 0,
             prev: EOF_CHAR,
             language,
+            trivia: Trivia::new(),
             has_at: false,
             last_side_token_had_line_terminator: false,
         }
@@ -230,6 +237,7 @@ impl Lexer {
             token_start: self.token_start,
             prev: self.prev,
             options: self.options.clone(),
+            trivia: self.trivia.snapshot(),
             has_at: self.has_at,
             last_side_token_had_line_terminator: self.last_side_token_had_line_terminator,
         }
@@ -242,6 +250,7 @@ impl Lexer {
         self.token_start = snapshot.token_start;
         self.prev = snapshot.prev;
         self.options = snapshot.options;
+        self.trivia.restore(snapshot.trivia);
         self.has_at = snapshot.has_at;
         self.last_side_token_had_line_terminator = snapshot.last_side_token_had_line_terminator;
     }

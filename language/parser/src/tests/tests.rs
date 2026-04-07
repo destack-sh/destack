@@ -350,12 +350,12 @@ macro_rules! assert_qualified_reference_path {
     }};
 }
 
-/// Assert one comment trivia entry by style and normalized source payload.
+/// Assert one comment trivia entry by kind and normalized source payload.
 #[macro_export]
 macro_rules! assert_comment {
-    ($parser:expr, $index:expr, $expected_style:expr, $expected_text:expr) => {{
+    ($parser:expr, $index:expr, $expected_kind:expr, $expected_text:expr) => {{
         let comment = &$parser.tree.comments()[$index];
-        assert_eq!(comment.style, $expected_style, "expected comment style");
+        assert_eq!(comment.kind, $expected_kind, "expected comment kind");
 
         let source = $parser.file.span_str(comment.span);
         let got = destack_ast::normalize_comment_payload(source);

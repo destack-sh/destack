@@ -8,7 +8,7 @@ use destack_ast::{
 };
 use destack_source::{NodeSpanType, Span};
 
-use super::annotation::PendingDecorators;
+use super::PendingDecorators;
 use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -1345,9 +1345,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         AbstractionModifier, AccessorKind, Argument, Asynchrony, BinaryOperator, BindingAnchor,
-        BindingKind, BindingOperator, Block, CommentStyle, Declaration, DeclarationKind,
-        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name,
-        Parameter, Property, ScalarLiteral, Timing, TypeLiteral, TypePredicateSubject, Visibility,
+        BindingKind, BindingOperator, Block, CommentKind, Declaration, DeclarationKind, Expression,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter,
+        Property, ScalarLiteral, Timing, TypeLiteral, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1645,7 +1645,7 @@ port2 = {
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
-        parser.attach_trivia();
+        parser.attach_comments();
         assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
             let return_type = signature.return_type.expect("expected return type");
             let return_type_annotations = parser.tree.get_annotations(return_type.id);
@@ -1661,7 +1661,7 @@ port2 = {
             });
         });
         assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentStyle::Slash, "method-body");
+        assert_comment!(parser, 0, CommentKind::Line, "method-body");
     }
 
     #[test]
@@ -2233,7 +2233,7 @@ foo(): string;"#,
             });
         });
         assert_eq!(parser.tree.comments().len(), 2);
-        assert_comment!(parser, 0, CommentStyle::Slash, "first-tail");
-        assert_comment!(parser, 1, CommentStyle::Slash, "second-tail");
+        assert_comment!(parser, 0, CommentKind::Line, "first-tail");
+        assert_comment!(parser, 1, CommentKind::Line, "second-tail");
     }
 }

@@ -418,8 +418,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Block, CommentStyle, Expression, MatchCase, MatchKind, MatchSelector, Pattern,
-        ScalarLiteral,
+        Block, CommentKind, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -902,10 +901,10 @@ switch (value) {
             });
         });
         assert_eq!(parser.tree.comments().len(), 3);
-        assert_comment!(parser, 0, CommentStyle::Slash, "before-ready");
+        assert_comment!(parser, 0, CommentKind::Line, "before-ready");
 
-        assert_comment!(parser, 1, CommentStyle::Slash, "ready-tail");
+        assert_comment!(parser, 1, CommentKind::Line, "ready-tail");
 
-        assert_comment!(parser, 2, CommentStyle::Slash, "default-tail");
+        assert_comment!(parser, 2, CommentKind::Line, "default-tail");
     }
 }
