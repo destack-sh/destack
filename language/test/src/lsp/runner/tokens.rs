@@ -19,7 +19,7 @@ pub(crate) fn run_token_cases(
         .as_deref()
     {
         let source_file_path = primary_file_path(fixture)?;
-        let expected_tokens = parse_expected_semantic_tokens(&expected_snapshot)?;
+        let expected_tokens = parse_expected_semantic_tokens(expected_snapshot)?;
 
         test_state.go_to().file(&source_file_path)?;
 
@@ -40,7 +40,7 @@ pub(crate) fn run_token_cases(
         .as_deref()
     {
         let source_file_path = primary_file_path(fixture)?;
-        let expected_tokens = parse_expected_semantic_tokens(&expected_snapshot)?;
+        let expected_tokens = parse_expected_semantic_tokens(expected_snapshot)?;
         let selected_range =
             fixture.ranges.first().cloned().ok_or_else(|| {
                 "semantic token range fixture is missing [|...|] range".to_string()
@@ -73,7 +73,7 @@ pub(crate) fn run_token_cases(
         let source_file_path = primary_file_path(fixture)?;
         let changed_source = delta_source_path;
         let expected_snapshot = expected_text_path;
-        let expected_tokens = parse_expected_semantic_tokens(&expected_snapshot)?;
+        let expected_tokens = parse_expected_semantic_tokens(expected_snapshot)?;
 
         test_state.go_to().file(&source_file_path)?;
 
@@ -83,13 +83,13 @@ pub(crate) fn run_token_cases(
         let baseline_result_id = semantic_tokens_result_id(&baseline_result)?
             .ok_or_else(|| "expected baseline semantic token result id".to_string())?;
 
-        test_state.replace_document_text(&source_file_path, &changed_source)?;
+        test_state.replace_document_text(&source_file_path, changed_source)?;
         let _ = test_state.wait_for_diagnostics_version(&source_file_path, 2)?;
         let delta_result = test_state
             .request_semantic_tokens_full_delta(baseline_result_id)?
             .ok_or_else(|| "expected semantic token delta result".to_string())?;
         let merged_result = semantic_tokens_after_delta(&baseline_result, &delta_result)?;
-        let actual_tokens = normalize_semantic_tokens(&changed_source, &merged_result)?;
+        let actual_tokens = normalize_semantic_tokens(changed_source, &merged_result)?;
 
         verify_semantic_tokens(&actual_tokens, &expected_tokens)?;
     }

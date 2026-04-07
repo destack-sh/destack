@@ -3,15 +3,16 @@ use std::fmt::Write;
 use destack_core::pluralize;
 use destack_parser::source_colorizer;
 use destack_source::{
-    AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileRegistry,
+    AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileStore,
     PrintOptions, annotate_file,
 };
+use destack_workspace::{Repository, Revision};
 
 use super::{Case, CaseResult};
 
 /// Format diagnostics with source annotations for display.
 pub fn format_diagnostics(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     options: PrintOptions,
 ) -> String {
@@ -101,7 +102,7 @@ pub fn format_diagnostics(
 /// Check diagnostics against one case expectation.
 pub fn check_diagnostics(
     case: &Case,
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollector,
 ) -> CaseResult {
     let Some(message) = render_unexpected_diagnostics(files, diagnostics, case.min_fail_severity)
@@ -112,16 +113,63 @@ pub fn check_diagnostics(
     CaseResult::Failed { message }
 }
 
+/// Check collected diagnostics against one case expectation.
+pub fn check_diagnostic_collection(
+    case: &Case,
+    files: &FileStore,
+    diagnostics: &DiagnosticCollection,
+) -> CaseResult {
+    let Some(message) =
+        render_unexpected_diagnostic_collection(files, diagnostics, case.min_fail_severity)
+    else {
+        return CaseResult::Passed;
+    };
+
+    CaseResult::Failed { message }
+}
+
+/// Check diagnostics against one case using one repository snapshot.
+pub fn check_repository_diagnostics(
+    case: &Case,
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollector,
+) -> CaseResult {
+    let files = collect_diagnostic_files(repository, revision, diagnostics.iter());
+
+    check_diagnostics(case, &files, diagnostics)
+}
+
+/// Check collected diagnostics against one case using one repository snapshot.
+pub fn check_repository_diagnostic_collection(
+    case: &Case,
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollection,
+) -> CaseResult {
+    let files = collect_diagnostic_files(repository, revision, diagnostics.iter());
+
+    check_diagnostic_collection(case, &files, diagnostics)
+}
+
 /// Render all unexpected diagnostics at or above one minimum severity.
 pub fn render_unexpected_diagnostics(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollector,
     min_fail_severity: DiagnosticSeverity,
 ) -> Option<String> {
-    let all = diagnostics.collect().iter();
+    render_unexpected_diagnostic_collection(files, &diagnostics.collect(), min_fail_severity)
+}
 
+/// Render unexpected collected diagnostics at or above one minimum severity.
+pub fn render_unexpected_diagnostic_collection(
+    files: &FileStore,
+    diagnostics: &DiagnosticCollection,
+    min_fail_severity: DiagnosticSeverity,
+) -> Option<String> {
     // filter to unexpected diagnostics (at or above min_fail_severity)
-    let unexpected_diagnostics: Vec<_> = all
+    let unexpected_diagnostics: Vec<_> = diagnostics
+        .iter()
         .into_iter()
         .filter(|d| severity_at_or_above(d.severity, min_fail_severity))
         .collect();
@@ -171,6 +219,56 @@ pub fn render_unexpected_diagnostics(
         parts.join(", "),
         rendered.trim_end_matches('\n')
     ))
+}
+
+/// Render unexpected diagnostics using one repository snapshot.
+pub fn render_unexpected_repository_diagnostics(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollector,
+    min_fail_severity: DiagnosticSeverity,
+) -> Option<String> {
+    let files = collect_diagnostic_files(repository, revision, diagnostics.iter());
+
+    render_unexpected_diagnostics(&files, diagnostics, min_fail_severity)
+}
+
+/// Render unexpected collected diagnostics using one repository snapshot.
+pub fn render_unexpected_repository_diagnostic_collection(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollection,
+    min_fail_severity: DiagnosticSeverity,
+) -> Option<String> {
+    let files = collect_diagnostic_files(repository, revision, diagnostics.iter());
+
+    render_unexpected_diagnostic_collection(&files, diagnostics, min_fail_severity)
+}
+
+/// Collect one file registry for the files referenced by diagnostics.
+fn collect_diagnostic_files(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: Vec<destack_source::Diagnostic>,
+) -> FileStore {
+    let files = FileStore::new();
+
+    // gather the referenced file snapshots once
+    for diagnostic in diagnostics {
+        let file_id = diagnostic.file_id;
+        let Ok(file) = repository.file(revision, file_id) else {
+            continue;
+        };
+        let Some(file) = file else {
+            continue;
+        };
+
+        if files.get_maybe(file_id).is_none() {
+            files.insert((*file).clone());
+        }
+    }
+
+    files
 }
 
 /// Check if `actual` severity is at or above `threshold`.

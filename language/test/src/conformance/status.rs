@@ -358,7 +358,7 @@ impl StatusSet {
         // preserve explicit entries and merge pattern groups
         for entry in &self.entries {
             if !entry.has_pattern_selectors() {
-                order.push(NormalizationItem::Entry(entry.clone()));
+                order.push(NormalizationItem::Entry(Box::new(entry.clone())));
                 continue;
             }
 
@@ -385,7 +385,7 @@ impl StatusSet {
         // rebuild the normalized entry list in first occurrence order
         for item in order {
             match item {
-                NormalizationItem::Entry(entry) => entries.push(entry),
+                NormalizationItem::Entry(entry) => entries.push(*entry),
                 NormalizationItem::PatternGroup(key) => {
                     let (mut entry, selectors) = groups
                         .remove(&key)
@@ -410,7 +410,7 @@ pub fn status_json_path_for_dir(directory: &Path) -> PathBuf {
 #[derive(Debug, Clone)]
 enum NormalizationItem {
     /// One explicit entry kept in place.
-    Entry(StatusEntry),
+    Entry(Box<StatusEntry>),
     /// One merged pattern group.
     PatternGroup(String),
 }

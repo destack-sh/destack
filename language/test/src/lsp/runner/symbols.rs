@@ -16,8 +16,7 @@ pub(crate) fn run_symbol_cases(
         let active_file_path = test_state
             .fixture
             .files
-            .iter()
-            .next()
+            .first()
             .map(|file| file.path.clone())
             .ok_or_else(|| "document symbol fixture is missing a file".to_string())?;
         let expected_symbols = expected_document_symbols(fixture)?;

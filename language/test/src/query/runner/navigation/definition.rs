@@ -42,7 +42,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // run goto definition at the resolved position
-    let result = query::goto_definition(&session.session, file_id, offset);
+    let result = query::goto_definition(&session.repository, session.revision, file_id, offset);
 
     // "<none>" means we expect no result
     if expected_content == "<none>" {
@@ -158,7 +158,7 @@ fn run_declaration_with_expectation(
     }
 
     // run goto declaration at the resolved position
-    let result = query::goto_declaration(&session.session, file_id, offset);
+    let result = query::goto_declaration(&session.repository, session.revision, file_id, offset);
 
     // "<none>" means we expect no result
     if expected_content == "<none>" {
@@ -247,7 +247,8 @@ fn run_type_definition_with_expectation(
     }
 
     // run goto type definition at the resolved position
-    let result = query::goto_type_definition(&session.session, file_id, offset);
+    let result =
+        query::goto_type_definition(&session.repository, session.revision, file_id, offset);
 
     // "<none>" means we expect no result
     if expected_content == "<none>" {
@@ -356,7 +357,7 @@ fn validate_definition_invariants(
     }
 
     // validate ordering and duplicates
-    let mut previous: Option<(u32, u32, u32)> = None;
+    let mut previous: Option<(u64, u32, u32)> = None;
     for span in locations {
         // build a stable ordering key for the span
         let key = location_key(*span);
@@ -388,7 +389,7 @@ fn validate_definition_invariants(
 }
 
 /// Build a stable ordering key for a span.
-fn location_key(span: Span) -> (u32, u32, u32) {
+fn location_key(span: Span) -> (u64, u32, u32) {
     (span.file.0, span.start, span.end)
 }
 
@@ -415,8 +416,7 @@ fn require_exact_marker_match(
     }
 
     Err(format!(
-        "{operation} at '{target}' returned wrong location: expected {:?}, got {:?}",
-        expected, actual
+        "{operation} at '{target}' returned wrong location: expected {expected:?}, got {actual:?}"
     ))
 }
 

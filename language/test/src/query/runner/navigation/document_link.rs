@@ -19,7 +19,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // run the query for the current file
-    let links = query::document_links(&session.session, session.file_id);
+    let links = query::document_links(&session.repository, session.revision, session.file_id);
 
     // require nonempty expectations so failures are explicit
     let expected_content = exp.content.trim();
@@ -78,7 +78,7 @@ pub fn run_resolve(
         };
     }
 
-    let links = query::document_links(&session.session, session.file_id);
+    let links = query::document_links(&session.repository, session.revision, session.file_id);
     if links.is_empty() {
         return if content == "<none>" {
             CaseResult::Passed
@@ -107,7 +107,7 @@ pub fn run_resolve(
         };
     };
 
-    let resolved = query::resolve_document_link(&session.session, link);
+    let resolved = query::resolve_document_link(link);
     let actual_line = format_document_link_line(session, &resolved);
 
     if looks_like_span_snapshot(content, &["target=", "tooltip="]) {
@@ -301,15 +301,11 @@ fn format_link_target(session: &QueryTestSession, target: &DocumentLinkTarget) -
 
 /// Normalize a link path for stable snapshots.
 fn normalize_link_path(session: &QueryTestSession, path: &str) -> String {
-    let cwd = session.session.cwd.as_path();
     let path = Path::new(path);
 
-    if let Ok(stripped) = path.strip_prefix(cwd) {
-        let mut components = stripped.components();
-        let _ = components.next();
-        let remainder = components.as_path();
-        let remainder = remainder.to_string_lossy().to_string();
-        let trimmed = remainder.trim_start_matches('/');
+    if let Ok(stripped) = path.strip_prefix(&session.root) {
+        let normalized = stripped.to_string_lossy().to_string();
+        let trimmed = normalized.trim_start_matches('/');
         return trimmed.to_string();
     }
 

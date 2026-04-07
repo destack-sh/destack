@@ -95,6 +95,20 @@ pub fn replace_generated_section(
     Ok(updated)
 }
 
+/// Render one compact case status summary.
+fn render_status_counts(counts: &std::collections::BTreeMap<CaseStatus, usize>) -> String {
+    if counts.is_empty() {
+        return "none".to_string();
+    }
+
+    let labels = counts
+        .iter()
+        .map(|(status, count)| format!("{status} {count}"))
+        .collect::<Vec<_>>();
+
+    labels.join(", ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -138,18 +152,4 @@ after
 
         assert_eq!(updated, expected);
     }
-}
-
-/// Render one compact case status summary.
-fn render_status_counts(counts: &std::collections::BTreeMap<CaseStatus, usize>) -> String {
-    if counts.is_empty() {
-        return "none".to_string();
-    }
-
-    let labels = counts
-        .iter()
-        .map(|(status, count)| format!("{status} {count}"))
-        .collect::<Vec<_>>();
-
-    labels.join(", ")
 }

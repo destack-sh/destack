@@ -35,7 +35,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         .unwrap_or("supertypes");
 
     // prepare type hierarchy item
-    let Some(item) = query::prepare_type_hierarchy(&session.session, file_id, offset) else {
+    let Some(item) =
+        query::prepare_type_hierarchy(&session.repository, session.revision, file_id, offset)
+    else {
         return CaseResult::Failed {
             message: format!("type_hierarchy at '{}' returned None", exp.target),
         };
@@ -48,8 +50,14 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // compute hierarchy items for the requested direction
     let (items, label) = match direction {
-        "supertypes" | "super" => (query::supertypes(&session.session, &item), "supertypes"),
-        "subtypes" | "sub" => (query::subtypes(&session.session, &item), "subtypes"),
+        "supertypes" | "super" => (
+            query::supertypes(&session.repository, session.revision, &item),
+            "supertypes",
+        ),
+        "subtypes" | "sub" => (
+            query::subtypes(&session.repository, session.revision, &item),
+            "subtypes",
+        ),
         _ => {
             return CaseResult::Failed {
                 message: format!(
@@ -229,7 +237,7 @@ fn validate_items_invariants(
     }
 
     // validate ordering and duplicates
-    let mut previous: Option<(u32, u32, u32, u32, u32, u8, String)> = None;
+    let mut previous: Option<(u64, u32, u32, u32, u32, u8, String)> = None;
     for item in items {
         // build a stable ordering key for the item
         let key = item_key(item);
@@ -316,7 +324,7 @@ fn validate_span_bounds(
 }
 
 /// Build a stable ordering key for a type hierarchy item.
-fn item_key(item: &TypeHierarchyItem) -> (u32, u32, u32, u32, u32, u8, String) {
+fn item_key(item: &TypeHierarchyItem) -> (u64, u32, u32, u32, u32, u8, String) {
     (
         item.file.0,
         item.range.start,

@@ -53,7 +53,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     let completions = query::completions(
-        &session.session,
+        &session.repository,
+        session.revision,
         file_id,
         offset,
         CompletionTrigger::Invoked,

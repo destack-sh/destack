@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
+    File, FileId, FileStore, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, Suite, check_diagnostics,
-    discover_file_cases, fixtures_dir,
+    discover_file_cases, fixtures_dir, open_repository_with_options,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -52,17 +52,16 @@ fn run_parser_case(test: &Case) -> CaseResult {
         FileType::from_extension(ext).unwrap_or(FileType::Destack)
     };
 
-    // set up a minimal program for diagnostics
+    // set up one minimal repository context for path normalization
     let cwd = test.path.parent().unwrap().to_path_buf();
-    let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
+    let _repository = open_repository_with_options(
         cwd,
         fs,
-        files,
-    ));
+        FormatterOptions::default(),
+        LinterOptions::default(),
+    );
+    let files = FileStore::new();
 
     // load the file
     let uri = Uri::from_path(&test.path);
@@ -74,19 +73,18 @@ fn run_parser_case(test: &Case) -> CaseResult {
             };
         }
     };
-    let file_id = program.files.next_id();
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
+    let file_id = FileId::from_logical_path(&test.path);
     let file = File::from_text(file_id, name, uri, path, file_type, content);
-    program.files.insert(file);
-    let file = program.files.get(file_id);
+    files.insert(file);
+    let file = files.get(file_id);
 
     // parse the file
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file, language_type);
     let _expressions = parser.parse();
-    program.diagnostics.merge_from(&parser.diagnostics);
 
     // check for unexpected diagnostics
-    check_diagnostics(test, &program.files, &program.diagnostics)
+    check_diagnostics(test, &files, &parser.diagnostics)
 }

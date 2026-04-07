@@ -1,18 +1,17 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, format_diagnostics};
+use crate::core::{Case, CaseResult, format_diagnostics, open_repository_with_options};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileStore, FileSystem,
     FileType, IndentStyle, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, LinterOptions, Program, QuoteProperty, QuoteStyle,
-    TrailingComma,
+    ArrowParentheses, FormatterOptions, LinterOptions, QuoteProperty, QuoteStyle, TrailingComma,
 };
 use serde::Deserialize;
 
@@ -135,15 +134,9 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         .parent()
         .map(|path| path.to_path_buf())
         .unwrap_or_default();
-    let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::from_options(
-        formatter_options,
-        LinterOptions::default(),
-        cwd,
-        fs,
-        files,
-    ));
+    let repository =
+        open_repository_with_options(cwd, fs, formatter_options, LinterOptions::default());
 
     let original = match std::fs::read_to_string(&case.input_path) {
         Ok(content) => content,
@@ -157,7 +150,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         }
     };
 
-    let first_pass = match format_source(&program, &case.input_path, &original) {
+    let first_pass = match format_source(&repository, &case.input_path, &original) {
         Ok(formatted) => formatted,
         Err(message) => {
             return CaseResult::Failed { message };
@@ -189,7 +182,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         };
     }
 
-    let second_pass = match format_source(&program, &case.input_path, &first_pass) {
+    let second_pass = match format_source(&repository, &case.input_path, &first_pass) {
         Ok(formatted) => formatted,
         Err(message) => {
             return CaseResult::Failed { message };
@@ -209,17 +202,22 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
 }
 
 /// Format a single source file with formatter defaults.
-fn format_source(program: &Arc<Program>, path: &Path, source: &str) -> Result<String, String> {
+fn format_source(
+    repository: &Arc<destack_workspace::Repository>,
+    path: &Path,
+    source: &str,
+) -> Result<String, String> {
+    let files = FileStore::new();
     let file_type = FileType::from_path(path)
         .ok_or_else(|| format!("unsupported file type: {}", path.display()))?;
     let language_type = LanguageType::from(file_type);
-    let file_id = program.files.next_id();
     let name = path
         .file_name()
         .and_then(|value| value.to_str())
         .unwrap_or("input")
         .to_string();
     let uri = Uri::from_path(path);
+    let file_id = FileId::from_logical_path(path);
     let file = Arc::new(File::from_text(
         file_id,
         name,
@@ -228,7 +226,7 @@ fn format_source(program: &Arc<Program>, path: &Path, source: &str) -> Result<St
         file_type,
         source.to_string(),
     ));
-    program.files.insert((*file).clone());
+    files.insert((*file).clone());
 
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
@@ -244,7 +242,7 @@ fn format_source(program: &Arc<Program>, path: &Path, source: &str) -> Result<St
             diagnostics.insert(diagnostic);
         }
         let options = PrintOptions::new().with_colorizer(source_colorizer());
-        let rendered = format_diagnostics(&program.files, &diagnostics, options);
+        let rendered = format_diagnostics(&files, &diagnostics, options);
         return Err(format!(
             "parse errors in '{}':\n\n{rendered}",
             path.display()
@@ -259,7 +257,7 @@ fn format_source(program: &Arc<Program>, path: &Path, source: &str) -> Result<St
         &expressions,
         &file,
         language_type,
-        program.formatter,
+        repository.formatter,
     ))
 }
 

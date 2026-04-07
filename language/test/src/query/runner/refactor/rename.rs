@@ -37,7 +37,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // allow explicit failure expectations
     let content = exp.content.trim();
     if content == "<none>" {
-        let result = query::rename(&session.session, file_id, offset, new_name);
+        let result = query::rename(
+            &session.repository,
+            session.revision,
+            file_id,
+            offset,
+            new_name,
+        );
         return match result {
             None => CaseResult::Passed,
             Some(rename_result) => CaseResult::Failed {
@@ -52,7 +58,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // first check prepare_rename
-    let prepare_result = query::prepare_rename(&session.session, file_id, offset);
+    let prepare_result =
+        query::prepare_rename(&session.repository, session.revision, file_id, offset);
     if prepare_result.is_none() {
         return CaseResult::Failed {
             message: format!("prepare_rename at '{}' returned None", exp.target),
@@ -60,7 +67,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // then do the actual rename
-    let result = query::rename(&session.session, file_id, offset, new_name);
+    let result = query::rename(
+        &session.repository,
+        session.revision,
+        file_id,
+        offset,
+        new_name,
+    );
 
     // empty expectation means we just verify the rename works (produces any edits)
     if content.is_empty() {

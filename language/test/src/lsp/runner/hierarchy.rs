@@ -11,7 +11,7 @@ pub(crate) fn run_hierarchy_cases(
 ) -> Result<(), String> {
     // call hierarchy incoming
     if let Some(expected_snapshot) = fixture.expectations.hierarchy.call_incoming_text.as_deref() {
-        let expected_calls = parse_expected_call_hierarchy_calls(&expected_snapshot)?;
+        let expected_calls = parse_expected_call_hierarchy_calls(expected_snapshot)?;
 
         test_state.go_to_marker("call_hierarchy")?;
         let prepared_items = test_state
@@ -32,7 +32,7 @@ pub(crate) fn run_hierarchy_cases(
 
     // call hierarchy outgoing
     if let Some(expected_snapshot) = fixture.expectations.hierarchy.call_outgoing_text.as_deref() {
-        let expected_calls = parse_expected_call_hierarchy_calls(&expected_snapshot)?;
+        let expected_calls = parse_expected_call_hierarchy_calls(expected_snapshot)?;
 
         test_state.go_to_marker("call_hierarchy")?;
         let prepared_items = test_state
@@ -58,7 +58,7 @@ pub(crate) fn run_hierarchy_cases(
         .type_supertypes_text
         .as_deref()
     {
-        let expected_items = parse_expected_type_hierarchy_items(&expected_snapshot)?;
+        let expected_items = parse_expected_type_hierarchy_items(expected_snapshot)?;
 
         test_state.go_to_marker("type_hierarchy")?;
         let prepared_items = test_state
@@ -79,7 +79,7 @@ pub(crate) fn run_hierarchy_cases(
 
     // type hierarchy subtypes
     if let Some(expected_snapshot) = fixture.expectations.hierarchy.type_subtypes_text.as_deref() {
-        let expected_items = parse_expected_type_hierarchy_items(&expected_snapshot)?;
+        let expected_items = parse_expected_type_hierarchy_items(expected_snapshot)?;
 
         test_state.go_to_marker("type_hierarchy")?;
         let prepared_items = test_state

@@ -3,17 +3,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_artifact::{ArtifactKey, EmitFormat, MemoryCacheStore};
+use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
-use destack_source::{File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri};
-use destack_workspace::{Destack, Session, TargetId, TargetOptions};
+use destack_source::{
+    Diagnostic, DiagnosticSeverity, File, FileContent, FileStore, FileType, MemoryFileSystem,
+    ModuleId, PrintOptions, Uri,
+};
+use destack_workspace::{Repository, Revision};
 use serde_json::json;
 
 use crate::core::print::color;
 use crate::core::{
-    Case, CaseResult, RunContext, RunOptions, Suite, fixtures_dir, format_diagnostics,
-    save_expected_failures,
+    Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision, fixtures_dir,
+    format_diagnostics, remember_profile_for_target_or_default, save_expected_failures,
+    write_workspace_text_file,
 };
 use crate::mdtest::{
     MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file,
@@ -149,24 +153,23 @@ impl Suite for SpecificationSuite {
 /// Run a single spec test: compile the code and compare errors against expectations.
 fn run_specification_test(test: &MdTestCase) -> CaseResult {
     // build one isolated in-memory environment per test
-    let (session, program, root, main_path) = {
+    let (repository, _root, main_path) = {
         let root = specification_root_for(test);
         let cwd = PathBuf::from("/test/spec");
         let fs = Arc::new(MemoryFileSystem::new());
-        let session = Arc::new(
-            Session::new(cwd)
-                .with_fs(fs.clone())
+        let repository = Arc::new(
+            Repository::open_root_from_fs(cwd, fs.clone())
+                .expect("failed to import repository from specification file system")
                 .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
-        crate::mdtest::setup_test_environment_with_session(test, session, fs, root)
+        crate::mdtest::setup_test_environment_with_repository(test, repository, fs, root)
     };
     let prefer_native = test_option_bool(test, "native").unwrap_or(false);
     let verify_mir = !prefer_native;
 
     // compile with single worker for deterministic results
     let mut compiler = Compiler::new(
-        session.clone(),
-        program.clone(),
+        repository.clone(),
         CompilerOptions {
             load_libraries: false,
             workers: 1,
@@ -175,28 +178,31 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         },
     );
 
-    // run the spec body, then always remove the isolated session root
-    let result = (|| {
+    // run the spec body, then always remove the isolated repository root
+    (|| {
         // resolve the main module to compile
-        let module_id = match compiler.resolve_path_to_module(&main_path) {
-            Ok(id) => id,
-            Err(e) => {
-                return CaseResult::Failed {
-                    message: format!("failed to resolve module: {e:?}"),
-                };
-            }
-        };
+        let initial_revision = current_workspace_revision(&repository);
+        if let Err(error) = compiler.resolve_path_to_module(initial_revision, &main_path) {
+            return CaseResult::Failed {
+                message: format!("failed to resolve module: {error:?}"),
+            };
+        }
+        let revision;
 
         // apply config options and targets
-        if let Err(error) =
-            apply_destack_config_for_spec(&program, module_id, &main_path, prefer_native)
+        let module_id = match apply_destack_config_for_spec(&repository, &main_path, prefer_native)
         {
-            return CaseResult::Failed { message: error };
-        }
+            Ok((next_revision, next_module_id)) => {
+                revision = next_revision;
+                next_module_id
+            }
+            Err(error) => return CaseResult::Failed { message: error },
+        };
 
         // select profile and lib loading
         let (profile, mut load_libraries) =
-            select_profile_for_mdtest(&program, module_id, test, prefer_native);
+            select_profile_for_mdtest(&repository, revision, module_id, test, prefer_native);
+        let profile = compiler.remember_profile(profile);
 
         // native spec cases need builtin libraries for lowering
         if prefer_native {
@@ -204,45 +210,75 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         }
 
         // load libs only when explicitly requested
-        if !load_libraries && has_explicit_libs(&program, module_id) {
+        if !load_libraries && has_explicit_libs(&repository, revision, module_id) {
             load_libraries = true;
         }
 
         // enqueue analysis task
         compiler.options.load_libraries = load_libraries;
-        compiler.enqueue(ArtifactKey::DirAnalyzed {
-            module: module_id,
-            profile,
-        });
+        compiler.enqueue(
+            revision,
+            ArtifactKey::DirAnalyzed {
+                module: module_id,
+                profile,
+            },
+        );
 
         // run optimize passes only for native spec tests
         let run_optimize = prefer_native;
+        let mut diagnostic_target = None;
+        let mut diagnostic_profile = None;
         if run_optimize {
             // select target and profile for diagnostics
-            let diagnostic_target = program.ensure_target_for_module(module_id);
-            let diagnostic_profile =
-                program.profile_id_for_target_or_default(module_id, &diagnostic_target);
-            compiler.enqueue(ArtifactKey::MirOptimized {
-                module: module_id,
-                profile: diagnostic_profile,
-                target: diagnostic_target,
-            });
+            let next_target = repository
+                .diagnostic_target_for_module(revision, module_id)
+                .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"));
+            let next_profile = remember_profile_for_target_or_default(
+                &repository,
+                &compiler,
+                revision,
+                module_id,
+                &next_target,
+            );
+            diagnostic_target = Some(next_target);
+            diagnostic_profile = Some(next_profile);
+            compiler.enqueue(
+                revision,
+                ArtifactKey::MirOptimized {
+                    module: module_id,
+                    profile: next_profile,
+                    target: next_target,
+                },
+            );
         }
 
         compiler.compile();
         drop(compiler);
 
         // collect actual diagnostics
-        let diagnostics = program.diagnostics.collect();
+        let diagnostics = if run_optimize {
+            let diagnostic_target =
+                diagnostic_target.expect("missing diagnostic target for optimized spec run");
+            let diagnostic_profile =
+                diagnostic_profile.expect("missing diagnostic profile for optimized spec run");
+            repository.module_target_artifact_diagnostics(
+                revision,
+                module_id,
+                diagnostic_profile,
+                diagnostic_target,
+            )
+        } else {
+            repository.module_artifact_diagnostics(revision, module_id, profile)
+        };
         let diagnostics_vec = diagnostics.iter();
         let actual_errors: Vec<String> = diagnostics_vec
             .iter()
-            .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
+            .filter(|d| d.severity == DiagnosticSeverity::Error)
             .map(|d| d.message.clone())
             .collect();
         let actual_warnings: Vec<String> = diagnostics_vec
             .iter()
-            .filter(|d| d.severity == destack_source::DiagnosticSeverity::Warning)
+            .filter(|d| d.severity == DiagnosticSeverity::Warning)
             .map(|d| d.message.clone())
             .collect();
 
@@ -261,8 +297,9 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         // append rendered diagnostics for failures
         match result {
             CaseResult::Failed { mut message } => {
+                let files = collect_diagnostic_files(&repository, revision, diagnostics.iter());
                 let options = PrintOptions::new().with_colorizer(source_colorizer());
-                let rendered = format_diagnostics(&program.files, &diagnostics, options);
+                let rendered = format_diagnostics(&files, &diagnostics, options);
                 if !rendered.is_empty() {
                     if !message.is_empty() {
                         message.push('\n');
@@ -274,11 +311,7 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
             }
             other => other,
         }
-    })();
-
-    let _ = session.remove_root(&root);
-
-    result
+    })()
 }
 
 /// Build the isolated root directory for one specification case.
@@ -298,133 +331,163 @@ fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {
     }
 }
 
-fn has_explicit_libs(program: &destack_workspace::Program, module_id: ModuleId) -> bool {
+fn has_explicit_libs(repository: &Repository, revision: Revision, module_id: ModuleId) -> bool {
     // resolve the module package
     let package_id = {
-        let module = program.modules.get(module_id);
-        let module = module.as_ref();
+        let Ok(module) = repository.module(revision, module_id) else {
+            return false;
+        };
+        let Some(module) = module else {
+            return false;
+        };
+
         module.package_id
     };
-    let package = program.packages.get(package_id);
-    let package = package.read();
-    let Some(config) = package.config.as_ref() else {
+    let Ok(package_options) = repository.package_options(revision, package_id) else {
+        return false;
+    };
+    let Some(package_options) = package_options else {
         return false;
     };
 
     // check compiler lib entries
-    if !config.options.compiler.lib.is_empty() {
+    if !package_options.compiler.lib.is_empty() {
         return true;
     }
 
     // check target lib entries
-    config
-        .options
+    package_options
         .targets
         .values()
         .any(|target| target.lib.is_some())
 }
 
 fn apply_destack_config_for_spec(
-    program: &destack_workspace::Program,
-    module_id: destack_source::ModuleId,
+    repository: &Repository,
     main_path: &Path,
     prefer_native: bool,
-) -> Result<(), String> {
+) -> Result<(Revision, ModuleId), String> {
     // locate destack.json in the test root
     let root = main_path.parent().unwrap_or_else(|| Path::new("/"));
     let destack_config_path = root.join("destack.json");
 
-    // skip when no destack.json exists
-    let has_destack_config = program
-        .fs
+    // detect whether destack.json already exists on disk
+    let has_destack_config = repository
+        .file_system()
         .exists(&destack_config_path)
         .map_err(|e| format!("failed to stat destack.json: {e}"))?;
-    if !has_destack_config {
-        // default spec tests to js unless explicitly marked native
-        if prefer_native {
-            return Ok(());
-        }
+    if !has_destack_config && prefer_native {
+        let revision = current_workspace_revision(repository);
+        let module_id = repository
+            .module_id_for_path(revision, main_path)
+            .map_err(|error| format!("failed to resolve main module: {error}"))?
+            .ok_or_else(|| "missing main module".to_string())?;
 
-        // materialize a real default config so later path based lookups stay honest
-        materialize_default_spec_destack_config(program, &destack_config_path)
-            .map_err(|error| format!("failed to write default destack.json: {error}"))?;
+        return Ok((revision, module_id));
     }
 
-    // read and parse destack.json through the real JSONC-aware loader
-    let content = program
-        .fs
-        .read_to_string(&destack_config_path)
-        .map_err(|error| format!("failed to read destack.json: {error}"))?;
-    let name = destack_config_path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-    let uri = Uri::from_path(&destack_config_path);
-    let file_id = program.files.next_id();
-    let file = File::from_text_as_jsonc(
-        file_id,
-        name,
-        uri,
-        Some(destack_config_path),
-        FileType::Json,
-        content,
-    )
-    .map_err(|error| format!("failed to parse destack.json: {error}"))?;
-    let file = Arc::new(file);
-    let mut config = Destack::parse(&file).map_err(|error| error.to_string())?;
+    // load the existing config when present
+    let mut value = if has_destack_config {
+        let content = repository
+            .file_system()
+            .read_to_string(&destack_config_path)
+            .map_err(|error| format!("failed to read destack.json: {error}"))?;
+        let name = destack_config_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let uri = Uri::from_path(&destack_config_path);
+        let file_id = repository.file_id_for_workspace_path(&destack_config_path);
+        let file = File::from_text_as_jsonc(
+            file_id,
+            name,
+            uri,
+            Some(destack_config_path.clone()),
+            FileType::Json,
+            content,
+        )
+        .map_err(|error| format!("failed to parse destack.json: {error}"))?;
+        match &file.content {
+            FileContent::Json { value, .. } => value.clone(),
+            _ => unreachable!("jsonc parse must produce json content"),
+        }
+    } else {
+        json!({})
+    };
 
     // prefer js defaults for spec tests unless a native target is required
-    if !prefer_native && config.options.targets.is_empty() {
-        let target = TargetOptions {
-            emit: EmitFormat::Js,
-            ..Default::default()
-        };
-        config.options.targets.insert("default".to_string(), target);
-        config.options.default_target = Some("default".to_string());
+    let mut needs_write = !has_destack_config;
+    let has_targets = if has_destack_config {
+        !repository
+            .load_destack_declaration_for_path(&destack_config_path)
+            .ok_or_else(|| "failed to load destack.json".to_string())?
+            .package_options()
+            .targets
+            .is_empty()
+    } else {
+        false
+    };
+
+    if !prefer_native && !has_targets {
+        value = json!({
+            "compiler": {
+                "checkTs": true,
+                "checkJs": true,
+            },
+            "targets": {
+                "default": {
+                    "emit": "js",
+                }
+            },
+            "defaultTarget": "default",
+        });
+        needs_write = true;
     }
 
-    // attach the config and targets to the module package
-    let package_id = {
-        let module = program.modules.get(module_id);
-        let module = module.as_ref();
-        module.package_id
-    };
-    let package = program.packages.get(package_id);
-    let mut package = package.write();
-    package.config = Some(config.clone());
-    package.targets.clear();
-    for (name, options) in config.options.targets.iter() {
-        let target = options.to_target(name);
-        let target_id = TargetId::new(package_id, name);
-        package.targets.insert(target_id, target);
+    // materialize the config as real source when needed
+    if needs_write {
+        let content = serde_json::to_string_pretty(&value)
+            .map_err(|error| format!("failed to serialize destack.json: {error}"))?;
+        repository
+            .file_system()
+            .write_string(&destack_config_path, &content)
+            .map_err(|error| format!("failed to write destack.json: {error}"))?;
+        write_workspace_text_file(repository, &destack_config_path, &content);
     }
-    Ok(())
+
+    let revision = current_workspace_revision(repository);
+    let module_id = repository
+        .module_id_for_path(revision, main_path)
+        .map_err(|error| format!("failed to resolve main module after config update: {error}"))?
+        .ok_or_else(|| "missing main module after config update".to_string())?;
+
+    Ok((revision, module_id))
 }
 
-/// Materialize the default spec `destack.json` for TypeScript checking.
-fn materialize_default_spec_destack_config(
-    program: &destack_workspace::Program,
-    destack_config_path: &Path,
-) -> std::io::Result<()> {
-    // build the default spec config payload
-    let content = json!({
-        "compiler": {
-            "checkTs": true,
-            "checkJs": true
-        },
-        "targets": {
-            "default": {
-                "emit": "js"
-            }
-        },
-        "defaultTarget": "default"
-    });
-    let content = serde_json::to_string_pretty(&content)
-        .expect("default spec config serialization should succeed");
+/// Collect file snapshots referenced by one diagnostic collection.
+fn collect_diagnostic_files(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: Vec<Diagnostic>,
+) -> FileStore {
+    let files = FileStore::new();
 
-    // write the config file through the shared filesystem
-    program.fs.write_string(destack_config_path, &content)
+    // load each referenced file snapshot once
+    for diagnostic in diagnostics {
+        let Ok(file) = repository.file(revision, diagnostic.file_id) else {
+            continue;
+        };
+        let Some(file) = file else {
+            continue;
+        };
+
+        if files.get_maybe(diagnostic.file_id).is_none() {
+            files.insert((*file).clone());
+        }
+    }
+
+    files
 }
 
 /// Split expected diagnostics into error and warning buckets.

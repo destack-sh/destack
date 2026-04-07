@@ -24,7 +24,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         Err(error) => return CaseResult::Failed { message: error },
     };
 
-    let result = query::inline_symbol(&session.session, file_id, offset);
+    let result = query::inline_symbol(&session.repository, session.revision, file_id, offset);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();

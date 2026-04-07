@@ -11,7 +11,7 @@ use crate::lsp::{
 
 impl<'a> Verify<'a> {
     /// Return the negated verify facade.
-    pub fn not(self) -> VerifyNegatable<'a> {
+    pub fn negated(self) -> VerifyNegatable<'a> {
         VerifyNegatable {
             state: self.state,
             is_negative: true,
@@ -319,7 +319,7 @@ impl<'a> VerifyNegatable<'a> {
         let markers = if marker_names.is_empty() {
             vec![None]
         } else {
-            marker_names.into_iter().map(|name| Some(*name)).collect()
+            marker_names.iter().map(|name| Some(*name)).collect()
         };
 
         for marker_name in markers {

@@ -31,14 +31,16 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // resolve source file and offset
     let file_id = source_marker.span.file;
     let offset = source_marker.span.start;
-    let declaration_span = query::goto_definition(&session.session, file_id, offset)
-        .and_then(|result| result.locations.first().copied());
+    let declaration_span =
+        query::goto_definition(&session.repository, session.revision, file_id, offset)
+            .and_then(|result| result.locations.first().copied());
 
     let content = exp.content.trim();
 
     // empty expectation is an error
     if content.is_empty() {
-        let result = query::find_references(&session.session, file_id, offset, true);
+        let result =
+            query::find_references(&session.repository, session.revision, file_id, offset, true);
         return CaseResult::Failed {
             message: format!(
                 "find_references expectation is empty at '{}', got: {:?}",
@@ -50,7 +52,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // none marker means we expect no results
     if content == "<none>" {
-        let result = query::find_references(&session.session, file_id, offset, true);
+        let result =
+            query::find_references(&session.repository, session.revision, file_id, offset, true);
         return match result {
             None => CaseResult::Passed,
             Some(refs) => {
@@ -76,7 +79,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     }
 
-    let result = query::find_references(&session.session, file_id, offset, true);
+    let result =
+        query::find_references(&session.repository, session.revision, file_id, offset, true);
     let Some(refs) = result else {
         return CaseResult::Failed {
             message: format!("find_references at '{}' returned None", exp.target),
@@ -254,7 +258,7 @@ fn normalized_spans(
 }
 
 /// Build a stable snapshot sort key for a reference span.
-fn reference_sort_key(session: &QueryTestSession, span: Span) -> (String, u32, u32, u32) {
+fn reference_sort_key(session: &QueryTestSession, span: Span) -> (String, u32, u32, u64) {
     let file_name = file_for(session, span.file)
         .map(|file| file.name.clone())
         .unwrap_or_else(|| "<unknown>".to_string());

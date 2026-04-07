@@ -6,7 +6,7 @@ use crate::lsp::fixture::{
     Marker, Range, parse_expected_code_actions, parse_expected_completion_items,
     parse_expected_document_symbols, parse_expected_workspace_symbols,
 };
-use crate::mdtest::{MdTestCase, MdTestFile, RawCodeBlock};
+use crate::mdtest::{MdTestCase, MdTestFile, RawCodeBlock, validate_lsp_point_markers};
 
 const LSP_BLOCK_PREFIX: &str = "lsp";
 
@@ -1729,6 +1729,13 @@ fn parse_file_text(path: &Path, file: &MdTestFile) -> Result<ParsedFileText, Fix
         return Err(parse_error(path, 1, "unterminated [| range"));
     }
 
+    let point_markers = markers
+        .iter()
+        .map(|marker| (marker.name.as_str(), marker.offset))
+        .collect::<Vec<_>>();
+    validate_lsp_point_markers(&file.path, &output, &point_markers)
+        .map_err(|message| parse_error(path, 1, &message))?;
+
     Ok(ParsedFileText {
         text: output,
         markers,
@@ -1861,5 +1868,27 @@ mod tests {
         let error = parse_mdtest_case(Path::new("fixture.md"), &test).unwrap_err();
 
         assert_eq!(error.message, "duplicate lsp current_file block");
+    }
+
+    #[test]
+    fn test_reject_inline_marker_inside_identifier_body() {
+        let test = MdTestCase {
+            name: "Bad Marker".to_string(),
+            section: "Navigation".to_string(),
+            options: HashMap::new(),
+            files: vec![MdTestFile {
+                path: "main.ds".to_string(),
+                content: "const va/*bad*/lue = 1;\n".to_string(),
+                options: HashMap::new(),
+            }],
+            bullet_items: Vec::new(),
+            extra_blocks: Vec::new(),
+            line: 1,
+            skip: false,
+        };
+
+        let error = parse_mdtest_case(Path::new("fixture.md"), &test).expect_err("fixture");
+
+        assert!(error.message.contains("splits word token `value`"));
     }
 }

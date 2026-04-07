@@ -22,7 +22,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 /// Run with markdown expectation.
 fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // run the folding range query for the primary file
-    let ranges = query::folding_ranges(&session.session, session.file_id);
+    let ranges = query::folding_ranges(&session.repository, session.revision, session.file_id);
     let content = exp.content.trim();
 
     // empty expectation is an error: must specify expected count

@@ -411,7 +411,7 @@ fn execute_step_cases(
             LspStepCase::NoSignatureHelp { marker_name } => {
                 test_state
                     .verify()
-                    .not()
+                    .negated()
                     .no_signature_help(&[marker_name.as_str()])?;
             }
             LspStepCase::SignatureHelpTrigger {
@@ -671,7 +671,7 @@ fn execute_step_cases(
                     format!("expected semantic tokens result at step {step_index}")
                 })?;
                 let source_text = test_state.current_document_text(file_path)?;
-                let actual_tokens = normalize_semantic_tokens(&source_text, &result)?;
+                let actual_tokens = normalize_semantic_tokens(source_text, &result)?;
 
                 verify_semantic_tokens(&actual_tokens, &expected_tokens)?;
             }
@@ -682,8 +682,7 @@ fn execute_step_cases(
                 let expected_tokens = parse_expected_semantic_tokens(snapshot_text)?;
                 let baseline = delta_baselines.get(file_path).ok_or_else(|| {
                     format!(
-                        "semantic token delta step [{}] is missing cached baseline for {}",
-                        step_index, file_path
+                        "semantic token delta step [{step_index}] is missing cached baseline for {file_path}"
                     )
                 })?;
                 let baseline_result_id = tokens::semantic_tokens_result_id(&baseline.result)?
@@ -702,7 +701,7 @@ fn execute_step_cases(
                 let merged_result =
                     tokens::semantic_tokens_after_delta(&baseline.result, &delta_result)?;
                 let source_text = test_state.current_document_text(&baseline.file_path)?;
-                let actual_tokens = normalize_semantic_tokens(&source_text, &merged_result)?;
+                let actual_tokens = normalize_semantic_tokens(source_text, &merged_result)?;
 
                 verify_semantic_tokens(&actual_tokens, &expected_tokens)?;
             }

@@ -1,19 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::core::{
-    Case, CaseResult, MarkdownSuiteEntry, MarkdownSuiteIndex, RunContext, RunOptions,
-    SharedMemoryWorkspace, Suite, discover_markdown_suite, expected_failures_view, fixtures_dir,
-    update_failure_baseline,
+    Case, CaseResult, MarkdownSuiteEntry, MarkdownSuiteIndex, RunContext, RunOptions, Suite,
+    discover_markdown_suite, expected_failures_view, fixtures_dir, update_failure_baseline,
 };
 use crate::mdtest::{
     MdTestCase, MdTestFile, MdTestLibs, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
 use destack_query as query;
-use destack_source::{BatchEdit, Edit, MemoryFileSystem};
+use destack_source::{BatchEdit, Edit};
 
 /// A query expectation block parsed from markdown.
 #[derive(Debug, Clone)]
@@ -219,42 +217,6 @@ impl Suite for QuerySuite {
     }
 }
 
-#[derive(Debug)]
-struct SharedQueryEnvironment {
-    /// The shared in memory workspace.
-    workspace: SharedMemoryWorkspace,
-}
-
-impl SharedQueryEnvironment {
-    /// Create a new shared environment for query tests.
-    fn new() -> Self {
-        Self {
-            workspace: SharedMemoryWorkspace::new("/test/query"),
-        }
-    }
-
-    /// Allocate a unique root directory for a test case.
-    fn root_for(&self, test: &MdTestCase) -> PathBuf {
-        let section = slug(&test.section);
-        let name = slug(&test.name);
-        self.workspace.allocate_root(&format!("{section}-{name}"))
-    }
-
-    /// Return the shared session.
-    fn session(&self) -> Arc<destack_workspace::Session> {
-        self.workspace.session()
-    }
-
-    /// Return the shared file system.
-    fn fs(&self) -> Arc<MemoryFileSystem> {
-        self.workspace.fs()
-    }
-}
-
-thread_local! {
-    static SHARED_QUERY_ENV: SharedQueryEnvironment = SharedQueryEnvironment::new();
-}
-
 /// Dispatch to the appropriate test runner based on test type.
 fn run_query_test(test: &QueryTestCase) -> CaseResult {
     // reject empty tests
@@ -264,25 +226,48 @@ fn run_query_test(test: &QueryTestCase) -> CaseResult {
         };
     }
 
-    // create test session from markdown files
-    let session = SHARED_QUERY_ENV.with(|env| {
-        let root = env.root_for(&test.base);
-        QueryTestSession::from_mdtest_with_session(&test.base, env.session(), env.fs(), root)
-    });
+    // build the per case query session
+    let setup_start = Instant::now();
+    let session = match QueryTestSession::from_mdtest(&test.base) {
+        Ok(session) => session,
+        Err(message) => {
+            return CaseResult::Failed { message };
+        }
+    };
+    let setup_duration = setup_start.elapsed();
 
-    // run expected file validation when provided
-    if !test.expected_files.is_empty() {
-        return run_expected_files(test, &session);
+    // run the case body
+    let run_start = Instant::now();
+    let result = if !test.expected_files.is_empty() {
+        run_expected_files(test, &session)
+    } else if !test.query_expectations.is_empty() {
+        run_query_expectations(&session, &test.query_expectations)
+    } else {
+        CaseResult::Failed {
+            message: "query test is missing an explicit query block".to_string(),
+        }
+    };
+    let run_duration = run_start.elapsed();
+
+    // log timings when requested
+    log_query_case_timing(&test.base, setup_duration, run_duration);
+
+    result
+}
+
+/// Print one query case timing line when timing is enabled.
+fn log_query_case_timing(test: &MdTestCase, setup: Duration, run: Duration) {
+    if std::env::var_os("DESTACK_QUERY_TIMING").is_none() {
+        return;
     }
 
-    // run explicit query expectations when provided
-    if !test.query_expectations.is_empty() {
-        return run_query_expectations(&session, &test.query_expectations);
-    }
+    let section = slug(&test.section);
+    let name = slug(&test.name);
 
-    CaseResult::Failed {
-        message: "query test is missing an explicit query block".to_string(),
-    }
+    eprintln!(
+        "query timing {section}/{name}: setup={setup:?} run={run:?} total={:?}",
+        setup + run,
+    );
 }
 
 /// Run a query expectation and validate expected file outputs.
@@ -347,7 +332,13 @@ fn run_rename_expected_files(
     let offset = marker.span.start;
 
     // run rename
-    let result = query::rename(&session.session, file_id, offset, new_name);
+    let result = query::rename(
+        &session.repository,
+        session.revision,
+        file_id,
+        offset,
+        new_name,
+    );
     let Some(result) = result else {
         return CaseResult::Failed {
             message: format!("rename at '{}' returned None", expectation.target),
@@ -380,7 +371,7 @@ fn run_file_rename_expected_files(
     };
 
     // run file rename edits
-    let result = query::rename_files(&session.session, &renames);
+    let result = query::rename_files(&session.repository, session.revision, &renames);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "file_rename returned no edits".to_string(),
@@ -419,7 +410,13 @@ fn run_extract_function_expected_files(
         .unwrap_or("extracted");
 
     // run extract function edits
-    let result = query::extract_function(&session.session, session.file_id, selection, new_name);
+    let result = query::extract_function(
+        &session.repository,
+        session.revision,
+        session.file_id,
+        selection,
+        new_name,
+    );
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "extract_function returned no edits".to_string(),
@@ -458,7 +455,13 @@ fn run_extract_variable_expected_files(
         .unwrap_or("extracted");
 
     // run extract variable edits
-    let result = query::extract_variable(&session.session, session.file_id, selection, new_name);
+    let result = query::extract_variable(
+        &session.repository,
+        session.revision,
+        session.file_id,
+        selection,
+        new_name,
+    );
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "extract_variable returned no edits".to_string(),
@@ -492,7 +495,7 @@ fn run_inline_expected_files(
         };
 
     // run inline edits
-    let result = query::inline_symbol(&session.session, file_id, offset);
+    let result = query::inline_symbol(&session.repository, session.revision, file_id, offset);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "inline returned no edits".to_string(),
@@ -538,7 +541,8 @@ fn run_change_signature_expected_files(
 
     // run change signature edits
     let result = query::change_signature(
-        &session.session,
+        &session.repository,
+        session.revision,
         file_id,
         offset,
         new_parameters,

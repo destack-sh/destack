@@ -1,30 +1,29 @@
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, check_diagnostics};
+use crate::core::{Case, CaseResult, check_diagnostics, open_repository_with_options};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
 use destack_source::{
-    DiffOptions, File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
-    print_diff,
+    DiffOptions, File, FileId, FileStore, FileSystem, FileType, LanguageType, MemoryFileSystem,
+    Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions};
 
 /// Run a single formatter roundtrip test.
 ///
 /// Verifies that formatting a well-formatted file produces identical output.
 pub(super) fn run(test: &Case) -> CaseResult {
     let cwd = test.path.parent().unwrap().to_path_buf();
-    let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
+    let repository = open_repository_with_options(
         cwd,
         fs,
-        files,
-    ));
+        FormatterOptions::default(),
+        LinterOptions::default(),
+    );
+    let files = FileStore::new();
 
     // read original
     let original = match std::fs::read_to_string(&test.path) {
@@ -43,9 +42,9 @@ pub(super) fn run(test: &Case) -> CaseResult {
             message: format!("unsupported roundtrip file type: {}", test.path.display()),
         };
     };
-    let file_id = program.files.next_id();
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
+    let file_id = FileId::from_logical_path(&test.path);
     let file = Arc::new(File::from_text(
         file_id,
         name,
@@ -54,15 +53,13 @@ pub(super) fn run(test: &Case) -> CaseResult {
         file_type,
         original.clone(),
     ));
-    program.files.insert((*file).clone());
+    files.insert((*file).clone());
 
     // parse
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    program.diagnostics.merge_from(&parser.diagnostics);
-
-    let parse_result = check_diagnostics(test, &program.files, &program.diagnostics);
+    let parse_result = check_diagnostics(test, &files, &parser.diagnostics);
     if parse_result.is_failed() {
         return parse_result;
     }
@@ -76,7 +73,7 @@ pub(super) fn run(test: &Case) -> CaseResult {
         &expressions,
         &file,
         language_type,
-        program.formatter,
+        repository.formatter,
     );
 
     if formatted == original {

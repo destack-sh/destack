@@ -3,7 +3,8 @@ use destack_compiler::{Compiler, CompilerOptions};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, SharedMemoryWorkspace, Suite,
-    check_diagnostics, discover_file_cases, fixtures_dir,
+    check_repository_diagnostic_collection, current_workspace_revision, discover_file_cases,
+    fixtures_dir, remember_default_profile_for_module,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -42,26 +43,24 @@ fn run_compiler_case(test: &Case) -> CaseResult {
         }
     };
 
-    // set up session and program with memory filesystem containing the test file
+    // set up repository and program with memory filesystem containing the test file
     let cwd = test.path.parent().unwrap().to_path_buf();
     let workspace = SharedMemoryWorkspace::new(cwd.clone());
     let memory_fs = workspace.fs();
     memory_fs
         .add_file(&test.path, content.as_bytes())
         .expect("failed to add test file to memory fs");
-    let session = workspace.session();
-    let program = session.add_root(cwd);
-
+    let repository = workspace.repository();
     // compile the file
     let compiler = Compiler::new(
-        session.clone(),
-        program.clone(),
+        repository.clone(),
         CompilerOptions {
             workers: 1,
             ..Default::default()
         },
     );
-    let module_id = match compiler.resolve_path_to_module(&test.path) {
+    let revision = current_workspace_revision(&repository);
+    let module_id = match compiler.resolve_path_to_module(revision, &test.path) {
         Ok(id) => id,
         Err(e) => {
             return CaseResult::Failed {
@@ -69,14 +68,19 @@ fn run_compiler_case(test: &Case) -> CaseResult {
             };
         }
     };
-    let profile = program.default_profile_id_for_module(module_id);
-    compiler.enqueue(ArtifactKey::DirAnalyzed {
-        module: module_id,
-        profile,
-    });
+    let profile = remember_default_profile_for_module(&repository, &compiler, revision, module_id);
+    compiler.enqueue(
+        revision,
+        ArtifactKey::DirAnalyzed {
+            module: module_id,
+            profile,
+        },
+    );
     compiler.compile();
     drop(compiler);
 
     // check for unexpected diagnostics
-    check_diagnostics(test, &program.files, &program.diagnostics)
+    let diagnostics = repository.module_artifact_diagnostics(revision, module_id, profile);
+
+    check_repository_diagnostic_collection(test, &repository, revision, &diagnostics)
 }

@@ -386,11 +386,56 @@ impl ConformanceCatalog {
     }
 }
 
+/// Return the `suite.json` path for one suite directory.
+pub fn suite_json_path_for_dir(directory: &Path) -> PathBuf {
+    directory.join(SUITE_JSON_FILE_NAME)
+}
+
+/// Discover all `suite.json` files under one root.
+pub fn discover_suite_metadata_paths(root: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    collect_suite_metadata_paths(root, &mut paths)?;
+    paths.sort();
+    Ok(paths)
+}
+
+/// Collect all `suite.json` files under one directory tree.
+fn collect_suite_metadata_paths(directory: &Path, paths: &mut Vec<PathBuf>) -> io::Result<()> {
+    // stop when the directory is missing
+    if !directory.exists() {
+        return Ok(());
+    }
+
+    // recurse through the tree
+    for entry in fs::read_dir(directory)? {
+        let path = entry?.path();
+
+        // register matching suite files
+        if path.is_file()
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name == SUITE_JSON_FILE_NAME)
+        {
+            paths.push(path);
+            continue;
+        }
+
+        // keep walking into child directories
+        if path.is_dir() {
+            collect_suite_metadata_paths(&path, paths)?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::{FetchMetadata, SuiteMetadata};
     use crate::conformance::{ConformanceDomain, OriginKind, OriginMetadata};
-    use std::path::Path;
 
     #[test]
     fn test_validate_accepts_matching_directory_layout() {
@@ -448,48 +493,4 @@ mod tests {
         let result = metadata.validate(Path::new("fixtures/conformance/web/fetch"));
         assert!(result.is_ok());
     }
-}
-
-/// Return the `suite.json` path for one suite directory.
-pub fn suite_json_path_for_dir(directory: &Path) -> PathBuf {
-    directory.join(SUITE_JSON_FILE_NAME)
-}
-
-/// Discover all `suite.json` files under one root.
-pub fn discover_suite_metadata_paths(root: &Path) -> io::Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    collect_suite_metadata_paths(root, &mut paths)?;
-    paths.sort();
-    Ok(paths)
-}
-
-/// Collect all `suite.json` files under one directory tree.
-fn collect_suite_metadata_paths(directory: &Path, paths: &mut Vec<PathBuf>) -> io::Result<()> {
-    // stop when the directory is missing
-    if !directory.exists() {
-        return Ok(());
-    }
-
-    // recurse through the tree
-    for entry in fs::read_dir(directory)? {
-        let path = entry?.path();
-
-        // register matching suite files
-        if path.is_file()
-            && path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name == SUITE_JSON_FILE_NAME)
-        {
-            paths.push(path);
-            continue;
-        }
-
-        // keep walking into child directories
-        if path.is_dir() {
-            collect_suite_metadata_paths(&path, paths)?;
-        }
-    }
-
-    Ok(())
 }

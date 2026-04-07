@@ -2,15 +2,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Runner, Suite, current_workspace_revision,
+    fixtures_dir, render_unexpected_repository_diagnostic_collection, test_output_dir,
+};
 use destack_artifact::{ArtifactKey, MemoryCacheStore, OutputContent, OutputFile};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{Session, Target, TargetId};
-
-use crate::core::{
-    Case, CaseResult, RunContext, RunOptions, Runner, Suite, fixtures_dir,
-    render_unexpected_diagnostics, test_output_dir,
-};
+use destack_workspace::{Repository, Target};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
@@ -129,19 +128,18 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         };
     }
 
-    // set up session and program with physical filesystem
+    // set up the repository with the physical filesystem
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let session = Arc::new(
-        Session::new(test.path.clone())
-            .with_fs(fs)
+    let repository = Arc::new(
+        Repository::open_root_from_fs(test.path.clone(), fs)
+            .expect("failed to import repository from emit runner file system")
             .with_cache_store(Arc::new(MemoryCacheStore::new())),
     );
-    let program = session.add_root(test.path.clone());
     let actual_root = emit_actual_root(test);
 
-    // load the tracked package config through the real session path
-    let config = match session.load_destack_for_path(&destack_config_path) {
-        Some(config) => config,
+    // load the tracked package config through the real repository path
+    let declaration = match repository.load_destack_declaration_for_path(&destack_config_path) {
+        Some(declaration) => declaration,
         None => {
             return CaseResult::Failed {
                 message: format!(
@@ -153,8 +151,8 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     };
 
     // extract targets
-    let targets: Vec<(String, Target)> = config
-        .options
+    let package_options = declaration.package_options();
+    let targets: Vec<(String, Target)> = package_options
         .targets
         .iter()
         .map(|(name, opts)| (name.clone(), opts.to_target(name)))
@@ -167,8 +165,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // set up compiler
     let compiler = Compiler::new(
-        session.clone(),
-        program.clone(),
+        repository.clone(),
         CompilerOptions {
             workers: 1,
             inject_prelude: false,
@@ -192,10 +189,13 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         };
     }
 
+    let revision = current_workspace_revision(&repository);
+
     // resolve modules
     let mut module_ids = Vec::new();
     for source_path in &source_files {
-        let module_id = match compiler.resolve_path_to_module(source_path) {
+        let module_id = match compiler.resolve_path_to_module(revision, &source_path.to_path_buf())
+        {
             Ok(id) => id,
             Err(e) => {
                 return CaseResult::Failed {
@@ -205,26 +205,11 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         };
         module_ids.push(module_id);
     }
-    let package_id = {
-        let module = program.modules.get(module_ids[0]);
-        let module = module.as_ref();
-        module.package_id
-    };
-
-    // set up package
-    {
-        let package = program.packages.get(package_id);
-        let mut package = package.write();
-
-        // set the config so root_dir is available for output path resolution
-        package.config = Some(config.clone());
-
-        // add targets directly: keep the logical output configuration intact
-        for (name, target) in targets.clone() {
-            let target_id = TargetId::new(package_id, &name);
-            package.targets.insert(target_id, target);
-        }
-    }
+    let package_id = repository
+        .module(revision, module_ids[0])
+        .expect("failed to load emit module")
+        .expect("missing emit module")
+        .package_id;
 
     // clean
     if actual_root.exists()
@@ -237,14 +222,20 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // link
     for (target_name, _) in &targets {
-        let target_id = TargetId::new(package_id, target_name);
-        compiler.enqueue(ArtifactKey::package_output(package_id, target_id));
+        let target_id = repository.intern_target_id(package_id, target_name);
+        compiler.enqueue(revision, ArtifactKey::package_output(package_id, target_id));
     }
     compiler.compile();
 
     // check for errors
-    let unexpected_diagnostics =
-        render_unexpected_diagnostics(&program.files, &program.diagnostics, test.min_fail_severity);
+    let diagnostics =
+        collect_emit_diagnostics(&repository, revision, package_id, &module_ids, &targets);
+    let unexpected_diagnostics = render_unexpected_repository_diagnostic_collection(
+        &repository,
+        revision,
+        &diagnostics,
+        test.min_fail_severity,
+    );
 
     // diagnostics are always unexpected in emit fixtures
     if let Some(diagnostics) = unexpected_diagnostics {
@@ -255,10 +246,9 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // materialize package outputs into the runner-owned actual output tree
     for (target_name, _) in &targets {
-        let target_id = TargetId::new(package_id, target_name);
-        let output = compiler
-            .artifacts
-            .package_output(package_id, &target_id)
+        let target_id = repository.intern_target_id(package_id, target_name);
+        let output = repository
+            .package_output(revision, package_id, target_id)
             .ok_or_else(|| CaseResult::Failed {
                 message: format!("missing package output for target {target_name}"),
             });
@@ -296,4 +286,47 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     }
 
     CaseResult::Passed
+}
+
+/// Collect diagnostics across one emit compilation run.
+fn collect_emit_diagnostics(
+    repository: &Repository,
+    revision: destack_workspace::Revision,
+    package_id: destack_source::PackageId,
+    module_ids: &[destack_source::ModuleId],
+    targets: &[(String, Target)],
+) -> destack_source::DiagnosticCollection {
+    let mut diagnostics = destack_source::DiagnosticCollection::new();
+
+    // module level diagnostics
+    for module_id in module_ids {
+        let profile_id = repository
+            .default_profile_id_for_module(revision, *module_id)
+            .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
+        diagnostics
+            .merge_from(&repository.module_artifact_diagnostics(revision, *module_id, profile_id));
+    }
+
+    // target level diagnostics
+    for (target_name, _target) in targets {
+        let target_id = repository.intern_target_id(package_id, target_name);
+
+        for module_id in module_ids {
+            let profile_id = repository
+                .profile_id_for_target_or_default(revision, *module_id, &target_id)
+                .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"));
+            diagnostics.merge_from(
+                &repository.module_target_artifact_diagnostics(
+                    revision, *module_id, profile_id, target_id,
+                ),
+            );
+        }
+
+        diagnostics.merge_from(&repository.artifact_diagnostics(
+            revision,
+            &ArtifactKey::package_output(package_id, target_id),
+        ));
+    }
+
+    diagnostics
 }

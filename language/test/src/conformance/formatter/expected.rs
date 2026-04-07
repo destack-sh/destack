@@ -614,7 +614,7 @@ mod tests {
         assert_eq!(options.indent_width, 3);
         assert_eq!(options.indent_style, IndentStyle::Tab);
         assert_eq!(options.quote_style, QuoteStyle::Single);
-        assert_eq!(options.bracket_spacing, false);
+        assert!(!options.bracket_spacing);
         assert_eq!(options.arrow_parentheses, ArrowParentheses::Avoid);
         assert_eq!(options.quote_property, QuoteProperty::Consistent);
     }
@@ -674,7 +674,7 @@ const value = 'hi';
         assert_eq!(options.indent_style, IndentStyle::Tab);
         assert_eq!(options.quote_style, QuoteStyle::Single);
         assert_eq!(options.trailing_comma, TrailingComma::None);
-        assert_eq!(options.bracket_spacing, false);
+        assert!(!options.bracket_spacing);
         assert_eq!(options.arrow_parentheses, ArrowParentheses::Avoid);
         assert_eq!(options.quote_property, QuoteProperty::Consistent);
     }
