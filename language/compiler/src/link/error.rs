@@ -41,6 +41,61 @@ pub enum LinkError {
         message: String,
     },
 
+    /// Invalid module kind for one linked subject.
+    #[error(
+        code = "EK102",
+        message = "invalid module kind: {target}: {subject} expected {expected}, found '{found}'"
+    )]
+    InvalidModuleKind {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        target: TargetId,
+        subject: String,
+        expected: String,
+        found: String,
+    },
+
+    /// Unsupported suffix on one linked reference.
+    #[error(
+        code = "EK103",
+        message = "unsupported reference suffix: {target}: {reference} does not support query or fragment suffix yet: '{value}'"
+    )]
+    UnsupportedReferenceSuffix {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        target: TargetId,
+        reference: String,
+        value: String,
+    },
+
+    /// Missing graph edge for one linked reference.
+    #[error(
+        code = "EK104",
+        message = "missing reference edge: {target}: {reference} missing graph edge for module '{module}' site {site} and specifier '{specifier}'"
+    )]
+    MissingReferenceEdge {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        target: TargetId,
+        reference: String,
+        module: String,
+        site: u32,
+        specifier: String,
+    },
+
+    /// Invalid output path state for one linked subject.
+    #[error(
+        code = "EK105",
+        message = "invalid output path: {target}: {subject} has no usable emitted path segment from '{value}'"
+    )]
+    InvalidOutputPath {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        target: TargetId,
+        subject: String,
+        value: String,
+    },
+
     // -------------------------------------------------------------------------
     // 9xx: Internal
     // -------------------------------------------------------------------------

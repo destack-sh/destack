@@ -276,7 +276,7 @@ mod tests {
     use destack_dir::DependencyKind;
     use destack_resolver::{ResolveOptions, TypeScriptOptionsDiscovery};
     use destack_source::LanguageType;
-    use destack_workspace::{ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions};
+    use destack_workspace::{NodeLinker, TsCompilerOptions};
 
     /// Build default import options for value dependencies.
     #[test]

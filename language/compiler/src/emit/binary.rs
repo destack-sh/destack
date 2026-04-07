@@ -4,10 +4,10 @@ use destack_artifact::{BinaryArtifact, ObjectDebugArtifactKind, OutputContent, O
 use destack_source::{FileType, Uri};
 use destack_workspace::{Module, Target};
 
-use crate::link::module_output_base_path;
+use crate::link::module_source_path;
 
 /// One error while materializing generated binary outputs.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct BinaryOutputError {
     /// The related output file type.
     pub file_type: FileType,
@@ -21,7 +21,9 @@ pub(crate) fn emit_binary_artifact_files(
     package_dir: &Path,
     root_dir: Option<&Path>,
 ) -> Result<Vec<OutputFile>, BinaryOutputError> {
-    let module_path = module_output_base_path(module);
+    let module_path = module_source_path(module).map_err(|_| BinaryOutputError {
+        file_type: FileType::Binary,
+    })?;
 
     match artifact {
         BinaryArtifact::Object(object) => {

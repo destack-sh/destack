@@ -12,12 +12,15 @@ use crate::{
     PatternField, Property, Statement, SwitchCase, TupleElement, Type, TypeField,
 };
 
+/// The local binding base name for one synthetic non-code module default.
+pub const MODULE_DEFAULT_NAME: &str = "_default";
+
 /// One stable symbol identity in lowered script output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScriptSymbolId {
     /// One symbol lowered directly from source DIR.
     Source(GlobalSymbolId),
-    /// One generated default binding for a non-code module wrapper.
+    /// One generated default binding for one synthetic non-code script module.
     ModuleDefault(ModuleId),
 }
 

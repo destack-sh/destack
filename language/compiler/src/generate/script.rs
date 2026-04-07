@@ -76,15 +76,28 @@ impl Compiler {
                 module: module_id,
                 message,
             },
-            CodegenJsError::UnsupportedConstruct { node, .. } => {
+            CodegenJsError::UnsupportedConstruct { node, message } => {
                 GenerateError::UnsupportedConstruct {
                     module: module_id,
                     node: Some(node.into_anchored(Some(profile))),
+                    message: message
+                        .unwrap_or_else(|| format!("unsupported {}", node.local_id.ty.name())),
                 }
             }
-            CodegenJsError::UnexpectedNode { node, .. } => GenerateError::UnexpectedConstruct {
+            CodegenJsError::UnexpectedNode {
+                node,
+                wanted,
+                message,
+            } => GenerateError::UnexpectedConstruct {
                 module: module_id,
                 node: Some(node.into_anchored(Some(profile))),
+                message: message.unwrap_or_else(|| {
+                    format!(
+                        "unexpected {} (wanted {})",
+                        node.local_id.ty.name(),
+                        wanted.name()
+                    )
+                }),
             },
             CodegenJsError::UnresolvedNode { node, .. } => GenerateError::UnresolvedConstruct {
                 module: module_id,

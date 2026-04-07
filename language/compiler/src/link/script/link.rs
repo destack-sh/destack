@@ -1,54 +1,37 @@
 use crate::{LinkError, LinkResult};
 
-use destack_artifact::{OutputFile, PackageOutput};
-use destack_source::ModuleId;
-use destack_workspace::{BundleFormat, BundleMode};
+use destack_artifact::{EmitFormat, OutputFile, PackageOutput, TargetOutputName};
+use destack_source::{FileType, ModuleId};
+use destack_workspace::BundleFormat;
 
-use crate::link::{OutputLayout, OutputLocation};
-
-use super::{ScriptLinker, ScriptModuleSet, ScriptOutputGraph, ScriptOutputId, ScriptOutputLayout};
+use super::ScriptLinker;
 
 impl<'a> ScriptLinker<'a> {
     /// Link one discovered script target.
-    pub(crate) fn link_target(&self, entry_modules: &[ModuleId]) -> LinkResult<PackageOutput> {
+    pub(crate) fn link_target(&self, root_modules: &[ModuleId]) -> LinkResult<PackageOutput> {
         self.validate_target()?;
 
-        let module_ids = self.require_module_outputs(entry_modules)?;
+        let plan = self.plan(root_modules)?;
+        let mut output_files = Vec::new();
 
-        self.link(entry_modules, &module_ids)
-    }
+        // script outputs
+        output_files.extend(self.render_script_graph(&plan)?);
 
-    /// Link one script target from generated module artifacts.
-    pub(crate) fn link(
-        &self,
-        entry_modules: &[ModuleId],
-        module_ids: &[ModuleId],
-    ) -> LinkResult<PackageOutput> {
-        // linked module and output planning
-        let module_set = self.build_script_module_set(entry_modules, module_ids)?;
-        let output_graph = self.build_script_output_graph(&module_set)?;
-        let output_layout = self.build_script_output_layout(&output_graph)?;
+        // stylesheet outputs
+        output_files.extend(self.render_css_stylesheet_outputs(&plan)?);
 
-        // output files
-        let output_files = if output_graph.bundle_mode() == BundleMode::PreserveModules {
-            self.link_module_outputs(module_ids, &module_set, &output_graph, &output_layout)?
-        } else {
-            self.link_output_graph(&module_set, &output_graph, &output_layout)?
-        };
+        // document outputs
+        output_files.extend(self.render_html_target_outputs(&plan)?);
 
-        // package output
+        // asset outputs
+        output_files.extend(self.emit_asset_files(plan.asset_reference_map())?);
+
+        // packaged output
         let mut output = self.package_output(output_files);
 
         // optional manifest
         if self.target.bundle_output.manifest {
-            let manifest = self.compiler.build_script_manifest(
-                self.package_dir,
-                self.target,
-                &output,
-                &output_graph,
-                &output_layout,
-                self.context,
-            );
+            let manifest = self.build_script_manifest(&output, &plan);
 
             self.compiler.append_manifest_output(
                 self.package_dir,
@@ -78,16 +61,6 @@ impl<'a> ScriptLinker<'a> {
             });
         }
 
-        // minified bundle output is not wired yet
-        if self.target.minify.is_enabled() {
-            return Err(LinkError::InvalidTarget {
-                anchor: self.package_id.into(),
-                package: self.package_id,
-                target: *self.target_id,
-                message: "minify is not implemented yet".to_string(),
-            });
-        }
-
         Ok(())
     }
 
@@ -100,125 +73,44 @@ impl<'a> ScriptLinker<'a> {
         }
     }
 
-    /// Link preserve-modules outputs for this target.
-    fn link_module_outputs(
-        &self,
-        module_ids: &[ModuleId],
-        module_set: &ScriptModuleSet,
-        output_graph: &ScriptOutputGraph,
-        output_layout: &ScriptOutputLayout,
-    ) -> LinkResult<Vec<OutputFile>> {
-        let mut output_files = Vec::new();
+    /// Build the packaged script output groups for this target.
+    pub(crate) fn package_output(&self, files: Vec<OutputFile>) -> PackageOutput {
+        let mut outputs = indexmap::IndexMap::new();
 
-        // preserve-modules keeps one artifact-level emit per module
-        for module_id in module_ids {
-            let output_id = output_graph
-                .output_id_for_module(*module_id)
-                .unwrap_or_else(|| panic!("missing output id for module {module_id:?}"));
-            let script = self.script_artifact(*module_id)?;
-            let rewritten_module = self.rewrite_script_module(
-                output_id,
-                *module_id,
-                &script,
-                module_set,
-                output_graph,
-                output_layout,
-                self.target,
-            )?;
-            let module = self.context.module(*module_id);
-            let mut rewritten_artifact = script;
-            rewritten_artifact.module = rewritten_module;
-            let files = self
-                .compiler
-                .emit_script_artifact_output(
-                    module.as_ref(),
-                    &rewritten_artifact,
-                    self.target_id,
-                    self.target,
-                    self.package_dir,
-                    self.root_dir,
-                    self.context,
-                )
-                .map_err(|message| LinkError::Internal {
-                    package: self.package_id,
-                    message: format!("failed to emit script artifact: {message}"),
-                })?;
+        // group linked files by their emitted output role
+        for file in files {
+            let output_name = self.target_output_name_for_file(file.content.file_type());
 
-            output_files.extend(files);
+            outputs
+                .entry(output_name)
+                .or_insert_with(Vec::new)
+                .push(file);
         }
 
-        Ok(output_files)
+        PackageOutput::new(
+            self.target.emit,
+            crate::Compiler::package_assembly(self.target.assembly),
+            outputs,
+        )
     }
 
-    /// Link graph-based outputs for this target.
-    fn link_output_graph(
-        &self,
-        module_set: &ScriptModuleSet,
-        output_graph: &ScriptOutputGraph,
-        output_layout: &ScriptOutputLayout,
-    ) -> LinkResult<Vec<OutputFile>> {
-        let file_type = self.linked_script_file_type()?;
-        let module_target = self.linked_script_module_target();
-        let target_layout = OutputLayout::new(self.package_dir, self.target);
-        let mut output_files = Vec::new();
+    /// Return the grouped output name for one emitted file.
+    fn target_output_name_for_file(&self, file_type: FileType) -> TargetOutputName {
+        match file_type {
+            FileType::TypeScriptDeclaration => TargetOutputName::Types,
+            FileType::SourceMap => TargetOutputName::Maps,
+            FileType::Html => TargetOutputName::Document,
 
-        // linked outputs
-        for (output_index, output) in output_graph.outputs().iter().enumerate() {
-            let output_id = ScriptOutputId(output_index);
-            let placement = output_layout.placement(output_id).unwrap_or_else(|| {
-                panic!("missing output placement for output id {}", output_id.0)
-            });
-            let parts = self.render_script_output_parts(
-                output_id,
-                output,
-                module_set,
-                output_graph,
-                output_layout,
-                self.target,
-                &module_target,
-                file_type,
-            )?;
-            let code = self.compose_linked_script_text(
-                parts
-                    .iter()
-                    .map(|(_, printed)| printed.code.clone())
-                    .collect(),
-            );
-            let source_map = self.compiler.linked_script_source_map_for_parts(
-                self.package_dir,
-                &parts,
-                self.context,
-            );
-            let source_map_path = self
-                .target
-                .emits_source_map_output()
-                .then(|| target_layout.linked_source_map_location(placement.output_location()));
-            let source_map_path = source_map_path
-                .as_ref()
-                .map(|location: &OutputLocation| location.path());
-            let files = self
-                .compiler
-                .emit_script_text_output(
-                    self.target,
-                    file_type,
-                    placement.output_location().path(),
-                    code,
-                    Some(source_map),
-                    source_map_path,
-                )
-                .map_err(|message| LinkError::Internal {
-                    package: self.package_id,
-                    message,
-                })?;
+            // html and single-file script targets publish an entry file
+            FileType::JavaScript | FileType::TypeScript => {
+                if self.target.emit == EmitFormat::Html || self.target.is_single_file() {
+                    TargetOutputName::Entry
+                } else {
+                    TargetOutputName::Module
+                }
+            }
 
-            output_files.extend(files);
+            _ => TargetOutputName::Assets,
         }
-
-        // runtime document
-        if let Some(document) = self.render_runtime_document(output_graph, output_layout)? {
-            output_files.push(document);
-        }
-
-        Ok(output_files)
     }
 }

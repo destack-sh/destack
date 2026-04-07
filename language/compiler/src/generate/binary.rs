@@ -100,6 +100,7 @@ impl Compiler {
                 GenerateError::UnsupportedConstruct {
                     module: module_id,
                     node: self.get_dir_node_id(module_id, target_name, profile, node, context),
+                    message: "unsupported instruction".to_string(),
                 }
             }
             CodegenCraneliftError::OutOfBounds { node, index, len } => GenerateError::OutOfBounds {

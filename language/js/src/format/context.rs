@@ -7,7 +7,7 @@ use crate::{
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
-use destack_fir::print::PrintOptions;
+use destack_fir::print::PrintOptions as FirPrintOptions;
 use destack_source::{File, FileType, IndentStyle, LineEnding, NodeSpanType, Span};
 
 /// The formatter type for one JS formatting pass.
@@ -133,8 +133,8 @@ impl JsFormatOptions {
 
     /// Convert into FIR print options.
     #[inline]
-    pub fn as_print_options(&self) -> PrintOptions {
-        PrintOptions {
+    pub fn as_print_options(&self) -> FirPrintOptions {
+        FirPrintOptions {
             line_ending: self.line_ending,
             line_width: self.line_width,
             indent_style: self.indent_style,
@@ -168,6 +168,9 @@ impl JsFormatOptions {
     }
 }
 
+/// One explicit JS print configuration.
+pub type PrintOptions = JsFormatOptions;
+
 impl FormatOptions for JsFormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
@@ -185,7 +188,7 @@ impl FormatOptions for JsFormatOptions {
     }
 
     #[inline]
-    fn as_print_options(&self) -> PrintOptions {
+    fn as_print_options(&self) -> FirPrintOptions {
         self.as_print_options()
     }
 }

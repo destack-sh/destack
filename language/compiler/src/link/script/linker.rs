@@ -1,9 +1,14 @@
 use std::path::Path;
+use std::sync::Arc;
 
-use crate::{Compiler, CompilerContext};
+use crate::{Compiler, CompilerContext, LinkError, LinkResult};
+use destack_artifact::{Data, ModuleGraph, ModuleOutput};
+use destack_core::StringPool;
+use destack_source::FileId;
 
-use destack_source::{ModuleId, PackageId, Span, TargetId};
-use destack_workspace::Target;
+use crate::RequirementError;
+use destack_source::{File, FileType, ModuleId, PackageId, ProfileId, Span, TargetId};
+use destack_workspace::{Module, Revision, Target};
 
 /// One script target linker.
 pub(crate) struct ScriptLinker<'a> {
@@ -50,10 +55,107 @@ impl<'a> ScriptLinker<'a> {
         self.compiler.target_name(self.target_id)
     }
 
+    /// Return the pinned revision for this link.
+    pub(crate) fn revision(&self) -> Revision {
+        self.context.revision()
+    }
+
     /// Return the anchor span for one linked module.
     pub(crate) fn module_anchor_span(&self, module_id: ModuleId) -> Span {
         let module = self.context.module(module_id);
 
         Span::empty(module.file_id)
+    }
+
+    /// Return one revision-scoped module snapshot.
+    pub(crate) fn module(&self, module_id: ModuleId) -> Arc<Module> {
+        self.context.module(module_id)
+    }
+
+    /// Return one revision-scoped file snapshot.
+    pub(crate) fn file(&self, file_id: FileId) -> Arc<File> {
+        self.context.file(file_id)
+    }
+
+    /// Return the shared repository string pool.
+    pub(crate) fn string_pool(&self) -> &StringPool {
+        self.compiler.repository.string_pool().as_ref()
+    }
+
+    /// Require the parsed AST for one linked module.
+    pub(crate) fn require_ast(&self, module_id: ModuleId) -> Result<(), RequirementError> {
+        self.compiler.require_ast(self.revision(), module_id)
+    }
+
+    /// Return one generated module output for this target.
+    pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
+        self.compiler
+            .module_output(module_id, self.target_id)
+            .ok_or_else(|| LinkError::Internal {
+                package: self.package_id,
+                message: format!(
+                    "missing module output for module {:?} target '{}'",
+                    module_id,
+                    self.target_name()
+                ),
+            })
+    }
+
+    /// Return the resolved profile for one linked module.
+    pub(crate) fn profile_id_for_module(&self, module_id: ModuleId) -> LinkResult<ProfileId> {
+        self.context
+            .profile_id_for_target(module_id, self.target_id)
+            .ok_or_else(|| LinkError::Internal {
+                package: self.package_id,
+                message: format!("profile not found for target '{}'", self.target_name()),
+            })
+    }
+
+    /// Ensure one linked module resolves under the current target profile.
+    pub(crate) fn ensure_module_profile(&self, module_id: ModuleId) -> LinkResult<()> {
+        let _ = self.profile_id_for_module(module_id)?;
+
+        Ok(())
+    }
+
+    /// Return the resolved module graph for one linked module profile.
+    pub(crate) fn module_graph_for_module(
+        &self,
+        module_id: ModuleId,
+    ) -> LinkResult<Arc<ModuleGraph>> {
+        let profile_id = self.profile_id_for_module(module_id)?;
+
+        self.compiler
+            .module_graph(profile_id)
+            .ok_or_else(|| LinkError::Internal {
+                package: self.package_id,
+                message: format!(
+                    "missing module graph for module {:?} target '{}'",
+                    module_id,
+                    self.target_name()
+                ),
+            })
+    }
+
+    /// Return the parsed data payload for one linked module.
+    pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
+        self.compiler
+            .data(module_id)
+            .ok_or_else(|| LinkError::Internal {
+                package: self.package_id,
+                message: format!(
+                    "missing data artifact for module {:?} target '{}'",
+                    module_id,
+                    self.target_name()
+                ),
+            })
+    }
+
+    /// Return whether one module is one plain stylesheet module.
+    pub(crate) fn is_plain_stylesheet_module(&self, module_id: ModuleId) -> bool {
+        let module = self.module(module_id);
+        let file = self.file(module.file_id);
+
+        file.ty == FileType::Css && !module.loader.is_file()
     }
 }

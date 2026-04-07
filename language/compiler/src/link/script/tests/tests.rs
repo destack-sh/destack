@@ -8,12 +8,14 @@ use destack_artifact::{
 use destack_source::{
     DiagnosticSeverity, DiffOptions, FileType, ModuleId, PackageId, Uri, print_diff,
 };
-use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery};
-use indexmap::{IndexMap, indexmap};
+use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery, TargetId};
+use indexmap::IndexMap;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::link::{ScriptLinker, ScriptOutputId, ScriptOutputKind};
+use crate::link::{OutputId, ScriptLinker};
+
+use super::super::OutputKind;
 
 pub(super) use crate::tests::{ExpectedDiagnostic, TestProgram};
 
@@ -93,6 +95,7 @@ pub(super) fn expected_manifest_file(
         is_dynamic_entry: None,
         imports: Vec::new(),
         dynamic_imports: Vec::new(),
+        stylesheets: Vec::new(),
     }
 }
 
@@ -109,6 +112,7 @@ pub(super) fn expected_manifest_chunk(path: &str, name: &str) -> ExpectedManifes
             is_dynamic_entry: None,
             imports: Vec::new(),
             dynamic_imports: Vec::new(),
+            stylesheets: Vec::new(),
         },
     }
 }
@@ -218,11 +222,11 @@ pub(super) struct LinkedChunkedScriptTarget {
 
 /// One normalized planned script output.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct PlannedScriptOutput {
+pub(super) struct PlannedOutput {
     /// The stable output name.
     pub name: String,
     /// The emitted output kind.
-    pub kind: ScriptOutputKind,
+    pub kind: OutputKind,
     /// The package-relative member module paths.
     pub modules: Vec<String>,
     /// The outgoing static output dependency names.
@@ -234,10 +238,10 @@ pub(super) struct PlannedScriptOutput {
 /// Build one expected planned script output.
 pub(super) fn expected_planned_output(
     name: &str,
-    kind: ScriptOutputKind,
+    kind: OutputKind,
     modules: &[&str],
-) -> PlannedScriptOutput {
-    PlannedScriptOutput {
+) -> PlannedOutput {
+    PlannedOutput {
         name: name.to_string(),
         kind,
         modules: modules.iter().map(|module| (*module).to_string()).collect(),
@@ -291,6 +295,13 @@ impl ExpectedManifestChunk {
 
         self
     }
+
+    /// Set the associated stylesheet references for this chunk.
+    pub(super) fn stylesheets(mut self, stylesheets: &[&str]) -> Self {
+        self.file.stylesheets = stylesheets.iter().map(|path| (*path).to_string()).collect();
+
+        self
+    }
 }
 
 impl From<ExpectedManifestChunk> for BuildManifestFile {
@@ -299,7 +310,7 @@ impl From<ExpectedManifestChunk> for BuildManifestFile {
     }
 }
 
-impl PlannedScriptOutput {
+impl PlannedOutput {
     /// Set the static output dependencies for this planned output.
     pub(super) fn static_dependencies(mut self, dependencies: &[&str]) -> Self {
         self.static_dependencies = dependencies
@@ -340,19 +351,45 @@ pub(super) fn expected_chunked_script_target(
         .into_iter()
         .map(|file| (file.path.clone(), file))
         .collect::<IndexMap<_, _>>();
-    let module_paths = modules.keys().cloned().collect::<Vec<_>>();
-    let map_paths = module_paths
-        .iter()
-        .map(|path| format!("{path}.map"))
-        .collect::<Vec<_>>();
+    let mut output_groups: IndexMap<TargetOutputName, Vec<String>> = IndexMap::new();
+
+    // group expected script outputs by their manifest role and emit order
+    for path in modules.keys() {
+        let manifest_path = Path::new(path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_else(|| panic!("missing file name for chunk output '{path}'"));
+        let manifest_file = manifest
+            .value
+            .files
+            .iter()
+            .find(|file| file.path == manifest_path)
+            .unwrap_or_else(|| panic!("missing manifest file for chunk output '{path}'"));
+
+        let output_name = if manifest_file.is_entry.unwrap_or(false)
+            || manifest_file.is_dynamic_entry.unwrap_or(false)
+        {
+            TargetOutputName::Entry
+        } else {
+            TargetOutputName::Module
+        };
+
+        output_groups
+            .entry(output_name)
+            .or_default()
+            .push(path.clone());
+        output_groups
+            .entry(TargetOutputName::Maps)
+            .or_default()
+            .push(format!("{path}.map"));
+    }
+
+    // manifest
+    output_groups.insert(TargetOutputName::Manifest, vec![manifest.path.clone()]);
 
     LinkedChunkedScriptTarget {
         assembly: PackageAssembly::Chunked,
-        output_groups: indexmap! {
-            TargetOutputName::Module => module_paths,
-            TargetOutputName::Maps => map_paths,
-            TargetOutputName::Manifest => vec![manifest.path.clone()],
-        },
+        output_groups,
         manifest,
         modules,
     }
@@ -411,7 +448,7 @@ impl TestProgram {
     /// Configure one single-file JavaScript target for linker tests.
     pub(super) fn configure_single_file_js_target(&self, module_id: ModuleId, name: &str) {
         let entry_path = {
-            let module = self.program.module_descriptor(module_id);
+            let module = self.program.modules.get(module_id);
             self.normalize_uri_path(module.package_id, &module.uri)
         };
 
@@ -424,8 +461,8 @@ impl TestProgram {
             target.out_file = Some(PathBuf::from(format!("dist/{name}.js")));
 
             // manifest and external maps
-            target.bundle.output.manifest = true;
-            target.bundle.output.sourcemap = Some(SourceMapMode::External);
+            target.bundle_output.manifest = true;
+            target.bundle_output.sourcemap = Some(SourceMapMode::External);
         });
     }
 
@@ -434,7 +471,7 @@ impl TestProgram {
         let entry_paths = module_ids
             .iter()
             .map(|module_id| {
-                let module = self.program.module_descriptor(*module_id);
+                let module = self.program.modules.get(*module_id);
                 self.normalize_uri_path(module.package_id, &module.uri)
             })
             .map(PathBuf::from)
@@ -447,17 +484,17 @@ impl TestProgram {
 
             // chunked bundle surface
             target.out_dir = PathBuf::from("dist");
-            target.bundle.mode = BundleMode::Chunked;
+            target.assembly = BundleMode::Chunked;
 
             // manifest and external maps
-            target.bundle.output.manifest = true;
-            target.bundle.output.sourcemap = Some(SourceMapMode::External);
+            target.bundle_output.manifest = true;
+            target.bundle_output.sourcemap = Some(SourceMapMode::External);
         });
     }
 
     /// Return the package-relative path for one module.
     pub(super) fn module_relative_path(&self, module_id: ModuleId) -> String {
-        let module = self.program.module_descriptor(module_id);
+        let module = self.program.modules.get(module_id);
 
         self.normalize_uri_path(module.package_id, &module.uri)
     }
@@ -481,8 +518,8 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.module_descriptor(module_id).package_id;
-        let target_id = self.target_id(package_id, name);
+        let package_id = self.program.modules.get(module_id).package_id;
+        let target_id = TargetId::new(package_id, name);
 
         self.configure_single_file_js_target(module_id, name);
         self.configure_target(module_id, name, configure);
@@ -505,8 +542,8 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
-        let target_id = self.target_id(package_id, name);
+        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let target_id = TargetId::new(package_id, name);
 
         self.configure_chunked_js_target(module_ids, name);
         self.configure_target(module_ids[0], name, configure);
@@ -528,7 +565,7 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
+        let package_id = self.program.modules.get(module_ids[0]).package_id;
         let output = self.link_chunked_js_target_with(module_ids, name, configure);
 
         self.linked_chunked_script_target(package_id, &output)
@@ -540,42 +577,47 @@ impl TestProgram {
         module_ids: &[ModuleId],
         name: &str,
         configure: F,
-    ) -> Vec<PlannedScriptOutput>
+    ) -> Vec<PlannedOutput>
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
-        let target_id = self.target_id(package_id, name);
+        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let target_id = TargetId::new(package_id, name);
 
         self.configure_chunked_js_target(module_ids, name);
         self.configure_target(module_ids[0], name, configure);
-        self.run(ArtifactKey::package_output(package_id, target_id));
+        self.run(ArtifactKey::package_output(package_id, target_id.clone()));
 
         // clean builds are easier to reason about in linker tests
         self.check_no_diagnostic(DiagnosticSeverity::Error);
 
-        let package = self.program.package_descriptor(package_id);
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.program.root_directory().clone());
+            .unwrap_or_else(|| self.program.cwd.clone());
         let target = package
             .targets
             .get(&target_id)
             .cloned()
             .unwrap_or_else(|| panic!("missing target '{name}'"));
-        let compiler_context = self.context();
+        drop(package);
+        let profile_id = self
+            .program
+            .profile_id_for_package_target(package_id, &target_id)
+            .unwrap_or_else(|| panic!("missing profile for target '{name}'"));
         let linker = ScriptLinker::new(
             self.compiler.as_ref(),
-            &compiler_context,
             &package_dir,
             None,
             &target,
             &target_id,
             package_id,
+            profile_id,
         );
         let linked_modules = linker
-            .require_module_outputs(module_ids)
+            .require_module_artifacts(module_ids)
             .unwrap_or_else(|error| panic!("failed to require script target artifacts: {error:?}"));
 
         let module_set = linker
@@ -585,16 +627,16 @@ impl TestProgram {
             .build_script_output_graph(&module_set)
             .unwrap_or_else(|error| panic!("failed to build script output graph: {error:?}"));
         let output_layout = linker
-            .build_script_output_layout(&output_graph)
+            .build_output_layout(&output_graph)
             .unwrap_or_else(|error| panic!("failed to build script output layout: {error:?}"));
 
         output_graph
             .outputs()
             .iter()
             .enumerate()
-            .map(|(output_index, output)| PlannedScriptOutput {
+            .map(|(output_index, output)| PlannedOutput {
                 name: output_layout
-                    .output_name(ScriptOutputId(output_index))
+                    .output_name(OutputId(output_index))
                     .unwrap_or_else(|| panic!("missing output name for output id {output_index}"))
                     .to_string(),
                 kind: output.kind(),
@@ -757,7 +799,11 @@ impl TestProgram {
             assembly: output.assembly,
             output_groups: self.output_group_paths(package_id, output),
             manifest: self.single_json_output(package_id, output, TargetOutputName::Manifest),
-            modules: self.text_outputs(package_id, output, TargetOutputName::Module),
+            modules: self.text_outputs_from_groups(
+                package_id,
+                output,
+                &[TargetOutputName::Module, TargetOutputName::Entry],
+            ),
         }
     }
 
@@ -795,7 +841,7 @@ impl TestProgram {
         let file = files
             .iter()
             .find(|file| self.normalize_uri_path(package_id, &file.uri) == expected_path)
-            .unwrap_or_else(|| panic!("missing output file '{expected_path}'"));
+            .unwrap_or_else(|| panic!("missing output file '{}'", expected_path));
 
         match &file.content {
             OutputContent::Text { code, file_type } => LinkedTextFile {
@@ -820,26 +866,6 @@ impl TestProgram {
             self.linked_text_output_at_path(package_id, output, output_name, &expected.path);
 
         self.assert_linked_text_file(&actual, expected, noun);
-    }
-
-    /// Assert one exact JavaScript module output.
-    pub(super) fn assert_script_module_output(
-        &self,
-        package_id: PackageId,
-        output: &PackageOutput,
-        path: &str,
-        text: &str,
-        noun: &str,
-    ) {
-        let expected = expected_script_output(path, text);
-
-        self.assert_text_output_at_path(
-            package_id,
-            output,
-            TargetOutputName::Module,
-            &expected,
-            noun,
-        );
     }
 
     /// Return one normalized JSON output file from the given group.
@@ -956,52 +982,58 @@ impl TestProgram {
         }
     }
 
-    /// Return all normalized text output files from the given group.
-    fn text_outputs(
+    /// Return all normalized text output files from the given groups.
+    fn text_outputs_from_groups(
         &self,
         package_id: PackageId,
         output: &PackageOutput,
-        output_name: TargetOutputName,
+        output_names: &[TargetOutputName],
     ) -> IndexMap<String, LinkedTextFile> {
-        let files = output
-            .outputs
-            .get(&output_name)
-            .unwrap_or_else(|| panic!("missing output group '{}'", output_name.as_str()));
+        let mut files = IndexMap::new();
+
+        // collect files in the requested group order
+        for output_name in output_names {
+            let Some(group_files) = output.outputs.get(output_name) else {
+                continue;
+            };
+
+            for file in group_files {
+                let linked_file = match &file.content {
+                    OutputContent::Text { code, file_type } => {
+                        let path = self.normalize_uri_path(package_id, &file.uri);
+                        LinkedTextFile {
+                            path: path.clone(),
+                            file_type: *file_type,
+                            text: code.clone(),
+                        }
+                    }
+                    _ => panic!("expected text output in '{}'", output_name.as_str()),
+                };
+
+                files.insert(linked_file.path.clone(), linked_file);
+            }
+        }
 
         files
-            .iter()
-            .map(|file| match &file.content {
-                OutputContent::Text { code, file_type } => {
-                    let path = self.normalize_uri_path(package_id, &file.uri);
-                    let file = LinkedTextFile {
-                        path: path.clone(),
-                        file_type: *file_type,
-                        text: code.clone(),
-                    };
-
-                    (path, file)
-                }
-                _ => panic!("expected text output in '{}'", output_name.as_str()),
-            })
-            .collect()
     }
 
     /// Normalize one URI to a package-relative path when possible.
     fn normalize_uri_path(&self, package_id: PackageId, uri: &Uri) -> String {
         let path = uri
             .to_path()
-            .unwrap_or_else(|| panic!("uri '{uri}' is not a path"));
+            .unwrap_or_else(|| panic!("uri '{}' is not a path", uri));
 
         self.normalize_package_path(package_id, path)
     }
 
     /// Normalize one path to a package-relative path when possible.
     fn normalize_package_path(&self, package_id: PackageId, path: &Path) -> String {
-        let package = self.program.package_descriptor(package_id);
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.program.root_directory().clone());
+            .unwrap_or_else(|| self.program.cwd.clone());
         let relative = path.strip_prefix(&package_dir).unwrap_or(path);
 
         relative.to_string_lossy().replace('\\', "/")

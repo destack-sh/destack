@@ -109,7 +109,6 @@ impl<'a> ScriptArtifactGenerator<'a> {
         Ok(ScriptArtifact {
             language,
             module,
-            slot: None,
             linkage,
             declaration,
             source_map: None,

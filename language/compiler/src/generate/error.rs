@@ -55,17 +55,19 @@ pub enum GenerateError {
     // 3xx: Construct issues
     // -------------------------------------------------------------------------
     /// Unsupported construct (instruction, expression, etc.).
-    #[error(code = "EG300", message = "unsupported construct")]
+    #[error(code = "EG300", message = "unsupported construct: {message}")]
     UnsupportedConstruct {
         module: ModuleId,
         node: Option<AnchoredGlobalNodeId>,
+        message: String,
     },
 
     /// Unexpected construct (wrong node type).
-    #[error(code = "EG301", message = "unexpected construct")]
+    #[error(code = "EG301", message = "unexpected construct: {message}")]
     UnexpectedConstruct {
         module: ModuleId,
         node: Option<AnchoredGlobalNodeId>,
+        message: String,
     },
 
     /// Unresolved construct (not fully resolved before codegen).

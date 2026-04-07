@@ -5,13 +5,13 @@ use destack_artifact::{
 use destack_source::FileType;
 use destack_workspace::Target;
 
-use super::layout::{OutputLayout, OutputLocation};
+use super::layout::{OutputLocation, TargetLocation};
 
 impl Compiler {
     /// Return one output location for one emitted file when its URI is path based.
     pub(crate) fn file_output_location(
         &self,
-        output_layout: &OutputLayout<'_>,
+        output_layout: &TargetLocation<'_>,
         file: &OutputFile,
     ) -> Option<OutputLocation> {
         file.uri
@@ -46,7 +46,7 @@ impl Compiler {
     /// Build one manifest index path when the target publishes one document.
     pub(crate) fn build_manifest_index_path(
         &self,
-        output_layout: &OutputLayout<'_>,
+        output_layout: &TargetLocation<'_>,
         target: &Target,
         output: &PackageOutput,
     ) -> Option<String> {
