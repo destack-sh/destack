@@ -39,6 +39,8 @@ dmypy.json
 # Rust
 target/
 **/target/
+!language/workspace/src/target/
+!language/workspace/src/target/**
 !language/workspace/src/config/target/
 !language/workspace/src/config/target/**
 Cargo.lock
