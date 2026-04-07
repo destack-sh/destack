@@ -35,7 +35,7 @@ impl Parser {
         let Some(next_token) = self.token_ref_at(next).copied() else {
             return false;
         };
-        if next_token.token.ty == TokenType::Divide && !self.options.is_in_tree_literal() {
+        if next_token.token.ty == TokenType::Divide {
             return false;
         }
         if !matches!(
@@ -402,6 +402,80 @@ impl Parser {
                 Ok(ScalarLiteral::String(string_id))
             }
         }
+    }
+
+    /// Re-lex and eat the current regex literal.
+    pub(crate) fn eat_regex_literal(&mut self) -> ParseResult<ScalarLiteral> {
+        if !self.re_lex_regex() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        self.eat_scalar_literal()
+    }
+
+    /// Parse one tree child scalar literal and optionally stay in child mode.
+    pub(crate) fn eat_tree_child_scalar_expression(
+        &mut self,
+        in_tree_child: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let token = *self.peek()?;
+        let Some(body) = token.token.literal else {
+            return Err(ParseError::unexpected(token.span));
+        };
+        let literal_str = self.file.span_str(token.span);
+        let scalar_literal = match body {
+            LiteralType::Character {
+                is_terminated,
+                is_html_entity,
+            } => {
+                if is_html_entity {
+                    decode_html_entity(literal_str)
+                        .map(ScalarLiteral::Character)
+                        .ok_or_else(|| {
+                            ParseError::expected_for(
+                                token.span,
+                                TokenType::Literal,
+                                NodeType::Expression,
+                            )
+                        })?
+                } else {
+                    if !is_terminated {
+                        return Err(ParseError::expected_for(
+                            token.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
+
+                    let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
+                    content
+                        .chars()
+                        .next()
+                        .map(ScalarLiteral::Character)
+                        .ok_or_else(|| {
+                            ParseError::expected_for(
+                                token.span,
+                                TokenType::Literal,
+                                NodeType::Expression,
+                            )
+                        })?
+                }
+            }
+            LiteralType::TreeString => {
+                let string_id = self.strings.intern(literal_str);
+                ScalarLiteral::String(string_id)
+            }
+            _ => return Err(ParseError::unexpected(token.span)),
+        };
+
+        // jsx children need one more child token after the current scalar
+        if in_tree_child {
+            self.bump_tree_child();
+        } else {
+            self.bump();
+        }
+
+        Ok(self.insert_node(Expression::ScalarLiteral(scalar_literal), token.span))
     }
 
     /// Parse an integer literal with saturation for values outside i64.
@@ -973,11 +1047,7 @@ impl Parser {
         }
 
         // find the closing `>` for the type parameter list and track TSX disambiguators
-        let mut angle_depth: usize = if self.has_split_token(TokenType::LessThan) {
-            1
-        } else {
-            0
-        };
+        let mut angle_depth: usize = 0;
         let mut paren_depth = 0usize;
         let mut bracket_depth = 0usize;
         let mut brace_depth = 0usize;
@@ -989,6 +1059,10 @@ impl Parser {
                 match token.token.ty {
                     TokenType::LessThan => angle_depth += 1,
                     TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                    TokenType::ShiftRight => angle_depth = angle_depth.saturating_sub(2),
+                    TokenType::UnsignedShiftRight => {
+                        angle_depth = angle_depth.saturating_sub(3);
+                    }
                     TokenType::GreaterThan => {
                         angle_depth = angle_depth.saturating_sub(1);
                         if angle_depth == 0 {
@@ -1034,7 +1108,7 @@ impl Parser {
                 pos += 1;
             }
 
-            if close_pos.is_some() || self.token_stream.is_lexed_to_end() {
+            if close_pos.is_some() || self.lexer.is_lexed_to_end() {
                 break;
             }
 
@@ -1091,35 +1165,27 @@ impl Parser {
             }
             let unexpected_span = self.peek()?.span;
 
-            // prime opening tag mode for tree literal lookahead
-            if !self.in_tree_literal() || self.in_tree_expression_container() {
-                self.enter_tree_opening_tag();
-            }
+            // probe the immediate tree head shape without priming lexer tree state
+            self.bump();
+            self.eat_newlines_maybe()?;
 
-            // skip newlines after `<`
-            let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
-
-            // next token after `<` (and newlines)
-            let next = *self
-                .token_ref_at(next_index)
-                .ok_or(ParseError::unexpected(unexpected_span))?;
-            // closing tags should only appear inside tree content
-            if next.token.ty == TokenType::Divide && !self.in_tree_literal() {
+            let next_token_type = self.peek_token_type();
+            if next_token_type == TokenType::Divide {
                 return Err(ParseError::unexpected(unexpected_span));
             }
             if !matches!(
-                next.token.ty,
+                next_token_type,
                 TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
             ) {
                 return Err(ParseError::unexpected(unexpected_span));
             }
 
             // exclude generic arrow function disambiguation: <T,>(...)
-            if next.token.ty == TokenType::Identifier {
-                let comma_index = self.next_non_newline_index_from(next_index + 1);
-                if let Some(token) = self.token_ref_at(comma_index)
-                    && token.token.ty == TokenType::Comma
-                {
+            if next_token_type == TokenType::Identifier {
+                self.eat_tree_literal_identifier()?;
+                self.eat_newlines_maybe()?;
+
+                if self.peek_is(TokenType::Comma) {
                     return Err(ParseError::unexpected(unexpected_span));
                 }
             }
@@ -1135,29 +1201,49 @@ impl Parser {
     /// Skip whitespace-only tree string tokens (TSX content whitespace).
     /// JSX semantics ignore whitespace-only text between elements (Babel/TypeScript behavior).
     /// See: https://github.com/facebook/jsx/issues/19
-    fn skip_tree_whitespace(&mut self) -> ParseResult<bool> {
+    pub(crate) fn skip_tree_whitespace(&mut self) -> ParseResult<bool> {
+        self.skip_tree_whitespace_with_child_context(false)
+    }
+
+    /// Skip whitespace-only tree content in the requested lexing mode.
+    pub(crate) fn skip_tree_whitespace_with_child_context(
+        &mut self,
+        in_tree_child: bool,
+    ) -> ParseResult<bool> {
         let mut skipped = false;
         loop {
             let token = *self.peek()?;
+
             // skip newlines
             if token.token.ty == TokenType::Newline {
-                self.bump();
+                if in_tree_child {
+                    self.bump_tree_child();
+                } else {
+                    self.bump();
+                }
                 skipped = true;
                 continue;
             }
+
             // skip whitespace-only tree strings (entire tokens, not content inside strings)
             if token.token.ty == TokenType::Literal
                 && token.token.literal == Some(LiteralType::TreeString)
             {
                 let content = self.get_span_str(token.span);
                 if content.trim().is_empty() {
-                    self.bump();
+                    if in_tree_child {
+                        self.bump_tree_child();
+                    } else {
+                        self.bump();
+                    }
                     skipped = true;
                     continue;
                 }
             }
+
             break;
         }
+
         Ok(skipped)
     }
 
@@ -1175,15 +1261,17 @@ impl Parser {
     /// </Level>
     /// ```
     pub fn eat_tree_literal(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_tree_literal_with_child_context(false)
+    }
+
+    /// Eat a tree literal and optionally advance back into tree-child mode.
+    pub(crate) fn eat_tree_literal_with_child_context(
+        &mut self,
+        in_tree_child: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark_span();
-        self.eat_token(TokenType::LessThan)?;
-        // enter opening-tag mode unless we are already in tag/content mode for this literal
-        let should_enter_tree_opening_tag =
-            !self.in_tree_literal() || self.in_tree_expression_container();
-        if should_enter_tree_opening_tag {
-            self.enter_tree_opening_tag();
-        }
+        self.eat_tree_opening_angle()?;
         self.eat_newlines_maybe()?;
 
         // left
@@ -1223,7 +1311,7 @@ impl Parser {
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
             self.skip_tree_whitespace()?;
             // fragment without arguments
-            if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
+            if self.peek_is(TokenType::Divide) || self.peek_starts_tree_tag_close() {
                 None
             }
             // fragment with arguments
@@ -1231,7 +1319,7 @@ impl Parser {
                 let mut arguments: Vec<LocalNodeId<Argument>> = vec![];
                 while self.has_more_tokens() {
                     self.skip_tree_whitespace()?;
-                    if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
+                    if self.peek_is(TokenType::Divide) || self.peek_starts_tree_tag_close() {
                         break;
                     }
                     let argument_ambient_context = self.options.with_tree_literal(true);
@@ -1255,20 +1343,20 @@ impl Parser {
             // fragment without children (/>)
             if self.peek_is(TokenType::Divide) {
                 self.bump(); // eat /
-                self.eat_token(TokenType::GreaterThan)?; // eat >
+                self.eat_tree_tag_close(in_tree_child)?;
                 None
             }
             // fragment with children (>)
             else {
-                self.eat_token(TokenType::GreaterThan)?; // eat >
-                self.skip_tree_whitespace()?; // skip whitespace-only tree content
+                self.eat_tree_tag_close(true)?;
+                self.skip_tree_whitespace_with_child_context(true)?; // skip whitespace-only tree content
 
                 // eat children until closing fragment
                 let mut elements: Vec<LocalNodeId<Argument>> = vec![];
                 let mut found_closing = false;
                 while self.has_more_tokens() {
                     // skip whitespace before checking for closing tag
-                    self.skip_tree_whitespace()?;
+                    self.skip_tree_whitespace_with_child_context(true)?;
 
                     // stop at closing fragment or closing named tag
                     if self.peek_is(TokenType::LessThan) {
@@ -1281,14 +1369,14 @@ impl Parser {
                             self.eat_newlines_maybe()?;
 
                             // close fragment for fragment literals
-                            if path.is_none() && self.peek_is(TokenType::GreaterThan) {
-                                self.bump(); // eat >
+                            if path.is_none() && self.peek_starts_tree_tag_close() {
+                                self.eat_tree_tag_close(in_tree_child)?;
                                 found_closing = true;
                                 break;
                             }
 
                             // fragment close is invalid for non fragment tags
-                            if path.is_some() && self.peek_is(TokenType::GreaterThan) {
+                            if path.is_some() && self.peek_starts_tree_tag_close() {
                                 return Err(ParseError::unexpected(self.peek()?.span));
                             }
 
@@ -1307,7 +1395,7 @@ impl Parser {
                                 }
 
                                 self.skip_tree_whitespace()?;
-                                self.eat_token(TokenType::GreaterThan)?;
+                                self.eat_tree_tag_close(in_tree_child)?;
 
                                 if closing_path == *path {
                                     found_closing = true;
@@ -1329,10 +1417,10 @@ impl Parser {
                         self.options
                             .with_ambient_context(element_ambient_context)
                             .with_expression_context(element_expression_context),
-                        |parser| parser.eat_tree_argument(),
+                        |parser| parser.eat_tree_argument_with_child_context(true),
                     )?;
                     elements.push(element);
-                    self.skip_tree_whitespace()?; // skip whitespace-only tree content
+                    self.skip_tree_whitespace_with_child_context(true)?; // skip whitespace-only tree content
                 }
 
                 if !found_closing {
@@ -1403,7 +1491,7 @@ impl Parser {
     }
 
     /// Return true when a tree literal path combines namespace and member syntax.
-    fn tree_literal_path_has_namespace_member(&self, path: &Path) -> bool {
+    pub(crate) fn tree_literal_path_has_namespace_member(&self, path: &Path) -> bool {
         if path.segments.len() <= 1 {
             return false;
         }
@@ -1582,7 +1670,7 @@ mod tests {
         let mut parser = test.prepare();
 
         // /abc/
-        let literal = parser.eat_scalar_literal().unwrap();
+        let literal = parser.eat_regex_literal().unwrap();
         match literal {
             ScalarLiteral::RegexString { content, flags } => {
                 assert_string!(parser, content, "abc");
@@ -1593,7 +1681,7 @@ mod tests {
         parser.eat_newline().unwrap();
 
         // /abc/g
-        let literal = parser.eat_scalar_literal().unwrap();
+        let literal = parser.eat_regex_literal().unwrap();
         match literal {
             ScalarLiteral::RegexString { content, flags } => {
                 assert_string!(parser, content, "abc");
@@ -1610,7 +1698,7 @@ mod tests {
         let mut test = TestParser::new("/42");
         let mut parser = test.prepare();
 
-        let result = parser.eat_scalar_literal();
+        let result = parser.eat_regex_literal();
         assert!(result.is_err());
     }
 
@@ -1622,7 +1710,7 @@ mod tests {
         let mut test = TestParser::new("/test\n/");
         let mut parser = test.prepare();
 
-        let result = parser.eat_scalar_literal();
+        let result = parser.eat_regex_literal();
         assert!(result.is_err());
     }
 

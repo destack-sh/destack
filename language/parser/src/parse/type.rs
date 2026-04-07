@@ -121,8 +121,7 @@ impl Parser {
     pub fn peek_type_literal(&mut self) -> ParseResult<TypeLiteral> {
         let next = *self.peek()?;
         let next_type = next.token.ty;
-        let has_split = self.has_active_split();
-        let identifier_span = if !has_split && next_type == TokenType::Identifier {
+        let identifier_span = if next_type == TokenType::Identifier {
             Some(next.span)
         } else {
             None
@@ -144,12 +143,11 @@ impl Parser {
         let next_next = self.peek_next().ok().copied();
         let next_next_type = next_next.map(|next| next.token.ty);
         if let Some(identifier_span) = identifier_span {
-            let next_identifier_span =
-                if !has_split && next_next_type == Some(TokenType::Identifier) {
-                    next_next.map(|next| next.span)
-                } else {
-                    None
-                };
+            let next_identifier_span = if next_next_type == Some(TokenType::Identifier) {
+                next_next.map(|next| next.span)
+            } else {
+                None
+            };
             let identifier = self.get_span_str(identifier_span);
             let next_identifier = next_identifier_span.map(|span| self.get_span_str(span));
             if let Some(literal) = self.type_literal_type_context_str(identifier, next_identifier) {

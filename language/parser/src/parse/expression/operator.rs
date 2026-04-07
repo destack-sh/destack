@@ -29,49 +29,6 @@ impl Parser {
             .unwrap_or(self.eof_span())
     }
 
-    /// Recover a shift operator from adjacent `>` tokens split by type-close scanning.
-    fn recover_split_shift_operator(
-        &self,
-        token: &TokenSpan,
-        next_token: Option<&TokenSpan>,
-        next_next_token: Option<&TokenSpan>,
-    ) -> Option<(InfixOperator, u8)> {
-        // this recovery only applies in value expression contexts
-        if self.options.is_in_static()
-            || self.options.is_in_tree_literal()
-            || self.options.is_in_type()
-        {
-            return None;
-        }
-
-        // only `>` can start a recovered right-shift token
-        if token.token.ty != TokenType::GreaterThan {
-            return None;
-        }
-
-        // split recovery only applies when the next tokens are raw `>` and physically adjacent
-        let has_adjacent_shift_tokens = next_token
-            .filter(|next| next.token.ty == TokenType::GreaterThan)
-            .is_some_and(|next| token.span.end == next.span.start);
-        if !has_adjacent_shift_tokens {
-            return None;
-        }
-
-        // `>>>` requires all three `>` tokens to be adjacent
-        let has_adjacent_unsigned_shift_tokens =
-            next_token
-                .zip(next_next_token)
-                .is_some_and(|(next, next_next)| {
-                    next_next.token.ty == TokenType::GreaterThan
-                        && next.span.end == next_next.span.start
-                });
-        if has_adjacent_unsigned_shift_tokens {
-            Some((InfixOperator::Binary(BinaryOperator::UnsignedShiftRight), 3))
-        } else {
-            Some((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
-        }
-    }
-
     /// Return true when contextual cast keywords continue as identifiers.
     #[inline]
     fn contextual_cast_keyword_continues_identifier(
@@ -143,13 +100,6 @@ impl Parser {
         next_next_token: Option<&TokenSpan>,
         has_newline: bool,
     ) -> ParseResult<(InfixOperator, u8)> {
-        // recover split shift operators after type-angle token splitting
-        if let Some(operator) =
-            self.recover_split_shift_operator(token, next_token, next_next_token)
-        {
-            return Ok(operator);
-        }
-
         // regular binary operator
         // (only a subset of binary operators are allowed in static and tree contexts)
         if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
@@ -351,9 +301,6 @@ impl Parser {
         if token_type != TokenType::Identifier {
             return BinaryOperator::from_token("", token_type).is_some();
         }
-        if self.has_active_split() {
-            return false;
-        }
         // only identifiers mapped to contextual operator keywords can act as infix operators
         let Some(keyword) = self.keyword_for_index(index) else {
             return false;
@@ -398,12 +345,8 @@ impl Parser {
                 (None, None)
             };
         let token_str = if token_type == TokenType::Identifier {
-            if self.has_active_split() {
-                self.get_span_str(token.span)
-            } else {
-                let keyword = self.keyword_for_index(index)?;
-                Self::infix_identifier_keyword_text(keyword)?
-            }
+            let keyword = self.keyword_for_index(index)?;
+            Self::infix_identifier_keyword_text(keyword)?
         } else {
             ""
         };

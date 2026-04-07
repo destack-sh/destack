@@ -36,20 +36,6 @@ type T<S: string> = A<S>;
 let Component = <Component<T<"button.press">> />.Child<T>; // what even is this?
 ```
 
-## Annotations
-
-The parser treats decorators and comments as different classes.
- 1. Decorators are semantic attachments.
- 2. Comments stay raw and token-relative.
-
-Comments are emitted during `attach_comments()`.
-If a test or direct parser entrypoint bypasses `Parser::parse()`, it must call `attach_comments()` before checking comment output.
-
-### Comment Stream
-
-Raw comments are stored in `NodeTree::comments()`.
-Blank lines are not stored as comment records.
-
 ## Testing
 
 Run these from the repository root.

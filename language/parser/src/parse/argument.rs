@@ -19,6 +19,8 @@ impl Parser {
         if matches!(
             self.peek_token_type(),
             TokenType::GreaterThan
+                | TokenType::ShiftRight
+                | TokenType::UnsignedShiftRight
                 | TokenType::GreaterThanOrEqual
                 | TokenType::ShiftRightAssign
                 | TokenType::UnsignedShiftRightAssign
@@ -323,14 +325,8 @@ impl Parser {
                 break;
             }
             let position_index = self.pos_index();
-            let has_active_split = self.has_active_split();
-            let current_keyword = if has_active_split {
-                self.peek_any_keyword().ok()
-            } else {
-                self.keyword_for_index(position_index)
-            };
+            let current_keyword = self.keyword_for_index(position_index);
             let is_out_variance_modifier = allow_variance_modifier
-                && !has_active_split
                 && self.identifier_equals_at(position_index, "out")
                 && (self.peek_next_is(TokenType::Identifier) || self.is_next_keyword(Keyword::In));
             let can_start_modifier = current_keyword.is_some_and(|keyword| {
@@ -698,7 +694,7 @@ impl Parser {
                 let ty = if self.peek_is(TokenType::Assign)
                     || self.peek_is(TokenType::Comma)
                     || self.peek_is(TokenType::CloseParenthesis)
-                    || self.peek_is(TokenType::GreaterThan)
+                    || self.peek_starts_type_angle_close()
                     || self.peek_is(TokenType::End)
                 {
                     self.recover_missing_expression_here(NodeType::Parameter)
@@ -725,7 +721,7 @@ impl Parser {
                 // value
                 let value = if self.peek_is(TokenType::Comma)
                     || self.peek_is(TokenType::CloseParenthesis)
-                    || self.peek_is(TokenType::GreaterThan)
+                    || self.peek_starts_type_angle_close()
                     || self.peek_is(TokenType::End)
                 {
                     self.recover_missing_expression_here(NodeType::Parameter)
@@ -883,7 +879,7 @@ impl Parser {
         let mut has_variadic_parameter = false;
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
-            if self.peek_is(TokenType::CloseParenthesis) || self.peek_is(TokenType::GreaterThan) {
+            if self.peek_is(TokenType::CloseParenthesis) || self.peek_starts_type_angle_close() {
                 break;
             }
 
@@ -981,16 +977,6 @@ impl Parser {
         &mut self,
         allow_empty_parameters: bool,
     ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
-        if self.has_active_split() {
-            let mark = self.mark_rewind();
-            self.eat_newlines_maybe()?;
-            if self.peek_is(TokenType::LessThan) {
-                return Ok(Some(self.eat_static_parameters(allow_empty_parameters)?));
-            }
-            self.rewind(mark);
-            return Ok(None);
-        }
-
         let start_index = self.pos_index();
         let static_index = self.next_non_newline_index_from(start_index);
         if self.token_type_at(static_index) != TokenType::LessThan {
@@ -1016,8 +1002,8 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // optionally accept empty static parameters
-        if self.peek_is(TokenType::GreaterThan) {
-            self.bump();
+        if self.peek_starts_type_angle_close() {
+            self.eat_type_angle_close()?;
             if allow_empty_parameters {
                 return Ok(vec![]);
             }
@@ -1300,6 +1286,14 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_tree_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+        self.eat_tree_argument_with_child_context(false)
+    }
+
+    /// Eat one tree child argument and optionally re-enter child lexing after `}`.
+    pub(crate) fn eat_tree_argument_with_child_context(
+        &mut self,
+        in_tree_child: bool,
+    ) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark_span();
         // named argument (name: value)
         if self.peek_name_is() && self.peek_next_is(TokenType::Colon) {
@@ -1377,7 +1371,11 @@ impl Parser {
                 )?;
 
                 self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBrace)?;
+                if in_tree_child {
+                    self.expect_tree_child(TokenType::CloseBrace)?;
+                } else {
+                    self.eat_token(TokenType::CloseBrace)?;
+                }
                 let argument_id = self.insert_node(
                     Argument::Spread {
                         modifiers: None,
@@ -1402,7 +1400,11 @@ impl Parser {
             )?;
 
             self.eat_newlines_maybe()?;
-            self.eat_token(TokenType::CloseBrace)?;
+            if in_tree_child {
+                self.expect_tree_child(TokenType::CloseBrace)?;
+            } else {
+                self.eat_token(TokenType::CloseBrace)?;
+            }
             let argument_id = self.insert_node(
                 Argument::Positional {
                     modifiers: None,
@@ -1431,10 +1433,27 @@ impl Parser {
                 if !is_tree_text && !is_tree_literal {
                     return Err(ParseError::unexpected(token.span));
                 }
+
+                if is_tree_text {
+                    let value = self.eat_tree_child_scalar_expression(in_tree_child)?;
+                    let argument_id = self.insert_node(
+                        Argument::Positional {
+                            modifiers: None,
+                            value,
+                        },
+                        self.get_span_from(&start),
+                    );
+                    return Ok(argument_id);
+                }
             }
-            let value_expression_context =
-                self.options.not_in_position().not_in_sequence_expression();
-            let value = self.eat_expression_with_context_unchecked(value_expression_context)?;
+
+            let value = if self.peek_is(TokenType::LessThan) && self.peek_tree_literal().is_ok() {
+                self.eat_tree_literal_with_child_context(in_tree_child)?
+            } else {
+                let value_expression_context =
+                    self.options.not_in_position().not_in_sequence_expression();
+                self.eat_expression_with_context_unchecked(value_expression_context)?
+            };
             let argument_id = self.insert_node(
                 Argument::Positional {
                     modifiers: None,
@@ -1474,7 +1493,7 @@ impl Parser {
             Ok(argument_id)
         }
         // spread expression container (like {...expr} in tree literals for #Compatibility)
-        else if self.peek_tree_literal_spread_expression_container() {
+        else if self.starts_tree_spread_attribute() {
             self.bump(); // eat open brace
             self.eat_newlines_maybe()?;
             self.bump(); // eat spread
@@ -1508,14 +1527,11 @@ impl Parser {
             let name = self.eat_tree_literal_identifier()?;
 
             // explicit value separators, including newline wrapped forms
-            let has_value_separator = self.peek_is(TokenType::Colon)
-                || self.peek_is(TokenType::Assign)
-                || self.peek_is(TokenType::Newline)
-                    && (self.is_token_after_newlines(self.pos(), TokenType::Colon)
-                        || self.is_token_after_newlines(self.pos(), TokenType::Assign));
+            let has_value_separator = self.tree_literal_argument_has_value_separator();
 
             // named argument with value
             let value = if has_value_separator {
+                self.set_tree_attribute_value(true);
                 self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
@@ -1600,7 +1616,7 @@ impl Parser {
     }
 
     /// Return true when the current tree literal argument starts with `{ ...`.
-    fn peek_tree_literal_spread_expression_container(&mut self) -> bool {
+    pub(crate) fn starts_tree_spread_attribute(&mut self) -> bool {
         // must begin at an expression container
         if !self.peek_is(TokenType::OpenBrace) {
             return false;
@@ -1609,6 +1625,15 @@ impl Parser {
         // skip newline trivia before checking for spread
         let spread_index = self.first_non_newline_index_from(self.pos_index() + 1);
         self.token_type_at(spread_index) == TokenType::Spread
+    }
+
+    /// Return true when the current tree argument has an explicit value separator.
+    pub(crate) fn tree_literal_argument_has_value_separator(&mut self) -> bool {
+        self.peek_is(TokenType::Colon)
+            || self.peek_is(TokenType::Assign)
+            || self.peek_is(TokenType::Newline)
+                && (self.is_token_after_newlines(self.pos(), TokenType::Colon)
+                    || self.is_token_after_newlines(self.pos(), TokenType::Assign))
     }
 
     /// Eat static arguments (including the `<` and `>` tokens) if they exist.
@@ -1641,7 +1666,7 @@ impl Parser {
 
         while self.has_more_tokens() {
             // stop on closing `>`
-            if self.peek_is(TokenType::GreaterThan) {
+            if self.peek_starts_type_angle_close() {
                 break;
             }
 
@@ -1697,9 +1722,11 @@ impl Parser {
         if self.peek_is(TokenType::LessThan) {
             self.bump(); // eat `<`
         } else if self.peek_is(TokenType::ShiftLeft) {
-            // split `<<` into `<` (consumed) + `<` (pending as split token)
-            // the pending `<` will be seen by the first argument as its generic opening
-            self.split_shift_left();
+            if !self.re_lex_ts_l_angle() {
+                return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
+            }
+
+            self.bump();
         } else {
             return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
         }
@@ -1708,7 +1735,13 @@ impl Parser {
         // empty static arguments only recover in committed type-like contexts
         let allow_empty_static_arguments =
             self.options.is_in_type() || self.options.is_in_decorator();
-        let static_arguments = if self.peek_is(TokenType::GreaterThan) {
+        let has_empty_static_arguments = if allow_empty_static_arguments {
+            self.peek_starts_type_angle_close()
+        } else {
+            self.peek_starts_expression_type_angle_close()
+        };
+
+        let static_arguments = if has_empty_static_arguments {
             if !allow_empty_static_arguments {
                 return Err(ParseError::expected(
                     self.get_span_from(&start),
@@ -1733,11 +1766,8 @@ impl Parser {
             )?
         };
 
-        // ts expression contexts only close static args on a concrete `>` token
-        // (this matches ts disambiguation for cases like `f<T>=x` and `x < y, x >>= y`.. sigh)
-        let allow_glued_type_close = self.options.is_in_type()
-            || self.options.is_in_decorator()
-            || self.language.is_destack();
+        // committed type-like contexts can consume glued right-angle tails
+        let allow_glued_type_close = self.options.is_in_type() || self.options.is_in_decorator();
         let allow_missing_type_close = self.options.is_in_type() || self.options.is_in_decorator();
 
         self.eat_newlines_maybe()?;
@@ -1748,7 +1778,7 @@ impl Parser {
                 self.eat_type_angle_close()?;
             }
         } else {
-            self.eat_token(TokenType::GreaterThan)?;
+            self.eat_expression_type_angle_close()?;
         }
         Ok(static_arguments)
     }

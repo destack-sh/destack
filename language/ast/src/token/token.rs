@@ -185,8 +185,10 @@ pub enum TokenType {
     ShiftLeft,
     /// `<<|`
     SaturatingShiftLeft,
-    // NOTE: we don't have a `>>` token to avoid ambiguity in static parameters
-    //  (otherwise we would have to perform some ugly "ungluing" which is cumbersome)
+    /// `>>`
+    ShiftRight,
+    /// `>>>`
+    UnsignedShiftRight,
     /// --------------------------------------------------
     /// Elementwise
     /// --------------------------------------------------
@@ -380,6 +382,8 @@ impl Display for TokenType {
             // shift
             TokenType::ShiftLeft => write!(f, "<<"),
             TokenType::SaturatingShiftLeft => write!(f, "<<|"),
+            TokenType::ShiftRight => write!(f, ">>"),
+            TokenType::UnsignedShiftRight => write!(f, ">>>"),
 
             // elementwise
             TokenType::ElementwiseAnd => write!(f, "&"),

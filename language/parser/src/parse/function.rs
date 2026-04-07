@@ -47,9 +47,7 @@ impl Parser {
             return self.eat_block(block_context);
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
-        }
+        self.stats.record_with_options_call();
 
         let old_options = self.swap_options(options);
         let result = self.eat_block(block_context);
@@ -67,9 +65,7 @@ impl Parser {
             return self.eat_parameters_body();
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
-        }
+        self.stats.record_with_options_call();
 
         let old_options = self.swap_options(options);
         let result = self.eat_parameters_body();
@@ -295,6 +291,8 @@ impl Parser {
                     angle_depth -= 1;
                 }
                 TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                TokenType::ShiftRight => angle_depth = angle_depth.saturating_sub(2),
+                TokenType::UnsignedShiftRight => angle_depth = angle_depth.saturating_sub(3),
                 _ => {}
             }
             has_type_tokens = true;
@@ -356,25 +354,19 @@ impl Parser {
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_lambda_plain_calls += 1;
-        }
+        self.stats.record_parenthesized_lambda_plain_call();
 
         let open_index = self.pos_index();
         let Some((close_index, head_shape)) = self.scan_plain_parenthesized_lambda_head(open_index)
         else {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_lambda_plain_misses += 1;
-            }
+            self.stats.record_parenthesized_lambda_plain_miss();
             return Ok(None);
         };
 
         let follow_index = self.next_non_newline_index_from(close_index + 1);
         let follow_token_type = self.token_type_at(follow_index);
         if close_index <= open_index {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_lambda_plain_misses += 1;
-            }
+            self.stats.record_parenthesized_lambda_plain_miss();
             return Ok(None);
         }
 
@@ -383,9 +375,7 @@ impl Parser {
             follow_token_type,
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
         ) {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_lambda_plain_misses += 1;
-            }
+            self.stats.record_parenthesized_lambda_plain_miss();
             return Ok(None);
         }
 
@@ -481,9 +471,7 @@ impl Parser {
             body,
         );
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_lambda_plain_hits += 1;
-        }
+        self.stats.record_parenthesized_lambda_plain_hit();
 
         Ok(Some(function_id))
     }
@@ -573,9 +561,7 @@ impl Parser {
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.identifier_lambda_plain_calls += 1;
-        }
+        self.stats.record_identifier_lambda_plain_call();
 
         // parse the single named parameter
         let parameter_name = self.eat_identifier()?;
@@ -605,9 +591,7 @@ impl Parser {
             body,
         );
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.identifier_lambda_plain_hits += 1;
-        }
+        self.stats.record_identifier_lambda_plain_hit();
 
         Ok(Some(function_id))
     }

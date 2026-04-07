@@ -179,9 +179,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.statement_keyword_dispatch_calls += 1;
-        }
+        self.stats.record_statement_keyword_dispatch_call();
 
         // parse labelled statements before keyword and expression dispatch
         if let Some(expression_id) = self.try_parse_labelled_statement_expression(start)? {
@@ -199,9 +197,7 @@ impl Parser {
                 next_raw_token_type,
                 next_cursor,
             )? {
-                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                    speculation_stats.statement_keyword_dispatch_direct_hits += 1;
-                }
+                self.stats.record_statement_keyword_dispatch_direct_hit();
 
                 let expression = self.tree.get(expression_id);
                 let is_terminal_statement = expression.is_statement_boundary();
@@ -213,16 +209,13 @@ impl Parser {
                 return Ok(Some(continuation_id));
             }
 
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_dispatch_direct_misses += 1;
-            }
+            self.stats.record_statement_keyword_dispatch_direct_miss();
 
             return Ok(None);
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.statement_keyword_dispatch_keyword_rejects += 1;
-        }
+        self.stats
+            .record_statement_keyword_dispatch_keyword_reject();
 
         // parse plain identifier paths without re-running generic identifier entry checks
         let pos_index = self.pos_index();
@@ -261,9 +254,8 @@ impl Parser {
             return self.try_dispatch_identifier_statement_expression(start);
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.statement_keyword_dispatch_prefilter_rejects += 1;
-        }
+        self.stats
+            .record_statement_keyword_dispatch_prefilter_reject();
 
         Ok(None)
     }
@@ -285,8 +277,8 @@ impl Parser {
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // stack depth
-        let depth = self.statement_stack_depth;
-        self.statement_stack_depth = depth + 1;
+        let depth = self.state.statement_stack_depth;
+        self.state.statement_stack_depth = depth + 1;
 
         // guard interval
         #[cfg(debug_assertions)]
@@ -307,7 +299,7 @@ impl Parser {
         };
 
         // restore depth
-        self.statement_stack_depth = depth;
+        self.state.statement_stack_depth = depth;
 
         result
     }
@@ -537,9 +529,7 @@ impl Parser {
             return self.eat_block_body_parts_in_statement_position(format, block_context);
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
-        }
+        self.stats.record_with_options_call();
         self.with_options(
             self.options
                 .with_ambient_context(ambient_context)

@@ -103,9 +103,7 @@ impl Parser {
             return self.eat_expression_inner_with_stack_guard();
         }
 
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
-        }
+        self.stats.record_with_options_call();
 
         let old_options = self.swap_options(options);
         let result = self.eat_expression_inner_with_stack_guard();
@@ -137,9 +135,7 @@ impl Parser {
         }
 
         let context = self.options.not_in_statement_position();
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
-        }
+        self.stats.record_with_options_call();
         self.eat_expression(self.options.with_expression_context(context))
     }
 
@@ -149,8 +145,8 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
 
         // stack depth
-        let depth = self.expression_stack_depth;
-        self.expression_stack_depth = depth + 1;
+        let depth = self.state.expression_stack_depth;
+        self.state.expression_stack_depth = depth + 1;
 
         // guard interval
         #[cfg(debug_assertions)]
@@ -168,7 +164,7 @@ impl Parser {
         };
 
         // restore depth
-        self.expression_stack_depth = depth;
+        self.state.expression_stack_depth = depth;
 
         result
     }
@@ -206,7 +202,7 @@ impl Parser {
             return Ok(None);
         }
 
-        if self.has_active_split() || self.peek_token_type() != TokenType::Identifier {
+        if self.peek_token_type() != TokenType::Identifier {
             return Ok(None);
         }
 
@@ -240,7 +236,7 @@ impl Parser {
         }
 
         // require a plain identifier token
-        if !self.peek_is(TokenType::Identifier) || self.has_active_split() {
+        if !self.peek_is(TokenType::Identifier) {
             return Ok(None);
         }
 
@@ -442,19 +438,14 @@ impl Parser {
         let is_plain_js_or_ts_group = !self.language.is_destack()
             && !self.options.is_in_type()
             && !self.options.is_in_arrow_return_type()
-            && !self.has_active_split()
             && group_shape.follow_token_type.is_none();
 
         // plain js and ts groups
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_expression_plain_calls += 1;
-        }
+        self.stats.record_parenthesized_expression_plain_call();
         if is_plain_js_or_ts_group {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_expression_plain_hits += 1;
-            }
-        } else if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_expression_plain_misses += 1;
+            self.stats.record_parenthesized_expression_plain_hit();
+        } else {
+            self.stats.record_parenthesized_expression_plain_miss();
         }
 
         if !is_plain_js_or_ts_group
@@ -660,12 +651,7 @@ impl Parser {
                 TokenType::Identifier => {
                     // declaration descriptor parsing only matters for identifier starts
                     let pos_index = self.pos_index();
-                    let has_active_split = self.has_active_split();
-                    let descriptor_head_keyword = if has_active_split {
-                        self.peek_any_keyword().ok()
-                    } else {
-                        self.keyword_for_index(pos_index)
-                    };
+                    let descriptor_head_keyword = self.keyword_for_index(pos_index);
 
                     let can_parse_declaration_descriptor = self.options.is_in_statement_position()
                         || self.options.is_in_type()
@@ -713,9 +699,7 @@ impl Parser {
                     let next_token_index = next_cursor.index;
                     let next_has_line_break = next_cursor.has_line_break_before;
                     let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
-                    let has_active_split = self.has_active_split();
-                    let module_identifier_matches = !has_active_split
-                        && !self.options.is_in_decorator()
+                    let module_identifier_matches = !self.options.is_in_decorator()
                         && !self.options.is_in_type()
                         && !next_has_line_break
                         && is_declaration_start
@@ -751,11 +735,7 @@ impl Parser {
 
                     // keyword and split state
                     let keyword = {
-                        let keyword = if has_active_split {
-                            self.peek_any_keyword().ok()
-                        } else {
-                            self.keyword_for_index(self.pos_index())
-                        };
+                        let keyword = self.keyword_for_index(self.pos_index());
                         if self.options.is_in_decorator() && !self.options.is_in_type() {
                             match keyword {
                                 Some(
@@ -788,7 +768,6 @@ impl Parser {
                     // plain path for plain identifiers
                     if primary_expression_id.is_none()
                         && keyword.is_none()
-                        && !has_active_split
                         && !self.options.is_in_decorator()
                         && !is_module_declaration_start
                     {
@@ -1191,6 +1170,16 @@ impl Parser {
                                 self.get_span_from(&start),
                             )
                         }
+                    }
+                    // regex literal
+                    else if matches!(token_type, TokenType::Divide | TokenType::DivideAssign) {
+                        let _literal_timing =
+                            self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                        let scalar_literal = self.eat_regex_literal()?;
+                        self.insert_node(
+                            Expression::ScalarLiteral(scalar_literal),
+                            self.get_span_from(&start),
+                        )
                     }
                     // scalar literal
                     else if self.is_scalar_literal_start() {

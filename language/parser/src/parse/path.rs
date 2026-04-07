@@ -11,11 +11,11 @@ impl Parser {
     #[inline]
     fn token_has_leading_comment(&mut self, token_index: usize) -> bool {
         // fast path: no comment side tokens have been seen yet
-        if !self.token_stream.has_comment_tokens() {
+        if !self.lexer.has_comment_tokens() {
             return false;
         }
 
-        self.token_stream.comment_before(token_index)
+        self.lexer.comment_before(token_index)
     }
 
     /// Eat a path.

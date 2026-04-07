@@ -299,7 +299,7 @@ impl Parser {
                 pos += 1;
             }
 
-            if self.token_stream.is_lexed_to_end() {
+            if self.lexer.is_lexed_to_end() {
                 break;
             }
 
@@ -321,7 +321,7 @@ impl Parser {
                 pos += 1;
             }
 
-            if self.token_stream.is_lexed_to_end() {
+            if self.lexer.is_lexed_to_end() {
                 break;
             }
 
@@ -351,16 +351,9 @@ impl Parser {
         let mut depth = 0;
         let mut pos = pos.unwrap_or(self.pos()) as usize;
 
-        // if there's a split token that matches the open token, start with depth = 1
-        // (the split token counts as the opening bracket)
-        let has_split_open = self.has_split_token(open_token);
-        if has_split_open {
-            depth = 1;
-        }
-
-        // we should start at the open token (unless we have a split token)
+        // we should start at the open token
         #[cfg(debug_assertions)]
-        if !has_split_open {
+        {
             self.ensure_token(pos);
             let first_token = self
                 .token_ref_at(pos)
@@ -373,22 +366,20 @@ impl Parser {
         }
 
         // fast path for precomputed pairs
-        if !has_split_open {
-            let expected_close = match open_token {
-                TokenType::OpenParenthesis => Some(TokenType::CloseParenthesis),
-                TokenType::OpenBrace => Some(TokenType::CloseBrace),
-                TokenType::OpenBracket => Some(TokenType::CloseBracket),
-                _ => None,
-            };
-            self.ensure_token(pos);
-            if expected_close == Some(close_token)
-                && self
-                    .token_ref_at(pos)
-                    .is_some_and(|token| token.token.ty == open_token)
-                && let Some(matching) = self.matching_pair_or_lex(pos)
-            {
-                return Ok(matching as u32);
-            }
+        let expected_close = match open_token {
+            TokenType::OpenParenthesis => Some(TokenType::CloseParenthesis),
+            TokenType::OpenBrace => Some(TokenType::CloseBrace),
+            TokenType::OpenBracket => Some(TokenType::CloseBracket),
+            _ => None,
+        };
+        self.ensure_token(pos);
+        if expected_close == Some(close_token)
+            && self
+                .token_ref_at(pos)
+                .is_some_and(|token| token.token.ty == open_token)
+            && let Some(matching) = self.matching_pair_or_lex(pos)
+        {
+            return Ok(matching as u32);
         }
 
         // seek until we find the matching close token
@@ -411,7 +402,7 @@ impl Parser {
                 pos += 1;
             }
 
-            if self.token_stream.is_lexed_to_end() {
+            if self.lexer.is_lexed_to_end() {
                 break;
             }
 
@@ -423,6 +414,20 @@ impl Parser {
 
     /// Find a matching close token in expression contexts with tree literal awareness.
     pub fn find_matching_close_in_expression(
+        &mut self,
+        open_pos: u32,
+        open_token: TokenType,
+        close_token: TokenType,
+    ) -> ParseResult<u32> {
+        let mark = self.mark_rewind();
+        let result =
+            self.find_matching_close_in_expression_inner(open_pos, open_token, close_token);
+        self.rewind(mark);
+        result
+    }
+
+    /// Find a matching close token in expression contexts within speculative lexer state.
+    fn find_matching_close_in_expression_inner(
         &mut self,
         open_pos: u32,
         open_token: TokenType,
@@ -453,7 +458,7 @@ impl Parser {
         while let Some(token) = self.token_ref_at(pos) {
             let ty = token.token.ty;
 
-            // enter tree literal mode when a JSX literal starts at an expression boundary
+            // skip whole tree literals with a speculative parse
             if ty == TokenType::LessThan && tree_literals_allowed {
                 let can_start_expression = self.is_expression_start_after_tokens(
                     last_non_whitespace_index,
@@ -461,10 +466,16 @@ impl Parser {
                     prev_semantic_index,
                 );
                 if can_start_expression {
-                    let can_start_tree =
-                        self.with_pos(pos, |parser| parser.can_start_tree_literal());
-                    if can_start_tree {
-                        self.enter_tree_opening_tag();
+                    if let Some(tree_end) = self.tree_literal_end_index_at(pos) {
+                        if tree_end > pos {
+                            let last_tree_index = tree_end - 1;
+
+                            last_non_whitespace_index = Some(last_tree_index);
+                            prev_semantic_index = last_semantic_index;
+                            last_semantic_index = Some(last_tree_index);
+                            pos = tree_end;
+                            continue;
+                        }
                     }
                 }
             }
@@ -522,7 +533,7 @@ impl Parser {
                 pos += 1;
             }
 
-            if depth == 0 || self.token_stream.is_lexed_to_end() {
+            if depth == 0 || self.lexer.is_lexed_to_end() {
                 break;
             }
 
@@ -533,6 +544,25 @@ impl Parser {
 
     /// Check whether a parenthesized expression has a top level token.
     pub fn has_token_before_matching_close(
+        &mut self,
+        open_pos: u32,
+        close_pos: u32,
+        target_token: TokenType,
+        track_angle: bool,
+    ) -> ParseResult<bool> {
+        let mark = self.mark_rewind();
+        let result = self.has_token_before_matching_close_inner(
+            open_pos,
+            close_pos,
+            target_token,
+            track_angle,
+        );
+        self.rewind(mark);
+        result
+    }
+
+    /// Check for a top-level token before a matching close within speculative lexer state.
+    fn has_token_before_matching_close_inner(
         &mut self,
         open_pos: u32,
         close_pos: u32,
@@ -558,7 +588,7 @@ impl Parser {
                 None => break,
             };
 
-            // enter tree literal mode when a JSX literal starts at an expression boundary
+            // skip whole tree literals with a speculative parse
             if ty == TokenType::LessThan && tree_literals_allowed {
                 let can_start_expression = self.is_expression_start_after_tokens(
                     last_non_whitespace_index,
@@ -566,10 +596,16 @@ impl Parser {
                     prev_semantic_index,
                 );
                 if can_start_expression {
-                    let can_start_tree =
-                        self.with_pos(pos, |parser| parser.can_start_tree_literal());
-                    if can_start_tree {
-                        self.enter_tree_opening_tag();
+                    if let Some(tree_end) = self.tree_literal_end_index_at(pos) {
+                        if tree_end > pos {
+                            let last_tree_index = tree_end - 1;
+
+                            last_non_whitespace_index = Some(last_tree_index);
+                            prev_semantic_index = last_semantic_index;
+                            last_semantic_index = Some(last_tree_index);
+                            pos = tree_end;
+                            continue;
+                        }
                     }
                 }
             }
@@ -592,6 +628,12 @@ impl Parser {
                 }
                 TokenType::ShiftLeft | TokenType::SaturatingShiftLeft if track_angle => {
                     angle_depth += 2;
+                }
+                TokenType::ShiftRight if track_angle => {
+                    angle_depth = angle_depth.saturating_sub(2);
+                }
+                TokenType::UnsignedShiftRight if track_angle => {
+                    angle_depth = angle_depth.saturating_sub(3);
                 }
                 _ if ty == target_token
                     && paren_depth == 1

@@ -67,7 +67,7 @@ impl Parser {
         if token_type == TokenType::End {
             return true;
         }
-        if self.options.is_in_static() && token_type == TokenType::GreaterThan {
+        if self.options.is_in_static() && Self::starts_type_angle_close(token_type) {
             return true;
         }
 
@@ -185,16 +185,6 @@ impl Parser {
 
         match self.eat_static_arguments() {
             Ok(static_arguments) => {
-                // value expression static arguments must not close through `>=` split tails
-                // (this avoids parsing comparison chains like `i < 0 || i >= ...` as instantiation)
-                let used_split_assign_close = !self.options.is_in_type()
-                    && !self.options.is_in_decorator()
-                    && self.has_split_token(TokenType::Assign);
-                if used_split_assign_close {
-                    self.restore(speculative_start, speculative_start_idx);
-                    return None;
-                }
-
                 // in type or decorator context, type arguments are always valid
                 if self.options.is_in_type() || self.options.is_in_decorator() {
                     return Some(static_arguments);

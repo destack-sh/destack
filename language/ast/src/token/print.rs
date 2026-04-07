@@ -101,6 +101,8 @@ impl Token {
             // Shifts
             TokenType::ShiftLeft => "<<".to_string(),
             TokenType::SaturatingShiftLeft => "<<|".to_string(),
+            TokenType::ShiftRight => ">>".to_string(),
+            TokenType::UnsignedShiftRight => ">>>".to_string(),
 
             // Elementwise
             TokenType::ElementwiseAnd => "&".to_string(),

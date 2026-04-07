@@ -28,16 +28,7 @@ impl Parser {
     pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
-        let has_active_split = self.has_active_split();
-        debug_assert!(
-            !has_active_split,
-            "identifier tokens should never be produced from split token streams"
-        );
-        let has_escape = if has_active_split {
-            false
-        } else {
-            self.identifier_has_escape_for_index(index)
-        };
+        let has_escape = self.identifier_has_escape_for_index(index);
 
         // reject escaped keywords in JS/TS
         if has_escape && (self.language.is_javascript() || self.language.is_typescript()) {
@@ -101,9 +92,8 @@ impl Parser {
         }
 
         let index = self.pos_index();
-        let has_active_split = self.has_active_split();
         // avoid interning for common literal identifier checks
-        if !has_active_split && matches!(string, "global" | "module" | "_") {
+        if matches!(string, "global" | "module" | "_") {
             return self.identifier_equals_at(index, string);
         }
 
@@ -195,9 +185,7 @@ impl Parser {
     #[inline]
     pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
         let span = *self.peek_identifier_str(string)?;
-        if !self.has_active_split()
-            && let Some(id) = self.identifier_for_index(self.pos_index())
-        {
+        if let Some(id) = self.identifier_for_index(self.pos_index()) {
             self.bump();
             return Ok(id);
         }
