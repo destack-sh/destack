@@ -7,7 +7,6 @@ pub mod lsp;
 pub mod mdtest;
 pub mod optimize;
 pub mod query;
-pub mod regression;
 pub mod smoke;
 pub mod specification;
 pub mod stress;

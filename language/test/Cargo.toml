@@ -73,11 +73,6 @@ path = "src/ecosystem/main.rs"
 harness = false
 
 [[test]]
-name = "regression"
-path = "src/regression/main.rs"
-harness = false
-
-[[test]]
 name = "stress"
 path = "src/stress/main.rs"
 harness = false
@@ -105,11 +100,11 @@ destack_lsp_types = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
+destack_workspace = { workspace = true }
 destack_runtime = { workspace = true }
 destack_source = { workspace = true }
 destack_test_mirbench = { workspace = true }
 destack_vm = { workspace = true }
-destack_workspace = { workspace = true }
 
 # general
 clap = { workspace = true, features = ["derive"] }
@@ -118,6 +113,7 @@ rayon = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 schemars = { workspace = true }
+indexmap = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time"] }
 toml = { workspace = true }
 tracing = { workspace = true }

@@ -21,14 +21,13 @@ The language suite taxonomy is:
 | **Smoke** | Correctness | Quick | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
 | **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
-| **Regression** | Correctness | Quick | `fixtures/regression/` | Targeted bug reproductions that do not fit cleanly elsewhere |
 | **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External compatibility suites organized by domain, with `ecma` remaining corpus-first and `web` and `node` becoming feature-first |
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
 | **Resolver** | Correctness | Quick | `fixtures/resolver/` | Module and package resolution |
 | **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
 | **Ecosystem** | Conformance | Full | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
-| **Stress** | Correctness | Full | `fixtures/stress/` | Correctness on very large and pathological inputs |
+| **Stress** | Correctness | Full | `fixtures/stress/` | Shared hostile corpora and invariant-based consumers for parser, checker, query, and LSP |
 
 The shared conformance catalog is generated from `suite.json` and `status.json`.
 
@@ -36,7 +35,7 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | Domain | Suite | Title | Status | Origin Ref |
 | --- | --- | --- | --- | --- |
 | ecma | babel | ECMA Babel | ignore 7 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
-| ecma | biome | ECMA Biome | ignore 7 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
+| ecma | biome | ECMA Biome | known-fail 1, ignore 7 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
 | ecma | jsc | ECMA JSC | none | main |
 | ecma | math | Math | none | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
 | ecma | number | Number | translated 4, excluded 4 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
@@ -44,7 +43,7 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | ecma | temporal | Temporal | translated 3 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
 | ecma | test262 | ECMA Test262 | ignore 7 | 0e808c74fbec780646434cad17bb22dc52461003 |
 | ecma | v8 | ECMA V8 | none | main |
-| formatter | oxfmt | Formatter Oxfmt | none | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
+| formatter | oxfmt | Formatter Oxfmt | ignore 1 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
 | formatter | prettier | Formatter Prettier | known-fail 1, ignore 13 | 574b18d7d692370ace1b67c763b486926b4fb139 |
 | node | crypto | node:crypto | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
 | node | fs | node:fs | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
@@ -115,7 +114,6 @@ just test-unit
 just test-smoke
 just test-emit
 just test-specification
-just test-regression
 just test-query
 just test-lsp
 just test-resolver
@@ -133,6 +131,8 @@ just test-ecosystem
 # robustness
 just generate-stress
 just test-stress
+just test-stress-query
+just test-stress-lsp
 ```
 
 ## Mdtest

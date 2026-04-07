@@ -3,7 +3,9 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use destack_test::core::{RunOptions, Runner};
-use destack_test::stress::{CheckerStressSuite, ParserStressSuite, ResolverStressSuite};
+use destack_test::stress::{
+    CheckerStressSuite, LspStressSuite, ParserStressSuite, QueryStressSuite, ResolverStressSuite,
+};
 
 #[derive(Parser, Debug, Clone)]
 #[command(name = "stress", about = "run destack stress tests")]
@@ -20,6 +22,14 @@ struct StressOptions {
     #[arg(long)]
     checker: bool,
 
+    /// run only query stress tests
+    #[arg(long)]
+    query: bool,
+
+    /// run only lsp stress tests
+    #[arg(long)]
+    lsp: bool,
+
     #[command(flatten)]
     test: RunOptions,
 }
@@ -27,10 +37,13 @@ struct StressOptions {
 fn main() -> ExitCode {
     let options = StressOptions::parse();
 
-    let any_specific = options.parser || options.resolver || options.checker;
+    let any_specific =
+        options.parser || options.resolver || options.checker || options.query || options.lsp;
     let run_parser = options.parser || !any_specific;
     let run_resolver = options.resolver || !any_specific;
     let run_checker = options.checker || !any_specific;
+    let run_query = options.query || !any_specific;
+    let run_lsp = options.lsp || !any_specific;
 
     let mut any_failed = false;
 
@@ -50,6 +63,20 @@ fn main() -> ExitCode {
 
     if run_checker {
         let result = Runner::run_suite(CheckerStressSuite, &options.test);
+        if result != ExitCode::SUCCESS {
+            any_failed = true;
+        }
+    }
+
+    if run_query {
+        let result = Runner::run_suite(QueryStressSuite, &options.test);
+        if result != ExitCode::SUCCESS {
+            any_failed = true;
+        }
+    }
+
+    if run_lsp {
+        let result = Runner::run_suite(LspStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
