@@ -280,7 +280,6 @@ test:
     # FUGU #Broken: emit currently stalls in the compiler dependency chain before artifact generation
     # just test-emit
     just test-specification
-    just test-regression
     just test-query
     just test-lsp
     just test-resolver
@@ -381,10 +380,6 @@ test-resolver:
 test-specification:
     just _run-destack-test specification
 
-# run targeted regression tests
-test-regression:
-    just _run-destack-test regression
-
 # validate tree sitter overlay coverage
 test-grammar-overlay:
     bun grammar/scripts/check-overlay.mjs
@@ -442,6 +437,14 @@ test-lsp:
 # run stress tests (requires generated fixtures)
 test-stress:
     just _run-destack-test stress
+
+# run query stress tests
+test-stress-query:
+    just _run-destack-test stress --query
+
+# run lsp stress tests
+test-stress-lsp:
+    just _run-destack-test stress --lsp
 
 # --- stress fixtures ---
 
