@@ -43,13 +43,25 @@ impl Annotation {
     }
 }
 
-/// The style of a comment.
+/// Indicates a line or block comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CommentStyle {
-    /// End of line comment.
-    Slash,
-    /// Star delimited comment.
-    Star,
+pub enum CommentKind {
+    /// Line comment.
+    Line,
+    /// Single-line block comment.
+    SingleLineBlock,
+    /// Multi-line block comment.
+    MultiLineBlock,
+}
+
+/// Annotation content classification for one comment.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CommentContent {
+    /// No structured content classification.
+    #[default]
+    None,
+    /// A doc block comment with structured semantics.
+    Jsdoc,
 }
 
 /// A Comment is a block or line-scoped free-floating comment.
@@ -114,8 +126,8 @@ impl CommentNewlines {
 pub struct Comment {
     /// The span of the raw comment, including delimiters.
     pub span: Span,
-    /// The style of the comment.
-    pub style: CommentStyle,
+    /// The kind of the comment.
+    pub kind: CommentKind,
     /// The start of the token this leading comment is attached to.
     /// Trailing comment attachment is not computed.
     pub attached_to: u32,
@@ -123,21 +135,54 @@ pub struct Comment {
     pub position: CommentPosition,
     /// The newline shape around the comment.
     pub newlines: CommentNewlines,
-    /// The normalized directive extracted from the comment.
-    pub directive: CommentDirective,
+    /// The structured comment content classification.
+    pub content: CommentContent,
 }
 
 impl Comment {
+    /// Create a comment with default trailing placement.
+    #[inline]
+    pub fn new(span: Span, kind: CommentKind) -> Self {
+        Self {
+            span,
+            kind,
+            attached_to: 0,
+            position: CommentPosition::Trailing,
+            newlines: CommentNewlines::default(),
+            content: CommentContent::None,
+        }
+    }
+
+    /// Return the content span inside the comment delimiters.
+    #[inline]
+    pub fn content_span(self) -> Span {
+        match self.kind {
+            CommentKind::Line => Span::new(self.span.file, self.span.start + 2, self.span.end),
+            CommentKind::SingleLineBlock | CommentKind::MultiLineBlock => {
+                Span::new(self.span.file, self.span.start + 2, self.span.end - 2)
+            }
+        }
+    }
+
     /// Return whether this is a line comment.
     #[inline]
     pub fn is_line(self) -> bool {
-        self.style == CommentStyle::Slash
+        self.kind == CommentKind::Line
     }
 
     /// Return whether this is a block comment.
     #[inline]
     pub fn is_block(self) -> bool {
-        self.style == CommentStyle::Star
+        matches!(
+            self.kind,
+            CommentKind::SingleLineBlock | CommentKind::MultiLineBlock
+        )
+    }
+
+    /// Return whether this is a multiline block comment.
+    #[inline]
+    pub fn is_multiline_block(self) -> bool {
+        self.kind == CommentKind::MultiLineBlock
     }
 
     /// Return whether this comment is leading.
@@ -150,6 +195,12 @@ impl Comment {
     #[inline]
     pub fn is_trailing(self) -> bool {
         self.position == CommentPosition::Trailing
+    }
+
+    /// Return whether this comment is classified as jsdoc.
+    #[inline]
+    pub fn is_jsdoc(self) -> bool {
+        self.content == CommentContent::Jsdoc && self.is_leading()
     }
 
     /// Return whether this comment is preceded by a newline.
@@ -233,31 +284,6 @@ pub fn normalize_comment_payload<'a>(raw: &'a str) -> Cow<'a, str> {
     } else {
         Cow::Owned(trimmed.to_string())
     }
-}
-
-/// A normalized directive extracted from a comment in the lexer.
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum CommentDirective {
-    /// No recognized directive marker.
-    #[default]
-    None = 0,
-    /// A legal header marker.
-    Legal = 1,
-    /// A `__PURE__` style marker.
-    Pure = 2,
-    /// A `#__NO_SIDE_EFFECTS__` style marker.
-    NoSideEffects = 3,
-    /// A TypeScript line directive marker.
-    TypeScript = 4,
-    /// A formatter ignore-next marker.
-    FormatIgnore = 5,
-    /// A formatter ignore-file directive marker.
-    FormatIgnoreFile = 6,
-    /// A formatter ignore-range start marker.
-    FormatIgnoreStart = 7,
-    /// A formatter ignore-range end marker.
-    FormatIgnoreEnd = 8,
 }
 
 /// A Decorator is a block-scoped decorator annotation.
