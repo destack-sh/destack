@@ -558,7 +558,6 @@ impl<'a> Printer<'a> {
                 | ('&', '&')
                 | ('|', '|')
                 | ('?', '?')
-                | ('?', '.')
                 | ('.', '.')
                 | ('.', '0'..='9')
                 | ('=', '=')
@@ -630,5 +629,6 @@ mod tests {
         assert!(!Printer::needs_separator_between(Some('a'), Some('+')));
         assert!(!Printer::needs_separator_between(Some(')'), Some('{')));
         assert!(!Printer::needs_separator_between(Some(']'), Some('.')));
+        assert!(!Printer::needs_separator_between(Some('?'), Some('.')));
     }
 }
