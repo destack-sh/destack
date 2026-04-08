@@ -6,10 +6,9 @@ use super::child::{
 };
 use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::format::chain::transparent_inner_expression;
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::expression_is_decorated_class_declaration;
-use crate::format::expression::{
-    argument_value, parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
-};
+use crate::format::expression::argument_value;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId,
@@ -52,10 +51,11 @@ pub(crate) fn argument_drops_parenthesized_value_wrapper(
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let inner_expression = context.tree.get(inner_expression_id);
+    let parenthesized_view = ParenthesizedExpressionView::from_node(context, parenthesized_id);
 
     let drops_lambda_wrapper = !context.has_annotation(parenthesized_id)
         && !context.has_annotation(inner_expression_id)
-        && !parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id)
+        && !parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
         && matches!(
             inner_expression,
             Expression::Declaration(declaration_id)
@@ -66,7 +66,7 @@ pub(crate) fn argument_drops_parenthesized_value_wrapper(
         );
 
     let drops_decorated_class_wrapper = !context.has_annotation(parenthesized_id)
-        && !parenthesized_has_leading_inner_newline(context, parenthesized_id, inner_expression_id)
+        && !parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_newline)
         && expression_is_decorated_class_declaration(context, inner_expression_id);
 
     drops_lambda_wrapper || drops_decorated_class_wrapper

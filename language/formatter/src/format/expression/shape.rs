@@ -1,5 +1,5 @@
-use super::parentheses::parenthesized_has_leading_inner_trivia;
 use crate::DestackFormatContext;
+use crate::format::context::ParenthesizedExpressionView;
 use destack_ast::{
     Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, Pattern, Property,
     ScalarLiteral, TokenType, TypeBinaryOperator, UnaryOperator,
@@ -391,7 +391,8 @@ pub(crate) fn should_hoist_parenthesized_inner_cast_prefix_comments(
 
     let has_doc_like_prefix_annotation = !context.raw_prefix_doc_comments_for(inner_id).is_empty();
 
-    parenthesized_has_leading_inner_trivia(context, node_id, inner_id)
+    ParenthesizedExpressionView::from_node(context, node_id)
+        .is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
         && has_doc_like_prefix_annotation
 }
 

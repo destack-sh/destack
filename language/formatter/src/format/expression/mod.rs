@@ -25,10 +25,7 @@ pub(crate) use self::member::{
     should_unwrap_parenthesized_member_object,
 };
 pub(crate) use self::parentheses::{
-    is_type_cast_comment_node, parenthesized_boundary_comments,
-    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_line_comment,
-    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
-    parenthesized_postfix_comments, should_drop_parenthesized_expression_wrapper,
+    is_type_cast_comment_node, should_drop_parenthesized_expression_wrapper,
 };
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,

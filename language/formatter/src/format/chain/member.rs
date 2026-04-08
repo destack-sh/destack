@@ -404,25 +404,6 @@ pub(crate) fn has_comment_between_expressions(
         .is_empty()
 }
 
-/// Return whether a `//` comment exists between two expression nodes.
-pub(crate) fn has_line_comment_between_expressions(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> bool {
-    let left_span = context.span(left_id);
-    let right_span = context.span(right_id);
-    let Some(between_span) = left_span.gap_to(right_span) else {
-        return false;
-    };
-
-    context
-        .comments_in_range(between_span.start, between_span.end)
-        .iter()
-        .copied()
-        .any(|comment| context.comment_is_line(comment))
-}
-
 /// Check whether an optional index is numerically inline.
 pub(crate) fn is_numeric_index(
     context: &DestackFormatContext<'_>,

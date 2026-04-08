@@ -1,15 +1,11 @@
-use super::{
-    format_static_argument_list, is_type_cast_comment_node,
-    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_line_comment,
-    parenthesized_postfix_comments,
-};
+use super::{format_static_argument_list, is_type_cast_comment_node};
 use crate::format::annotation::write_raw_leading_comments;
 use crate::format::chain::{member_property_start, transparent_inner_expression};
-use crate::format::context::DestackFormatterCommentExt;
+use crate::format::context::{DestackFormatterCommentExt, ParenthesizedExpressionView};
 use crate::format::declaration::expression_is_decorated_class_declaration;
 use crate::format::operator::{
     binary_like_is_type_union, flatten_type_binary_expression, needs_parens_in_postfix_position,
-    transparent_type_binary_root_expression, type_union_operand_separator_token_span,
+    transparent_type_binary_root_expression, type_union_operand_separator_span,
     write_postfix_base_expression,
 };
 use crate::{DestackFormatContext, DestackFormatter};
@@ -185,12 +181,17 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
     }
 
     // preserve wrappers with leading line comments on the wrapped object
-    if parenthesized_has_leading_inner_line_comment(context, parenthesized_id, inner_expression_id)
-    {
+    let Some(parenthesized_view) =
+        ParenthesizedExpressionView::from_node(context, parenthesized_id)
+    else {
+        return false;
+    };
+
+    if parenthesized_view.has_leading_inner_line_comment() {
         return false;
     }
 
-    if parenthesized_has_leading_inner_comments(context, parenthesized_id, inner_expression_id)
+    if parenthesized_view.has_leading_inner_comments()
         && !super::expression_has_only_prefix_comment_or_doc_annotations(
             context,
             inner_expression_id,
@@ -200,14 +201,12 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
     }
 
     // boundary comments after `)` belong to the original wrapper
-    if !super::parenthesized_boundary_comments(context, parenthesized_id, inner_expression_id)
-        .is_empty()
-    {
+    if !parenthesized_view.boundary_comments().is_empty() {
         return false;
     }
 
     // comments between `)` and the postfix continuation belong to the wrapper
-    if !parenthesized_postfix_comments(context, parenthesized_id).is_empty() {
+    if !parenthesized_view.postfix_comments().is_empty() {
         return false;
     }
 
@@ -700,7 +699,7 @@ fn type_template_span_has_new_line_in_range(
             BinaryOperator::ElementwiseOr,
         );
         if operands.first().is_some_and(|operand| {
-            type_union_operand_separator_token_span(f.context(), operand.1).is_some()
+            type_union_operand_separator_span(f.context(), operand.1).is_some()
         }) {
             return true;
         }

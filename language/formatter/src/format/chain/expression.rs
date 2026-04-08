@@ -16,9 +16,9 @@ use crate::format::annotation::{
 use crate::format::call::{
     expression_is_long_curried_call, format_call_arguments_in_chain, format_call_expression,
 };
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::expression::{
     format_static_argument_list, format_static_argument_list_with_relational_spacing,
-    parenthesized_postfix_comments,
 };
 use crate::format::operator::write_postfix_base_expression;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -616,7 +616,9 @@ fn write_parenthesized_base_postfix_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let comment_nodes = parenthesized_postfix_comments(f.context(), node_id);
+    let comment_nodes = ParenthesizedExpressionView::from_node(f.context(), node_id)
+        .map(ParenthesizedExpressionView::postfix_comments)
+        .unwrap_or_default();
     if comment_nodes.is_empty() {
         return Ok(());
     }
