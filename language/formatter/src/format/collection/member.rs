@@ -1,6 +1,7 @@
-use super::property::{
-    format_field_like, format_method_like, format_node_with_directive,
-    method_signature_is_multiline_before_body,
+use super::property::{format_field_like, format_method_like, format_node_with_directive};
+use crate::format::annotation::{
+    decorator_prefix_annotations, format_raw_comment, infix_or_postfix_annotations,
+    prefix_annotations_without_decorators,
 };
 use crate::format::collection::{
     TrailingSeparator, format_block_nodes_with_ignore_ranges, separated_entries,
@@ -58,7 +59,7 @@ fn field_type_trailing_comment_nodes<'ast>(
     f: &DestackFormatter<'ast, '_>,
     value: Option<LocalNodeId<Expression>>,
     default: Option<LocalNodeId<Expression>>,
-) -> Vec<LocalNodeId<Comment>> {
+) -> Vec<Comment> {
     if default.is_some() {
         return Vec::new();
     }
@@ -68,7 +69,7 @@ fn field_type_trailing_comment_nodes<'ast>(
     };
 
     let value_span = f.context().span(value_id);
-    f.context().end_of_line_comment_nodes_after(value_span.end)
+    f.context().end_of_line_raw_comments_after(value_span.end)
 }
 
 /// Write a class field terminator and any trailing field-type comments.
@@ -80,11 +81,13 @@ fn write_field_terminator_and_trailing_comments<'ast>(
     write!(f, [token(";")])?;
 
     for comment_id in field_type_trailing_comment_nodes(f, value, default) {
-        let comment_span = f.context().span(comment_id);
+        let comment_span = comment_id.span;
         if f.context().span_starts_on_own_line(comment_span) {
-            write!(f, [hard_line_break(), comment_id])?;
+            write!(f, [hard_line_break()])?;
+            format_raw_comment(f, comment_id)?;
         } else {
-            write!(f, [space(), comment_id])?;
+            write!(f, [space()])?;
+            format_raw_comment(f, comment_id)?;
         }
     }
 
@@ -106,11 +109,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         {
             return format_node_with_directive(f, node_id, true, |f| {
                 let force_quote_keys = class_member_should_force_quote_keys(f, node_id);
-                let signature_is_multiline_before_body = method_signature_is_multiline_before_body(
-                    f.context(),
-                    f.context().span(node_id),
-                    *body,
-                );
                 format_method_like(
                     f,
                     node_id,
@@ -119,7 +117,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     signature,
                     *body,
                     force_quote_keys,
-                    signature_is_multiline_before_body,
                 )?;
 
                 if body.is_none() {
@@ -134,28 +131,11 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         if is_ignored {
             write!(
                 f,
-                [
-                    crate::format::annotation::prefix_annotations_without_decorators(
-                        f.context(),
-                        node_id
-                    )
-                ]
+                [prefix_annotations_without_decorators(f.context(), node_id)]
             )?;
-            write!(
-                f,
-                [crate::format::annotation::decorator_prefix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
+            write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;
             write_ignored_node(f, node_id)?;
-            write!(
-                f,
-                [crate::format::annotation::infix_or_postfix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
+            write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
             // ignored class fields still get one formatter-owned terminator
             if matches!(self, Member::Field { .. }) {

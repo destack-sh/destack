@@ -1,5 +1,5 @@
 use super::attribute::argument_transparent_value_id;
-use crate::format::call::{expression_has_complex_callback, lambda_body_is_complex_for_tree};
+use crate::format::annotation::format_raw_comment;
 use crate::format::chain::{
     chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
 };
@@ -27,6 +27,73 @@ where
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
+}
+
+/// Return whether one tree callback body forces multiline element layout.
+fn tree_callback_body_requires_break(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    let Declaration::Function { body, .. } = context.tree.get(declaration_id) else {
+        return false;
+    };
+    let Some(body_id) = *body else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(body_id),
+        Expression::Block(_) | Expression::TreeExpression { .. }
+    )
+}
+
+/// Return whether one expression contains a callback body that forces tree breaks.
+pub(crate) fn tree_expression_contains_callback_break(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = context.transparent_inner_expression(expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } => {
+            if dynamic_arguments.iter().copied().any(|argument_id| {
+                argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+                    matches!(context.tree.get(value_id), Expression::Declaration(declaration_id)
+                        if tree_callback_body_requires_break(context, *declaration_id))
+                })
+            }) {
+                return true;
+            }
+
+            tree_expression_contains_callback_break(context, *left)
+        }
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::Parenthesized { expression: left } => {
+            tree_expression_contains_callback_break(context, *left)
+        }
+        Expression::Declaration(declaration_id) => {
+            tree_callback_body_requires_break(context, *declaration_id)
+        }
+        Expression::Block(block_id) => context
+            .tree
+            .get(*block_id)
+            .iter_expressions()
+            .any(|expr_id| tree_expression_contains_callback_break(context, expr_id)),
+        _ => false,
+    }
 }
 
 /// Check whether a tree child expression should stay inline inside `{ ... }`.
@@ -80,7 +147,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::Maybe { .. }
         | Expression::Must { .. } => {
             !node_has_line_comment(context, value_id)
-                && !expression_has_chain_seam_comment(context, value_id)
+                && !expression_chain_has_boundary_comment(context, value_id)
         }
         Expression::If {
             kind: IfKind::Ternary,
@@ -126,8 +193,8 @@ pub(crate) fn tree_child_should_inline_braced_expression(
     }
 }
 
-/// Return whether one expression chain has comments on member or operator seams.
-pub(crate) fn expression_has_chain_seam_comment(
+/// Return whether one expression chain has comments on member or operator boundaries.
+pub(crate) fn expression_chain_has_boundary_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -268,26 +335,26 @@ pub(crate) fn tree_child_breaks_element(
         } => ternary_has_comment_or_parenthesized_branch,
         Expression::Block(_) | Expression::Match { .. } => true,
         Expression::Declaration(declaration_id) => {
-            lambda_body_is_complex_for_tree(context, *declaration_id)
+            tree_callback_body_requires_break(context, *declaration_id)
         }
         Expression::TreeExpression { .. } => false,
-        _ => expression_has_complex_callback(context, value_id),
+        _ => tree_expression_contains_callback_break(context, value_id),
     }
 }
 
 /// Format one multiline stub comment list.
 pub(crate) fn format_multiline_stub_comment_nodes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    comment_nodes: &[LocalNodeId<destack_ast::Comment>],
+    comment_nodes: &[destack_ast::Comment],
 ) -> FormatResult<()> {
     use destack_fir::prelude::hard_line_break;
     use destack_fir::write;
 
-    for (index, comment_id) in comment_nodes.iter().enumerate() {
+    for (index, comment) in comment_nodes.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [hard_line_break()])?;
         }
-        write!(f, [*comment_id])?;
+        format_raw_comment(f, comment)?;
     }
 
     Ok(())
@@ -301,14 +368,17 @@ pub(crate) fn format_inline_stub_comments<'ast>(
     use destack_fir::prelude::space;
     use destack_fir::write;
 
-    let comment_nodes = f.context().comment_nodes_in_range(span.start, span.end);
+    let comment_nodes = {
+        let comments = f.context().comments();
+        comments.comments_in_range(span.start, span.end).to_vec()
+    };
 
-    for (index, comment_id) in comment_nodes.iter().enumerate() {
+    for (index, comment) in comment_nodes.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [space()])?;
         }
 
-        write!(f, [*comment_id])?;
+        format_raw_comment(f, comment)?;
     }
 
     Ok(!comment_nodes.is_empty())

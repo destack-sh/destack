@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use crate::format::context::DestackFormatterCommentExt;
 use crate::format::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
@@ -229,7 +230,7 @@ fn format_interpolated_template_literal<'ast>(
 
     for (argument, segment) in arguments.iter().zip(string_segments) {
         let format_argument = format_with(|f| write!(f, [*argument]));
-        let interned_argument = f.intern(&format_argument)?;
+        let interned_argument = f.intern_with_comment_snapshot(&format_argument)?;
         let layout = template_argument_layout(
             f.context(),
             *argument,
@@ -276,7 +277,7 @@ fn format_interpolated_template_literal<'ast>(
                 group(&format_args![
                     token("${"),
                     format_inner,
-                    line_postfix_boundary(),
+                    line_suffix_boundary(),
                     token("}")
                 ]),
                 *segment,

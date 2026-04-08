@@ -1,8 +1,8 @@
 use super::parentheses::parenthesized_has_leading_inner_trivia;
-use crate::{Annotation, DestackFormatContext};
+use crate::DestackFormatContext;
 use destack_ast::{
-    AnnotationPosition, Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
-    Pattern, Property, ScalarLiteral, TokenType, TypeBinaryOperator, UnaryOperator,
+    Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, Pattern, Property,
+    ScalarLiteral, TokenType, TypeBinaryOperator, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -23,18 +23,12 @@ pub(crate) fn expression_has_only_prefix_comment_or_doc_annotations(
 ) -> bool {
     let annotation_ids = context.annotation_ids(expression_id);
     if annotation_ids.is_empty() {
-        return false;
+        return !context
+            .raw_prefix_doc_comments_for(expression_id)
+            .is_empty();
     }
 
-    annotation_ids.iter().all(|annotation_id| {
-        matches!(
-            context.annotation(*annotation_id),
-            Annotation::Doc {
-                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                ..
-            }
-        )
-    })
+    false
 }
 
 /// Return whether any expression on the left spine has a prefix comment or doc annotation.
@@ -132,15 +126,6 @@ fn static_arguments_are_trivial(
         .all(|argument_id| is_trivial_argument(tree, tree.get(*argument_id)))
 }
 
-/// Return whether an expression prefers multiline layout.
-pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
-    match expression {
-        Expression::ObjectExpression { properties, .. } => properties.len() > 3,
-        Expression::TreeExpression { .. } => true,
-        _ => false,
-    }
-}
-
 /// Return whether an argument prefers inline layout.
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
@@ -164,17 +149,6 @@ pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
         }
         Property::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
         Property::Error => false,
-    }
-}
-
-/// Return whether an argument prefers multiline layout.
-pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
-    match argument {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Error => true,
     }
 }
 
@@ -346,18 +320,9 @@ fn expression_has_prefix_doc_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .annotation_ids(expression_id)
-        .iter()
-        .any(|annotation_id| {
-            matches!(
-                context.annotation(*annotation_id),
-                Annotation::Doc {
-                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                    ..
-                }
-            )
-        })
+    !context
+        .raw_prefix_doc_comments_for(expression_id)
+        .is_empty()
 }
 
 /// Return whether an expression has a leading prefix comment in its left spine.
@@ -422,19 +387,7 @@ pub(crate) fn should_hoist_parenthesized_inner_cast_prefix_comments(
         return false;
     }
 
-    let has_doc_like_prefix_annotation =
-        context
-            .annotation_ids(inner_id)
-            .iter()
-            .any(|annotation_id| {
-                matches!(
-                    context.annotation(*annotation_id),
-                    Annotation::Doc {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    }
-                )
-            });
+    let has_doc_like_prefix_annotation = !context.raw_prefix_doc_comments_for(inner_id).is_empty();
 
     parenthesized_has_leading_inner_trivia(context, node_id, inner_id)
         && has_doc_like_prefix_annotation

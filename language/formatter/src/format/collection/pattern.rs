@@ -2,18 +2,17 @@ use std::borrow::Cow;
 
 use destack_fir::format::FormatResult;
 
+use crate::format::annotation::{
+    block_infix_annotations, infix_or_postfix_annotations, prefix_annotations,
+};
 use crate::format::collection::{TrailingSeparator, separated_entries};
-use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern,
     PatternField,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-
-// object pattern expansion thresholds
-const OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS: usize = 3;
-const OBJECT_PATTERN_INLINE_MAX_FIELDS: usize = 1;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
@@ -24,158 +23,43 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     }
 }
 
-/// Decide whether a default expression in a pattern field should prefer multiline layout.
-fn default_expression_prefers_multiline(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    matches!(
-        tree.get(expression_id),
-        Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-    )
-}
-
-/// Decide whether a pattern has nested structure that benefits from multiline layout.
-fn pattern_prefers_multiline(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+/// Return whether one pattern is object-like or array-like.
+fn pattern_is_object_or_array_like(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
     match tree.get(pattern_id) {
         Pattern::Binding {
             pattern: Some(pattern),
             ..
-        } => pattern_prefers_multiline(tree, *pattern),
-        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => fields
-            .iter()
-            .copied()
-            .any(|field_id| pattern_field_prefers_multiline(tree, field_id)),
-        Pattern::Array { fields }
-        | Pattern::Tuple { fields }
-        | Pattern::TaggedTuple { fields, .. } => fields
-            .iter()
-            .copied()
-            .any(|field_id| pattern_field_prefers_multiline(tree, field_id)),
+        } => pattern_is_object_or_array_like(tree, *pattern),
+        Pattern::Object { .. } | Pattern::TaggedObject { .. } | Pattern::Array { .. } => true,
         _ => false,
     }
 }
 
-/// Decide whether a pattern field has nested structure that benefits from multiline layout.
-fn pattern_field_prefers_multiline(tree: &NodeTree, field_id: LocalNodeId<PatternField>) -> bool {
+/// Return whether one field contains a nested object-like or array-like pattern.
+fn pattern_field_has_nested_object_or_array_like_pattern(
+    tree: &NodeTree,
+    field_id: LocalNodeId<PatternField>,
+) -> bool {
     match tree.get(field_id) {
         PatternField::Named {
-            pattern, default, ..
+            pattern: Some(pattern),
+            ..
         }
         | PatternField::Computed {
-            pattern, default, ..
-        } => {
-            pattern.is_some_and(|pattern_id| pattern_prefers_multiline(tree, pattern_id))
-                || default.is_some_and(|default_id| {
-                    default_expression_prefers_multiline(tree, default_id)
-                })
+            pattern: Some(pattern),
+            ..
         }
-        PatternField::Alias { default, .. } => {
-            default.is_some_and(|default_id| default_expression_prefers_multiline(tree, default_id))
-        }
-        PatternField::Positional { pattern, default } => {
-            pattern_prefers_multiline(tree, *pattern)
-                || default.is_some_and(|default_id| {
-                    default_expression_prefers_multiline(tree, default_id)
-                })
-        }
-        PatternField::Spread { pattern, .. } => {
-            pattern.is_some_and(|pattern_id| pattern_prefers_multiline(tree, pattern_id))
-        }
-        PatternField::Elision => false,
+        | PatternField::Spread {
+            pattern: Some(pattern),
+            ..
+        } => pattern_is_object_or_array_like(tree, *pattern),
+        PatternField::Positional { pattern, .. } => pattern_is_object_or_array_like(tree, *pattern),
+        PatternField::Named { pattern: None, .. }
+        | PatternField::Computed { pattern: None, .. }
+        | PatternField::Alias { .. }
+        | PatternField::Spread { pattern: None, .. }
+        | PatternField::Elision => false,
     }
-}
-
-/// Return whether a pattern source is multiline inside its delimiters.
-fn pattern_is_multiline_span(
-    context: &DestackFormatContext<'_>,
-    pattern_id: LocalNodeId<Pattern>,
-) -> bool {
-    let span = context.span(pattern_id);
-    context.has_newline(span)
-}
-
-/// Decide whether a pattern field default should force expanded formatting.
-fn should_expand_pattern_field_default<'ast>(
-    f: &DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<PatternField>,
-    default_id: LocalNodeId<Expression>,
-) -> bool {
-    let default_is_collection = matches!(
-        f.context().tree.get(default_id),
-        Expression::ObjectExpression { properties, .. } if !properties.is_empty()
-    ) || matches!(
-        f.context().tree.get(default_id),
-        Expression::ArrayExpression { elements } if !elements.is_empty()
-    );
-    if !default_is_collection {
-        return false;
-    }
-
-    let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Pattern {
-        return false;
-    }
-
-    let parent_pattern = LocalNodeId::<Pattern>::new(parent_id);
-    f.context().node_has_newline(parent_pattern)
-}
-
-/// Decide whether an object parameter pattern should expand for readability.
-fn should_expand_parameter_object_pattern(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Pattern>,
-    fields: &[LocalNodeId<PatternField>],
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Parameter {
-        return false;
-    }
-
-    let parameter = context
-        .tree
-        .get(LocalNodeId::<destack_ast::Parameter>::new(parent_id));
-    let parameter_pattern = match parameter {
-        destack_ast::Parameter::Pattern { pattern, .. }
-        | destack_ast::Parameter::VariadicPattern { pattern, .. } => Some(*pattern),
-        destack_ast::Parameter::Named { .. }
-        | destack_ast::Parameter::VariadicNamed { .. }
-        | destack_ast::Parameter::Error => None,
-    };
-    if parameter_pattern.is_none_or(|pattern_id| pattern_id.id != node_id.id) {
-        return false;
-    }
-
-    if fields
-        .iter()
-        .copied()
-        .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id))
-    {
-        return true;
-    }
-
-    if fields.len() >= OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS {
-        return true;
-    }
-
-    if fields.len() <= OBJECT_PATTERN_INLINE_MAX_FIELDS {
-        return false;
-    }
-
-    fields
-        .iter()
-        .any(|field_id| match context.tree.get(*field_id) {
-            PatternField::Named { default, .. }
-            | PatternField::Computed { default, .. }
-            | PatternField::Alias { default, .. } => default.is_some(),
-            PatternField::Positional { .. }
-            | PatternField::Spread { .. }
-            | PatternField::Elision => false,
-        })
 }
 
 /// Return object-pattern fields to render, normalizing out parser elision artifacts.
@@ -214,20 +98,6 @@ fn pattern_fields_disallow_trailing_separator(
     })
 }
 
-/// Return whether any pattern field has one default assignment.
-fn pattern_fields_have_default_assignments(
-    tree: &NodeTree,
-    fields: &[LocalNodeId<PatternField>],
-) -> bool {
-    fields.iter().any(|field_id| match tree.get(*field_id) {
-        PatternField::Named { default, .. }
-        | PatternField::Computed { default, .. }
-        | PatternField::Alias { default, .. }
-        | PatternField::Positional { default, .. } => default.is_some(),
-        PatternField::Spread { .. } | PatternField::Elision => false,
-    })
-}
-
 /// Format a prefix pattern like `&pattern` or `^pattern`.
 fn format_prefixed_pattern<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -257,20 +127,6 @@ fn format_pattern_field_list<'ast>(
 ) -> FormatResult<()> {
     if fields.is_empty() {
         return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, open, close);
-    }
-
-    let has_inline_comment_seams =
-        pattern_fields_have_inline_spread_comment_seams(f.context(), fields);
-    if !should_expand && has_inline_comment_seams {
-        write!(f, [token(open)])?;
-        for (index, field_id) in fields.iter().enumerate() {
-            if index > 0 {
-                write!(f, [token(","), space()])?;
-            }
-            write!(f, [*field_id])?;
-        }
-        write!(f, [token(close)])?;
-        return Ok(());
     }
 
     let allow_trailing_separator =
@@ -318,140 +174,100 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
         f,
         [group(&format_args![
             token(open),
-            soft_block_indent(&crate::format::annotation::block_infix_annotations(
-                f.context(),
-                node_id
-            )),
+            soft_block_indent(&block_infix_annotations(f.context(), node_id)),
             token(close)
         ])]
     )?;
     Ok(())
 }
 
-/// Return whether one pattern field list carries inline comment seams.
-fn pattern_fields_have_inline_spread_comment_seams(
+/// Return whether one object-like pattern is inline in its parent.
+fn object_pattern_is_inline(
     context: &DestackFormatContext<'_>,
-    fields: &[LocalNodeId<PatternField>],
+    node_id: LocalNodeId<Pattern>,
 ) -> bool {
-    let mut has_inline_spread_comment = false;
-
-    for field_id in fields {
-        let annotation_ids = context.annotation_ids(*field_id);
-        if annotation_ids.is_empty() {
-            continue;
-        }
-        let field_is_spread = matches!(context.tree.get(*field_id), PatternField::Spread { .. });
-
-        for annotation_id in annotation_ids.iter().copied() {
-            let is_inline_comment = match context.annotation(annotation_id) {
-                Annotation::Doc { .. } => !context.annotation_starts_on_own_line(annotation_id),
-                _ => false,
-            };
-            if !is_inline_comment {
-                continue;
-            }
-
-            if !field_is_spread {
-                return false;
-            }
-            has_inline_spread_comment = true;
-        }
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Parameter {
+        return false;
     }
 
-    has_inline_spread_comment
+    let parameter = context
+        .tree
+        .get(LocalNodeId::<destack_ast::Parameter>::new(parent_id));
+    let parameter_pattern = match parameter {
+        destack_ast::Parameter::Pattern { pattern, .. }
+        | destack_ast::Parameter::VariadicPattern { pattern, .. } => Some(*pattern),
+        destack_ast::Parameter::Named { .. }
+        | destack_ast::Parameter::VariadicNamed { .. }
+        | destack_ast::Parameter::Error => None,
+    };
+
+    parameter_pattern.is_some_and(|pattern_id| pattern_id.id == node_id.id)
 }
 
-/// Return whether an array pattern should expand over multiple lines.
-fn array_pattern_should_expand(
+/// Return whether one object-like pattern is in assignment-like syntax.
+fn object_pattern_is_in_assignment_like(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Pattern>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declarator {
+        return false;
+    }
+
+    let declarator = context
+        .tree
+        .get(LocalNodeId::<destack_ast::Declarator>::new(parent_id));
+    declarator.pattern.id == node_id.id
+}
+
+/// Return whether one object-like pattern should break its properties.
+fn object_pattern_should_break_properties(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
-    if pattern_fields_have_inline_spread_comment_seams(context, fields) {
+    if object_pattern_is_inline(context, node_id) {
         return false;
     }
 
-    let has_newline = pattern_is_multiline_span(context, node_id);
-    let has_field_comments = pattern_fields_have_comment_annotations(context, fields);
-    if has_newline && has_field_comments {
-        return true;
-    }
-
-    let has_nested_fields = fields
-        .iter()
-        .copied()
-        .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
-    let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
-
-    has_newline && (has_nested_fields || has_field_annotations)
+    fields.iter().copied().any(|field_id| {
+        pattern_field_has_nested_object_or_array_like_pattern(context.tree, field_id)
+    })
 }
 
-/// Return whether an object-like pattern should expand over multiple lines.
-fn object_pattern_should_expand(
+#[derive(Clone, Copy, Debug)]
+enum ObjectPatternLayout {
+    Empty,
+    Inline,
+    Group { expand: bool },
+}
+
+/// Return the layout for one object-like pattern.
+fn object_pattern_layout(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
     fields: &[LocalNodeId<PatternField>],
-) -> bool {
-    if pattern_fields_have_inline_spread_comment_seams(context, fields) {
-        return false;
+) -> ObjectPatternLayout {
+    if fields.is_empty() {
+        return ObjectPatternLayout::Empty;
     }
 
-    let has_newline = pattern_is_multiline_span(context, node_id);
-    let has_field_comments = pattern_fields_have_comment_annotations(context, fields);
-    if has_newline && has_field_comments {
-        return true;
+    if object_pattern_is_inline(context, node_id) {
+        return ObjectPatternLayout::Inline;
     }
 
-    let has_nested_fields = fields
-        .iter()
-        .copied()
-        .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
-    let has_default_assignments = pattern_fields_have_default_assignments(context.tree, fields);
-    let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
-    let should_expand_for_parameter =
-        should_expand_parameter_object_pattern(context, node_id, fields);
-    let should_expand_for_comments = has_newline && has_field_annotations;
-
-    (has_newline && has_nested_fields)
-        || (has_nested_fields && fields.len() > 1 && !has_default_assignments)
-        || should_expand_for_comments
-        || should_expand_for_parameter
-}
-
-/// Return whether pattern fields carry annotations that should force multiline layout.
-fn pattern_fields_have_layout_forcing_annotations(
-    context: &DestackFormatContext<'_>,
-    fields: &[LocalNodeId<PatternField>],
-) -> bool {
-    fields.iter().any(|field_id| {
-        let annotation_ids = context.annotation_ids(*field_id);
-        if annotation_ids.is_empty() {
-            return false;
-        }
-
-        annotation_ids.iter().copied().any(|annotation_id| {
-            matches!(
-                context.annotation(annotation_id),
-                Annotation::Doc { .. } | Annotation::Decorator { .. }
-            )
-        })
-    })
-}
-
-/// Return whether pattern fields carry comment-like annotations.
-fn pattern_fields_have_comment_annotations(
-    context: &DestackFormatContext<'_>,
-    fields: &[LocalNodeId<PatternField>],
-) -> bool {
-    fields.iter().any(|field_id| {
-        context
-            .annotation_ids(*field_id)
-            .iter()
-            .copied()
-            .any(|annotation_id| {
-                matches!(context.annotation(annotation_id), Annotation::Doc { .. })
-            })
-    })
+    if object_pattern_should_break_properties(context, node_id, fields) {
+        ObjectPatternLayout::Group { expand: true }
+    } else if object_pattern_is_in_assignment_like(context, node_id) {
+        ObjectPatternLayout::Inline
+    } else {
+        ObjectPatternLayout::Group { expand: false }
+    }
 }
 
 /// Format one object-like pattern, optionally prefixed with a type expression.
@@ -466,31 +282,9 @@ fn format_object_pattern_like<'ast>(
     }
 
     let render_fields = object_pattern_render_fields(f.context().tree, fields);
-    if render_fields.is_empty() {
+    let layout = object_pattern_layout(f.context(), node_id, render_fields.as_ref());
+    if matches!(layout, ObjectPatternLayout::Empty) {
         return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, "{", "}");
-    }
-
-    let should_expand = object_pattern_should_expand(f.context(), node_id, render_fields.as_ref());
-    if !should_expand
-        && pattern_fields_have_inline_spread_comment_seams(f.context(), render_fields.as_ref())
-    {
-        let include_bracket_space =
-            f.context().options.bracket_spacing && !render_fields.is_empty();
-        write!(f, [token("{")])?;
-        if include_bracket_space {
-            write!(f, [space()])?;
-        }
-        for (index, field_id) in render_fields.iter().enumerate() {
-            if index > 0 {
-                write!(f, [token(","), space()])?;
-            }
-            write!(f, [*field_id])?;
-        }
-        if include_bracket_space {
-            write!(f, [space()])?;
-        }
-        write!(f, [token("}")])?;
-        return Ok(());
     }
 
     let allow_trailing_separator =
@@ -503,35 +297,37 @@ fn format_object_pattern_like<'ast>(
         TrailingSeparator::Allowed
     };
 
-    write!(
-        f,
-        [group(&format_args![
-            token("{"),
-            soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                if f.context().options.bracket_spacing {
-                    write!(f, [if_group_fits_on_line(&space())])?;
-                }
+    let format_fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(
+            f,
+            [separated_entries(
+                ",",
+                render_fields.as_ref(),
+                trailing_separator,
+                None,
+            )]
+        )?;
+        Ok(())
+    });
 
-                write!(
-                    f,
-                    [separated_entries(
-                        ",",
-                        render_fields.as_ref(),
-                        trailing_separator,
-                        None,
-                    )]
-                )?;
+    let format_properties = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if f.context().options.bracket_spacing {
+            write!(f, [soft_space_or_block_indent(&format_fields)])?;
+        } else {
+            write!(f, [soft_block_indent(&format_fields)])?;
+        }
+        Ok(())
+    });
 
-                if f.context().options.bracket_spacing {
-                    write!(f, [if_group_fits_on_line(&space())])?;
-                }
-
-                Ok(())
-            })),
-            token("}")
-        ])
-        .should_expand(should_expand)]
-    )?;
+    write!(f, [token("{")])?;
+    match layout {
+        ObjectPatternLayout::Empty => unreachable!(),
+        ObjectPatternLayout::Inline => write!(f, [format_properties])?,
+        ObjectPatternLayout::Group { expand } => {
+            write!(f, [group(&format_properties).should_expand(expand)])?;
+        }
+    }
+    write!(f, [token("}")])?;
 
     Ok(())
 }
@@ -542,13 +338,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
         node_id: LocalNodeId<Pattern>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
@@ -583,8 +373,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
             Pattern::Array { fields } => {
-                let should_expand = array_pattern_should_expand(f.context(), node_id, fields);
-                format_pattern_field_list(f, node_id, "[", "]", fields, should_expand)?;
+                format_pattern_field_list(f, node_id, "[", "]", fields, false)?;
             }
             Pattern::Object { fields } => {
                 format_object_pattern_like(f, node_id, None, fields)?;
@@ -601,13 +390,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             )?,
         }
 
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
         Ok(())
     }
@@ -619,13 +402,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
         node_id: LocalNodeId<PatternField>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         match self {
             PatternField::Named {
@@ -643,21 +420,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [name])?;
                 }
                 if let Some(default) = default {
-                    let should_expand_default =
-                        should_expand_pattern_field_default(f, node_id, *default);
-                    if should_expand_default {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                token("="),
-                                space(),
-                                group(default).should_expand(true)
-                            ]
-                        )?;
-                    } else {
-                        write!(f, [space(), token("="), space(), default])?;
-                    }
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             PatternField::Computed {
@@ -674,21 +437,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [token(":"), space(), pattern])?;
                 }
                 if let Some(default) = default {
-                    let should_expand_default =
-                        should_expand_pattern_field_default(f, node_id, *default);
-                    if should_expand_default {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                token("="),
-                                space(),
-                                group(default).should_expand(true)
-                            ]
-                        )?;
-                    } else {
-                        write!(f, [space(), token("="), space(), default])?;
-                    }
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             PatternField::Alias {
@@ -702,41 +451,13 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 }
                 write!(f, [name, token(":"), space(), alias])?;
                 if let Some(default) = default {
-                    let should_expand_default =
-                        should_expand_pattern_field_default(f, node_id, *default);
-                    if should_expand_default {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                token("="),
-                                space(),
-                                group(default).should_expand(true)
-                            ]
-                        )?;
-                    } else {
-                        write!(f, [space(), token("="), space(), default])?;
-                    }
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             PatternField::Positional { pattern, default } => {
                 write!(f, [pattern])?;
                 if let Some(default) = default {
-                    let should_expand_default =
-                        should_expand_pattern_field_default(f, node_id, *default);
-                    if should_expand_default {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                token("="),
-                                space(),
-                                group(default).should_expand(true)
-                            ]
-                        )?;
-                    } else {
-                        write!(f, [space(), token("="), space(), default])?;
-                    }
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             PatternField::Spread {
@@ -756,13 +477,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             }
         }
 
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
         Ok(())
     }

@@ -7,4 +7,3 @@ pub mod property;
 
 pub(crate) use block::format_block_nodes_with_ignore_ranges;
 pub(crate) use list::{TrailingSeparator, separated_entries};
-pub(crate) use property::{property_has_complex_type_value, property_has_complex_value};
