@@ -9,9 +9,11 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileStore, FileSystem,
-    FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
+    FileType, IndentStyle, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, LinterOptions};
+use destack_workspace::{
+    ArrowParentheses, FormatterOptions, LinterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+};
 
 /// Run a single formatter transform test.
 ///
@@ -49,6 +51,36 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
     {
         formatter_options = formatter_options.with_indent_width(width);
     }
+    if let Some(indent_style) = input_file.options.get("indent-style") {
+        let indent_style = match indent_style.as_str() {
+            "space" => Some(IndentStyle::Space),
+            "tab" => Some(IndentStyle::Tab),
+            _ => None,
+        };
+        if let Some(indent_style) = indent_style {
+            formatter_options = formatter_options.with_indent_style(indent_style);
+        }
+    }
+    if let Some(quote_style) = input_file.options.get("quote-style")
+        && let Some(quote_style) = QuoteStyle::parse(quote_style)
+    {
+        formatter_options = formatter_options.with_quote_style(quote_style);
+    }
+    if let Some(trailing_comma) = input_file.options.get("trailing-comma")
+        && let Some(trailing_comma) = TrailingComma::parse(trailing_comma)
+    {
+        formatter_options = formatter_options.with_trailing_comma(trailing_comma);
+    }
+    if let Some(bracket_spacing) = input_file.options.get("bracket-spacing")
+        && let Ok(value) = bracket_spacing.parse::<bool>()
+    {
+        formatter_options = formatter_options.with_bracket_spacing(value);
+    }
+    if let Some(arrow_parentheses) = input_file.options.get("arrow-parentheses")
+        && let Some(arrow_parentheses) = ArrowParentheses::parse(arrow_parentheses)
+    {
+        formatter_options = formatter_options.with_arrow_parens(arrow_parentheses);
+    }
     if let Some(bracket_same_line) = input_file.options.get("bracket-same-line")
         && let Ok(value) = bracket_same_line.parse::<bool>()
     {
@@ -65,7 +97,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         formatter_options = formatter_options.with_organize_imports(value);
     }
     if let Some(quote_props) = input_file.options.get("quote-props")
-        && let Some(value) = destack_workspace::QuoteProperty::parse(quote_props)
+        && let Some(value) = QuoteProperty::parse(quote_props)
     {
         formatter_options = formatter_options.with_quote_props(value);
     }

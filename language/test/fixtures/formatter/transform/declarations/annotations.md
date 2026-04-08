@@ -28,6 +28,22 @@ const buffer: @addrspace("shared") &Buffer = value
 const buffer: @addrspace("shared") &Buffer = value;
 ```
 
+### typescript decorator prefixed variable type stays inline
+
+Decorator prefixed variable types stay inline after `:` under non-default formatter options.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+{
+    const buffer: @addrspace("shared") &Buffer = value;
+}
+```
+
+```ts expected
+{
+  const buffer: @addrspace("shared") &Buffer = value;
+}
+```
+
 ### destructuring variable type with trailing marker
 
 Trailing marker comments after typed declarations are preserved.
@@ -71,6 +87,24 @@ function build(value: Buffer): @addrspace("shared") &Buffer { return value }
 ```ds expected
 function build(value: Buffer): @addrspace("shared") &Buffer {
     return value;
+}
+```
+
+### typescript return type decorator annotation stays inline
+
+Decorator prefixed return types stay attached after `:` under non-default formatter options.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+{
+    function build(value: Buffer): @addrspace("shared") &Buffer { return value; }
+}
+```
+
+```ts expected
+{
+  function build(value: Buffer): @addrspace("shared") &Buffer {
+    return value;
+  }
 }
 ```
 
@@ -225,6 +259,80 @@ type Value =
 
 ```ts expected
 type Value = First | Second; // second-tail
+```
+
+### union comment seams stay attached
+
+Union seam comments stay attached to the same arms under non-default formatter options.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+interface _KeywordDef {
+  type?: JSONType | JSONType[] // data types that keyword applies to
+}
+
+type C1 = | (
+  /* 1 */ /*1*/ | (
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+  )
+  );
+
+type C2 = | (
+  /* 1 */ /*1*/
+  /* 1 */ | (
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+  )
+  );
+```
+
+```ts expected
+interface _KeywordDef {
+  type?: JSONType | JSONType[]; // data types that keyword applies to
+}
+
+type C1 = /* 1 */ /*1*/
+  | A
+  // A comment to force break
+  | B;
+
+type C2 =
+  /* 1 */ /*1*/
+  /* 1 */ | A
+  // A comment to force break
+  | B;
+```
+
+### union leading doc comment stays on the first arm
+
+Leading doc comments on the first union arm stay attached to that arm under non-default formatter options.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+export type AddressAllocator =
+(/** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
+| {
+y: boolean
+,}
+| {
+x: boolean }
+);
+```
+
+```ts expected
+export type AddressAllocator =
+  /** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
+  | {
+      y: boolean;
+    }
+  | {
+      x: boolean;
+    };
 ```
 
 ### parenthesized union comment attachment
@@ -752,6 +860,60 @@ type Value<T> =
     T extends /* extends-note */ string
         ? /* true-note */ number
         : /* false-note */ boolean;
+```
+
+### conditional type line comment stays with the consequent
+
+Line comments after `?` stay attached to the consequent under non-default formatter options.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+type A = B extends T
+  ? // comment
+    foo
+  : bar;
+```
+
+```ts expected
+type A = B extends T
+  ? // comment
+    foo
+  : bar;
+```
+
+### nested conditional type comments stay attached
+
+Nested multiline comments stay attached to the same conditional branches under non-default formatter options.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+type T = test extends B
+  ? /* comment
+       comment
+       comment
+       comment
+    */
+    foo
+  : test extends B
+  ? /* comment
+  comment
+    comment */
+    foo
+  : bar;
+```
+
+```ts expected
+type T = test extends B
+  ? /* comment
+       comment
+       comment
+       comment
+    */
+    foo
+  : test extends B
+    ? /* comment
+  comment
+    comment */
+      foo
+    : bar;
 ```
 
 ### intersection comment in flow-consistent style
