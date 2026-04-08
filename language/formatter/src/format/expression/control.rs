@@ -2,19 +2,23 @@ use super::declarator::format_declarator;
 use super::dispatch::format_expression;
 use super::parentheses::parenthesized_leading_inner_comments;
 use super::{
-    format_expanded_ternary_expression, parenthesized_has_leading_inner_comments,
-    write_expression_without_prefix_annotations, write_expression_without_trailing_annotations,
+    format_expanded_ternary_expression, write_expression_without_prefix_annotations,
+    write_expression_without_trailing_annotations,
 };
 use crate::format::annotation::{
     block_infix_annotations, format_raw_comment, format_trailing_comment_slice,
     infix_or_postfix_annotations, infix_or_postfix_annotations_without_line_suffix_boundary,
     line_suffix_boundary_annotations, postfix_annotations, prefix_annotations,
-    write_raw_leading_comments,
+    write_raw_comment_slice, write_raw_leading_comments,
 };
 use crate::format::chain::expression_trivia_anchor_end;
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::sequence::block_statement_sequence;
 use crate::format::declaration::signature::expression_body_requires_head_space;
-use crate::format::declaration::{statement_wrapper_needs_semicolon, write_statement_terminator};
+use crate::format::declaration::{
+    statement_trailing_comment_anchor_end, statement_wrapper_needs_semicolon,
+    write_statement_terminator, write_statement_terminator_after_anchor,
+};
 use crate::format::directive::node_has_ignore_directive;
 use crate::format::tree::tree_literal_should_break;
 use crate::{
@@ -85,7 +89,7 @@ fn write_comments_for_empty_statement_body<'ast>(
         return Ok(());
     }
 
-    write!(f, [format_trailing_comment_slice(&comments)])
+    write_raw_comment_slice(f, &comments)
 }
 
 /// Format one statement-body expression with statement-separator semantics.
@@ -169,7 +173,7 @@ pub(crate) fn format_statement_body_block<'ast>(
     write!(f, [prefix_annotations(f.context(), block_id)])?;
 
     if block.is_empty() {
-        write!(f, [token(";")])?;
+        write_statement_terminator_after_anchor(f, f.context().span(block_id).start)?;
     } else if block.len() == 1 {
         let expression_id = block.first_expression().expect("single-expression block");
         if expression_has_block_prefix_annotation(f.context(), expression_id) {
@@ -434,12 +438,9 @@ pub(crate) fn adjacent_statement_argument_has_leading_comments(
             .iter()
             .copied()
             .any(|comment| raw_comment_is_adjacent_leading_comment(ctx, comment));
-        let has_parenthesized_leading_inner_comments = match ctx.tree.get(current_id) {
-            Expression::Parenthesized { expression } => {
-                parenthesized_has_leading_inner_comments(ctx, current_id, *expression)
-            }
-            _ => false,
-        };
+        let has_parenthesized_leading_inner_comments =
+            ParenthesizedExpressionView::from_node(ctx, current_id)
+                .is_some_and(ParenthesizedExpressionView::has_leading_inner_comments);
 
         let has_member_gap_comment = match ctx.tree.get(current_id) {
             Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
@@ -513,8 +514,8 @@ fn adjacent_statement_comment_hoist_owner(
     let mut current_id = argument_id;
 
     loop {
-        if let Expression::Parenthesized { expression } = context.tree.get(current_id)
-            && parenthesized_has_leading_inner_comments(context, current_id, *expression)
+        if ParenthesizedExpressionView::from_node(context, current_id)
+            .is_some_and(ParenthesizedExpressionView::has_leading_inner_comments)
         {
             return Some(current_id);
         }
@@ -608,8 +609,11 @@ fn format_parenthesized_adjacent_statement_argument<'ast>(
     value_id: LocalNodeId<Expression>,
     parenthesized_inner_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let hoisted_comments =
-        parenthesized_leading_inner_comments(f.context(), value_id, parenthesized_inner_id);
+    let hoisted_comments = ParenthesizedExpressionView::from_node(f.context(), value_id)
+        .map(ParenthesizedExpressionView::leading_inner_comments)
+        .unwrap_or_else(|| {
+            parenthesized_leading_inner_comments(f.context(), value_id, parenthesized_inner_id)
+        });
     let wrapped_value =
         format_with(|f| write_expanded_adjacent_statement_value(f, parenthesized_inner_id));
 
@@ -666,8 +670,11 @@ fn format_wrapped_adjacent_statement_argument<'ast>(
             unreachable!("adjacent statement comment hoist owner must be parenthesized");
         };
 
-        let hoisted_comments =
-            parenthesized_leading_inner_comments(f.context(), hoist_owner_id, *expression);
+        let hoisted_comments = ParenthesizedExpressionView::from_node(f.context(), hoist_owner_id)
+            .map(ParenthesizedExpressionView::leading_inner_comments)
+            .unwrap_or_else(|| {
+                parenthesized_leading_inner_comments(f.context(), hoist_owner_id, *expression)
+            });
         let wrapped_value =
             format_with(|f| write_expanded_adjacent_statement_value(f, value_check_id));
 
@@ -1079,10 +1086,19 @@ fn match_case_has_boundary_line_comment(
     context: &DestackFormatContext<'_>,
     case_id: LocalNodeId<MatchCase>,
 ) -> bool {
-    let case_span = context.span(case_id);
+    let body_span = match context.tree.get(case_id) {
+        MatchCase::Expression { body, .. } => context.span(*body),
+        MatchCase::Block { body, .. } => context.span(*body),
+    };
+    let Some(boundary_token) = context.previous_non_trivia_token_before_span(body_span) else {
+        return false;
+    };
+    if boundary_token.span.end >= body_span.start {
+        return false;
+    }
 
     context
-        .comments_in_range(case_span.start, case_span.end)
+        .comments_in_range(boundary_token.span.end, body_span.start)
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
@@ -1559,6 +1575,11 @@ pub(crate) fn format_match_case_with_style<'ast>(
             if has_boundary_line_comment {
                 write!(f, [line_suffix_boundary_annotations(f.context(), case_id)])?;
             }
+
+            let format_switch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                format_statement_body_expression(f, *body)
+            });
+
             if !is_switch_style {
                 write!(f, [space(), token("=>"), space(), *body])?;
             } else if let Some(explicit_block_expression) =
@@ -1571,14 +1592,14 @@ pub(crate) fn format_match_case_with_style<'ast>(
                 }
             } else if switch_case_expression_body_should_break(f, *body) {
                 if has_boundary_line_comment {
-                    write!(f, [block_indent(body)])?;
+                    write!(f, [block_indent(&format_switch_body)])?;
                 } else {
-                    write!(f, [hard_line_break(), block_indent(body)])?;
+                    write!(f, [hard_line_break(), block_indent(&format_switch_body)])?;
                 }
             } else if has_boundary_line_comment {
-                write!(f, [*body])?;
+                write!(f, [format_switch_body])?;
             } else {
-                write!(f, [space(), *body])?;
+                write!(f, [space(), format_switch_body])?;
             }
         }
         MatchCase::Block { selector, body } => {
@@ -1637,8 +1658,27 @@ fn switch_case_expression_body_should_break(
     f: &DestackFormatter<'_, '_>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    let trailing_line_comment_after_body = {
+        let anchor_end = statement_trailing_comment_anchor_end(f.context(), body_expression_id);
+        let comments = f.context().comments();
+
+        comments
+            .comments_after(anchor_end)
+            .iter()
+            .copied()
+            .any(|comment| {
+                f.context()
+                    .source_text()
+                    .all_bytes_match(anchor_end, comment.span.start, |byte| {
+                        matches!(byte, b'\t' | b' ' | b';')
+                    })
+                    && comment.is_line()
+            })
+    };
+
     f.context().has_annotation(body_expression_id)
         || f.context().node_has_newline(body_expression_id)
+        || trailing_line_comment_after_body
 }
 
 /// Return whether one switch case expression body is one explicit block expression.

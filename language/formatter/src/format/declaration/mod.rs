@@ -20,6 +20,7 @@ pub(crate) use self::function::{
 pub(crate) use self::semicolon::{
     expression_needs_statement_terminator, statement_trailing_comment_anchor_end,
     statement_wrapper_needs_semicolon, write_statement_terminator,
+    write_statement_terminator_after_anchor, write_statement_terminator_with_following_start,
 };
 pub(crate) use self::sequence::expression_is_in_statement_position;
 pub(crate) use self::signature::{

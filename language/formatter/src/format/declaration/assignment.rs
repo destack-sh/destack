@@ -8,7 +8,7 @@ use crate::format::expression::expression_has_static_type_arguments;
 use crate::format::operator::{
     expression_has_type_grouping_semantics, format_binary_expression, format_static_argument_list,
     should_drop_parenthesized_type_expression, transparent_type_binary_root_expression,
-    union_has_trailing_own_line_doc_comment, write_type_expression_with_inline_prefix_annotations,
+    write_type_expression_with_inline_prefix_annotations,
     write_type_expression_without_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter};
@@ -457,8 +457,6 @@ impl<'a> TypeAliasAssignmentLike<'a> {
     ) -> bool {
         let value_span = context.span(self.value_id);
         let has_leading_comments = !context.comment_tokens_before(value_span.start).is_empty();
-        let has_union_leading_doc_head =
-            union_has_trailing_own_line_doc_comment(context, self.value_id);
         let transparent_type_binary_root = [
             destack_ast::BinaryOperator::ElementwiseOr,
             destack_ast::BinaryOperator::ElementwiseAnd,
@@ -482,7 +480,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
                     || self.type_conditional_test_operand_is_generic_like(context, *right)
                     || has_leading_comments
             }
-            _ if transparent_type_binary_root.is_some() => has_union_leading_doc_head,
+            _ if transparent_type_binary_root.is_some() => false,
             Expression::Binary { .. } => false,
             _ => has_leading_comments,
         }

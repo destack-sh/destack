@@ -1,4 +1,6 @@
-use crate::format::annotation::{block_infix_annotations, line_suffix_boundary_annotations};
+use crate::format::annotation::{
+    block_infix_annotations, line_suffix_boundary_annotations, write_raw_comment_slice,
+};
 use crate::format::chain::{is_call_like_argument, transparent_inner_expression};
 use crate::format::expression::expression_has_static_type_arguments;
 use crate::format::tree::{
@@ -8,8 +10,8 @@ use crate::format::tree::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, IfKind, LocalNodeId, NodeTree, NodeType,
-    ScalarLiteral,
+    Argument, Comment, Declaration, Expression, FunctionKind, IfKind, LocalNodeId, NodeTree,
+    NodeType, ScalarLiteral,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
@@ -793,6 +795,7 @@ pub(crate) fn format_parenthesized_tree_expression<'ast>(
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
     has_leading_inner_trivia: bool,
+    trailing_inner_comment_nodes: &[Comment],
 ) -> FormatResult<()> {
     let tree_should_break = tree_literal_should_break(f.context(), arguments, elements)
         || f.context().node_has_newline(expression_id);
@@ -804,7 +807,21 @@ pub(crate) fn format_parenthesized_tree_expression<'ast>(
             f,
             [
                 token("("),
-                block_indent(&group(&expression_id).should_expand(true)),
+                block_indent(&format_with(|f| {
+                    write!(f, [group(&expression_id).should_expand(true)])?;
+
+                    if !trailing_inner_comment_nodes.is_empty() {
+                        write!(
+                            f,
+                            [format_with(|f| write_raw_comment_slice(
+                                f,
+                                trailing_inner_comment_nodes,
+                            ))]
+                        )?;
+                    }
+
+                    Ok(())
+                })),
                 hard_line_break(),
                 token(")")
             ]
@@ -812,7 +829,25 @@ pub(crate) fn format_parenthesized_tree_expression<'ast>(
     } else {
         write!(
             f,
-            [token("("), soft_block_indent(&expression_id), token(")")]
+            [
+                token("("),
+                soft_block_indent(&format_with(|f| {
+                    write!(f, [expression_id])?;
+
+                    if !trailing_inner_comment_nodes.is_empty() {
+                        write!(
+                            f,
+                            [format_with(|f| write_raw_comment_slice(
+                                f,
+                                trailing_inner_comment_nodes,
+                            ))]
+                        )?;
+                    }
+
+                    Ok(())
+                })),
+                token(")")
+            ]
         )?;
     }
 

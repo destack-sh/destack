@@ -2,18 +2,16 @@ use crate::format::annotation::{
     format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
     write_inline_prefix_annotations,
 };
-use crate::format::chain::{
-    has_line_comment_between_expressions, is_chain_root, is_expression_chain,
-    transparent_inner_expression,
-};
+use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::expression::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
     expression_has_static_type_arguments, is_expression_breakable,
-    parenthesized_has_leading_inner_newline, write_expression_without_prefix_annotations,
+    write_expression_without_prefix_annotations,
 };
 use crate::format::operator::{
-    AssignmentLikeLayout, flattened_binary_operand_count, write_assignment_like_right,
+    AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator, write_assignment_like_right,
     write_type_expression_with_inline_prefix_annotations,
 };
 use crate::format::tree::tree_literal_requires_expanded_layout;
@@ -446,7 +444,9 @@ pub(crate) fn declarator_drops_parenthesized_value_wrapper(
         return false;
     }
 
-    if parenthesized_has_leading_inner_newline(context, parenthesized_id, inner_expression_id) {
+    if ParenthesizedExpressionView::from_node(context, parenthesized_id)
+        .is_some_and(ParenthesizedExpressionView::has_leading_inner_newline)
+    {
         return false;
     }
 
@@ -529,8 +529,6 @@ fn declaration_has_generic_heritage(
             .any(|type_id| expression_has_static_type_arguments(context, type_id))
     })
 }
-
-const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
 
 /// Return whether a value expression wraps a class declaration with generic heritage.
 fn value_has_generic_class_heritage(
@@ -661,20 +659,6 @@ pub(crate) fn format_declarator<'ast>(
             .comments_in_range(span.start, span.end)
             .is_empty()
     }) && !value_has_assignment_operator_prefix_annotation;
-    let value_has_line_comment_between_operands = match value_inner_expr {
-        Expression::Binary { left, right, .. } => {
-            has_line_comment_between_expressions(f.context(), *left, *right)
-        }
-        _ => false,
-    };
-    let value_binary_operand_count = match value_inner_expr {
-        Expression::Binary { operator, .. } => {
-            flattened_binary_operand_count(f.context(), value_inner_id, *operator)
-        }
-        _ => 0,
-    };
-    let value_is_long_binary =
-        value_is_binary && value_binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD;
     let value_is_string_literal = matches!(
         value_inner_expr,
         Expression::ScalarLiteral(ScalarLiteral::String(_))
@@ -693,6 +677,8 @@ pub(crate) fn format_declarator<'ast>(
     let value_chain_breaks_after_operator =
         value_is_chain && is_poorly_breakable_member_or_call_chain(f, value_inner_id);
     let value_is_lambda_like = declarator_value_is_lambda_like(f.context(), *value_id);
+    let value_prefers_break_after_operator =
+        assignment_rhs_prefers_break_after_operator(f, *value_id);
     let right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_assignment_operator_comments(f, *value_id, true)?;
 
@@ -736,9 +722,7 @@ pub(crate) fn format_declarator<'ast>(
         || value_has_prefix_annotation_that_forces_break
         || value_has_between_comment
         || value_has_own_line_prefix_annotation
-        || value_is_long_binary
-        || value_is_sequence
-        || value_has_line_comment_between_operands
+        || value_prefers_break_after_operator
         || value_has_generic_class_heritage
         || (!is_left_short && value_chain_breaks_after_operator)
         || (value_is_call_like && pattern_has_default_assignment)

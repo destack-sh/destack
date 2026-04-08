@@ -237,6 +237,26 @@ fn object_pattern_should_break_properties(
 
     fields.iter().copied().any(|field_id| {
         pattern_field_has_nested_object_or_array_like_pattern(context.tree, field_id)
+    }) || object_pattern_has_boundary_comments(context, fields)
+}
+
+/// Return whether field boundaries own raw comments.
+fn object_pattern_has_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    fields.windows(2).any(|pair| {
+        let [left_id, right_id] = pair else {
+            return false;
+        };
+
+        let left_span = context.span(*left_id);
+        let right_span = context.span(*right_id);
+
+        !context
+            .comments()
+            .comments_in_range(left_span.end, right_span.start)
+            .is_empty()
     })
 }
 
