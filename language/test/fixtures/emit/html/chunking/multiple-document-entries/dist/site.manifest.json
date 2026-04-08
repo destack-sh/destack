@@ -10,7 +10,10 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "./page-metadata.js"
+        "./page-metadata-9e59aaf8.js"
+      ],
+      "stylesheets": [
+        "./shell.css"
       ]
     },
     {
@@ -21,10 +24,7 @@
     {
       "path": "dashboard-shell.css",
       "type": "asset",
-      "loader": "css",
-      "input": "src/dashboard-shell.css",
-      "isEntry": true,
-      "isDynamicEntry": false
+      "loader": "asset"
     },
     {
       "path": "dashboard.js",
@@ -35,7 +35,10 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "./page-metadata.js"
+        "./page-metadata-9e59aaf8.js"
+      ],
+      "stylesheets": [
+        "./dashboard-shell.css"
       ]
     },
     {
@@ -51,7 +54,7 @@
       "isDynamicEntry": false
     },
     {
-      "path": "page-metadata.js",
+      "path": "page-metadata-9e59aaf8.js",
       "type": "chunk",
       "loader": "js",
       "name": "page-metadata",
@@ -60,25 +63,19 @@
       "isDynamicEntry": false
     },
     {
-      "path": "page-metadata.js.map",
+      "path": "page-metadata-9e59aaf8.js.map",
       "type": "asset",
       "loader": "map"
     },
     {
       "path": "shell.css",
       "type": "asset",
-      "loader": "css",
-      "input": "src/shell.css",
-      "isEntry": true,
-      "isDynamicEntry": false
+      "loader": "asset"
     },
     {
       "path": "site.css",
       "type": "asset",
-      "loader": "css",
-      "input": "src/site.css",
-      "isEntry": true,
-      "isDynamicEntry": false
+      "loader": "asset"
     }
   ]
 }

@@ -25,4 +25,4 @@ export function getPageDescription(slug = "") {
 export function getNavigationLabel(slug = "") {
     return `${getPageTitle(slug)} Docs`;
 }
-//# sourceMappingURL=./page-metadata.js.map
+//# sourceMappingURL=./page-metadata-9e59aaf8.js.map

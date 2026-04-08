@@ -31,7 +31,11 @@
       "name": "site",
       "input": "src/page.ds",
       "isEntry": true,
-      "isDynamicEntry": false
+      "isDynamicEntry": false,
+      "stylesheets": [
+        "./site.css",
+        "./panel.css"
+      ]
     },
     {
       "path": "site.js.map",
