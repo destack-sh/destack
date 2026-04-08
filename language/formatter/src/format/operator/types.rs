@@ -1,18 +1,14 @@
-use super::r#type::{
-    leading_raw_type_position_comment_nodes, write_type_expression_with_inline_prefix_annotations,
-};
-use crate::format::annotation::raw_prefix_comment_nodes;
-use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
+use super::r#type::write_type_expression_with_inline_prefix_annotations_from;
+use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::expression_is_in_statement_position;
-use crate::format::expression::expression_has_leading_prefix_comment;
+use crate::format::expression::{
+    parenthesized_has_leading_inner_trivia, write_expression_without_trailing_annotations,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Expression, LocalNodeId, NodeType, TokenType, TypeBinaryOperator};
 use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::{
-    format_with, group, hard_line_break, indent, soft_block_indent, soft_line_break_or_space,
-    space, token,
-};
-use destack_fir::{format_args, write};
+use destack_fir::prelude::{block_indent, format_with, group, soft_block_indent, space, token};
+use destack_fir::{best_fitting, format_args, write};
 
 /// Return whether one type binary left expression is simple enough to stay ungrouped.
 pub(crate) fn is_simple_type_binary_left_expression(
@@ -82,20 +78,11 @@ pub(crate) fn is_in_type_template_literal_interpolation(
     false
 }
 
-/// Write a cast or satisfies operator and right operand.
-fn write_type_binary_operator_and_right<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    operator: &TypeBinaryOperator,
-    right: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    write!(f, [operator, space()])?;
-    write_type_expression_with_inline_prefix_annotations(f, right)
-}
-
-/// Return whether this cast expression should keep TypeScript angle assertion syntax.
-fn cast_prefers_angle_assertion_syntax(
+/// Return whether one expression span uses angle assertion syntax in source.
+pub(crate) fn expression_uses_angle_assertion_syntax(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
+    allow_parenthesis_prefix: bool,
 ) -> bool {
     if context.options.language_type.supports_jsx() {
         return false;
@@ -108,13 +95,139 @@ fn cast_prefers_angle_assertion_syntax(
     let mut token_index = 0usize;
     while let Some(token) = context.nth_non_trivia_token_in_span(main_span, token_index) {
         match token.token.ty {
-            TokenType::OpenParenthesis => token_index += 1,
             TokenType::LessThan => return true,
+            TokenType::OpenParenthesis if allow_parenthesis_prefix => token_index += 1,
             _ => return false,
         }
     }
 
     false
+}
+
+/// Return whether one cast or satisfies expression is in callee or object position.
+fn type_binary_is_callee_or_object_context(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+
+    match context.tree.get(parent_id) {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Call { left, .. } => *left == node_id,
+        _ => false,
+    }
+}
+
+/// Return the effective left expression for one cast or satisfies expression.
+fn normalized_type_binary_left_expression(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+    operator: &TypeBinaryOperator,
+) -> LocalNodeId<Expression> {
+    let cast_uses_angle_assertion = *operator == TypeBinaryOperator::Cast
+        && expression_uses_angle_assertion_syntax(context, node_id, true);
+    if cast_uses_angle_assertion {
+        return left;
+    }
+
+    if !matches!(
+        operator,
+        TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
+    ) {
+        return left;
+    }
+
+    let Expression::Parenthesized { expression } = context.tree.get(left) else {
+        return left;
+    };
+    if should_drop_type_binary_left_parentheses(context, node_id, left, *expression) {
+        return *expression;
+    }
+
+    left
+}
+
+/// Format one angle-assertion style cast expression.
+fn format_angle_assertion_type_binary_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let break_after_cast = !matches!(
+        f.context().tree.get(left),
+        Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. }
+    );
+    let format_cast = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(
+            f,
+            [token("<"), group(&soft_block_indent(&right)), token(">")]
+        )
+    });
+
+    if break_after_cast {
+        write!(
+            f,
+            [best_fitting![
+                format_args![format_cast, left],
+                format_args![
+                    format_cast,
+                    group(&format_args![token("("), block_indent(&left), token(")")])
+                ],
+                format_args![format_cast, left]
+            ]]
+        )
+    } else {
+        write!(f, [format_cast, left])
+    }
+}
+
+/// Format one keyword-style cast or satisfies expression.
+fn format_as_or_satisfies_type_binary_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+    operator: &TypeBinaryOperator,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let left_span = f.context().span(left);
+    let right_span = f.context().span(right);
+    let comments = {
+        let comments = f.context().comments();
+        comments
+            .comments_in_range(left_span.end, right_span.start)
+            .to_vec()
+    };
+    let multiline_block_comment_index = comments
+        .iter()
+        .position(|comment| comment.is_block() && f.context().has_newline(comment.span));
+    let block_comments = multiline_block_comment_index
+        .map_or_else(|| comments.as_slice(), |index| &comments[..index]);
+    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if block_comments.is_empty() {
+            write_expression_without_trailing_annotations(f, left)?;
+            write!(f, [space(), operator, space()])?;
+        } else {
+            write!(f, [left, space(), operator, space()])?;
+        }
+
+        write_type_expression_with_inline_prefix_annotations_from(f, right, left_span.end)
+    });
+
+    if type_binary_is_callee_or_object_context(f.context(), node_id) {
+        write!(f, [group(&soft_block_indent(&format_inner))])
+    } else {
+        write!(f, [format_inner])
+    }
 }
 
 /// Format a type-binary expression with chain-aware left-hand expansion.
@@ -126,248 +239,14 @@ pub(crate) fn format_type_binary_expression<'ast>(
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let cast_uses_angle_assertion = *operator == TypeBinaryOperator::Cast
-        && cast_prefers_angle_assertion_syntax(f.context(), node_id);
-
-    let mut formatted_left = left;
-    if !cast_uses_angle_assertion
-        && matches!(
-            operator,
-            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-        )
-        && let Expression::Parenthesized { expression } = f.context().tree.get(left)
-        && should_drop_type_binary_left_parentheses(f.context(), node_id, left, *expression)
-    {
-        formatted_left = *expression;
-    }
-
-    // statement-level satisfies/cast over object literals should keep `({ ... })` lhs wrapping
-    let left_needs_statement_object_parentheses = matches!(
-        operator,
-        TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-    ) && matches!(
-        f.context().tree.get(formatted_left),
-        Expression::ObjectExpression { .. }
-    ) && f.context().parent(node_id).is_some_and(
-        |(parent_id, parent_type)| {
-            if parent_type != NodeType::Expression {
-                return false;
-            }
-
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            if parent_expression_id == node_id {
-                return true;
-            }
-
-            let Expression::Parenthesized { expression } =
-                f.context().tree.get(parent_expression_id)
-            else {
-                return false;
-            };
-            if *expression != node_id {
-                return false;
-            }
-
-            f.context().parent(parent_expression_id).is_some_and(
-                |(grandparent_id, grandparent_type)| {
-                    grandparent_type == NodeType::Expression
-                        && LocalNodeId::<Expression>::new(grandparent_id) == parent_expression_id
-                },
-            )
-        },
-    );
-
-    let format_left = |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
-        if left_needs_statement_object_parentheses {
-            write!(f, [token("("), formatted_left, token(")")])
-        } else {
-            write!(f, [formatted_left])
-        }
-    };
-
+        && expression_uses_angle_assertion_syntax(f.context(), node_id, true);
+    let formatted_left =
+        normalized_type_binary_left_expression(f.context(), node_id, left, operator);
     if cast_uses_angle_assertion {
-        let right_has_leading_prefix_material = f.context().has_prefix_annotation(right)
-            || !raw_prefix_comment_nodes(f.context(), right).is_empty()
-            || !leading_raw_type_position_comment_nodes(f.context(), right).is_empty();
-
-        if right_has_leading_prefix_material {
-            let format_cast = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(
-                    f,
-                    [group(&format_args![
-                        token("<"),
-                        indent(&format_args![
-                            hard_line_break(),
-                            format_with(|f| {
-                                write_type_expression_with_inline_prefix_annotations(f, right)
-                            })
-                        ]),
-                        hard_line_break(),
-                        token(">")
-                    ])
-                    .should_expand(true)]
-                )
-            });
-            write!(f, [format_cast, format_with(format_left)])?;
-        } else {
-            let should_preserve_parenthesized_left_newline =
-                matches!(
-                    f.context().tree.get(formatted_left),
-                    Expression::Parenthesized { .. }
-                ) && f.context().node_has_newline(formatted_left);
-            if should_preserve_parenthesized_left_newline
-                && let Expression::Parenthesized { expression } =
-                    f.context().tree.get(formatted_left)
-            {
-                write!(
-                    f,
-                    [
-                        token("<"),
-                        right,
-                        token(">"),
-                        token("("),
-                        soft_block_indent(expression),
-                        token(")")
-                    ]
-                )?;
-            } else {
-                write!(f, [token("<"), right, token(">"), format_with(format_left)])?;
-            }
-        }
-        return Ok(());
+        return format_angle_assertion_type_binary_expression(f, formatted_left, right);
     }
 
-    let left_has_leading_prefix_comment =
-        expression_has_leading_prefix_comment(f.context(), formatted_left);
-    let left_is_chain_expression = is_expression_chain(f.context().tree, formatted_left)
-        || is_chain_root(f.context().tree, formatted_left);
-    let is_parenthesized_new_callee =
-        f.context()
-            .parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return false;
-                }
-
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                let Expression::Parenthesized { expression } =
-                    f.context().tree.get(parent_expression_id)
-                else {
-                    return false;
-                };
-                if *expression != node_id {
-                    return false;
-                }
-
-                f.context().parent(parent_expression_id).is_some_and(
-                    |(grandparent_id, grandparent_type)| {
-                        grandparent_type == NodeType::Expression
-                            && matches!(
-                                f.context()
-                                    .tree
-                                    .get(LocalNodeId::<Expression>::new(grandparent_id)),
-                                Expression::New { left, .. } if *left == parent_expression_id
-                            )
-                    },
-                )
-            });
-
-    let should_expand_chain_left = matches!(
-        operator,
-        TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-    ) && left_is_chain_expression
-        && is_parenthesized_new_callee;
-
-    let is_parenthesized_member_object_or_call_callee = matches!(
-        operator,
-        TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-    ) && f
-        .context()
-        .parent(node_id)
-        .is_some_and(|(parent_id, parent_type)| {
-            if parent_type != NodeType::Expression {
-                return false;
-            }
-
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            let Expression::Parenthesized { expression } =
-                f.context().tree.get(parent_expression_id)
-            else {
-                return false;
-            };
-            if *expression != node_id {
-                return false;
-            }
-
-            f.context().parent(parent_expression_id).is_some_and(
-                |(grandparent_id, grandparent_type)| {
-                    if grandparent_type != NodeType::Expression {
-                        return false;
-                    }
-
-                    let grandparent_expression_id = LocalNodeId::<Expression>::new(grandparent_id);
-                    match f.context().tree.get(grandparent_expression_id) {
-                        Expression::Member { left, .. }
-                        | Expression::PrivateMember { left, .. }
-                        | Expression::Index { left, .. } => *left == parent_expression_id,
-                        Expression::Call { left, .. } => *left == parent_expression_id,
-                        _ => false,
-                    }
-                },
-            )
-        });
-
-    if is_parenthesized_member_object_or_call_callee {
-        write!(
-            f,
-            [group(&soft_block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| {
-                    format_left(f)?;
-                    write!(f, [space()])?;
-                    write_type_binary_operator_and_right(f, operator, right)
-                }
-            )))]
-        )?;
-        return Ok(());
-    }
-
-    if should_expand_chain_left {
-        write!(
-            f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(
-                    f,
-                    [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        format_left(f)
-                    }))
-                    .should_expand(true)]
-                )?;
-                write!(f, [space()])?;
-                write_type_binary_operator_and_right(f, operator, right)
-            }))]
-        )?;
-    } else {
-        let keep_left_and_operator_on_same_line = matches!(
-            operator,
-            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-        );
-
-        write!(
-            f,
-            [group(&format_args![
-                format_with(format_left),
-                indent(&format_with(|f| {
-                    if keep_left_and_operator_on_same_line || left_has_leading_prefix_comment {
-                        write!(f, [space()])?;
-                    } else {
-                        write!(f, [soft_line_break_or_space()])?;
-                    }
-                    write_type_binary_operator_and_right(f, operator, right)
-                }))
-            ])]
-        )?;
-    }
-
-    Ok(())
+    format_as_or_satisfies_type_binary_expression(f, node_id, formatted_left, operator, right)
 }
 
 /// Decide whether cast or satisfies can drop a parenthesized left side.
@@ -402,67 +281,10 @@ fn should_drop_type_binary_left_parentheses(
         return false;
     }
 
-    if crate::format::expression::parenthesized_has_leading_inner_trivia(
-        context,
-        parenthesized_id,
-        left_id,
-    ) && !left_is_cast_chain
+    if parenthesized_has_leading_inner_trivia(context, parenthesized_id, left_id)
+        && !left_is_cast_chain
     {
         return false;
-    }
-
-    if context
-        .parent(node_id)
-        .is_some_and(|(parent_id, parent_type)| {
-            if parent_type != NodeType::Expression {
-                return false;
-            }
-
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            if parent_expression_id == node_id {
-                return true;
-            }
-
-            let Expression::Parenthesized { expression } = context.tree.get(parent_expression_id)
-            else {
-                return false;
-            };
-            if *expression != node_id {
-                return false;
-            }
-
-            context.parent(parent_expression_id).is_some_and(
-                |(grandparent_id, grandparent_type)| {
-                    grandparent_type == NodeType::Expression
-                        && LocalNodeId::<Expression>::new(grandparent_id) == parent_expression_id
-                },
-            )
-        })
-    {
-        return false;
-    }
-
-    let mut current_id = node_id;
-    while let Some((parent_id, parent_type)) = context.parent(current_id) {
-        if parent_type != NodeType::Expression {
-            break;
-        }
-
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
-        let has_parenthesized_ancestor_with_leading_inner_trivia =
-            if let Expression::Parenthesized { expression } = context.tree.get(parent_id) {
-                *expression == current_id
-                    && crate::format::expression::parenthesized_has_leading_inner_trivia(
-                        context, parent_id, current_id,
-                    )
-            } else {
-                false
-            };
-        if has_parenthesized_ancestor_with_leading_inner_trivia && !left_is_cast_chain {
-            return false;
-        }
-
-        current_id = parent_id;
     }
 
     is_simple_type_binary_left_expression(context.tree, left_id)
