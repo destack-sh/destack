@@ -69,7 +69,7 @@ fn test_format_statement_cast_wrapper_preserves_leading_inner_comment() {
     );
 }
 
-/// Cast-chain comment seams should stay attached across chained member continuations.
+/// Cast-chain comments should stay attached across chained member continuations.
 #[test]
 fn test_format_type_as_comment_chain() {
     assert_format_program_reference_widths(
@@ -94,9 +94,25 @@ fn test_format_type_as_comment_chain() {
     );
 }
 
-/// Mapped-type comment seams should stay attached to the mapped-type body.
+/// Multiline block comments before cast types should stay with the type side.
 #[test]
-fn test_format_type_mapped_comment_seams() {
+fn test_format_type_as_multiline_block_comment_before_type() {
+    assert_format_program!(
+        r#"foo as /*
+ * keep
+ */ Bar
+"#,
+        r#"foo as /*
+ * keep
+ */ Bar;
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Mapped-type comments should stay attached to the mapped-type body.
+#[test]
+fn test_format_type_mapped_comments() {
     assert_format_program_reference_widths(
         r#"type _Test = {
   [T in number]: T;
@@ -131,9 +147,9 @@ fn test_format_type_mapped_comment_seams() {
     );
 }
 
-/// Leading-pipe mixed comment seams should stay attached after the separator.
+/// Leading-pipe mixed comments should stay attached after the separator.
 #[test]
-fn test_format_typescript_union_leading_pipe_mixed_comment_seams() {
+fn test_format_typescript_union_leading_pipe_mixed_comments() {
     assert_format_program_reference_widths(
         r#"type A1 =
   | /**
@@ -160,21 +176,20 @@ type A3 =
                 80,
                 r#"type A1 =
   | /**
-   * 11
-   */
-  a
+     * 11
+     */
+    a
   | b;
 
 type A2 =
   | /**
-   * 21
-   */
-  a
+     * 21
+     */ a
   | b;
 
 type A3 =
   | // 31
-  a
+    a
   | b;
 "#,
             ),
@@ -182,21 +197,20 @@ type A3 =
                 100,
                 r#"type A1 =
   | /**
-   * 11
-   */
-  a
+     * 11
+     */
+    a
   | b;
 
 type A2 =
   | /**
-   * 21
-   */
-  a
+     * 21
+     */ a
   | b;
 
 type A3 =
   | // 31
-  a
+    a
   | b;
 "#,
             ),
