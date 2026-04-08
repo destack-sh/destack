@@ -1,4 +1,7 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_program_reference_widths};
+use crate::{
+    DestackFormatOptions, assert_format, assert_format_program,
+    assert_format_program_reference_widths,
+};
 use destack_ast::{DeclarationDescriptor, EnumKind};
 use destack_source::FileType;
 
@@ -24,11 +27,16 @@ fn test_format_enum_with_simple_fields() {
 
 #[test]
 fn test_format_enum_with_annotations() {
-    assert_format!(
-        "enum { A }",
-        "enum {\n\tA,\n}",
-        |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
-        DestackFormatOptions::default_tab()
+    assert_format_program!(
+        r#"@description("The status of a task.") enum Status { @default Todo; Done }"#,
+        r#"@description("The status of a task.")
+enum Status {
+    @default
+    Todo,
+    Done,
+}
+"#,
+        FileType::Destack,
     );
 }
 
@@ -253,34 +261,22 @@ letlonglongRunningProvider4 = class implements languages.SignatureHelpProvider<H
     );
 }
 
-/// Class decorators should keep the decorator and method head grouped.
+/// Member decorators should stay on their own line in class bodies.
 #[test]
 fn test_format_typescript_class_decorator_layout() {
-    assert_format_program_reference_widths(
+    assert_format_program!(
         r#"class A {
   // comment shouldn't break the decorators grouping
   @memoize onContextMenu() { }
 }
 "#,
+        r#"class A {
+  // comment shouldn't break the decorators grouping
+  @memoize
+  onContextMenu() {}
+}
+"#,
         FileType::TypeScript,
-        &[
-            (
-                80,
-                r#"class A {
-  // comment shouldn't break the decorators grouping
-  @memoize onContextMenu() {}
-}
-"#,
-            ),
-            (
-                100,
-                r#"class A {
-  // comment shouldn't break the decorators grouping
-  @memoize onContextMenu() {}
-}
-"#,
-            ),
-        ],
     );
 }
 

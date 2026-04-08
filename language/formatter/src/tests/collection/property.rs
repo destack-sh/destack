@@ -43,6 +43,20 @@ fn test_format_class_with_abstract_override_field() {
     );
 }
 
+/// Struct member annotations should stay on their own line above the member.
+#[test]
+fn test_format_struct_with_decorated_field() {
+    assert_format!(
+        r#"struct User { @validate(minLength(1)) name: string }"#,
+        r#"struct User {
+	@validate(minLength(1))
+	name: string;
+}"#,
+        |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
+        DestackFormatOptions::default_tab()
+    );
+}
+
 /// Quoted constructor parameter properties should expand into one parameter per line.
 #[test]
 fn test_format_typescript_constructor_parameter_properties_expand_for_quoted_constructor_name() {
