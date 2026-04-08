@@ -1,17 +1,17 @@
 # fir
 
 Formatting Intermediate Representation for pretty-printing code-shaped text.
-FIR is a document model that abstracts over layout decisions, describing what should be printed while the printer figures out how and where to break lines.
+FIR is the document model shared by formatter-style output paths across the language stack.
 
-The Destack FIR is heavily based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter) (MIT), which itself builds on [Rome's formatter](https://github.com/rome/tools) and [Prettier's algorithm](https://github.com/prettier/prettier/blob/main/docs/technical-details.md).
-The core idea traces back to Wadler's ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf) paper (which is funny, considering we're actually sort of implementing prettier again).
+The current FIR is based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter), which builds on the Rome formatter model and Prettier's grouping algorithm.
+The core idea still traces back to Wadler's ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf).
 
-## How It Works
+## Model
 
-We build a `Document` of `FormatNode`s, then print it to a string.
+FIR describes what should be printed while the printer decides where groups stay flat and where they break.
+Formatters build a `Document` of `FormatNode`s and then print that document to text.
 
 ```ds
-// build a document describing an array
 group(
     token("["),
     soft_block_indent(
@@ -24,8 +24,9 @@ group(
 )
 ```
 
-If it fits on one line: `[a, b]`
-If it doesn't fit:
+That document prints as `[a, b]` when it fits.
+It prints as the expanded multiline variant when the group breaks.
+
 ```text
 [
     a,
@@ -33,96 +34,50 @@ If it doesn't fit:
 ]
 ```
 
-The `group` measures its content, and `soft_line_break_or_space` becomes either a space (flat) or a newline (expanded) depending on whether the group fits.
-
 ## Core Primitives
 
+The core FIR nodes are:
+
 | Primitive | Description |
-|-----------|-------------|
-| `token("x")` | Literal ASCII text (no newlines) |
-| `text("x")` | Arbitrary text (may contain unicode, newlines) |
-| `space` | Single space character |
-| `hard_line_break` | Always a newline |
-| `soft_line_break` | Newline if group breaks, nothing if flat |
-| `soft_line_break_or_space` | Newline if group breaks, space if flat |
-| `group(...)` | Measures content, breaks if it doesn't fit |
-| `indent(...)` | Increases indentation level |
-| `block_indent(...)` | Hard line break, then indented content |
-| `soft_block_indent(...)` | Soft line break, then indented content |
+| --- | --- |
+| `token("x")` | Literal ASCII text without newlines |
+| `text("x")` | Arbitrary text that may contain Unicode or newlines |
+| `space` | One space character |
+| `hard_line_break` | Always emit a newline |
+| `soft_line_break` | Emit a newline only when the current group breaks |
+| `soft_line_break_or_space` | Emit a newline when the group breaks, otherwise a space |
+| `group(...)` | Measure content and choose flat or expanded layout |
+| `indent(...)` | Increase indentation without forcing a break |
+| `block_indent(...)` | Break, then indent |
+| `soft_block_indent(...)` | Soft break, then indent |
 
-## Groups and Breaking
+## Layout Selection
 
-Groups are the core decision points.
-A group starts in "flat" mode (try to fit on one line).
-If the content exceeds the line width, the group switches to "expanded" mode and soft line breaks become real newlines.
+Groups are the main decision points.
+A group starts in flat mode.
+If the content no longer fits, the printer expands that group and turns soft breaks into real line breaks.
 
-Groups can be nested:
+`best_fitting(...)` allows a formatter to try several document shapes in priority order.
+`fill(...)` allows the printer to pack as many items as fit on each line instead of choosing only fully flat or fully expanded output.
 
-```ds
-group(
-    token("outer("),
-    soft_block_indent(group(
-        token("inner("),
-        soft_block_indent(token("content")),
-        token(")")
-    )),
-    token(")")
-)
-```
+## Usage
 
-The outer group might break while the inner stays flat, or both might break.
-The printer figures out the best layout.
+FIR is shared across several code-generation paths.
+That shared document model keeps wrapping, indentation, and line-suffix behavior consistent.
 
-## Best Fitting
+Current major users are:
 
-Sometimes you want to try multiple layouts and pick the best one:
-
-```ds
-best_fitting(
-    // try flat first
-    [token("["), token("a, b, c"), token("]")],
-    // fall back to expanded
-    [token("["), block_indent(token("a,\nb,\nc,")), token("]")]
-)
-```
-
-The printer tries variants in order and picks the first that fits.
-
-## Fill
-
-`Fill` packs as many items as possible per line:
-
-```text
-[1, 2, 3,
- 4, 5, 6,
- 7, 8]
-```
-
-Instead of either all-flat or all-expanded, fill tries to maximize items per line.
-
-## Beyond the Formatter
-
-FIR isn't just for the main code formatter.
-It's also used by:
-- **JS generation** (`compiler/generate/js/`): generating TypeScript output from DIR
-- **MIR text output** (`mir/src/format/`): pretty-printing MIR for debugging
-- **Linter suggestions**: formatting suggested fixes
-
-Having one document model means consistent formatting behavior across all code output.
+- the source formatter in [`language/formatter`](/Users/florian/symbol/destack-6/language/formatter)
+- JavaScript generation paths under `language/compiler`
+- MIR text formatting paths under `language/mir`
+- formatter-style fix output in linting and tooling code
 
 ## Testing
 
-Run these from the repository root.
+Run these commands from the repository root.
 
 ```sh
-# focused local loop
+cargo check -p destack_fir
 cargo test -p destack_fir
-just language/test-formatter
-just language/test-conformance
-
-# clean gate
-just language/quick
-
-# exhaustive gate
-just language/full
+just fmt
 ```
