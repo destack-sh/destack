@@ -2,7 +2,6 @@ use destack_ast::{self as ast};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
-use smallvec::smallvec;
 
 use super::UnbindContext;
 use crate::Compiler;
@@ -740,17 +739,8 @@ impl Compiler {
                     ast::Expression::PrivateIdentifier { name }
                 }
 
-                dir::Expression::ImportMeta => {
-                    let import_id = ast_strings.intern("import");
-                    let meta_id = ast_strings.intern("meta");
-                    let path = ast::Path {
-                        segments: smallvec![import_id, meta_id],
-                    };
-                    ast::Expression::QualifiedReference {
-                        path,
-                        static_arguments: None,
-                    }
-                }
+                dir::Expression::ImportMeta => ast::Expression::ImportMeta,
+                dir::Expression::NewTarget => ast::Expression::NewTarget,
                 dir::Expression::This => {
                     ast::Expression::This
                 }

@@ -101,6 +101,9 @@ impl Compiler {
             }
             Expression::Assign { .. } | Expression::AssignBinary { .. } => {}
             Expression::Super => {}
+            Expression::NewTarget => {
+                self.validate_new_target_expression(&ctx.reborrow(), expression_id);
+            }
             Expression::Call { .. } => {}
             Expression::New { .. } => {}
             Expression::Member { .. }
@@ -1018,37 +1021,12 @@ impl Compiler {
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        // unresolved and resolved path forms can represent `new.target` directly
-        if let Expression::UnresolvedPath {
-            path,
-            static_arguments: None,
-            ..
-        }
-        | Expression::LocalReference {
-            path,
-            static_arguments: None,
-            ..
-        }
-        | Expression::ModuleReference {
-            path,
-            static_arguments: None,
-            ..
-        }
-        | Expression::GlobalReference {
-            path,
-            static_arguments: None,
-            ..
-        } = tree.get(expression_id)
-        {
-            let starts_with_new_target = path.segments.len() >= 2
-                && self.repository.strings.get(path.segments[0]).as_str() == "new"
-                && self.repository.strings.get(path.segments[1]).as_str() == "target";
-            if starts_with_new_target {
-                return true;
-            }
+        // dedicated new.target nodes are already exact
+        if matches!(tree.get(expression_id), Expression::NewTarget) {
+            return true;
         }
 
-        // member form covers partially-resolved `new.target` chains
+        // member form covers parenthesized `new.target`
         let Expression::Member {
             left,
             name,
@@ -1064,32 +1042,7 @@ impl Compiler {
         }
 
         let left = self.unwrap_parenthesized_expression(*left, tree);
-        match tree.get(left) {
-            Expression::UnresolvedPath {
-                path,
-                static_arguments: None,
-                ..
-            }
-            | Expression::LocalReference {
-                path,
-                static_arguments: None,
-                ..
-            }
-            | Expression::ModuleReference {
-                path,
-                static_arguments: None,
-                ..
-            }
-            | Expression::GlobalReference {
-                path,
-                static_arguments: None,
-                ..
-            } => {
-                path.segments.len() == 1
-                    && self.repository.strings.get(path.segments[0]).as_str() == "new"
-            }
-            _ => false,
-        }
+        matches!(tree.get(left), Expression::NewTarget)
     }
 
     /// Return true when `new.target` is valid in the current lexical context.

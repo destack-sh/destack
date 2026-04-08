@@ -19,28 +19,9 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Return true when one DIR path is exactly `new.target`.
-    fn is_new_target_path(&self, path: &dir::Path) -> bool {
-        if path.segments.len() != 2 {
-            return false;
-        }
-
-        let first = self.source_strings.get(path.segments[0]);
-        let second = self.source_strings.get(path.segments[1]);
-
-        first.as_ref() == "new" && second.as_ref() == "target"
-    }
-
     /// Return whether one unresolved expression is still intentionally lowerable.
     fn allows_unresolved_runtime_expression(&self, expression: &dir::Expression) -> bool {
-        match expression {
-            dir::Expression::UnresolvedPath {
-                path,
-                static_arguments,
-                ..
-            } => static_arguments.is_none() && self.is_new_target_path(path),
-            _ => false,
-        }
+        matches!(expression, dir::Expression::NewTarget)
     }
 
     /// Lower one lambda body into one normalized arrow body.
@@ -746,25 +727,18 @@ impl ModuleLowerer<'_> {
                 static_arguments,
                 ..
             } => {
-                if static_arguments.is_none() && self.is_new_target_path(path) {
-                    let expression = js::Expression::NewTarget;
-                    self.tree
-                        .insert_from_source(expression, self.module.id, expression_id)
-                        .into_any()
-                } else {
-                    let path = self.lower_path(expression_id.into_any(), path)?;
-                    let static_arguments = static_arguments
-                        .as_ref()
-                        .map(|arguments| self.lower_static_type_arguments(arguments))
-                        .transpose()?;
-                    let expression = js::Expression::Path {
-                        path,
-                        static_arguments,
-                    };
-                    self.tree
-                        .insert_from_source(expression, self.module.id, expression_id)
-                        .into_any()
-                }
+                let path = self.lower_path(expression_id.into_any(), path)?;
+                let static_arguments = static_arguments
+                    .as_ref()
+                    .map(|arguments| self.lower_static_type_arguments(arguments))
+                    .transpose()?;
+                let expression = js::Expression::Path {
+                    path,
+                    static_arguments,
+                };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::LocalReference {
                 path,
@@ -781,36 +755,31 @@ impl ModuleLowerer<'_> {
                 static_arguments,
                 target_symbol,
             } => {
-                if static_arguments.is_none() && self.is_new_target_path(path) {
-                    let expression = js::Expression::NewTarget;
-                    let expression_id =
-                        self.tree
-                            .insert_from_source(expression, self.module.id, expression_id);
+                let path = self.lower_path(expression_id.into_any(), path)?;
+                let static_arguments = static_arguments
+                    .as_ref()
+                    .map(|arguments| self.lower_static_type_arguments(arguments))
+                    .transpose()?;
+                let expression = js::Expression::Path {
+                    path,
+                    static_arguments,
+                };
+                let expression_id =
+                    self.tree
+                        .insert_from_source(expression, self.module.id, expression_id);
 
-                    self.set_global_node_symbol(expression_id, *target_symbol);
+                self.set_global_node_symbol(expression_id, *target_symbol);
 
-                    expression_id.into_any()
-                } else {
-                    let path = self.lower_path(expression_id.into_any(), path)?;
-                    let static_arguments = static_arguments
-                        .as_ref()
-                        .map(|arguments| self.lower_static_type_arguments(arguments))
-                        .transpose()?;
-                    let expression = js::Expression::Path {
-                        path,
-                        static_arguments,
-                    };
-                    let expression_id =
-                        self.tree
-                            .insert_from_source(expression, self.module.id, expression_id);
-
-                    self.set_global_node_symbol(expression_id, *target_symbol);
-
-                    expression_id.into_any()
-                }
+                expression_id.into_any()
             }
             dir::Expression::ImportMeta => {
                 let expression = js::Expression::ImportMeta;
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
+            dir::Expression::NewTarget => {
+                let expression = js::Expression::NewTarget;
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
