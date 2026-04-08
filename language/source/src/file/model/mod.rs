@@ -5,7 +5,6 @@ mod module;
 mod package;
 mod profile;
 mod span;
-mod store;
 mod target;
 mod r#type;
 
@@ -16,6 +15,5 @@ pub use module::*;
 pub use package::*;
 pub use profile::*;
 pub use span::*;
-pub use store::*;
 pub use target::*;
 pub use r#type::*;

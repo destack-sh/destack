@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_core::{Color, pluralize};
 
-use crate::{AnnotateOptions, DiagnosticCollection, FileStore, SourceColorizer, annotate_file};
+use crate::{AnnotateOptions, DiagnosticCollection, File, FileId, SourceColorizer, annotate_file};
 
 /// Write a diagnostic line.
 type LineWriter = Arc<dyn Fn(&str) + Send + Sync>;
@@ -75,11 +75,13 @@ impl PrintOptions {
 /// Print diagnostics to the configured line writer, defaulting to stderr.
 ///
 /// Prints all diagnostics with source annotations and a summary line.
-pub fn print_diagnostics(
-    files: &FileStore,
+pub fn print_diagnostics<F>(
+    file_for_id: &F,
     diagnostics: &DiagnosticCollection,
     options: PrintOptions,
-) {
+) where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     let mut annotate_options = AnnotateOptions::default().with_line_width(options.line_width);
     if let Some(colorizer) = options.colorizer.clone() {
         annotate_options = annotate_options.with_colorizer(colorizer);
@@ -87,7 +89,8 @@ pub fn print_diagnostics(
 
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
-        let file = files.get(diagnostic.file_id);
+        let file = file_for_id(diagnostic.file_id)
+            .unwrap_or_else(|| panic!("missing diagnostic file: {:?}", diagnostic.file_id));
         let annotate_options = annotate_options
             .clone()
             .with_highlight_color(diagnostic.severity.color());
@@ -130,7 +133,8 @@ pub fn print_diagnostics(
                 .with_highlight_color(Color::BrightCyan)
                 .with_context_lines(1, 1);
             for span in secondary_spans {
-                let secondary_file = files.get(span.span.file);
+                let secondary_file = file_for_id(span.span.file)
+                    .unwrap_or_else(|| panic!("missing diagnostic file: {:?}", span.span.file));
                 let secondary_body =
                     annotate_file(&secondary_file, span, secondary_options.clone());
                 write_block(&options, &secondary_body);
