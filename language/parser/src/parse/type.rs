@@ -1305,7 +1305,7 @@ mod tests {
         TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypeModifier, TypePredicateSubject,
         TypeUnaryOperator, UnaryOperator, normalize_comment_payload,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanType};
 
     #[test]
     fn test_parse_type_alias() {
@@ -4530,11 +4530,9 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_type_union_line_comment_on_left_arm_owner() {
-        let mut test = TestParser::new_with_options(
-            "type Value = First | // union-line\nSecond | Third",
-            LanguageType::TypeScript,
-        );
+    fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
+        let source = "type Value = First | // union-line\nSecond | Third";
+        let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -4551,6 +4549,15 @@ mod tests {
                         assert_expression_path!(parser, parser.tree.get(*left), "First");
                         assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
+                        let separator_span = parser
+                            .tree
+                            .get_side_span(*right, NodeSpanType::Separator)
+                            .expect("missing rhs separator span");
+                        assert_eq!(
+                            &source[separator_span.start as usize..separator_span.end as usize],
+                            "| // union-line\n",
+                        );
+
                         let annotations = parser.tree.get_annotations(left.id);
                         assert!(annotations.is_empty());
                     });
@@ -4562,11 +4569,9 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_type_intersection_line_comment_on_left_arm_owner() {
-        let mut test = TestParser::new_with_options(
-            "type Value = First & // intersection-line\nSecond",
-            LanguageType::TypeScript,
-        );
+    fn test_parse_type_intersection_line_comment_on_rhs_separator_owner() {
+        let source = "type Value = First & // intersection-line\nSecond";
+        let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -4580,6 +4585,15 @@ mod tests {
                     assert_expression_path!(parser, parser.tree.get(*left), "First");
                     assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
+                    let separator_span = parser
+                        .tree
+                        .get_side_span(*right, NodeSpanType::Separator)
+                        .expect("missing rhs separator span");
+                    assert_eq!(
+                        &source[separator_span.start as usize..separator_span.end as usize],
+                        "& // intersection-line\n",
+                    );
+
                     let annotations = parser.tree.get_annotations(left.id);
                     assert!(annotations.is_empty());
                 });
@@ -4587,6 +4601,38 @@ mod tests {
         });
         assert_eq!(parser.tree.comments().len(), 1);
         assert_comment!(parser, 0, CommentKind::Line, "intersection-line");
+    }
+
+    #[test]
+    fn test_parse_type_union_line_comment_on_leading_separator_owner() {
+        let source = "type Value = | // leading-union\nFirst | Second";
+        let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Second");
+
+                    let leading_span = parser
+                        .tree
+                        .get_side_span(*value, NodeSpanType::Leading)
+                        .expect("missing leading separator span");
+                    assert_eq!(
+                        &source[leading_span.start as usize..leading_span.end as usize],
+                        "| // leading-union\n",
+                    );
+                });
+            });
+        });
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "leading-union");
     }
 
     #[test]

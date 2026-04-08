@@ -34,6 +34,8 @@ pub enum NodeSpanType {
     Main,
     /// The leading span of a node (usually its first identifier).
     Leading,
+    /// The infix separator span that structurally leads into a node.
+    Separator,
     /// One indexed segment span of a compound node.
     Segment(u16),
     /// The type declaration span of a node.

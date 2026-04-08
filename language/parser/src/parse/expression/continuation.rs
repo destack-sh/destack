@@ -7,6 +7,7 @@ use destack_ast::{
     IfKind, InfixOperator, LiteralType, LocalNodeId, NodeType, PostfixPosition, TokenType,
     TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
+use destack_source::{NodeSpanType, Span};
 
 impl Parser {
     /// Return whether a value expression can start a tagged object literal postfix.
@@ -888,6 +889,29 @@ impl Parser {
                         };
                     right_expression_result?
                 };
+
+                // preserve the infix separator boundary that structurally leads into the rhs type operand
+                if self.options.is_in_type()
+                    && matches!(
+                        right_operator,
+                        InfixOperator::Binary(
+                            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                        )
+                    )
+                {
+                    let right_expression_span = self.tree.get_span(right_expression_id);
+                    let separator_span = Span::new(
+                        operator_span.file,
+                        operator_span.start,
+                        right_expression_span.start,
+                    );
+
+                    self.tree.set_side_span(
+                        right_expression_id,
+                        NodeSpanType::Separator,
+                        separator_span,
+                    );
+                }
 
                 // combine into new left expression
                 let left_expression = self.make_infix_expression(

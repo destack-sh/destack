@@ -3,7 +3,7 @@ use super::lookahead::DelimiterAnalysis;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
 
 use destack_ast::{
     BinaryOperator, Block, BlockContext, BlockFormat, Declaration, DeclarationDescriptor,
@@ -967,13 +967,13 @@ impl Parser {
                         }
 
                         // preserve the full root span and explicit leading separator
+                        let body_span = self.tree.get_span(expression_id);
                         self.tree
                             .set_span(expression_id, self.get_span_from(&start));
-                        self.tree.set_side_span(
-                            expression_id,
-                            NodeSpanType::Leading,
-                            operator_span,
-                        );
+                        let leading_span =
+                            Span::new(operator_span.file, operator_span.start, body_span.start);
+                        self.tree
+                            .set_side_span(expression_id, NodeSpanType::Leading, leading_span);
 
                         // forward the expression (no need to parse further here)
                         self.attach_pending_decorators_to_expression(

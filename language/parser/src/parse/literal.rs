@@ -3784,6 +3784,21 @@ function app() {
 
                 let second_annotations = parser.tree.get_annotations(properties[1].id);
                 assert!(second_annotations.is_empty());
+
+                let second_property_span = parser.tree.get_span(properties[1]);
+                let second_comment = parser
+                    .tree
+                    .comments()
+                    .iter()
+                    .copied()
+                    .find(|comment| parser.get_span_str(comment.span).contains("second-tail"))
+                    .expect("expected second-tail comment");
+
+                assert!(
+                    second_property_span.end <= second_comment.span.start,
+                    "property span should stop before trailing comment: property={second_property_span:?} comment={:?}",
+                    second_comment.span,
+                );
             });
         });
         assert_eq!(parser.tree.comments().len(), 2);
