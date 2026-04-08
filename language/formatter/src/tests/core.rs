@@ -70,9 +70,9 @@ impl TestFormatter {
             let mut parser = Parser::lex_file(file.clone(), language);
             let n = parse_fn(&mut parser)?;
 
-            // attach trivia for non-parse entrypoints
+            // attach comments for non-parse entrypoints
             if !parser.is_finished() {
-                parser.attach_trivia();
+                parser.attach_comments();
             }
 
             let (tokens, side_tokens) = parser.take_tokens();

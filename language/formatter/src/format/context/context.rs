@@ -1,19 +1,22 @@
 use super::options::DestackFormatOptions;
-use crate::format::context::source::token_keyword_map;
+use crate::format::context::source::{SourceText, token_keyword_map};
+use crate::format::directive::is_any_ignore_directive_comment;
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
 pub use destack_ast::Annotation;
 use destack_ast::{
-    Argument, Blank, Block, Comment, Declaration, Declarator, Decorator, DependencyItem, Doc,
-    EnumField, Expression, Keyword, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node,
-    NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
-    TokenSpan, TokenType, WhereClause,
+    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
+    Keyword, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeTree,
+    NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property, TokenSpan, TokenType,
+    WhereClause,
 };
 use destack_core::ImmutableStringPool;
-use destack_fir::format::{Format, FormatContext, FormatResult, Formatter, GroupId};
+use destack_fir::format::{Format, FormatContext, FormatResult, Formatter};
 use destack_source::{File, MultiSpan, NodeSourceMap, Span};
 use rustc_hash::FxHashMap;
+
+use super::comment::Comments;
 
 pub(crate) const NODE_BOOL_STATE_UNKNOWN: u8 = 0;
 pub(crate) const NODE_BOOL_STATE_FALSE: u8 = 1;
@@ -22,13 +25,13 @@ pub(crate) const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
 pub(crate) const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
 pub(crate) const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
 
-/// The explicit formatter role for one expression subtree.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ExpressionFormatRole {
-    /// The expression is formatted as a value subtree.
-    Value,
-    /// The expression is formatted as a type subtree.
-    Type,
+/// One explicit type root with its leading comment boundary.
+#[derive(Debug, Copy, Clone)]
+pub struct TypeExpressionRoot {
+    /// The expression formatted in type position.
+    pub node_id: LocalNodeId<Expression>,
+    /// The earliest offset that may own leading raw comments for this root.
+    pub leading_comment_start: Option<u32>,
 }
 
 /// The formatter implementation specialized for the Destack context.
@@ -55,8 +58,6 @@ pub struct DestackFormatContext<'a> {
     pub parents: NodeParentIndex,
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
-    /// The current argument list group id, if any.
-    pub current_argument_group_id: Option<GroupId>,
     /// Cached source slices for repeated span lookups.
     pub span_text_by_span: RefCell<FxHashMap<Span, &'a str>>,
     /// Cached parsed identifier keywords by token span.
@@ -87,11 +88,12 @@ pub struct DestackFormatContext<'a> {
     pub has_template_literal_markers: bool,
     /// Whether file-level ignore was applied during formatting.
     pub file_ignore_applied: Rc<Cell<bool>>,
-    /// Comment ids already owned by an outer formatter shell.
-    pub owned_comment_nodes: Rc<RefCell<Vec<u32>>>,
-    /// Expression roots with explicit formatter roles.
-    pub expression_format_role_roots:
-        Rc<RefCell<Vec<(LocalNodeId<Expression>, ExpressionFormatRole)>>>,
+    /// The raw comment cursor for this formatting pass.
+    pub comments: Rc<RefCell<Comments<'a>>>,
+    /// Expression roots that are explicitly formatted in type position.
+    pub type_expression_roots: Rc<RefCell<Vec<TypeExpressionRoot>>>,
+    /// Expression roots that are formatted through assignment-like type shells.
+    pub assignment_like_type_roots: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
 }
 
 impl<'a> DestackFormatContext<'a> {
@@ -131,8 +133,7 @@ impl<'a> DestackFormatContext<'a> {
 
                     if !has_ignore_directive_markers {
                         let raw = file.span_str(token.span);
-                        has_ignore_directive_markers =
-                            crate::format::directive::is_any_ignore_directive_comment(raw);
+                        has_ignore_directive_markers = is_any_ignore_directive_comment(raw);
                     }
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
@@ -140,8 +141,7 @@ impl<'a> DestackFormatContext<'a> {
 
                     if !has_ignore_directive_markers {
                         let raw = file.span_str(token.span);
-                        has_ignore_directive_markers =
-                            crate::format::directive::is_any_ignore_directive_comment(raw);
+                        has_ignore_directive_markers = is_any_ignore_directive_comment(raw);
                     }
                 }
                 _ => {}
@@ -160,7 +160,6 @@ impl<'a> DestackFormatContext<'a> {
             source_map: &tree.source_map,
             parents,
             strings,
-            current_argument_group_id: None,
             span_text_by_span: RefCell::new(FxHashMap::default()),
             token_keyword_by_span: RefCell::new(token_keyword_by_span),
             source_is_ascii,
@@ -184,79 +183,133 @@ impl<'a> DestackFormatContext<'a> {
             has_ignore_directive_markers,
             has_template_literal_markers,
             file_ignore_applied: Rc::new(Cell::new(false)),
-            owned_comment_nodes: Rc::new(RefCell::new(Vec::new())),
-            expression_format_role_roots: Rc::new(RefCell::new(Vec::new())),
+            comments: Rc::new(RefCell::new(Comments::new(
+                file.id,
+                SourceText::new(file.text()),
+                tree.comments(),
+            ))),
+            type_expression_roots: Rc::new(RefCell::new(Vec::new())),
+            assignment_like_type_roots: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
-    /// Push comment ids already owned by an outer formatter shell.
-    pub fn push_owned_comment_nodes(&self, comment_ids: &[LocalNodeId<Comment>]) {
-        let mut owned_comment_nodes = self.owned_comment_nodes.borrow_mut();
-        owned_comment_nodes.extend(comment_ids.iter().map(|comment_id| comment_id.id));
+    /// Borrow the raw comment cursor.
+    pub fn comments(&self) -> std::cell::Ref<'_, Comments<'a>> {
+        self.comments.borrow()
     }
 
-    /// Run one operation while a batch of comment ids is owned by an outer formatter shell.
-    pub fn with_owned_comment_nodes<T>(
-        &self,
-        comment_ids: &[LocalNodeId<Comment>],
-        operation: impl FnOnce() -> T,
-    ) -> T {
-        self.push_owned_comment_nodes(comment_ids);
-
-        let result = operation();
-
-        self.pop_owned_comment_nodes(comment_ids.len());
-        result
+    /// Borrow the raw comment cursor mutably.
+    pub fn comments_mut(&self) -> std::cell::RefMut<'_, Comments<'a>> {
+        self.comments.borrow_mut()
     }
 
-    /// Pop one trailing batch of outer-owned comment ids.
-    pub fn pop_owned_comment_nodes(&self, count: usize) {
-        let mut owned_comment_nodes = self.owned_comment_nodes.borrow_mut();
-        let new_len = owned_comment_nodes.len().saturating_sub(count);
-        owned_comment_nodes.truncate(new_len);
+    /// Clone this context with one isolated raw comment cursor.
+    pub fn fork_for_inspection(&self) -> Self {
+        let unprinted_comments = {
+            let comments = self.comments();
+            comments.unprinted_comments()
+        };
+
+        let mut cloned = self.clone();
+        cloned.comments = Rc::new(RefCell::new(Comments::new(
+            cloned.file.id,
+            SourceText::new(cloned.file.text()),
+            unprinted_comments,
+        )));
+        cloned
     }
 
-    /// Return whether one comment id is already owned by an outer formatter shell.
-    pub fn is_comment_owned(&self, comment_id: LocalNodeId<Comment>) -> bool {
-        self.owned_comment_nodes.borrow().contains(&comment_id.id)
-    }
-
-    /// Run one operation while one expression has one explicit formatter role.
-    pub fn with_expression_format_role_root<T>(
+    /// Run one operation while one expression is an explicit type root.
+    pub fn with_type_expression_root<T>(
         &self,
         node_id: LocalNodeId<Expression>,
-        role: ExpressionFormatRole,
         operation: impl FnOnce() -> T,
     ) -> T {
-        self.expression_format_role_roots
+        self.with_type_expression_root_from(node_id, None, operation)
+    }
+
+    /// Run one operation while one expression is an explicit type root with one leading boundary.
+    pub fn with_type_expression_root_from<T>(
+        &self,
+        node_id: LocalNodeId<Expression>,
+        leading_comment_start: Option<u32>,
+        operation: impl FnOnce() -> T,
+    ) -> T {
+        self.type_expression_roots
             .borrow_mut()
-            .push((node_id, role));
+            .push(TypeExpressionRoot {
+                node_id,
+                leading_comment_start,
+            });
 
         let result = operation();
 
-        let _ = self.expression_format_role_roots.borrow_mut().pop();
+        let _ = self.type_expression_roots.borrow_mut().pop();
         result
     }
 
-    /// Return the nearest explicit formatter role for one expression subtree.
-    pub fn expression_format_role(
+    /// Run one operation while one expression is an assignment-like type root.
+    pub fn with_assignment_like_type_root<T>(
         &self,
         node_id: LocalNodeId<Expression>,
-    ) -> Option<ExpressionFormatRole> {
-        let format_roots = self.expression_format_role_roots.borrow();
-        if format_roots.is_empty() {
+        operation: impl FnOnce() -> T,
+    ) -> T {
+        self.assignment_like_type_roots.borrow_mut().push(node_id);
+
+        let result = operation();
+
+        let _ = self.assignment_like_type_roots.borrow_mut().pop();
+        result
+    }
+
+    /// Return whether one expression is inside one explicit type root.
+    pub fn is_in_type_expression_root(&self, node_id: LocalNodeId<Expression>) -> bool {
+        let type_roots = self.type_expression_roots.borrow();
+        if type_roots.is_empty() {
+            return false;
+        }
+
+        let mut current_id = node_id.id;
+        loop {
+            let current_expression_id = LocalNodeId::<Expression>::new(current_id);
+            if type_roots
+                .iter()
+                .rev()
+                .any(|root| root.node_id == current_expression_id)
+            {
+                return true;
+            }
+
+            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
+                return false;
+            };
+            if parent_type != NodeType::Expression {
+                return false;
+            }
+
+            current_id = parent_id;
+        }
+    }
+
+    /// Return the leading raw-comment boundary for one explicit type root, if any.
+    pub fn type_expression_leading_comment_start(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> Option<u32> {
+        let type_roots = self.type_expression_roots.borrow();
+        if type_roots.is_empty() {
             return None;
         }
 
         let mut current_id = node_id.id;
         loop {
             let current_expression_id = LocalNodeId::<Expression>::new(current_id);
-            if let Some((_, role)) = format_roots
+            if let Some(root) = type_roots
                 .iter()
                 .rev()
-                .find(|(root_id, _)| *root_id == current_expression_id)
+                .find(|root| root.node_id == current_expression_id)
             {
-                return Some(*role);
+                return root.leading_comment_start;
             }
 
             let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
@@ -264,6 +317,35 @@ impl<'a> DestackFormatContext<'a> {
             };
             if parent_type != NodeType::Expression {
                 return None;
+            }
+
+            current_id = parent_id;
+        }
+    }
+
+    /// Return whether one expression is inside one assignment-like type root.
+    pub fn is_in_assignment_like_type_root(&self, node_id: LocalNodeId<Expression>) -> bool {
+        let type_roots = self.assignment_like_type_roots.borrow();
+        if type_roots.is_empty() {
+            return false;
+        }
+
+        let mut current_id = node_id.id;
+        loop {
+            let current_expression_id = LocalNodeId::<Expression>::new(current_id);
+            if type_roots
+                .iter()
+                .rev()
+                .any(|root_id| *root_id == current_expression_id)
+            {
+                return true;
+            }
+
+            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
+                return false;
+            };
+            if parent_type != NodeType::Expression {
+                return false;
             }
 
             current_id = parent_id;
@@ -392,21 +474,6 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             NodeType::Annotation => {
                 let node_id = LocalNodeId::<Annotation>::new(self.id);
                 let node = context.annotation(node_id);
-                node.format_node(node_id, f)
-            }
-            NodeType::Blank => {
-                let node_id = LocalNodeId::<Blank>::new(self.id);
-                let node = context.tree.get(node_id);
-                node.format_node(node_id, f)
-            }
-            NodeType::Doc => {
-                let node_id = LocalNodeId::<Doc>::new(self.id);
-                let node = context.tree.get(node_id);
-                node.format_node(node_id, f)
-            }
-            NodeType::Comment => {
-                let node_id = LocalNodeId::<Comment>::new(self.id);
-                let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Decorator => {
