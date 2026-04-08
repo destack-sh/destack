@@ -1,5 +1,6 @@
 mod component;
 mod format;
+mod print;
 mod resource;
 mod roundtrip;
 mod span;

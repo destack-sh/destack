@@ -10,7 +10,7 @@ pub fn print_component_fragment(
     tree: &NodeTree,
     fragment: LocalNodeId<ComponentFragment>,
 ) -> String {
-    Printer::new(tree, Default::default()).render_component_value_list(&tree.get(fragment).value)
+    Printer::new(tree).render_component_value_list(&tree.get(fragment).value)
 }
 
 impl<'a> Printer<'a> {

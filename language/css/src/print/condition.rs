@@ -16,7 +16,7 @@ pub fn print_layer_name_list(name: &LayerNameList) -> String {
 
 /// Print one media query list as canonical CSS source.
 pub fn print_media_query_list(tree: &NodeTree, media: LocalNodeId<MediaQueryList>) -> String {
-    Printer::new(tree, Default::default()).render_media_query_list(media)
+    Printer::new(tree).render_media_query_list(media)
 }
 
 /// Print one supports condition as canonical CSS source.
@@ -24,7 +24,7 @@ pub fn print_supports_condition(
     tree: &NodeTree,
     condition: LocalNodeId<SupportsCondition>,
 ) -> String {
-    Printer::new(tree, Default::default()).render_supports_condition(condition)
+    Printer::new(tree).render_supports_condition(condition)
 }
 
 impl<'a> Printer<'a> {
