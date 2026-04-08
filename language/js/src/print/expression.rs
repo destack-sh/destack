@@ -14,6 +14,17 @@ impl<'a> Printer<'a> {
         expression: &Expression,
         parent_precedence: Precedence,
     ) -> JsPrintResult<()> {
+        // preserve explicit grouping when postfix continuation would change
+        if let Expression::Parenthesized { expression } = expression
+            && self.should_preserve_parenthesized_grouping(*expression, parent_precedence)
+        {
+            self.write_punct("(");
+            self.print_expression_id(*expression)?;
+            self.write_punct(")");
+
+            return Ok(());
+        }
+
         let expression = Expression::without_parentheses(self.tree, expression);
         let current_precedence = expression.precedence();
         let needs_wrap = current_precedence < parent_precedence;
@@ -192,9 +203,27 @@ impl<'a> Printer<'a> {
                     precedence.tighter()
                 };
 
-                self.print_expression_id_with_precedence(*left, left_precedence)?;
+                if *operator == crate::BinaryOperator::Coalesce
+                    && self.is_logical_coalesce_operand(*left)
+                {
+                    self.write_punct("(");
+                    self.print_expression_id(*left)?;
+                    self.write_punct(")");
+                } else {
+                    self.print_expression_id_with_precedence(*left, left_precedence)?;
+                }
+
                 self.write_binary_operator(*operator);
-                self.print_expression_id_with_precedence(*right, right_precedence)?;
+
+                if *operator == crate::BinaryOperator::Coalesce
+                    && self.is_logical_coalesce_operand(*right)
+                {
+                    self.write_punct("(");
+                    self.print_expression_id(*right)?;
+                    self.write_punct(")");
+                } else {
+                    self.print_expression_id_with_precedence(*right, right_precedence)?;
+                }
             }
             Expression::Assign { left, right } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
@@ -423,5 +452,57 @@ impl<'a> Printer<'a> {
                 ..
             }
         )
+    }
+
+    /// Return whether one coalesce operand must stay grouped against logical operators.
+    fn is_logical_coalesce_operand(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        match self.tree.get(expression_id) {
+            Expression::Parenthesized { expression } => {
+                self.is_logical_coalesce_operand(*expression)
+            }
+            Expression::Binary { operator, .. } => {
+                matches!(
+                    operator,
+                    crate::BinaryOperator::And | crate::BinaryOperator::Or
+                )
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether one explicit parenthesized expression must stay grouped.
+    fn should_preserve_parenthesized_grouping(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        parent_precedence: Precedence,
+    ) -> bool {
+        if parent_precedence != Precedence::Postfix {
+            return false;
+        }
+
+        self.expression_contains_optional_postfix_chain(expression_id)
+    }
+
+    /// Return whether one expression contains one optional postfix chain.
+    fn expression_contains_optional_postfix_chain(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match self.tree.get(expression_id) {
+            Expression::Parenthesized { expression } => {
+                self.expression_contains_optional_postfix_chain(*expression)
+            }
+            Expression::Maybe { .. } => true,
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::New { left, .. } => {
+                self.expression_contains_optional_postfix_chain(*left)
+            }
+            Expression::Index { left, .. } | Expression::Call { left, .. } => {
+                self.expression_contains_optional_postfix_chain(*left)
+            }
+            _ => false,
+        }
     }
 }

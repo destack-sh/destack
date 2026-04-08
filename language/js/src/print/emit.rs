@@ -587,7 +587,125 @@ impl<'a> Printer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use destack_core::StringPool;
+    use destack_dir as dir;
+    use destack_fir::format::FileMarker;
+    use destack_source::{FileId, FileType, ModuleId, NodeSpanType, Span};
+
     use super::Printer;
+    use crate::{
+        Argument, BinaryOperator, DependencyItem, DependencyKind, DependencyMode, Expression,
+        JsSourceMap, Key, LocalNodeId, LocalNodeIdAny, Name, NodeTree, Path, PostfixPosition,
+        Property, ScalarLiteral, Statement, print_roots_minified,
+        print_roots_minified_with_source_map,
+    };
+
+    fn dummy_source_id() -> dir::LocalNodeIdAny {
+        dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
+    }
+
+    fn insert_expression(tree: &mut NodeTree, expression: Expression) -> LocalNodeId<Expression> {
+        tree.insert_from_source_any(expression, ModuleId::EPHEMERAL, dummy_source_id())
+    }
+
+    fn insert_property(tree: &mut NodeTree, property: Property) -> LocalNodeId<Property> {
+        tree.insert_from_source_any(property, ModuleId::EPHEMERAL, dummy_source_id())
+    }
+
+    fn insert_argument(tree: &mut NodeTree, argument: Argument) -> LocalNodeId<Argument> {
+        tree.insert_from_source_any(argument, ModuleId::EPHEMERAL, dummy_source_id())
+    }
+
+    fn insert_statement(tree: &mut NodeTree, statement: Statement) -> LocalNodeId<Statement> {
+        tree.insert_from_source_any(statement, ModuleId::EPHEMERAL, dummy_source_id())
+    }
+
+    fn insert_dependency_item(
+        tree: &mut NodeTree,
+        item: DependencyItem,
+    ) -> LocalNodeId<DependencyItem> {
+        tree.insert_from_source_any(item, ModuleId::EPHEMERAL, dummy_source_id())
+    }
+
+    fn build_path(strings: &StringPool, segments: &[&str]) -> Path {
+        let segments = segments
+            .iter()
+            .map(|segment| strings.intern(segment))
+            .collect();
+
+        Path { segments }
+    }
+
+    fn print_javascript_roots_minified(
+        tree: &NodeTree,
+        roots: &[LocalNodeIdAny],
+        strings: &StringPool,
+    ) -> String {
+        let strings = strings.clone().into_immutable();
+        let printed = print_roots_minified(FileType::JavaScript, tree, roots, &strings).unwrap();
+
+        printed.code
+    }
+
+    #[derive(Debug)]
+    struct FixedSourceMap {
+        node_id: u32,
+        span: Span,
+    }
+
+    impl JsSourceMap for FixedSourceMap {
+        fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span> {
+            let _ = tree;
+            let _ = node_id;
+
+            None
+        }
+
+        fn source_part_span(
+            &self,
+            tree: &NodeTree,
+            node_id: u32,
+            span_type: NodeSpanType,
+        ) -> Option<Span> {
+            let _ = tree;
+
+            if node_id == self.node_id && span_type == NodeSpanType::Main {
+                return Some(self.span);
+            }
+
+            None
+        }
+    }
+
+    #[derive(Debug)]
+    struct FixedPartSourceMap {
+        parts: Vec<(u32, NodeSpanType, Span)>,
+    }
+
+    impl JsSourceMap for FixedPartSourceMap {
+        fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span> {
+            let _ = tree;
+            let _ = node_id;
+
+            None
+        }
+
+        fn source_part_span(
+            &self,
+            tree: &NodeTree,
+            node_id: u32,
+            span_type: NodeSpanType,
+        ) -> Option<Span> {
+            let _ = tree;
+
+            self.parts
+                .iter()
+                .find(|(part_node_id, part_span_type, _)| {
+                    *part_node_id == node_id && *part_span_type == span_type
+                })
+                .map(|(_, _, span)| *span)
+        }
+    }
 
     /// Preserve one short numeric spelling for compact output.
     #[test]
@@ -630,5 +748,480 @@ mod tests {
         assert!(!Printer::needs_separator_between(Some(')'), Some('{')));
         assert!(!Printer::needs_separator_between(Some(']'), Some('.')));
         assert!(!Printer::needs_separator_between(Some('?'), Some('.')));
+    }
+
+    /// Print meta-property roots and members through the direct minified printer.
+    #[test]
+    fn test_prints_meta_property_expressions_minified() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let import_meta = insert_expression(&mut tree, Expression::ImportMeta);
+        let import_meta_url = insert_expression(
+            &mut tree,
+            Expression::Member {
+                left: import_meta,
+                name: strings.intern("url"),
+                static_arguments: None,
+            },
+        );
+        let new_target = insert_expression(&mut tree, Expression::NewTarget);
+        let new_target_name = insert_expression(
+            &mut tree,
+            Expression::Member {
+                left: new_target,
+                name: strings.intern("name"),
+                static_arguments: None,
+            },
+        );
+        let printed = print_javascript_roots_minified(
+            &tree,
+            &[import_meta_url.into_any(), new_target_name.into_any()],
+            &strings,
+        );
+
+        assert_eq!(printed, "import.meta.url;new.target.name");
+    }
+
+    /// Print dynamic import attributes through the direct minified printer.
+    #[test]
+    fn test_prints_dynamic_import_call_with_attributes_minified() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let target = insert_expression(
+            &mut tree,
+            Expression::ScalarLiteral {
+                value: ScalarLiteral::String(strings.intern("./data.json")),
+            },
+        );
+        let type_value = insert_expression(
+            &mut tree,
+            Expression::ScalarLiteral {
+                value: ScalarLiteral::String(strings.intern("json")),
+            },
+        );
+        let type_property = insert_property(
+            &mut tree,
+            Property::Field {
+                modifiers: None,
+                key: Some(Key::Name(Name::Identifier(strings.intern("type")))),
+                value: Some(type_value),
+                default: None,
+            },
+        );
+        let with_value = insert_expression(
+            &mut tree,
+            Expression::ObjectLiteral {
+                properties: vec![type_property],
+            },
+        );
+        let with_property = insert_property(
+            &mut tree,
+            Property::Field {
+                modifiers: None,
+                key: Some(Key::Name(Name::Identifier(strings.intern("with")))),
+                value: Some(with_value),
+                default: None,
+            },
+        );
+        let options = insert_expression(
+            &mut tree,
+            Expression::ObjectLiteral {
+                properties: vec![with_property],
+            },
+        );
+        let options_argument = insert_argument(&mut tree, Argument::Positional { value: options });
+        let import_call = insert_expression(
+            &mut tree,
+            Expression::ImportCall {
+                target,
+                target_module: None,
+                arguments: vec![options_argument],
+            },
+        );
+        let printed = print_javascript_roots_minified(&tree, &[import_call.into_any()], &strings);
+
+        assert_eq!(printed, "import(\"./data.json\",{with:{type:\"json\"}})");
+    }
+
+    /// Keep path imports and runtime imports distinct while minifying.
+    #[test]
+    fn test_prints_path_and_dynamic_import_roots_minified() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let path = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["import", "meta"]),
+                static_arguments: None,
+            },
+        );
+        let target = insert_expression(
+            &mut tree,
+            Expression::ScalarLiteral {
+                value: ScalarLiteral::String(strings.intern("./feature.js")),
+            },
+        );
+        let import_call = insert_expression(
+            &mut tree,
+            Expression::ImportCall {
+                target,
+                target_module: None,
+                arguments: Vec::new(),
+            },
+        );
+        let printed = print_javascript_roots_minified(
+            &tree,
+            &[path.into_any(), import_call.into_any()],
+            &strings,
+        );
+
+        assert_eq!(printed, "import.meta;import(\"./feature.js\")");
+    }
+
+    /// Print optional chaining and nullish coalescing without introducing separator hazards.
+    #[test]
+    fn test_prints_optional_chaining_and_nullish_coalescing_minified() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let object = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["foo"]),
+                static_arguments: None,
+            },
+        );
+        let optional_object = insert_expression(
+            &mut tree,
+            Expression::Maybe {
+                position: PostfixPosition::Direct,
+                left: object,
+            },
+        );
+        let member = insert_expression(
+            &mut tree,
+            Expression::Member {
+                left: optional_object,
+                name: strings.intern("bar"),
+                static_arguments: None,
+            },
+        );
+        let fallback = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["fallback"]),
+                static_arguments: None,
+            },
+        );
+        let expression = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: member,
+                operator: BinaryOperator::Coalesce,
+                right: fallback,
+            },
+        );
+        let printed = print_javascript_roots_minified(&tree, &[expression.into_any()], &strings);
+
+        assert_eq!(printed, "foo?.bar??fallback");
+    }
+
+    /// Preserve parentheses for nullish coalescing against logical operators.
+    #[test]
+    fn test_prints_nullish_coalescing_precedence_minified() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let a = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["a"]),
+                static_arguments: None,
+            },
+        );
+        let b = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["b"]),
+                static_arguments: None,
+            },
+        );
+        let c = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["c"]),
+                static_arguments: None,
+            },
+        );
+        let b_or_c = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: b,
+                operator: BinaryOperator::Coalesce,
+                right: c,
+            },
+        );
+        let a_and_group = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: a,
+                operator: BinaryOperator::And,
+                right: b_or_c,
+            },
+        );
+        let a_and_b = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: a,
+                operator: BinaryOperator::And,
+                right: b,
+            },
+        );
+        let grouped_and_or_c = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: a_and_b,
+                operator: BinaryOperator::Coalesce,
+                right: c,
+            },
+        );
+        let a_or_group = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: a,
+                operator: BinaryOperator::Or,
+                right: b_or_c,
+            },
+        );
+        let a_or_b = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: a,
+                operator: BinaryOperator::Or,
+                right: b,
+            },
+        );
+        let grouped_or_or_c = insert_expression(
+            &mut tree,
+            Expression::Binary {
+                left: a_or_b,
+                operator: BinaryOperator::Coalesce,
+                right: c,
+            },
+        );
+        let printed = print_javascript_roots_minified(
+            &tree,
+            &[
+                a_and_group.into_any(),
+                grouped_and_or_c.into_any(),
+                a_or_group.into_any(),
+                grouped_or_or_c.into_any(),
+            ],
+            &strings,
+        );
+
+        assert_eq!(printed, "a&&(b??c);(a&&b)??c;a||(b??c);(a||b)??c");
+    }
+
+    /// Preserve grouping around optional chaining before one following member access.
+    #[test]
+    fn test_prints_grouped_optional_chaining_members_minified() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let foo = insert_expression(
+            &mut tree,
+            Expression::Path {
+                path: build_path(&strings, &["foo"]),
+                static_arguments: None,
+            },
+        );
+        let optional_foo = insert_expression(
+            &mut tree,
+            Expression::Maybe {
+                position: PostfixPosition::Direct,
+                left: foo,
+            },
+        );
+        let optional_member = insert_expression(
+            &mut tree,
+            Expression::Member {
+                left: optional_foo,
+                name: strings.intern("bar"),
+                static_arguments: None,
+            },
+        );
+        let plain_chain = insert_expression(
+            &mut tree,
+            Expression::Member {
+                left: optional_member,
+                name: strings.intern("baz"),
+                static_arguments: None,
+            },
+        );
+        let grouped_optional_member = insert_expression(
+            &mut tree,
+            Expression::Parenthesized {
+                expression: optional_member,
+            },
+        );
+        let grouped_chain = insert_expression(
+            &mut tree,
+            Expression::Member {
+                left: grouped_optional_member,
+                name: strings.intern("baz"),
+                static_arguments: None,
+            },
+        );
+        let printed = print_javascript_roots_minified(
+            &tree,
+            &[plain_chain.into_any(), grouped_chain.into_any()],
+            &strings,
+        );
+
+        assert_eq!(printed, "foo?.bar.baz;(foo?.bar).baz");
+    }
+
+    /// Mark dynamic import targets with exact source map spans.
+    #[test]
+    fn test_marks_dynamic_import_target_source_ranges() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let target = insert_expression(
+            &mut tree,
+            Expression::ScalarLiteral {
+                value: ScalarLiteral::String(strings.intern("./feature.js")),
+            },
+        );
+        let import_call = insert_expression(
+            &mut tree,
+            Expression::ImportCall {
+                target,
+                target_module: None,
+                arguments: Vec::new(),
+            },
+        );
+        let source_map = FixedSourceMap {
+            node_id: import_call.id,
+            span: Span::new(FileId::new(1), 10, 23),
+        };
+        let strings = strings.clone().into_immutable();
+        let printed = print_roots_minified_with_source_map(
+            FileType::JavaScript,
+            &tree,
+            &[import_call.into_any()],
+            &strings,
+            &source_map,
+        )
+        .unwrap();
+
+        assert_eq!(printed.code, "import(\"./feature.js\")");
+        assert_eq!(
+            printed.markers,
+            vec![
+                FileMarker {
+                    source: 10,
+                    dest: 7,
+                },
+                FileMarker {
+                    source: 23,
+                    dest: 21,
+                },
+            ]
+        );
+    }
+
+    /// Mark import targets and dependency item parts with exact source ranges.
+    #[test]
+    fn test_marks_import_dependency_part_source_ranges() {
+        let mut tree = NodeTree::new();
+        let strings = StringPool::new();
+
+        let item = insert_dependency_item(
+            &mut tree,
+            DependencyItem {
+                mode: DependencyMode::Item,
+                kind: Some(DependencyKind::Type),
+                name: Some(Name::Identifier(strings.intern("value"))),
+                alias: Some(strings.intern("alias")),
+                value: None,
+            },
+        );
+        let statement = insert_statement(
+            &mut tree,
+            Statement::Import {
+                kind: DependencyKind::Value,
+                target: strings.intern("./shared.js"),
+                target_module: None,
+                items: Some(vec![item]),
+                attributes: None,
+            },
+        );
+        let source_map = FixedPartSourceMap {
+            parts: vec![
+                (
+                    statement.id,
+                    NodeSpanType::Main,
+                    Span::new(FileId::new(1), 20, 33),
+                ),
+                (
+                    item.id,
+                    NodeSpanType::Type,
+                    Span::new(FileId::new(1), 7, 12),
+                ),
+                (
+                    item.id,
+                    NodeSpanType::Main,
+                    Span::new(FileId::new(1), 16, 21),
+                ),
+            ],
+        };
+        let strings = strings.clone().into_immutable();
+        let printed = print_roots_minified_with_source_map(
+            FileType::TypeScript,
+            &tree,
+            &[statement.into_any()],
+            &strings,
+            &source_map,
+        )
+        .unwrap();
+
+        assert_eq!(
+            printed.code,
+            "import{type value as alias}from\"./shared.js\";"
+        );
+        assert_eq!(
+            printed.markers,
+            vec![
+                FileMarker {
+                    source: 7,
+                    dest: 11
+                },
+                FileMarker {
+                    source: 12,
+                    dest: 17
+                },
+                FileMarker {
+                    source: 16,
+                    dest: 20
+                },
+                FileMarker {
+                    source: 21,
+                    dest: 26
+                },
+                FileMarker {
+                    source: 20,
+                    dest: 31
+                },
+                FileMarker {
+                    source: 33,
+                    dest: 44
+                },
+            ]
+        );
     }
 }
