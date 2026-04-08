@@ -1914,6 +1914,59 @@ two lines`,
         );
     }
 
+    /// Groups should account for trailing statement content when deciding whether they fit.
+    #[test]
+    fn test_group_measurement_includes_following_statement_suffix() {
+        let options = PrintOptions {
+            line_width: 80,
+            ..PrintOptions::default()
+        };
+        let result = format_with_options(
+            &format_args![
+                token("expect(genCode(createVNodeCall(null, \"`div`\", mockProps)))"),
+                group(&indent(&format_args![
+                    soft_line_break(),
+                    token(".toMatchInlineSnapshot")
+                ])),
+                token(";")
+            ],
+            options,
+        );
+
+        assert_eq!(
+            r#"expect(genCode(createVNodeCall(null, "`div`", mockProps)))
+    .toMatchInlineSnapshot;"#,
+            result.as_str()
+        );
+    }
+
+    /// Groups should account for a following multiline call suffix when deciding whether they fit.
+    #[test]
+    fn test_group_measurement_includes_following_multiline_call_suffix() {
+        let options = PrintOptions {
+            line_width: 80,
+            ..PrintOptions::default()
+        };
+        let result = format_with_options(
+            &format_args![
+                token("expect(genCode(createVNodeCall(null, \"`div`\", mockProps)))"),
+                group(&indent(&format_args![
+                    soft_line_break(),
+                    token(".toMatchInlineSnapshot")
+                ])),
+                token("("),
+                text("`\n  `"),
+                token(")")
+            ],
+            options,
+        );
+
+        assert_eq!(
+            "expect(genCode(createVNodeCall(null, \"`div`\", mockProps)))\n    .toMatchInlineSnapshot(`\n  `)",
+            result.as_str()
+        );
+    }
+
     /// Indentation should use the character specified in options.
     #[test]
     fn test_uses_indent_character_from_options() {
