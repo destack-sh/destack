@@ -5,19 +5,18 @@ use destack_artifact::{
     ArtifactKey, BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader,
     OutputContent, OutputFile, PackageAssembly, PackageOutput, SourceMapArtifact, TargetOutputName,
 };
-use destack_source::{
-    DiagnosticSeverity, DiffOptions, FileType, ModuleId, PackageId, Uri, print_diff,
-};
-use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery, TargetId};
+use destack_source::{DiffOptions, FileType, ModuleId, PackageId, TargetId, Uri, print_diff};
+use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery};
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+use crate::compile::TaskPhase;
 use crate::link::{OutputId, ScriptLinker};
 
-use super::super::OutputKind;
+use super::super::plan::OutputKind;
 
-pub(super) use crate::tests::{ExpectedDiagnostic, TestProgram};
+pub(super) use crate::tests::TestProgram;
 
 const LINKED_ENTRY_PATH: &str = "dist/js.js";
 const LINKED_MAP_PATH: &str = "dist/js.js.map";
@@ -30,8 +29,8 @@ pub(super) struct ExpectedManifestChunk {
     file: BuildManifestFile,
 }
 
-/// Build one expected linked entry file.
-pub(super) fn expected_linked_entry(text: &str) -> LinkedTextFile {
+/// Build one linked entry file.
+pub(super) fn linked_entry(text: &str) -> LinkedTextFile {
     LinkedTextFile {
         path: LINKED_ENTRY_PATH.to_string(),
         file_type: FileType::JavaScript,
@@ -39,8 +38,8 @@ pub(super) fn expected_linked_entry(text: &str) -> LinkedTextFile {
     }
 }
 
-/// Build one expected linked entry file with one appended source map reference.
-pub(super) fn expected_linked_entry_with_source_map_reference(
+/// Build one linked entry file with one appended source map reference.
+pub(super) fn linked_entry_with_source_map(
     text: &str,
     source_map_reference: &str,
 ) -> LinkedTextFile {
@@ -52,11 +51,11 @@ pub(super) fn expected_linked_entry_with_source_map_reference(
 
     text.push_str(&format!("//# sourceMappingURL={source_map_reference}\n"));
 
-    expected_linked_entry(&text)
+    linked_entry(&text)
 }
 
-/// Build one expected linked manifest file.
-pub(super) fn expected_linked_manifest(value: BuildManifest) -> LinkedJsonFile<BuildManifest> {
+/// Build one linked manifest file.
+pub(super) fn linked_manifest(value: BuildManifest) -> LinkedJsonFile<BuildManifest> {
     let text = serde_json::to_string_pretty(&value)
         .unwrap_or_else(|error| panic!("failed to serialize expected manifest: {error}"));
     let text = format!("{text}\n");
@@ -69,18 +68,18 @@ pub(super) fn expected_linked_manifest(value: BuildManifest) -> LinkedJsonFile<B
     }
 }
 
-/// Build one expected linked manifest file from one file list.
-pub(super) fn expected_manifest(
+/// Build one linked manifest file from one file list.
+pub(super) fn manifest(
     files: impl IntoIterator<Item = BuildManifestFile>,
 ) -> LinkedJsonFile<BuildManifest> {
-    expected_linked_manifest(BuildManifest {
+    linked_manifest(BuildManifest {
         index: None,
         files: files.into_iter().collect(),
     })
 }
 
-/// Build one expected linked manifest file record.
-pub(super) fn expected_manifest_file(
+/// Build one manifest file record.
+pub(super) fn manifest_file(
     path: &str,
     file_type: BuildManifestFileType,
     loader: BuildManifestLoader,
@@ -99,8 +98,8 @@ pub(super) fn expected_manifest_file(
     }
 }
 
-/// Build one expected manifest chunk record.
-pub(super) fn expected_manifest_chunk(path: &str, name: &str) -> ExpectedManifestChunk {
+/// Build one manifest chunk record.
+pub(super) fn manifest_chunk(path: &str, name: &str) -> ExpectedManifestChunk {
     ExpectedManifestChunk {
         file: BuildManifestFile {
             path: path.to_string(),
@@ -117,27 +116,35 @@ pub(super) fn expected_manifest_chunk(path: &str, name: &str) -> ExpectedManifes
     }
 }
 
-/// Build one expected manifest source map asset record.
-pub(super) fn expected_manifest_map(path: &str) -> BuildManifestFile {
-    expected_manifest_file(path, BuildManifestFileType::Asset, BuildManifestLoader::Map)
+/// Build one manifest source map asset record.
+pub(super) fn manifest_map(path: &str) -> BuildManifestFile {
+    manifest_file(path, BuildManifestFileType::Asset, BuildManifestLoader::Map)
 }
 
-/// Build one expected linked source map file.
-pub(super) fn expected_linked_map(value: SourceMapArtifact) -> LinkedJsonFile<SourceMapArtifact> {
+/// Build one linked source map file at one exact path.
+pub(super) fn map_output(
+    path: &str,
+    value: SourceMapArtifact,
+) -> LinkedJsonFile<SourceMapArtifact> {
     let text = serde_json::to_string(&value)
         .unwrap_or_else(|error| panic!("failed to serialize expected source map: {error}"));
     let text = format!("{text}\n");
 
     LinkedJsonFile {
-        path: LINKED_MAP_PATH.to_string(),
+        path: path.to_string(),
         file_type: FileType::SourceMap,
         text,
         value,
     }
 }
 
-/// Build one expected source map payload.
-pub(super) fn expected_source_map(sources: &[&str], mappings: &str) -> SourceMapArtifact {
+/// Build one linked source map file for the default single-file target path.
+pub(super) fn linked_map(value: SourceMapArtifact) -> LinkedJsonFile<SourceMapArtifact> {
+    map_output(LINKED_MAP_PATH, value)
+}
+
+/// Build one source map payload.
+pub(super) fn source_map(sources: &[&str], mappings: &str) -> SourceMapArtifact {
     SourceMapArtifact {
         version: destack_artifact::SOURCE_MAP_VERSION,
         file: None,
@@ -150,8 +157,8 @@ pub(super) fn expected_source_map(sources: &[&str], mappings: &str) -> SourceMap
     }
 }
 
-/// Build one expected JavaScript text output.
-pub(super) fn expected_script_output(path: &str, text: &str) -> LinkedTextFile {
+/// Build one JavaScript text output.
+pub(super) fn script_output(path: &str, text: &str) -> LinkedTextFile {
     LinkedTextFile {
         path: path.to_string(),
         file_type: FileType::JavaScript,
@@ -159,8 +166,8 @@ pub(super) fn expected_script_output(path: &str, text: &str) -> LinkedTextFile {
     }
 }
 
-/// Build one expected inline source map reference for one map payload.
-pub(super) fn expected_inline_source_map_reference(value: &SourceMapArtifact) -> String {
+/// Build one inline source map reference for one map payload.
+pub(super) fn inline_source_map_reference(value: &SourceMapArtifact) -> String {
     let source_map = serde_json::to_string(value)
         .unwrap_or_else(|error| panic!("failed to serialize expected inline source map: {error}"));
     let encoded = base64::engine::general_purpose::STANDARD.encode(source_map.as_bytes());
@@ -235,12 +242,8 @@ pub(super) struct PlannedOutput {
     pub dynamic_dependencies: Vec<String>,
 }
 
-/// Build one expected planned script output.
-pub(super) fn expected_planned_output(
-    name: &str,
-    kind: OutputKind,
-    modules: &[&str],
-) -> PlannedOutput {
+/// Build one planned script output.
+pub(super) fn planned_output(name: &str, kind: OutputKind, modules: &[&str]) -> PlannedOutput {
     PlannedOutput {
         name: name.to_string(),
         kind,
@@ -342,8 +345,9 @@ pub(super) fn js_output(text: &str) -> String {
     normalize_script_block(text, true)
 }
 
-/// Build one expected linked chunked script target from exact module outputs.
-pub(super) fn expected_chunked_script_target(
+/// Build one linked chunked script target from exact output groups and module outputs.
+pub(super) fn chunked_script_target(
+    output_groups: IndexMap<TargetOutputName, Vec<String>>,
     manifest: LinkedJsonFile<BuildManifest>,
     modules: impl IntoIterator<Item = LinkedTextFile>,
 ) -> LinkedChunkedScriptTarget {
@@ -351,41 +355,6 @@ pub(super) fn expected_chunked_script_target(
         .into_iter()
         .map(|file| (file.path.clone(), file))
         .collect::<IndexMap<_, _>>();
-    let mut output_groups: IndexMap<TargetOutputName, Vec<String>> = IndexMap::new();
-
-    // group expected script outputs by their manifest role and emit order
-    for path in modules.keys() {
-        let manifest_path = Path::new(path)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or_else(|| panic!("missing file name for chunk output '{path}'"));
-        let manifest_file = manifest
-            .value
-            .files
-            .iter()
-            .find(|file| file.path == manifest_path)
-            .unwrap_or_else(|| panic!("missing manifest file for chunk output '{path}'"));
-
-        let output_name = if manifest_file.is_entry.unwrap_or(false)
-            || manifest_file.is_dynamic_entry.unwrap_or(false)
-        {
-            TargetOutputName::Entry
-        } else {
-            TargetOutputName::Module
-        };
-
-        output_groups
-            .entry(output_name)
-            .or_default()
-            .push(path.clone());
-        output_groups
-            .entry(TargetOutputName::Maps)
-            .or_default()
-            .push(format!("{path}.map"));
-    }
-
-    // manifest
-    output_groups.insert(TargetOutputName::Manifest, vec![manifest.path.clone()]);
 
     LinkedChunkedScriptTarget {
         assembly: PackageAssembly::Chunked,
@@ -437,6 +406,45 @@ fn normalize_script_block(text: &str, is_trailing_newline: bool) -> String {
 }
 
 impl TestProgram {
+    /// Build one single-file JavaScript entry with no manifest or source map side products.
+    pub(super) fn link_single_file_js_entry_with<F>(
+        &self,
+        module_id: ModuleId,
+        name: &str,
+        configure: F,
+    ) -> LinkedTextFile
+    where
+        F: FnOnce(&mut Target),
+    {
+        let package_id = self.program.module_descriptor(module_id).package_id;
+        let target_id = TargetId::new(package_id, name);
+
+        self.configure_single_file_js_target(module_id, name);
+        self.configure_target(module_id, name, |target| {
+            target.source_map_mode = None;
+            target.bundle_output.sourcemap = None;
+            target.bundle_output.manifest = false;
+            configure(target);
+        });
+        self.run(ArtifactKey::package_output(package_id, target_id));
+
+        // linker tests should stay free of linker phase diagnostics
+        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
+
+        let output = self.package_output(package_id, name);
+
+        self.single_text_output(package_id, &output, TargetOutputName::Entry)
+    }
+
+    /// Build one single-file JavaScript entry with no manifest or source map side products.
+    pub(super) fn link_single_file_js_entry(
+        &self,
+        module_id: ModuleId,
+        name: &str,
+    ) -> LinkedTextFile {
+        self.link_single_file_js_entry_with(module_id, name, |_| {})
+    }
+
     /// Add multiple modules and return their ids in the same order.
     pub(super) fn add_modules<const N: usize, S>(&self, modules: [(&str, S); N]) -> [ModuleId; N]
     where
@@ -448,7 +456,7 @@ impl TestProgram {
     /// Configure one single-file JavaScript target for linker tests.
     pub(super) fn configure_single_file_js_target(&self, module_id: ModuleId, name: &str) {
         let entry_path = {
-            let module = self.program.modules.get(module_id);
+            let module = self.program.module_descriptor(module_id);
             self.normalize_uri_path(module.package_id, &module.uri)
         };
 
@@ -471,7 +479,7 @@ impl TestProgram {
         let entry_paths = module_ids
             .iter()
             .map(|module_id| {
-                let module = self.program.modules.get(*module_id);
+                let module = self.program.module_descriptor(*module_id);
                 self.normalize_uri_path(module.package_id, &module.uri)
             })
             .map(PathBuf::from)
@@ -494,7 +502,7 @@ impl TestProgram {
 
     /// Return the package-relative path for one module.
     pub(super) fn module_relative_path(&self, module_id: ModuleId) -> String {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
 
         self.normalize_uri_path(module.package_id, &module.uri)
     }
@@ -518,15 +526,15 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_id).package_id;
+        let package_id = self.program.module_descriptor(module_id).package_id;
         let target_id = TargetId::new(package_id, name);
 
         self.configure_single_file_js_target(module_id, name);
         self.configure_target(module_id, name, configure);
         self.run(ArtifactKey::package_output(package_id, target_id));
 
-        // clean builds are easier to reason about in linker tests
-        self.check_no_diagnostic(DiagnosticSeverity::Error);
+        // linker tests should stay free of linker phase diagnostics
+        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
 
         let output = self.package_output(package_id, name);
         self.linked_script_target(package_id, &output)
@@ -542,15 +550,15 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
         let target_id = TargetId::new(package_id, name);
 
         self.configure_chunked_js_target(module_ids, name);
         self.configure_target(module_ids[0], name, configure);
         self.run(ArtifactKey::package_output(package_id, target_id));
 
-        // clean builds are easier to reason about in linker tests
-        self.check_no_diagnostic(DiagnosticSeverity::Error);
+        // linker tests should stay free of linker phase diagnostics
+        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
 
         self.package_output(package_id, name)
     }
@@ -565,7 +573,7 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
         let output = self.link_chunked_js_target_with(module_ids, name, configure);
 
         self.linked_chunked_script_target(package_id, &output)
@@ -581,40 +589,35 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
         let target_id = TargetId::new(package_id, name);
 
         self.configure_chunked_js_target(module_ids, name);
         self.configure_target(module_ids[0], name, configure);
         self.run(ArtifactKey::package_output(package_id, target_id.clone()));
 
-        // clean builds are easier to reason about in linker tests
-        self.check_no_diagnostic(DiagnosticSeverity::Error);
+        // linker tests should stay free of linker phase diagnostics
+        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
 
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+        let package = self.program.package_descriptor(package_id);
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.program.cwd.clone());
+            .unwrap_or_else(|| self.program.root_directory().clone());
         let target = package
             .targets
             .get(&target_id)
             .cloned()
             .unwrap_or_else(|| panic!("missing target '{name}'"));
-        drop(package);
-        let profile_id = self
-            .program
-            .profile_id_for_package_target(package_id, &target_id)
-            .unwrap_or_else(|| panic!("missing profile for target '{name}'"));
+        let context = self.context();
         let linker = ScriptLinker::new(
             self.compiler.as_ref(),
+            &context,
             &package_dir,
             None,
             &target,
             &target_id,
             package_id,
-            profile_id,
         );
         let linked_modules = linker
             .require_module_artifacts(module_ids)
@@ -868,6 +871,64 @@ impl TestProgram {
         self.assert_linked_text_file(&actual, expected, noun);
     }
 
+    /// Return one normalized json output file addressed by package-relative path.
+    pub(super) fn linked_json_output_at_path<T>(
+        &self,
+        package_id: PackageId,
+        output: &PackageOutput,
+        output_name: TargetOutputName,
+        expected_path: &str,
+    ) -> LinkedJsonFile<T>
+    where
+        T: DeserializeOwned,
+    {
+        let files = output
+            .outputs
+            .get(&output_name)
+            .unwrap_or_else(|| panic!("missing output group '{}'", output_name.as_str()));
+        let file = files
+            .iter()
+            .find(|file| self.normalize_uri_path(package_id, &file.uri) == expected_path)
+            .unwrap_or_else(|| panic!("missing output file '{}'", expected_path));
+
+        match &file.content {
+            OutputContent::Json {
+                content,
+                value: _,
+                file_type,
+            } => LinkedJsonFile {
+                path: self.normalize_uri_path(package_id, &file.uri),
+                file_type: *file_type,
+                text: content.clone(),
+                value: serde_json::from_str(content).unwrap_or_else(|error| {
+                    panic!(
+                        "failed to decode '{}' json output at '{}': {error}",
+                        output_name.as_str(),
+                        expected_path,
+                    )
+                }),
+            },
+            _ => panic!("expected json output in '{}'", output_name.as_str()),
+        }
+    }
+
+    /// Assert one exact json output at one package-relative path.
+    pub(super) fn assert_json_output_at_path<T>(
+        &self,
+        package_id: PackageId,
+        output: &PackageOutput,
+        output_name: TargetOutputName,
+        expected: &LinkedJsonFile<T>,
+        noun: &str,
+    ) where
+        T: PartialEq + Serialize + std::fmt::Debug + DeserializeOwned,
+    {
+        let actual =
+            self.linked_json_output_at_path(package_id, output, output_name, &expected.path);
+
+        self.assert_linked_json_file(&actual, expected, noun);
+    }
+
     /// Return one normalized JSON output file from the given group.
     pub(super) fn single_json_output<T>(
         &self,
@@ -1028,12 +1089,11 @@ impl TestProgram {
 
     /// Normalize one path to a package-relative path when possible.
     fn normalize_package_path(&self, package_id: PackageId, path: &Path) -> String {
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+        let package = self.program.package_descriptor(package_id);
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.program.cwd.clone());
+            .unwrap_or_else(|| self.program.root_directory().clone());
         let relative = path.strip_prefix(&package_dir).unwrap_or(path);
 
         relative.to_string_lossy().replace('\\', "/")
