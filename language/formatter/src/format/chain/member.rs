@@ -1,19 +1,17 @@
-use super::groups::{build_tail_chain_lines, chain_head_operation_count};
+use super::groups::{TailChainGroups, build_tail_chain_groups, chain_head_operation_count};
 use crate::format::expression::should_unwrap_parenthesized_member_object;
 use crate::format::operator::{
     is_chain_expression, needs_parens_in_postfix_position, write_postfix_base_expression,
 };
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Argument, Comment, Declarator, Doc, DocStyle, Expression, LocalNodeId,
-    NodeTree, NodeType, PostfixPosition, ScalarLiteral, TokenType,
+    AnnotationPosition, Argument, Declarator, Expression, LocalNodeId, NodeTree, NodeType,
+    PostfixPosition, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
-use destack_source::Span;
-use smallvec::SmallVec;
 
 /// Extract a parenthesized base with a direct index chain.
 pub(crate) fn extract_parenthesized_index_chain(
@@ -86,12 +84,24 @@ pub(crate) struct ChainExpressionBase {
     pub(crate) body: Vec<ChainExpression>,
 }
 
+/// One call position inside a normalized chain.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum CallChainPosition {
+    /// The first call in a call chain.
+    Start,
+    /// One call between other chain operations.
+    Middle,
+    /// The outermost call at the end of the chain.
+    End,
+}
+
 /// One operation in an expression chain.
 #[derive(Clone)]
 pub(crate) enum ChainExpression {
     /// Member expression.
     Member {
         node_id: LocalNodeId<Expression>,
+        optional_position: Option<PostfixPosition>,
         segment: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         emit_prefix_annotations: bool,
@@ -105,6 +115,8 @@ pub(crate) enum ChainExpression {
     /// Call expression.
     Call {
         node_id: LocalNodeId<Expression>,
+        call_position: CallChainPosition,
+        optional_position: Option<PostfixPosition>,
         position: PostfixPosition,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
@@ -112,6 +124,7 @@ pub(crate) enum ChainExpression {
     /// Index expression.
     Index {
         node_id: LocalNodeId<Expression>,
+        optional_position: Option<PostfixPosition>,
         position: PostfixPosition,
         index: Option<LocalNodeId<Expression>>,
     },
@@ -152,11 +165,11 @@ pub(crate) fn chain_operation_is_call_like(operation: &ChainExpression) -> bool 
     )
 }
 
-/// Return the first operation of the first grouped line.
-pub(crate) fn first_grouped_line_operation(
-    lines: &[SmallVec<[ChainExpression; 2]>],
+/// Return the first operation of the first tail group.
+pub(crate) fn first_tail_group_operation(
+    tail_groups: &TailChainGroups,
 ) -> Option<&ChainExpression> {
-    lines.first().and_then(|line| line.first())
+    tail_groups.first().and_then(|group| group.first())
 }
 
 /// Return the trailing node of one chain base.
@@ -256,65 +269,14 @@ pub(crate) fn expression_has_ternary_ancestor(
     false
 }
 
-/// Return whether a path chain has optional or must tail operators.
-fn path_chain_has_optional_or_must_tail(
-    context: &DestackFormatContext<'_>,
-    root_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current = root_id;
-
-    while let Some((parent_id, parent_type)) = context.parent(current) {
-        if parent_type != NodeType::Expression {
-            break;
-        }
-
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
-        let parent = context.tree.get(parent_id);
-        let parent_uses_left = match parent {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => *left == current,
-            _ => false,
-        };
-        if !parent_uses_left {
-            break;
-        }
-
-        if matches!(
-            parent,
-            Expression::Maybe { .. }
-                | Expression::Must { .. }
-                | Expression::Call {
-                    position: PostfixPosition::Indirect,
-                    ..
-                }
-                | Expression::Index {
-                    position: PostfixPosition::Indirect,
-                    ..
-                }
-        ) {
-            return true;
-        }
-
-        current = parent_id;
-    }
-
-    false
-}
-
-/// Build the normalized chain, base, and tail lines for one chain expression.
-pub(crate) fn build_member_chain_parts(
+/// Build the normalized chain, base, and tail groups for one chain expression.
+pub(super) fn build_member_chain_parts(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    is_call_like_argument: bool,
 ) -> FormatResult<(
     Vec<LocalNodeId<Expression>>,
     ChainExpressionBase,
-    Vec<SmallVec<[ChainExpression; 2]>>,
+    TailChainGroups,
 )> {
     let tree = context.tree;
     let chain = chain_nodes(tree, node_id);
@@ -325,13 +287,7 @@ pub(crate) fn build_member_chain_parts(
     let mut operations = Vec::new();
 
     // chain-member root decomposition
-    if let Some((path_base_head, path_operations)) = split_path_chain_root(
-        context,
-        base_root_id,
-        is_call_like_argument,
-        expression_has_ternary_ancestor(context, base_root_id),
-        path_chain_has_optional_or_must_tail(context, base_root_id),
-    )? {
+    if let Some((path_base_head, path_operations)) = split_path_chain_root(context, base_root_id)? {
         base_head = path_base_head;
         operations.extend(path_operations);
     }
@@ -340,37 +296,39 @@ pub(crate) fn build_member_chain_parts(
         head: base_head,
         body: Vec::new(),
     };
-    for expression_id in chain.iter().skip(1).copied() {
+    let mut chain_tail = chain.iter().skip(1).copied().peekable();
+    while let Some(expression_id) = chain_tail.next() {
+        if matches!(tree.get(expression_id), Expression::Maybe { .. })
+            && chain_tail.peek().is_some_and(|next_id| {
+                matches!(
+                    tree.get(*next_id),
+                    Expression::Member { .. }
+                        | Expression::PrivateMember { .. }
+                        | Expression::Call { .. }
+                        | Expression::Index { .. }
+                )
+            })
+        {
+            continue;
+        }
+
         operations.push(chain_expression_from_node(tree, expression_id)?);
     }
 
     let head_operation_count = chain_head_operation_count(context, &base, &operations);
     let tail_operations = operations.split_off(head_operation_count);
     base.body = operations;
+    annotate_call_chain_positions(context.tree, &mut base.body, node_id);
 
-    let lines = build_tail_chain_lines(context, tail_operations);
+    let tail_groups = build_tail_chain_groups(context, tail_operations);
 
-    Ok((chain, base, lines))
-}
-
-/// Return whether a root path segment looks factory-like.
-fn path_root_segment_looks_factory_like(segment: &str) -> bool {
-    let mut bytes = segment.bytes();
-
-    match bytes.next() {
-        Some(b'_' | b'$') => bytes.all(|byte| matches!(byte, b'_' | b'$')),
-        Some(byte) => byte.is_ascii_uppercase(),
-        None => false,
-    }
+    Ok((chain, base, tail_groups))
 }
 
 /// Try to split one path root into a chain base head plus member operations.
-pub(crate) fn split_path_chain_root(
+fn split_path_chain_root(
     context: &DestackFormatContext<'_>,
     base_root_id: LocalNodeId<Expression>,
-    is_call_like_argument: bool,
-    has_ternary_ancestor: bool,
-    has_optional_or_must_tail: bool,
 ) -> FormatResult<Option<(ChainExpressionBaseHead, Vec<ChainExpression>)>> {
     let Expression::QualifiedReference {
         path,
@@ -380,26 +338,7 @@ pub(crate) fn split_path_chain_root(
         return Ok(None);
     };
 
-    let has_boundary_comments = context
-        .annotation_ids(base_root_id)
-        .iter()
-        .any(|annotation_id| {
-            matches!(
-                context.annotation(*annotation_id),
-                Annotation::Doc {
-                    position: AnnotationPosition::LinePostfixBoundary,
-                    ..
-                }
-            )
-        });
-
-    let first_segment = context.strings.get(path.segments[0]);
-    let should_split_root_path_segments = path.segments.len() > 1
-        && !is_call_like_argument
-        && !has_ternary_ancestor
-        && (!path_root_segment_looks_factory_like(first_segment) || has_boundary_comments)
-        && (first_segment != "this" || has_optional_or_must_tail || has_boundary_comments);
-    if !should_split_root_path_segments {
+    if path.segments.len() <= 1 {
         return Ok(None);
     }
 
@@ -437,6 +376,7 @@ pub(crate) fn split_path_chain_root(
         };
         operations.push(ChainExpression::Member {
             node_id: base_root_id,
+            optional_position: None,
             segment,
             static_arguments: static_args,
             emit_prefix_annotations: false,
@@ -483,27 +423,7 @@ pub(crate) fn has_line_comment_between_expressions(
         .any(|comment| context.comment_is_line(comment))
 }
 
-/// Get the root head expression of a chain.
-pub(crate) fn chain_head_id(
-    tree: &NodeTree,
-    node_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let mut current = node_id;
-
-    loop {
-        let next = chain_node_left_id(tree, current);
-
-        match next {
-            Some(next_id) if is_chain_expression(tree.get(next_id)) => {
-                current = next_id;
-            }
-            Some(next_id) => return next_id,
-            None => return current,
-        }
-    }
-}
-
-/// Check whether an optional index is numeric-simple.
+/// Check whether an optional index is numerically inline.
 pub(crate) fn is_numeric_index(
     context: &DestackFormatContext<'_>,
     index: &Option<LocalNodeId<Expression>>,
@@ -546,8 +466,26 @@ pub(crate) fn expression_trivia_anchor_end(
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |path_span| path_span.end),
+        Expression::Parenthesized { expression } => {
+            let inner_span = context.span(*expression);
+
+            context
+                .next_non_whitespace_token_after_span(inner_span)
+                .filter(|token| {
+                    token.token.ty == TokenType::CloseParenthesis && token.span.file == span.file
+                })
+                .map_or(span.end, |token| token.span.end)
+        }
         _ => span.end,
     }
+}
+
+/// Return the property token start for one member-like expression.
+pub(crate) fn member_property_start(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Option<u32> {
+    context.tree.get_main_span(node_id).map(|span| span.start)
 }
 
 /// Check if a member access has an intervening comment between receiver and property.
@@ -555,164 +493,23 @@ pub(crate) fn member_has_intervening_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((left, property_span)) = (match context.tree.get(node_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => context
-            .tree
-            .get_main_span(node_id)
-            .map(|property_span| (*left, property_span)),
-        _ => None,
-    }) else {
+    let Some(property_start) = member_property_start(context, node_id) else {
         return false;
     };
-    let left_span = context.span(left);
-    let left_anchor_end = expression_trivia_anchor_end(context, left);
-    if property_span.start <= left_anchor_end {
-        return false;
-    }
 
-    let span = Span::new(left_span.file, left_anchor_end, property_span.start);
-    !context.comments_in_range(span.start, span.end).is_empty()
-}
-
-/// Return raw comment nodes between one member receiver and the property operator.
-pub(crate) fn member_intervening_comment_nodes(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<Comment>> {
-    let Some((left, property_span)) = (match context.tree.get(node_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => context
-            .tree
-            .get_main_span(node_id)
-            .map(|property_span| (*left, property_span)),
-        _ => None,
-    }) else {
-        return Vec::new();
+    let receiver_end = match context.tree.get(node_id) {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+            context.span(*left).end
+        }
+        _ => return false,
     };
-
-    let left_anchor_end = expression_trivia_anchor_end(context, left);
-    if property_span.start <= left_anchor_end {
-        return Vec::new();
-    }
-
-    context.comment_nodes_in_range(left_anchor_end, property_span.start)
-}
-
-/// Find the first non-trivia parent operator token after one chain node.
-fn chain_parent_operator_start(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    parent_id: LocalNodeId<Expression>,
-) -> Option<u32> {
-    let node_span = context.span(node_id);
-    let parent_span = context.span(parent_id);
-    if node_span.file != parent_span.file {
-        return None;
-    }
-
-    let node_anchor_end = expression_trivia_anchor_end(context, node_id);
-    if parent_span.end <= node_anchor_end {
-        return None;
-    }
 
     context
-        .first_non_trivia_token_between(node_anchor_end, parent_span.end)
-        .map(|token| token.span.start)
-}
-
-/// Check if a chain node has source breaks or comments before its parent operator.
-pub(crate) fn chain_has_parent_intervening_break_or_comment(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let parent = context.tree.get(parent_id);
-    let parent_uses_node_as_left = match parent {
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Call { left, .. }
-        | Expression::Index { left, .. }
-        | Expression::Instantiation { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => *left == node_id,
-        _ => false,
-    };
-    if !parent_uses_node_as_left {
-        return false;
-    }
-
-    let should_check_parent_gap = match parent {
-        Expression::Member { .. } | Expression::PrivateMember { .. } => true,
-        Expression::Call { .. }
-        | Expression::Index { .. }
-        | Expression::Instantiation { .. }
-        | Expression::Maybe { .. }
-        | Expression::Must { .. } => matches!(
-            context.tree.get(node_id),
-            Expression::Member { .. }
-                | Expression::PrivateMember { .. }
-                | Expression::Identifier { .. }
-                | Expression::QualifiedReference { .. }
-        ),
-        _ => false,
-    };
-    if !should_check_parent_gap {
-        return false;
-    }
-
-    let node_span = context.span(node_id);
-    let node_anchor_end = expression_trivia_anchor_end(context, node_id);
-    let Some(parent_operator_start) = chain_parent_operator_start(context, node_id, parent_id)
-    else {
-        return false;
-    };
-    if parent_operator_start <= node_anchor_end {
-        return false;
-    }
-    let between_span = Span::new(node_span.file, node_anchor_end, parent_operator_start);
-
-    !context
-        .comments_in_range(between_span.start, between_span.end)
-        .is_empty()
-}
-
-/// Return whether a member has only one promotable boundary comment.
-pub(crate) fn chain_member_has_promotable_boundary_comment(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let annotations = context.annotation_ids(node_id);
-    if annotations.is_empty() {
-        return false;
-    }
-
-    let mut found_promotable_boundary_comment = false;
-    for annotation_id in annotations.iter().copied() {
-        match context.annotation(annotation_id) {
-            Annotation::Doc {
-                node,
-                position: AnnotationPosition::LinePostfixBoundary,
-            } => {
-                let doc = context.tree.get::<Doc>(node);
-                if doc.style == DocStyle::Star {
-                    let comment_span = context.span(node);
-                    if context.has_newline(comment_span) {
-                        return false;
-                    }
-                }
-                found_promotable_boundary_comment = true;
-            }
-            _ => return false,
-        }
-    }
-
-    found_promotable_boundary_comment
+        .comments()
+        .has_comment_in_range(receiver_end, property_start)
+        || context
+            .comments()
+            .has_end_of_line_comment_after(context.span(node_id).end)
 }
 
 /// Check whether a member access uses a private hash (`.#name`).
@@ -796,6 +593,7 @@ pub(crate) fn chain_expression_from_node(
 ) -> FormatResult<ChainExpression> {
     let chain_expression = match tree.get(expression_id) {
         Expression::Member {
+            left,
             name,
             static_arguments,
             ..
@@ -807,6 +605,7 @@ pub(crate) fn chain_expression_from_node(
             };
             ChainExpression::Member {
                 node_id: expression_id,
+                optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
                 static_arguments: static_arguments.clone(),
                 emit_prefix_annotations: true,
@@ -814,6 +613,7 @@ pub(crate) fn chain_expression_from_node(
             }
         }
         Expression::PrivateMember {
+            left,
             name,
             static_arguments,
             ..
@@ -825,6 +625,7 @@ pub(crate) fn chain_expression_from_node(
             };
             ChainExpression::Member {
                 node_id: expression_id,
+                optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
                 static_arguments: static_arguments.clone(),
                 emit_prefix_annotations: true,
@@ -832,12 +633,15 @@ pub(crate) fn chain_expression_from_node(
             }
         }
         Expression::Call {
+            left,
             position,
             static_arguments,
             dynamic_arguments,
             ..
         } => ChainExpression::Call {
             node_id: expression_id,
+            call_position: CallChainPosition::End,
+            optional_position: maybe_position_for_left(tree, *left),
             position: *position,
             static_arguments: static_arguments.clone(),
             dynamic_arguments: dynamic_arguments.clone(),
@@ -849,9 +653,13 @@ pub(crate) fn chain_expression_from_node(
             static_arguments: static_arguments.clone(),
         },
         Expression::Index {
-            position, index, ..
+            left,
+            position,
+            index,
+            ..
         } => ChainExpression::Index {
             node_id: expression_id,
+            optional_position: maybe_position_for_left(tree, *left),
             position: *position,
             index: *index,
         },
@@ -873,39 +681,70 @@ pub(crate) fn chain_expression_from_node(
     Ok(chain_expression)
 }
 
+/// Annotate every call operation with its position inside the chain.
+fn annotate_call_chain_positions(
+    tree: &NodeTree,
+    operations: &mut [ChainExpression],
+    root_id: LocalNodeId<Expression>,
+) {
+    for operation in operations {
+        let ChainExpression::Call {
+            node_id,
+            call_position,
+            ..
+        } = operation
+        else {
+            continue;
+        };
+
+        let Expression::Call { left, .. } = tree.get(*node_id) else {
+            continue;
+        };
+
+        let left_is_chain = is_chain_expression(tree.get(*left));
+        *call_position = if !left_is_chain {
+            CallChainPosition::Start
+        } else if *node_id == root_id {
+            CallChainPosition::End
+        } else {
+            CallChainPosition::Middle
+        };
+    }
+}
+
+/// Return the optional postfix position owned by one left operand maybe wrapper.
+fn maybe_position_for_left(
+    tree: &NodeTree,
+    left_id: LocalNodeId<Expression>,
+) -> Option<PostfixPosition> {
+    let Expression::Maybe { position, .. } = tree.get(left_id) else {
+        return None;
+    };
+
+    Some(*position)
+}
+
 /// Check whether the expression is part of a member/call/maybe/index chain.
 pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
     chain_node_left_id(tree, node_id).is_some_and(|left_id| is_chain_expression(tree.get(left_id)))
 }
 
+/// Return whether the normalized chain contains at least one call-like operation.
+pub(crate) fn chain_has_call_like_expression(
+    tree: &NodeTree,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    chain_nodes(tree, node_id).into_iter().any(|expression_id| {
+        matches!(
+            tree.get(expression_id),
+            Expression::Call { .. } | Expression::Instantiation { .. }
+        )
+    })
+}
+
 /// Check whether an expression is the root of a chain.
 pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
     chain_node_left_id(tree, node_id).is_some_and(|left_id| !is_chain_expression(tree.get(left_id)))
-}
-
-/// Check whether this expression is used as the receiver in a chain parent.
-pub(crate) fn has_chain_parent(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent_by_id(node_id.id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expr = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-    match parent_expr {
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Call { left, .. }
-        | Expression::Instantiation { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => left.id == node_id.id,
-        Expression::Index { .. } => false,
-        _ => false,
-    }
 }
 
 /// Walk upward through transparent wrappers to find an assignment-like parent rhs.
@@ -964,44 +803,4 @@ pub(crate) fn transparent_inner_expression(
     node_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
     context.transparent_inner_expression(node_id)
-}
-
-/// Decide whether a nullish coalescing operator should trail on a new line.
-pub(crate) fn should_use_trailing_coalesce(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-    if !matches!(parent_expression, Expression::Parenthesized { .. }) {
-        return false;
-    }
-
-    let left_is_chain = matches!(
-        context.tree.get(left),
-        Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::Call { .. }
-            | Expression::Maybe { .. }
-            | Expression::Must { .. }
-    );
-    if !left_is_chain {
-        return false;
-    }
-
-    let expression_span = context.span(node_id);
-    if context.has_newline(expression_span) {
-        return true;
-    }
-
-    false
 }
