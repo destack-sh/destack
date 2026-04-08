@@ -1,9 +1,12 @@
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_source::{File, FileContent, FileId, Uri};
+use destack_source::{File, FileId, Uri};
+use serde::Deserialize;
+use serde_json::{Map, Value};
 
-use crate::config::PackageJson;
+use crate::config::parse_json_file;
 
 /// Parsed `package.json` declaration.
 #[derive(Debug, Clone)]
@@ -14,25 +17,45 @@ pub struct PackageDeclaration {
     pub uri: Uri,
     /// The physical path to the `package.json` file.
     pub path: PathBuf,
-    /// The realpath to the declaration.
-    pub realpath: PathBuf,
     /// The declaration directory.
     pub directory: PathBuf,
-    /// The raw JSON content of the declaration.
-    pub json: PackageJson,
+    /// The manifest fields needed from the declaration.
+    pub manifest: PackageManifest,
+}
+
+/// The subset of `package.json` fields used by package declaration consumers.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageManifest {
+    /// The package name.
+    pub name: Option<String>,
+    /// The package version.
+    pub version: Option<String>,
+    /// The module type field.
+    #[serde(rename = "type")]
+    pub module_type: Option<String>,
+    /// The `main` entry point.
+    pub main: Option<String>,
+    /// The `module` entry point.
+    pub module: Option<String>,
+    /// The `types` entry point.
+    pub types: Option<String>,
+    /// The `bin` field.
+    pub bin: Option<Value>,
+    /// The browser mapping.
+    pub browser: Option<Value>,
+    /// The exports mapping.
+    pub exports: Option<Value>,
+    /// The imports mapping.
+    pub imports: Option<Map<String, Value>>,
+    /// The script entries.
+    pub scripts: Option<BTreeMap<String, String>>,
 }
 
 impl PackageDeclaration {
     /// Parse one package declaration from one json file.
-    pub fn parse(file: &Arc<File>, realpath: PathBuf) -> Result<Self, serde_json::Error> {
-        let FileContent::Json { value, .. } = &file.content else {
-            return Err(serde_json::Error::io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "file is not JSON",
-            )));
-        };
-
-        let json: PackageJson = serde_json::from_value(value.clone())?;
+    pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
+        let manifest: PackageManifest = serde_json::from_value(parse_json_file(file)?)?;
         let path = file
             .uri
             .to_path_buf()
@@ -46,24 +69,85 @@ impl PackageDeclaration {
             file_id: file.id,
             uri: file.uri.clone(),
             path,
-            realpath,
             directory,
-            json,
+            manifest,
         })
     }
 
     /// Return the declared package name when present.
     pub fn name(&self) -> Option<&str> {
-        self.json.name.as_deref()
+        self.manifest.name.as_deref()
     }
 
     /// Return the declared package version when present.
     pub fn version(&self) -> Option<&str> {
-        self.json.version.as_deref()
+        self.manifest.version.as_deref()
     }
 
     /// Return the declared package module type when present.
     pub fn module_type(&self) -> Option<&str> {
-        self.json.module_type.as_deref()
+        self.manifest.module_type.as_deref()
+    }
+}
+
+impl PackageManifest {
+    /// Collect package entry targets in stable field order.
+    pub fn entry_targets(&self) -> Vec<String> {
+        let mut targets = Vec::new();
+        let mut seen = HashSet::new();
+
+        Self::collect_string_target(self.main.as_deref(), &mut targets, &mut seen);
+        Self::collect_string_target(self.module.as_deref(), &mut targets, &mut seen);
+        Self::collect_string_target(self.types.as_deref(), &mut targets, &mut seen);
+
+        if let Some(bin) = self.bin.as_ref() {
+            Self::collect_target_values(bin, &mut targets, &mut seen);
+        }
+        if let Some(exports) = self.exports.as_ref() {
+            Self::collect_target_values(exports, &mut targets, &mut seen);
+        }
+
+        targets
+    }
+
+    /// Collect one optional string target.
+    fn collect_string_target(
+        value: Option<&str>,
+        targets: &mut Vec<String>,
+        seen: &mut HashSet<String>,
+    ) {
+        let Some(value) = value else {
+            return;
+        };
+
+        let target = value.trim();
+        if target.is_empty() {
+            return;
+        }
+
+        let target = target.to_string();
+        if seen.insert(target.clone()) {
+            targets.push(target);
+        }
+    }
+
+    /// Collect nested string targets from one json value.
+    fn collect_target_values(value: &Value, targets: &mut Vec<String>, seen: &mut HashSet<String>) {
+        match value {
+            Value::String(target) => {
+                Self::collect_string_target(Some(target.as_str()), targets, seen);
+            }
+            Value::Array(values) => {
+                for item in values {
+                    Self::collect_target_values(item, targets, seen);
+                }
+            }
+            Value::Object(entries) => {
+                for item in entries.values() {
+                    Self::collect_target_values(item, targets, seen);
+                }
+            }
+            _ => {}
+        }
     }
 }

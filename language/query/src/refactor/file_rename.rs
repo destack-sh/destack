@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_resolver::{SpecifierPolicy, match_specifier_rename, rewrite_specifier_for_rename};
 use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, ModuleId, PathExt, Span};
 use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
+use super::specifier::{SpecifierPolicy, apply_rename_to_specifier, match_specifier_rename};
 use crate::ast::string_literal_span_in_enclosing;
 use crate::core::{RepositoryQueryIndexExt, with_ast_query_for_module};
 use destack_workspace::{Repository, SpecifierIndexEntry};
@@ -103,7 +103,7 @@ pub fn rename_files(
 
     // collect candidate specifier entries from the workspace index
     let specifier_entries =
-        repository.specifier_index_entries_for_rename_paths(rename_map.keys().cloned());
+        repository.specifier_index_entries_for_rename_paths(revision, rename_map.keys().cloned());
     let mut entries_by_module: HashMap<ModuleId, Vec<SpecifierIndexEntry>> = HashMap::new();
     for entry in specifier_entries {
         entries_by_module
@@ -164,7 +164,7 @@ pub fn rename_files(
                 };
 
                 // rewrite the literal text using the matched rename
-                let updated_specifier = rewrite_specifier_for_rename(
+                let updated_specifier = apply_rename_to_specifier(
                     file.path.as_deref(),
                     &entry.specifier,
                     &rename_match,
@@ -225,9 +225,8 @@ fn file_for_rename(
     revision: Revision,
     file_id: FileId,
 ) -> Option<Arc<File>> {
-    // return the file when content is loaded
     let file = repository.file(revision, file_id).ok().flatten()?;
-    if file.is_loaded() && file.line_start_offsets.is_some() {
+    if file.has_line_index() {
         return Some(file);
     }
 
@@ -262,8 +261,8 @@ mod tests {
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
 
-    use destack_resolver::{
-        SpecifierPolicy, SpecifierRenameMatch, match_specifier_rename, rewrite_specifier_for_rename,
+    use super::super::specifier::{
+        SpecifierPolicy, SpecifierRenameMatch, apply_rename_to_specifier, match_specifier_rename,
     };
     use destack_source::PathExt;
     use destack_workspace::Repository;
@@ -305,7 +304,7 @@ mod tests {
     #[test]
     fn test_rewrite_import_specifier_for_alias() {
         assert_eq!(
-            rewrite_specifier_for_rename(
+            apply_rename_to_specifier(
                 Some(Path::new("/test/src/main.ds")),
                 "@/utils/foo",
                 &SpecifierRenameMatch {
@@ -323,7 +322,7 @@ mod tests {
     #[test]
     fn test_rewrite_import_specifier_for_package() {
         assert_eq!(
-            rewrite_specifier_for_rename(
+            apply_rename_to_specifier(
                 Some(Path::new("/test/src/main.ds")),
                 "my_pkg/utils/foo",
                 &SpecifierRenameMatch {

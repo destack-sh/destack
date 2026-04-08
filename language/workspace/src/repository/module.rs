@@ -4,12 +4,14 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, Loader};
 use destack_source::{
-    File, FileContent, FileId, FileType, LanguageType, ModuleId, PackageId, PathExt, ProfileId, Uri,
+    File, FileContent, FileContentEntry, FileId, FileMetadata, FileType, LanguageType, ModuleId,
+    PackageId, PathExt, ProfileId, Uri,
 };
 use im::OrdMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::repository::{
-    BUILTIN_PACKAGE_ID, FileContentId, Repository, RepositoryError, Revision, SourceMap,
+    BUILTIN_PACKAGE_ID, FileContentId, FileOrigin, Repository, RepositoryError, Revision, SourceMap,
 };
 use crate::{
     Module, ModuleDetection, ModuleFormat, ModuleSource, Package, SourceType, TsConfigDeclaration,
@@ -29,35 +31,18 @@ impl Repository {
     ) -> OrdMap<ModuleId, Module> {
         let mut modules = OrdMap::new();
 
-        for file_id in source.keys() {
-            let Some(logical_path) = self.logical_path_by_file_id(*file_id) else {
-                continue;
-            };
-
-            // synthetic root module
-            if logical_path.as_ref() == "<root>" {
-                let module = Module::blank(
-                    self.root_module_id(),
-                    *file_id,
-                    Uri::from_string("<root>"),
-                    None,
-                    PackageId::EPHEMERAL,
-                    LanguageType::Destack,
-                    Loader::Destack,
-                    ModuleSource::User,
-                );
-
+        for (file_id, entry) in source.iter() {
+            if let Some(module) = self.synthetic_module(*file_id, &entry.origin) {
                 modules.insert(module.id, module);
                 continue;
             }
 
-            // builtin module
-            if let Some(module) = self.builtin_module(*file_id, logical_path.as_ref()) {
+            if let Some(module) = self.builtin_module(*file_id, &entry.origin) {
                 modules.insert(module.id, module);
                 continue;
             }
 
-            let Some(path) = self.workspace_path_for_logical_path(logical_path.as_ref()) else {
+            let Some(path) = self.path_for_origin(&entry.origin) else {
                 continue;
             };
             let file_type = FileType::from_path_or_unknown(&path);
@@ -98,107 +83,108 @@ impl Repository {
     ) -> Result<Option<Arc<File>>, RepositoryError> {
         let revision_id = revision;
         let revision = self.revision(revision_id)?;
-        let Some(content_id) = revision.file_content_id(file_id) else {
+        let Some(entry) = revision.file_entry(file_id) else {
             return Ok(None);
         };
-        let Some(logical_path) = self.logical_path_by_file_id(file_id) else {
-            return Ok(None);
-        };
-        let content = self.file_content_by_id(content_id)?;
-        let file = self.build_file_at_revision(file_id, logical_path.as_ref(), content);
+        let content = self.file_content_by_id(entry.content_id)?;
+        let file = self.build_file_at_revision(file_id, &entry.origin, content);
 
         Ok(Some(Arc::new(file)))
+    }
+
+    /// Return one workspace file snapshot for one revision and workspace path.
+    pub fn file_for_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<Arc<File>>, RepositoryError> {
+        let file_id = self.file_id_for_workspace_path(path);
+        self.file(revision, file_id)
+    }
+
+    /// Return one workspace path metadata snapshot for one revision and workspace path.
+    pub fn metadata_for_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<FileMetadata>, RepositoryError> {
+        // file metadata
+        if let Some(file) = self.file_for_path(revision, path)? {
+            return Ok(Some(FileMetadata::new(
+                true,
+                false,
+                false,
+                file.len as u64,
+                None,
+            )));
+        }
+
+        let revision_state = self.revision(revision)?;
+        let normalized_path = path.normalize();
+        let directory_paths = revision_state
+            .directory_paths
+            .get_or_init(|| Arc::new(self.derive_directory_paths(&revision_state.source)));
+
+        // directory metadata
+        if directory_paths.contains(&normalized_path) {
+            return Ok(Some(FileMetadata::new(false, true, false, 0, None)));
+        }
+
+        Ok(None)
+    }
+
+    /// Derive the workspace directory set for one source map.
+    fn derive_directory_paths(&self, source: &SourceMap) -> FxHashSet<PathBuf> {
+        let mut directories = FxHashSet::default();
+        directories.insert(self.root.normalize());
+
+        // physical workspace directories
+        for entry in source.values() {
+            let Some(path) = self.path_for_origin(&entry.origin) else {
+                continue;
+            };
+
+            let mut current = path.parent().map(Path::to_path_buf);
+            while let Some(directory) = current {
+                let directory = directory.normalize();
+                if !directory.starts_with(&self.root) {
+                    break;
+                }
+
+                directories.insert(directory.clone());
+
+                if directory == self.root {
+                    break;
+                }
+
+                current = directory.parent().map(Path::to_path_buf);
+            }
+        }
+
+        directories
     }
 
     /// Build one file view from one revision source binding.
     fn build_file_at_revision(
         &self,
         file_id: FileId,
-        logical_path: &str,
-        content: Arc<FileContent>,
+        origin: &FileOrigin,
+        content: Arc<FileContentEntry>,
     ) -> File {
-        let path = self.workspace_path_for_logical_path(logical_path);
-        let uri = path
-            .as_ref()
-            .map(Uri::from_path)
-            .unwrap_or_else(|| Uri::from_string(logical_path));
-        let name = path
-            .as_ref()
-            .and_then(|path| path.file_name())
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| logical_path.to_string());
-        let file_type = if logical_path == "<root>" {
-            FileType::Destack
-        } else {
-            path.as_deref()
-                .map(FileType::from_path_or_unknown)
-                .unwrap_or_else(|| FileType::from_path_or_unknown(Path::new(logical_path)))
-        };
-        match content.as_ref() {
-            FileContent::Text { content } => {
-                if file_type == FileType::Json {
-                    File::from_text_as_jsonc(
-                        file_id,
-                        name.clone(),
-                        uri.clone(),
-                        path.clone(),
-                        file_type,
-                        content.clone(),
-                    )
-                    .unwrap_or_else(|_| {
-                        File::from_text(
-                            file_id,
-                            name.clone(),
-                            uri.clone(),
-                            path.clone(),
-                            file_type,
-                            content.clone(),
-                        )
-                    })
-                } else {
-                    File::from_text(
-                        file_id,
-                        name.clone(),
-                        uri.clone(),
-                        path.clone(),
-                        file_type,
-                        content.clone(),
-                    )
-                }
-            }
-            FileContent::Json { content, .. } => File::from_text_as_jsonc(
-                file_id,
-                name.clone(),
-                uri.clone(),
-                path.clone(),
-                file_type,
-                content.clone(),
-            )
-            .unwrap_or_else(|error| panic!("invalid stored json content for {file_id:?}: {error}")),
-            FileContent::Binary { content } => File::from_binary(
-                file_id,
-                name.clone(),
-                uri.clone(),
-                path.clone(),
-                file_type,
-                content.clone(),
-            ),
-            FileContent::Missing => {
-                File::missing(file_id, name.clone(), uri.clone(), path.clone(), file_type)
-            }
-            FileContent::Unloaded => {
-                File::unloaded(file_id, name.clone(), uri.clone(), path.clone(), file_type)
-            }
-        }
+        let path = self.path_for_origin(origin);
+        let uri = self.uri_for_origin(origin, path.as_deref());
+        let name = self.name_for_origin(origin, path.as_deref());
+        let file_type = self.file_type_for_origin(origin, path.as_deref());
+
+        File::from_content(file_id, name, uri, path, file_type, content)
     }
 
-    /// Materialize one physical path for one revision logical path when possible.
-    pub(crate) fn workspace_path_for_logical_path(&self, logical_path: &str) -> Option<PathBuf> {
-        if logical_path.contains("://") || logical_path.starts_with('<') {
-            return None;
+    /// Materialize one physical path for one revision origin when possible.
+    pub(crate) fn path_for_origin(&self, origin: &FileOrigin) -> Option<PathBuf> {
+        match origin {
+            FileOrigin::Workspace { logical_path } => Some(self.root.join(logical_path)),
+            FileOrigin::Builtin { .. } | FileOrigin::Synthetic { .. } => None,
         }
-
-        Some(self.root.join(logical_path))
     }
 
     /// Return one module snapshot for one revision and module id.
@@ -255,14 +241,25 @@ impl Repository {
         revision: Revision,
         tsconfig_file_id: FileId,
     ) -> Result<Option<Arc<TsConfigDeclaration>>, RepositoryError> {
-        let Some(file) = self.file(revision, tsconfig_file_id)? else {
-            return Ok(None);
-        };
-        let Ok(tsconfig) = TsConfigDeclaration::parse(true, &file) else {
-            return Ok(None);
+        let revision_state = self.revision(revision)?;
+        let cache = revision_state
+            .tsconfig_declarations
+            .get_or_init(|| Arc::new(parking_lot::RwLock::new(FxHashMap::default())));
+
+        // cache hit
+        if let Some(tsconfig) = cache.read().get(&tsconfig_file_id).cloned() {
+            return Ok(tsconfig);
+        }
+
+        // parse from source
+        let tsconfig = match self.file(revision, tsconfig_file_id)? {
+            Some(file) => TsConfigDeclaration::parse(true, &file).ok().map(Arc::new),
+            None => None,
         };
 
-        Ok(Some(Arc::new(tsconfig)))
+        cache.write().insert(tsconfig_file_id, tsconfig.clone());
+
+        Ok(tsconfig)
     }
 
     /// Return one file content identity from one revision.
@@ -272,7 +269,6 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<FileContentId>, RepositoryError> {
         let revision = self.revision(revision)?;
-
         Ok(revision.file_content_id(file_id))
     }
 
@@ -282,11 +278,11 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<Arc<FileContent>>, RepositoryError> {
-        let Some(content_id) = self.file_content_id(revision, file_id)? else {
+        let Some(file) = self.file(revision, file_id)? else {
             return Ok(None);
         };
 
-        Ok(Some(self.file_content_by_id(content_id)?))
+        Ok(Some(Arc::new(file.content.payload().clone())))
     }
 
     /// Return the tsconfig file id that applies to one module path.
@@ -299,11 +295,11 @@ impl Repository {
             return Ok(None);
         };
 
-        self.applicable_tsconfig_file_id_at_path(revision, path)
+        self.applicable_tsconfig_file_id_for_path(revision, path)
     }
 
     /// Return the effective tsconfig file id for one path.
-    pub(crate) fn applicable_tsconfig_file_id_at_path(
+    pub fn applicable_tsconfig_file_id_for_path(
         &self,
         revision: Revision,
         path: &Path,
@@ -618,28 +614,86 @@ impl Repository {
             .map(|(_, package)| package)
     }
 
-    /// Return one builtin module entry for one logical path when applicable.
-    fn builtin_module(&self, file_id: FileId, logical_path: &str) -> Option<Module> {
-        let (module_path, source) = self.builtins.module_origin_by_logical_path(logical_path)?;
+    /// Return one builtin module entry for one file origin when applicable.
+    fn builtin_module(&self, file_id: FileId, origin: &FileOrigin) -> Option<Module> {
+        let FileOrigin::Builtin { logical_path } = origin else {
+            return None;
+        };
+        let source = self.builtins.module_source_for_path(logical_path)?;
 
-        let file_type = FileType::from_path_or_unknown(Path::new(&module_path));
+        let file_type = FileType::from_path_or_unknown(Path::new(logical_path));
         let language_type = LanguageType::from(file_type);
         let loader = Loader::from_file_type(file_type);
-        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
+        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(logical_path));
 
         Some(Module::blank(
             module_id,
             file_id,
-            Uri::from_string(
-                self.logical_path_by_file_id(file_id)
-                    .unwrap_or_else(|| Arc::<str>::from(format!("builtin://{module_path}")))
-                    .as_ref(),
-            ),
+            Uri::from_string(format!("builtin://{logical_path}")),
             None,
             BUILTIN_PACKAGE_ID,
             language_type,
             loader,
             source,
         ))
+    }
+
+    /// Return one synthetic module entry for one file origin when applicable.
+    fn synthetic_module(&self, file_id: FileId, origin: &FileOrigin) -> Option<Module> {
+        let FileOrigin::Synthetic { logical_path, .. } = origin else {
+            return None;
+        };
+
+        if !origin.is_root() {
+            return None;
+        }
+
+        Some(Module::blank(
+            self.root_module_id(),
+            file_id,
+            Uri::from_string(format!("synthetic://{logical_path}")),
+            None,
+            PackageId::EPHEMERAL,
+            LanguageType::Destack,
+            Loader::Destack,
+            ModuleSource::User,
+        ))
+    }
+
+    /// Return the uri for one file origin.
+    fn uri_for_origin(&self, origin: &FileOrigin, path: Option<&Path>) -> Uri {
+        match origin {
+            FileOrigin::Workspace { .. } => {
+                let path = path.expect("workspace origin should have one path");
+                Uri::from_path(path)
+            }
+            FileOrigin::Builtin { logical_path } => {
+                Uri::from_string(format!("builtin://{logical_path}"))
+            }
+            FileOrigin::Synthetic { logical_path, .. } => {
+                Uri::from_string(format!("synthetic://{logical_path}"))
+            }
+        }
+    }
+
+    /// Return the display name for one file origin.
+    fn name_for_origin(&self, origin: &FileOrigin, path: Option<&Path>) -> String {
+        match origin {
+            FileOrigin::Workspace { logical_path } | FileOrigin::Builtin { logical_path } => path
+                .and_then(|path| path.file_name())
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| logical_path.clone()),
+            FileOrigin::Synthetic { logical_path, .. } => logical_path.clone(),
+        }
+    }
+
+    /// Return the file type for one file origin.
+    fn file_type_for_origin(&self, origin: &FileOrigin, path: Option<&Path>) -> FileType {
+        match origin {
+            FileOrigin::Workspace { logical_path } | FileOrigin::Builtin { logical_path } => path
+                .map(FileType::from_path_or_unknown)
+                .unwrap_or_else(|| FileType::from_path_or_unknown(Path::new(logical_path))),
+            FileOrigin::Synthetic { file_type, .. } => *file_type,
+        }
     }
 }

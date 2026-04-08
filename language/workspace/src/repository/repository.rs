@@ -1,24 +1,21 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use destack_artifact::{
     ArtifactCache, ArtifactCacheLayout, ArtifactStore, CacheStore, DiskCacheStore, ProfileKey,
 };
 use destack_core::StringPool;
 use destack_source::{
-    DiagnosticCollection, File, FileId, FileStore, FileSystem, FileType, ModuleId, PackageId,
-    PhysicalFileSystem, PrintOptions, ProfileId, TargetId, Uri,
+    DiagnosticCollection, FileContentEntry, FileSystem, ModuleId, PhysicalFileSystem, PrintOptions,
+    ProfileId,
 };
-use parking_lot::RwLock;
 
 use crate::repository::{
-    Builtins, FileContentId, FileContentStore, QueryIndex, Ref, RepositoryError, RepositoryOptions,
-    Revision, RevisionState, SourceMap, discover_workspace_root,
+    Builtins, FileContentId, FileContentStore, Ref, RepositoryError, RepositoryOptions, Revision,
+    RevisionState, SourceMap, discover_workspace_root,
 };
 use crate::{
-    DestackDeclaration, FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind,
-    resolve_cache_root,
+    FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind, resolve_cache_root,
 };
 /// Tsconfig context for one module profile decision.
 #[derive(Debug, Clone)]
@@ -32,6 +29,8 @@ pub(crate) struct ModuleTsConfigContext {
 /// One repository with lineage, sources, artifacts, and shared inputs.
 #[derive(Debug)]
 pub struct Repository {
+    /// Repository defaults for downstream tools.
+    pub(crate) options: RepositoryOptions,
     /// Default formatter options.
     pub formatter: FormatterOptions,
     /// Default linter options.
@@ -40,38 +39,26 @@ pub struct Repository {
     pub(crate) root: PathBuf,
     /// The working directory for repository-relative operations.
     pub cwd: PathBuf,
-    /// Repository defaults for downstream tools.
-    pub(crate) options: RepositoryOptions,
+
+    /// The named movable refs.
+    pub(crate) refs: dashmap::DashMap<Ref, Revision>,
+    /// The published source revision graph.
+    pub(crate) revisions: dashmap::DashMap<Revision, Arc<RevisionState>>,
+    /// The retained anonymous revision pins.
+    pub(crate) pinned_revisions: dashmap::DashMap<Revision, usize>,
 
     /// Shared string pool.
     pub strings: Arc<StringPool>,
     /// Shared persistent cache backend.
-    pub(crate) cache_store: Arc<dyn CacheStore>,
+    pub(crate) cache: Arc<dyn CacheStore>,
     /// The file system backing repository discovery and loads.
     pub(crate) fs: Arc<dyn FileSystem>,
-    /// The logical path for each file id.
-    pub(crate) logical_path_by_file_id: DashMap<FileId, Arc<str>>, // FUGU #Suspicious: why Arc<str>?
-    /// The package id for each target id.
-    pub(crate) package_id_by_target_id: DashMap<TargetId, PackageId>, // FUGU #Suspicious: revision-mutable?
-    /// The target name for each target id.
-    pub(crate) target_name_by_target_id: DashMap<TargetId, Arc<str>>,
-
-    /// The published source revision graph.
-    pub(crate) revisions: DashMap<Revision, Arc<RevisionState>>,
-    /// The cached workspace view for each retained revision.
-    pub(crate) workspaces: DashMap<Revision, Arc<Workspace>>,
-    /// The named movable refs.
-    pub(crate) refs: DashMap<Ref, Revision>,
     /// Shared immutable source contents.
-    pub(crate) file_contents: FileContentStore,
-    /// The retained anonymous revision pins.
-    pub(crate) pinned_revisions: DashMap<Revision, usize>,
+    pub(crate) files: FileContentStore,
     /// Shared immutable derived artifacts.
     pub(crate) artifacts: Arc<ArtifactStore>,
     /// Shared builtin selection metadata.
     pub builtins: Arc<Builtins>,
-    /// Shared query index storage.
-    pub(crate) query_index: RwLock<QueryIndex>,
 }
 
 impl Repository {
@@ -112,7 +99,6 @@ impl Repository {
         let _ = repository
             .builtins
             .install_in_repository(&repository, &reference)?;
-        let _ = repository.import_from_fs(&reference, &root)?;
 
         Ok(repository)
     }
@@ -135,13 +121,12 @@ impl Repository {
         fs: Arc<dyn FileSystem>,
     ) -> Self {
         let strings = Arc::new(StringPool::new());
-        let file_contents = FileContentStore::new();
+        let files = FileContentStore::new();
         let mut builtins = Builtins::empty();
 
-        let revisions = DashMap::new();
-        let workspaces = DashMap::new();
-        let refs = DashMap::new();
-        let pinned_revisions = DashMap::new();
+        let revisions = dashmap::DashMap::new();
+        let refs = dashmap::DashMap::new();
+        let pinned_revisions = dashmap::DashMap::new();
         let cwd = root.clone();
         let workspace_reference = Ref::for_workspace_root(&root);
 
@@ -155,19 +140,14 @@ impl Repository {
             cwd,
             options,
             fs,
-            logical_path_by_file_id: DashMap::new(),
-            package_id_by_target_id: DashMap::new(),
-            target_name_by_target_id: DashMap::new(),
             strings,
             revisions,
-            workspaces,
             refs,
-            file_contents,
+            files,
             pinned_revisions,
             artifacts: Arc::new(ArtifactStore::default()),
             builtins: Arc::new(builtins),
-            query_index: RwLock::new(QueryIndex::default()),
-            cache_store: cache,
+            cache,
         };
 
         // initial repository revision
@@ -199,8 +179,8 @@ impl Repository {
     }
 
     /// Override the backing cache store.
-    pub fn with_cache_store(mut self, cache_store: Arc<dyn CacheStore>) -> Self {
-        self.cache_store = cache_store;
+    pub fn with_cache(mut self, cache: Arc<dyn CacheStore>) -> Self {
+        self.cache = cache;
         self
     }
 
@@ -246,8 +226,8 @@ impl Repository {
     }
 
     /// Return the repository cache store.
-    pub fn cache_store(&self) -> &Arc<dyn CacheStore> {
-        &self.cache_store
+    pub fn cache(&self) -> &Arc<dyn CacheStore> {
+        &self.cache
     }
 
     /// Return the repository formatter options.
@@ -264,32 +244,13 @@ impl Repository {
                     .unwrap_or_default()
                     .len(),
             );
+        let file_for_id = |file_id| {
+            self.file(revision, file_id).unwrap_or_else(|error| {
+                panic!("failed to load diagnostic file {file_id:?}: {error}")
+            })
+        };
 
-        let files = FileStore::new();
-        let mut file_ids = diagnostics
-            .iter()
-            .into_iter()
-            .map(|diagnostic| diagnostic.file_id)
-            .collect::<Vec<_>>();
-
-        for diagnostic in diagnostics.iter() {
-            if let Some(secondary_spans) = diagnostic.secondary_spans.as_ref() {
-                file_ids.extend(secondary_spans.iter().map(|span| span.span.file));
-            }
-        }
-
-        file_ids.sort_unstable();
-        file_ids.dedup();
-
-        for file_id in file_ids {
-            let Ok(Some(file)) = self.file(revision, file_id) else {
-                continue;
-            };
-
-            files.insert(file.as_ref().clone());
-        }
-
-        destack_source::print_diagnostics(&files, diagnostics, options);
+        destack_source::print_diagnostics(&file_for_id, diagnostics, options);
     }
 
     /// Return the repository linter options.
@@ -304,14 +265,15 @@ impl Repository {
 
     /// Return one cached discovered workspace view for one revision.
     pub fn workspace(&self, revision: Revision) -> Result<Arc<Workspace>, RepositoryError> {
-        if let Some(workspace) = self.workspaces.get(&revision) {
-            return Ok(Arc::clone(workspace.value()));
+        let revision_state = self.revision(revision)?;
+
+        if let Some(workspace) = revision_state.workspace.get() {
+            return Ok(Arc::clone(workspace));
         }
 
         // TODO #Cleanup: unify Workspace with the public Package and Module revision snapshots
         // so this cache stops carrying the thinner discovered-only layer
         let workspace_declaration = self.workspace_destack_declaration(revision)?;
-        let revision_state = self.revision(revision)?;
         let packages = self.derive_packages(revision_state.source.as_ref());
         let modules = self.derive_modules(revision_state.source.as_ref(), &packages);
         let kind = if packages.len() > 1 {
@@ -329,12 +291,14 @@ impl Repository {
             packages,
             modules,
         });
-        let entry = self
-            .workspaces
-            .entry(revision)
-            .or_insert_with(|| Arc::clone(&workspace));
 
-        Ok(Arc::clone(entry.value()))
+        let _ = revision_state.workspace.set(Arc::clone(&workspace));
+
+        Ok(revision_state
+            .workspace
+            .get()
+            .map(Arc::clone)
+            .unwrap_or(workspace))
     }
 
     /// Return the repository default options.
@@ -364,7 +328,7 @@ impl Repository {
     pub fn artifact_cache(&self, cache_abi: &str) -> ArtifactCache<'_> {
         let layout = self.artifact_cache_layout(cache_abi);
 
-        ArtifactCache::new(self.cache_store().as_ref(), &layout)
+        ArtifactCache::new(self.cache().as_ref(), &layout)
     }
 
     /// Resolve one cache root from repository runtime options.
@@ -374,38 +338,9 @@ impl Repository {
         resolve_cache_root(self.workspace_root(), cache_directory_override)
     }
 
-    /// Load one `destack.json` declaration from disk when present.
-    pub fn load_destack_declaration_for_path(&self, path: &Path) -> Option<DestackDeclaration> {
-        let content = self.fs.read_to_string(path).ok()?;
-        let file = File::from_text_as_jsonc(
-            FileId::from_logical_path(path),
-            path.file_name()?.to_string_lossy().to_string(),
-            Uri::from_path(path),
-            Some(path.to_path_buf()),
-            FileType::Json,
-            content,
-        )
-        .ok()?;
-        let file = Arc::new(file);
-
-        DestackDeclaration::parse(&file).ok()
-    }
-
     /// Return the stable profile id for one semantic profile key.
     pub fn profile_id(&self, key: ProfileKey) -> ProfileId {
         ProfileId::new(key.stable_hash())
-    }
-
-    /// Read the repository query index.
-    pub fn with_query_index<R>(&self, read: impl FnOnce(&QueryIndex) -> R) -> R {
-        let query_index = self.query_index.read();
-        read(&query_index)
-    }
-
-    /// Mutate the repository query index.
-    pub fn with_query_index_mut<R>(&self, write: impl FnOnce(&mut QueryIndex) -> R) -> R {
-        let mut query_index = self.query_index.write();
-        write(&mut query_index)
     }
 
     /// Return the current revision for one ref.
@@ -430,8 +365,8 @@ impl Repository {
     pub fn file_content_by_id(
         &self,
         content: FileContentId,
-    ) -> Result<Arc<destack_source::FileContent>, RepositoryError> {
-        self.file_contents
+    ) -> Result<Arc<FileContentEntry>, RepositoryError> {
+        self.files
             .get(content)
             .ok_or(RepositoryError::MissingContent { content })
     }

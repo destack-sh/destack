@@ -1,10 +1,13 @@
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::path::{Component, Path};
 
 use destack_source::PathExt;
 use destack_workspace::PackageDeclaration;
 
-use crate::{CachePolicy, Resolution, ResolveError, ResolveFrame, ResolveRequest, Resolver};
+use crate::{
+    CachePolicy, Resolution, ResolveContext, ResolveError, ResolvePath, ResolveState, Resolver,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
@@ -48,7 +51,8 @@ impl Resolver {
         &self,
         specifier: &str,
         target: Resolution,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         let Resolution {
             path,
@@ -56,16 +60,17 @@ impl Resolver {
             fragment,
         } = target;
 
-        let probed = self.probe_esm_target(specifier, &path, ctx)?;
+        let probed = self.probe_esm_target(specifier, &path, state, ctx)?;
         Ok(probed.map(|resolved| resolved.override_parts(query, fragment)))
     }
 
-    /// Resolve one package import request through `package.json#imports`.
-    pub(crate) fn rewrite_package_import(
+    /// Apply one package import request through `package.json#imports`.
+    pub(crate) fn apply_package_import(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // return early when package imports are disabled
         if !self.options.resolve_package_json_imports {
@@ -73,17 +78,19 @@ impl Resolver {
         }
 
         // find the closest package scope
-        let Some(package_id) = self.find_nearest_package_scope(path, ctx)? else {
+        let Some(package_id) = self.find_package_scope(path, ctx)? else {
             return Ok(None);
         };
-        let package = self.packages.get(package_id);
-        let package = package.read().unwrap();
+        let Some(package) = ctx.package(package_id) else {
+            return Ok(None);
+        };
 
         // resolve package imports when present
         if let Some(ref declaration) = package.package_declaration
-            && let Some(resolved) = self.package_imports_resolve(specifier, declaration, ctx)?
+            && let Some(resolved) =
+                self.package_imports_resolve(specifier, declaration, state.clone(), ctx)?
         {
-            return self.finalize_package_target(specifier, resolved, ctx);
+            return self.finalize_package_target(specifier, resolved, state, ctx);
         }
         Ok(None)
     }
@@ -94,40 +101,49 @@ impl Resolver {
         specifier: &str,
         subpath: &str,
         path: &Path,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // load the package manifest
-        let Some(package_id) = self.read_package_manifest(path, ctx, CachePolicy::UseCache)? else {
+        let Some(package_id) = self.read_package(path, ctx, CachePolicy::UseCache)? else {
             return Ok(None);
         };
-        let package = self.packages.get(package_id);
-        let package = package.read().unwrap();
+        let Some(package) = ctx.package(package_id) else {
+            return Ok(None);
+        };
 
         // resolve package exports when present
         if let Some(ref declaration) = package.package_declaration
-            && let Some(exports) = declaration.json.exports.as_ref()
-            && let Some(resolved) =
-                self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
+            && let Some(exports) = declaration.manifest.exports.as_ref()
+            && let Some(resolved) = self.package_exports_resolve(
+                path,
+                &format!(".{subpath}"),
+                exports,
+                state.clone(),
+                ctx,
+            )?
         {
-            return self.finalize_package_target(specifier, resolved, ctx);
+            return self.finalize_package_target(specifier, resolved, state, ctx);
         }
 
         Ok(None)
     }
 
-    /// Try to resolve a self reference.
-    pub(crate) fn rewrite_package_self_reference(
+    /// Apply package self reference resolution.
+    pub(crate) fn apply_package_self_reference(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // find the closest package scope
-        let Some(package_id) = self.find_nearest_package_scope(path, ctx)? else {
+        let Some(package_id) = self.find_package_scope(path, ctx)? else {
             return Ok(None);
         };
-        let package = self.packages.get(package_id);
-        let package = package.read().unwrap();
+        let Some(package) = ctx.package(package_id) else {
+            return Ok(None);
+        };
 
         // return early when the package has no manifest
         let Some(ref declaration) = package.package_declaration else {
@@ -139,33 +155,28 @@ impl Resolver {
 
         // resolve package self references by package name
         if let Some(subpath) = declaration
-            .json
-            .name
-            .as_ref()
-            .and_then(|package_name: &String| {
-                Self::strip_package_name(specifier, package_name.as_str())
-            })
+            .name()
+            .and_then(|package_name| Self::strip_package_name(specifier, package_name))
         {
-            let package_url = declaration
-                .path
-                .parent()
-                .unwrap_or_else(|| {
-                    panic!(
-                        "package.json path is not in a directory: {}",
-                        declaration.path.display()
-                    )
-                })
-                .to_path_buf();
+            let package_url =
+                declaration
+                    .path
+                    .parent()
+                    .ok_or_else(|| ResolveError::InvalidPackageJson {
+                        path: declaration.path.clone(),
+                    })?;
+            let package_url = package_url.to_path_buf();
 
-            if let Some(exports) = declaration.json.exports.as_ref()
+            if let Some(exports) = declaration.manifest.exports.as_ref()
                 && let Some(resolved) = self.package_exports_resolve(
                     &package_url,
                     &format!(".{subpath}"),
                     exports,
+                    state.clone(),
                     ctx,
                 )?
             {
-                return self.finalize_package_target(specifier, resolved, ctx);
+                return self.finalize_package_target(specifier, resolved, state.clone(), ctx);
             }
 
             // resolve the package types entry for type conditions
@@ -175,11 +186,11 @@ impl Resolver {
                     .conditions
                     .iter()
                     .any(|condition| condition == "types")
-                && let Some(types_field) = declaration.json.types.as_deref()
+                && let Some(types_field) = declaration.manifest.types.as_deref()
             {
                 let types_path = package_url.normalize_with(types_field);
                 if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
-                    return self.probe_esm_target(specifier, &types_path, ctx);
+                    return self.probe_esm_target(specifier, &types_path, state.clone(), ctx);
                 }
             }
 
@@ -187,7 +198,13 @@ impl Resolver {
         }
 
         // fall back to the browser field
-        self.rewrite_browser_field(&browser_field_path, Some(specifier), declaration, ctx)
+        self.apply_browser(
+            &browser_field_path,
+            Some(specifier),
+            declaration,
+            state,
+            ctx,
+        )
     }
 
     /// Resolve an ESM match by loading as file or directory.
@@ -195,10 +212,11 @@ impl Resolver {
         &self,
         specifier: &str,
         path: &Path,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // non compliant esm can still resolve to a directory
-        if let Some(resolved) = self.probe_path(path, "", ctx)? {
+        if let Some(resolved) = self.probe_path(path, "", state, ctx)? {
             Ok(Some(resolved))
         } else {
             Err(ResolveError::NotFound {
@@ -212,9 +230,10 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
-        self.resolve_package_or_modules(path, specifier, ctx)
+        self.resolve_package_or_modules(path, specifier, state, ctx)
             .map(Some)
     }
 
@@ -224,7 +243,8 @@ impl Resolver {
         package_url: &Path,
         subpath: &str,
         exports: &serde_json::Value,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // return early when exports resolution is disabled
         if !self.options.resolve_package_json_exports {
@@ -279,6 +299,7 @@ impl Resolver {
                     None,
                     false,
                     conditions,
+                    state.clone(),
                     ctx,
                 )?;
                 if let Some(path) = resolved {
@@ -289,8 +310,15 @@ impl Resolver {
 
         // resolve a subpath export
         if let Some(exports) = exports.as_object()
-            && let Some(resolved) =
-                self.package_match_resolve(subpath, exports, package_url, false, conditions, ctx)?
+            && let Some(resolved) = self.package_match_resolve(
+                subpath,
+                exports,
+                package_url,
+                false,
+                conditions,
+                state,
+                ctx,
+            )?
         {
             return Ok(Some(resolved));
         }
@@ -309,12 +337,13 @@ impl Resolver {
         &self,
         specifier: &str,
         package_declaration: &PackageDeclaration,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
         // return early when imports are not configured
-        let Some(imports) = package_declaration.json.imports.as_ref() else {
+        let Some(imports) = package_declaration.manifest.imports.as_ref() else {
             return Ok(None);
         };
 
@@ -333,6 +362,7 @@ impl Resolver {
             &package_declaration.directory,
             true,
             &self.options.conditions,
+            state,
             ctx,
         )? {
             Ok(Some(resolved))
@@ -352,7 +382,8 @@ impl Resolver {
         package_url: &Path,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // directory style requests never match here
         if match_key.ends_with('/') {
@@ -370,6 +401,7 @@ impl Resolver {
                 None,
                 is_imports,
                 conditions,
+                state,
                 ctx,
             );
         }
@@ -393,7 +425,7 @@ impl Resolver {
                         && (pattern_trailer.is_empty()
                             || (match_key.len() >= source_key.len()
                                 && match_key.ends_with(pattern_trailer)))
-                        && Self::pattern_key_compare(best_key, source_key).is_gt()
+                        && pattern_key_compare(best_key, source_key).is_gt()
                     {
                         best_target = Some(target_key);
                         best_match =
@@ -404,7 +436,7 @@ impl Resolver {
                 // check directory patterns
                 else if source_key.ends_with('/')
                     && match_key.starts_with(source_key)
-                    && Self::pattern_key_compare(best_key, source_key).is_gt()
+                    && pattern_key_compare(best_key, source_key).is_gt()
                 {
                     best_target = Some(target_key);
                     best_match = &match_key[source_key.len()..];
@@ -422,6 +454,7 @@ impl Resolver {
                 Some(best_match),
                 is_imports,
                 conditions,
+                state,
                 ctx,
             );
         }
@@ -438,12 +471,13 @@ impl Resolver {
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // resolve string targets
         if let Some(target) = target.as_str() {
             // parse query and fragment parts
-            let parsed = ResolveRequest::parse(target);
+            let parsed = ResolvePath::parse(target);
             let target = parsed.path.as_str();
 
             // handle package style targets
@@ -459,7 +493,7 @@ impl Resolver {
                 // resolve the target as another package request
                 let target =
                     Self::normalize_string_target(target_key, target, pattern_match, package_url)?;
-                let resolved = self.resolve_package_target(package_url, &target, ctx)?;
+                let resolved = self.resolve_package_target(package_url, &target, state, ctx)?;
                 return Ok(resolved.map(|resolved| {
                     resolved.override_parts(parsed.query.clone(), parsed.fragment.clone())
                 }));
@@ -494,6 +528,7 @@ impl Resolver {
                         pattern_match,
                         is_imports,
                         conditions,
+                        state.clone(),
                         ctx,
                     );
                     if let Some(path) = resolved? {
@@ -521,6 +556,7 @@ impl Resolver {
                     pattern_match,
                     is_imports,
                     conditions,
+                    state.clone(),
                     ctx,
                 );
 
@@ -539,5 +575,40 @@ impl Resolver {
         }
 
         Ok(None)
+    }
+}
+
+/// Compare two pattern keys for specificity ordering.
+fn pattern_key_compare(key_a: &str, key_b: &str) -> Ordering {
+    if key_a.is_empty() {
+        return Ordering::Greater;
+    }
+
+    // ensure pattern keys are actual pattern keys
+    debug_assert!(
+        key_a.ends_with('/') || key_a.match_indices('*').count() == 1,
+        "{key_a}"
+    );
+    debug_assert!(
+        key_b.ends_with('/') || key_b.match_indices('*').count() == 1,
+        "{key_b}"
+    );
+
+    // compare pattern keys
+    let a_pos = key_a.bytes().position(|byte| byte == b'*');
+    let base_length_a = a_pos.map_or(key_a.len(), |position| position + 1);
+    let b_pos = key_b.bytes().position(|byte| byte == b'*');
+    let base_length_b = b_pos.map_or(key_b.len(), |position| position + 1);
+
+    if base_length_a > base_length_b {
+        Ordering::Less
+    } else if base_length_b > base_length_a || a_pos.is_none() {
+        Ordering::Greater
+    } else if b_pos.is_none() || key_a.len() > key_b.len() {
+        Ordering::Less
+    } else if key_b.len() > key_a.len() {
+        Ordering::Greater
+    } else {
+        Ordering::Equal
     }
 }

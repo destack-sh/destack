@@ -5,8 +5,8 @@ use destack_source::{PathExt, SLASH_START};
 use destack_workspace::PackageDeclaration;
 
 use crate::{
-    Alias, AliasValue, Resolution, ResolveError, ResolveFrame, ResolveOrigin, ResolveRequest,
-    Resolver,
+    Alias, AliasValue, Resolution, ResolveContext, ResolveError, ResolveOrigin, ResolvePath,
+    ResolveState, Resolver,
 };
 
 /// One compiled alias table.
@@ -83,33 +83,26 @@ impl CompiledAliasTable {
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
-    /// Run one recursive rewrite while restoring rewrite state afterward.
-    fn with_rewrite_scope<T>(
+    /// Derive branch state for one applied mapping.
+    fn apply_mapping_state(
         &self,
         active_rewrite: Option<String>,
-        ctx: &mut ResolveFrame,
-        callback: impl FnOnce(&mut ResolveFrame) -> Result<T, ResolveError>,
-    ) -> Result<T, ResolveError> {
-        let previous_active_rewrite = std::mem::replace(&mut ctx.active_rewrite, active_rewrite);
-        let previous_is_fully_specified = ctx.is_fully_specified;
-        ctx.is_fully_specified = false;
-
-        let result = callback(ctx);
-
-        ctx.active_rewrite = previous_active_rewrite;
-        ctx.is_fully_specified = previous_is_fully_specified;
-        result
+        state: ResolveState,
+    ) -> ResolveState {
+        state
+            .with_active_rewrite(active_rewrite)
+            .with_fully_specified(false)
     }
 
-    /// Resolve the browser field value for a path or request.
-    pub(crate) fn browser_field_rewrite<'a>(
+    /// Find one browser field substitution for a path or request.
+    pub(crate) fn find_browser_substitution<'a>(
         &self,
         package_declaration: &'a PackageDeclaration,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&'a str>, ResolveError> {
         let Some(object) = package_declaration
-            .json
+            .manifest
             .browser
             .as_ref()
             .and_then(|v| v.as_object())
@@ -131,12 +124,15 @@ impl Resolver {
         }
         // otherwise match by the resolved path
         else {
-            let directory = package_declaration.path.parent().unwrap_or_else(|| {
-                panic!(
-                    "package.json path is not in a directory: {}",
-                    package_declaration.path.display()
-                )
-            });
+            let directory =
+                package_declaration
+                    .path
+                    .parent()
+                    .ok_or_else(|| ResolveError::InvalidPackageJson {
+                        path: package_declaration.path.clone(),
+                    });
+            let directory = directory?;
+
             for (key, value) in object {
                 let joined = directory.normalize_with(key.as_str());
                 if joined == path {
@@ -154,21 +150,22 @@ impl Resolver {
         Ok(None)
     }
 
-    /// Resolve via browser field substitution.
-    pub(crate) fn rewrite_browser_field(
+    /// Apply browser field substitution.
+    pub(crate) fn apply_browser(
         &self,
         path: &Path,
         module_specifier: Option<&str>,
         package_declaration: &PackageDeclaration,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
-        if ctx.is_fully_specified {
+        if state.is_fully_specified() {
             return Ok(None);
         }
 
         // return early when there is no browser rewrite
         let Some(new_specifier) =
-            self.browser_field_rewrite(package_declaration, path, module_specifier)?
+            self.find_browser_substitution(package_declaration, path, module_specifier)?
         else {
             return Ok(None);
         };
@@ -179,10 +176,9 @@ impl Resolver {
         }
 
         // reject recursive rewrite loops
-        if ctx
-            .active_rewrite
-            .as_ref()
-            .is_some_and(|s| s == new_specifier)
+        if state
+            .active_rewrite()
+            .is_some_and(|active_rewrite| active_rewrite == new_specifier)
         {
             // allow self rewrites like `{"./a.js": "./a.js"}`
             if new_specifier
@@ -202,70 +198,84 @@ impl Resolver {
                     })
                 };
             }
-            return Err(ResolveError::RecursiveDependency { depth: ctx.depth });
+            return Err(ResolveError::RecursiveDependency {
+                depth: state.depth(),
+            });
         }
 
-        let package_url = package_declaration.path.parent().unwrap().to_path_buf();
-        let request = ResolveRequest::parse(new_specifier);
-        self.with_rewrite_scope(Some(new_specifier.to_string()), ctx, |ctx| {
-            self.resolve_request(
-                ResolveOrigin::Directory,
-                &package_url,
-                &package_url,
-                &request,
-                ctx,
-            )
-        })
+        let package_url =
+            package_declaration
+                .path
+                .parent()
+                .ok_or_else(|| ResolveError::InvalidPackageJson {
+                    path: package_declaration.path.clone(),
+                })?;
+        let package_url = package_url.to_path_buf();
+        let request = ResolvePath::parse(new_specifier);
+        let state = self.apply_mapping_state(Some(new_specifier.to_string()), state);
+        self.resolve_request(
+            ResolveOrigin::Directory,
+            &package_url,
+            &package_url,
+            &request,
+            state,
+            ctx,
+        )
         .map(Some)
     }
 
-    /// Resolve aliases from the primary alias table.
-    pub(crate) fn rewrite_primary_alias(
+    /// Apply aliases from the primary alias table.
+    pub(crate) fn apply_primary_alias(
         &self,
         origin: ResolveOrigin,
         request_directory: &Path,
         lookup_path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
-        self.rewrite_alias(
+        self.apply_alias(
             origin,
             request_directory,
             lookup_path,
             specifier,
             &self.compiled_alias,
+            state,
             ctx,
         )
     }
 
-    /// Resolve aliases from the fallback alias table.
-    pub(crate) fn rewrite_fallback_alias(
+    /// Apply aliases from the fallback alias table.
+    pub(crate) fn apply_fallback_alias(
         &self,
         origin: ResolveOrigin,
         request_directory: &Path,
         lookup_path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
-        self.rewrite_alias(
+        self.apply_alias(
             origin,
             request_directory,
             lookup_path,
             specifier,
             &self.compiled_fallback,
+            state,
             ctx,
         )
     }
 
-    /// Resolve one compiled alias table.
-    fn rewrite_alias(
+    /// Apply one compiled alias table.
+    fn apply_alias(
         &self,
         origin: ResolveOrigin,
         request_directory: &Path,
         lookup_path: &Path,
         specifier: &str,
         aliases: &CompiledAliasTable,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         for alias in aliases.entries() {
             let (alias_key, alias_key_has_wildcard) = match &alias.pattern {
@@ -301,7 +311,7 @@ impl Resolver {
             for alias_value in &alias.values {
                 match alias_value {
                     AliasValue::Path(alias_path) => {
-                        if let Some(resolved) = self.rewrite_alias_value(
+                        if let Some(resolved) = self.apply_alias_value(
                             origin,
                             request_directory,
                             lookup_path,
@@ -309,6 +319,7 @@ impl Resolver {
                             alias_key_has_wildcard,
                             alias_path,
                             specifier,
+                            state.clone(),
                             ctx,
                             &mut should_stop,
                         )? {
@@ -331,8 +342,8 @@ impl Resolver {
         Ok(None)
     }
 
-    /// Resolve an alias value by substituting the matched portion.
-    fn rewrite_alias_value(
+    /// Apply one alias value by substituting the matched portion.
+    fn apply_alias_value(
         &self,
         origin: ResolveOrigin,
         request_directory: &Path,
@@ -341,7 +352,8 @@ impl Resolver {
         alias_key_has_wildcard: bool,
         alias_value: &str,
         request: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
         should_stop: &mut bool,
     ) -> Result<Option<Resolution>, ResolveError> {
         // skip exact self aliases and direct subpaths
@@ -395,10 +407,10 @@ impl Resolver {
 
         // resolve the substituted specifier
         *should_stop = true;
-        let request = ResolveRequest::parse(new_specifier.as_ref());
-        let resolution = self.with_rewrite_scope(None, ctx, |ctx| {
-            self.resolve_request(origin, request_directory, lookup_path, &request, ctx)
-        });
+        let request = ResolvePath::parse(new_specifier.as_ref());
+        let state = self.apply_mapping_state(None, state);
+        let resolution =
+            self.resolve_request(origin, request_directory, lookup_path, &request, state, ctx);
 
         match resolution {
             Ok(resolved) => Ok(Some(resolved)),
@@ -407,11 +419,12 @@ impl Resolver {
         }
     }
 
-    /// Resolve via extension alias (e.g., mapping `.js` to `.ts`).
-    pub(crate) fn rewrite_extension_alias(
+    /// Apply extension alias mappings (e.g., `.js` to `.ts`).
+    pub(crate) fn apply_extension_alias(
         &self,
         path: &Path,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // return early when no extension alias applies
         if self.options.extension_alias.is_empty() {
@@ -433,26 +446,25 @@ impl Resolver {
             return Ok(None);
         };
 
-        ctx.is_fully_specified = true;
+        let state = state.with_fully_specified(true);
         for extension in extensions {
             // strip the leading dot for `with_extension`
             let extension = extension.strip_prefix('.').unwrap_or(extension);
             let path_with_ext = path.with_extension(extension);
-            if let Some(resolved) = self.probe_alias_or_file(&path_with_ext, ctx)? {
-                ctx.is_fully_specified = false;
+            if let Some(resolved) = self.probe_alias_or_file(&path_with_ext, state.clone(), ctx)? {
                 return Ok(Some(resolved));
             }
         }
 
         // return quietly for unresolved module directory lookups like `ipaddr.js`
         if !self.is_file(path, ctx) || !self.check_restrictions(path) {
-            ctx.is_fully_specified = false;
             return Ok(None);
         }
 
         // report the failed alias candidates
-        ctx.is_fully_specified = false;
-        let dir = path.parent().unwrap().to_path_buf();
+        let dir = path
+            .parent()
+            .map_or_else(|| Path::new(".").to_path_buf(), Path::to_path_buf);
         let filename_without_extension = Path::new(file_name).with_extension("");
         let filename_without_extension = filename_without_extension.to_string_lossy();
         let files = extensions

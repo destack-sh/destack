@@ -1,10 +1,10 @@
 use destack_dir::Expression;
-use destack_resolver::{SpecifierLinkTarget, resolve_document_link_target};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
+use super::specifier::{SpecifierLinkTarget, resolve_document_link_target};
 use crate::ast::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
 use crate::core::{with_ast_query_for_file, with_query_context_for_file};
 use crate::dir::module_specifier_in_expression;

@@ -25,7 +25,7 @@ fn test_resolve_pnp_basic() {
         "missing PnP manifest fixture, run `just install-resolver`"
     );
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
@@ -34,14 +34,14 @@ fn test_resolve_pnp_basic() {
     });
 
     let is_even = resolver
-        .resolve_from_directory(&fixture, "is-even")
+        .resolve_test_directory(&fixture, "is-even")
         .map(|resolution| resolution.full_path())
         .expect("expected to resolve is-even from PnP fixture");
     assert_contains(&is_even, "/.yarn/cache/is-even-npm-");
     assert_contains(&is_even, ".zip/node_modules/is-even/index.js");
 
     let lodash_zip = resolver
-        .resolve_from_directory(&fixture, "lodash.zip")
+        .resolve_test_directory(&fixture, "lodash.zip")
         .map(|resolution| resolution.full_path())
         .expect("expected to resolve lodash.zip from PnP fixture");
     assert_contains(&lodash_zip, "/.yarn/cache/lodash.zip-npm-");
@@ -51,20 +51,20 @@ fn test_resolve_pnp_basic() {
         .parent()
         .expect("expected resolved is-even path to have a parent directory");
     let is_odd = resolver
-        .resolve_from_directory(is_even_directory, "is-odd")
+        .resolve_test_directory(is_even_directory, "is-odd")
         .map(|resolution| resolution.full_path())
         .expect("expected to resolve transitive PnP dependency");
     assert_contains(&is_odd, "/.yarn/cache/is-odd-npm-");
     assert_contains(&is_odd, ".zip/node_modules/is-odd/index.js");
 
     let preact = resolver
-        .resolve_from_directory(&fixture, "preact")
+        .resolve_test_directory(&fixture, "preact")
         .map(|resolution| resolution.full_path())
         .expect("expected to resolve preact from PnP fixture");
     assert_contains(&preact, ".zip/node_modules/preact/dist/preact.mjs");
 
     let pnpapi = resolver
-        .resolve_from_directory(&fixture, "pnpapi")
+        .resolve_test_directory(&fixture, "pnpapi")
         .map(|r| r.full_path());
     assert_eq!(pnpapi, Ok(fixture.join(".pnp.cjs")));
 }
@@ -73,7 +73,7 @@ fn test_resolve_pnp_basic() {
 #[test]
 fn test_resolve_pnp_linked_folder() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         conditions: vec!["import".into()],
@@ -81,7 +81,7 @@ fn test_resolve_pnp_linked_folder() {
     });
 
     let resolution = resolver
-        .resolve_from_directory(&fixture, "lib/lib.js")
+        .resolve_test_directory(&fixture, "lib/lib.js")
         .map(|resolution| resolution.full_path());
     assert_eq!(resolution, Ok(fixture.join("shared/lib.js")));
 }
@@ -90,10 +90,10 @@ fn test_resolve_pnp_linked_folder() {
 #[test]
 fn test_resolve_pnp_disabled() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolveOptions::default());
 
     assert_eq!(
-        resolver.resolve_from_directory(&fixture, "is-even"),
+        resolver.resolve_test_directory(&fixture, "is-even"),
         Err(ResolveError::NotFound {
             specifier: "is-even".to_string(),
         })
@@ -104,14 +104,14 @@ fn test_resolve_pnp_disabled() {
 #[test]
 fn test_resolve_pnp_missing_manifest_reports_error() {
     let fixture = super::fixture_root().join("misc");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
     });
 
     assert_eq!(
-        resolver.resolve_from_directory(&fixture, "is-even"),
+        resolver.resolve_test_directory(&fixture, "is-even"),
         Err(ResolveError::FailedToFindYarnPnpManifest { cwd: fixture })
     );
 }
@@ -120,25 +120,25 @@ fn test_resolve_pnp_missing_manifest_reports_error() {
 #[test]
 fn test_resolve_pnp_npm_protocol_alias() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
     });
 
     let custom_minimist = resolver
-        .resolve_from_directory(&fixture, "custom-minimist")
+        .resolve_test_directory(&fixture, "custom-minimist")
         .map(|resolution| resolution.full_path())
         .expect("expected npm protocol alias custom-minimist to resolve");
     assert_contains(&custom_minimist, ".zip/node_modules/minimist/index.js");
 
     let custom_pragmatic = resolver
-        .resolve_from_directory(&fixture, "@custom/pragmatic-drag-and-drop")
+        .resolve_test_directory(&fixture, "@custom/pragmatic-drag-and-drop")
         .map(|resolution| resolution.full_path())
         .expect("expected scoped npm protocol alias to resolve");
 
     let alias_pragmatic = resolver
-        .resolve_from_directory(&fixture, "pragmatic-drag-and-drop")
+        .resolve_test_directory(&fixture, "pragmatic-drag-and-drop")
         .map(|resolution| resolution.full_path())
         .expect("expected unscoped npm protocol alias to resolve");
 
@@ -153,14 +153,14 @@ fn test_resolve_pnp_npm_protocol_alias() {
 #[test]
 fn test_resolve_pnp_package_deep_link() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
     });
 
     let resolution = resolver
-        .resolve_from_directory(fixture.join("shared"), "beachball/lib/commands/bump.js")
+        .resolve_test_directory(fixture.join("shared"), "beachball/lib/commands/bump.js")
         .map(|resolution| resolution.full_path())
         .expect("expected deep link package request to resolve under PnP");
     assert_contains(
@@ -173,13 +173,13 @@ fn test_resolve_pnp_package_deep_link() {
 #[test]
 fn test_resolve_pnp_preserves_resolver_errors() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
     });
 
-    let result = resolver.resolve_from_directory(&fixture, "this-package-does-not-exist");
+    let result = resolver.resolve_test_directory(&fixture, "this-package-does-not-exist");
     assert!(
         matches!(result, Err(ResolveError::YarnPnpError { .. })),
         "expected one Yarn PnP error, got {result:?}"
@@ -190,14 +190,14 @@ fn test_resolve_pnp_preserves_resolver_errors() {
 #[test]
 fn test_resolve_pnp_nested_package_json() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
     });
 
     let resolution = resolver
-        .resolve_from_directory(&fixture, "@atlaskit/pragmatic-drag-and-drop/combine")
+        .resolve_test_directory(&fixture, "@atlaskit/pragmatic-drag-and-drop/combine")
         .map(|resolution| resolution.full_path())
         .expect("expected nested package.json entry point to resolve under PnP");
     let normalized = normalized(&resolution);
@@ -217,14 +217,14 @@ fn test_resolve_pnp_nested_package_json() {
 #[cfg(target_endian = "little")]
 fn test_resolve_pnp_global_cache() {
     let fixture = super::fixture_root().join("global-pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
     });
 
     let source_map_support_path = resolver
-        .resolve_from_directory(&fixture, "source-map-support")
+        .resolve_test_directory(&fixture, "source-map-support")
         .map(|resolution| resolution.full_path())
         .expect("expected source-map-support to resolve from global PnP cache");
     let issuer_directory = source_map_support_path
@@ -232,7 +232,7 @@ fn test_resolve_pnp_global_cache() {
         .expect("expected source-map-support path to have a parent directory");
 
     let source_map_path = resolver
-        .resolve_from_directory(issuer_directory, "source-map")
+        .resolve_test_directory(issuer_directory, "source-map")
         .map(|resolution| resolution.full_path())
         .expect("expected source-map to resolve from global PnP cache");
     let normalized = normalized(&source_map_path);
@@ -259,7 +259,7 @@ fn test_resolve_pnp_global_cache() {
 #[test]
 fn test_resolve_tsconfig_extends_with_pnp() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
@@ -281,7 +281,7 @@ fn test_resolve_tsconfig_extends_with_pnp() {
 #[test]
 fn test_resolve_pnp_from_non_pnp_base_with_options() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::physical(ResolveOptions::default());
+    let base_resolver = Resolver::for_tests(ResolveOptions::default());
     let resolver = base_resolver.with_options(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
@@ -291,7 +291,7 @@ fn test_resolve_pnp_from_non_pnp_base_with_options() {
     });
 
     let resolution = resolver
-        .resolve_from_directory(&fixture, "is-even")
+        .resolve_test_directory(&fixture, "is-even")
         .map(|resolution| resolution.full_path())
         .expect("expected with_options resolver to resolve PnP dependency");
     assert_contains(&resolution, ".zip/node_modules/is-even/index.js");
@@ -301,7 +301,7 @@ fn test_resolve_pnp_from_non_pnp_base_with_options() {
 #[test]
 fn test_resolve_pnp_with_options_keeps_enabled_mode() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::physical(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
@@ -315,17 +315,17 @@ fn test_resolve_pnp_with_options_keeps_enabled_mode() {
     });
 
     let resolution = resolver
-        .resolve_from_directory(&fixture, "is-even")
+        .resolve_test_directory(&fixture, "is-even")
         .map(|resolution| resolution.full_path())
         .expect("expected with_options resolver to keep resolving PnP dependencies");
     assert_contains(&resolution, ".zip/node_modules/is-even/index.js");
 }
 
-/// Preserve one PnP cache when cloning without toggling Yarn PnP mode.
+/// Keep resolving PnP requests when cloning without toggling Yarn PnP mode.
 #[test]
-fn test_pnp_cache_preserved_when_mode_unchanged() {
+fn test_resolve_pnp_after_cloning_when_mode_unchanged() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::physical(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
@@ -340,23 +340,18 @@ fn test_pnp_cache_preserved_when_mode_unchanged() {
         ..ResolveOptions::default()
     });
 
-    assert!(
-        base_resolver.shares_pnp_cache_with(&cloned_resolver),
-        "expected PnP cache reuse when mode is unchanged"
-    );
-
     let resolution = cloned_resolver
-        .resolve_from_directory(&fixture, "is-even")
+        .resolve_test_directory(&fixture, "is-even")
         .map(|resolution| resolution.full_path())
-        .expect("expected cloned resolver to resolve with shared PnP cache");
+        .expect("expected cloned resolver to resolve with pnp enabled");
     assert_contains(&resolution, ".zip/node_modules/is-even/index.js");
 }
 
-/// Recreate one PnP cache when cloning and toggling Yarn PnP mode on.
+/// Start resolving PnP requests after cloning and toggling Yarn PnP mode on.
 #[test]
-fn test_pnp_cache_recreated_when_toggling_on() {
+fn test_resolve_pnp_after_toggling_on() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::physical(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: false,
         extensions: vec![".js".into()],
@@ -370,13 +365,8 @@ fn test_pnp_cache_recreated_when_toggling_on() {
         ..ResolveOptions::default()
     });
 
-    assert!(
-        !base_resolver.shares_pnp_cache_with(&cloned_resolver),
-        "expected PnP cache recreation when toggling on"
-    );
-
     let resolution = cloned_resolver
-        .resolve_from_directory(&fixture, "is-even")
+        .resolve_test_directory(&fixture, "is-even")
         .map(|resolution| resolution.full_path())
         .expect("expected cloned resolver to resolve after toggling pnp on");
     assert_contains(&resolution, ".zip/node_modules/is-even/index.js");
@@ -386,7 +376,7 @@ fn test_pnp_cache_recreated_when_toggling_on() {
 #[test]
 fn test_resolve_pnp_with_options_can_disable_mode() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::physical(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         ..ResolveOptions::default()
@@ -399,18 +389,18 @@ fn test_resolve_pnp_with_options_can_disable_mode() {
     });
 
     assert_eq!(
-        resolver.resolve_from_directory(&fixture, "is-even"),
+        resolver.resolve_test_directory(&fixture, "is-even"),
         Err(ResolveError::NotFound {
             specifier: "is-even".to_string(),
         })
     );
 }
 
-/// Recreate one PnP cache when cloning and toggling Yarn PnP mode off.
+/// Stop resolving PnP requests after cloning and toggling Yarn PnP mode off.
 #[test]
-fn test_pnp_cache_recreated_when_toggling_off() {
+fn test_resolve_pnp_after_toggling_off() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::physical(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolveOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
@@ -424,13 +414,8 @@ fn test_pnp_cache_recreated_when_toggling_off() {
         ..ResolveOptions::default()
     });
 
-    assert!(
-        !base_resolver.shares_pnp_cache_with(&cloned_resolver),
-        "expected PnP cache recreation when toggling off"
-    );
-
     assert_eq!(
-        cloned_resolver.resolve_from_directory(&fixture, "is-even"),
+        cloned_resolver.resolve_test_directory(&fixture, "is-even"),
         Err(ResolveError::NotFound {
             specifier: "is-even".to_string(),
         })

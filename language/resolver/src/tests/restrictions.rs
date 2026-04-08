@@ -13,7 +13,7 @@ fn test_restrictions_respect_regexp() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = Resolver::physical(ResolveOptions {
+    let resolver1 = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
@@ -24,7 +24,7 @@ fn test_restrictions_respect_regexp() {
     });
 
     let resolution = resolver1
-        .resolve_from_directory(&f, "pck1")
+        .resolve_test_directory(&f, "pck1")
         .map(|r| r.full_path());
     assert_eq!(
         resolution,
@@ -40,7 +40,7 @@ fn test_restrictions_find_alternative_extension() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = Resolver::physical(ResolveOptions {
+    let resolver1 = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
@@ -52,7 +52,7 @@ fn test_restrictions_find_alternative_extension() {
     });
 
     let resolution = resolver1
-        .resolve_from_directory(&f, "pck1")
+        .resolve_test_directory(&f, "pck1")
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("node_modules/pck1/index.css")));
 }
@@ -63,13 +63,13 @@ fn test_restrictions_respect_string() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Path(f.clone())],
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve_from_directory(&f, "pck2");
+    let resolution = resolver.resolve_test_directory(&f, "pck2");
     assert_eq!(
         resolution,
         Err(ResolveError::NotFound {
@@ -84,7 +84,7 @@ fn test_restrictions_find_alternative_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = Resolver::physical(ResolveOptions {
+    let resolver1 = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
@@ -95,7 +95,7 @@ fn test_restrictions_find_alternative_main_fields() {
     });
 
     let resolution = resolver1
-        .resolve_from_directory(&f, "pck2")
+        .resolve_test_directory(&f, "pck2")
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("node_modules/pck2/index.css")));
 }
@@ -106,7 +106,7 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(css)$").unwrap();
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         enforce_extension: crate::EnforceExtension::Disabled,
@@ -120,7 +120,7 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
 
     // prefer the unrestricted index candidate
     let resolution = resolver
-        .resolve_from_directory(&f, "pck1")
+        .resolve_test_directory(&f, "pck1")
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("node_modules/pck1/index.css")));
 }
@@ -132,7 +132,7 @@ fn test_restrictions_check_in_probe_alias_or_file() {
 
     // reject any path under the fixture directory
     let restrictions_path = f.clone();
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             !path.starts_with(&restrictions_path)
@@ -141,7 +141,7 @@ fn test_restrictions_check_in_probe_alias_or_file() {
     });
 
     // direct file access should fail
-    let resolution = resolver.resolve_from_directory(&f, "./node_modules/pck1/index.js");
+    let resolution = resolver.resolve_test_directory(&f, "./node_modules/pck1/index.js");
     assert!(resolution.is_err());
 }
 
@@ -150,7 +150,7 @@ fn test_restrictions_check_in_probe_alias_or_file() {
 fn test_restrictions_check_in_browser_field_alias() {
     let f = super::fixture().join("browser-module");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         restrictions: vec![Restriction::Function(Arc::new(|path| {
             // reject files containing "browser" in their path
             !path.to_str().is_some_and(|s| s.contains("browser"))
@@ -159,7 +159,7 @@ fn test_restrictions_check_in_browser_field_alias() {
     });
 
     // browser rewrites should still honor restrictions
-    let resolution = resolver.resolve_from_directory(&f, "./lib/self.js");
+    let resolution = resolver.resolve_test_directory(&f, "./lib/self.js");
     assert!(resolution.is_err());
 }
 
@@ -168,7 +168,7 @@ fn test_restrictions_check_in_browser_field_alias() {
 fn test_restrictions_check_in_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extension_alias: IndexMap::from([
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into(), ".mjs".into()]),
@@ -182,7 +182,7 @@ fn test_restrictions_check_in_extension_alias() {
 
     // skip the restricted .ts candidate
     let resolution = resolver
-        .resolve_from_directory(&f, "./index.js")
+        .resolve_test_directory(&f, "./index.js")
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("index.js")));
 }
@@ -192,7 +192,7 @@ fn test_restrictions_check_in_extension_alias() {
 fn test_restrictions_check_in_package_main_fields() {
     let f = super::fixture().join("restrictions");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         restrictions: vec![Restriction::Function(Arc::new(|path| {
             // reject .js files
             path.extension().and_then(|e| e.to_str()) != Some("js")
@@ -201,7 +201,7 @@ fn test_restrictions_check_in_package_main_fields() {
     });
 
     // package main candidates should be rejected
-    let resolution = resolver.resolve_from_directory(&f, "pck2");
+    let resolution = resolver.resolve_test_directory(&f, "pck2");
     assert_eq!(
         resolution,
         Err(ResolveError::NotFound {
@@ -218,7 +218,7 @@ fn test_restrictions_apply_multiple() {
     // require css and reject js
     let re_css = Regex::new(r"\.(css)$").unwrap();
     let re_no_js = Regex::new(r"\.(js)$").unwrap();
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
@@ -239,7 +239,7 @@ fn test_restrictions_apply_multiple() {
 
     // the css fallback satisfies both restrictions
     let resolution = resolver
-        .resolve_from_directory(&f, "pck1")
+        .resolve_test_directory(&f, "pck1")
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("node_modules/pck1/index.css")));
 }
@@ -252,7 +252,7 @@ fn test_restrictions_fail_if_any_fails() {
     // require css, then reject css
     let re_css = Regex::new(r"\.(css)$").unwrap();
     let re_no_css = Regex::new(r"\.(css)$").unwrap();
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
@@ -273,7 +273,7 @@ fn test_restrictions_fail_if_any_fails() {
     });
 
     // conflicting restrictions should reject every candidate
-    let resolution = resolver.resolve_from_directory(&f, "pck1");
+    let resolution = resolver.resolve_test_directory(&f, "pck1");
     assert_eq!(
         resolution,
         Err(ResolveError::NotFound {
@@ -288,7 +288,7 @@ fn test_restrictions_allow_exact_path() {
     let f = super::fixture().join("restrictions");
     let exact_file = f.join("node_modules/pck1/index.css");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Path(exact_file.clone())],
@@ -297,7 +297,7 @@ fn test_restrictions_allow_exact_path() {
 
     // exact path matches should pass
     let resolution = resolver
-        .resolve_from_directory(&f, "pck1")
+        .resolve_test_directory(&f, "pck1")
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(exact_file));
 }
@@ -308,14 +308,14 @@ fn test_restrictions_respect_parent_directory() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Path(fixture)],
         ..ResolveOptions::default()
     });
 
     // pck2 points outside the restricted parent directory
-    let resolution = resolver.resolve_from_directory(&f, "pck2");
+    let resolution = resolver.resolve_test_directory(&f, "pck2");
     assert_eq!(
         resolution,
         Err(ResolveError::NotFound {

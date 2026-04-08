@@ -6,6 +6,7 @@ mod extract_variable;
 mod file_rename;
 mod inline;
 mod rename;
+mod specifier;
 
 pub use change_signature::*;
 pub use code_action::*;

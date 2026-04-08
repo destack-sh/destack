@@ -2,9 +2,9 @@ use std::path::{Component, Path};
 
 use destack_workspace::ModuleSpecifier;
 
-/// One parsed module resolution request.
+/// One parsed specifier path for a resolve query.
 #[derive(Debug, Clone)]
-pub(crate) struct ResolveRequest {
+pub(crate) struct ResolvePath {
     /// The specifier path without any query or fragment.
     pub(crate) path: String,
     /// The query suffix, including the leading `?`.
@@ -13,9 +13,9 @@ pub(crate) struct ResolveRequest {
     pub(crate) fragment: Option<String>,
 }
 
-/// The coarse request class used to select one resolution path.
+/// The coarse specifier class used to select one resolution path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ResolveRequestKind {
+pub(crate) enum ResolvePathKind {
     /// One absolute filesystem path request.
     Absolute,
     /// One relative filesystem path request.
@@ -26,7 +26,7 @@ pub(crate) enum ResolveRequestKind {
     Bare,
 }
 
-impl ResolveRequest {
+impl ResolvePath {
     /// Parse one raw specifier into path, query, and fragment parts.
     pub(crate) fn parse(specifier: &str) -> Self {
         let parsed = ModuleSpecifier::parse(specifier);
@@ -50,14 +50,14 @@ impl ResolveRequest {
     }
 
     /// Classify one specifier path without query or fragment.
-    pub(crate) fn kind_for(specifier: &str) -> ResolveRequestKind {
+    pub(crate) fn kind_for(specifier: &str) -> ResolvePathKind {
         match Path::new(specifier).components().next() {
-            Some(Component::RootDir | Component::Prefix(_)) => ResolveRequestKind::Absolute,
-            Some(Component::CurDir | Component::ParentDir) => ResolveRequestKind::Relative,
+            Some(Component::RootDir | Component::Prefix(_)) => ResolvePathKind::Absolute,
+            Some(Component::CurDir | Component::ParentDir) => ResolvePathKind::Relative,
             Some(Component::Normal(_)) if specifier.as_bytes()[0] == b'#' => {
-                ResolveRequestKind::PackageImport
+                ResolvePathKind::PackageImport
             }
-            _ => ResolveRequestKind::Bare,
+            _ => ResolvePathKind::Bare,
         }
     }
 }

@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::io;
@@ -9,14 +8,9 @@ use destack_source::strip_windows_prefix;
 use destack_source::{FileMetadata, PathExt};
 
 #[cfg(not(target_arch = "wasm32"))]
-use pnp::fs::{VPath, VPathInfo, ZipCache};
+use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache, open_zip_via_read_p};
 
-use crate::{ResolveError, ResolveFrame, Resolver, Restriction};
-
-// thread local scratch path buffer
-thread_local! {
-    pub(crate) static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
-}
+use crate::{ResolveContext, ResolveError, Resolver, Restriction};
 
 /// The identity hasher for hash sets with precomputed hashes.
 #[derive(Debug, Default)]
@@ -61,15 +55,18 @@ impl Resolver {
             .any(|c| matches!(c, Component::Normal(name) if name == "node_modules"))
     }
 
+    /// Return true when a path should resolve from repository revision truth.
+    fn uses_repository_path_truth(&self, path: &Path, ctx: &ResolveContext) -> bool {
+        let (repository, _) = self.source_world(ctx);
+
+        path.starts_with(repository.workspace_root()) && !Self::is_inside_modules(path)
+    }
+
     /// Append an extension to a path (e.g., `foo` + `.js` = `foo.js`).
     pub(crate) fn append_extension(path: &Path, extension: &str) -> PathBuf {
-        SCRATCH_PATH.with_borrow_mut(|scratch| {
-            scratch.clear();
-            let os_string = scratch.as_mut_os_string();
-            os_string.push(path.as_os_str());
-            os_string.push(extension);
-            scratch.clone()
-        })
+        let mut os_string = path.as_os_str().to_os_string();
+        os_string.push(extension);
+        PathBuf::from(os_string)
     }
 
     /// Normalize one Windows path and reject unsupported DOS device forms.
@@ -82,15 +79,14 @@ impl Resolver {
     }
 
     /// Read a path as bytes, with optional Yarn PnP virtual/zip support.
-    pub(crate) fn read_path(&self, path: &Path) -> io::Result<Vec<u8>> {
+    pub(crate) fn read_path(&self, path: &Path, ctx: &mut ResolveContext) -> io::Result<Vec<u8>> {
         #[cfg(not(target_arch = "wasm32"))]
         if self.options.yarn_pnp {
             return match VPath::from(path)? {
-                VPath::Zip(info) => self
-                    .state
-                    .pnp_lru
+                VPath::Zip(info) => ctx
+                    .pnp_zip_cache()
                     .read(info.physical_base_path(), info.zip_path.as_str()),
-                VPath::Virtual(info) => self.read_path(&info.physical_base_path()),
+                VPath::Virtual(info) => self.read_path(&info.physical_base_path(), ctx),
                 VPath::Native(_) => self.fs().read(path),
             };
         }
@@ -99,32 +95,38 @@ impl Resolver {
     }
 
     /// Read a path as UTF-8 text, with optional Yarn PnP virtual/zip support.
-    pub(crate) fn read_path_to_string(&self, path: &Path) -> io::Result<String> {
+    pub(crate) fn read_path_to_string(
+        &self,
+        path: &Path,
+        ctx: &mut ResolveContext,
+    ) -> io::Result<String> {
         #[cfg(not(target_arch = "wasm32"))]
         if self.options.yarn_pnp {
             return match VPath::from(path)? {
-                VPath::Zip(info) => self
-                    .state
-                    .pnp_lru
+                VPath::Zip(info) => ctx
+                    .pnp_zip_cache()
                     .read_to_string(info.physical_base_path(), info.zip_path.as_str()),
-                VPath::Virtual(info) => self.read_path_to_string(&info.physical_base_path()),
+                VPath::Virtual(info) => self.read_path_to_string(&info.physical_base_path(), ctx),
                 VPath::Native(_) => self.fs().read_to_string(path),
             };
         }
 
-        let bytes = self.read_path(path)?;
+        let bytes = self.read_path(path, ctx)?;
         destack_source::validate_utf8_string(bytes)
     }
 
     /// Read metadata from one path, with optional Yarn PnP virtual/zip support.
-    pub(crate) fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+    pub(crate) fn metadata(
+        &self,
+        path: &Path,
+        ctx: &mut ResolveContext,
+    ) -> io::Result<FileMetadata> {
         #[cfg(not(target_arch = "wasm32"))]
         if self.options.yarn_pnp {
             return match VPath::from(path)? {
                 VPath::Zip(info) => {
-                    let file_type = self
-                        .state
-                        .pnp_lru
+                    let file_type = ctx
+                        .pnp_zip_cache()
                         .file_type(info.physical_base_path(), info.zip_path.as_str())?;
                     Ok(match file_type {
                         pnp::fs::FileType::File => FileMetadata::new(true, false, false, 0, None),
@@ -133,7 +135,7 @@ impl Resolver {
                         }
                     })
                 }
-                VPath::Virtual(info) => self.metadata(&info.physical_base_path()),
+                VPath::Virtual(info) => self.metadata(&info.physical_base_path(), ctx),
                 VPath::Native(_) => self.fs().metadata(path),
             };
         }
@@ -145,12 +147,12 @@ impl Resolver {
     pub(crate) fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         #[cfg(not(target_arch = "wasm32"))]
         if self.options.yarn_pnp {
+            let zip_cache = LruZipCache::new(1, open_zip_via_read_p);
+
             return match VPath::from(path)? {
                 VPath::Zip(info) => {
-                    let file_type = self
-                        .state
-                        .pnp_lru
-                        .file_type(info.physical_base_path(), info.zip_path.as_str())?;
+                    let file_type =
+                        zip_cache.file_type(info.physical_base_path(), info.zip_path.as_str())?;
                     Ok(match file_type {
                         pnp::fs::FileType::File => FileMetadata::new(true, false, false, 0, None),
                         pnp::fs::FileType::Directory => {
@@ -201,9 +203,9 @@ impl Resolver {
 
     /// Check if a path is a file.
     #[inline]
-    pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolveFrame) -> bool {
-        match self.metadata(path) {
-            Ok(meta) if meta.is_file => {
+    pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolveContext) -> bool {
+        match self.path_metadata(path, ctx) {
+            Ok(Some(meta)) if meta.is_file => {
                 ctx.track_found_dependency(path);
                 true
             }
@@ -216,9 +218,9 @@ impl Resolver {
 
     /// Check if a path is a directory.
     #[inline]
-    pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolveFrame) -> bool {
-        match self.metadata(path) {
-            Ok(meta) if meta.is_directory => {
+    pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolveContext) -> bool {
+        match self.path_metadata(path, ctx) {
+            Ok(Some(meta)) if meta.is_directory => {
                 ctx.track_found_dependency(path);
                 true
             }
@@ -227,6 +229,51 @@ impl Resolver {
                 false
             }
         }
+    }
+
+    /// Return one path metadata snapshot from repository truth or the backing file system.
+    pub(crate) fn path_metadata(
+        &self,
+        path: &Path,
+        ctx: &mut ResolveContext,
+    ) -> Result<Option<FileMetadata>, ResolveError> {
+        if let Some(metadata) = ctx.path_metadata(path) {
+            return Ok(metadata);
+        }
+
+        if self.uses_repository_path_truth(path, ctx) {
+            let (repository, revision) = self.source_world(ctx);
+            let metadata = repository
+                .metadata_for_path(revision, path)
+                .map_err(|error| ResolveError::RepositoryError {
+                    path: path.to_path_buf(),
+                    message: error.to_string(),
+                })?;
+
+            ctx.remember_path_metadata(path, metadata);
+            return Ok(metadata);
+        }
+
+        let metadata = match self.metadata(path, ctx) {
+            Ok(metadata) => Some(metadata),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::InvalidInput
+                ) =>
+            {
+                None
+            }
+            Err(error) => {
+                return Err(ResolveError::IoError {
+                    path: path.to_path_buf(),
+                    kind: error.kind(),
+                });
+            }
+        };
+
+        ctx.remember_path_metadata(path, metadata);
+        Ok(metadata)
     }
 
     /// Canonicalize a path, resolving all symlinks.
@@ -336,7 +383,15 @@ impl Resolver {
     }
 
     /// Finalize one resolved path by applying symlink canonicalization if configured.
-    pub(crate) fn finalize_path(&self, path: &Path) -> Result<PathBuf, ResolveError> {
+    pub(crate) fn finalize_path(
+        &self,
+        path: &Path,
+        ctx: &ResolveContext,
+    ) -> Result<PathBuf, ResolveError> {
+        if self.uses_repository_path_truth(path, ctx) {
+            return Ok(Self::normalize_root(path));
+        }
+
         if self.options.canonicalize_symlinks {
             self.canonicalize(path)
         } else {

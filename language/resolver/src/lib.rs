@@ -2,18 +2,11 @@
 #![feature(if_let_guard)]
 #![feature(once_cell_try)]
 
-mod config;
-mod package;
-mod path;
 mod resolve;
-mod specifier;
 
-pub(crate) use path::{CompiledAliasTable, ResolveRequest, ResolveRequestKind};
-pub(crate) use resolve::ResolveFrame;
+pub(crate) use resolve::{ResolvePath, ResolvePathKind};
 
-pub use path::Resolution;
-pub use resolve::*;
-pub use specifier::*;
+pub use resolve::{Resolution, *};
 
 #[cfg(test)]
 mod tests;

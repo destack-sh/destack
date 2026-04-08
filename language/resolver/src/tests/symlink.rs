@@ -160,11 +160,11 @@ fn test_symlinks_resolution() {
     let Some(SymlinkFixturePaths { root, temp_path }) = prepare_symlinks("temp").unwrap() else {
         return;
     };
-    let resolver_without_symlinks = Resolver::physical(ResolveOptions {
+    let resolver_without_symlinks = Resolver::for_tests(ResolveOptions {
         canonicalize_symlinks: false,
         ..ResolveOptions::default()
     });
-    let resolver_with_symlinks = Resolver::physical(ResolveOptions::default());
+    let resolver_with_symlinks = Resolver::for_tests(ResolveOptions::default());
 
     #[rustfmt::skip]
     let pass = [
@@ -195,12 +195,12 @@ fn test_symlinks_resolution() {
 
     for (comment, path, request) in pass {
         let filename = resolver_with_symlinks
-            .resolve_from_directory(&path, request)
+            .resolve_test_directory(&path, request)
             .map(|r| r.full_path());
         assert_eq!(filename, Ok(root.join("lib/index.js")), "{comment:?}");
 
         let resolved_path = resolver_without_symlinks
-            .resolve_from_directory(&path, request)
+            .resolve_test_directory(&path, request)
             .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(path.join(request)));
     }
@@ -230,8 +230,8 @@ fn test_symlinks_circular() {
     }
 
     // should error due to circular symlink
-    let resolver = Resolver::physical(ResolveOptions::default());
-    let result = resolver.resolve_from_directory(&temp_path, "./link1");
+    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let result = resolver.resolve_test_directory(&temp_path, "./link1");
     assert!(result.is_err());
 
     _ = fs::remove_file(&link1_path);
@@ -281,21 +281,21 @@ fn test_symlinks_self_reference_exports_resolution() {
         return;
     }
 
-    let resolver_without_symlinks = Resolver::physical(ResolveOptions {
+    let resolver_without_symlinks = Resolver::for_tests(ResolveOptions {
         canonicalize_symlinks: false,
         ..ResolveOptions::default()
     });
-    let resolver_with_symlinks = Resolver::physical(ResolveOptions::default());
+    let resolver_with_symlinks = Resolver::for_tests(ResolveOptions::default());
 
     let link_root_resolution = resolver_without_symlinks
-        .resolve_from_directory(&package_link_src_path, "selfpkg")
+        .resolve_test_directory(&package_link_src_path, "selfpkg")
         .map(|r| r.full_path());
     assert_eq!(
         link_root_resolution,
         Ok(package_link_src_path.join("index.js"))
     );
     let link_feature_resolution = resolver_without_symlinks
-        .resolve_from_directory(&package_link_src_path, "selfpkg/feature")
+        .resolve_test_directory(&package_link_src_path, "selfpkg/feature")
         .map(|r| r.full_path());
     assert_eq!(
         link_feature_resolution,
@@ -303,14 +303,14 @@ fn test_symlinks_self_reference_exports_resolution() {
     );
 
     let real_root_resolution = resolver_with_symlinks
-        .resolve_from_directory(&package_link_src_path, "selfpkg")
+        .resolve_test_directory(&package_link_src_path, "selfpkg")
         .map(|r| r.full_path());
     assert_eq!(
         real_root_resolution,
         Ok(package_real_src_path.join("index.js"))
     );
     let real_feature_resolution = resolver_with_symlinks
-        .resolve_from_directory(&package_link_src_path, "selfpkg/feature")
+        .resolve_test_directory(&package_link_src_path, "selfpkg/feature")
         .map(|r| r.full_path());
     assert_eq!(
         real_feature_resolution,
@@ -361,19 +361,19 @@ fn test_symlinks_package_imports_resolution() {
         return;
     }
 
-    let resolver_without_symlinks = Resolver::physical(ResolveOptions {
+    let resolver_without_symlinks = Resolver::for_tests(ResolveOptions {
         canonicalize_symlinks: false,
         ..ResolveOptions::default()
     });
-    let resolver_with_symlinks = Resolver::physical(ResolveOptions::default());
+    let resolver_with_symlinks = Resolver::for_tests(ResolveOptions::default());
 
     let link_resolution = resolver_without_symlinks
-        .resolve_from_directory(&package_link_src_path, "#self")
+        .resolve_test_directory(&package_link_src_path, "#self")
         .map(|r| r.full_path());
     assert_eq!(link_resolution, Ok(package_link_src_path.join("self.js")));
 
     let real_resolution = resolver_with_symlinks
-        .resolve_from_directory(&package_link_src_path, "#self")
+        .resolve_test_directory(&package_link_src_path, "#self")
         .map(|r| r.full_path());
     assert_eq!(real_resolution, Ok(package_real_src_path.join("self.js")));
 

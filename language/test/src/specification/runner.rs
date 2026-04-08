@@ -7,17 +7,16 @@ use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
 use destack_source::{
-    Diagnostic, DiagnosticSeverity, File, FileContent, FileStore, FileType, MemoryFileSystem,
-    ModuleId, PrintOptions, Uri,
+    DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
 };
-use destack_workspace::{Repository, Revision};
+use destack_workspace::{Repository, Revision, parse_jsonc_file};
 use serde_json::json;
 
 use crate::core::print::color;
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision, fixtures_dir,
-    format_diagnostics, remember_profile_for_target_or_default, save_expected_failures,
-    write_workspace_text_file,
+    format_diagnostics, profile_id_for_target_or_default, provide_workspace_artifacts,
+    save_expected_failures, write_workspace_text_file,
 };
 use crate::mdtest::{
     MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file,
@@ -160,7 +159,7 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         let repository = Arc::new(
             Repository::open_root_from_fs(cwd, fs.clone())
                 .expect("failed to import repository from specification file system")
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+                .with_cache(Arc::new(MemoryCacheStore::new())),
         );
         crate::mdtest::setup_test_environment_with_repository(test, repository, fs, root)
     };
@@ -202,7 +201,7 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         // select profile and lib loading
         let (profile, mut load_libraries) =
             select_profile_for_mdtest(&repository, revision, module_id, test, prefer_native);
-        let profile = compiler.remember_profile(profile);
+        let profile = profile.id();
 
         // native spec cases need builtin libraries for lowering
         if prefer_native {
@@ -216,13 +215,10 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
 
         // enqueue analysis task
         compiler.options.load_libraries = load_libraries;
-        compiler.enqueue(
-            revision,
-            ArtifactKey::DirAnalyzed {
-                module: module_id,
-                profile,
-            },
-        );
+        let mut artifact_keys = vec![ArtifactKey::DirAnalyzed {
+            module: module_id,
+            profile,
+        }];
 
         // run optimize passes only for native spec tests
         let run_optimize = prefer_native;
@@ -233,26 +229,20 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
             let next_target = repository
                 .diagnostic_target_for_module(revision, module_id)
                 .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"));
-            let next_profile = remember_profile_for_target_or_default(
-                &repository,
-                &compiler,
-                revision,
-                module_id,
-                &next_target,
-            );
+            let next_profile =
+                profile_id_for_target_or_default(&repository, revision, module_id, &next_target);
             diagnostic_target = Some(next_target);
             diagnostic_profile = Some(next_profile);
-            compiler.enqueue(
-                revision,
-                ArtifactKey::MirOptimized {
-                    module: module_id,
-                    profile: next_profile,
-                    target: next_target,
-                },
-            );
+            artifact_keys.push(ArtifactKey::MirOptimized {
+                module: module_id,
+                profile: next_profile,
+                target: next_target,
+            });
         }
 
-        compiler.compile();
+        let compiler = Arc::new(compiler);
+        let revision =
+            provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys);
         drop(compiler);
 
         // collect actual diagnostics
@@ -297,9 +287,13 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         // append rendered diagnostics for failures
         match result {
             CaseResult::Failed { mut message } => {
-                let files = collect_diagnostic_files(&repository, revision, diagnostics.iter());
+                let file_for_id = |file_id| {
+                    repository.file(revision, file_id).unwrap_or_else(|error| {
+                        panic!("failed to load diagnostic file {file_id:?}: {error}")
+                    })
+                };
                 let options = PrintOptions::new().with_colorizer(source_colorizer());
-                let rendered = format_diagnostics(&files, &diagnostics, options);
+                let rendered = format_diagnostics(&file_for_id, &diagnostics, options);
                 if !rendered.is_empty() {
                     if !message.is_empty() {
                         message.push('\n');
@@ -399,28 +393,27 @@ fn apply_destack_config_for_spec(
             .to_string();
         let uri = Uri::from_path(&destack_config_path);
         let file_id = repository.file_id_for_workspace_path(&destack_config_path);
-        let file = File::from_text_as_jsonc(
+        let file = File::from_text(
             file_id,
             name,
             uri,
             Some(destack_config_path.clone()),
             FileType::Json,
             content,
-        )
-        .map_err(|error| format!("failed to parse destack.json: {error}"))?;
-        match &file.content {
-            FileContent::Json { value, .. } => value.clone(),
-            _ => unreachable!("jsonc parse must produce json content"),
-        }
+        );
+        parse_jsonc_file(&file).map_err(|error| format!("failed to parse destack.json: {error}"))?
     } else {
         json!({})
     };
 
     // prefer js defaults for spec tests unless a native target is required
     let mut needs_write = !has_destack_config;
+    let revision = current_workspace_revision(repository);
     let has_targets = if has_destack_config {
         !repository
-            .load_destack_declaration_for_path(&destack_config_path)
+            .destack_declaration_for_path(revision, &destack_config_path)
+            .map_err(|error| format!("failed to load destack.json: {error}"))?
+            .map(|declaration| declaration.as_ref().clone())
             .ok_or_else(|| "failed to load destack.json".to_string())?
             .package_options()
             .targets
@@ -464,32 +457,6 @@ fn apply_destack_config_for_spec(
 
     Ok((revision, module_id))
 }
-
-/// Collect file snapshots referenced by one diagnostic collection.
-fn collect_diagnostic_files(
-    repository: &Repository,
-    revision: Revision,
-    diagnostics: Vec<Diagnostic>,
-) -> FileStore {
-    let files = FileStore::new();
-
-    // load each referenced file snapshot once
-    for diagnostic in diagnostics {
-        let Ok(file) = repository.file(revision, diagnostic.file_id) else {
-            continue;
-        };
-        let Some(file) = file else {
-            continue;
-        };
-
-        if files.get_maybe(diagnostic.file_id).is_none() {
-            files.insert((*file).clone());
-        }
-    }
-
-    files
-}
-
 /// Split expected diagnostics into error and warning buckets.
 fn split_expected_diagnostics(items: &[String]) -> (Vec<String>, Vec<String>) {
     // allocate result buckets

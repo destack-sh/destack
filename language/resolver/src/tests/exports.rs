@@ -18,7 +18,7 @@ fn test_resolve_exports_field_simple() {
     let f4 = super::fixture().join("exports-field-error");
     let f5 = super::fixture().join("imports-exports-wildcard");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         is_fully_specified: true,
         conditions: vec!["webpack".into()],
@@ -50,7 +50,7 @@ fn test_resolve_exports_field_simple() {
 
     for (comment, path, request, expected) in pass {
         let resolved_path = resolver
-            .resolve_from_directory(&path, request)
+            .resolve_test_directory(&path, request)
             .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
@@ -74,7 +74,7 @@ fn test_resolve_exports_field_simple() {
     ];
 
     for (comment, path, request, error) in fail {
-        let resolution = resolver.resolve_from_directory(&path, request);
+        let resolution = resolver.resolve_test_directory(&path, request);
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
@@ -84,14 +84,14 @@ fn test_resolve_exports_field_simple() {
 fn test_resolve_exports_field_disabled_uses_main_field() {
     let f = super::fixture().join("exports-field");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         resolve_package_json_exports: false,
         ..ResolveOptions::default()
     });
 
     let resolved_path = resolver
-        .resolve_from_directory(&f, "exports-field")
+        .resolve_test_directory(&f, "exports-field")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -104,14 +104,14 @@ fn test_resolve_exports_field_disabled_uses_main_field() {
 fn test_resolve_exports_field_not_browser_field1() {
     let f = super::fixture().join("exports-field");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         conditions: vec!["webpack".into()],
         extensions: vec![".js".into()],
         ..ResolveOptions::default()
     });
 
     let resolved_path = resolver
-        .resolve_from_directory(&f, "exports-field/dist/main.js")
+        .resolve_test_directory(&f, "exports-field/dist/main.js")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -124,14 +124,14 @@ fn test_resolve_exports_field_not_browser_field1() {
 fn test_resolve_exports_field_not_browser_field2() {
     let f2 = super::fixture().join("exports-field2");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         conditions: vec!["node".into()],
         ..ResolveOptions::default()
     });
 
     let resolved_path = resolver
-        .resolve_from_directory(&f2, "exports-field/dist/main.js")
+        .resolve_test_directory(&f2, "exports-field/dist/main.js")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -144,14 +144,14 @@ fn test_resolve_exports_field_not_browser_field2() {
 fn test_resolve_exports_field_extension_without_fully_specified() {
     let f2 = super::fixture().join("exports-field2");
 
-    let commonjs_resolver = Resolver::physical(ResolveOptions {
+    let commonjs_resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
     });
 
     let resolved_path = commonjs_resolver
-        .resolve_from_directory(&f2, "exports-field/dist/main")
+        .resolve_test_directory(&f2, "exports-field/dist/main")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -164,7 +164,7 @@ fn test_resolve_exports_field_extension_without_fully_specified() {
 fn test_resolve_exports_field_extension_alias() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".js".into()])]),
         is_fully_specified: true,
@@ -180,7 +180,7 @@ fn test_resolve_exports_field_extension_alias() {
 
     for (comment, path, request, expected) in pass {
         let resolved_path = resolver
-            .resolve_from_directory(&path, request)
+            .resolve_test_directory(&path, request)
             .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
@@ -191,7 +191,7 @@ fn test_resolve_exports_field_extension_alias() {
 fn test_resolve_exports_field_extension_alias_complex() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(
             ".js".into(),
@@ -215,7 +215,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
 
     for (comment, path, request, expected) in pass {
         let resolved_path = resolver
-            .resolve_from_directory(&path, request)
+            .resolve_test_directory(&path, request)
             .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
@@ -226,7 +226,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
 fn test_resolve_exports_field_extension_alias_error() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
         is_fully_specified: true,
@@ -245,7 +245,7 @@ fn test_resolve_exports_field_extension_alias_error() {
     ];
 
     for (comment, path, request, error) in fail {
-        let resolution = resolver.resolve_from_directory(&path, request);
+        let resolution = resolver.resolve_test_directory(&path, request);
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
@@ -254,8 +254,8 @@ fn test_resolve_exports_field_extension_alias_error() {
 #[test]
 fn test_resolve_exports_field_directory() {
     let f = super::fixture();
-    let resolver = Resolver::physical(ResolveOptions::default());
-    let resolution = resolver.resolve_from_directory(f.join("foo"), "../exports-field");
+    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolution = resolver.resolve_test_directory(f.join("foo"), "../exports-field");
     let path = resolution.unwrap().full_path();
     assert_eq!(path, f.join("exports-field").join("a.js"));
 }
@@ -2394,7 +2394,7 @@ fn test_resolve_exports_field_cases() {
             .map(ToString::to_string)
             .collect::<Vec<_>>();
         let file_system = MemoryFileSystem::default();
-        let resolver = Resolver::blank(
+        let resolver = Resolver::for_test_file_system(
             Arc::new(file_system),
             ResolveOptions {
                 conditions: condition_names,
@@ -2405,7 +2405,8 @@ fn test_resolve_exports_field_cases() {
             Path::new(""),
             case.request,
             &case.exports,
-            &mut crate::ResolveFrame::default(),
+            crate::ResolveState::new(&resolver.options),
+            &mut super::test_resolve_context(),
         );
         if let Some(expect) = case.expect {
             if expect.is_empty() {
@@ -2437,7 +2438,7 @@ fn test_resolve_exports_field_cases() {
 /// Stop exports array fallback when the target mapping shape is invalid.
 #[test]
 fn test_resolve_exports_field_array_stops_on_invalid_mapping_shape() {
-    let resolver = Resolver::blank(
+    let resolver = Resolver::for_test_file_system(
         Arc::new(MemoryFileSystem::default()),
         ResolveOptions::default(),
     );
@@ -2452,7 +2453,8 @@ fn test_resolve_exports_field_array_stops_on_invalid_mapping_shape() {
         Path::new(""),
         "./a/file.js",
         &exports,
-        &mut crate::ResolveFrame::default(),
+        crate::ResolveState::new(&resolver.options),
+        &mut super::test_resolve_context(),
     );
 
     assert_eq!(

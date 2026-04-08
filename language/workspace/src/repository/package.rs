@@ -3,23 +3,78 @@ use std::sync::Arc;
 
 use destack_source::PackageId;
 use im::OrdMap;
+use indexmap::IndexMap;
+use rustc_hash::FxHashMap;
 
-use crate::repository::{BUILTIN_PACKAGE_ID, Repository, RepositoryError, Revision, SourceMap};
+use crate::repository::{
+    BUILTIN_PACKAGE_ID, FileOrigin, Repository, RepositoryError, Revision, SourceMap,
+};
 use crate::{
     DestackDeclaration, Package, PackageDeclaration, PackageKind, PackageOptions, WorkspaceOptions,
 };
 
 impl Repository {
+    /// Return one parsed package declaration by file id.
+    fn package_declaration_by_file_id(
+        &self,
+        revision: Revision,
+        file_id: destack_source::FileId,
+    ) -> Result<Option<Arc<PackageDeclaration>>, RepositoryError> {
+        let revision_state = self.revision(revision)?;
+        let cache = revision_state
+            .package_declarations
+            .get_or_init(|| Arc::new(parking_lot::RwLock::new(FxHashMap::default())));
+
+        // cache hit
+        if let Some(declaration) = cache.read().get(&file_id).cloned() {
+            return Ok(declaration);
+        }
+
+        // parse from source
+        let declaration = match self.file(revision, file_id)? {
+            Some(file) => PackageDeclaration::parse(&file).ok().map(Arc::new),
+            None => None,
+        };
+
+        cache.write().insert(file_id, declaration.clone());
+
+        Ok(declaration)
+    }
+
+    /// Return one parsed destack declaration by file id.
+    pub(crate) fn destack_declaration_by_file_id(
+        &self,
+        revision: Revision,
+        file_id: destack_source::FileId,
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
+        let revision_state = self.revision(revision)?;
+        let cache = revision_state
+            .destack_declarations
+            .get_or_init(|| Arc::new(parking_lot::RwLock::new(FxHashMap::default())));
+
+        // cache hit
+        if let Some(declaration) = cache.read().get(&file_id).cloned() {
+            return Ok(declaration);
+        }
+
+        // parse from source
+        let declaration = match self.file(revision, file_id)? {
+            Some(file) => DestackDeclaration::parse(&file).ok().map(Arc::new),
+            None => None,
+        };
+
+        cache.write().insert(file_id, declaration.clone());
+
+        Ok(declaration)
+    }
+
     /// Derive package views from one source map.
     pub(crate) fn derive_packages(&self, source: &SourceMap) -> OrdMap<PackageId, Package> {
         let mut physical_roots = std::collections::HashSet::new();
 
         // package roots
-        for file_id in source.keys() {
-            let Some(logical_path) = self.logical_path_by_file_id(*file_id) else {
-                continue;
-            };
-            let Some(path) = self.workspace_path_for_logical_path(logical_path.as_ref()) else {
+        for entry in source.values() {
+            let Some(path) = self.path_for_origin(&entry.origin) else {
                 continue;
             };
             let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
@@ -35,19 +90,14 @@ impl Repository {
         let mut packages = OrdMap::new();
 
         // package views
-        for file_id in source.keys() {
-            let Some(logical_path) = self.logical_path_by_file_id(*file_id) else {
-                continue;
-            };
-            let Some(mut package) =
-                self.package_for_logical_path(&physical_roots, logical_path.as_ref())
-            else {
+        for (file_id, entry) in source.iter() {
+            let Some(mut package) = self.package_for_origin(&physical_roots, &entry.origin) else {
                 continue;
             };
             let package_id = package.id;
 
             if let Some(package_path) = package.path.as_ref()
-                && let Some(path) = self.workspace_path_for_logical_path(logical_path.as_ref())
+                && let Some(path) = self.path_for_origin(&entry.origin)
                 && path.parent() == Some(package_path.as_path())
                 && let Some(file_name) = path.file_name().and_then(|name| name.to_str())
                 && file_name == "tsconfig.json"
@@ -65,16 +115,56 @@ impl Repository {
     pub fn workspace_destack_declaration(
         &self,
         revision: Revision,
-    ) -> Result<Option<DestackDeclaration>, RepositoryError> {
-        let declaration_path = self.root.join("destack.json");
-        let Some(declaration_file) = self.file_at_path(revision, &declaration_path)? else {
-            return Ok(None);
-        };
-        let Ok(declaration) = DestackDeclaration::parse(&declaration_file) else {
-            return Ok(None);
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
+        let file_id = self.file_id_for_workspace_path(&self.root.join("destack.json"));
+        self.destack_declaration_by_file_id(revision, file_id)
+    }
+
+    /// Return the parsed `destack.json` declaration for one workspace path.
+    pub fn destack_declaration_for_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
+        let path = self.materialize_destack_path(revision, path)?;
+        let file_id = self.file_id_for_workspace_path(&path);
+
+        self.destack_declaration_by_file_id(revision, file_id)
+    }
+
+    /// Find the nearest `destack.json` path for one workspace path.
+    pub fn nearest_destack_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<PathBuf>, RepositoryError> {
+        let mut current = match self.metadata_for_path(revision, path)? {
+            Some(metadata) if metadata.is_file => path.parent().map(Path::to_path_buf),
+            _ => Some(path.to_path_buf()),
         };
 
-        Ok(Some(declaration))
+        // parent walk
+        while let Some(directory) = current {
+            let candidate = directory.join("destack.json");
+
+            if self
+                .destack_declaration_for_path(revision, &candidate)?
+                .is_some()
+            {
+                return Ok(Some(candidate));
+            }
+
+            let Some(parent) = directory.parent() else {
+                break;
+            };
+            if parent == directory {
+                break;
+            }
+
+            current = Some(parent.to_path_buf());
+        }
+
+        Ok(None)
     }
 
     /// Return the effective workspace options for one revision.
@@ -162,7 +252,7 @@ impl Repository {
         let destack_declaration = self.package_destack_declaration(revision, &package)?;
         let package_options = destack_declaration
             .as_ref()
-            .map(DestackDeclaration::package_options);
+            .map(|declaration| declaration.package_options());
 
         package.package_file_id = package_declaration
             .as_ref()
@@ -188,16 +278,17 @@ impl Repository {
             });
 
         if let Some(package_options) = package_options.as_ref() {
-            package.targets = package_options
-                .targets
-                .iter()
-                .map(|(name, options)| {
-                    let target_id = self.intern_target_id(package.id, name);
-                    let target = options.to_target(name);
+            let mut targets = IndexMap::new();
 
-                    (target_id, target)
-                })
-                .collect();
+            // explicit targets
+            for (name, options) in &package_options.targets {
+                let target_id = self.intern_target_id(package.id, name);
+                let target = options.to_target(name);
+
+                targets.insert(target_id, target);
+            }
+
+            package.targets = targets;
         }
 
         Ok(Some(Arc::new(package)))
@@ -221,22 +312,13 @@ impl Repository {
         &self,
         revision: Revision,
         package: &Package,
-    ) -> Result<Option<PackageDeclaration>, RepositoryError> {
+    ) -> Result<Option<Arc<PackageDeclaration>>, RepositoryError> {
         let Some(package_path) = package.path.as_ref() else {
             return Ok(None);
         };
 
-        let declaration_path = package_path.join("package.json");
-        let Some(declaration_file) = self.file_at_path(revision, &declaration_path)? else {
-            return Ok(None);
-        };
-
-        let realpath = package_path.clone();
-        let Ok(declaration) = PackageDeclaration::parse(&declaration_file, realpath) else {
-            return Ok(None);
-        };
-
-        Ok(Some(declaration))
+        let file_id = self.file_id_for_workspace_path(&package_path.join("package.json"));
+        self.package_declaration_by_file_id(revision, file_id)
     }
 
     /// Return the parsed `destack.json` declaration for one package.
@@ -244,20 +326,32 @@ impl Repository {
         &self,
         revision: Revision,
         package: &Package,
-    ) -> Result<Option<DestackDeclaration>, RepositoryError> {
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
         let Some(package_path) = package.path.as_ref() else {
             return Ok(None);
         };
 
-        let declaration_path = package_path.join("destack.json");
-        let Some(declaration_file) = self.file_at_path(revision, &declaration_path)? else {
-            return Ok(None);
-        };
-        let Ok(declaration) = DestackDeclaration::parse(&declaration_file) else {
-            return Ok(None);
+        let file_id = self.file_id_for_workspace_path(&package_path.join("destack.json"));
+        self.destack_declaration_by_file_id(revision, file_id)
+    }
+
+    /// Normalize one path into the concrete `destack.json` location it names.
+    fn materialize_destack_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<PathBuf, RepositoryError> {
+        let path = match self.metadata_for_path(revision, path)? {
+            Some(metadata) if metadata.is_file => path.to_path_buf(),
+            Some(metadata) if metadata.is_directory => path.join("destack.json"),
+            _ => {
+                let mut os_string = path.to_path_buf().into_os_string();
+                os_string.push(".json");
+                PathBuf::from(os_string)
+            }
         };
 
-        Ok(Some(declaration))
+        Ok(path)
     }
 
     /// Return the effective package options for one package when present.
@@ -293,8 +387,7 @@ impl Repository {
 
         // destack.json
         let destack_file_id = self.file_id_for_workspace_path(&package_path.join("destack.json"));
-        if let Some(declaration_file) = self.file(revision, destack_file_id)?
-            && let Ok(declaration) = DestackDeclaration::parse(&declaration_file)
+        if let Some(declaration) = self.destack_declaration_by_file_id(revision, destack_file_id)?
             && let Some(module_type) = declaration.package_options().module_type
         {
             return Ok(Some(module_type));
@@ -302,24 +395,11 @@ impl Repository {
 
         // package.json
         let package_file_id = self.file_id_for_workspace_path(&package_path.join("package.json"));
-        if let Some(declaration_file) = self.file(revision, package_file_id)?
-            && let Ok(declaration) =
-                PackageDeclaration::parse(&declaration_file, package_path.clone())
-        {
+        if let Some(declaration) = self.package_declaration_by_file_id(revision, package_file_id)? {
             return Ok(declaration.module_type().map(str::to_string));
         }
 
         Ok(None)
-    }
-
-    /// Return one file by workspace path.
-    fn file_at_path(
-        &self,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<Option<Arc<destack_source::File>>, RepositoryError> {
-        let file_id = self.file_id_for_workspace_path(path);
-        self.file(revision, file_id)
     }
 
     /// Return the package root and kind for one workspace file path.
@@ -353,17 +433,17 @@ impl Repository {
         }
     }
 
-    /// Return one package entry for one logical path when applicable.
-    fn package_for_logical_path(
+    /// Return one package entry for one file origin when applicable.
+    fn package_for_origin(
         &self,
         physical_roots: &std::collections::HashSet<PathBuf>,
-        logical_path: &str,
+        origin: &FileOrigin,
     ) -> Option<Package> {
-        if logical_path == "<root>" {
-            return Some(Package {
+        match origin {
+            FileOrigin::Synthetic { logical_path, .. } if origin.is_root() => Some(Package {
                 id: PackageId::EPHEMERAL,
                 kind: PackageKind::Ephemeral,
-                uri: destack_source::Uri::from_string("<root>"),
+                uri: destack_source::Uri::from_string(format!("synthetic://{logical_path}")),
                 path: None,
                 name: None,
                 version: None,
@@ -371,11 +451,8 @@ impl Repository {
                 destack_file_id: None,
                 tsconfig_file_id: None,
                 targets: Default::default(),
-            });
-        }
-
-        if logical_path.starts_with("builtin://") {
-            return Some(Package {
+            }),
+            FileOrigin::Builtin { .. } => Some(Package {
                 id: BUILTIN_PACKAGE_ID,
                 kind: PackageKind::Builtin,
                 uri: destack_source::Uri::from_string("builtin://"),
@@ -386,23 +463,25 @@ impl Repository {
                 destack_file_id: None,
                 tsconfig_file_id: None,
                 targets: Default::default(),
-            });
+            }),
+            FileOrigin::Workspace { .. } => {
+                let path = self.path_for_origin(origin)?;
+                let (kind, package_root) = self.package_root_for_path(physical_roots, &path);
+
+                Some(Package {
+                    id: self.package_id_for_root(kind, &package_root),
+                    kind,
+                    uri: destack_source::Uri::from_path(&package_root),
+                    path: Some(package_root),
+                    name: None,
+                    version: None,
+                    package_file_id: None,
+                    destack_file_id: None,
+                    tsconfig_file_id: None,
+                    targets: Default::default(),
+                })
+            }
+            FileOrigin::Synthetic { .. } => None,
         }
-
-        let path = self.workspace_path_for_logical_path(logical_path)?;
-        let (kind, package_root) = self.package_root_for_path(physical_roots, &path);
-
-        Some(Package {
-            id: self.package_id_for_root(kind, &package_root),
-            kind,
-            uri: destack_source::Uri::from_path(&package_root),
-            path: Some(package_root),
-            name: None,
-            version: None,
-            package_file_id: None,
-            destack_file_id: None,
-            tsconfig_file_id: None,
-            targets: Default::default(),
-        })
     }
 }

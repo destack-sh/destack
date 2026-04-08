@@ -1,14 +1,14 @@
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::Compiler;
+use destack_linter::Linter;
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
+use destack_session::Session;
 use destack_source::{DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, TargetId, glob};
 use destack_workspace::{
-    Change, DestackDeclaration, Edit, OptimizeLevel, Ref, Repository, RepositorySnapshot, Revision,
-    Target, TargetDiscovery,
+    DestackDeclaration, OptimizeLevel, Repository, Revision, Target, TargetDiscovery,
+    TargetSelection,
 };
 
 use crate::Daemon;
@@ -25,14 +25,12 @@ pub(super) struct CommandContext<'a> {
     pub(super) root: PathBuf,
     /// Repository for the command.
     pub(super) repository: Arc<Repository>,
-    /// Compiler for the command.
-    pub(super) compiler: Arc<Compiler>,
+    /// Private command session over the active revision.
+    pub(super) session: Session,
     /// Common command options.
     pub(super) common: &'a CommonCommandOptions,
     /// Diagnostic options resolved for this request.
     pub(super) diagnostic_options: DiagnosticOptions,
-    /// The pinned command local snapshot when inputs materialize extra source.
-    active_snapshot: RefCell<Option<RepositorySnapshot>>,
     /// Output buffer for command streaming.
     pub(super) output: &'a mut CommandOutputBuffer,
 }
@@ -52,19 +50,37 @@ impl<'a> CommandContext<'a> {
         daemon: &'a Daemon,
         root: PathBuf,
         repository: Arc<Repository>,
-        compiler: Arc<Compiler>,
+        compiler: Arc<destack_compiler::Compiler>,
         common: &'a CommonCommandOptions,
         output: &'a mut CommandOutputBuffer,
     ) -> Self {
+        // root revision
+        let reference = destack_workspace::Ref::for_workspace_root(&root);
+        let revision = repository
+            .current(&reference)
+            .expect("command workspace revision should exist");
+
+        // private command session
+        let linter = Arc::new(Linter::new(repository.clone()));
+        let session = Session::fork(
+            root.clone(),
+            repository.clone(),
+            revision,
+            compiler.clone(),
+            linter,
+            None,
+            None,
+        )
+        .expect("command session should initialize");
+
         let diagnostic_options = common.diagnostic.clone().unwrap_or_default();
         Self {
             daemon,
             root,
             repository,
-            compiler,
+            session,
             common,
             diagnostic_options,
-            active_snapshot: RefCell::new(None),
             output,
         }
     }
@@ -99,15 +115,14 @@ impl<'a> CommandContext<'a> {
         &self,
         inputs: &[CommandInput],
     ) -> super::CommandResult<Vec<ModuleId>> {
-        let revision = self.revision()?;
         let mut seen = HashSet::new();
         let mut modules = Vec::new();
 
         for input in inputs {
             let module_id = match input {
                 CommandInput::File { path } => self
-                    .compiler
-                    .resolve_path_to_module(revision, &path.to_path_buf())
+                    .session
+                    .admit_module_for_path(path)
                     .map_err(|error| format!("failed to resolve {}: {error}", path.display()))?,
                 CommandInput::Inline {
                     name,
@@ -135,23 +150,7 @@ impl<'a> CommandContext<'a> {
 
     /// Return the active workspace revision for this command.
     pub(super) fn revision(&self) -> super::CommandResult<Revision> {
-        if let Some(snapshot) = self.active_snapshot.borrow().as_ref() {
-            return Ok(snapshot.revision());
-        }
-
-        let reference = Ref::for_workspace_root(&self.root);
-        let revision = self
-            .repository
-            .current(&reference)
-            .map_err(|error| format!("missing current workspace revision: {error}"))?;
-        let snapshot = self
-            .repository
-            .snapshot(revision)
-            .map_err(|error| format!("failed to pin workspace revision: {error}"))?;
-
-        *self.active_snapshot.borrow_mut() = Some(snapshot.clone());
-
-        Ok(snapshot.revision())
+        Ok(self.session.revision())
     }
 
     /// Materialize one inline command input into one command local revision.
@@ -162,25 +161,24 @@ impl<'a> CommandContext<'a> {
         content: &str,
         file_type: FileType,
     ) -> super::CommandResult<ModuleId> {
-        let base_revision = self.revision()?;
         let logical_path = command_input_logical_path(kind, name, file_type);
-        let change = Change::single(Edit::set_text(&logical_path, content));
-        let revision = self
-            .repository
-            .apply_to_revision(base_revision, change)
+        let path = self.root.join(&logical_path);
+
+        // publish the new command-local file text
+        self.session
+            .apply_virtual_update(
+                path.as_path(),
+                destack_session::FileUpdate::Text {
+                    content: content.to_string(),
+                },
+            )
             .map_err(|error| format!("failed to materialize command input {name}: {error}"))?;
+
         let path = self.root.join(&logical_path);
         let module_id = self
-            .repository
-            .module_id_for_path(revision, &path)
-            .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?
-            .ok_or_else(|| format!("missing command input module for {name}"))?;
-
-        let snapshot = self
-            .repository
-            .snapshot(revision)
-            .map_err(|error| format!("failed to pin command revision {name}: {error}"))?;
-        *self.active_snapshot.borrow_mut() = Some(snapshot);
+            .session
+            .admit_module_for_path(path.as_path())
+            .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?;
 
         Ok(module_id)
     }
@@ -241,17 +239,18 @@ impl<'a> CommandContext<'a> {
             .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
         let package_id = module.package_id;
         let target_id = self.repository.intern_target_id(package_id, target_name);
-
-        let package = self
+        let is_explicit_target = self
             .repository
-            .package(revision, package_id)
-            .map_err(|error| format!("failed to read package snapshot: {error}"))?
-            .ok_or_else(|| format!("missing package snapshot for {package_id:?}"))?;
-        let existing_target = package.targets.get(&target_id).cloned();
+            .has_explicit_target(revision, package_id, target_id)
+            .map_err(|error| format!("failed to read target snapshot: {error}"))?;
+        let existing_target = self
+            .repository
+            .target(revision, target_id)
+            .map_err(|error| format!("failed to read target snapshot: {error}"))?;
 
         if let Some(overrides) = overrides
             && !overrides.is_empty()
-            && existing_target.is_some()
+            && is_explicit_target
         {
             return Err(
                 "ad-hoc target overrides are not supported for named targets"
@@ -296,50 +295,63 @@ impl<'a> CommandContext<'a> {
             .module(revision, module_id)
             .map_err(|error| format!("failed to read module snapshot: {error}"))?
             .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
-        let package = self
+        // use the package default target when it is unambiguous
+        match self
             .repository
-            .package(revision, module.package_id)
-            .map_err(|error| format!("failed to read package snapshot: {error}"))?
-            .ok_or_else(|| format!("missing package snapshot for {:?}", module.package_id))?;
-
-        // use the package config default target when available
-        if let Some(package_options) = self
-            .repository
-            .package_options(revision, package.id)
-            .map_err(|error| format!("failed to read package options: {error}"))?
-            && let Some(target_name) = package_options.default_target.as_deref()
+            .default_target(revision, module.package_id)
+            .map_err(|error| format!("failed to read target snapshot: {error}"))?
         {
-            return self.ensure_target_for_module(module_id, target_name, overrides);
-        }
+            TargetSelection::Selected { target_id, target } => {
+                if let Some(overrides) = overrides
+                    && !overrides.is_empty()
+                {
+                    return Err(
+                        "ad-hoc target overrides are not supported for named targets"
+                            .to_string()
+                            .into(),
+                    );
+                }
 
-        // select single configured target when unambiguous
-        let mut target_names: Vec<String> = package
-            .targets
-            .values()
-            .filter(|target| !target.synthetic)
-            .map(|target| target.name.clone())
-            .collect();
-        target_names.sort();
-        if target_names.len() == 1 {
-            return self.ensure_target_for_module(module_id, &target_names[0], overrides);
+                return Ok(ResolvedTarget {
+                    id: target_id,
+                    target,
+                });
+            }
+            TargetSelection::MissingConfigured { target_id } => {
+                return Err(
+                    format!("configured default target '{target_id}' is not defined").into(),
+                );
+            }
+            TargetSelection::None => {}
+            TargetSelection::Ambiguous { target_ids } => {
+                let mut target_names: Vec<String> = target_ids
+                    .iter()
+                    .filter_map(|target_id| {
+                        self.repository
+                            .target(revision, *target_id)
+                            .ok()
+                            .flatten()
+                            .map(|target| target.name)
+                    })
+                    .collect();
+                target_names.sort();
+
+                return Err(format!(
+                    "multiple targets configured ({}): specify --target",
+                    target_names.join(", ")
+                )
+                .into());
+            }
         }
 
         // infer a fallback target when no explicit configuration exists
-        if target_names.is_empty() {
-            let target_name = if module.language_type.is_destack() {
-                "native"
-            } else {
-                "js"
-            };
-            return self.ensure_target_for_module(module_id, target_name, overrides);
-        }
+        let target_name = if module.language_type.is_destack() {
+            "native"
+        } else {
+            "js"
+        };
 
-        // require an explicit target when multiple are available
-        Err(format!(
-            "multiple targets configured ({}): specify --target",
-            target_names.join(", ")
-        )
-        .into())
+        self.ensure_target_for_module(module_id, target_name, overrides)
     }
 
     /// Decide whether optimization should run for a target.
@@ -360,7 +372,7 @@ impl<'a> CommandContext<'a> {
             .flatten();
 
         Resolver::from_repository(
-            &self.repository,
+            self.repository.clone(),
             ResolveOptions::default_for_workspace(self.root.clone(), workspace_options.as_ref()),
         )
     }
@@ -427,21 +439,25 @@ fn resolve_destack_config_path(
     cwd: &Path,
     override_path: Option<&Path>,
 ) -> super::CommandResult<PathBuf> {
+    let revision = resolver_revision(resolver)?;
+    let repository = resolver.repository();
+
     let destack_config_path = if let Some(config_path) = override_path {
         let resolved = if config_path.is_absolute() {
             config_path.to_path_buf()
         } else {
             cwd.join(config_path)
         };
-        if let Ok(metadata) = resolver.fs.metadata(&resolved) {
-            if metadata.is_directory {
-                find_destack_config(resolver, &resolved)
-                    .ok_or_else(|| "destack.json not found".to_string())?
-            } else {
-                resolved
-            }
+        let metadata = repository
+            .metadata_for_path(revision, &resolved)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "destack.json not found".to_string())?;
+
+        if metadata.is_directory {
+            find_destack_config(resolver, &resolved)
+                .ok_or_else(|| "destack.json not found".to_string())?
         } else {
-            return Err("destack.json not found".to_string().into());
+            resolved
         }
     } else {
         find_destack_config(resolver, cwd).ok_or_else(|| "destack.json not found".to_string())?
@@ -454,29 +470,30 @@ fn load_destack_declaration(
     resolver: &Resolver,
     path: &Path,
 ) -> super::CommandResult<DestackDeclaration> {
+    let revision = resolver_revision(resolver)?;
+
     Ok(resolver
-        .read_destack_config(path, CachePolicy::UseCache)
+        .read_destack(revision, path, CachePolicy::UseCache)
         .map_err(|error| error.to_string())?)
 }
 
 fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
-    let mut current = cwd.to_path_buf();
-    loop {
-        let candidate = current.join("destack.json");
-        if resolver
-            .fs
-            .metadata(&candidate)
-            .is_ok_and(|metadata| metadata.is_file)
-        {
-            return Some(candidate);
-        }
+    let revision = resolver_revision(resolver).ok()?;
+    let repository = resolver.repository();
 
-        let parent = current.parent()?;
-        if parent == current {
-            return None;
-        }
-        current = parent.to_path_buf();
-    }
+    repository
+        .nearest_destack_path(revision, cwd)
+        .ok()
+        .flatten()
+}
+
+fn resolver_revision(resolver: &Resolver) -> super::CommandResult<Revision> {
+    let repository = resolver.repository();
+    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+
+    repository
+        .current(&reference)
+        .map_err(|error| error.to_string().into())
 }
 
 fn load_workspace_declarations(
