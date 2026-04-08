@@ -51,9 +51,9 @@ fn test_format_switch_with_block() {
     );
 }
 
-/// Else-branch comment seams should stay attached to the correct branch shell.
+/// Else-branch comments should stay attached to the correct branch shell.
 #[test]
-fn test_format_if_else_comment_seams() {
+fn test_format_if_else_comments() {
     assert_format_program_reference_widths(
         r#"if (true) {}
 
@@ -98,9 +98,9 @@ else {
     );
 }
 
-/// Yield comment seams should preserve the inner wrapper only when it is semantically needed.
+/// Yield comments should preserve the inner wrapper only when it is semantically needed.
 #[test]
-fn test_format_yield_type_comment_seams() {
+fn test_format_yield_type_comments() {
     assert_format_program_reference_widths(
         r#"function *t1() {
     yield (

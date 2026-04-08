@@ -11,25 +11,21 @@ fn test_format_typescript_union_head_comment_after_equals_is_idempotent() {
         &[
             (
                 80,
-                r#"type Aa1 = /*1*/
-  | /*2*/ C
-  | D;
+                r#"type Aa1 = /*1*/ /*2*/ C | D;
 "#,
             ),
             (
                 100,
-                r#"type Aa1 = /*1*/
-  | /*2*/ C
-  | D;
+                r#"type Aa1 = /*1*/ /*2*/ C | D;
 "#,
             ),
         ],
     );
 }
 
-/// Assignment comment seams should stay attached to the formatted assignment shell.
+/// Assignment comments should stay attached to the formatted assignment shell.
 #[test]
-fn test_format_typescript_assignment_comment_seams() {
+fn test_format_typescript_assignment_comments() {
     assert_format_program_reference_widths(
         r#"var longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
 var short = /*#__PURE__*/_interopDefaultLegacy(b);
@@ -108,11 +104,11 @@ class A {
     );
 }
 
-/// Call-expression type-argument seams should preserve leading comments.
+/// Call-expression type arguments should preserve leading comments.
 #[test]
-fn test_format_typescript_assignment_call_with_type_args_comment_seams() {
+fn test_format_typescript_assignment_call_with_type_args_comments() {
     assert_format_program_reference_widths(
-        r#"// Type arguments with speculative formatting should not lose comments
+        r#"// Type arguments should not lose comments
 export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
 
 // Comments before call expressions with type arguments should be preserved
@@ -123,7 +119,7 @@ const s = /* comment */ foo<A | B | C>()
         &[
             (
                 80,
-                r#"// Type arguments with speculative formatting should not lose comments
+                r#"// Type arguments should not lose comments
 export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
 
 // Comments before call expressions with type arguments should be preserved
@@ -133,7 +129,7 @@ const s = /* comment */ foo<A | B | C>();
             ),
             (
                 100,
-                r#"// Type arguments with speculative formatting should not lose comments
+                r#"// Type arguments should not lose comments
 export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
 
 // Comments before call expressions with type arguments should be preserved

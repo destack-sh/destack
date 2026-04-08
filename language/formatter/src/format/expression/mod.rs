@@ -16,21 +16,19 @@ pub(crate) use self::declarator::{
     declarator_drops_parenthesized_value_wrapper, format_declarator,
 };
 pub(crate) use self::dispatch::{
-    format_expression, write_expression_without_prefix_annotations,
-    write_expression_without_trailing_annotations,
+    format_expression, write_expression_with_prefix_annotations_after_offset,
+    write_expression_without_prefix_annotations, write_expression_without_trailing_annotations,
 };
 pub(crate) use self::member::{
-    format_index_expression, format_member_expression, member_expression_has_optional_chain,
-    member_object_prefers_new_callee_parentheses,
+    format_index_expression, format_member_expression, format_static_member_with_following_suffix,
     postfix_continuation_requires_parenthesized_object_wrapper,
     should_unwrap_parenthesized_member_object,
 };
-pub(crate) use self::object::is_assignment_left_target;
 pub(crate) use self::parentheses::{
     is_type_cast_comment_node, parenthesized_boundary_comments,
-    parenthesized_has_explicit_delimiters, parenthesized_has_leading_inner_comments,
-    parenthesized_has_leading_inner_line_comment, parenthesized_has_leading_inner_newline,
-    parenthesized_has_leading_inner_trivia, should_drop_parenthesized_expression_wrapper,
+    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_line_comment,
+    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
+    parenthesized_postfix_comments, should_drop_parenthesized_expression_wrapper,
 };
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,
@@ -43,8 +41,8 @@ pub(crate) use self::shape::{
     should_hoist_parenthesized_inner_cast_prefix_comments,
 };
 pub use self::shape::{
-    is_complex_argument, is_complex_expression, is_expression_breakable, is_pattern_breakable,
-    is_trivial_argument, is_trivial_expression, is_trivial_property,
+    is_expression_breakable, is_pattern_breakable, is_trivial_argument, is_trivial_expression,
+    is_trivial_property,
 };
 pub(crate) use self::statement::{
     format_statement_expression, write_statement_expression_trailing_annotations,
