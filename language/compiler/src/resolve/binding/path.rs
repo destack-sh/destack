@@ -1597,18 +1597,25 @@ impl Compiler {
             }
         }
 
-        // keep `new.target` unresolved so validate can enforce lexical context rules
+        // resolve new.target intrinsic
         if first_segment_str.as_str() == "new" && path.segments.len() >= 2 {
             let second_segment = path.segments[1];
             let second_segment_str = self.repository.strings.get(second_segment);
             if second_segment_str.as_str() == "target" {
-                let expression = Expression::UnresolvedPath {
-                    path: path.clone(),
-                    static_arguments,
-                    space_order,
-                };
-
-                return Ok((expression, ResolvedPathSymbolTargets::new()));
+                let root_expr = Expression::NewTarget;
+                if path.segments.len() == 2 {
+                    return Ok((root_expr, ResolvedPathSymbolTargets::new()));
+                }
+                return Ok((
+                    self.build_member_chain(
+                        expression_id,
+                        root_expr,
+                        &path.slice(2..),
+                        static_arguments,
+                        tree,
+                    ),
+                    ResolvedPathSymbolTargets::new(),
+                ));
             }
         }
 

@@ -1,3 +1,4 @@
+use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
@@ -10,8 +11,6 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
-
-use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -2626,6 +2625,8 @@ impl Compiler {
 
             ast::Expression::This => Expression::This,
             ast::Expression::Super => Expression::Super,
+            ast::Expression::ImportMeta => Expression::ImportMeta,
+            ast::Expression::NewTarget => Expression::NewTarget,
             ast::Expression::Debugger => Expression::Debugger,
             ast::Expression::Missing => Expression::Missing,
             ast::Expression::Stub => Expression::Stub,

@@ -101,7 +101,6 @@ impl Compiler {
             | Expression::PrivateMember { .. }
             | Expression::Index { .. } => {
                 self.validate_instantiation_access(&ctx.reborrow(), expression_id);
-                self.validate_new_target_expression(&ctx.reborrow(), expression_id);
                 self.validate_super_property_expression(&ctx.reborrow(), expression_id);
             }
             Expression::Maybe { left } => {
@@ -111,7 +110,6 @@ impl Compiler {
             | Expression::LocalReference { path, .. }
             | Expression::ModuleReference { path, .. }
             | Expression::GlobalReference { path, .. } => {
-                self.validate_new_target_expression(&ctx.reborrow(), expression_id);
                 self.validate_strict_reserved_identifier_reference(
                     &ctx.reborrow(),
                     expression_id,
@@ -1528,6 +1526,9 @@ impl Compiler {
                 }
             }
 
+            // new target: preserve syntax, but keep the type lane conservative
+            Expression::NewTarget => ctx.types.insert_type_from(Type::Error, expression_id),
+
             // this: reference to the current instance item context
             Expression::This => {
                 let this_symbol = self.resolve_this_symbol(ctx.tree_symbol_view(), expression_id);
@@ -2785,6 +2786,9 @@ impl Compiler {
                 expression_id,
                 expression,
                 state,            )?,
+
+            // new target: preserve syntax, but keep the type lane conservative
+            Expression::NewTarget => ctx.types.insert_type_from(Type::Error, expression_id),
 
             // reference: symbol type
             Expression::LocalReference {
