@@ -65,7 +65,7 @@ call(   a, b)
 
 ```ts expected
 // format-ignore
-call(a, b);
+call(   a, b)
 ```
 
 ### prettier-ignore keeps the next statement
@@ -96,8 +96,8 @@ const ok = 1
 
 ```ts expected
 // format-ignore-start
-const value = call(1, 2);
-const other = value + 1;
+const value  =   call(  1,2)
+const other =    value +  1
 // format-ignore-end
 const ok = 1;
 ```
@@ -116,8 +116,8 @@ const ok = 1
 
 ```ts expected
 // prettier-ignore-start
-const value = call(1, 2);
-const other = value + 1;
+const value  =   call(  1,2)
+const other =    value +  1
 // prettier-ignore-end
 const ok = 1;
 ```
@@ -133,7 +133,7 @@ call(   a, b)
 
 ```ts expected
 // biome-ignore format
-call(a, b);
+call(   a, b)
 ```
 
 ### typescript directive comments do not disable formatting
