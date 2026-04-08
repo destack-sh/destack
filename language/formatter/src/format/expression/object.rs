@@ -460,6 +460,8 @@ fn write_grouped_struct_literal<'ast>(
     trailing_separator: TrailingSeparator,
     should_expand: bool,
 ) -> FormatResult<()> {
+    let group_id = f.group_id("object_like");
+
     write!(
         f,
         [group(&format_args![
@@ -475,7 +477,7 @@ fn write_grouped_struct_literal<'ast>(
                         separator,
                         properties_ids,
                         trailing_separator,
-                        None,
+                        Some(group_id),
                     )]
                 )?;
                 write_object_trailing_comments(f, expression_id, properties_ids)?;
@@ -488,6 +490,7 @@ fn write_grouped_struct_literal<'ast>(
             })),
             token("}")
         ])
+        .with_id(Some(group_id))
         .should_expand(should_expand)]
     )
 }

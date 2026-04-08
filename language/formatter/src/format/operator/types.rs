@@ -1,9 +1,8 @@
 use super::r#type::write_type_expression_with_inline_prefix_annotations_from;
 use crate::format::chain::transparent_inner_expression;
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::expression_is_in_statement_position;
-use crate::format::expression::{
-    parenthesized_has_leading_inner_trivia, write_expression_without_trailing_annotations,
-};
+use crate::format::expression::write_expression_without_trailing_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Expression, LocalNodeId, NodeType, TokenType, TypeBinaryOperator};
 use destack_fir::format::{Buffer, FormatResult};
@@ -283,7 +282,8 @@ fn should_drop_type_binary_left_parentheses(
         return false;
     }
 
-    if parenthesized_has_leading_inner_trivia(context, parenthesized_id, left_id)
+    if ParenthesizedExpressionView::from_node(context, parenthesized_id)
+        .is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
         && !left_is_cast_chain
     {
         return false;

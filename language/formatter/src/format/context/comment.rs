@@ -78,13 +78,16 @@ impl<'a> Comments<'a> {
     #[inline]
     pub fn unprinted_comments(&self) -> &'a [Comment] {
         let end = self.view_limit.unwrap_or(self.inner.len());
-        &self.inner[self.printed_count..end]
+        let start = self.printed_count.min(end);
+        &self.inner[start..end]
     }
 
     /// Return the printed comments.
     #[inline]
     pub fn printed_comments(&self) -> &'a [Comment] {
-        &self.inner[..self.printed_count]
+        let end = self.view_limit.unwrap_or(self.inner.len());
+        let printed_end = self.printed_count.min(end);
+        &self.inner[..printed_end]
     }
 
     /// Return an iterator over comments that end before or at one position.
@@ -239,6 +242,7 @@ impl<'a> Comments<'a> {
         &self,
         enclosing_span: Span,
         preceding_span: Span,
+        boundary_start: u32,
         following_span_start: u32,
     ) -> &'a [Comment] {
         let comments = self.unprinted_comments();
@@ -276,11 +280,13 @@ impl<'a> Comments<'a> {
             return comments;
         }
 
+        let trailing_boundary_start = boundary_start.min(following_span_start);
+
         let mut comment_index = 0usize;
         let mut type_cast_comment = None;
 
         while let Some(comment) = comments.get(comment_index) {
-            if comment.span.end > following_span_start || comment.span.end > enclosing_span.end {
+            if comment.span.end > trailing_boundary_start || comment.span.end > enclosing_span.end {
                 break;
             }
 
@@ -299,7 +305,7 @@ impl<'a> Comments<'a> {
         }
 
         let mut gap_end =
-            type_cast_comment.map_or(following_span_start, |comment| comment.span.start);
+            type_cast_comment.map_or(trailing_boundary_start, |comment| comment.span.start);
 
         for (index, comment) in comments[..comment_index].iter().enumerate().rev() {
             if self

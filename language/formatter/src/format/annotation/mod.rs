@@ -12,5 +12,5 @@ pub(crate) use self::sequence::{
 };
 pub(crate) use self::trivia::{
     format_raw_comment, format_trailing_comment_slice, format_trailing_comments,
-    write_raw_leading_comments,
+    format_trailing_comments_before_boundary, write_raw_comment_slice, write_raw_leading_comments,
 };

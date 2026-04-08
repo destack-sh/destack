@@ -9,11 +9,10 @@ mod union;
 
 pub(crate) use self::assign::{
     AssignmentLikeLayout, assignment_drops_parenthesized_operand_wrapper,
-    write_assignment_like_right,
+    assignment_rhs_prefers_break_after_operator, write_assignment_like_right,
 };
 pub(crate) use self::binary::{
-    binary_keeps_unary_left_parenthesized_wrapper, flattened_binary_operand_count,
-    format_binary_expression,
+    binary_keeps_unary_left_parenthesized_wrapper, format_binary_expression,
 };
 pub(crate) use self::expression::{
     format_operator_expression, write_operator_expression_trailing_annotations,
@@ -35,5 +34,5 @@ pub(crate) use self::union::{
     flatten_type_binary_expression, format_type_intersection_binary_layout,
     format_type_union_binary_layout, operator_expression_owns_prefix_annotations,
     transparent_type_binary_root_expression, type_binary_operand_needs_grouping_parentheses,
-    type_union_operand_separator_token_span, union_has_trailing_own_line_doc_comment,
+    type_union_operand_separator_span,
 };
