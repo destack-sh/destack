@@ -9,13 +9,12 @@ use crate::core::{
 };
 use crate::mdtest::MdTestCase;
 
-use super::{roundtrip, smoke, transform};
+use super::{roundtrip, transform};
 
 /// Test suite combining roundtrip and transform formatter tests.
 #[derive(Debug, Default)]
 pub struct FormatterSuite {
     mdtests: HashMap<String, MdTestCase>,
-    smoke: HashMap<String, smoke::FormatterSmokeCase>,
     cases: Vec<Case>,
     expected_failures: HashSet<String>,
     expected_failures_path: PathBuf,
@@ -34,14 +33,12 @@ impl FormatterSuite {
         } = discover_markdown_suite(&formatter_dir, "destack_test::formatter::transform", Some)?;
         let mut suite = Self {
             mdtests: entries,
-            smoke: HashMap::new(),
             cases,
             expected_failures,
             expected_failures_path,
         };
 
         suite.discover_roundtrip_tests(&formatter_dir)?;
-        suite.discover_smoke_tests(&formatter_dir);
 
         Ok(suite)
     }
@@ -66,14 +63,6 @@ impl FormatterSuite {
 
         Ok(())
     }
-
-    fn discover_smoke_tests(&mut self, base_dir: &Path) {
-        let smoke_dir = base_dir.join("smoke");
-        for (test, smoke_case) in smoke::discover_cases(&smoke_dir) {
-            self.smoke.insert(test.full_name(), smoke_case);
-            self.cases.push(test);
-        }
-    }
 }
 
 impl Suite for FormatterSuite {
@@ -88,8 +77,6 @@ impl Suite for FormatterSuite {
     fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         if let Some(md_test) = self.mdtests.get(&case.full_name()) {
             transform::run(md_test)
-        } else if let Some(smoke_case) = self.smoke.get(&case.full_name()) {
-            smoke::run(case, smoke_case)
         } else {
             roundtrip::run(case)
         }

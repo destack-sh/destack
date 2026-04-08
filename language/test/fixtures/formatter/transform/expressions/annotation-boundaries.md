@@ -232,6 +232,58 @@ Block comments between `as` and target types stay attached to the assertion.
 1 satisfies /* sat-between */ Foo;
 ```
 
+### assertion chain with trailing block comment
+
+Trailing block comments on assertion chains stay attached before the following member call.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+(activeService as unknown as QuickInputController) /* TS fail */
+  .pick();
+```
+
+```ts expected
+(activeService as unknown as QuickInputController) /* TS fail */
+  .pick();
+```
+
+### multiline postfix comment before const
+
+Multiline block comments before `const` stay attached to the assertion seam.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+{
+1 as /*
+comment
+*/const;
+}
+```
+
+```ts expected
+{
+  1 as const /*
+comment
+*/;
+}
+```
+
+### assertion and satisfies seam comments
+
+Block comments between `as` and `satisfies` targets stay attached to the same operator seam.
+
+```ts:main.ts indent-width=2 line-width=80 quote-style=double
+{
+1 as /* between */ Foo;
+1 satisfies /* sat-between */ Foo;
+}
+```
+
+```ts expected
+{
+  1 as /* between */ Foo;
+  1 satisfies /* sat-between */ Foo;
+}
+```
+
 ### multiline block comment between as and const
 
 Multiline block comments between `as` and `const` stay attached to `const` assertions.

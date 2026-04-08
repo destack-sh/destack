@@ -1,6 +1,6 @@
 # Formatter Test Fixtures
 
-This directory contains formatter test fixtures with four fixture groups:
+This directory contains formatter test fixtures with three fixture groups:
 
 ## Transform Tests (`.md` files)
 
@@ -21,21 +21,11 @@ expected formatted output
 ````
 
 
-## Roundtrip Tests (`.ds` files)
+## Roundtrip Tests (`roundtrip/*.{ds,d.ds,js,jsx,ts,tsx,d.ts}`)
 
 Pre-formatted code that should remain unchanged when formatted.
 
-Standard `.ds` files with properly formatted code.
-
-## Smoke Tests (`smoke/**/input.*`)
-
-Smoke fixtures are small curated local cases for output parity or idempotence checks.
-
-Each test case is a directory with an `input.*` file and optional `expected.*` file of the same extension.
-
-When `expected.*` exists, the formatter output must match it exactly.
-
-When `expected.*` is missing, the test runs idempotence only, and requires `fmt(fmt(input)) == fmt(input)`.
+Roundtrip fixtures cover canonicalized shared JS, JSX, TS, and TSX code as well as reviewed Destack local syntax.
 
 ## External Conformance Suites (`conformance/staging/**`)
 
