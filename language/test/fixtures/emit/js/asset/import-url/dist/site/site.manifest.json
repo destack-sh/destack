@@ -15,7 +15,10 @@
       "name": "site",
       "input": "src/index.ts",
       "isEntry": true,
-      "isDynamicEntry": false
+      "isDynamicEntry": false,
+      "stylesheets": [
+        "../assets/index.css"
+      ]
     },
     {
       "path": "site/index.js.map",

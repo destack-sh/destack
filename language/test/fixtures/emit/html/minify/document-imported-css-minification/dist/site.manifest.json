@@ -15,7 +15,10 @@
       "name": "site",
       "input": "src/page.ts",
       "isEntry": true,
-      "isDynamicEntry": false
+      "isDynamicEntry": false,
+      "stylesheets": [
+        "./style.css"
+      ]
     },
     {
       "path": "style.css",

@@ -31,7 +31,12 @@
       "name": "preview",
       "input": "src/app.ts",
       "isEntry": true,
-      "isDynamicEntry": false
+      "isDynamicEntry": false,
+      "stylesheets": [
+        "../assets/site.css",
+        "../assets/panel.css",
+        "../assets/theme.css"
+      ]
     },
     {
       "path": "preview/app.js.map",

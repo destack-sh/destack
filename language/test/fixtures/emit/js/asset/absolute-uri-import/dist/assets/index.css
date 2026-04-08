@@ -1,24 +1,8 @@
-@import 'https://example.com/withquote".css';
 @import "https://example.com/stylesheet1.css";
+@import "https://example.com/withquote\".css";
 @import "https://example.com/theme-base.css";
 @import "https://example.com/stylesheet2.css";
-
-/* src/other.css */
-.foo {
-  background-color: red;
-}
-
-/* src/withduplicateurl.css */
-.bar {
-  background-color: green;
-}
-
-/* src/nested/theme.css */
-.theme-card {
-  background-image: url(https://example.com/theme-card.png);
-}
-
-/* src/index.css */
-body {
-  background-color: blue;
-}
+.foo{background-color:red}
+.bar{background-color:green}
+.theme-card{background-image:url("https://example.com/theme-card.png")}
+body{background-color:blue}
