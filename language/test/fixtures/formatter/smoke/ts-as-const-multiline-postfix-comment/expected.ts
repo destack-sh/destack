@@ -1,5 +1,5 @@
 {
-    1 as const /*
-    comment
-    */;
+  1 as const /*
+comment
+*/;
 }

@@ -103,9 +103,9 @@ type Combined = HasName &
     HasEmail;
 ```
 
-### long intersection stays inline in TypeScript
+### long intersection breaks across lines in TypeScript
 
-TypeScript intersections stay inline when the formatter keeps the expression compact.
+TypeScript intersections break across lines with trailing `&` when they exceed the width.
 
 ```ts:main.ts line-width=30
 type Combined = HasName & HasAge & HasEmail
@@ -117,19 +117,22 @@ type Combined = HasName &
     HasEmail;
 ```
 
-### nullable union with object type stays hugged inline
+### nullable union with object type breaks vertically
 
-Nullable unions with one object-like arm and void-like companions stay hugged inline.
+Nullable unions with one object-like arm and void-like companions break into a vertical union at narrow widths.
 
 ```ds line-width=20
 type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
 ```ds expected
-type MaybeUser = {
-    name: string;
-    email: string;
-} | null | undefined;
+type MaybeUser =
+    | {
+          name: string;
+          email: string;
+      }
+    | null
+    | undefined;
 ```
 
 ### nullable union with comment keeps comment on object arm
@@ -143,16 +146,16 @@ type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 ```ds expected
 type MaybeUser =
     | {
-        name: string;
-        email: string;
-    } /* note */
+          name: string;
+          email: string;
+      } /* note */
     | null
     | undefined;
 ```
 
-### intersection with object types stays inline
+### intersection with object types stays readable
 
-Object-like types keep `&` separators inline.
+Object-like intersection arms keep `&` separators readable when object arms expand.
 
 ```ds line-width=30
 type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
@@ -195,14 +198,14 @@ type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 
 ### mapped type with explicit add modifiers
 
-Explicit add modifiers normalize to the default `readonly` and `?` forms.
+Explicit add modifiers are preserved.
 
 ```ds
 type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
 ```
 
 ```ds expected
-type Explicit<T> = { readonly [K in keyof T]?: T[K] };
+type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
 ```
 
 ### mapped type with optional modifier
@@ -239,7 +242,9 @@ type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> }
 
 ```ds expected
 type DeepReadonly<T> = {
-    readonly [K in keyof T]: DeepReadonly<T[K]>;
+    readonly [K in keyof T]: DeepReadonly<
+        T[K]
+    >;
 };
 ```
 

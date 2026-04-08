@@ -203,12 +203,14 @@ for (item of items) {
 For-await-of loops keep the `await` keyword in the header.
 
 ```ts:main.ts
-for await (const item of stream) { consume(item) }
+async function run() { for await (const item of stream) { consume(item) } }
 ```
 
 ```ts expected
-for await (const item of stream) {
-    consume(item);
+async function run() {
+    for await (const item of stream) {
+        consume(item);
+    }
 }
 ```
 

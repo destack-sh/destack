@@ -4,22 +4,21 @@ Tests for parenthesized expression formatting.
 
 ## Spacing
 
-### parentheses have no internal spacing
+### redundant parentheses are removed
 
-Spaces after `(` and before `)` should be removed.
+Redundant grouping parentheses are removed rather than preserved.
 
 ```ds
 ( 1 + 2 )
 ```
 
 ```ds expected
-(1 + 2);
+1 + 2;
 ```
 
 ## Precedence
 
-These tests document that parentheses are preserved in roundtrip formatting.
-The parser wraps these in `Parenthesized` nodes, which the formatter preserves.
+These tests document the cases where parentheses still matter semantically and must be preserved.
 
 ### await inside maybe preserves parentheses
 

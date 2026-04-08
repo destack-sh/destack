@@ -32,7 +32,7 @@ interface Foo extends Bar, Baz {}
 
 ### interface with property
 
-Interfaces with members expand to multiple lines. Properties get trailing commas.
+Interfaces with members expand to multiple lines. Properties use trailing semicolons.
 
 ```ds
 interface Foo { x: number }
@@ -46,7 +46,7 @@ interface Foo {
 
 ### interface with multiple properties
 
-Each property goes on its own line with a trailing comma.
+Each property goes on its own line with a trailing semicolon.
 
 ```ds
 interface Foo { x: number; y: string; z: boolean }
@@ -62,7 +62,7 @@ interface Foo {
 
 ### interface with method signature
 
-Method signatures do not get trailing commas (unlike properties).
+Method signatures use declaration semicolons like other interface members.
 
 ```ds
 interface Foo { bar(): void }
@@ -309,7 +309,7 @@ interface Container<
 
 ### interface with mixed members
 
-Properties have trailing commas, methods do not.
+Properties and method signatures both use declaration semicolons.
 
 ```ds
 interface User { id: number; name: string; email?: string; getName(): string; setName(name: string): void }

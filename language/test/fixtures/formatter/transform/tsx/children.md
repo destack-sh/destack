@@ -148,11 +148,8 @@ export default function ProTip() {
         <T>
             <X />
             Pro tip: See more{" "}
-            <Link href="https://mui.com/getting-started/templates/">
-                BREAK THIS
-            </Link>{" "}
-            on
-            the MUI documentation.
+            <Link href="https://mui.com/getting-started/templates/">BREAK THIS</Link> on the MUI
+            documentation.
         </T>
     );
 }

@@ -25,7 +25,7 @@ newtype Point = (float32, float32)
 ```
 
 ```ds expected
-newtype Point = (float32, float32,);
+newtype Point = (float32, float32);
 ```
 
 ### newtype object

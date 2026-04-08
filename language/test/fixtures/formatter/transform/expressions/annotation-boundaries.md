@@ -262,9 +262,9 @@ const count = (await
 ```
 
 ```ts expected
-const count = (await ((await (
-    await focusOnSection("bookmarks")
-).findItem("mine")) as TreeItem).getChildren()).length;
+const count = (
+    await ((await (await focusOnSection("bookmarks")).findItem("mine")) as TreeItem).getChildren()
+).length;
 ```
 
 ### member assignment through as assertion target
@@ -323,7 +323,7 @@ class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}
 ```
 
 ```js expected
-class Box extends /** @type {{new (): Base}} */ baseFactory() {}
+class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}
 ```
 
 ### closure cast in no-semi multiline parenthesized call

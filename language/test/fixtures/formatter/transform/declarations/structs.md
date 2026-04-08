@@ -6,7 +6,7 @@ Tests for struct declaration formatting.
 
 ### simple struct
 
-Structs format like nominal value types with comma-separated members.
+Structs format like nominal value types with semicolon-terminated members.
 
 ```ds
 struct Point { x: number; y: number }
@@ -64,9 +64,24 @@ struct Vec2 {
 }
 ```
 
+### struct with decorated field
+
+Body level struct member annotations stay on their own line above the member.
+
+```ds
+struct User { @validate(minLength(1)) name: string }
+```
+
+```ds expected
+struct User {
+    @validate(minLength(1))
+    name: string;
+}
+```
+
 ### struct with static field
 
-Static fields keep the static keyword and commas.
+Static fields keep the static keyword and trailing semicolons.
 
 ```ds
 struct Versioned { static version: string = "1" }

@@ -149,7 +149,7 @@ function* range(start: number, end: number) {
 
 ### async generator
 
-The formatter normalizes strings to single quotes.
+String literals stay normalized inside async generators.
 
 ```ds
 async function* items() { yield await fetch("a"); yield await fetch("b") }
@@ -157,8 +157,8 @@ async function* items() { yield await fetch("a"); yield await fetch("b") }
 
 ```ds expected
 async function* items() {
-    yield await fetch('a');
-    yield await fetch('b');
+    yield await fetch("a");
+    yield await fetch("b");
 }
 ```
 
@@ -207,7 +207,7 @@ const foo: (x: number) => number = (x) => x + 1;
 Single generic arrow type parameters in `.mts` keep a trailing comma.
 
 ```ts:main.mts
-const fn = <T>() => {}
+const fn = <T,>() => {}
 ```
 
 ```ts expected
@@ -219,7 +219,7 @@ const fn = <T,>() => {};
 Single generic arrow type parameters in `.cts` keep a trailing comma.
 
 ```ts:main.cts
-const fn = <T>() => {}
+const fn = <T,>() => {}
 ```
 
 ```ts expected

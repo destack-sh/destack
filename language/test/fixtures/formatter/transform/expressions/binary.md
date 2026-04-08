@@ -124,7 +124,7 @@ flags & mask | other
 ```
 
 ```ds expected
-flags & mask | other;
+(flags & mask) | other;
 ```
 
 ## Destack Arithmetic Variants
