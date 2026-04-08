@@ -1,12 +1,15 @@
 use std::borrow::Cow;
 
 use crate::format::annotation::{
-    block_infix_annotations, prefix_annotations, raw_prefix_comment_nodes,
-    write_annotation_sequence,
+    block_infix_annotations, format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
+    prefix_annotations_after_offset, raw_prefix_comment_nodes, write_annotation_sequence,
 };
-use crate::format::declaration::expression_needs_statement_terminator;
 use crate::format::declaration::statement::{
     block_leading_line_comment_nodes, block_trailing_comment_nodes,
+};
+use crate::format::declaration::{
+    expression_needs_statement_terminator, statement_trailing_comment_anchor_end,
+    write_statement_terminator,
 };
 use crate::format::directive::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
@@ -51,9 +54,15 @@ pub(crate) fn program_statement_sequence<'ast>(
 pub(crate) fn block_statement_sequence<'ast>(
     block_id: LocalNodeId<Block>,
     allow_value_tail: bool,
+    leading_prefix_comment_start: Option<u32>,
 ) -> impl Format<DestackFormatContext<'ast>> + 'ast {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        format_block_statement_sequence_for_block(f, block_id, allow_value_tail)
+        format_block_statement_sequence_for_block(
+            f,
+            block_id,
+            allow_value_tail,
+            leading_prefix_comment_start,
+        )
     })
 }
 
@@ -80,15 +89,15 @@ fn expression_prefix_start(
 ) -> u32 {
     let mut start = default_start;
 
-    for comment_id in raw_prefix_comment_nodes(context, expression_id) {
-        start = start.min(context.span(comment_id).start);
+    for comment in raw_prefix_comment_nodes(context, expression_id) {
+        start = start.min(comment.span.start);
     }
 
     // declaration expressions semantically start at their prefix annotations,
     // even though the expression span begins at the declaration head
     if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
-        for comment_id in raw_prefix_comment_nodes(context, *declaration_id) {
-            start = start.min(context.span(comment_id).start);
+        for comment in raw_prefix_comment_nodes(context, *declaration_id) {
+            start = start.min(comment.span.start);
         }
 
         for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
@@ -114,13 +123,16 @@ fn expression_prefix_start(
 }
 
 /// Return the latest end offset for trailing raw comments on an expression.
-fn expression_postfix_end(
+pub(crate) fn expression_postfix_end(
     context: &DestackFormatContext<'_>,
-    _expression_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
     default_end: u32,
 ) -> u32 {
+    let default_end =
+        statement_trailing_comment_anchor_end(context, expression_id).max(default_end);
+
     context
-        .end_of_line_comments_after(default_end)
+        .end_of_line_comment_tokens_after(default_end)
         .iter()
         .fold(default_end, |end, comment| end.max(comment.span.end))
 }
@@ -130,14 +142,17 @@ fn expression_gap_comment_nodes(
     context: &DestackFormatContext<'_>,
     start: u32,
     expression_id: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<destack_ast::Comment>> {
+) -> Vec<destack_ast::Comment> {
     let expression_span = context.span(expression_id);
     let expression_start = expression_prefix_start(context, expression_id, expression_span.start);
     if expression_start <= start {
         return Vec::new();
     }
 
-    context.comment_nodes_in_range(start, expression_start)
+    {
+        let comments = context.comments();
+        comments.comments_in_range(start, expression_start).to_vec()
+    }
 }
 
 /// Write raw statement-gap comments before one expression head.
@@ -159,14 +174,14 @@ fn write_expression_gap_comments<'ast>(
 /// Write one raw comment node sequence separated by hard line breaks.
 fn write_comment_node_lines<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    comment_nodes: &[LocalNodeId<destack_ast::Comment>],
+    comment_nodes: &[destack_ast::Comment],
 ) -> FormatResult<()> {
-    for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
+    for (index, comment) in comment_nodes.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [hard_line_break()])?;
         }
 
-        write!(f, [comment_id])?;
+        format_raw_comment(f, comment)?;
     }
 
     Ok(())
@@ -193,11 +208,85 @@ fn write_expression_postfix_annotations<'ast>(
 
     write!(
         f,
-        [crate::format::annotation::infix_or_postfix_annotations(
-            f.context(),
-            expression_id
-        )]
+        [infix_or_postfix_annotations(f.context(), expression_id)]
     )
+}
+
+/// Return whether one expression is a lambda declaration expression.
+fn expression_is_lambda_declaration(tree: &destack_ast::NodeTree, expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Declaration(declaration_id)
+            if matches!(
+                tree.get(*declaration_id),
+                Declaration::Function { signature, .. }
+                    if signature.kind == FunctionKind::Lambda
+            )
+    )
+}
+
+/// Write prefix annotations for one statement-sequence expression.
+fn write_statement_sequence_expression_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    start_offset: Option<u32>,
+) -> FormatResult<()> {
+    if expression_is_lambda_declaration(f.context().tree, expression) {
+        let mut prefix_items = Vec::new();
+
+        for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
+            if f.context().annotation(annotation_id).position() == AnnotationPosition::BlockPrefix {
+                prefix_items.push(annotation_id);
+            }
+        }
+
+        return write_annotation_sequence(f, &prefix_items);
+    }
+
+    if let Some(start_offset) = start_offset {
+        return write!(
+            f,
+            [prefix_annotations_after_offset(
+                f.context(),
+                expression_id,
+                start_offset
+            )]
+        );
+    }
+
+    write!(f, [prefix_annotations(f.context(), expression_id)])
+}
+
+/// Format one statement-sequence expression and return the rendered end offset.
+fn format_statement_sequence_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    is_ignored: bool,
+    allow_value_tail: bool,
+    is_expression_context_tail: bool,
+    prefix_after_offset: Option<u32>,
+) -> FormatResult<u32> {
+    write_statement_sequence_expression_prefix(f, expression_id, expression, prefix_after_offset)?;
+    format_expression(f, expression_id, expression, is_ignored)?;
+
+    if expression_needs_statement_terminator(
+        f.context(),
+        expression,
+        allow_value_tail && is_expression_context_tail,
+    ) {
+        write_statement_terminator(f, expression_id)?;
+    }
+
+    write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
+
+    let expression_span = f.context().span(expression_id);
+    Ok(expression_postfix_end(
+        f.context(),
+        expression_id,
+        expression_span.end,
+    ))
 }
 
 /// Format a block inline with zero or one expression (including label and infix annotations).
@@ -265,18 +354,18 @@ pub(crate) fn format_block_body_wide<'ast>(
     }
 
     if !block.is_empty() {
-        let context = f.context().clone();
-        context.with_owned_comment_nodes(&leading_comment_nodes, || {
-            write!(
-                f,
-                [soft_block_indent(&block_statement_sequence(
-                    block_id,
-                    allow_value_tail
-                ))]
-            )
-        })?;
+        let leading_prefix_comment_start =
+            leading_comment_nodes.last().map(|comment| comment.span.end);
+        write!(
+            f,
+            [soft_block_indent(&block_statement_sequence(
+                block_id,
+                allow_value_tail,
+                leading_prefix_comment_start
+            ))]
+        )?;
         if !trailing_comment_nodes.is_empty() || f.context().has_infix_annotation(block_id) {
-            write!(f, [hard_line_break()])?;
+            write!(f, [line_suffix_boundary(), hard_line_break()])?;
         }
     }
 
@@ -302,7 +391,7 @@ pub(crate) fn format_block_body_wide<'ast>(
         ))]
     )?;
 
-    write!(f, [hard_line_break(), token("}")])
+    write!(f, [line_suffix_boundary(), hard_line_break(), token("}")])
 }
 
 /// Collect ignore ranges for block expressions without materializing a temporary list.
@@ -328,8 +417,6 @@ pub(crate) fn format_block_statement_sequence<'ast>(
     expressions: &[LocalNodeId<Expression>],
     allow_value_tail: bool,
 ) -> FormatResult<()> {
-    let tree = f.context().tree;
-
     // ignore ranges: only compute when the file may contain ignore directives
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
         let comment_tokens = f.context().comment_tokens();
@@ -397,7 +484,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             };
             if !has_ignore_range {
                 if !source_has_blank_line_between {
-                    write!(f, [hard_line_break()])?;
+                    write!(f, [line_suffix_boundary(), hard_line_break()])?;
                 }
 
                 // determine if we need an extra blank line
@@ -408,7 +495,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
                 };
 
                 if needs_blank {
-                    write!(f, [empty_line()])?;
+                    write!(f, [line_suffix_boundary(), empty_line()])?;
                 }
             }
         }
@@ -442,7 +529,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             continue;
         }
 
-        // raw seam comments
+        // raw boundary comments
         if i > 0 {
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
@@ -453,45 +540,16 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
-        // expression itself (with prefix annotations)
-        // lambda declaration line prefix comments are handled in declaration formatting
-        let is_lambda_declaration_expression = matches!(
-            expression,
-            Expression::Declaration(declaration_id)
-                if matches!(
-                    tree.get(*declaration_id),
-                    Declaration::Function { signature, .. }
-                        if signature.kind == FunctionKind::Lambda
-                )
-        );
-        if is_lambda_declaration_expression {
-            let mut prefix_items = Vec::new();
-            for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
-                if f.context().annotation(annotation_id).position()
-                    == AnnotationPosition::BlockPrefix
-                {
-                    prefix_items.push(annotation_id);
-                }
-            }
-            write_annotation_sequence(f, &prefix_items)?;
-        } else {
-            write!(f, [prefix_annotations(f.context(), expression_id)])?;
-        }
-        format_expression(f, expression_id, expression, is_ignored)?;
-
-        // add statement terminators for statement-context expression forms
         let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
-        if expression_needs_statement_terminator(
-            f.context(),
+        let expression_output_end = format_statement_sequence_expression(
+            f,
+            expression_id,
             expression,
+            is_ignored,
+            allow_value_tail,
             is_expression_context_tail,
-        ) {
-            write!(f, [token(";")])?;
-        }
-
-        write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
-        let expression_output_end =
-            expression_postfix_end(f.context(), expression_id, expression_span.end);
+            None,
+        )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
     }
     Ok(())
@@ -502,8 +560,8 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
     allow_value_tail: bool,
+    leading_prefix_comment_start: Option<u32>,
 ) -> FormatResult<()> {
-    let tree = f.context().tree;
     let block = f.context().tree.get(block_id);
     let expression_count = block.len();
 
@@ -573,7 +631,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             };
             if !has_ignore_range {
                 if !source_has_blank_line_between {
-                    write!(f, [hard_line_break()])?;
+                    write!(f, [line_suffix_boundary(), hard_line_break()])?;
                 }
 
                 // determine if we need an extra blank line
@@ -584,7 +642,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
                 };
 
                 if needs_blank {
-                    write!(f, [empty_line()])?;
+                    write!(f, [line_suffix_boundary(), empty_line()])?;
                 }
             }
         }
@@ -617,7 +675,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             continue;
         }
 
-        // raw seam comments
+        // raw boundary comments
         if let Some(previous_expression_id) = previous_expression_id {
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
@@ -628,45 +686,21 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
-        // expression itself (with prefix annotations)
-        // lambda declaration line prefix comments are handled in declaration formatting
-        let is_lambda_declaration_expression = matches!(
-            expression,
-            Expression::Declaration(declaration_id)
-                if matches!(
-                    tree.get(*declaration_id),
-                    Declaration::Function { signature, .. }
-                        if signature.kind == FunctionKind::Lambda
-                )
-        );
-        if is_lambda_declaration_expression {
-            let mut prefix_items = Vec::new();
-            for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
-                if f.context().annotation(annotation_id).position()
-                    == AnnotationPosition::BlockPrefix
-                {
-                    prefix_items.push(annotation_id);
-                }
-            }
-            write_annotation_sequence(f, &prefix_items)?;
-        } else {
-            write!(f, [prefix_annotations(f.context(), expression_id)])?;
-        }
-        format_expression(f, expression_id, expression, is_ignored)?;
-
-        // add statement terminators for statement-context expression forms
         let is_expression_context_tail = allow_value_tail && i + 1 == expression_count;
-        if expression_needs_statement_terminator(
-            f.context(),
+        let prefix_after_offset = if previous_expression_id.is_none() {
+            leading_prefix_comment_start
+        } else {
+            None
+        };
+        let expression_output_end = format_statement_sequence_expression(
+            f,
+            expression_id,
             expression,
+            is_ignored,
+            allow_value_tail,
             is_expression_context_tail,
-        ) {
-            write!(f, [token(";")])?;
-        }
-
-        write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
-        let expression_output_end =
-            expression_postfix_end(f.context(), expression_id, expression_span.end);
+            prefix_after_offset,
+        )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
         previous_expression_id = Some(expression_id);
     }
@@ -776,12 +810,13 @@ fn format_program_statement_sequence<'ast>(
                 )
             };
             if !has_ignore_range {
-                if !source_has_blank_line_between {
-                    write!(f, [hard_line_break()])?;
-                }
+                write!(f, [line_suffix_boundary(), hard_line_break()])?;
 
                 // import section spacing and explicit source blank lines
-                let needs_blank = if prev_was_import && is_import_expr {
+                let needs_blank = if f.context().options.organize_imports.is_enabled()
+                    && prev_was_import
+                    && is_import_expr
+                {
                     prev_import_id.is_some_and(|prev_id| {
                         imports::should_insert_blank_between(
                             prev_id,
@@ -799,7 +834,7 @@ fn format_program_statement_sequence<'ast>(
                 };
 
                 if needs_blank {
-                    write!(f, [empty_line()])?;
+                    write!(f, [line_suffix_boundary(), empty_line()])?;
                 }
             }
         }
@@ -839,7 +874,7 @@ fn format_program_statement_sequence<'ast>(
         if i == 0 && previous_output_end.is_none() {
             write_expression_gap_comments(f, 0, expression_id)?;
         } else if i > 0 {
-            // raw seam comments
+            // raw boundary comments
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
                 .map_or_else(
@@ -849,44 +884,19 @@ fn format_program_statement_sequence<'ast>(
             write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
-        // expression itself (with prefix annotations)
-        let is_lambda_declaration_expression = matches!(
-            expression,
-            Expression::Declaration(declaration_id)
-                if matches!(
-                    tree.get(*declaration_id),
-                    Declaration::Function { signature, .. }
-                        if signature.kind == FunctionKind::Lambda
-                )
-        );
-        if is_lambda_declaration_expression {
-            let mut prefix_items = Vec::new();
-            for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
-                if f.context().annotation(annotation_id).position()
-                    == AnnotationPosition::BlockPrefix
-                {
-                    prefix_items.push(annotation_id);
-                }
-            }
-            write_annotation_sequence(f, &prefix_items)?;
-        } else {
-            write!(f, [prefix_annotations(f.context(), expression_id)])?;
-        }
-        format_expression(f, expression_id, expression, is_ignored)?;
-
-        // program bodies never allow value tails
-        if expression_needs_statement_terminator(f.context(), expression, false) {
-            write!(f, [token(";")])?;
-        }
-
-        write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
-
         prev_was_import = is_import_expr;
         if is_import_expr {
             prev_import_id = Some(expression_id);
         }
-        let expression_output_end =
-            expression_postfix_end(f.context(), expression_id, expression_span.end);
+        let expression_output_end = format_statement_sequence_expression(
+            f,
+            expression_id,
+            expression,
+            is_ignored,
+            false,
+            false,
+            None,
+        )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
     }
 

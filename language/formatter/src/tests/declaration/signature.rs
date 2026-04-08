@@ -30,7 +30,7 @@ fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
     assert_format_program_idempotent!(
         r#"f2 = (
   currentRequest: {a: number},
-  // this deliberately long comment keeps the separator seam in the broken layout
+  // this deliberately long comment keeps the separator attachment in the broken layout
 ): number => {};
 "#,
         FileType::TypeScript
@@ -65,9 +65,9 @@ class X2 {
     );
 }
 
-/// Method comment seams should stay attached to the final method shell.
+/// Method comments should stay attached to the final method shell.
 #[test]
-fn test_format_method_comment_seams() {
+fn test_format_method_comments() {
     assert_format_program_reference_widths(
         r#"class A {
   m1(element: Element, key: string, undefined: undefined) /* block comment */ {
@@ -206,9 +206,9 @@ fn test_format_typescript_mapped_type_bracket_spacing() {
     );
 }
 
-/// Parameter name to type seams should preserve inline comments exactly.
+/// Parameter type comments should stay on the type side of the boundary.
 #[test]
-fn test_format_typescript_parameter_name_type_comment_seams() {
+fn test_format_typescript_parameter_name_type_comments() {
     assert_format_program_reference_widths(
         r#"// comment between parameter name and type annotation
 function f(x /* a */ : number) {}
@@ -231,39 +231,39 @@ function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
             (
                 80,
                 r#"// comment between parameter name and type annotation
-function f(x /* a */ : number) {}
+function f(x: /* a */ number) {}
 
 // Additional test cases
-function g(y /* comment */ : string, z /* another */ : boolean) {}
+function g(y: /* comment */ string, z: /* another */ boolean) {}
 
 // With different comment styles
-function h(a /* inline */ : number) {}
+function h(a: /* inline */ number) {}
 
 // Multiple parameters with comments
-const arrow = (x /* c1 */ : number, y /* c2 */ : string) => {};
+const arrow = (x: /* c1 */ number, y: /* c2 */ string) => {};
 
 // Optional parameters with comments
-function optional(x? /* comment */ : number) {}
-function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
+function optional(x?: /* comment */ number) {}
+function optionalMultiple(a?: /* c1 */ string, b?: /* c2 */ number) {}
 "#,
             ),
             (
                 100,
                 r#"// comment between parameter name and type annotation
-function f(x /* a */ : number) {}
+function f(x: /* a */ number) {}
 
 // Additional test cases
-function g(y /* comment */ : string, z /* another */ : boolean) {}
+function g(y: /* comment */ string, z: /* another */ boolean) {}
 
 // With different comment styles
-function h(a /* inline */ : number) {}
+function h(a: /* inline */ number) {}
 
 // Multiple parameters with comments
-const arrow = (x /* c1 */ : number, y /* c2 */ : string) => {};
+const arrow = (x: /* c1 */ number, y: /* c2 */ string) => {};
 
 // Optional parameters with comments
-function optional(x? /* comment */ : number) {}
-function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
+function optional(x?: /* comment */ number) {}
+function optionalMultiple(a?: /* c1 */ string, b?: /* c2 */ number) {}
 "#,
             ),
         ],
@@ -561,7 +561,7 @@ function parseTitle(
     );
 }
 
-/// Rest parameter type queries should keep the callback wrapping stable.
+/// Rest parameter type queries should follow the OXC parameter layout.
 #[test]
 fn test_format_typescript_parameter_type_query_layout() {
     assert_format_program_reference_widths(
