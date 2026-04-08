@@ -8,5 +8,4 @@ mod tests;
 
 pub use format::{CssFormatOptions, format_stylesheet};
 pub use parse::{ParseError, Parser, parse_css};
-pub use print::RenderOptions;
 pub use tree::*;

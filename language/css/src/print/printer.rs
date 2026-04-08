@@ -1,35 +1,15 @@
 use crate::{LocalNodeId, NodeTree, Rule, Stylesheet};
 
-/// One CSS source rendering mode.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct RenderOptions {
-    /// Whether top level separators should be minified.
-    pub is_minified: bool,
-}
-
 /// Print one stylesheet subtree as canonical CSS source.
 pub fn print_stylesheet(tree: &NodeTree, stylesheet: LocalNodeId<Stylesheet>) -> String {
-    print_stylesheet_with_options(tree, stylesheet, RenderOptions::default())
-}
-
-/// Print one stylesheet subtree as canonical CSS source with options.
-pub fn print_stylesheet_with_options(
-    tree: &NodeTree,
-    stylesheet: LocalNodeId<Stylesheet>,
-    options: RenderOptions,
-) -> String {
-    let mut printer = Printer::new(tree, options);
+    let mut printer = Printer::new(tree);
     printer.print_stylesheet_id(stylesheet);
     printer.finish()
 }
 
-/// Print one CSS rule subtree as canonical CSS source with options.
-pub fn print_rule_with_options(
-    tree: &NodeTree,
-    rule: LocalNodeId<Rule>,
-    options: RenderOptions,
-) -> String {
-    let mut printer = Printer::new(tree, options);
+/// Print one CSS rule subtree as canonical CSS source.
+pub fn print_rule(tree: &NodeTree, rule: LocalNodeId<Rule>) -> String {
+    let mut printer = Printer::new(tree);
     printer.print_rule_id(rule);
     printer.finish()
 }
@@ -39,18 +19,15 @@ pub fn print_rule_with_options(
 pub(crate) struct Printer<'a> {
     /// The CSS tree being printed.
     pub(crate) tree: &'a NodeTree,
-    /// The print options.
-    pub(crate) options: RenderOptions,
     /// The emitted CSS source.
     pub(crate) source: String,
 }
 
 impl<'a> Printer<'a> {
     /// Create one CSS printer.
-    pub(crate) fn new(tree: &'a NodeTree, options: RenderOptions) -> Self {
+    pub(crate) fn new(tree: &'a NodeTree) -> Self {
         Self {
             tree,
-            options,
             source: String::new(),
         }
     }
@@ -66,10 +43,6 @@ impl<'a> Printer<'a> {
 
         // top level rules
         for rule in &stylesheet.rules {
-            if !self.source.is_empty() && !self.options.is_minified {
-                self.source.push('\n');
-            }
-
             self.print_rule_id(*rule);
         }
     }

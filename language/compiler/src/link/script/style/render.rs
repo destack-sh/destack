@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use css::print::{
-    print_layer_name_list, print_media_query_list, print_rule_with_options,
-    print_supports_condition,
+    print_layer_name_list, print_media_query_list, print_rule, print_supports_condition,
 };
 use css::{
     ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportRule, LocalNodeId,
-    NodeTree, RenderOptions, Rule, SupportsCondition, Token,
+    NodeTree, Rule, SupportsCondition, Token,
 };
 use destack_artifact::{OutputContent, OutputFile};
 use destack_css as css;
@@ -117,8 +116,7 @@ impl<'a> ScriptLinker<'a> {
             &target_location,
             plan.asset_reference_map(),
         )?;
-        let mut rendered =
-            render_stylesheet_text(import_rules, body, self.css_render_options().is_minified);
+        let mut rendered = render_stylesheet_text(import_rules, body, self.should_compact_css());
 
         // keep text outputs newline terminated
         if !rendered.is_empty() && !rendered.ends_with('\n') {
@@ -186,14 +184,14 @@ impl<'a> ScriptLinker<'a> {
 
         let mut import_rules = IndexSet::new();
         let mut body = String::new();
-        let is_minified = self.css_render_options().is_minified;
+        let is_minified = self.should_compact_css();
         let rule_ids = css.tree.get(css.stylesheet).rules.clone();
 
         // top level rules
         for rule_id in rule_ids {
             let Some(imported_module_id) = import_targets.get(&rule_id.id).copied().flatten()
             else {
-                let rule = print_rule_with_options(&css.tree, rule_id, self.css_render_options());
+                let rule = print_rule(&css.tree, rule_id);
 
                 if matches!(css.tree.get(rule_id), Rule::Import(_)) {
                     import_rules.insert(rule);
@@ -519,12 +517,10 @@ impl<'a> ScriptLinker<'a> {
         }
     }
 
-    /// Return the shared CSS render options for stylesheet output.
-    pub(super) fn css_render_options(&self) -> RenderOptions {
-        RenderOptions {
-            is_minified: self.target.should_minify_bundle_css_whitespace()
-                || self.target.should_minify_bundle_css_syntax(),
-        }
+    /// Return whether linked CSS output should use compact assembly.
+    pub(super) fn should_compact_css(&self) -> bool {
+        self.target.should_minify_bundle_css_whitespace()
+            || self.target.should_minify_bundle_css_syntax()
     }
 
     /// Wrap one inlined stylesheet source for one conditioned import rule.
@@ -551,7 +547,7 @@ impl<'a> ScriptLinker<'a> {
             };
         }
 
-        if !self.target.should_minify_bundle_css_whitespace() && !source.ends_with('\n') {
+        if !self.should_compact_css() && !source.ends_with('\n') {
             source.push('\n');
         }
 

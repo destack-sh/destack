@@ -8,7 +8,5 @@ mod token;
 
 pub use component::print_component_fragment;
 pub use condition::{print_layer_name_list, print_media_query_list, print_supports_condition};
-pub use printer::{
-    RenderOptions, print_rule_with_options, print_stylesheet, print_stylesheet_with_options,
-};
+pub use printer::{print_rule, print_stylesheet};
 pub(crate) use token::TokenRenderer;
