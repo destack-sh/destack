@@ -3,8 +3,9 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression, Keyword,
-    LocalNodeId, OperatorPrecedence, TokenType, TypeKind, TypeLiteral,
+    LocalNodeId, OperatorPrecedence, Path, TokenType, TypeKind, TypeLiteral,
 };
+use smallvec::smallvec;
 
 use super::common::{DECLARATION_START_TOKENS, is_type_relation_keyword};
 
@@ -126,11 +127,61 @@ impl Parser {
         let matches_member_name = member_names
             .iter()
             .any(|member_name| self.identifier_equals_at(identifier_index, member_name));
-        if matches_member_name {
-            Ok(true)
-        } else {
-            Err(ParseError::unexpected(identifier_token.span))
-        }
+        Ok(matches_member_name)
+    }
+
+    /// Eat `import.meta` as one dedicated expression.
+    fn eat_import_meta_expression(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_keyword(Keyword::Import)?;
+        self.eat_newlines_maybe()?;
+        self.eat_token(TokenType::Dot)?;
+        self.eat_newlines_maybe()?;
+        self.eat_identifier_str("meta")?;
+
+        Ok(self.insert_node(Expression::ImportMeta, self.get_span_from(start)))
+    }
+
+    /// Eat `import.source` as one qualified reference expression.
+    fn eat_import_source_expression(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let import_span = self.peek_keyword(Keyword::Import)?.span;
+        let import_name = self.strings.intern("import");
+
+        self.eat_keyword(Keyword::Import)?;
+        self.eat_newlines_maybe()?;
+        self.eat_token(TokenType::Dot)?;
+        self.eat_newlines_maybe()?;
+        let (source_name, source_span) = self.eat_identifier_with_span()?;
+
+        let path = Path {
+            segments: smallvec![import_name, source_name],
+        };
+        let expression = Expression::QualifiedReference {
+            path,
+            static_arguments: None,
+        };
+        let expression_id = self.insert_node(expression, self.get_span_from(start));
+
+        self.set_path_expression_spans(expression_id, &[import_span, source_span]);
+
+        Ok(expression_id)
+    }
+
+    /// Eat `new.target` as one dedicated expression.
+    fn eat_new_target_expression(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_keyword(Keyword::New)?;
+        self.eat_token(TokenType::Dot)?;
+        self.eat_identifier_str("target")?;
+
+        Ok(self.insert_node(Expression::NewTarget, self.get_span_from(start)))
     }
 
     /// Return true when `await` may begin an `await using` declaration.
@@ -260,10 +311,13 @@ impl Parser {
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
             Keyword::Import => {
-                // treat `import.meta` and `import.source` as paths and reject other member access
+                // special import member forms
                 if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
-                    if self.keyword_member_access_is_any(&["meta", "source"], true)? {
-                        return Ok(None);
+                    if self.keyword_member_access_is_any(&["meta"], true)? {
+                        return Ok(Some(self.eat_import_meta_expression(start)?));
+                    }
+                    if self.keyword_member_access_is_any(&["source"], true)? {
+                        return Ok(Some(self.eat_import_source_expression(start)?));
                     }
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
@@ -710,10 +764,10 @@ impl Parser {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                     Ok(Some(self.eat_new()?))
                 }
-                // allow `new.target` to fall back to path parsing
+                // keep `new.target` explicit
                 else if next_token_type == TokenType::Dot {
                     if self.keyword_member_access_is_any(&["target"], false)? {
-                        Ok(None)
+                        Ok(Some(self.eat_new_target_expression(start)?))
                     } else {
                         Err(ParseError::unexpected(self.peek()?.span))
                     }
@@ -743,10 +797,13 @@ impl Parser {
             }
             // import declaration or import meta
             Keyword::Import => {
-                // treat `import.meta` and `import.source` as paths and reject other member access
+                // special import member forms
                 if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
-                    if self.keyword_member_access_is_any(&["meta", "source"], true)? {
-                        return Ok(None);
+                    if self.keyword_member_access_is_any(&["meta"], true)? {
+                        return Ok(Some(self.eat_import_meta_expression(start)?));
+                    }
+                    if self.keyword_member_access_is_any(&["source"], true)? {
+                        return Ok(Some(self.eat_import_source_expression(start)?));
                     }
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }

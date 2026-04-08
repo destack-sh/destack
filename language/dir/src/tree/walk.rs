@@ -563,6 +563,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
             Expression::PrivateIdentifier { name: _ }
             | Expression::ImportMeta
+            | Expression::NewTarget
             | Expression::This
             | Expression::Super => {
                 // nothing to do

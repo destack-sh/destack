@@ -1768,6 +1768,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             } => self.build_arguments(static_arguments.as_deref(), current_block_id),
             Expression::PrivateIdentifier { .. }
             | Expression::ImportMeta
+            | Expression::NewTarget
             | Expression::This
             | Expression::Super => Some(current_block_id),
             Expression::Type { .. }

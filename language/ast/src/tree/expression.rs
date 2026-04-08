@@ -432,6 +432,12 @@ pub enum Expression {
     /// Super reference (value context).
     Super,
 
+    /// Import meta intrinsic value.
+    ImportMeta,
+
+    /// New target intrinsic value.
+    NewTarget,
+
     /// Literal scalar value.
     ///
     /// Examples:
