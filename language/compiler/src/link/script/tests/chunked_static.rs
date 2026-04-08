@@ -1,12 +1,17 @@
-use destack_artifact::ArtifactKey;
+use destack_artifact::{
+    ArtifactKey, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, TargetOutputName,
+};
 use destack_source::TargetId;
 use destack_workspace::{BundleMode, TargetDiscovery};
+use indexmap::indexmap;
 
-use super::super::OutputKind;
+use super::super::plan::OutputKind;
 use super::{
-    TestProgram, expected_chunked_script_target, expected_manifest, expected_manifest_chunk,
-    expected_manifest_map, expected_planned_output, expected_script_output, js, js_output,
+    TestProgram, chunked_script_target, js, js_output, manifest, manifest_chunk, manifest_map,
+    planned_output, script_output,
 };
+use crate::LinkError;
+use crate::link::ScriptLinker;
 
 /// Emit one real chunked assembly over multiple static entry roots.
 #[test]
@@ -44,28 +49,41 @@ export const dashboardValue = commonValue;
     let app_path = test.module_relative_path(app);
     let dashboard_path = test.module_relative_path(dashboard);
     let common_path = test.module_relative_path(common);
-    let expected = expected_chunked_script_target(
-        expected_manifest(vec![
-            expected_manifest_chunk("app.js", "app")
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec![
+                "dist/common-a9ad2188.js".to_string(),
+                "dist/app.js".to_string(),
+                "dist/dashboard.js".to_string(),
+            ],
+            TargetOutputName::Maps => vec![
+                "dist/common-a9ad2188.js.map".to_string(),
+                "dist/app.js.map".to_string(),
+                "dist/dashboard.js.map".to_string(),
+            ],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
                 .input(&app_path)
                 .entry()
                 .imports(&["./common-a9ad2188.js"])
                 .into(),
-            expected_manifest_map("app.js.map"),
-            expected_manifest_chunk("common-a9ad2188.js", "common")
+            manifest_map("app.js.map"),
+            manifest_chunk("common-a9ad2188.js", "common")
                 .input(&common_path)
                 .shared()
                 .into(),
-            expected_manifest_map("common-a9ad2188.js.map"),
-            expected_manifest_chunk("dashboard.js", "dashboard")
+            manifest_map("common-a9ad2188.js.map"),
+            manifest_chunk("dashboard.js", "dashboard")
                 .input(&dashboard_path)
                 .entry()
                 .imports(&["./common-a9ad2188.js"])
                 .into(),
-            expected_manifest_map("dashboard.js.map"),
+            manifest_map("dashboard.js.map"),
         ]),
         vec![
-            expected_script_output(
+            script_output(
                 "dist/common-a9ad2188.js",
                 &js_output(
                     r#"
@@ -74,7 +92,7 @@ export const commonValue = 1;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/app.js",
                 &js_output(
                     r#"
@@ -84,13 +102,114 @@ export const appValue = commonValue;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/dashboard.js",
                 &js_output(
                     r#"
 import { commonValue } from "./common-a9ad2188.js";
 export const dashboardValue = commonValue;
 //# sourceMappingURL=./dashboard.js.map
+"#,
+                ),
+            ),
+        ],
+    );
+
+    test.assert_linked_chunked_script_target(&linked, &expected);
+}
+
+/// Emit one exact chunked assembly with nested entry and shared file-name templates.
+#[test]
+fn test_links_chunked_js_target_with_nested_file_name_templates() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    let [common, app, dashboard] = test.add_modules([
+        ("common.ts", js(r#"export const commonValue = 1;"#)),
+        (
+            "app.ts",
+            js(r#"
+import { commonValue } from "./common.ts";
+
+export const appValue = commonValue;
+"#),
+        ),
+        (
+            "dashboard.ts",
+            js(r#"
+import { commonValue } from "./common.ts";
+
+export const dashboardValue = commonValue;
+"#),
+        ),
+    ]);
+
+    let linked = test.linked_chunked_js_target_with(&[app, dashboard], "js", |target| {
+        target.bundle_output.entry_file_names = Some("entries/[name]-entry.[ext]".to_string());
+        target.bundle_output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
+    });
+    let app_path = test.module_relative_path(app);
+    let dashboard_path = test.module_relative_path(dashboard);
+    let common_path = test.module_relative_path(common);
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec![
+                "dist/chunks/common-shared.js".to_string(),
+                "dist/entries/app-entry.js".to_string(),
+                "dist/entries/dashboard-entry.js".to_string(),
+            ],
+            TargetOutputName::Maps => vec![
+                "dist/chunks/common-shared.js.map".to_string(),
+                "dist/entries/app-entry.js.map".to_string(),
+                "dist/entries/dashboard-entry.js.map".to_string(),
+            ],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("chunks/common-shared.js", "common")
+                .input(&common_path)
+                .shared()
+                .into(),
+            manifest_map("chunks/common-shared.js.map"),
+            manifest_chunk("entries/app-entry.js", "app")
+                .input(&app_path)
+                .entry()
+                .imports(&["../chunks/common-shared.js"])
+                .into(),
+            manifest_map("entries/app-entry.js.map"),
+            manifest_chunk("entries/dashboard-entry.js", "dashboard")
+                .input(&dashboard_path)
+                .entry()
+                .imports(&["../chunks/common-shared.js"])
+                .into(),
+            manifest_map("entries/dashboard-entry.js.map"),
+        ]),
+        vec![
+            script_output(
+                "dist/chunks/common-shared.js",
+                &js_output(
+                    r#"
+export const commonValue = 1;
+//# sourceMappingURL=./common-shared.js.map
+"#,
+                ),
+            ),
+            script_output(
+                "dist/entries/app-entry.js",
+                &js_output(
+                    r#"
+import { commonValue } from "../chunks/common-shared.js";
+export const appValue = commonValue;
+//# sourceMappingURL=./app-entry.js.map
+"#,
+                ),
+            ),
+            script_output(
+                "dist/entries/dashboard-entry.js",
+                &js_output(
+                    r#"
+import { commonValue } from "../chunks/common-shared.js";
+export const dashboardValue = commonValue;
+//# sourceMappingURL=./dashboard-entry.js.map
 "#,
                 ),
             ),
@@ -137,10 +256,9 @@ export const dashboardValue = commonValue;
     assert_eq!(
         chunks,
         vec![
-            expected_planned_output("common", OutputKind::Shared, &["common.ts"],),
-            expected_planned_output("app", OutputKind::Entry, &["app.ts"])
-                .static_dependencies(&["common"]),
-            expected_planned_output("dashboard", OutputKind::Entry, &["dashboard.ts"])
+            planned_output("common", OutputKind::Shared, &["common.ts"]),
+            planned_output("app", OutputKind::Entry, &["app.ts"]).static_dependencies(&["common"]),
+            planned_output("dashboard", OutputKind::Entry, &["dashboard.ts"])
                 .static_dependencies(&["common"]),
         ],
     );
@@ -149,82 +267,232 @@ export const dashboardValue = commonValue;
 /// Reject chunk file-name templates that collapse distinct shared outputs.
 #[test]
 fn test_rejects_chunked_shared_output_path_collisions() {
-    // keep three distinct shared chunks so a fixed file name collides
+    // keep two distinct shared chunks so a fixed file name collides
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let [_dep1, _dep2, _dep3, main1, _main2, _main3] = test.add_modules([
+    let [vendor_a, vendor_b, main1, main2] = test.add_modules([
         (
-            "dep1.ts",
+            "vendor-a.ts",
             js(r#"
-export const dep1 = "dep1";
+export const vendorA = "vendor-a";
 "#),
         ),
         (
-            "dep2.ts",
+            "vendor-b.ts",
             js(r#"
-export const dep2 = "dep2";
-"#),
-        ),
-        (
-            "dep3.ts",
-            js(r#"
-export const dep3 = "dep3";
+export const vendorB = "vendor-b";
 "#),
         ),
         (
             "main1.ts",
             js(r#"
-import { dep1 } from "./dep1.ts";
-import { dep2 } from "./dep2.ts";
+import { vendorA } from "./vendor-a.ts";
+import { vendorB } from "./vendor-b.ts";
 
-export const main1 = [dep1, dep2];
+export const main1 = [vendorA, vendorB];
 "#),
         ),
         (
             "main2.ts",
             js(r#"
-import { dep2 } from "./dep2.ts";
-import { dep3 } from "./dep3.ts";
+import { vendorA } from "./vendor-a.ts";
+import { vendorB } from "./vendor-b.ts";
 
-export const main2 = [dep2, dep3];
-"#),
-        ),
-        (
-            "main3.ts",
-            js(r#"
-import { dep1 } from "./dep1.ts";
-import { dep3 } from "./dep3.ts";
-
-export const main3 = [dep1, dep3];
+export const main2 = [vendorA, vendorB];
 "#),
         ),
     ]);
 
     // force all shared chunks onto the same emitted path
+    let vendor_a_path = test.module_relative_path(vendor_a);
+    let vendor_b_path = test.module_relative_path(vendor_b);
     test.configure_target(main1, "js", |target| {
         target.discovery = TargetDiscovery::Entry;
-        target.entry = vec!["main1.ts".into(), "main2.ts".into(), "main3.ts".into()];
+        target.entry = vec!["main1.ts".into(), "main2.ts".into()];
         target.out_dir = "dist".into();
         target.assembly = BundleMode::Chunked;
         target.bundle_output.chunk_file_names = Some("chunks/chunk.js".to_string());
+        target
+            .manual_chunks
+            .insert("vendor-a".to_string(), vec![vendor_a_path.clone()]);
+        target
+            .manual_chunks
+            .insert("vendor-b".to_string(), vec![vendor_b_path.clone()]);
     });
 
-    let package_id = test.program.modules.get(main1).package_id;
+    let package_id = test.program.module_descriptor(main1).package_id;
     let target_id = TargetId::new(package_id, "js");
     test.run(ArtifactKey::package_output(package_id, target_id));
 
-    // report one exact linker failure shape
-    let diagnostics = test.program.diagnostics.collect();
-    let diagnostics = diagnostics.iter();
-
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].code, "EK101");
-    assert!(
-        diagnostics[0]
-            .message
-            .contains("multiple script outputs resolve to the same emitted path"),
+    // rebuild the linker plan directly so the layout failure is observable here
+    let package = test.program.package_descriptor(package_id);
+    let package_dir = package
+        .path
+        .clone()
+        .unwrap_or_else(|| test.program.root_directory().clone());
+    let target = package
+        .targets
+        .get(&target_id)
+        .cloned()
+        .unwrap_or_else(|| panic!("missing target 'js'"));
+    let context = test.context();
+    let linker = ScriptLinker::new(
+        test.compiler.as_ref(),
+        &context,
+        &package_dir,
+        None,
+        &target,
+        &target_id,
+        package_id,
     );
-    assert!(diagnostics[0].message.contains("chunks/chunk.js"));
+    let linked_modules = linker
+        .require_module_artifacts(&[main1, main2])
+        .unwrap_or_else(|error| panic!("failed to require script target artifacts: {error:?}"));
+    let module_set = linker
+        .build_script_module_set(&[main1, main2], &linked_modules)
+        .unwrap_or_else(|error| panic!("failed to build script module set: {error:?}"));
+    let output_graph = linker
+        .build_script_output_graph(&module_set)
+        .unwrap_or_else(|error| panic!("failed to build script output graph: {error:?}"));
+    let error = linker
+        .build_output_layout(&output_graph)
+        .expect_err("expected chunk output path collision");
+
+    // report one exact linker failure shape
+    assert_eq!(
+        error,
+        LinkError::InvalidTarget {
+            anchor: package_id.into(),
+            package: package_id,
+            target: target_id,
+            message:
+                "multiple script outputs resolve to the same emitted path 'dist/chunks/chunk.js'"
+                    .to_string(),
+        },
+    );
+}
+
+/// Retain one unresolved external dependency in one chunked entry output and manifest.
+#[test]
+fn test_retains_unresolved_external_dependency_in_chunked_manifest_and_entry() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    test.add_file(
+        "node_modules/react/package.json",
+        r#"{"name":"react","type":"module","exports":"./index.js"}"#,
+    );
+    test.add_module(
+        "node_modules/react/index.js",
+        r#"export const version = "18.0.0";"#,
+    );
+    let app = test.add_module("app.ts", &js(r#"export * from "react";"#));
+
+    let linked = test.linked_chunked_js_target_with(&[app], "js", |target| {
+        target.bundle_dependencies.never_bundle = vec!["react".to_string()];
+        target.bundle_output.sourcemap = None;
+    });
+    let app_path = test.module_relative_path(app);
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec!["dist/app.js".to_string()],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
+                .input(&app_path)
+                .entry()
+                .imports(&["react"])
+                .into(),
+        ]),
+        vec![script_output(
+            "dist/app.js",
+            &js_output(
+                r#"
+export * from "react";
+"#,
+            ),
+        )],
+    );
+
+    test.assert_linked_chunked_script_target(&linked, &expected);
+}
+
+/// Keep chunked stylesheet assets and manifest stylesheet links exact.
+#[test]
+fn test_links_chunked_js_target_with_css_assets() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    let _styles = test.add_module(
+        "styles.css",
+        r#"
+body {
+  color: red;
+}
+"#,
+    );
+    let app = test.add_module(
+        "app.ts",
+        &js(r#"
+import "./styles.css";
+
+export const panelState = "ready";
+"#),
+    );
+
+    let package_id = test.program.module_descriptor(app).package_id;
+    let output = test.link_chunked_js_target_with(&[app], "js", |target| {
+        target.bundle_output.sourcemap = None;
+        target.bundle_output.asset_file_names = Some("[name].[ext]".to_string());
+    });
+    let linked = test.linked_chunked_script_target(package_id, &output);
+    let app_path = test.module_relative_path(app);
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec!["dist/app.js".to_string()],
+            TargetOutputName::Assets => vec!["dist/styles.css".to_string()],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
+                .input(&app_path)
+                .entry()
+                .stylesheets(&["./styles.css"])
+                .into(),
+            BuildManifestFile {
+                path: "styles.css".to_string(),
+                r#type: BuildManifestFileType::Asset,
+                loader: BuildManifestLoader::Asset,
+                name: None,
+                input: None,
+                is_entry: None,
+                is_dynamic_entry: None,
+                imports: Vec::new(),
+                dynamic_imports: Vec::new(),
+                stylesheets: Vec::new(),
+            },
+        ]),
+        vec![script_output(
+            "dist/app.js",
+            &js_output(
+                r#"
+export const panelState = "ready";
+"#,
+            ),
+        )],
+    );
+
+    test.assert_linked_chunked_script_target(&linked, &expected);
+    test.assert_text_output_at_path(
+        package_id,
+        &output,
+        TargetOutputName::Assets,
+        &super::LinkedTextFile {
+            path: "dist/styles.css".to_string(),
+            file_type: destack_source::FileType::Css,
+            text: "body{color:red}\n".to_string(),
+        },
+        "linked chunked stylesheet asset",
+    );
 }
 
 /// Group entry-private static chains while extracting one shared static leaf chunk.
@@ -280,10 +548,10 @@ export const dashboardValue = featureB;
     assert_eq!(
         chunks,
         vec![
-            expected_planned_output("shared-leaf", OutputKind::Shared, &["shared-leaf.ts"]),
-            expected_planned_output("app", OutputKind::Entry, &["feature-a.ts", "app.ts"],)
+            planned_output("shared-leaf", OutputKind::Shared, &["shared-leaf.ts"]),
+            planned_output("app", OutputKind::Entry, &["feature-a.ts", "app.ts"])
                 .static_dependencies(&["shared-leaf"]),
-            expected_planned_output(
+            planned_output(
                 "dashboard",
                 OutputKind::Entry,
                 &["feature-b.ts", "dashboard.ts"],
@@ -345,28 +613,41 @@ export const dashboardValue = featureB;
     let app_path = test.module_relative_path(app);
     let dashboard_path = test.module_relative_path(dashboard);
     let shared_path = test.module_relative_path(shared);
-    let expected = expected_chunked_script_target(
-        expected_manifest(vec![
-            expected_manifest_chunk("app.js", "app")
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec![
+                "dist/shared-leaf-29dc937d.js".to_string(),
+                "dist/app.js".to_string(),
+                "dist/dashboard.js".to_string(),
+            ],
+            TargetOutputName::Maps => vec![
+                "dist/shared-leaf-29dc937d.js.map".to_string(),
+                "dist/app.js.map".to_string(),
+                "dist/dashboard.js.map".to_string(),
+            ],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
                 .input(&app_path)
                 .entry()
                 .imports(&["./shared-leaf-29dc937d.js"])
                 .into(),
-            expected_manifest_map("app.js.map"),
-            expected_manifest_chunk("dashboard.js", "dashboard")
+            manifest_map("app.js.map"),
+            manifest_chunk("dashboard.js", "dashboard")
                 .input(&dashboard_path)
                 .entry()
                 .imports(&["./shared-leaf-29dc937d.js"])
                 .into(),
-            expected_manifest_map("dashboard.js.map"),
-            expected_manifest_chunk("shared-leaf-29dc937d.js", "shared-leaf")
+            manifest_map("dashboard.js.map"),
+            manifest_chunk("shared-leaf-29dc937d.js", "shared-leaf")
                 .input(&shared_path)
                 .shared()
                 .into(),
-            expected_manifest_map("shared-leaf-29dc937d.js.map"),
+            manifest_map("shared-leaf-29dc937d.js.map"),
         ]),
         vec![
-            expected_script_output(
+            script_output(
                 "dist/shared-leaf-29dc937d.js",
                 &js_output(
                     r#"
@@ -375,7 +656,7 @@ export const sharedLeaf = 1;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/app.js",
                 &js_output(
                     r#"
@@ -387,7 +668,7 @@ export const appValue = featureA;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/dashboard.js",
                 &js_output(
                     r#"
@@ -443,28 +724,41 @@ export const dashboardValue = commonValue;
             .manual_chunks
             .insert("vendor".to_string(), vec![common_path.clone()]);
     });
-    let expected = expected_chunked_script_target(
-        expected_manifest(vec![
-            expected_manifest_chunk("app.js", "app")
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec![
+                "dist/vendor-187cb3ea.js".to_string(),
+                "dist/app.js".to_string(),
+                "dist/dashboard.js".to_string(),
+            ],
+            TargetOutputName::Maps => vec![
+                "dist/vendor-187cb3ea.js.map".to_string(),
+                "dist/app.js.map".to_string(),
+                "dist/dashboard.js.map".to_string(),
+            ],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
                 .input(&test.module_relative_path(app))
                 .entry()
                 .imports(&["./vendor-187cb3ea.js"])
                 .into(),
-            expected_manifest_map("app.js.map"),
-            expected_manifest_chunk("dashboard.js", "dashboard")
+            manifest_map("app.js.map"),
+            manifest_chunk("dashboard.js", "dashboard")
                 .input(&test.module_relative_path(dashboard))
                 .entry()
                 .imports(&["./vendor-187cb3ea.js"])
                 .into(),
-            expected_manifest_map("dashboard.js.map"),
-            expected_manifest_chunk("vendor-187cb3ea.js", "vendor")
+            manifest_map("dashboard.js.map"),
+            manifest_chunk("vendor-187cb3ea.js", "vendor")
                 .input(&common_path)
                 .shared()
                 .into(),
-            expected_manifest_map("vendor-187cb3ea.js.map"),
+            manifest_map("vendor-187cb3ea.js.map"),
         ]),
         vec![
-            expected_script_output(
+            script_output(
                 "dist/vendor-187cb3ea.js",
                 &js_output(
                     r#"
@@ -473,7 +767,7 @@ export const commonValue = 1;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/app.js",
                 &js_output(
                     r#"
@@ -483,7 +777,7 @@ export const appValue = commonValue;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/dashboard.js",
                 &js_output(
                     r#"
@@ -543,14 +837,13 @@ export const appValue = helperValue;
     assert_eq!(
         chunks,
         vec![
-            expected_planned_output("vendor", OutputKind::Shared, &["common.ts", "helper.ts"],),
-            expected_planned_output("app", OutputKind::Entry, &["app.ts"])
-                .static_dependencies(&["vendor"]),
+            planned_output("vendor", OutputKind::Shared, &["common.ts", "helper.ts"]),
+            planned_output("app", OutputKind::Entry, &["app.ts"]).static_dependencies(&["vendor"]),
         ],
     );
 
     // emit the vendor chunk without any internal same-chunk import
-    let package_id = test.program.modules.get(app).package_id;
+    let package_id = test.program.module_descriptor(app).package_id;
     let output = test.link_chunked_js_target_with(&[app], "js", |target| {
         target
             .manual_chunks

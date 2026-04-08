@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use destack_artifact::ArtifactKey;
 use destack_workspace::{BundleFormat, TargetDiscovery};
 
-use super::{ExpectedDiagnostic, TestProgram, js};
+use super::{TestProgram, js};
+use crate::tests::ExpectedDiagnostic;
 
 /// Reject bundled package dependencies that are not in `onlyBundle`.
 #[test]
@@ -27,7 +28,7 @@ fn test_rejects_unlisted_only_bundle_dependency() {
         target.discovery = TargetDiscovery::Entry;
         target.entry = vec![PathBuf::from("main.ts")];
         target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle.dependencies.only_bundle = vec!["lodash".to_string()];
+        target.bundle_dependencies.only_bundle = vec!["lodash".to_string()];
     });
 
     let package_id = test.program.module_descriptor(main).package_id;
@@ -37,9 +38,8 @@ fn test_rejects_unlisted_only_bundle_dependency() {
     // report one exact linker diagnostic
     test.check_exact_diagnostics(&[ExpectedDiagnostic {
         code: "EK101".to_string(),
-        message:
-            "invalid target: js: bundle.dependencies.onlyBundle does not allow bundled dependency 'react'"
-                .to_string(),
+        message: "invalid target: js: dependencies.onlyBundle does not allow bundled dependency 'react'"
+            .to_string(),
     }]);
 }
 
@@ -90,7 +90,7 @@ fn test_rejects_unimplemented_bundle_output_format() {
         target.discovery = TargetDiscovery::Entry;
         target.entry = vec![PathBuf::from("app.ts")];
         target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle.output.format = Some(BundleFormat::Cjs);
+        target.bundle_output.format = Some(BundleFormat::Cjs);
     });
 
     let package_id = test.program.module_descriptor(main).package_id;
@@ -100,8 +100,7 @@ fn test_rejects_unimplemented_bundle_output_format() {
     // report one exact linker diagnostic
     test.check_exact_diagnostics(&[ExpectedDiagnostic {
         code: "EK101".to_string(),
-        message: "invalid target: js: bundle.output.format 'cjs' is not implemented yet"
-            .to_string(),
+        message: "invalid target: js: output.format 'cjs' is not implemented yet".to_string(),
     }]);
 }
 
@@ -119,7 +118,7 @@ fn test_rejects_unimplemented_bundle_minify() {
         target.discovery = TargetDiscovery::Entry;
         target.entry = vec![PathBuf::from("app.ts")];
         target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle.minify.enabled = true;
+        target.minify.enabled = true;
     });
 
     let package_id = test.program.module_descriptor(main).package_id;

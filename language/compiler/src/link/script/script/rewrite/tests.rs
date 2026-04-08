@@ -4,7 +4,6 @@ use destack_workspace::TargetOptions;
 use {destack_codegen_js as js, destack_dir as dir};
 
 use super::linker::Rewriter;
-use crate::tests::TestProgram;
 
 /// One small script module builder for minify rewrite tests.
 struct TestModuleBuilder {
@@ -289,8 +288,6 @@ impl TestModuleBuilder {
 
 /// One real rewriter harness for direct minify helper tests.
 struct TestRewriter {
-    /// The real compiler test harness.
-    test: TestProgram,
     /// The target policy used by the rewriter.
     target: destack_workspace::Target,
     /// The module under test.
@@ -301,7 +298,6 @@ impl TestRewriter {
     /// Create one test rewriter around one module.
     fn new(module: js::ScriptModule) -> Self {
         Self {
-            test: TestProgram::memory_sequential(),
             target: TargetOptions::default().to_target("test"),
             module,
         }

@@ -1,15 +1,10 @@
-use std::path::PathBuf;
-
-use destack_artifact::ArtifactKey;
-use destack_source::TargetId;
-use destack_workspace::{BundleMode, TargetDiscovery};
-
-use super::super::OutputKind;
+use super::super::plan::OutputKind;
 use super::{
-    ExpectedDiagnostic, TestProgram, expected_chunked_script_target, expected_manifest,
-    expected_manifest_chunk, expected_manifest_map, expected_planned_output,
-    expected_script_output, js, js_output,
+    TestProgram, chunked_script_target, js, js_output, manifest, manifest_chunk, manifest_map,
+    map_output, planned_output, script_output, source_map,
 };
+use destack_artifact::TargetOutputName;
+use indexmap::indexmap;
 
 /// Plan one lazy entry output for one bundled dynamic import.
 #[test]
@@ -36,8 +31,8 @@ export const featurePromise = import("./feature.ts");
     assert_eq!(
         outputs,
         vec![
-            expected_planned_output("feature", OutputKind::DynamicEntry, &["feature.ts"]),
-            expected_planned_output("app", OutputKind::Entry, &["app.ts"])
+            planned_output("feature", OutputKind::DynamicEntry, &["feature.ts"]),
+            planned_output("app", OutputKind::Entry, &["app.ts"])
                 .dynamic_dependencies(&["feature"]),
         ],
     );
@@ -66,22 +61,33 @@ export const featurePromise = import("./feature.ts");
     let linked = test.linked_chunked_js_target_with(&[app], "js", |_| {});
     let app_path = test.module_relative_path(app);
     let feature_path = test.module_relative_path(feature);
-    let expected = expected_chunked_script_target(
-        expected_manifest(vec![
-            expected_manifest_chunk("app.js", "app")
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec![
+                "dist/feature-9cbf4dc4.js".to_string(),
+                "dist/app.js".to_string(),
+            ],
+            TargetOutputName::Maps => vec![
+                "dist/feature-9cbf4dc4.js.map".to_string(),
+                "dist/app.js.map".to_string(),
+            ],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
                 .input(&app_path)
                 .entry()
                 .dynamic_imports(&["./feature-9cbf4dc4.js"])
                 .into(),
-            expected_manifest_map("app.js.map"),
-            expected_manifest_chunk("feature-9cbf4dc4.js", "feature")
+            manifest_map("app.js.map"),
+            manifest_chunk("feature-9cbf4dc4.js", "feature")
                 .input(&feature_path)
                 .dynamic_entry()
                 .into(),
-            expected_manifest_map("feature-9cbf4dc4.js.map"),
+            manifest_map("feature-9cbf4dc4.js.map"),
         ]),
         vec![
-            expected_script_output(
+            script_output(
                 "dist/feature-9cbf4dc4.js",
                 &js_output(
                     r#"
@@ -90,7 +96,7 @@ export const featureValue = 1;
 "#,
                 ),
             ),
-            expected_script_output(
+            script_output(
                 "dist/app.js",
                 &js_output(
                     r#"
@@ -105,45 +111,98 @@ export const featurePromise = import("./feature-9cbf4dc4.js");
     test.assert_linked_chunked_script_target(&linked, &expected);
 }
 
-/// Reject one dynamic import that collapses into the same output.
 #[test]
-fn test_rejects_chunked_same_output_dynamic_import() {
+fn test_emits_exact_chunked_source_maps_for_dynamic_import() {
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let dependency = test.add_module(
-        "dependency.ts",
-        &js(r#"
-export const value = 1;
-"#),
-    );
+    let _feature = test.add_module("feature.ts", &js(r#"export const featureValue = 1;"#));
     let app = test.add_module(
         "app.ts",
-        &js(r#"
-export const dependencyPromise = import("./dependency.ts");
-"#),
+        &js(r#"export const featurePromise = import("./feature.ts");"#),
     );
-    let app_path = test.module_relative_path(app);
-    let dependency_path = test.module_relative_path(dependency);
 
-    test.configure_target(app, "js", |target| {
-        target.discovery = TargetDiscovery::Entry;
-        target.entry = vec![PathBuf::from("app.ts")];
-        target.out_dir = PathBuf::from("dist");
-        target.assembly = BundleMode::Chunked;
-        target.manual_chunks.insert(
-            "vendor".to_string(),
-            vec![app_path.clone(), dependency_path.clone()],
-        );
+    let package_id = test.program.module_descriptor(app).package_id;
+    let output = test.link_chunked_js_target_with(&[app], "js", |_| {});
+
+    test.assert_json_output_at_path(
+        package_id,
+        &output,
+        TargetOutputName::Maps,
+        &map_output(
+            "dist/app.js.map",
+            source_map(&["../app.ts"], "AAAA,aAAa,cAAc,GAAG,OAAO,uBAAc,CAAC;"),
+        ),
+        "linked app chunk source map",
+    );
+    test.assert_json_output_at_path(
+        package_id,
+        &output,
+        TargetOutputName::Maps,
+        &map_output(
+            "dist/feature-9cbf4dc4.js.map",
+            source_map(&["../feature.ts"], "AAAA,aAAa,YAAY,GAAG,CAAC;"),
+        ),
+        "linked feature chunk source map",
+    );
+}
+
+/// Preserve relative chunk imports under one configured public path.
+#[test]
+fn test_links_chunked_js_target_with_public_path() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    let [feature, app] = test.add_modules([
+        ("feature.ts", js(r#"export const featureValue = 1;"#)),
+        (
+            "app.ts",
+            js(r#"export const featurePromise = import("./feature.ts");"#),
+        ),
+    ]);
+
+    let linked = test.linked_chunked_js_target_with(&[app], "js", |target| {
+        target.bundle_output.public_path = Some("/assets".to_string());
+        target.bundle_output.sourcemap = None;
     });
+    let app_path = test.module_relative_path(app);
+    let feature_path = test.module_relative_path(feature);
+    let expected = chunked_script_target(
+        indexmap! {
+            TargetOutputName::Module => vec![
+                "dist/feature-9cbf4dc4.js".to_string(),
+                "dist/app.js".to_string(),
+            ],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        manifest(vec![
+            manifest_chunk("app.js", "app")
+                .input(&app_path)
+                .entry()
+                .dynamic_imports(&["./feature-9cbf4dc4.js"])
+                .into(),
+            manifest_chunk("feature-9cbf4dc4.js", "feature")
+                .input(&feature_path)
+                .dynamic_entry()
+                .into(),
+        ]),
+        vec![
+            script_output(
+                "dist/feature-9cbf4dc4.js",
+                &js_output(
+                    r#"
+export const featureValue = 1;
+"#,
+                ),
+            ),
+            script_output(
+                "dist/app.js",
+                &js_output(
+                    r#"
+export const featurePromise = import("./feature-9cbf4dc4.js");
+"#,
+                ),
+            ),
+        ],
+    );
 
-    let package_id = test.program.modules.get(app).package_id;
-    let target_id = TargetId::new(package_id, "js");
-    test.run(ArtifactKey::package_output(package_id, target_id));
-
-    test.check_exact_diagnostics(&[ExpectedDiagnostic {
-        code: "EK101".to_string(),
-        message:
-            "invalid target: js: bundled same-output dynamic imports are not supported yet in 'js'"
-                .to_string(),
-    }]);
+    test.assert_linked_chunked_script_target(&linked, &expected);
 }

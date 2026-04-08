@@ -1,18 +1,17 @@
 use std::path::PathBuf;
 
 use destack_artifact::{
-    ArtifactKey, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, EmitFormat,
-    PackageAssembly, Runtime, TargetOutputName,
+    BuildManifestFile, BuildManifestFileType, BuildManifestLoader, EmitFormat, PackageAssembly,
+    Runtime, TargetOutputName,
 };
 use indexmap::indexmap;
 
 use super::{
-    ExpectedDiagnostic, LinkedScriptTarget, LinkedTextFile, TestProgram,
-    expected_inline_source_map_reference, expected_linked_entry,
-    expected_linked_entry_with_source_map_reference, expected_linked_map, expected_manifest,
-    expected_manifest_chunk, expected_manifest_map, expected_source_map, js, js_output,
+    LinkedScriptTarget, LinkedTextFile, TestProgram, inline_source_map_reference, js, js_output,
+    linked_entry, linked_entry_with_source_map, linked_map, manifest, manifest_chunk, manifest_map,
+    source_map,
 };
-use destack_workspace::{BundleFormat, EsTarget, TargetDiscovery, TargetId};
+use destack_workspace::EsTarget;
 
 /// The exact precise mappings for one plain single-file bundle.
 const SINGLE_FILE_SOURCE_MAP_MAPPINGS: &str =
@@ -48,7 +47,7 @@ export const appValue = commonValue;
     let main_path = test.module_relative_path(main);
     let dep_map_path = format!("../{dep_path}");
     let main_map_path = format!("../{main_path}");
-    let map = expected_source_map(
+    let map = source_map(
         &[dep_map_path.as_str(), main_map_path.as_str()],
         SINGLE_FILE_SOURCE_MAP_MAPPINGS,
     );
@@ -62,7 +61,7 @@ export const appValue = commonValue;
             TargetOutputName::Maps => vec!["dist/js.js.map".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry_with_source_map_reference(
+        entry: linked_entry_with_source_map(
             &js_output(
                 r#"
 export const commonValue = 1;
@@ -72,14 +71,14 @@ export const appValue = commonValue;
             ),
             "./js.js.map",
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
-            expected_manifest_map("dist/js.js.map"),
+            manifest_map("js.js.map"),
         ]),
-        map: Some(expected_linked_map(map)),
+        map: Some(linked_map(map)),
     };
 
     test.assert_linked_script_target(&linked, &expected);
@@ -109,14 +108,14 @@ export const appValue = commonValue;
     // describe the same single bundled entry in both places
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
             .into(),
-        expected_manifest_map("dist/js.js.map"),
+        manifest_map("js.js.map"),
     ]);
-    let expected_entry = expected_linked_entry_with_source_map_reference(
+    let expected_entry = linked_entry_with_source_map(
         &js_output(
             r#"
 export const commonValue = 1;
@@ -168,7 +167,7 @@ export function renderShell(page: PageState) {
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(&js_output(
+        entry: linked_entry(&js_output(
             r#"
 export function renderShell(page) {
     const navigation = page.navigation.map(
@@ -178,8 +177,8 @@ export function renderShell(page) {
 }
 "#,
         )),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -226,15 +225,15 @@ export function renderValue(registry: Registry, key: string) {
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(&js_output(
+        entry: linked_entry(&js_output(
             r#"
 export function renderValue(registry, key) {
     return registry[key];
 }
 "#,
         )),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -278,15 +277,15 @@ export function isBoxValue(value: unknown): value is BoxLabel<"alpha"> {
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(&js_output(
+        entry: linked_entry(&js_output(
             r#"
 export function isBoxValue(value) {
     return typeof value === "string";
 }
 "#,
         )),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -340,15 +339,15 @@ export function isBoxValue(value: unknown): value is BoxLabel<"alpha"> {
 export interface Builder{
     clone(this: this): this
 }
-export type BoxLabel<T extends string> = `box:${T}`;
+export type BoxLabel<T extends string> = `box:${T}`
 export function isBoxValue(value: unknown): value is BoxLabel<"alpha"> {
     return typeof value === "string";
 }
 "#,
             ),
         },
-        manifest: expected_manifest(vec![BuildManifestFile {
-            path: "dist/types.ts".to_string(),
+        manifest: manifest(vec![BuildManifestFile {
+            path: "types.ts".to_string(),
             r#type: BuildManifestFileType::Chunk,
             loader: BuildManifestLoader::Ts,
             name: Some("js".to_string()),
@@ -383,137 +382,18 @@ export * from 'react';
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.bundle_dependencies.never_bundle = vec!["react".to_string()];
     });
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
             .imports(&["react"])
             .into(),
-        expected_manifest_map("dist/js.js.map"),
+        manifest_map("js.js.map"),
     ]);
-    let expected_entry = expected_linked_entry_with_source_map_reference(
-        "export * from \"react\";\n",
-        "./js.js.map",
-    );
+    let expected_entry = linked_entry_with_source_map("export * from \"react\";\n", "./js.js.map");
 
     test.assert_linked_script_entry(&linked, &expected_entry);
     test.assert_linked_script_manifest(&linked, &expected_manifest);
-}
-
-/// Reject bundled package dependencies that are not in `onlyBundle`.
-#[test]
-fn test_rejects_unlisted_only_bundle_dependency() {
-    // reject bundled package imports that are outside onlyBundle
-    let test = TestProgram::memory_sequential();
-    test.add_package("test", None);
-    test.add_file(
-        "node_modules/react/package.json",
-        r#"
-{"name":"react","type":"module","exports":"./index.js"}
-"#,
-    );
-    test.add_module(
-        "node_modules/react/index.js",
-        r#"
-export const version = "18.0.0";
-"#,
-    );
-    let main = test.add_module(
-        "main.ts",
-        &js(r#"
-export * from 'react';
-"#),
-    );
-
-    // configure one invalid single-file target
-    test.configure_target(main, "js", |target| {
-        // route this target through bundled single-file linking
-        target.discovery = TargetDiscovery::Entry;
-        target.entry = vec![PathBuf::from("main.ts")];
-        target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle_dependencies.only_bundle = vec!["lodash".to_string()];
-    });
-
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
-    test.run(ArtifactKey::package_output(package_id, target_id));
-
-    // report one exact linker diagnostic
-    test.check_exact_diagnostics(&[ExpectedDiagnostic {
-        code: "EK101".to_string(),
-        message:
-            "invalid target: js: dependencies.onlyBundle does not allow bundled dependency 'react'"
-                .to_string(),
-    }]);
-}
-
-/// Reject bundled dynamic imports outside chunked assembly.
-#[test]
-fn test_rejects_bundled_dynamic_import_in_single_file_target() {
-    let test = TestProgram::memory_sequential();
-    test.add_package("test", None);
-    test.add_module(
-        "dependency.ts",
-        &js(r#"
-export const value = 1;
-"#),
-    );
-    let main = test.add_module(
-        "app.ts",
-        &js(r#"
-export const dependencyPromise = import("./dependency.ts");
-"#),
-    );
-
-    test.configure_target(main, "js", |target| {
-        target.discovery = TargetDiscovery::Entry;
-        target.entry = vec![PathBuf::from("app.ts")];
-        target.out_file = Some(PathBuf::from("dist/js.js"));
-    });
-
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
-    test.run(ArtifactKey::package_output(package_id, target_id));
-
-    test.check_exact_diagnostics(&[ExpectedDiagnostic {
-        code: "EK101".to_string(),
-        message:
-            "invalid target: js: bundled dynamic import './dependency.ts' is not implemented yet"
-                .to_string(),
-    }]);
-}
-
-/// Reject bundle output formats that the linker does not implement yet.
-#[test]
-fn test_rejects_unimplemented_bundle_output_format() {
-    // reject one bundle output format the linker does not support yet
-    let test = TestProgram::memory_sequential();
-    test.add_package("test", None);
-    let main = test.add_module(
-        "app.ts",
-        &js(r#"
-export const value = 1;
-"#),
-    );
-
-    // configure one invalid single-file target
-    test.configure_target(main, "js", |target| {
-        // route this target through bundled single-file linking
-        target.discovery = TargetDiscovery::Entry;
-        target.entry = vec![PathBuf::from("app.ts")];
-        target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle_output.format = Some(BundleFormat::Cjs);
-    });
-
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
-    test.run(ArtifactKey::package_output(package_id, target_id));
-
-    // report one exact linker diagnostic
-    test.check_exact_diagnostics(&[ExpectedDiagnostic {
-        code: "EK101".to_string(),
-        message: "invalid target: js: output.format 'cjs' is not implemented yet".to_string(),
-    }]);
 }
 
 /// Minify bundled single-file identifiers without changing the export surface.
@@ -553,7 +433,7 @@ export const appValue = localValue;
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const b = 1;
 export const commonValue = b;
 
@@ -561,8 +441,8 @@ const a = commonValue;
 export const appValue = a;
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -614,18 +494,12 @@ export const type = kind;
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const flag = !0, config = { flag, empty: void 0, off: !1 };
-let placeholder;
-const selected = config, branch = config, kind = "object";
-function maybeValue() {
-    return;
-}
-export const appValue = config, maybe = maybeValue, rest = placeholder, chosen = selected, picked = branch, type = kind;
+        entry: linked_entry(
+            r#"const flag=!0,config={flag,empty:void 0,off:!1};let placeholder;const selected=config,branch=config,kind="object";function maybeValue(){return;};export const appValue=config,maybe=maybeValue,rest=placeholder,chosen=selected,picked=branch,type=kind;
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -667,13 +541,12 @@ export const appValue = { booleanValue, sequenceValue, comparisonValue };
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const flag = !0, source = "value", booleanValue = !!flag, sequenceValue = source, comparisonValue = !0;
-export const appValue = { booleanValue, sequenceValue, comparisonValue };
+        entry: linked_entry(
+            r#"const flag=!0,source="value",booleanValue=!!flag,sequenceValue=source,comparisonValue=!0;export const appValue={booleanValue,sequenceValue,comparisonValue};
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -714,13 +587,12 @@ export const appValue = { voidCheck, typeCheck, nullType };
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const value = "text", voidCheck = value == null, typeCheck = typeof value == "string", nullType = !0;
-export const appValue = { voidCheck, typeCheck, nullType };
+        entry: linked_entry(
+            r#"const value="text",voidCheck=value==null,typeCheck=typeof value=="string",nullType=!0;export const appValue={voidCheck,typeCheck,nullType};
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -760,15 +632,15 @@ export const appValue = [infinityValue, nanValue, rootValue];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const infinityValue = Infinity;
 const nanValue = NaN;
 const rootValue = globalThis;
 export const appValue = [infinityValue, nanValue, rootValue];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -805,13 +677,13 @@ export const values = [...base, 3];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const base = [1, 2];
 export const values = [...base, 3];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -849,14 +721,14 @@ export const appValue = [head, tail];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const values = [1, 2, 3];
 const [head, ...tail] = values;
 export const appValue = [head, tail];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -898,7 +770,7 @@ export const appValue = first;
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const target = { a: 1 };
 let first = "";
 for(const [value] in target) {
@@ -907,8 +779,8 @@ for(const [value] in target) {
 export const appValue = first;
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -946,13 +818,12 @@ export const appValue = value["plain"] + value["void"];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const value = { plain: 1, void: 2 };
-export const appValue = value.plain + value.void;
+        entry: linked_entry(
+            r#"const value={plain:1,void:2};export const appValue=value.plain+value.void;
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -998,15 +869,12 @@ export const appValue = { chosen, member, index, call };
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const source = { name: "value", "dash-name": "dash" }, callable = function(value) {
-    return value;
-}, fallback = "fallback", chosen = source ?? fallback, member = source?.name, index = source?.["dash-name"], call = callable?.("call");
-export const appValue = { chosen, member, index, call };
+        entry: linked_entry(
+            r#"const source={name:"value","dash-name":"dash"},callable=function(value){return value;},fallback="fallback",chosen=source??fallback,member=source?.name,index=source?.["dash-name"],call=callable?.("call");export const appValue={chosen,member,index,call};
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1051,15 +919,12 @@ export const appValue = { chosen, member, index, call };
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const source = { name: "value", "dash-name": "dash" }, callable = function(value) {
-    return value;
-}, fallback = "fallback", chosen = source != null?source:fallback, member = source == null?void 0:source.name, index = source == null?void 0:source["dash-name"], call = callable == null?void 0:callable("call");
-export const appValue = { chosen, member, index, call };
+        entry: linked_entry(
+            r#"const source={name:"value","dash-name":"dash"},callable=function(value){return value;},fallback="fallback",chosen=source!=null?source:fallback,member=source==null?void 0:source.name,index=source==null?void 0:source["dash-name"],call=callable==null?void 0:callable("call");export const appValue={chosen,member,index,call};
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1102,13 +967,12 @@ export const appValue = value["plain"] + value["void"];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
-            r#"const value = { plain: 1, "void": 2 };
-export const appValue = value.plain + value["void"];
+        entry: linked_entry(
+            r#"const value={plain:1,"void":2};export const appValue=value.plain+value["void"];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1153,7 +1017,7 @@ export const appValue = [localValue, NamedClass];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"function namedFunction() {
     return 1;
 }
@@ -1163,8 +1027,8 @@ const a = namedFunction;
 export const appValue = [a, NamedClass];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1207,12 +1071,12 @@ export const appValue = [localFunction, returnFunction, localClass];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const b=function(){},c=function(){return 1;},a=class{};export const appValue=[b,c,a];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1257,12 +1121,12 @@ export const appValue = [localFunction, returnFunction, recursiveFunction, local
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const b=function LocalFunction(){},d=function ReturnFunction(){return 1;},c=function RecursiveFunction(){return RecursiveFunction();},a=class LocalClass{};export const appValue=[b,d,c,a];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1310,12 +1174,12 @@ export const appValue = [first, second, [alpha, beta, gamma]];
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"let a=1,b=2,c=3;a=4;const d=[a,b,c];b=5;const e=[a,b,c];c=6;export const appValue=[d,e,[a,b,c]];
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1371,12 +1235,12 @@ export const appValue = values;
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             r#"const a=[1/0,-1/0,1/0,-1/0,1/0,-1/0,NaN,NaN,NaN,NaN,1/0,1/0,-1,-1];export const appValue=a;
 "#,
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1413,7 +1277,7 @@ export const appValue = commonValue;
     let main_path = test.module_relative_path(main);
     let dep_map_path = format!("../{dep_path}");
     let main_map_path = format!("../{main_path}");
-    let map = expected_source_map(
+    let map = source_map(
         &[dep_map_path.as_str(), main_map_path.as_str()],
         SINGLE_FILE_SOURCE_MAP_MAPPINGS,
     );
@@ -1422,14 +1286,14 @@ export const appValue = commonValue;
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.entry = vec![PathBuf::from("app.ts")];
     });
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
             .into(),
-        expected_manifest_map("dist/js.js.map"),
+        manifest_map("js.js.map"),
     ]);
-    let expected_entry = expected_linked_entry_with_source_map_reference(
+    let expected_entry = linked_entry_with_source_map(
         &js_output(
             r#"
 export const commonValue = 1;
@@ -1442,7 +1306,7 @@ export const appValue = commonValue;
 
     test.assert_linked_script_entry(&linked, &expected_entry);
     test.assert_linked_script_manifest(&linked, &expected_manifest);
-    test.assert_linked_script_map(&linked, Some(&expected_linked_map(map)));
+    test.assert_linked_script_map(&linked, Some(&linked_map(map)));
 }
 
 /// Emit one hidden source map sidecar without annotating the bundled entry text.
@@ -1471,7 +1335,7 @@ export const appValue = commonValue;
     let main_path = test.module_relative_path(main);
     let dep_map_path = format!("../{dep_path}");
     let main_map_path = format!("../{main_path}");
-    let map = expected_source_map(
+    let map = source_map(
         &[dep_map_path.as_str(), main_map_path.as_str()],
         SINGLE_FILE_SOURCE_MAP_MAPPINGS,
     );
@@ -1481,14 +1345,14 @@ export const appValue = commonValue;
         target.entry = vec![PathBuf::from("app.ts")];
         target.bundle_output.sourcemap = Some(destack_workspace::SourceMapMode::Hidden);
     });
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
             .into(),
-        expected_manifest_map("dist/js.js.map"),
+        manifest_map("js.js.map"),
     ]);
-    let expected_entry = expected_linked_entry(&js_output(
+    let expected_entry = linked_entry(&js_output(
         r#"
 export const commonValue = 1;
 
@@ -1498,7 +1362,7 @@ export const appValue = commonValue;
 
     test.assert_linked_script_entry(&linked, &expected_entry);
     test.assert_linked_script_manifest(&linked, &expected_manifest);
-    test.assert_linked_script_map(&linked, Some(&expected_linked_map(map)));
+    test.assert_linked_script_map(&linked, Some(&linked_map(map)));
 }
 
 /// Emit one inline source map for bundled single-file output without a sidecar map file.
@@ -1527,19 +1391,19 @@ export const appValue = commonValue;
     let main_path = test.module_relative_path(main);
     let dep_map_path = format!("../{dep_path}");
     let main_map_path = format!("../{main_path}");
-    let map = expected_source_map(
+    let map = source_map(
         &[dep_map_path.as_str(), main_map_path.as_str()],
         SINGLE_FILE_SOURCE_MAP_MAPPINGS,
     );
-    let inline_reference = expected_inline_source_map_reference(&map);
+    let inline_reference = inline_source_map_reference(&map);
 
     // emit one entry file with one inline source map reference
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.entry = vec![PathBuf::from("app.ts")];
         target.bundle_output.sourcemap = Some(destack_workspace::SourceMapMode::Inline);
     });
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
             .into(),
@@ -1550,7 +1414,7 @@ export const appValue = commonValue;
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry_with_source_map_reference(
+        entry: linked_entry_with_source_map(
             &js_output(
                 r#"
 export const commonValue = 1;
@@ -1593,7 +1457,7 @@ export const appValue = commonValue;
     let main_path = test.module_relative_path(main);
     let dep_map_path = format!("../{dep_path}");
     let main_map_path = format!("../{main_path}");
-    let map = expected_source_map(
+    let map = source_map(
         &[dep_map_path.as_str(), main_map_path.as_str()],
         SINGLE_FILE_BANNER_FOOTER_SOURCE_MAP_MAPPINGS,
     );
@@ -1604,14 +1468,14 @@ export const appValue = commonValue;
         target.bundle_output.banner = Some("/* banner */".to_string());
         target.bundle_output.footer = Some("/* footer */".to_string());
     });
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
             .into(),
-        expected_manifest_map("dist/js.js.map"),
+        manifest_map("js.js.map"),
     ]);
-    let expected_entry = expected_linked_entry_with_source_map_reference(
+    let expected_entry = linked_entry_with_source_map(
         &js_output(
             r#"
 /* banner */
@@ -1626,7 +1490,7 @@ export const appValue = commonValue;
 
     test.assert_linked_script_entry(&linked, &expected_entry);
     test.assert_linked_script_manifest(&linked, &expected_manifest);
-    test.assert_linked_script_map(&linked, Some(&expected_linked_map(map)));
+    test.assert_linked_script_map(&linked, Some(&linked_map(map)));
 }
 
 /// Minify bundled single-file JavaScript output when bundle minification is enabled.
@@ -1669,11 +1533,11 @@ export const appValue = {
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
-        entry: expected_linked_entry(
+        entry: linked_entry(
             "const a={plain:!0,void:2};let b;const e=a,d=typeof b>\"u\",c=\"object\";export const appValue={selected:e,missing:d,plain:a.plain,void:a.void,kind:c,rest:b};\n",
         ),
-        manifest: expected_manifest(vec![
-            expected_manifest_chunk("dist/js.js", "js")
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
                 .input(&main_path)
                 .entry()
                 .into(),
@@ -1706,10 +1570,9 @@ export const appValue = output;
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 let output = 0;
 switch(1) {
     case 0:
@@ -1720,11 +1583,9 @@ switch(1) {
 }
 export const appValue = output;
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower do while loops into linked JavaScript output.
@@ -1745,21 +1606,18 @@ export const appValue = count;
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 let count = 0;
 do {
     count=count + 1;
 } while(count < 2);
 export const appValue = count;
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower async for of loops into linked JavaScript output.
@@ -1781,10 +1639,9 @@ export async function app(source) {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export async function app(source) {
     for await (const value of source) {
         return value;
@@ -1792,11 +1649,9 @@ export async function app(source) {
     return 0;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower await expressions inside return statements into linked JavaScript output.
@@ -1813,19 +1668,16 @@ export async function app(value) {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export async function app(value) {
     return await value;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower delegated generator yields into linked JavaScript output.
@@ -1842,19 +1694,16 @@ export function* app() {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export function* app() {
     yield* [1, 2];
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower bare generator yields into linked JavaScript output.
@@ -1872,20 +1721,17 @@ export function* app() {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export function* app() {
     yield;
     return 1;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower try finally statements without inventing a catch clause.
@@ -1910,10 +1756,9 @@ export function app() {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export function app() {
     try {
         cleanup();
@@ -1923,11 +1768,9 @@ export function app() {
     return 1;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower catch clauses without a binding into linked JavaScript output.
@@ -1952,10 +1795,9 @@ export function app() {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export function app() {
     try {
         cleanup();
@@ -1965,11 +1807,9 @@ export function app() {
     return 1;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower labelled blocks through the statement lowering path.
@@ -1990,10 +1830,9 @@ export function app() {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export function app() {
     label: {
         break label;
@@ -2001,11 +1840,9 @@ export function app() {
     return 1;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Lower import meta and new target expressions into linked JavaScript output.
@@ -2027,10 +1864,9 @@ export function construct() {
 "#),
     );
 
-    let linked = test.link_single_file_js_target(main, "js");
-    let expected = expected_linked_entry_with_source_map_reference(
-        &js_output(
-            r#"
+    let linked = test.link_single_file_js_entry(main, "js");
+    let expected = linked_entry(&js_output(
+        r#"
 export function current() {
     return import.meta;
 }
@@ -2038,11 +1874,9 @@ export function construct() {
     return new.target;
 }
 "#,
-        ),
-        "./js.js.map",
-    );
+    ));
 
-    test.assert_linked_script_entry(&linked, &expected);
+    test.assert_linked_text_file(&linked, &expected, "linked entry output");
 }
 
 /// Keep plain stylesheet imports out of emitted js output.
@@ -2050,7 +1884,7 @@ export function construct() {
 fn test_links_single_file_css_imports() {
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let styles = test.add_module(
+    let _styles = test.add_module(
         "styles.css",
         r#"
 body {
@@ -2073,29 +1907,28 @@ export const panelState = "ready";
         target.bundle_output.sourcemap = None;
         target.bundle_output.asset_file_names = Some("[name].[ext]".to_string());
     });
-    let package_id = test.program.modules.get(main).package_id;
+    let package_id = test.program.module_descriptor(main).package_id;
     let output = test.package_output(package_id, "js");
     let main_path = test.module_relative_path(main);
-    let styles_path = test.module_relative_path(styles);
-    let expected_entry = expected_linked_entry(&js_output(
+    let expected_entry = linked_entry(&js_output(
         r#"
 export const panelState = "ready";
 "#,
     ));
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
-            .stylesheets(&["../styles.css"])
+            .stylesheets(&["./styles.css"])
             .into(),
         BuildManifestFile {
             path: "styles.css".to_string(),
             r#type: BuildManifestFileType::Asset,
-            loader: BuildManifestLoader::Css,
+            loader: BuildManifestLoader::Asset,
             name: None,
-            input: Some(styles_path),
-            is_entry: Some(true),
-            is_dynamic_entry: Some(false),
+            input: None,
+            is_entry: None,
+            is_dynamic_entry: None,
             imports: Vec::new(),
             dynamic_imports: Vec::new(),
             stylesheets: Vec::new(),
@@ -2106,7 +1939,7 @@ export const panelState = "ready";
         &linked,
         &indexmap! {
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
-            TargetOutputName::Assets => vec!["styles.css".to_string()],
+            TargetOutputName::Assets => vec!["dist/styles.css".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
     );
@@ -2117,7 +1950,7 @@ export const panelState = "ready";
         &output,
         TargetOutputName::Assets,
         &super::LinkedTextFile {
-            path: "styles.css".to_string(),
+            path: "dist/styles.css".to_string(),
             file_type: destack_source::FileType::Css,
             text: "body{color:red}\n".to_string(),
         },
@@ -2130,7 +1963,7 @@ export const panelState = "ready";
 fn test_links_single_file_css_imports_without_document_injection_on_node() {
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let styles = test.add_module(
+    let _styles = test.add_module(
         "styles.css",
         r#"
 body {
@@ -2154,29 +1987,28 @@ export const panelState = "ready";
         target.bundle_output.sourcemap = None;
         target.bundle_output.asset_file_names = Some("[name].[ext]".to_string());
     });
-    let package_id = test.program.modules.get(main).package_id;
+    let package_id = test.program.module_descriptor(main).package_id;
     let output = test.package_output(package_id, "js");
     let main_path = test.module_relative_path(main);
-    let styles_path = test.module_relative_path(styles);
-    let expected_entry = expected_linked_entry(&js_output(
+    let expected_entry = linked_entry(&js_output(
         r#"
 export const panelState = "ready";
 "#,
     ));
-    let expected_manifest = expected_manifest(vec![
-        expected_manifest_chunk("dist/js.js", "js")
+    let expected_manifest = manifest(vec![
+        manifest_chunk("js.js", "js")
             .input(&main_path)
             .entry()
-            .stylesheets(&["../styles.css"])
+            .stylesheets(&["./styles.css"])
             .into(),
         BuildManifestFile {
             path: "styles.css".to_string(),
             r#type: BuildManifestFileType::Asset,
-            loader: BuildManifestLoader::Css,
+            loader: BuildManifestLoader::Asset,
             name: None,
-            input: Some(styles_path),
-            is_entry: Some(true),
-            is_dynamic_entry: Some(false),
+            input: None,
+            is_entry: None,
+            is_dynamic_entry: None,
             imports: Vec::new(),
             dynamic_imports: Vec::new(),
             stylesheets: Vec::new(),
@@ -2187,7 +2019,7 @@ export const panelState = "ready";
         &linked,
         &indexmap! {
             TargetOutputName::Entry => vec!["dist/js.js".to_string()],
-            TargetOutputName::Assets => vec!["styles.css".to_string()],
+            TargetOutputName::Assets => vec!["dist/styles.css".to_string()],
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
     );
@@ -2198,7 +2030,7 @@ export const panelState = "ready";
         &output,
         TargetOutputName::Assets,
         &super::LinkedTextFile {
-            path: "styles.css".to_string(),
+            path: "dist/styles.css".to_string(),
             file_type: destack_source::FileType::Css,
             text: "body{color:red}\n".to_string(),
         },
