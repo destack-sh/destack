@@ -1,113 +1,35 @@
+use crate::format::annotation::{
+    block_infix_annotations, decorator_prefix_annotations, format_raw_comment,
+    infix_or_postfix_annotations, line_suffix_boundary_annotations, postfix_annotations,
+    postfix_annotations_without_line_suffix_boundary, prefix_annotations_without_decorators,
+};
 use crate::format::chain::transparent_inner_expression;
+use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::declaration::signature::{
     default_static_parameter_trailing_separator, expression_body_requires_head_space,
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
-    format_where_clause_with_break, parameter_is_variadic, signature_parameters_should_expand,
-    signature_return_type_has_line_postfix_boundary_annotation,
-    signature_should_elide_space_before_body, single_parameter_should_hug,
+    format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
+    signature_return_type_has_line_suffix_boundary_annotation, single_parameter_should_hug,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
-    write_signature_dynamic_parameter_list, write_static_parameter_list,
+    write_signature_dynamic_parameter_list, write_signature_hug_parameter_list,
+    write_static_parameter_list,
 };
-use crate::format::declaration::statement::format_block;
+use crate::format::declaration::statement::write_block_body;
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
-use crate::format::expression::{
-    is_complex_expression, is_expression_breakable, is_trivial_expression,
-    write_expression_without_prefix_annotations,
-};
+use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::format::operator::{
     write_colon_prefixed_type_annotation, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AccessorKind, AnnotationPosition, Argument, BinaryOperator, BindingModifier, Comment,
-    CommentStyle, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Name, Node, NodeTree,
-    NodeTreeImpl, Property, is_identifier,
+    AnnotationPosition, BindingModifier, Comment, Expression, FunctionSignature, Key, Keyword,
+    LocalNodeId, Name, Node, NodeTree, NodeTreeImpl, Property, ScalarLiteral, is_identifier_compat,
 };
 use destack_core::StringId;
-use destack_fir::format::{FormatResult, text};
+use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
 use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_source::Span;
+use destack_fir::write;
 use destack_workspace::{QuoteProperty, QuoteStyle};
-
-/// Return whether one property value is complex enough to expand.
-pub(crate) fn property_has_complex_value(
-    context: &DestackFormatContext<'_>,
-    property_id: LocalNodeId<Property>,
-) -> bool {
-    let tree = context.tree;
-
-    // annotations on the property force complexity
-    if context.has_annotation(property_id) {
-        return true;
-    }
-
-    let property = tree.get(property_id);
-
-    // field values and defaults can be complex
-    if let Property::Field { value, default, .. } = property {
-        let value_is_complex = value.is_some_and(|value_id| {
-            let value_expr = tree.get(value_id);
-            is_complex_expression(tree, value_expr) || context.has_annotation(value_id)
-        });
-
-        let default_is_complex = default.is_some_and(|default_id| {
-            let default_expr = tree.get(default_id);
-            is_complex_expression(tree, default_expr) || context.has_annotation(default_id)
-        });
-
-        return value_is_complex || default_is_complex;
-    }
-
-    // methods with bodies are always complex in object literals
-    if let Property::Method { body, .. } = property {
-        return body.is_some();
-    }
-
-    // spread properties inherit complexity from their value
-    if let Property::Spread { value, .. } = property {
-        let value_expr = tree.get(*value);
-        return is_complex_expression(tree, value_expr) || context.has_annotation(*value);
-    }
-
-    false
-}
-
-/// Return whether one property contains a complex type value.
-pub(crate) fn property_has_complex_type_value(
-    context: &DestackFormatContext<'_>,
-    property_id: LocalNodeId<Property>,
-) -> bool {
-    let tree = context.tree;
-
-    if context.has_annotation(property_id) {
-        return true;
-    }
-
-    match tree.get(property_id) {
-        Property::Field { value, default, .. } => {
-            value.is_some_and(|expression_id| {
-                let expression = tree.get(expression_id);
-                context.has_annotation(expression_id)
-                    || is_expression_breakable(tree, expression)
-                    || !is_trivial_expression(tree, expression)
-            }) || default.is_some_and(|expression_id| {
-                let expression = tree.get(expression_id);
-                context.has_annotation(expression_id)
-                    || is_expression_breakable(tree, expression)
-                    || !is_trivial_expression(tree, expression)
-            })
-        }
-        Property::Method { body, .. } => body.is_some(),
-        Property::Spread { value, .. } => {
-            let expression = tree.get(*value);
-            context.has_annotation(*value)
-                || is_expression_breakable(tree, expression)
-                || !is_trivial_expression(tree, expression)
-        }
-        Property::Error => true,
-    }
-}
 
 impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
     #[inline]
@@ -171,17 +93,7 @@ pub(crate) fn format_key_with_quotes<'ast>(
 
 /// Check whether a string is an identifier safe to leave unquoted in JavaScript.
 pub(crate) fn is_identifier_for_quotes(content: &str) -> bool {
-    if contains_katakana_middle_dot(content) {
-        return false;
-    }
-    is_identifier(content)
-}
-
-/// Check whether a string contains katakana middle dot characters.
-fn contains_katakana_middle_dot(content: &str) -> bool {
-    content
-        .chars()
-        .any(|c| matches!(c, '\u{30FB}' | '\u{FF65}'))
+    is_identifier_compat(content)
 }
 
 /// Format a name key while applying quote rules.
@@ -258,98 +170,6 @@ fn format_quoted_name<'ast>(
     write!(f, [token(quote_str), string_id, token(quote_str)])
 }
 
-/// Return whether method signature source spans multiple lines before the body.
-pub(crate) fn method_signature_is_multiline_before_body(
-    context: &DestackFormatContext<'_>,
-    node_span: Span,
-    body: Option<LocalNodeId<Expression>>,
-) -> bool {
-    let Some(body_id) = body else {
-        return false;
-    };
-
-    let body_span = context.span(body_id);
-    if node_span.file != body_span.file || node_span.start >= body_span.start {
-        return false;
-    }
-
-    let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
-    context.has_newline(signature_span)
-}
-
-/// Return whether one expression subtree contains a type union or intersection binary.
-fn expression_contains_type_binary(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut pending = vec![expression_id];
-    while let Some(next_expression_id) = pending.pop() {
-        let next_expression_id = transparent_inner_expression(context, next_expression_id);
-        match context.tree.get(next_expression_id) {
-            Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-                ..
-            } => return true,
-            Expression::Binary { left, right, .. } => {
-                pending.push(*left);
-                pending.push(*right);
-            }
-            Expression::QualifiedReference {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::Member {
-                static_arguments: Some(static_arguments),
-                ..
-            }
-            | Expression::TypeImport {
-                static_arguments: Some(static_arguments),
-                ..
-            } => {
-                for argument_id in static_arguments.iter().copied() {
-                    let argument_value_id = match context.tree.get(argument_id) {
-                        Argument::Named { value, .. }
-                        | Argument::Labeled { value, .. }
-                        | Argument::Positional { value, .. }
-                        | Argument::Spread { value, .. } => *value,
-                        Argument::Error => continue,
-                    };
-                    pending.push(argument_value_id);
-                }
-            }
-            Expression::TypeConditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                pending.push(*left);
-                pending.push(*right);
-                pending.push(*then_type);
-                pending.push(*else_type);
-            }
-            Expression::Parenthesized { expression } => {
-                pending.push(*expression);
-            }
-            _ => {}
-        }
-    }
-
-    false
-}
-
-/// Return whether one method return type contains any type union or intersection.
-fn signature_return_type_is_union_or_intersection(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-) -> bool {
-    let Some(return_type_id) = return_type else {
-        return false;
-    };
-
-    expression_contains_type_binary(context, return_type_id)
-}
-
 /// Write a field type annotation.
 #[inline]
 fn write_field_type_annotation<'ast>(
@@ -359,232 +179,72 @@ fn write_field_type_annotation<'ast>(
     write_colon_prefixed_type_annotation(f, value)
 }
 
-/// Return whether one expression carries any static generic arguments.
-fn field_expression_has_static_arguments(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    match context.tree.get(expression_id) {
-        Expression::QualifiedReference {
-            static_arguments, ..
-        } => static_arguments
-            .as_deref()
-            .is_some_and(|arguments| !arguments.is_empty()),
-        Expression::Call {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::New {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::Member {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::PrivateMember {
-            left,
-            static_arguments,
-            ..
-        } => {
-            field_expression_has_static_arguments(context, *left)
-                || static_arguments
-                    .as_deref()
-                    .is_some_and(|arguments| !arguments.is_empty())
-        }
-        Expression::Index { left, .. } => field_expression_has_static_arguments(context, *left),
-        Expression::Instantiation {
-            left,
-            static_arguments,
-        } => field_expression_has_static_arguments(context, *left) || !static_arguments.is_empty(),
-        Expression::Parenthesized { expression } => {
-            field_expression_has_static_arguments(context, *expression)
-        }
-        _ => false,
-    }
+/// The assignment-like layout used for field initializers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FieldLikeLayout {
+    Fluid,
+    BreakAfterOperator,
+    NeverBreakAfterOperator,
 }
 
-/// Return whether one expression contains multiple chained call-like operations.
-fn field_expression_has_nested_call_chain(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = expression_id;
-    let mut call_like_count = 0usize;
+/// Return the assignment-like layout for one field initializer.
+fn field_like_layout<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    default: LocalNodeId<Expression>,
+    is_left_short: bool,
+    left_may_break: bool,
+) -> FieldLikeLayout {
+    let default_id = transparent_inner_expression(f.context(), default);
 
-    loop {
-        match context.tree.get(current_id) {
-            Expression::Call { left, .. }
-            | Expression::New { left, .. }
-            | Expression::Instantiation { left, .. } => {
-                call_like_count += 1;
-                if call_like_count >= 2 {
-                    return true;
-                }
-
-                current_id = *left;
-            }
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => {
-                current_id = *left;
-            }
-            Expression::Parenthesized { expression } => {
-                current_id = *expression;
-            }
-            _ => return false,
-        }
-    }
-}
-
-/// Return whether one expression is a single call-like value whose callee receiver is another member chain.
-fn field_expression_is_single_call_with_member_chain_callee(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let callee_id = match context.tree.get(expression_id) {
-        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
-        _ => return false,
-    };
-
-    let receiver_id = match context.tree.get(callee_id) {
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Index { left, .. } => *left,
-        _ => return false,
-    };
-
-    matches!(
-        context.tree.get(receiver_id),
-        Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::Maybe { .. }
-            | Expression::Must { .. }
-    )
-}
-
-/// Return whether one static argument list contains block-like type expressions.
-fn field_static_argument_list_has_block_expressions(
-    context: &DestackFormatContext<'_>,
-    static_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    static_arguments.iter().copied().any(|argument_id| {
-        let (Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. }) = context.tree.get(argument_id)
-        else {
-            return false;
-        };
-
-        field_expression_has_complex_nested_static_arguments(context, *value)
-    })
-}
-
-/// Return whether one expression carries nested block-like static arguments.
-fn field_expression_has_complex_nested_static_arguments(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    match context.tree.get(expression_id) {
-        Expression::ObjectExpression { .. } | Expression::TypeMapped { .. } => true,
-        Expression::QualifiedReference {
-            static_arguments, ..
-        } => static_arguments.as_deref().is_some_and(|arguments| {
-            field_static_argument_list_has_block_expressions(context, arguments)
-        }),
-        Expression::Call {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::New {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::Member {
-            left,
-            static_arguments,
-            ..
-        }
-        | Expression::PrivateMember {
-            left,
-            static_arguments,
-            ..
-        } => {
-            field_expression_has_complex_nested_static_arguments(context, *left)
-                || static_arguments.as_deref().is_some_and(|arguments| {
-                    field_static_argument_list_has_block_expressions(context, arguments)
-                })
-        }
-        Expression::Index { left, .. } => {
-            field_expression_has_complex_nested_static_arguments(context, *left)
-        }
-        Expression::Instantiation {
-            left,
-            static_arguments,
-        } => {
-            field_expression_has_complex_nested_static_arguments(context, *left)
-                || field_static_argument_list_has_block_expressions(context, static_arguments)
-        }
-        Expression::Parenthesized { expression } => {
-            field_expression_has_complex_nested_static_arguments(context, *expression)
-        }
-        _ => false,
-    }
-}
-
-/// Return whether one field initializer should break after `=`.
-fn field_default_should_break_after_operator(
-    f: &DestackFormatter<'_, '_>,
-    modifiers: Option<BindingModifier>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if f.context().has_prefix_annotation(expression_id) {
-        return false;
+    if is_poorly_breakable_member_or_call_chain(f, default_id) && !is_left_short {
+        return FieldLikeLayout::BreakAfterOperator;
     }
 
-    let value_has_static_arguments =
-        field_expression_has_static_arguments(f.context(), expression_id);
-    let value_has_nested_call_chain =
-        field_expression_has_nested_call_chain(f.context(), expression_id);
-    let value_has_block_static_arguments =
-        field_expression_has_complex_nested_static_arguments(f.context(), expression_id);
-    let value_has_dynamic_arguments = matches!(
-        f.context().tree.get(expression_id),
-        Expression::Call {
-            dynamic_arguments, ..
-        } | Expression::New {
-            dynamic_arguments, ..
-        } if !dynamic_arguments.is_empty()
-    );
-    let is_accessor_field =
-        modifiers.is_some_and(|modifiers| modifiers.accessor == Some(AccessorKind::Accessor));
-    let line_width = f.context().options.line_width;
-
-    if is_accessor_field
+    if !left_may_break
         && matches!(
-            f.context().tree.get(expression_id),
-            Expression::Call { .. } | Expression::New { .. }
+            f.context().tree.get(default_id),
+            Expression::Declaration(_)
+                | Expression::TemplateExpression { .. }
+                | Expression::ScalarLiteral(
+                    ScalarLiteral::Boolean(_)
+                        | ScalarLiteral::Integer(_)
+                        | ScalarLiteral::Bigint(_)
+                        | ScalarLiteral::Float(_)
+                        | ScalarLiteral::String(_)
+                )
         )
     {
-        return value_has_dynamic_arguments && line_width <= 80;
+        return FieldLikeLayout::NeverBreakAfterOperator;
     }
 
-    if value_has_block_static_arguments && !value_has_dynamic_arguments {
-        return false;
+    FieldLikeLayout::Fluid
+}
+
+/// Write the shared left side of one field-like assignment shell.
+fn write_field_like_left<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    modifiers: Option<BindingModifier>,
+    key: Option<Key>,
+    value: Option<LocalNodeId<Expression>>,
+    force_quote_keys: bool,
+) -> FormatResult<()> {
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+    // key
+    if let Some(key) = key {
+        format_key_with_quotes(f, key, force_quote_keys)?;
     }
 
-    value_has_static_arguments && !value_has_nested_call_chain
-        || line_width <= 80
-            && field_expression_is_single_call_with_member_chain_callee(f.context(), expression_id)
+    // modifiers
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+
+    // value
+    if let Some(value) = value {
+        write_field_type_annotation(f, value)?;
+    }
+
+    Ok(())
 }
 
 /// Format shared property or member field output.
@@ -596,39 +256,69 @@ pub(crate) fn format_field_like<'ast>(
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()> {
-    // modifiers
-    format_binding_modifiers_prefix_maybe(f, modifiers)?;
-    // key
-    if let Some(key) = key {
-        format_key_with_quotes(f, key, force_quote_keys)?;
-    }
+    // no initializer
+    let Some(default) = default else {
+        write_field_like_left(f, modifiers, key, value, force_quote_keys)?;
+        return Ok(());
+    };
 
-    // modifiers
-    format_binding_modifiers_postfix_maybe(f, modifiers)?;
-    // value
-    if let Some(value) = value {
-        write_field_type_annotation(f, value)?;
-    }
-    // default
-    if let Some(default) = default {
-        if f.context().has_prefix_annotation(default)
-            || field_default_should_break_after_operator(f, modifiers, default)
-        {
-            write!(
-                f,
-                [group(&format_args![
-                    space(),
-                    token("="),
-                    indent(&format_args![soft_line_break_or_space(), default]),
-                ])]
-            )?;
-        } else {
-            write!(
-                f,
-                [group(&format_args![space(), token("="), space(), default])]
-            )?;
+    // left side
+    let mut buffer = VecBuffer::new(f.state_mut());
+    write_field_like_left(
+        &mut FirFormatter::new(&mut buffer),
+        modifiers,
+        key,
+        value,
+        force_quote_keys,
+    )?;
+    let left_nodes = buffer.into_vec();
+    let left_may_break = left_nodes.will_break();
+    let is_left_short = left_nodes
+        .single_line_width()
+        .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
+    let layout = field_like_layout(f, default, is_left_short, left_may_break);
+
+    let left = f.intern_vec(left_nodes);
+    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        if let Some(left) = &left {
+            f.write_node(left.clone());
         }
-    }
+
+        Ok(())
+    });
+
+    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [default]));
+    let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if left_may_break {
+            write!(f, [left])?;
+        } else {
+            write!(f, [group(&left)])?;
+        }
+
+        write!(f, [space(), token("=")])?;
+
+        match layout {
+            FieldLikeLayout::Fluid => {
+                let group_id = f.group_id("field_like_rhs");
+                write!(
+                    f,
+                    [
+                        group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
+                        line_suffix_boundary(),
+                        indent_if_group_breaks(&right, group_id)
+                    ]
+                )
+            }
+            FieldLikeLayout::BreakAfterOperator => {
+                write!(f, [group(&soft_line_indent_or_space(&right))])
+            }
+            FieldLikeLayout::NeverBreakAfterOperator => {
+                write!(f, [space(), right])
+            }
+        }
+    });
+
+    write!(f, [group(&inner_content)])?;
 
     Ok(())
 }
@@ -642,13 +332,13 @@ pub(crate) fn format_method_like<'ast, N>(
     signature: &FunctionSignature,
     body: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
-    signature_is_multiline_before_body: bool,
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<N>,
 {
     let generics = signature.generics.as_ref();
+    let dynamic_parameters = method_dynamic_parameters(signature);
 
     // modifiers
     format_binding_modifiers_prefix_maybe(f, modifiers)?;
@@ -661,14 +351,8 @@ where
         format_key_with_quotes(f, key, force_quote_keys)?;
     }
 
-    // name seam comments
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    // name boundary comments
+    write!(f, [block_infix_annotations(f.context(), node_id)])?;
 
     // name postfix modifiers: `?` and `!` belong on the method name
     format_binding_modifiers_postfix_maybe(f, modifiers)?;
@@ -685,55 +369,10 @@ where
         )?;
     }
 
-    // optional marker to parameter list seam
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    // optional marker to parameter list boundary
+    write!(f, [block_infix_annotations(f.context(), node_id)])?;
 
-    // dynamic parameters
-    let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len() + 1);
-    if let Some(this_parameter) = signature.this_parameter {
-        dynamic_parameters.push(this_parameter);
-    }
-    dynamic_parameters.extend(signature.dynamic_parameters.iter().copied());
-
-    // dynamic parameter rendering
-    let should_expand_parameters = signature_parameters_should_expand(
-        f.context(),
-        signature.mode,
-        &dynamic_parameters,
-        signature.return_type,
-        false,
-    ) || (signature_is_multiline_before_body
-        && signature_return_type_is_union_or_intersection(f.context(), signature.return_type));
-    if dynamic_parameters.is_empty() {
-        write_empty_parameter_list_with_interior_comments(f, node_id)?;
-    } else if dynamic_parameters.len() == 1
-        && !should_expand_parameters
-        && single_parameter_should_hug(f.context(), dynamic_parameters[0])
-    {
-        write!(f, [token("("), dynamic_parameters[0], token(")")])?;
-    } else {
-        let disallow_trailing_parameter_separator = dynamic_parameters
-            .last()
-            .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
-        write_signature_dynamic_parameter_list(
-            f,
-            &dynamic_parameters,
-            should_expand_parameters,
-            disallow_trailing_parameter_separator,
-        )?;
-    }
-
-    // return type
-    if let Some(return_type) = signature.return_type {
-        write!(f, [token(":"), space()])?;
-        write_type_expression_with_inline_prefix_annotations(f, return_type)?;
-    }
+    write_method_parameters_and_return_type(f, node_id, signature, &dynamic_parameters)?;
 
     // where clauses
     if let Some(where_clauses) = generics.and_then(|generics| generics.where_clauses.as_ref())
@@ -744,30 +383,103 @@ where
 
     // body
     if let Some(body) = body {
-        // signature seam comments
-        write!(
-            f,
-            [
-                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                    f.context(),
-                    node_id
-                )
-            ]
-        )?;
+        write_method_signature_boundary_and_body(f, node_id, signature, body)?;
+    }
 
-        if let Some(return_type) = signature.return_type {
-            write!(
+    Ok(())
+}
+
+/// Collect dynamic method parameters, including `this`.
+fn method_dynamic_parameters(
+    signature: &FunctionSignature,
+) -> Vec<LocalNodeId<destack_ast::Parameter>> {
+    let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len() + 1);
+
+    if let Some(this_parameter) = signature.this_parameter {
+        dynamic_parameters.push(this_parameter);
+    }
+
+    dynamic_parameters.extend(signature.dynamic_parameters.iter().copied());
+    dynamic_parameters
+}
+
+/// Write one method parameter list and return type.
+fn write_method_parameters_and_return_type<'ast, N>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<N>,
+    signature: &FunctionSignature,
+    dynamic_parameters: &[LocalNodeId<destack_ast::Parameter>],
+) -> FormatResult<()>
+where
+    N: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<N>,
+{
+    let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let should_expand_parameters =
+            should_break_function_parameters(f.context(), dynamic_parameters);
+        if dynamic_parameters.is_empty() {
+            write_empty_parameter_list_with_interior_comments(f, node_id)?;
+        } else if dynamic_parameters.len() == 1
+            && !should_expand_parameters
+            && single_parameter_should_hug(f.context(), dynamic_parameters[0])
+        {
+            write_signature_hug_parameter_list(f, dynamic_parameters)?;
+        } else {
+            let disallow_trailing_parameter_separator = dynamic_parameters
+                .last()
+                .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
+            write_signature_dynamic_parameter_list(
                 f,
-                [
-                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary::<
-                        Expression,
-                    >(f.context(), return_type)
-                ]
+                dynamic_parameters,
+                should_expand_parameters,
+                disallow_trailing_parameter_separator,
             )?;
         }
 
-        let has_signature_line_boundary_annotation = f
-            .context()
+        if let Some(return_type) = signature.return_type {
+            write!(f, [token(":"), space()])?;
+            write_type_expression_with_inline_prefix_annotations(f, return_type)?;
+        }
+
+        Ok(())
+    });
+
+    write!(f, [group(&format_parameters_and_return_type)])
+}
+
+/// Write one method body after the signature boundary.
+fn write_method_signature_boundary_and_body<'ast, N>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<N>,
+    signature: &FunctionSignature,
+    body: LocalNodeId<Expression>,
+) -> FormatResult<()>
+where
+    N: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<N>,
+{
+    write!(
+        f,
+        [postfix_annotations_without_line_suffix_boundary(
+            f.context(),
+            node_id
+        )]
+    )?;
+
+    if let Some(return_type) = signature.return_type {
+        write!(
+            f,
+            [
+                postfix_annotations_without_line_suffix_boundary::<Expression>(
+                    f.context(),
+                    return_type
+                )
+            ]
+        )?;
+    }
+
+    let has_signature_line_boundary_annotation =
+        f.context()
             .annotation_ids(node_id)
             .iter()
             .any(|annotation_id| {
@@ -776,45 +488,36 @@ where
                     AnnotationPosition::LinePostfixBoundary
                 )
             })
-            || signature_return_type_has_line_postfix_boundary_annotation(
+            || signature_return_type_has_line_suffix_boundary_annotation(
                 f.context(),
                 signature.return_type,
             );
 
-        // boundary seam comments
+    write!(f, [line_suffix_boundary_annotations(f.context(), node_id)])?;
+
+    if let Some(return_type) = signature.return_type {
         write!(
             f,
-            [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
-        )?;
-
-        if let Some(return_type) = signature.return_type {
-            write!(
-                f,
-                [
-                    crate::format::annotation::line_postfix_boundary_annotations::<Expression>(
-                        f.context(),
-                        return_type
-                    )
-                ]
-            )?;
-        }
-
-        write_method_body(
-            f,
-            body,
-            has_signature_line_boundary_annotation,
-            signature.return_type,
+            [line_suffix_boundary_annotations::<Expression>(
+                f.context(),
+                return_type
+            )]
         )?;
     }
 
-    Ok(())
+    write_method_body(
+        f,
+        body,
+        has_signature_line_boundary_annotation,
+        signature.return_type,
+    )
 }
 
-/// Return raw block comments between one method signature and its body.
-fn method_block_seam_comment_nodes<'ast>(
+/// Return raw comments between one method signature and its body.
+fn method_body_boundary_comment_nodes<'ast>(
     f: &DestackFormatter<'ast, '_>,
     body_id: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<Comment>> {
+) -> Vec<Comment> {
     let body_span = f.context().span(body_id);
     let Some(previous_token) = f.context().previous_non_trivia_token_before_span(body_span) else {
         return Vec::new();
@@ -823,39 +526,39 @@ fn method_block_seam_comment_nodes<'ast>(
         return Vec::new();
     }
 
-    f.context()
-        .comment_nodes_in_range(previous_token.span.end, body_span.start)
-        .into_iter()
-        .filter(|comment_id| {
-            let comment = f.context().tree.get::<Comment>(*comment_id);
-            comment.style == CommentStyle::Star
-        })
-        .collect()
+    {
+        let comments = f.context().comments();
+        comments
+            .comments_in_range(previous_token.span.end, body_span.start)
+            .to_vec()
+    }
 }
 
-/// Write one method body after the signature seam has been resolved.
+/// Write one method body after the signature boundary has been resolved.
 fn write_method_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     body: LocalNodeId<Expression>,
     force_break_before_body: bool,
-    return_type: Option<LocalNodeId<Expression>>,
+    _return_type: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let is_block_body = matches!(f.context().node::<Expression>(body), Expression::Block(..));
-    let context = f.context().clone();
-    let block_seam_comment_nodes = method_block_seam_comment_nodes(f, body);
+    let block_boundary_comment_nodes = method_body_boundary_comment_nodes(f, body)
+        .into_iter()
+        .filter(|comment| !is_block_body || !comment.followed_by_newline())
+        .collect::<Vec<_>>();
 
     if force_break_before_body {
         write!(f, [hard_line_break()])?;
     }
 
-    if !block_seam_comment_nodes.is_empty() {
+    if !block_boundary_comment_nodes.is_empty() {
         write!(f, [space()])?;
 
-        for (index, comment_id) in block_seam_comment_nodes.iter().copied().enumerate() {
-            let comment_span = f.context().span(comment_id);
-            write!(f, [comment_id])?;
+        for (index, comment) in block_boundary_comment_nodes.iter().copied().enumerate() {
+            let comment_span = comment.span;
+            format_raw_comment(f, comment)?;
 
-            let is_last = index + 1 == block_seam_comment_nodes.len();
+            let is_last = index + 1 == block_boundary_comment_nodes.len();
             if !is_last
                 || f.context()
                     .span_has_newline_before_next_non_whitespace_token(comment_span)
@@ -867,15 +570,9 @@ fn write_method_body<'ast>(
         }
 
         if is_block_body {
-            return context.with_owned_comment_nodes(&block_seam_comment_nodes, || {
-                write_expression_without_prefix_annotations(f, body)
-            });
+            return write_expression_without_prefix_annotations(f, body);
         }
 
-        return write!(f, [body]);
-    }
-
-    if signature_should_elide_space_before_body(f.context(), return_type) {
         return write!(f, [body]);
     }
 
@@ -889,12 +586,13 @@ fn write_method_body<'ast>(
     };
 
     if let Some(block_id) = body_block_id {
-        format_block(f, block_id)?;
+        write_block_body(f, block_id)?;
         write!(
             f,
-            [crate::format::annotation::infix_or_postfix_annotations::<
-                Expression,
-            >(f.context(), body)]
+            [infix_or_postfix_annotations::<Expression>(
+                f.context(),
+                body
+            )]
         )?;
     } else {
         write!(f, [body])?;
@@ -912,61 +610,31 @@ pub(crate) fn format_node_with_directive<'ast, T, F>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T>,
     F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 {
     let is_ignored = node_has_ignore_directive(f.context(), node_id);
     write!(
         f,
-        [crate::format::annotation::prefix_annotations_without_decorators(f.context(), node_id)]
+        [prefix_annotations_without_decorators(f.context(), node_id)]
     )?;
-    write!(
-        f,
-        [crate::format::annotation::decorator_prefix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;
 
     if is_ignored {
         write_ignored_node(f, node_id)?;
         if owns_infix_annotations {
-            write!(
-                f,
-                [crate::format::annotation::postfix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
+            write!(f, [postfix_annotations(f.context(), node_id)])?;
         } else {
-            write!(
-                f,
-                [crate::format::annotation::infix_or_postfix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
+            write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
         }
         return Ok(());
     }
 
     format_node(f)?;
     if owns_infix_annotations {
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [postfix_annotations(f.context(), node_id)])?;
     } else {
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
     }
 
     Ok(())
@@ -986,21 +654,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
         } = self
         {
             return format_node_with_directive(f, node_id, true, |f| {
-                let signature_is_multiline_before_body = method_signature_is_multiline_before_body(
-                    f.context(),
-                    f.context().span(node_id),
-                    *body,
-                );
-                format_method_like(
-                    f,
-                    node_id,
-                    *modifiers,
-                    *key,
-                    signature,
-                    *body,
-                    false,
-                    signature_is_multiline_before_body,
-                )
+                format_method_like(f, node_id, *modifiers, *key, signature, *body, false)
             });
         }
 

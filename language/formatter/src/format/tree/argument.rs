@@ -1,20 +1,23 @@
 use super::attribute::format_tree_attribute_value;
 use super::child::{
-    expression_has_chain_seam_comment, format_inline_stub_comments,
+    expression_chain_has_boundary_comment, format_inline_stub_comments,
     format_multiline_stub_comment_nodes, node_has_line_comment,
     tree_child_should_inline_braced_expression,
 };
+use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::expression_is_decorated_class_declaration;
-use crate::format::expression::argument_value;
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::format::expression::{
+    argument_value, parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
+};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind,
-    LocalNodeId, ScalarLiteral, TokenType,
+    Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId,
+    ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
-    block_indent, format_with, group, hard_line_break, line_postfix_boundary, soft_block_indent,
+    block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
     space, token,
 };
 use destack_fir::{format_args, write};
@@ -52,11 +55,7 @@ pub(crate) fn argument_drops_parenthesized_value_wrapper(
 
     let drops_lambda_wrapper = !context.has_annotation(parenthesized_id)
         && !context.has_annotation(inner_expression_id)
-        && !crate::format::expression::parenthesized_has_leading_inner_trivia(
-            context,
-            parenthesized_id,
-            inner_expression_id,
-        )
+        && !parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id)
         && matches!(
             inner_expression,
             Expression::Declaration(declaration_id)
@@ -67,11 +66,7 @@ pub(crate) fn argument_drops_parenthesized_value_wrapper(
         );
 
     let drops_decorated_class_wrapper = !context.has_annotation(parenthesized_id)
-        && !crate::format::expression::parenthesized_has_leading_inner_newline(
-            context,
-            parenthesized_id,
-            inner_expression_id,
-        )
+        && !parenthesized_has_leading_inner_newline(context, parenthesized_id, inner_expression_id)
         && expression_is_decorated_class_declaration(context, inner_expression_id);
 
     drops_lambda_wrapper || drops_decorated_class_wrapper
@@ -99,30 +94,8 @@ fn stub_argument_keeps_prefix_annotations_inside_braces(
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .annotation_ids(argument_id)
-        .iter()
-        .copied()
-        .any(|annotation_id| {
-            let annotation = context.annotation(annotation_id);
-            matches!(annotation, Annotation::Doc { .. })
-                && matches!(
-                    annotation.position(),
-                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-                )
-        })
-        || context
-            .annotation_ids(value_id)
-            .iter()
-            .copied()
-            .any(|annotation_id| {
-                let annotation = context.annotation(annotation_id);
-                matches!(annotation, Annotation::Doc { .. })
-                    && matches!(
-                        annotation.position(),
-                        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-                    )
-            })
+    !context.raw_prefix_doc_comments_for(argument_id).is_empty()
+        || !context.raw_prefix_doc_comments_for(value_id).is_empty()
 }
 
 /// Return stub comment nodes owned by the value span or argument span.
@@ -130,17 +103,26 @@ fn stub_argument_comment_nodes(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
-) -> (Vec<LocalNodeId<destack_ast::Comment>>, bool) {
-    let expression_comment_nodes =
-        context.comment_nodes_in_range(context.span(value_id).start, context.span(value_id).end);
+) -> (Vec<destack_ast::Comment>, bool) {
+    let expression_comment_nodes = {
+        let comments = context.comments();
+        comments
+            .comments_in_range(context.span(value_id).start, context.span(value_id).end)
+            .to_vec()
+    };
     if !expression_comment_nodes.is_empty() {
         return (expression_comment_nodes, false);
     }
 
-    let argument_comment_nodes = context.comment_nodes_in_range(
-        context.span(argument_id).start,
-        context.span(argument_id).end,
-    );
+    let argument_comment_nodes = {
+        let comments = context.comments();
+        comments
+            .comments_in_range(
+                context.span(argument_id).start,
+                context.span(argument_id).end,
+            )
+            .to_vec()
+    };
     let rendered_inline_from_argument = !argument_comment_nodes.is_empty();
 
     (argument_comment_nodes, rendered_inline_from_argument)
@@ -156,20 +138,8 @@ fn write_stub_tree_expression_argument<'ast>(
         stub_argument_keeps_prefix_annotations_inside_braces(f.context(), argument_id, value_id);
     if keep_stub_prefix_inside_braces {
         write!(f, [token("{")])?;
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                argument_id
-            )]
-        )?;
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                value_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), argument_id)])?;
+        write!(f, [prefix_annotations(f.context(), value_id)])?;
         write!(f, [token("}")])?;
         return Ok(true);
     }
@@ -177,13 +147,11 @@ fn write_stub_tree_expression_argument<'ast>(
     let (comment_nodes, rendered_inline_from_argument) =
         stub_argument_comment_nodes(f.context(), argument_id, value_id);
 
-    if comment_nodes.iter().any(|comment_id| {
-        f.context()
-            .tree
-            .get::<destack_ast::Comment>(*comment_id)
-            .style
-            == destack_ast::CommentStyle::Slash
-    }) {
+    if comment_nodes
+        .iter()
+        .copied()
+        .any(|comment| comment.is_line())
+    {
         write!(
             f,
             [group(&format_args![
@@ -227,13 +195,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
 
     // stub argument prefix comments and docs must stay inside `{ ... }`
     if stub_value_id.is_none() && !argument_is_spread {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                argument_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), argument_id)])?;
     }
 
     let mut stub_argument_annotations_rendered_inline = false;
@@ -319,7 +281,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                     // keep jsx expression containers inline for common expression forms
                     if tree_child_should_inline_braced_expression(f.context(), argument_id) {
                         write!(f, [token("{"), value, token("}")])?;
-                    } else if expression_has_chain_seam_comment(f.context(), *value)
+                    } else if expression_chain_has_boundary_comment(f.context(), *value)
                         || matches!(
                             f.context().tree.get(*value),
                             Expression::If {
@@ -380,13 +342,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                     .comments_in_range(value_span.start, value_span.end)
                     .is_empty();
             let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(
-                    f,
-                    [crate::format::annotation::prefix_annotations(
-                        f.context(),
-                        argument_id
-                    )]
-                )?;
+                write!(f, [prefix_annotations(f.context(), argument_id)])?;
                 write!(f, [token("..."), value])
             });
 
@@ -396,19 +352,14 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                     [group(&format_args![
                         token("{"),
                         soft_block_indent(&spread_inner),
-                        line_postfix_boundary(),
+                        line_suffix_boundary(),
                         token("}")
                     ])]
                 )?;
             } else {
                 write!(
                     f,
-                    [
-                        token("{"),
-                        spread_inner,
-                        line_postfix_boundary(),
-                        token("}")
-                    ]
+                    [token("{"), spread_inner, line_suffix_boundary(), token("}")]
                 )?;
             }
         }
@@ -418,13 +369,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
     }
 
     if !stub_argument_annotations_rendered_inline {
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                argument_id
-            )]
-        )?;
+        write!(f, [infix_or_postfix_annotations(f.context(), argument_id)])?;
     }
 
     Ok(())

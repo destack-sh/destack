@@ -1,6 +1,6 @@
 use crate::DestackFormatter;
 use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
-use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{empty_line, hard_line_break};
 use destack_fir::write;
@@ -32,7 +32,7 @@ pub(crate) fn format_block_nodes_with_ignore_ranges<'ast, T, F>(
 ) -> FormatResult<()>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T>,
     F: FnMut(&mut DestackFormatter<'ast, '_>, LocalNodeId<T>) -> FormatResult<()>,
 {
     let comment_tokens = f.context().comment_tokens();

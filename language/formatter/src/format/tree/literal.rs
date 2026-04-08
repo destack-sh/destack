@@ -1,3 +1,4 @@
+use crate::format::annotation::{block_infix_annotations, line_suffix_boundary_annotations};
 use crate::format::chain::{is_call_like_argument, transparent_inner_expression};
 use crate::format::expression::expression_has_static_type_arguments;
 use crate::format::tree::{
@@ -142,12 +143,7 @@ fn write_tree_closing_tag<'ast>(
     write!(f, [token("</")])?;
     write!(
         f,
-        [
-            crate::format::annotation::line_postfix_boundary_annotations(
-                f.context(),
-                expression_id
-            )
-        ]
+        [line_suffix_boundary_annotations(f.context(), expression_id)]
     )?;
     if let Some(left) = left {
         let left_expression = f.context().tree.get(*left);
@@ -339,7 +335,7 @@ fn tree_fill_separators(
     separators
 }
 
-/// Return one tree-text boundary spacing snapshot.
+/// Return one tree-text boundary spacing state.
 fn tree_text_boundary_spacing_flags(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
@@ -454,8 +450,8 @@ fn tree_child_is_multiline_tree_expression(
     ) && context.node_has_newline(value_id)
 }
 
-/// Return whether one tree literal has braced-whitespace seams around multiline tree children.
-fn tree_literal_has_multiline_whitespace_tree_seam(
+/// Return whether one tree literal has braced-whitespace boundaries around multiline tree children.
+fn tree_literal_has_multiline_whitespace_boundary(
     context: &DestackFormatContext<'_>,
     elements: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -650,19 +646,19 @@ fn tree_literal_layout(
             ))
         }
     });
-    let has_multiline_whitespace_tree_seam = elements
+    let has_multiline_whitespace_boundary = elements
         .as_ref()
-        .is_some_and(|elements| tree_literal_has_multiline_whitespace_tree_seam(context, elements));
+        .is_some_and(|elements| tree_literal_has_multiline_whitespace_boundary(context, elements));
     let should_break = children
         .map(|(_, _, force_break, _)| force_break)
         .unwrap_or(force_break_attributes);
-    let should_expand = should_break || has_multiline_whitespace_tree_seam;
+    let requires_expanded_layout = should_break || has_multiline_whitespace_boundary;
 
     (
         force_break_attributes,
         children,
         should_break,
-        should_expand,
+        requires_expanded_layout,
     )
 }
 
@@ -675,8 +671,8 @@ pub(crate) fn tree_literal_should_break(
     tree_literal_layout(context, arguments, elements).2
 }
 
-/// Decide whether a tree literal should expand in rendered output.
-pub(crate) fn tree_literal_should_expand(
+/// Decide whether a tree literal requires expanded rendered output.
+pub(crate) fn tree_literal_requires_expanded_layout(
     context: &DestackFormatContext<'_>,
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
@@ -959,13 +955,7 @@ fn format_tree_body<'ast>(
     };
 
     if elements.is_empty() {
-        write!(
-            f,
-            [crate::format::annotation::block_infix_annotations(
-                f.context(),
-                expression_id
-            )]
-        )?;
+        write!(f, [block_infix_annotations(f.context(), expression_id)])?;
         return write_tree_closing_tag(f, expression_id, left);
     }
 
@@ -980,13 +970,7 @@ fn format_tree_body<'ast>(
         write!(f, [group(&soft_block_indent(&format_children))])?;
     }
 
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            expression_id
-        )]
-    )?;
+    write!(f, [block_infix_annotations(f.context(), expression_id)])?;
     write_tree_closing_tag(f, expression_id, left)
 }
 

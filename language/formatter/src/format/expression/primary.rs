@@ -5,8 +5,12 @@ use super::object::{format_boundary_comment_array, format_fill_array, format_str
 use super::parentheses::format_primary_parenthesized_expression;
 use super::path::{format_path_expression, primary_expression_skips_boundary_annotations};
 use super::{
-    array_elements_are_fill_candidates, array_has_only_boundary_comments, is_complex_argument,
-    is_trivial_argument, sequence_expression_needs_parens,
+    array_elements_are_fill_candidates, array_has_only_boundary_comments, is_trivial_argument,
+    sequence_expression_needs_parens,
+};
+use crate::format::annotation::{
+    block_infix_annotations, infix_or_postfix_annotations,
+    infix_or_postfix_annotations_without_line_suffix_boundary, postfix_annotations,
 };
 use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::literal::{format_scalar_literal, format_template_literal};
@@ -15,10 +19,10 @@ use crate::format::declaration::signature::write_type_parameter_constraint_and_d
 use crate::format::operator::format_static_argument_list;
 use crate::format::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, Keyword, LocalNodeId, NodeTree, TypePredicateSubject};
+use destack_ast::{Argument, Expression, Keyword, LocalNodeId, TypePredicateSubject};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
-    block_indent, format_with, group, hard_line_break, line_postfix_boundary, soft_block_indent,
+    block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
     soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
@@ -53,7 +57,7 @@ fn argument_range_is_inline(
     !context.has_newline(Span::new(first_span.file, first_span.start, last_span.end))
 }
 
-/// Return whether one primary expression serializes empty infix seams as postfix only.
+/// Return whether one primary expression serializes empty infix annotations as postfix only.
 pub(crate) fn primary_expression_uses_postfix_only_annotations(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -75,15 +79,9 @@ pub(crate) fn write_primary_expression_trailing_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
-    // empty literal seams collapse to postfix-only spacing
+    // empty literal infix annotations collapse to postfix-only spacing
     if primary_expression_uses_postfix_only_annotations(f.context(), expression_id, expression) {
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                expression_id
-            )]
-        )?;
+        write!(f, [postfix_annotations(f.context(), expression_id)])?;
         return Ok(());
     }
 
@@ -91,7 +89,7 @@ pub(crate) fn write_primary_expression_trailing_annotations<'ast>(
     if primary_expression_skips_boundary_annotations(f.context(), expression_id, expression) {
         write!(
             f,
-            [crate::format::annotation::infix_or_postfix_annotations_without_line_postfix_boundary(
+            [infix_or_postfix_annotations_without_line_suffix_boundary(
                 f.context(),
                 expression_id
             )]
@@ -101,10 +99,7 @@ pub(crate) fn write_primary_expression_trailing_annotations<'ast>(
 
     write!(
         f,
-        [crate::format::annotation::infix_or_postfix_annotations(
-            f.context(),
-            expression_id
-        )]
+        [infix_or_postfix_annotations(f.context(), expression_id)]
     )
 }
 
@@ -120,10 +115,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
                 f,
                 [group(&format_args![
                     token("["),
-                    block_indent(&crate::format::annotation::block_infix_annotations(
-                        f.context(),
-                        node_id
-                    )),
+                    block_indent(&block_infix_annotations(f.context(), node_id)),
                     hard_line_break(),
                     token("]")
                 ])]
@@ -201,23 +193,15 @@ pub(crate) fn format_primary_array_expression<'ast>(
     }
 
     let tree = f.context().tree;
-    let has_complex_elements = elements_ids.len() > 1
-        && elements_ids
-            .iter()
-            .copied()
-            .any(|element_id| is_complex_argument(tree, tree.get(element_id)));
     let has_single_non_trivial_multiline_element = elements_ids.len() == 1
         && has_newline_in_source
         && !is_trivial_argument(tree, tree.get(elements_ids[0]));
     let has_multiline_non_inline_multi_element =
         has_newline_in_source && elements_ids.len() > 1 && !elements_are_inline_in_source;
 
-    let should_expand_by_structure = array_should_expand_by_structure(tree, elements_ids);
     let should_expand = (should_expand_for_annotations && !can_keep_inline_boundary_comment_array)
-        || has_complex_elements
         || has_single_non_trivial_multiline_element
-        || has_multiline_non_inline_multi_element
-        || should_expand_by_structure;
+        || has_multiline_non_inline_multi_element;
     let should_use_fill_layout =
         !has_annotations && array_elements_are_fill_candidates(tree, elements_ids);
 
@@ -266,15 +250,8 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
         // expansion triggers
         let has_annotations = f.context().has_infix_annotation(node_id)
             || arguments_have_annotations(f.context(), elements_ids);
-        let tree = f.context().tree;
-        let has_complex_elements = elements_ids.len() > 1
-            && elements_ids
-                .iter()
-                .copied()
-                .any(|element_id| is_complex_argument(tree, tree.get(element_id)));
-        let should_expand = has_annotations
-            || has_complex_elements
-            || (f.context().has_newline(span) && elements_ids.len() > 1);
+        let should_expand =
+            has_annotations || (f.context().has_newline(span) && elements_ids.len() > 1);
 
         // trailing comma disambiguates tuples from parenthesized expressions
         write!(
@@ -305,67 +282,6 @@ fn array_has_sparse_holes(
         .iter()
         .copied()
         .any(|argument_id| argument_is_sparse_hole(context, argument_id))
-}
-
-/// Return whether one array should expand for nested array or object structure.
-fn array_should_expand_by_structure(tree: &NodeTree, elements: &[LocalNodeId<Argument>]) -> bool {
-    if elements.len() < 2 {
-        return false;
-    }
-
-    let mut has_array_children = false;
-    let mut has_object_children = false;
-    for element_id in elements {
-        let Argument::Positional { value, .. } = tree.get(*element_id) else {
-            return false;
-        };
-
-        let value_id = transparent_inner_expression_from_tree(tree, *value);
-        match tree.get(value_id) {
-            Expression::ArrayExpression {
-                elements: nested_elements,
-            } => {
-                if nested_elements.len() < 2 {
-                    return false;
-                }
-
-                if has_object_children {
-                    return false;
-                }
-
-                has_array_children = true;
-            }
-            Expression::ObjectExpression { properties, .. } => {
-                if properties.len() < 2 {
-                    return false;
-                }
-
-                if has_array_children {
-                    return false;
-                }
-
-                has_object_children = true;
-            }
-            _ => {
-                return false;
-            }
-        }
-    }
-
-    true
-}
-
-/// Return one expression id with transparent parenthesized wrappers removed.
-fn transparent_inner_expression_from_tree(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let mut expression_id = expression_id;
-    while let Expression::Parenthesized { expression } = tree.get(expression_id) {
-        expression_id = *expression;
-    }
-
-    expression_id
 }
 
 /// Return whether an array element argument is a sparse hole.
@@ -467,13 +383,7 @@ pub(crate) fn format_primary_expression<'ast>(
 
         // tagged template literal
         Expression::TaggedTemplateExpression { tag, value } => {
-            write!(
-                f,
-                [
-                    tag,
-                    crate::format::annotation::block_infix_annotations(f.context(), node_id)
-                ]
-            )?;
+            write!(f, [tag, block_infix_annotations(f.context(), node_id)])?;
             format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
@@ -593,7 +503,7 @@ pub(crate) fn format_primary_expression<'ast>(
                             f,
                             [
                                 token(","),
-                                line_postfix_boundary(),
+                                line_suffix_boundary(),
                                 soft_line_break_or_space()
                             ]
                         )

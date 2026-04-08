@@ -1,10 +1,10 @@
+use crate::format::annotation::{block_infix_annotations, format_raw_comment};
 use crate::format::collection::{
-    TrailingSeparator, format_block_nodes_with_ignore_ranges, property_has_complex_type_value,
-    property_has_complex_value, separated_entries,
+    TrailingSeparator, format_block_nodes_with_ignore_ranges, separated_entries,
 };
 use crate::format::directive::any_ignore_range_for_nodes;
 use crate::format::operator::expression_static_arguments;
-use crate::{DestackFormatContext, DestackFormatter, ExpressionFormatRole};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Expression, LocalNodeId, NodeType, Parameter, Pattern, PatternField, Property,
 };
@@ -20,10 +20,24 @@ use smallvec::SmallVec;
 
 // object literal shape thresholds
 const SINGLE_PROPERTY_COUNT: usize = 1;
-const INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES: usize = 2;
-const COMPLEX_ASSIGNMENT_TARGET_MIN_PROPERTIES: usize = 3;
-const PAREN_ASSIGNMENT_OBJECT_EXPAND_MIN_PROPERTIES: usize = 3;
-const PAREN_ASSIGNMENT_ARRAY_EXPAND_MIN_ELEMENTS: usize = 4;
+const COMPLEX_DESTRUCTURING_MAX_SIMPLE_PROPERTIES: usize = 2;
+
+/// The top-level layout choices for one struct literal.
+#[derive(Clone, Copy, Debug)]
+enum StructLiteralLayout {
+    Empty,
+    Expanded {
+        separator: &'static str,
+    },
+    InlineParameterTypeLiteral {
+        property_id: LocalNodeId<Property>,
+    },
+    Grouped {
+        separator: &'static str,
+        trailing_separator: TrailingSeparator,
+        should_expand: bool,
+    },
+}
 
 /// Format a block of properties with empty-annotation and ignore-range handling.
 fn format_block_of_properties<'ast>(
@@ -78,14 +92,17 @@ fn write_object_trailing_comments<'ast>(
         return Ok(());
     }
 
-    let comment_nodes = f
-        .context()
-        .comment_nodes_in_range(comment_start, close_brace_token.span.start);
+    let comment_nodes = {
+        let comments = f.context().comments();
+        comments
+            .comments_in_range(comment_start, close_brace_token.span.start)
+            .to_vec()
+    };
     if comment_nodes.is_empty() {
         return Ok(());
     }
 
-    let first_comment_span = f.context().span(comment_nodes[0]);
+    let first_comment_span = comment_nodes[0].span;
     let leading_gap = Span::new(node_span.file, comment_start, first_comment_span.start);
     if f.context().has_newline(leading_gap)
         || f.context().span_starts_on_own_line(first_comment_span)
@@ -96,8 +113,8 @@ fn write_object_trailing_comments<'ast>(
     }
 
     for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
-        let comment_span = f.context().span(comment_id);
-        write!(f, [comment_id])?;
+        let comment_span = comment_id.span;
+        format_raw_comment(f, comment_id)?;
 
         let is_last = index + 1 == comment_nodes.len();
         if !is_last
@@ -289,19 +306,23 @@ pub(crate) fn is_assignment_left_target(
 }
 
 /// Return whether one preserved parenthesized assignment target should expand.
-pub(crate) fn parenthesized_assignment_target_prefers_expanded_layout(
+fn object_assignment_target_has_complex_destructuring(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
-        // prefer expanded destructuring targets once they become moderately wide
         Expression::ObjectExpression { properties, .. } => {
-            properties.len() >= PAREN_ASSIGNMENT_OBJECT_EXPAND_MIN_PROPERTIES
-                && is_assignment_left_target(context, expression_id)
-        }
-        Expression::ArrayExpression { elements } => {
-            elements.len() >= PAREN_ASSIGNMENT_ARRAY_EXPAND_MIN_ELEMENTS
-                && is_assignment_left_target(context, expression_id)
+            is_assignment_left_target(context, expression_id)
+                && properties.len() > COMPLEX_DESTRUCTURING_MAX_SIMPLE_PROPERTIES
+                && properties.iter().copied().any(|property_id| {
+                    match context.tree.get(property_id) {
+                        Property::Field { value, default, .. } => {
+                            value.is_some() || default.is_some()
+                        }
+                        Property::Method { .. } | Property::Error => true,
+                        Property::Spread { .. } => false,
+                    }
+                })
         }
         _ => false,
     }
@@ -376,228 +397,69 @@ fn type_member_separator(
     ";"
 }
 
-/// Format a struct literal expression.
-#[inline]
-pub(crate) fn format_struct_literal<'ast>(
+/// Write one expanded object or struct literal body.
+fn write_expanded_struct_literal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    properties_ids: &[LocalNodeId<Property>],
+    separator: &'static str,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [format_args![
+            token("{"),
+            hard_line_break(),
+            block_indent(&format_with(|f| {
+                format_block_of_properties(f, properties_ids, separator)
+            })),
+            hard_line_break(),
+            token("}")
+        ]]
+    )
+}
+
+/// Write one empty struct literal.
+fn write_empty_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
-    ty: &Option<LocalNodeId<Expression>>,
-    properties_ids: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
-    if let Some(ty) = ty {
-        write!(f, [ty, space()])?;
-    }
-
-    if properties_ids.is_empty() {
-        if f.context().has_infix_annotation(expression_id) {
-            write!(
-                f,
-                [group(&format_args![
-                    token("{"),
-                    block_indent(&crate::format::annotation::block_infix_annotations(
-                        f.context(),
-                        expression_id
-                    )),
-                    hard_line_break(),
-                    token("}")
-                ])]
-            )?;
-        } else {
-            write!(f, [token("{}")])?;
-        }
-
-        return Ok(());
-    }
-
-    let properties = properties_ids
-        .iter()
-        .map(|property| f.context().tree.get(*property))
-        .collect::<SmallVec<[_; 3]>>();
-
-    // check for conditions that require expansion
-    let has_methods = properties
-        .iter()
-        .any(|property| matches!(property, Property::Method { body: Some(_), .. }));
-    let has_annotations = f.context().has_infix_annotation(expression_id)
-        || properties_have_annotations(f.context(), properties_ids);
-    let span = f.context().span(expression_id);
-    let has_newline_in_source = f.context().has_newline(span);
-    let is_static_type_argument =
-        f.context()
-            .parent(expression_id)
-            .is_some_and(|(argument_id, parent_type)| {
-                if parent_type != NodeType::Argument {
-                    return false;
-                }
-
-                let argument_id = LocalNodeId::<Argument>::new(argument_id);
-                let Some((parent_expression_id, expression_type)) = f.context().parent(argument_id)
-                else {
-                    return false;
-                };
-                if expression_type != NodeType::Expression {
-                    return false;
-                }
-
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_expression_id);
-                expression_static_arguments(f.context().tree.get(parent_expression_id))
-                    .is_some_and(|arguments| arguments.contains(&argument_id))
-            });
-    let in_type_context = f
-        .context()
-        .expression_format_role(expression_id)
-        .is_some_and(|role| role == ExpressionFormatRole::Type)
-        || is_static_type_argument;
-    let has_leading_newline_before_first_property =
-        object_has_leading_newline_before_first_property(
-            f.context(),
-            expression_id,
-            properties_ids,
-        );
-    let keep_newline =
-        has_leading_newline_before_first_property || (has_newline_in_source && in_type_context);
-    let property_has_newline = properties_have_newline(f.context(), properties_ids);
-
-    let comment_tokens = f.context().comment_tokens();
-    let has_ignore_ranges = !properties_ids.is_empty()
-        && any_ignore_range_for_nodes(f.context(), properties_ids, comment_tokens);
-
-    // only force expand for methods, annotations, comments, or explicit newlines
-    // otherwise let best_fitting decide based on line width
-    let has_comments = properties_ids.iter().any(|property_id| {
-        let property_span = f.context().span(*property_id);
-        !f.context()
-            .comments_in_range(property_span.start, property_span.end)
-            .is_empty()
-    });
-    let keep_single_inline_comment_object =
-        has_comments && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
-    let keep_single_inline_annotated_object =
-        has_annotations && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
-    let has_complex_property = properties_ids
-        .iter()
-        .copied()
-        .any(|property_id| property_has_complex_value(f.context(), property_id));
-    let keep_inline_short_annotated_object = has_annotations
-        && !has_newline_in_source
-        && !in_type_context
-        && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
-    let keep_complex_newline = f.context().has_newline(span) && has_complex_property;
-    let expand_multiline_pattern_default =
-        is_multiline_pattern_field_default_object(f.context(), expression_id);
-    let has_complex_static_type_argument_property = is_static_type_argument
-        && properties_ids
-            .iter()
-            .copied()
-            .any(|property_id| property_has_complex_type_value(f.context(), property_id));
-    let should_preserve_tree_attribute_multiline =
-        is_tree_attribute_expression(f.context(), expression_id)
-            && has_newline_in_source
-            && !properties_ids.is_empty();
-    let is_assignment_target = is_assignment_left_target(f.context(), expression_id);
-    let keep_inline_assignment_target_commented_object = is_assignment_target
-        && has_comments
-        && !has_newline_in_source
-        && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
-    let keep_inline_assignment_target_annotated_object = is_assignment_target
-        && has_annotations
-        && !has_newline_in_source
-        && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
-    let is_complex_assignment_target =
-        properties_ids.len() >= COMPLEX_ASSIGNMENT_TARGET_MIN_PROPERTIES && is_assignment_target;
-    let mut must_expand = has_methods
-        || (has_annotations
-            && !keep_inline_short_annotated_object
-            && !keep_single_inline_annotated_object
-            && !keep_inline_assignment_target_annotated_object)
-        || keep_newline
-        || keep_complex_newline
-        || expand_multiline_pattern_default
-        || property_has_newline
-        || (has_comments
-            && has_newline_in_source
-            && !keep_single_inline_comment_object
-            && !keep_inline_assignment_target_commented_object)
-        || has_complex_static_type_argument_property
-        || should_preserve_tree_attribute_multiline
-        || is_complex_assignment_target;
-    if keep_inline_short_annotated_object {
-        must_expand = false;
-    }
-    let separator = if in_type_context {
-        if f.context().options.language_type.is_destack() {
-            type_member_separator(f.context(), properties_ids)
-        } else {
-            ";"
-        }
+    if f.context().has_infix_annotation(expression_id) {
+        write!(
+            f,
+            [group(&format_args![
+                token("{"),
+                block_indent(&block_infix_annotations(f.context(), expression_id)),
+                hard_line_break(),
+                token("}")
+            ])]
+        )?;
     } else {
-        ","
-    };
-
-    if has_ignore_ranges {
-        write!(
-            f,
-            [format_args![
-                token("{"),
-                hard_line_break(),
-                block_indent(&format_with(|f| {
-                    format_block_of_properties(f, properties_ids, separator)
-                })),
-                hard_line_break(),
-                token("}")
-            ]]
-        )?;
-        return Ok(());
+        write!(f, [token("{}")])?;
     }
 
-    if in_type_context && must_expand {
-        write!(
-            f,
-            [format_args![
-                token("{"),
-                hard_line_break(),
-                block_indent(&format_with(|f| {
-                    format_block_of_properties(f, properties_ids, separator)
-                })),
-                hard_line_break(),
-                token("}")
-            ]]
-        )?;
-        return Ok(());
+    Ok(())
+}
+
+/// Write one inline single-property parameter type literal.
+fn write_inline_parameter_type_literal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    property_id: LocalNodeId<Property>,
+) -> FormatResult<()> {
+    if f.context().options.bracket_spacing {
+        write!(f, [token("{"), space(), property_id, space(), token("}")])
+    } else {
+        write!(f, [token("{"), property_id, token("}")])
     }
+}
 
-    let should_inline_parameter_type_literal = in_type_context
-        && is_parameter_type_annotation(f.context(), expression_id)
-        && properties_ids.len() == SINGLE_PROPERTY_COUNT
-        && !has_methods
-        && !has_annotations
-        && !has_comments
-        && !has_newline_in_source
-        && !property_has_newline;
-    if should_inline_parameter_type_literal {
-        let include_space = f.context().options.bracket_spacing;
-        if include_space {
-            write!(
-                f,
-                [token("{"), space(), properties_ids[0], space(), token("}")]
-            )?;
-        } else {
-            write!(f, [token("{"), properties_ids[0], token("}")])?;
-        }
-        return Ok(());
-    }
-
-    let ends_with_spread = properties_ids.last().is_some_and(|property_id| {
-        matches!(f.context().tree.get(*property_id), Property::Spread { .. })
-    });
-    let allow_trailing_separator = !(is_assignment_target && ends_with_spread);
-    let trailing_separator =
-        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
-            TrailingSeparator::Omit
-        } else {
-            TrailingSeparator::Allowed
-        };
-
+/// Write one grouped object or struct literal body.
+fn write_grouped_struct_literal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    properties_ids: &[LocalNodeId<Property>],
+    separator: &'static str,
+    trailing_separator: TrailingSeparator,
+    should_expand: bool,
+) -> FormatResult<()> {
     write!(
         f,
         [group(&format_args![
@@ -626,7 +488,179 @@ pub(crate) fn format_struct_literal<'ast>(
             })),
             token("}")
         ])
-        .should_expand(must_expand)]
-    )?;
-    Ok(())
+        .should_expand(should_expand)]
+    )
+}
+
+/// Return the separator for one struct literal in the current context.
+fn struct_literal_separator(
+    f: &DestackFormatter<'_, '_>,
+    in_type_context: bool,
+    properties_ids: &[LocalNodeId<Property>],
+) -> &'static str {
+    if !in_type_context {
+        return ",";
+    }
+
+    if f.context().options.language_type.is_destack() {
+        return type_member_separator(f.context(), properties_ids);
+    }
+
+    ";"
+}
+
+/// Decide the top-level layout for one struct literal.
+fn struct_literal_layout(
+    f: &DestackFormatter<'_, '_>,
+    expression_id: LocalNodeId<Expression>,
+    properties_ids: &[LocalNodeId<Property>],
+) -> StructLiteralLayout {
+    if properties_ids.is_empty() {
+        return StructLiteralLayout::Empty;
+    }
+
+    let properties = properties_ids
+        .iter()
+        .map(|property| f.context().tree.get(*property))
+        .collect::<SmallVec<[_; 3]>>();
+
+    let has_methods = properties
+        .iter()
+        .any(|property| matches!(property, Property::Method { body: Some(_), .. }));
+    let has_annotations = f.context().has_infix_annotation(expression_id)
+        || properties_have_annotations(f.context(), properties_ids);
+    let has_newline_in_source = f.context().has_newline(f.context().span(expression_id));
+    let is_static_type_argument =
+        f.context()
+            .parent(expression_id)
+            .is_some_and(|(argument_id, parent_type)| {
+                if parent_type != NodeType::Argument {
+                    return false;
+                }
+
+                let argument_id = LocalNodeId::<Argument>::new(argument_id);
+                let Some((parent_expression_id, expression_type)) = f.context().parent(argument_id)
+                else {
+                    return false;
+                };
+                if expression_type != NodeType::Expression {
+                    return false;
+                }
+
+                let parent_expression_id = LocalNodeId::<Expression>::new(parent_expression_id);
+                expression_static_arguments(f.context().tree.get(parent_expression_id))
+                    .is_some_and(|arguments| arguments.contains(&argument_id))
+            });
+    let in_type_context =
+        f.context().is_in_type_expression_root(expression_id) || is_static_type_argument;
+    let has_leading_newline_before_first_property =
+        object_has_leading_newline_before_first_property(
+            f.context(),
+            expression_id,
+            properties_ids,
+        );
+    let keep_newline =
+        has_leading_newline_before_first_property || (has_newline_in_source && in_type_context);
+    let property_has_newline = properties_have_newline(f.context(), properties_ids);
+    let comment_tokens = f.context().comment_tokens();
+    let has_ignore_ranges = any_ignore_range_for_nodes(f.context(), properties_ids, comment_tokens);
+    let has_comments = properties_ids.iter().any(|property_id| {
+        let property_span = f.context().span(*property_id);
+        !f.context()
+            .comments_in_range(property_span.start, property_span.end)
+            .is_empty()
+    });
+    let keep_single_inline_comment_object =
+        has_comments && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
+    let keep_single_inline_annotated_object =
+        has_annotations && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
+    let expand_multiline_pattern_default =
+        is_multiline_pattern_field_default_object(f.context(), expression_id);
+    let should_preserve_tree_attribute_multiline =
+        is_tree_attribute_expression(f.context(), expression_id)
+            && has_newline_in_source
+            && !properties_ids.is_empty();
+    let is_assignment_target = is_assignment_left_target(f.context(), expression_id);
+    let has_complex_destructuring_assignment_target =
+        object_assignment_target_has_complex_destructuring(f.context(), expression_id);
+    let should_expand = has_methods
+        || (has_annotations && !keep_single_inline_annotated_object)
+        || keep_newline
+        || expand_multiline_pattern_default
+        || property_has_newline
+        || (has_comments && has_newline_in_source && !keep_single_inline_comment_object)
+        || should_preserve_tree_attribute_multiline
+        || has_complex_destructuring_assignment_target
+        || (is_assignment_target && has_newline_in_source);
+    let separator = struct_literal_separator(f, in_type_context, properties_ids);
+
+    if has_ignore_ranges || (in_type_context && should_expand) {
+        return StructLiteralLayout::Expanded { separator };
+    }
+
+    let should_inline_parameter_type_literal = in_type_context
+        && is_parameter_type_annotation(f.context(), expression_id)
+        && properties_ids.len() == SINGLE_PROPERTY_COUNT
+        && !has_methods
+        && !has_annotations
+        && !has_comments
+        && !has_newline_in_source
+        && !property_has_newline;
+    if should_inline_parameter_type_literal {
+        return StructLiteralLayout::InlineParameterTypeLiteral {
+            property_id: properties_ids[0],
+        };
+    }
+
+    let ends_with_spread = properties_ids.last().is_some_and(|property_id| {
+        matches!(f.context().tree.get(*property_id), Property::Spread { .. })
+    });
+    let allow_trailing_separator = !(is_assignment_target && ends_with_spread);
+    let trailing_separator =
+        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
+
+    StructLiteralLayout::Grouped {
+        separator,
+        trailing_separator,
+        should_expand,
+    }
+}
+
+/// Format a struct literal expression.
+#[inline]
+pub(crate) fn format_struct_literal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    ty: &Option<LocalNodeId<Expression>>,
+    properties_ids: &[LocalNodeId<Property>],
+) -> FormatResult<()> {
+    if let Some(ty) = ty {
+        write!(f, [ty, space()])?;
+    }
+
+    match struct_literal_layout(f, expression_id, properties_ids) {
+        StructLiteralLayout::Empty => write_empty_struct_literal(f, expression_id),
+        StructLiteralLayout::Expanded { separator } => {
+            write_expanded_struct_literal(f, properties_ids, separator)
+        }
+        StructLiteralLayout::InlineParameterTypeLiteral { property_id } => {
+            write_inline_parameter_type_literal(f, property_id)
+        }
+        StructLiteralLayout::Grouped {
+            separator,
+            trailing_separator,
+            should_expand,
+        } => write_grouped_struct_literal(
+            f,
+            expression_id,
+            properties_ids,
+            separator,
+            trailing_separator,
+            should_expand,
+        ),
+    }
 }
