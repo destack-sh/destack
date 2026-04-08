@@ -1,9 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use destack_ast::{
-    CommentDirective, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType,
-};
+use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -23,6 +21,19 @@ const IGNORE_START_DIRECTIVES: &[&str] = &["oxfmt-ignore-start"];
 /// Ignore-range end directive markers supported by formatter behavior.
 const IGNORE_END_DIRECTIVES: &[&str] = &["oxfmt-ignore-end"];
 
+/// Formatter-owned suppression directives parsed from raw comment text.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum IgnoreDirective {
+    /// Ignore the next node.
+    Ignore,
+    /// Ignore the full file.
+    IgnoreFile,
+    /// Start one ignore range.
+    IgnoreStart,
+    /// End one ignore range.
+    IgnoreEnd,
+}
+
 /// Return whether one marker matches any directive alias.
 #[inline]
 fn marker_matches_any(marker: &str, markers: &[&str]) -> bool {
@@ -34,7 +45,7 @@ fn marker_matches_any(marker: &str, markers: &[&str]) -> bool {
 fn directive_token_for_comment_token(
     ctx: &DestackFormatContext<'_>,
     token: TokenSpan,
-) -> Option<CommentDirective> {
+) -> Option<IgnoreDirective> {
     parse_directive_token_from_raw(ctx.token_str(token))
 }
 
@@ -104,7 +115,7 @@ where
 
     matches!(
         directive_token_for_comment_token(ctx, token),
-        Some(CommentDirective::FormatIgnore | CommentDirective::FormatIgnoreStart)
+        Some(IgnoreDirective::Ignore | IgnoreDirective::IgnoreStart)
     )
 }
 
@@ -130,21 +141,15 @@ where
     }
 
     match directive_token_for_comment_token(ctx, token) {
-        Some(CommentDirective::FormatIgnore) => {
+        Some(IgnoreDirective::Ignore) => {
             let range_span = Span::new(node_span.file, token.span.start, node_span.end);
             Some(ctx.extend_span_with_trailing_line_tokens(range_span))
         }
-        Some(CommentDirective::FormatIgnoreStart) => {
+        Some(IgnoreDirective::IgnoreStart) => {
             let end_span = find_ignore_range_end(ctx, comment_tokens, token.span.end)?;
             Some(Span::new(token.span.file, token.span.start, end_span.start))
         }
-        Some(CommentDirective::FormatIgnoreFile | CommentDirective::FormatIgnoreEnd)
-        | Some(CommentDirective::None)
-        | Some(CommentDirective::Legal)
-        | Some(CommentDirective::Pure)
-        | Some(CommentDirective::NoSideEffects)
-        | Some(CommentDirective::TypeScript)
-        | None => None,
+        Some(IgnoreDirective::IgnoreFile | IgnoreDirective::IgnoreEnd) | None => None,
     }
 }
 
@@ -197,7 +202,13 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
         return false;
     }
 
-    let tokens = ctx.source_tokens_sorted();
+    let mut tokens: Vec<TokenSpan> = ctx
+        .tokens
+        .iter()
+        .copied()
+        .chain(ctx.side_tokens.iter().copied())
+        .collect();
+    tokens.sort_by_key(|token| token.span.start);
 
     for token in tokens {
         match token.token.ty {
@@ -210,7 +221,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
             | TokenType::DocBlockComment => {
                 if matches!(
                     directive_token_for_comment_token(ctx, token),
-                    Some(CommentDirective::FormatIgnoreFile)
+                    Some(IgnoreDirective::IgnoreFile)
                 ) {
                     return true;
                 }
@@ -441,9 +452,7 @@ fn find_ignore_range_end(
         .iter()
         .filter(|token| token.span.start >= start_offset)
         .find_map(|token| {
-            if directive_token_for_comment_token(ctx, *token)
-                == Some(CommentDirective::FormatIgnoreEnd)
-            {
+            if directive_token_for_comment_token(ctx, *token) == Some(IgnoreDirective::IgnoreEnd) {
                 Some(token.span)
             } else {
                 None
@@ -452,7 +461,7 @@ fn find_ignore_range_end(
 }
 
 /// Parse a directive token from a raw comment string (including markers).
-fn parse_directive_token_from_raw(raw: &str) -> Option<CommentDirective> {
+fn parse_directive_token_from_raw(raw: &str) -> Option<IgnoreDirective> {
     let content = strip_comment_markers(raw);
     parse_directive_token(content.as_ref())
 }
@@ -462,10 +471,10 @@ pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
     matches!(
         parse_directive_token_from_raw(raw),
         Some(
-            CommentDirective::FormatIgnore
-                | CommentDirective::FormatIgnoreFile
-                | CommentDirective::FormatIgnoreStart
-                | CommentDirective::FormatIgnoreEnd
+            IgnoreDirective::Ignore
+                | IgnoreDirective::IgnoreFile
+                | IgnoreDirective::IgnoreStart
+                | IgnoreDirective::IgnoreEnd
         )
     )
 }
@@ -484,7 +493,7 @@ fn strip_comment_markers(raw: &str) -> Cow<'_, str> {
 }
 
 /// Parse a directive token from comment content.
-fn parse_directive_token(comment: &str) -> Option<CommentDirective> {
+fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
     let mut first_significant_line = None;
     let mut has_additional_significant_line = false;
     for line in comment.lines() {
@@ -504,25 +513,25 @@ fn parse_directive_token(comment: &str) -> Option<CommentDirective> {
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_DIRECTIVES)
     {
-        return Some(CommentDirective::FormatIgnore);
+        return Some(IgnoreDirective::Ignore);
     }
 
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_FILE_DIRECTIVES)
     {
-        return Some(CommentDirective::FormatIgnoreFile);
+        return Some(IgnoreDirective::IgnoreFile);
     }
 
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_START_DIRECTIVES)
     {
-        return Some(CommentDirective::FormatIgnoreStart);
+        return Some(IgnoreDirective::IgnoreStart);
     }
 
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_END_DIRECTIVES)
     {
-        return Some(CommentDirective::FormatIgnoreEnd);
+        return Some(IgnoreDirective::IgnoreEnd);
     }
 
     None
