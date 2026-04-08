@@ -1,4 +1,4 @@
-use crate::format::annotation::format_raw_comment;
+use crate::format::annotation::write_raw_comment_slice;
 use std::collections::HashMap;
 
 use destack_fir::format::{FormatResult, GroupId};
@@ -23,8 +23,9 @@ pub(crate) enum TrailingSeparator {
 
 /// One formatted entry in a separated list.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct FormatSeparatedElement<T: Node> {
+pub(crate) struct FormatSeparatedElement<T: Node + Clone> {
     element: LocalNodeId<T>,
+    next_element: Option<LocalNodeId<T>>,
     is_last: bool,
     separator: &'static str,
     trailing_separator: TrailingSeparator,
@@ -40,111 +41,250 @@ where
         write!(f, [self.element])?;
 
         let element_span = f.context().span(self.element);
-        let mut separator_comment_start = None;
+        let element_anchor_end = f
+            .context()
+            .last_non_trivia_token_in_span(element_span)
+            .map_or(element_span.end, |token| token.span.end);
+        let following_start = self
+            .next_element
+            .map(|next_element| {
+                let next_element_span = f.context().span(next_element);
 
-        if self.is_last {
-            match self.trailing_separator {
-                TrailingSeparator::Allowed => {
-                    // source trailing separator comments require the separator shell
-                    separator_comment_start = separator_comment_start_after_element(
-                        f.context(),
-                        element_span,
-                        self.separator,
-                    );
+                f.context()
+                    .first_non_trivia_token_in_span(next_element_span)
+                    .map_or(next_element_span.start, |token| token.span.start)
+            })
+            .or_else(|| {
+                f.context()
+                    .next_non_trivia_token_after_span(element_span)
+                    .map(|token| token.span.start)
+            })
+            .unwrap_or(element_span.end);
+        let source_separator = separator_token_after_element(
+            f.context(),
+            element_span,
+            following_start,
+            self.separator,
+        );
+        let gap_comments =
+            gap_comments_after_element(f.context(), element_anchor_end, following_start);
+        let element_owned_trailing_comments =
+            element_owned_trailing_comments(f.context(), element_anchor_end, element_span);
+        let (comments_before_separator, comments_after_separator) =
+            split_gap_comments_around_separator(&gap_comments, source_separator);
 
-                    let trailing_comments = separator_comment_start
-                        .map(|separator_start| {
-                            raw_comments_after_separator_start(f.context(), separator_start)
-                        })
-                        .unwrap_or_default();
-                    if trailing_comments.is_empty() {
-                        separator_comment_start = None;
-                        write!(
-                            f,
-                            [
-                                if_group_breaks(&token(self.separator))
-                                    .with_group_id(self.group_id)
-                            ]
-                        )?;
-                    } else {
-                        write!(f, [token(self.separator)])?;
-                    }
-                }
-                TrailingSeparator::Mandatory => {
-                    write!(f, [token(self.separator)])?;
-                    separator_comment_start = separator_comment_start_after_element(
-                        f.context(),
-                        element_span,
-                        self.separator,
-                    );
-                }
-                TrailingSeparator::Omit => {}
+        if !gap_comments.is_empty() {
+            let leading_comments = if source_separator.is_some() {
+                comments_before_separator
+            } else {
+                &[][..]
+            };
+            let trailing_comments = if source_separator.is_some() {
+                comments_after_separator
+            } else {
+                gap_comments.as_slice()
+            };
+            let owned_trailing_comment_count =
+                separator_owned_trailing_comment_count(f.context(), trailing_comments);
+            let trailing_comments = &trailing_comments[..owned_trailing_comment_count];
+
+            if !leading_comments.is_empty() {
+                write_raw_comment_slice(f, leading_comments)?;
             }
-        } else {
-            write!(f, [token(self.separator)])?;
-            separator_comment_start =
-                separator_comment_start_after_element(f.context(), element_span, self.separator);
+
+            let separator_precedes_trailing_comments = source_separator.is_some()
+                || trailing_comments
+                    .first()
+                    .is_some_and(|comment| comment.is_line());
+
+            if separator_precedes_trailing_comments {
+                write_separator_token(
+                    f,
+                    self.separator,
+                    self.is_last,
+                    self.trailing_separator,
+                    self.group_id,
+                )?;
+
+                if !trailing_comments.is_empty() {
+                    write_raw_comment_slice(f, trailing_comments)?;
+                }
+            } else {
+                write_raw_comment_slice(f, trailing_comments)?;
+
+                if self.is_last && source_separator.is_none() {
+                    write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
+                } else {
+                    write_separator_token(
+                        f,
+                        self.separator,
+                        self.is_last,
+                        self.trailing_separator,
+                        self.group_id,
+                    )?;
+                }
+            }
+
+            return Ok(());
         }
 
-        if let Some(separator_comment_start) = separator_comment_start {
-            let trailing_comments =
-                raw_comments_after_separator_start(f.context(), separator_comment_start);
-            for comment in trailing_comments {
-                write!(f, [space()])?;
-                format_raw_comment(f, comment)?;
-            }
+        if self.is_last && source_separator.is_none() && !element_owned_trailing_comments.is_empty()
+        {
+            write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
+        } else {
+            write_separator_token(
+                f,
+                self.separator,
+                self.is_last,
+                self.trailing_separator,
+                self.group_id,
+            )?;
         }
 
         Ok(())
     }
 }
 
-/// Return the raw comment scan start after one source separator for a list element.
-fn separator_comment_start_after_element(
+/// Write one separator token according to list position and trailing-separator mode.
+fn write_separator_token<'ast>(
+    f: &mut Formatter<'_, DestackFormatContext<'ast>>,
+    separator: &'static str,
+    is_last: bool,
+    trailing_separator: TrailingSeparator,
+    group_id: Option<GroupId>,
+) -> FormatResult<()> {
+    if is_last {
+        match trailing_separator {
+            TrailingSeparator::Allowed => {
+                write!(
+                    f,
+                    [if_group_breaks(&token(separator)).with_group_id(group_id)]
+                )?;
+            }
+            TrailingSeparator::Mandatory => {
+                write!(f, [token(separator)])?;
+            }
+            TrailingSeparator::Omit => {}
+        }
+    } else {
+        write!(f, [token(separator)])?;
+    }
+
+    Ok(())
+}
+
+/// Write one trailing separator immediately after owned trailing comments.
+fn write_immediate_trailing_separator<'ast>(
+    f: &mut Formatter<'_, DestackFormatContext<'ast>>,
+    separator: &'static str,
+    trailing_separator: TrailingSeparator,
+) -> FormatResult<()> {
+    match trailing_separator {
+        TrailingSeparator::Allowed | TrailingSeparator::Mandatory => {
+            write!(f, [token(separator)])?;
+        }
+        TrailingSeparator::Omit => {}
+    }
+
+    Ok(())
+}
+
+/// Return one source separator token after a list element, if present.
+fn separator_token_after_element(
     context: &DestackFormatContext<'_>,
     element_span: Span,
+    following_start: u32,
     separator: &str,
-) -> Option<u32> {
+) -> Option<destack_ast::TokenSpan> {
     let separator_token_type = separator_token_type(separator)?;
     let last_token_in_element = context.last_non_trivia_token_in_span(element_span);
     if let Some(token) = last_token_in_element
         && token.token.ty == separator_token_type
     {
-        return Some(token.span.end);
+        return Some(token);
     }
 
     let separator_token = context.next_non_trivia_token_after_span(element_span)?;
-    (separator_token.token.ty == separator_token_type).then_some(separator_token.span.end)
+    (separator_token.token.ty == separator_token_type
+        && separator_token.span.end <= following_start)
+        .then_some(separator_token)
 }
 
-/// Return raw end-of-line comments that follow one separator token.
-fn raw_comments_after_separator_start(
+/// Return raw comments between one element and the next boundary.
+fn gap_comments_after_element(
     context: &DestackFormatContext<'_>,
-    separator_start: u32,
+    gap_start: u32,
+    gap_end: u32,
 ) -> Vec<Comment> {
-    let mut comments = Vec::new();
-    let mut start = separator_start;
+    if gap_start >= gap_end {
+        return Vec::new();
+    }
 
-    for comment in context.comments().comments_after(start).iter().copied() {
-        if !context.range_contains_only_horizontal_whitespace(start, comment.span.start) {
+    context
+        .comments()
+        .comments_in_range(gap_start, gap_end)
+        .to_vec()
+}
+
+/// Return raw comments structurally owned inside one element tail.
+fn element_owned_trailing_comments(
+    context: &DestackFormatContext<'_>,
+    anchor_end: u32,
+    element_span: Span,
+) -> Vec<Comment> {
+    if anchor_end >= element_span.end {
+        return Vec::new();
+    }
+
+    context
+        .comments()
+        .comments_in_range(anchor_end, element_span.end)
+        .to_vec()
+}
+
+/// Split one gap comment slice around one source separator token.
+fn split_gap_comments_around_separator<'a>(
+    comments: &'a [Comment],
+    separator_token: Option<destack_ast::TokenSpan>,
+) -> (&'a [Comment], &'a [Comment]) {
+    let Some(separator_token) = separator_token else {
+        return (&[][..], comments);
+    };
+
+    let split_index = comments
+        .iter()
+        .position(|comment| comment.span.start >= separator_token.span.end)
+        .unwrap_or(comments.len());
+
+    comments.split_at(split_index)
+}
+
+/// Return the trailing comment count owned by one separator on its current line.
+fn separator_owned_trailing_comment_count(
+    context: &DestackFormatContext<'_>,
+    comments: &[Comment],
+) -> usize {
+    let mut count = 0usize;
+
+    for comment in comments.iter().copied() {
+        if count == 0 && context.span_starts_on_own_line(comment.span) {
             break;
         }
 
-        comments.push(comment);
+        count += 1;
+
         if comment.is_line()
             || context.span_has_newline_before_next_non_whitespace_token(comment.span)
         {
             break;
         }
-
-        start = comment.span.end;
     }
 
-    comments
+    count
 }
 
 /// An iterator over formatted separated elements.
-pub(crate) struct FormatSeparatedIter<I, T: Node> {
+pub(crate) struct FormatSeparatedIter<I, T: Node + Clone> {
     next: Option<LocalNodeId<T>>,
     inner: I,
     separator: &'static str,
@@ -154,7 +294,7 @@ pub(crate) struct FormatSeparatedIter<I, T: Node> {
 
 impl<I, T> FormatSeparatedIter<I, T>
 where
-    T: Node,
+    T: Node + Clone,
     I: Iterator<Item = LocalNodeId<T>>,
 {
     /// Create a new separated iterator for one element stream.
@@ -183,7 +323,7 @@ where
 
 impl<I, T> Iterator for FormatSeparatedIter<I, T>
 where
-    T: Node,
+    T: Node + Clone,
     I: Iterator<Item = LocalNodeId<T>>,
 {
     type Item = FormatSeparatedElement<T>;
@@ -195,6 +335,7 @@ where
 
         Some(FormatSeparatedElement {
             element,
+            next_element: self.next,
             is_last,
             separator: self.separator,
             trailing_separator: self.trailing_separator,

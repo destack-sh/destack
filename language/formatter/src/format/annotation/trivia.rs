@@ -100,11 +100,24 @@ pub(crate) fn write_raw_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
+    write_raw_trailing_comments_with_options(f, comments, true)
+}
+
+/// Write raw trailing comments with configurable parent expansion for line comments.
+fn write_raw_trailing_comments_with_options<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comments: &[Comment],
+    expand_parent_for_line_comments: bool,
+) -> FormatResult<()> {
     let source = f.context().source_text();
     let mut total_lines_before = 0usize;
     let mut previous_comment = None;
 
     for comment in comments.iter().copied() {
+        f.context().comments_mut().increment_printed_count();
+
+        let raw_comment = f.context().comment_raw_text(comment);
+        let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();
             source.get_lines_before(comment.span, &comment_cursor)
@@ -137,7 +150,7 @@ pub(crate) fn write_raw_trailing_comments<'ast>(
                             }
                         }
 
-                        format_raw_comment(f, comment)
+                        format_comment_like_raw_text(f, raw_comment, is_block_comment)
                     }
                 ))]
             )?;
@@ -147,16 +160,65 @@ pub(crate) fn write_raw_trailing_comments<'ast>(
                     write!(f, [space()])?;
                 }
 
-                format_raw_comment(f, comment)
+                format_comment_like_raw_text(f, raw_comment, is_block_comment)
             });
 
             if comment.is_line() {
-                write!(f, [line_suffix(&content), expand_parent()])?;
+                if expand_parent_for_line_comments {
+                    write!(f, [line_suffix(&content), expand_parent()])?;
+                } else {
+                    write!(f, [line_suffix(&content)])?;
+                }
             } else {
                 write!(f, [content])?;
             }
         }
 
+        previous_comment = Some(comment);
+    }
+
+    Ok(())
+}
+
+/// Write raw comments with direct source-preserving separators.
+pub(crate) fn write_raw_comment_slice<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comments: &[Comment],
+) -> FormatResult<()> {
+    let source = f.context().source_text();
+    let mut previous_comment = None;
+
+    for comment in comments.iter().copied() {
+        f.context().comments_mut().increment_printed_count();
+
+        let raw_comment = f.context().comment_raw_text(comment);
+        let is_block_comment = comment.is_block();
+        let lines_before = {
+            let comment_cursor = f.context().comments();
+            source.get_lines_before(comment.span, &comment_cursor)
+        };
+        let should_nestle = previous_comment.is_some_and(|previous_comment| {
+            should_nestle_adjacent_doc_comments(previous_comment, comment)
+        });
+
+        match lines_before {
+            _ if should_nestle => {}
+            0 => {
+                if previous_comment.is_some_and(Comment::is_line) {
+                    write!(f, [hard_line_break()])?;
+                } else {
+                    write!(f, [space()])?;
+                }
+            }
+            1 => {
+                write!(f, [hard_line_break()])?;
+            }
+            _ => {
+                write!(f, [empty_line()])?;
+            }
+        }
+
+        format_comment_like_raw_text(f, raw_comment, is_block_comment)?;
         previous_comment = Some(comment);
     }
 
@@ -170,7 +232,28 @@ pub(crate) const fn format_trailing_comments(
     preceding_span: Span,
     following_span_start: u32,
 ) -> FormatTrailingComments<'static> {
-    FormatTrailingComments::Node((enclosing_span, preceding_span, following_span_start))
+    FormatTrailingComments::Node((
+        enclosing_span,
+        preceding_span,
+        following_span_start,
+        following_span_start,
+    ))
+}
+
+/// Return one trailing comment formatter that stops before one explicit boundary.
+#[inline]
+pub(crate) const fn format_trailing_comments_before_boundary(
+    enclosing_span: Span,
+    preceding_span: Span,
+    boundary_start: u32,
+    following_span_start: u32,
+) -> FormatTrailingComments<'static> {
+    FormatTrailingComments::Node((
+        enclosing_span,
+        preceding_span,
+        boundary_start,
+        following_span_start,
+    ))
 }
 
 /// Return one trailing comment formatter for one explicit comment slice.
@@ -184,8 +267,8 @@ pub(crate) const fn format_trailing_comment_slice(
 /// Format trailing comments for one node relationship.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FormatTrailingComments<'a> {
-    /// The enclosing span, preceding span, and following sibling start.
-    Node((Span, Span, u32)),
+    /// The enclosing span, preceding span, boundary start, and following sibling start.
+    Node((Span, Span, u32, u32)),
     /// One explicit trailing comment slice.
     Comments(&'a [Comment]),
 }
@@ -198,13 +281,14 @@ impl<'a> destack_fir::format::Format<crate::DestackFormatContext<'a>>
         f: &mut destack_fir::format::Formatter<'_, crate::DestackFormatContext<'a>>,
     ) -> FormatResult<()> {
         match self {
-            Self::Node((enclosing_span, preceding_span, following_span_start)) => {
+            Self::Node((enclosing_span, preceding_span, boundary_start, following_span_start)) => {
                 let comments = {
                     let comments = f.context().comments();
                     comments
                         .get_trailing_comments(
                             *enclosing_span,
                             *preceding_span,
+                            *boundary_start,
                             *following_span_start,
                         )
                         .to_vec()
