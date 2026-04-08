@@ -126,9 +126,9 @@ import rel from "./rel";
     );
 }
 
-/// Decorator comment seams should stay attached to decorated class declarations.
+/// Decorator comments should stay attached to decorated class declarations.
 #[test]
-fn test_format_decorator_comment_seams() {
+fn test_format_decorator_comments() {
     assert_format_program_reference_widths(
         r#"// test.ts
 import { Component } from "@angular/core";
@@ -181,9 +181,9 @@ export default class AppMyComponent {}
     );
 }
 
-/// Export-head comment seams should stay attached after `export`.
+/// Export-head comments should stay attached after `export`.
 #[test]
-fn test_format_export_head_comment_seams() {
+fn test_format_export_head_comments() {
     assert_format_program_reference_widths(
         r#"export /* keep */ class A {}
 export /* keep */ default class B {}

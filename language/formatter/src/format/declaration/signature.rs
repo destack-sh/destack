@@ -1,25 +1,26 @@
+use crate::format::annotation::{
+    block_infix_annotations, format_raw_comment, infix_or_postfix_annotations,
+    infix_or_postfix_annotations_without_line_suffix_boundary, postfix_annotations,
+    postfix_annotations_without_line_suffix_boundary, prefix_annotations,
+};
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::operator::{
-    raw_type_position_comment_nodes_in_range, write_type_expression_with_inline_prefix_annotations,
+    write_type_expression_with_inline_prefix_annotations,
+    write_type_expression_with_inline_prefix_annotations_from,
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AbstractionModifier, AccessorKind, AnnotationPosition, Asynchrony, BindingAnchor, BindingKind,
-    BindingModifier, BindingOperator, Comment, CommentStyle, Declaration, DeclarationKind,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Keyword, LocalNodeId, Member, Mutability, Node, NodeTree, NodeTreeImpl,
-    NodeType, Parameter, Pattern, PatternField, Property, Timing, TokenType, VarianceModifier,
-    WhereClause,
+    BindingModifier, BindingOperator, Comment, Declaration, DeclarationKind, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    Keyword, LocalNodeId, Member, Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter,
+    Pattern, Property, StringId, Timing, TokenType, VarianceModifier, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::NodeSpanType;
 use destack_workspace::TrailingComma;
-
-// signature expansion thresholds
-const CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT: usize = 2;
-const OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS: usize = 3;
-const OBJECT_PATTERN_INLINE_MAX_FIELDS: usize = 1;
 
 /// Format binding modifiers that appear before a name.
 #[inline]
@@ -145,7 +146,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
                 space(),
                 Keyword::Extends,
                 group(&indent(&format_with(|f| {
-                    write!(f, [line_postfix_boundary(), soft_line_break_or_space()])
+                    write!(f, [line_suffix_boundary(), soft_line_break_or_space()])
                 })))
                 .with_id(Some(group_id)),
                 indent_if_group_breaks(&constraint, group_id)
@@ -162,7 +163,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
                 space(),
                 token("="),
                 group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
-                line_postfix_boundary(),
+                line_suffix_boundary(),
                 indent_if_group_breaks(&default, group_id)
             ]
         )?;
@@ -171,7 +172,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
     Ok(())
 }
 
-/// Write one grouped type-parameter declaration list with OXC-style `<...>` flow.
+/// Write one grouped type-parameter declaration list with local `<...>` flow.
 pub(crate) fn write_static_parameter_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     static_parameters: &[LocalNodeId<Parameter>],
@@ -233,13 +234,7 @@ fn write_parameter_type_with_infix<'ast>(
         return Ok(false);
     };
 
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    write!(f, [block_infix_annotations(f.context(), node_id)])?;
     if is_static_parameter {
         write!(f, [space(), Keyword::Extends, space(), ty])?;
     } else {
@@ -250,85 +245,40 @@ fn write_parameter_type_with_infix<'ast>(
             write!(f, [token(":"), space()])?;
         }
 
-        write_type_expression_with_inline_prefix_annotations(f, ty)?;
+        if let Some(start) = parameter_type_comment_start(f.context(), node_id, ty) {
+            write_type_expression_with_inline_prefix_annotations_from(f, ty, start)?;
+        } else {
+            write_type_expression_with_inline_prefix_annotations(f, ty)?;
+        }
     }
 
     Ok(true)
 }
 
-/// Write raw comment seams between one parameter binding and its type annotation.
-fn write_parameter_name_type_gap_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    gap_start: u32,
-    ty: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let comment_ids = raw_type_position_comment_nodes_in_range(f.context(), ty, gap_start);
-
-    if comment_ids.is_empty() {
-        return Ok(());
-    }
-
-    for (index, comment_id) in comment_ids.iter().copied().enumerate() {
-        write!(f, [space(), comment_id])?;
-
-        if let Some(next_comment_id) = comment_ids.get(index + 1).copied() {
-            let current_span = f.context().span(comment_id);
-            let next_span = f.context().span(next_comment_id);
-            let gap_span =
-                destack_source::Span::new(current_span.file, current_span.end, next_span.start);
-
-            if f.context().tree.get(comment_id).style == CommentStyle::Slash
-                || f.context().has_newline(gap_span)
-            {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-    }
-
-    let last_comment_id = *comment_ids.last().expect("comment_ids is not empty");
-    if f.context().tree.get(last_comment_id).style == CommentStyle::Slash {
-        write!(f, [hard_line_break()])?;
-    } else {
-        write!(f, [space()])?;
-    }
-
-    Ok(())
-}
-
-/// Return the raw seam start between one parameter binding and its type annotation.
-fn parameter_name_type_gap_start(
+/// Return the earliest offset that may own comments before one parameter type.
+fn parameter_type_comment_start(
     context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Parameter>,
     ty: LocalNodeId<Expression>,
 ) -> Option<u32> {
-    let type_span = context.span(ty);
-    let separator_token = context.previous_non_trivia_token_before_span(type_span)?;
+    let type_span = context.tree.get_side_span(node_id, NodeSpanType::Type)?;
+    let expression_start = context.type_expression_token_start(ty);
 
-    if separator_token.token.ty == TokenType::Colon {
-        let binding_token = context.previous_non_trivia_token_before_span(separator_token.span)?;
-        return Some(binding_token.span.end);
-    }
-
-    Some(separator_token.span.end)
-}
-
-/// Write raw comment seams between one parameter binding and its type annotation, when needed.
-fn write_parameter_name_type_gap_comments_maybe<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_static_parameter: bool,
-    ty: Option<LocalNodeId<Expression>>,
-) -> FormatResult<()> {
-    if is_static_parameter {
-        return Ok(());
-    }
-
-    let Some(ty) = ty else {
-        return Ok(());
-    };
-    let Some(gap_start) = parameter_name_type_gap_start(f.context(), ty) else {
-        return Ok(());
+    let gap_start = match context.tree.get(node_id) {
+        Parameter::Named { .. } | Parameter::VariadicNamed { .. } => {
+            context.tree.get_main_span(node_id)?.end
+        }
+        Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
+            context.tree.get_span(*pattern).end
+        }
+        Parameter::Error => return None,
     };
 
-    write_parameter_name_type_gap_comments(f, gap_start, ty)
+    if gap_start >= expression_start || type_span.start > expression_start {
+        return None;
+    }
+
+    Some(gap_start)
 }
 
 /// Write one static parameter trailer sequence after its name.
@@ -342,13 +292,7 @@ fn write_static_parameter_trailers<'ast>(
         return Ok(false);
     }
 
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    write!(f, [block_infix_annotations(f.context(), node_id)])?;
     write_type_parameter_constraint_and_default(f, constraint, default)?;
 
     Ok(true)
@@ -386,41 +330,27 @@ fn write_parameter_trailing_annotations<'ast>(
         if suppress_separator_boundary_annotations {
             return write!(
                 f,
-                [
-                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                        f.context(),
-                        node_id
-                    )
-                ]
+                [postfix_annotations_without_line_suffix_boundary(
+                    f.context(),
+                    node_id
+                )]
             );
         }
 
-        return write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        );
+        return write!(f, [postfix_annotations(f.context(), node_id)]);
     }
 
     if suppress_separator_boundary_annotations {
         return write!(
             f,
-            [crate::format::annotation::infix_or_postfix_annotations_without_line_postfix_boundary(
+            [infix_or_postfix_annotations_without_line_suffix_boundary(
                 f.context(),
                 node_id
             )]
         );
     }
 
-    write!(
-        f,
-        [crate::format::annotation::infix_or_postfix_annotations(
-            f.context(),
-            node_id
-        )]
-    )
+    write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
 }
 
 /// Return whether all prefix annotations on one variadic parameter follow `...`.
@@ -454,6 +384,158 @@ fn parameter_prefix_annotations_follow_spread(
 }
 
 /// Format one parameter node with optional separator-boundary annotation suppression.
+fn write_named_parameter<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    modifiers: Option<BindingModifier>,
+    name: StringId,
+    ty: Option<LocalNodeId<Expression>>,
+    default: Option<LocalNodeId<Expression>>,
+    is_static_parameter: bool,
+) -> FormatResult<bool> {
+    // defaulted runtime parameters
+    if !is_static_parameter && let Some(default) = default {
+        let format_left = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            // modifiers
+            format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+            // name
+            write!(f, [name])?;
+
+            // modifiers
+            format_binding_modifiers_postfix_maybe(f, modifiers)?;
+
+            // type
+            write_parameter_type_with_infix(f, node_id, false, ty)?;
+
+            Ok(())
+        });
+
+        write!(
+            f,
+            [group(&format_left), space(), token("="), space(), default]
+        )?;
+        return Ok(ty.is_some());
+    }
+
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+    // name
+    write!(f, [name])?;
+
+    // modifiers
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+
+    // type and default
+    write_parameter_type_and_default(f, node_id, is_static_parameter, ty, default)
+}
+
+/// Format one pattern parameter node.
+fn write_pattern_parameter<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    modifiers: Option<BindingModifier>,
+    pattern: LocalNodeId<Pattern>,
+    ty: Option<LocalNodeId<Expression>>,
+    default: Option<LocalNodeId<Expression>>,
+    is_static_parameter: bool,
+) -> FormatResult<bool> {
+    // defaulted runtime parameters
+    if !is_static_parameter && let Some(default) = default {
+        let format_left = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            // modifiers
+            format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+            // pattern
+            write!(f, [pattern])?;
+
+            // modifiers
+            format_binding_modifiers_postfix_maybe(f, modifiers)?;
+
+            // type
+            write_parameter_type_with_infix(f, node_id, false, ty)?;
+
+            Ok(())
+        });
+
+        write!(
+            f,
+            [group(&format_left), space(), token("="), space(), default]
+        )?;
+        return Ok(ty.is_some());
+    }
+
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+    // pattern
+    write!(f, [pattern])?;
+
+    // modifiers
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+
+    // type and default
+    write_parameter_type_and_default(f, node_id, is_static_parameter, ty, default)
+}
+
+/// Format one variadic named parameter node.
+fn write_variadic_named_parameter<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    modifiers: Option<BindingModifier>,
+    name: StringId,
+    ty: Option<LocalNodeId<Expression>>,
+    is_static_parameter: bool,
+    defer_prefix_annotations_after_spread: bool,
+) -> FormatResult<bool> {
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+    // keyword
+    write!(f, [token("...")])?;
+
+    // spread boundary prefix annotations
+    if defer_prefix_annotations_after_spread {
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
+    }
+
+    // name
+    write!(f, [name])?;
+
+    // type
+    write_parameter_type_with_infix(f, node_id, is_static_parameter, ty)
+}
+
+/// Format one variadic pattern parameter node.
+fn write_variadic_pattern_parameter<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    modifiers: Option<BindingModifier>,
+    pattern: LocalNodeId<Pattern>,
+    ty: Option<LocalNodeId<Expression>>,
+    is_static_parameter: bool,
+    defer_prefix_annotations_after_spread: bool,
+) -> FormatResult<bool> {
+    // modifiers
+    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+
+    // keyword
+    write!(f, [token("...")])?;
+
+    // spread boundary prefix annotations
+    if defer_prefix_annotations_after_spread {
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
+    }
+
+    // pattern
+    write!(f, [pattern])?;
+
+    // type
+    write_parameter_type_with_infix(f, node_id, is_static_parameter, ty)
+}
+
+/// Format one parameter node with optional separator-boundary annotation suppression.
 fn format_parameter_node<'ast>(
     parameter: &Parameter,
     node_id: LocalNodeId<Parameter>,
@@ -467,13 +549,7 @@ fn format_parameter_node<'ast>(
     let defer_prefix_annotations_after_spread =
         is_variadic_parameter && parameter_prefix_annotations_follow_spread(f.context(), node_id);
     if !defer_prefix_annotations_after_spread {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
     }
 
     let is_typescript = f.context().options.language_type.is_typescript();
@@ -484,111 +560,55 @@ fn format_parameter_node<'ast>(
             name,
             ty,
             default,
-        } => {
-            // modifiers
-            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-            // name
-            write!(f, [name])?;
-
-            // modifiers
-            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-            // name to type seam comments
-            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
-
-            // type and default
-            let wrote_type_infix =
-                write_parameter_type_and_default(f, node_id, is_static_parameter, *ty, *default)?;
-
-            wrote_type_infix
-        }
+        } => write_named_parameter(
+            f,
+            node_id,
+            *modifiers,
+            *name,
+            *ty,
+            *default,
+            is_static_parameter,
+        )?,
         Parameter::Pattern {
             modifiers,
             pattern,
             ty,
             default,
-        } => {
-            // modifiers
-            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-            // pattern
-            write!(f, [pattern])?;
-
-            // modifiers
-            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-            // pattern to type seam comments
-            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
-
-            // type and default
-            let wrote_type_infix =
-                write_parameter_type_and_default(f, node_id, is_static_parameter, *ty, *default)?;
-
-            wrote_type_infix
-        }
+        } => write_pattern_parameter(
+            f,
+            node_id,
+            *modifiers,
+            *pattern,
+            *ty,
+            *default,
+            is_static_parameter,
+        )?,
         Parameter::VariadicNamed {
             modifiers,
             name,
             ty,
-        } => {
-            // modifiers
-            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-            // keyword
-            write!(f, [token("...")])?;
-
-            // spread seam prefix annotations
-            if defer_prefix_annotations_after_spread {
-                write!(
-                    f,
-                    [crate::format::annotation::prefix_annotations(
-                        f.context(),
-                        node_id
-                    )]
-                )?;
-            }
-
-            // name
-            write!(f, [name])?;
-
-            // name to type seam comments
-            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
-
-            // type
-            write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
-        }
+        } => write_variadic_named_parameter(
+            f,
+            node_id,
+            *modifiers,
+            *name,
+            *ty,
+            is_static_parameter,
+            defer_prefix_annotations_after_spread,
+        )?,
         Parameter::VariadicPattern {
             modifiers,
             pattern,
             ty,
-        } => {
-            // modifiers
-            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-            // keyword
-            write!(f, [token("...")])?;
-
-            // spread seam prefix annotations
-            if defer_prefix_annotations_after_spread {
-                write!(
-                    f,
-                    [crate::format::annotation::prefix_annotations(
-                        f.context(),
-                        node_id
-                    )]
-                )?;
-            }
-
-            // pattern
-            write!(f, [pattern])?;
-
-            // pattern to type seam comments
-            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
-
-            // type
-            write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
-        }
+        } => write_variadic_pattern_parameter(
+            f,
+            node_id,
+            *modifiers,
+            *pattern,
+            *ty,
+            is_static_parameter,
+            defer_prefix_annotations_after_spread,
+        )?,
         Parameter::Error => false,
     };
 
@@ -702,29 +722,46 @@ fn parameter_has_constructor_property_modifier(
     has_visibility_modifier || has_readonly_modifier || has_override_modifier
 }
 
-/// Return whether parameter lists with modifier parameters should break by default.
-pub(crate) fn parameters_with_modifiers_should_expand(
+/// Return whether a constructor parameter list should break.
+pub(crate) fn should_break_function_parameters(
     context: &DestackFormatContext<'_>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> bool {
-    parameters.len() >= CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT
+    parameters.len() > 1
         && parameters
             .iter()
             .any(|parameter_id| parameter_has_constructor_property_modifier(context, *parameter_id))
 }
 
-/// Return whether this parameter has any slash style line comment.
-fn parameter_has_line_comment(
+/// Return whether one parameter pattern is object-like or array-like destructuring.
+fn parameter_pattern_is_destructuring(
     context: &DestackFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
-    let parameter_span = context.span(parameter_id);
+    let pattern_id = match context.tree.get(parameter_id) {
+        Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => *pattern,
+        Parameter::Named { .. } | Parameter::VariadicNamed { .. } | Parameter::Error => {
+            return false;
+        }
+    };
 
-    context
-        .comments_in_range(parameter_span.start, parameter_span.end)
-        .iter()
-        .copied()
-        .any(|comment| context.comment_is_line(comment))
+    matches!(
+        context.tree.get(pattern_id),
+        Pattern::Object { .. } | Pattern::TaggedObject { .. } | Pattern::Array { .. }
+    )
+}
+
+/// Return whether one parameter default expression is safe to hug.
+fn parameter_default_is_huggable(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(expression_id) {
+        Expression::ObjectExpression { properties, .. } => properties.is_empty(),
+        Expression::ArrayExpression { elements } => elements.is_empty(),
+        Expression::Identifier { .. } => true,
+        _ => false,
+    }
 }
 
 /// Return whether a single parameter should keep compact outer parentheses.
@@ -736,27 +773,26 @@ pub(crate) fn single_parameter_should_hug(
         return false;
     }
 
-    let has_multiline_collection_default = match context.tree.get(parameter_id) {
-        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default
-            .is_some_and(|default_id| {
-                matches!(
-                    context.tree.get(default_id),
-                    Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-                ) && context.node_has_newline(default_id)
-            }),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } | Parameter::Error => {
-            false
-        }
-    };
-    if has_multiline_collection_default {
+    if parameter_has_constructor_property_modifier(context, parameter_id) {
         return false;
     }
 
-    let has_newline = context.node_has_newline(parameter_id);
     match context.tree.get(parameter_id) {
-        Parameter::Named { default, .. } => !(has_newline && default.is_some()),
-        Parameter::VariadicNamed { .. } => !has_newline,
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
+        Parameter::Named { ty, default, .. } => {
+            default.is_none()
+                && ty.is_some_and(|ty| {
+                    matches!(
+                        context.tree.get(ty),
+                        Expression::TypeLiteral(_) | Expression::TypeMapped { .. }
+                    )
+                })
+        }
+        Parameter::Pattern { default, .. } => {
+            parameter_pattern_is_destructuring(context, parameter_id)
+                && default
+                    .is_none_or(|default_id| parameter_default_is_huggable(context, default_id))
+        }
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
         Parameter::Error => false,
     }
 }
@@ -839,99 +875,8 @@ pub(crate) fn write_function_header_prefix(
     Ok(())
 }
 
-/// Return whether an object parameter pattern should expand for readability.
-fn parameter_object_pattern_should_expand(
-    context: &DestackFormatContext<'_>,
-    pattern_id: LocalNodeId<Pattern>,
-) -> bool {
-    let fields = match context.tree.get(pattern_id) {
-        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => fields,
-        _ => return false,
-    };
-
-    let has_nested_pattern = fields
-        .iter()
-        .any(|field_id| match context.tree.get(*field_id) {
-            PatternField::Named {
-                pattern: Some(_), ..
-            }
-            | PatternField::Computed {
-                pattern: Some(_), ..
-            }
-            | PatternField::Positional { .. } => true,
-            PatternField::Spread {
-                pattern: Some(_), ..
-            } => true,
-            PatternField::Named { pattern: None, .. }
-            | PatternField::Computed { pattern: None, .. }
-            | PatternField::Alias { .. }
-            | PatternField::Spread { pattern: None, .. }
-            | PatternField::Elision => false,
-        });
-    if has_nested_pattern {
-        return true;
-    }
-
-    if fields.len() >= OBJECT_PATTERN_FORCE_EXPAND_MIN_FIELDS {
-        return true;
-    }
-
-    if fields.len() <= OBJECT_PATTERN_INLINE_MAX_FIELDS {
-        return false;
-    }
-
-    fields
-        .iter()
-        .any(|field_id| match context.tree.get(*field_id) {
-            PatternField::Named { default, .. }
-            | PatternField::Computed { default, .. }
-            | PatternField::Alias { default, .. } => default.is_some(),
-            PatternField::Positional { .. }
-            | PatternField::Spread { .. }
-            | PatternField::Elision => false,
-        })
-}
-
-/// Return whether this parameter should force multiline signature formatting.
-pub(crate) fn parameter_should_force_expand_in_signature(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    if context.node_has_newline(parameter_id) {
-        match context.tree.get(parameter_id) {
-            Parameter::Named { default, .. } => {
-                if default.is_some() {
-                    return true;
-                }
-            }
-            Parameter::VariadicNamed { .. }
-            | Parameter::Pattern { .. }
-            | Parameter::VariadicPattern { .. }
-            | Parameter::Error => {
-                return true;
-            }
-        }
-    }
-
-    let pattern_id = match context.tree.get(parameter_id) {
-        Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
-            Some(*pattern)
-        }
-        Parameter::Named { .. } | Parameter::VariadicNamed { .. } | Parameter::Error => None,
-    };
-    let Some(pattern_id) = pattern_id else {
-        return false;
-    };
-
-    if context.node_has_newline(pattern_id) {
-        return true;
-    }
-
-    parameter_object_pattern_should_expand(context, pattern_id)
-}
-
 /// Return whether a signature return type carries a boundary line-postfix annotation.
-pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
+pub(crate) fn signature_return_type_has_line_suffix_boundary_annotation(
     context: &DestackFormatContext<'_>,
     return_type: Option<LocalNodeId<Expression>>,
 ) -> bool {
@@ -939,27 +884,15 @@ pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
         return false;
     };
     let annotations = context.annotation_ids(return_type);
-    if annotations.is_empty() {
-        return false;
-    }
-
-    annotations.iter().any(|annotation_id| {
-        matches!(
-            context.annotation(*annotation_id),
-            Annotation::Doc {
-                position: AnnotationPosition::LinePostfixBoundary,
-                ..
-            }
-        )
-    })
-}
-
-/// Return whether spacing before a function body should be emitted by annotations.
-pub(crate) fn signature_should_elide_space_before_body(
-    _context: &DestackFormatContext<'_>,
-    _return_type: Option<LocalNodeId<Expression>>,
-) -> bool {
-    false
+    !context
+        .end_of_line_raw_doc_comments_after(context.span(return_type).end)
+        .is_empty()
+        || annotations.iter().any(|annotation_id| {
+            matches!(
+                context.annotation(*annotation_id).position(),
+                AnnotationPosition::LinePostfixBoundary
+            )
+        })
 }
 
 /// Return whether one block body should be preceded by a space.
@@ -970,23 +903,34 @@ pub(crate) fn expression_body_requires_head_space(
     fn annotations_require_head_spacing(
         context: &DestackFormatContext<'_>,
         annotations: &[LocalNodeId<Annotation>],
+        raw_prefix_doc_comments: &[Comment],
     ) -> Option<bool> {
         if annotations.is_empty() {
-            return None;
+            if raw_prefix_doc_comments.is_empty() {
+                return None;
+            }
+
+            if raw_prefix_doc_comments
+                .iter()
+                .any(|comment: &Comment| comment.preceded_by_newline())
+            {
+                return Some(false);
+            }
+
+            return Some(true);
         }
 
         let has_block_prefix_annotation = annotations.iter().copied().any(|annotation_id| {
             matches!(
                 context.annotation(annotation_id),
-                Annotation::Doc {
-                    position: AnnotationPosition::BlockPrefix,
-                    ..
-                } | Annotation::Decorator {
+                Annotation::Decorator {
                     position: AnnotationPosition::BlockPrefix,
                     ..
                 }
             )
-        });
+        }) || raw_prefix_doc_comments
+            .iter()
+            .any(|comment: &Comment| comment.preceded_by_newline());
         if has_block_prefix_annotation {
             return Some(false);
         }
@@ -994,15 +938,14 @@ pub(crate) fn expression_body_requires_head_space(
         let has_line_prefix_annotation = annotations.iter().copied().any(|annotation_id| {
             matches!(
                 context.annotation(annotation_id),
-                Annotation::Doc {
-                    position: AnnotationPosition::LinePrefix,
-                    ..
-                } | Annotation::Decorator {
+                Annotation::Decorator {
                     position: AnnotationPosition::LinePrefix,
                     ..
                 }
             )
-        });
+        }) || raw_prefix_doc_comments
+            .iter()
+            .any(|comment: &Comment| !comment.preceded_by_newline());
         if has_line_prefix_annotation {
             return Some(true);
         }
@@ -1013,47 +956,29 @@ pub(crate) fn expression_body_requires_head_space(
     let Expression::Block(block_id) = context.tree.get(body_expression) else {
         return true;
     };
-    if let Some(requires_space) =
-        annotations_require_head_spacing(context, context.annotation_ids(*block_id))
-    {
+    let block_prefix_doc_comments = context.raw_prefix_doc_comments_for(*block_id);
+    if let Some(requires_space) = annotations_require_head_spacing(
+        context,
+        context.annotation_ids(*block_id),
+        &block_prefix_doc_comments,
+    ) {
         return requires_space;
     }
 
     let block = context.tree.get(*block_id);
     if let Some(first_expression) = block.first_expression()
-        && let Some(requires_space) =
-            annotations_require_head_spacing(context, context.annotation_ids(first_expression))
+        && let first_expression_prefix_doc_comments =
+            context.raw_prefix_doc_comments_for(first_expression)
+        && let Some(requires_space) = annotations_require_head_spacing(
+            context,
+            context.annotation_ids(first_expression),
+            &first_expression_prefix_doc_comments,
+        )
     {
         return requires_space;
     }
 
     true
-}
-
-/// Return whether dynamic parameters should force multiline signature formatting.
-pub(crate) fn signature_parameters_should_expand(
-    context: &DestackFormatContext<'_>,
-    _mode: Option<FunctionMode>,
-    parameters: &[LocalNodeId<Parameter>],
-    _return_type: Option<LocalNodeId<Expression>>,
-    include_parameter_shape_expansion: bool,
-) -> bool {
-    let should_expand_parameter_shapes = include_parameter_shape_expansion
-        && parameters.len() > 1
-        && parameters
-            .iter()
-            .copied()
-            .any(|parameter_id| parameter_should_force_expand_in_signature(context, parameter_id));
-    let should_break_constructor_parameters =
-        parameters_with_modifiers_should_expand(context, parameters);
-    let should_expand_for_parameter_line_comments = parameters
-        .iter()
-        .copied()
-        .any(|parameter_id| parameter_has_line_comment(context, parameter_id));
-
-    should_expand_parameter_shapes
-        || should_break_constructor_parameters
-        || should_expand_for_parameter_line_comments
 }
 
 /// Write a dynamic parameter list with shared expansion controls.
@@ -1066,6 +991,10 @@ pub(crate) fn write_signature_dynamic_parameter_list(
     let has_variadic_tail = parameters
         .last()
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
+    let has_modifier_parameters = parameters
+        .iter()
+        .copied()
+        .any(|parameter_id| parameter_has_constructor_property_modifier(f.context(), parameter_id));
     let should_emit_trailing_separator = !disallow_trailing_separator
         && f.context().options.trailing_comma == TrailingComma::All
         && !has_variadic_tail;
@@ -1077,22 +1006,54 @@ pub(crate) fn write_signature_dynamic_parameter_list(
                 f,
                 [
                     token("("),
-                    soft_block_indent(&separated_entries(
-                        ",",
-                        parameters,
+                    soft_block_indent(&format_with(|f: &mut DestackFormatter<'_, '_>| {
+                        for (index, parameter_id) in parameters.iter().copied().enumerate() {
+                            if index > 0 {
+                                write!(f, [token(",")])?;
+
+                                if has_modifier_parameters {
+                                    write!(f, [hard_line_break()])?;
+                                } else {
+                                    write!(f, [soft_line_break_or_space()])?;
+                                }
+                            }
+
+                            write!(f, [group(&parameter_id)])?;
+                        }
+
                         if should_emit_trailing_separator {
-                            TrailingSeparator::Allowed
-                        } else {
-                            TrailingSeparator::Omit
-                        },
-                        None,
-                    )),
+                            write!(f, [if_group_breaks(&token(","))])?;
+                        }
+
+                        Ok(())
+                    })),
                     token(")")
                 ]
             )
         }))
         .should_expand(should_expand)]
     )?;
+    Ok(())
+}
+
+/// Write one hug-style parameter list with space separated entries.
+pub(crate) fn write_signature_hug_parameter_list(
+    f: &mut DestackFormatter<'_, '_>,
+    parameters: &[LocalNodeId<Parameter>],
+) -> FormatResult<()> {
+    write!(
+        f,
+        [
+            token("("),
+            format_with(|f: &mut DestackFormatter<'_, '_>| {
+                f.join_with(&space())
+                    .entries(parameters.iter().copied())
+                    .finish()
+            }),
+            token(")")
+        ]
+    )?;
+
     Ok(())
 }
 
@@ -1129,9 +1090,12 @@ where
     let interior_end = node_span
         .start
         .saturating_add(close_parenthesis_offset as u32);
-    let interior_comment_nodes = f
-        .context()
-        .comment_nodes_in_range(interior_start, interior_end);
+    let interior_comment_nodes = {
+        let comments = f.context().comments();
+        comments
+            .comments_in_range(interior_start, interior_end)
+            .to_vec()
+    };
     if interior_comment_nodes.is_empty() {
         write!(f, [token("()")])?;
         return Ok(());
@@ -1140,11 +1104,12 @@ where
     // keep one inline block comment compact: `(/* comment */)`
     if interior_comment_nodes.len() == 1 {
         let comment_id = interior_comment_nodes[0];
-        let comment_span = f.context().span::<Comment>(comment_id);
-        let comment = f.context().tree.get::<Comment>(comment_id);
-        if comment.style == CommentStyle::Star && !f.context().span_starts_on_own_line(comment_span)
-        {
-            write!(f, [token("("), comment_id, token(")")])?;
+        let comment_span = comment_id.span;
+        let comment = comment_id;
+        if comment.is_block() && !f.context().span_starts_on_own_line(comment_span) {
+            write!(f, [token("(")])?;
+            format_raw_comment(f, comment)?;
+            write!(f, [token(")")])?;
             return Ok(());
         }
     }
@@ -1159,7 +1124,7 @@ where
                         write!(f, [hard_line_break()])?;
                     }
 
-                    write!(f, [comment_id])?;
+                    format_raw_comment(f, comment_id)?;
                 }
 
                 Ok(())
@@ -1232,24 +1197,12 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
         node_id: LocalNodeId<WhereClause>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         write!(f, [self.left, token(":"), space()])?;
         write_type_expression_with_inline_prefix_annotations(f, self.right)?;
 
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
         Ok(())
     }

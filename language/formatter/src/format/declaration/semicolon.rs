@@ -1,6 +1,77 @@
-use destack_ast::{Declaration, Expression, FunctionKind, IfKind, LocalNodeId, WhileKind};
+use destack_ast::{
+    Declaration, DependencyItem, DependencyMode, Expression, FunctionKind, IfKind, LocalNodeId,
+    WhileKind,
+};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::token;
+use destack_fir::write;
 
-use crate::DestackFormatContext;
+use crate::format::annotation::format_trailing_comment_slice;
+use crate::format::chain::expression_trivia_anchor_end;
+use crate::{DestackFormatContext, DestackFormatter};
+
+/// Return same-line trailing comments that follow one statement terminator anchor.
+fn statement_terminator_comments_after(
+    context: &DestackFormatContext<'_>,
+    mut anchor_end: u32,
+) -> Vec<destack_ast::Comment> {
+    let comments = context.comments().comments_after(anchor_end);
+
+    for (index, comment) in comments.iter().copied().enumerate() {
+        if context
+            .source_text()
+            .all_bytes_match(anchor_end, comment.span.start, |byte| {
+                matches!(byte, b'\t' | b' ' | b';')
+            })
+        {
+            if comment.is_line() || comment.followed_by_newline() {
+                return comments[..=index].to_vec();
+            }
+
+            anchor_end = comment.span.end;
+            continue;
+        }
+
+        break;
+    }
+
+    Vec::new()
+}
+
+/// Write one statement terminator after one explicit source anchor.
+pub(crate) fn write_statement_terminator_after_anchor<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    anchor_end: u32,
+) -> FormatResult<()> {
+    write!(f, [token(";")])?;
+
+    let comments = statement_terminator_comments_after(f.context(), anchor_end);
+    if comments.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [format_trailing_comment_slice(&comments)])
+}
+
+/// Return whether one export expression still needs the outer statement terminator.
+fn export_expression_needs_statement_terminator(
+    context: &DestackFormatContext<'_>,
+    items: &[LocalNodeId<DependencyItem>],
+    target: Option<destack_core::StringId>,
+) -> bool {
+    let first_item = items.first().map(|item_id| context.tree.get(*item_id));
+
+    let writes_own_terminator = items.len() == 1
+        && first_item.is_some_and(|item| match item {
+            DependencyItem::Item { mode, value, .. } => {
+                (*mode == DependencyMode::Default && value.is_some())
+                    || (*mode == DependencyMode::Namespace && value.is_some() && target.is_none())
+            }
+            DependencyItem::Error => false,
+        });
+
+    !writes_own_terminator
+}
 
 /// Return whether one block expression needs a trailing statement terminator.
 pub(crate) fn expression_needs_statement_terminator(
@@ -29,10 +100,22 @@ pub(crate) fn expression_needs_statement_terminator(
                 }
                 if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
             )
+    ) || matches!(
+        expression,
+        Expression::Break { .. }
+            | Expression::Continue { .. }
+            | Expression::Yield { .. }
+            | Expression::Return { .. }
+            | Expression::Throw { .. }
+            | Expression::Debugger
     );
 
     if always_needs_statement_terminator {
         return true;
+    }
+
+    if let Expression::Export { items, target, .. } = expression {
+        return export_expression_needs_statement_terminator(context, items, *target);
     }
 
     if is_expression_context_tail {
@@ -89,4 +172,37 @@ pub(crate) fn statement_wrapper_needs_semicolon(
     }
 
     true
+}
+
+/// Return the source anchor where same-line statement trailing comments begin.
+pub(crate) fn statement_trailing_comment_anchor_end(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> u32 {
+    let expression = context.tree.get(expression_id);
+
+    match expression {
+        Expression::Return {
+            value: Some(value_id),
+        }
+        | Expression::Yield {
+            value: Some(value_id),
+            ..
+        }
+        | Expression::Break {
+            value: Some(value_id),
+            ..
+        } => expression_trivia_anchor_end(context, *value_id),
+        Expression::Throw { value } => expression_trivia_anchor_end(context, *value),
+        _ => context.span(expression_id).end,
+    }
+}
+
+/// Write one statement terminator and its same-line trailing comments.
+pub(crate) fn write_statement_terminator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let anchor_end = statement_trailing_comment_anchor_end(f.context(), expression_id);
+    write_statement_terminator_after_anchor(f, anchor_end)
 }

@@ -6,9 +6,10 @@ use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
+use crate::format::annotation::{block_infix_annotations, postfix_annotations, prefix_annotations};
 use crate::format::declaration::sequence::{
-    block_allows_value_tail, format_block_body_narrow, format_block_body_wide,
-    program_statement_sequence,
+    block_allows_value_tail, expression_postfix_end, format_block_body_narrow,
+    format_block_body_wide, program_statement_sequence,
 };
 use crate::format::directive::{has_file_ignore_directive, write_ignored_span};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -52,31 +53,36 @@ fn statement_list_is_file_root(
 pub(crate) fn block_leading_line_comment_nodes(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
-) -> Vec<LocalNodeId<Comment>> {
+) -> Vec<Comment> {
     let block_span = context.span(block_id);
+    let Some(open_brace_token) = context.first_non_trivia_token_in_span(block_span) else {
+        return Vec::new();
+    };
     let Some(previous_token) = context.previous_non_trivia_token_before_span(block_span) else {
         return Vec::new();
     };
-    if previous_token.span.file != block_span.file || previous_token.span.end >= block_span.start {
+    if previous_token.span.file != block_span.file
+        || previous_token.span.end >= open_brace_token.span.start
+    {
         return Vec::new();
     }
 
-    context
-        .comment_nodes_in_range(previous_token.span.end, block_span.start)
-        .into_iter()
-        .filter(|comment_id| {
-            let comment = context.tree.get(*comment_id);
-            comment.style == destack_ast::CommentStyle::Slash
-                || context.span_starts_on_own_line(context.span(*comment_id))
-        })
-        .collect()
+    {
+        let comments = context.comments();
+        comments
+            .comments_in_range(previous_token.span.end, open_brace_token.span.start)
+            .to_vec()
+    }
+    .into_iter()
+    .filter(|comment| comment.is_line() || context.span_starts_on_own_line(comment.span))
+    .collect()
 }
 
 /// Return raw comments immediately before one block close brace.
 pub(crate) fn block_trailing_comment_nodes(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
-) -> Vec<LocalNodeId<Comment>> {
+) -> Vec<Comment> {
     let block = context.tree.get(block_id);
     let block_span = context.span(block_id);
     let Some(close_brace_token) = context.last_non_trivia_token_in_span(block_span) else {
@@ -84,7 +90,8 @@ pub(crate) fn block_trailing_comment_nodes(
     };
 
     let gap_start = if let Some(last_expression_id) = block.last_expression() {
-        context.span(last_expression_id).end
+        let expression_span = context.span(last_expression_id);
+        expression_postfix_end(context, last_expression_id, expression_span.end).saturating_add(1)
     } else if let Some(open_brace_token) = context.first_non_trivia_token_in_span(block_span) {
         open_brace_token.span.end
     } else {
@@ -94,7 +101,12 @@ pub(crate) fn block_trailing_comment_nodes(
         return Vec::new();
     }
 
-    context.comment_nodes_in_range(gap_start, close_brace_token.span.start)
+    {
+        let comments = context.comments();
+        comments
+            .comments_in_range(gap_start, close_brace_token.span.start)
+            .to_vec()
+    }
 }
 
 /// Return whether one block carries raw comments that force expanded layout.
@@ -133,7 +145,7 @@ where
                 token("{"),
                 soft_block_indent(&format_args![
                     if_group_fits_on_line(&token("")),
-                    &crate::format::annotation::block_infix_annotations(f.context(), node_id)
+                    &block_infix_annotations(f.context(), node_id)
                 ]),
                 token("}")
             ])]
@@ -158,7 +170,7 @@ pub(crate) fn should_inline_block<'ast>(
         return false;
     } else if block.is_empty() {
         // keep empty control flow blocks expanded
-        if empty_block_prefers_multiline(f.context(), block_id) {
+        if empty_block_requires_expanded_layout(f.context(), block_id) {
             return false;
         }
 
@@ -196,18 +208,46 @@ pub(crate) fn should_inline_block<'ast>(
         && container_node_type != NodeType::Declaration
 }
 
-/// Return whether an empty block should stay multiline in control flow contexts.
-fn empty_block_prefers_multiline<'ast>(
-    context: &DestackFormatContext<'ast>,
+/// Return whether an empty block should keep expanded braces.
+fn empty_block_requires_expanded_layout(
+    context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
-    let Some((parent_expression_id, parent_type)) = context.parent(block_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
+    let mut current_block_id = block_id;
 
+    loop {
+        let Some((parent_id, parent_type)) = context.parent_by_id(current_block_id.id) else {
+            return false;
+        };
+
+        if parent_type == NodeType::MatchCase {
+            return true;
+        }
+
+        if parent_type == NodeType::Expression {
+            return empty_block_expands_in_expression_shell(context, current_block_id, parent_id);
+        }
+
+        if parent_type != NodeType::Block {
+            return false;
+        }
+
+        let parent_block_id = LocalNodeId::<Block>::new(parent_id);
+        let parent_block = context.tree.get(parent_block_id);
+        if parent_block.format != BlockFormat::Implicit {
+            return false;
+        }
+
+        current_block_id = parent_block_id;
+    }
+}
+
+/// Return whether one empty block should expand inside its immediate expression shell.
+fn empty_block_expands_in_expression_shell(
+    context: &DestackFormatContext<'_>,
+    block_id: LocalNodeId<Block>,
+    parent_expression_id: u32,
+) -> bool {
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_expression_id);
     let Expression::Block(inner_block_id) = context.tree.get(parent_expression_id) else {
         return false;
@@ -216,56 +256,46 @@ fn empty_block_prefers_multiline<'ast>(
         return false;
     }
 
-    let Some((container_id, container_type)) = context.parent(parent_expression_id) else {
+    let Some((shell_id, shell_type)) = context.parent_by_id(parent_expression_id.id) else {
         return false;
     };
-    if container_type == NodeType::MatchCase {
+
+    if shell_type == NodeType::MatchCase {
         return true;
     }
-
-    if container_type == NodeType::Block {
-        let container_block_id = LocalNodeId::<Block>::new(container_id);
-        let container_block = context.tree.get(container_block_id);
-        if container_block.format == BlockFormat::Implicit {
-            let Some((container_owner_id, container_owner_type)) =
-                context.parent(container_block_id)
-            else {
-                return false;
-            };
-            if container_owner_type == NodeType::MatchCase {
-                let container_owner_id =
-                    LocalNodeId::<destack_ast::MatchCase>::new(container_owner_id);
-                let container_owner = context.tree.get(container_owner_id);
-                if matches!(container_owner, destack_ast::MatchCase::Block { .. }) {
-                    return true;
-                }
-            }
-        }
+    if shell_type != NodeType::Expression {
         return false;
     }
 
-    if container_type == NodeType::Expression {
-        let container_id = LocalNodeId::<Expression>::new(container_id);
-        return match context.tree.get(container_id) {
-            Expression::Try { .. } => true,
-            Expression::If {
-                then_expression,
-                else_expression,
-                ..
-            } => {
-                then_expression.id == parent_expression_id.id
-                    || else_expression.is_some_and(|id| id.id == parent_expression_id.id)
-            }
-            _ => false,
-        };
+    let shell_expression_id = LocalNodeId::<Expression>::new(shell_id);
+    match context.tree.get(shell_expression_id) {
+        Expression::If {
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            then_expression.id == parent_expression_id.id
+                || else_expression.is_some_and(|id| id.id == parent_expression_id.id)
+        }
+        Expression::Try {
+            try_expression,
+            catch_expression,
+            finally_expression,
+            ..
+        } => {
+            try_expression.id == parent_expression_id.id
+                || finally_expression.is_some_and(|id| id.id == parent_expression_id.id)
+                || catch_expression.is_some_and(|id| {
+                    id.id == parent_expression_id.id && finally_expression.is_some()
+                })
+        }
+        _ => false,
     }
-
-    false
 }
 
 /// Format a block (without a nested group!).
 /// Format a block with opening and closing braces.
-fn write_block_body<'ast>(
+pub(crate) fn write_block_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
@@ -282,21 +312,9 @@ pub fn format_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
-    write!(
-        f,
-        [crate::format::annotation::prefix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    write!(f, [prefix_annotations(f.context(), node_id)])?;
     write_block_body(f, node_id)?;
-    write!(
-        f,
-        [crate::format::annotation::postfix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
+    write!(f, [postfix_annotations(f.context(), node_id)])?;
     Ok(())
 }
 
@@ -306,21 +324,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: LocalNodeId<Block>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
         write!(f, [group(&format_with(|f| write_block_body(f, node_id)))])?;
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [postfix_annotations(f.context(), node_id)])?;
         Ok(())
     }
 }

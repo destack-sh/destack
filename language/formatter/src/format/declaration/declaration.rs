@@ -1,6 +1,11 @@
+use crate::format::annotation::{
+    block_infix_annotations, format_raw_comment, line_suffix_boundary_annotations,
+    postfix_annotations, postfix_annotations_without_line_suffix_boundary, prefix_annotations,
+};
 use crate::format::collection::member::format_block_of_members;
 use crate::format::collection::property::format_key_with_quotes;
 use crate::format::declaration::assignment::format_type_alias_assignment_like;
+use crate::format::declaration::dependency::format_export_import_equals_statement;
 use crate::format::declaration::sequence::format_block_statement_sequence;
 use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::expression::{expression_has_static_type_arguments, format_declarator};
@@ -29,7 +34,7 @@ fn declaration_export_head_comment_nodes(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     export_mode: DependencyMode,
-) -> Vec<LocalNodeId<destack_ast::Comment>> {
+) -> Vec<destack_ast::Comment> {
     let declaration_span = context.span(node_id);
 
     let export_token = context
@@ -55,10 +60,12 @@ fn declaration_export_head_comment_nodes(
         && next_token_after_export.span.file == export_token.span.file
         && next_token_after_export.span.start > export_token.span.end
     {
-        comment_ids.extend(
-            context
-                .comment_nodes_in_range(export_token.span.end, next_token_after_export.span.start),
-        );
+        comment_ids.extend({
+            let comments = context.comments();
+            comments
+                .comments_in_range(export_token.span.end, next_token_after_export.span.start)
+                .to_vec()
+        });
     }
 
     if export_mode == DependencyMode::Default {
@@ -80,14 +87,16 @@ fn declaration_export_head_comment_nodes(
             && next_token_after_default.span.file == default_token.span.file
             && next_token_after_default.span.start > default_token.span.end
         {
-            comment_ids.extend(context.comment_nodes_in_range(
-                default_token.span.end,
-                next_token_after_default.span.start,
-            ));
+            comment_ids.extend({
+                let comments = context.comments();
+                comments
+                    .comments_in_range(default_token.span.end, next_token_after_default.span.start)
+                    .to_vec()
+            });
         }
     }
 
-    comment_ids.sort_by_key(|comment_id| context.span(*comment_id).start);
+    comment_ids.sort_by_key(|comment| comment.span.start);
     comment_ids.dedup();
 
     comment_ids
@@ -114,8 +123,8 @@ fn declaration_expression_id(
     }
 }
 
-/// Write raw comment seams between `export` and the declaration head.
-fn write_declaration_export_head_comment_seams<'ast>(
+/// Write raw comments between `export` and the declaration head.
+fn write_declaration_export_head_boundary_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export_mode: DependencyMode,
@@ -126,9 +135,9 @@ fn write_declaration_export_head_comment_seams<'ast>(
     }
 
     for comment_id in comment_ids {
-        write!(f, [comment_id])?;
+        format_raw_comment(f, comment_id)?;
 
-        let comment_span = f.context().span(comment_id);
+        let comment_span = comment_id.span;
         let is_line_comment = f
             .context()
             .comment_token_type_at_span(comment_span)
@@ -160,13 +169,7 @@ fn write_expression_declaration_body<'ast>(
 
     if expressions.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [postfix_annotations(f.context(), node_id)])?;
         return Ok(());
     }
 
@@ -185,14 +188,11 @@ fn write_expression_declaration_body<'ast>(
 
     write!(
         f,
-        [
-            crate::format::annotation::block_infix_annotations(f.context(), node_id),
-            token("}")
-        ]
+        [block_infix_annotations(f.context(), node_id), token("}")]
     )
 }
 
-/// Format one declaration export modifier and export-head seam comments.
+/// Format one declaration export modifier and export-head boundary comments.
 pub(crate) fn format_declaration_export_modifier<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
@@ -200,7 +200,7 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
 ) -> FormatResult<()> {
     if let Some(export) = descriptor.export {
         write!(f, [export, space()])?;
-        write_declaration_export_head_comment_seams(f, node_id, export)?;
+        write_declaration_export_head_boundary_comments(f, node_id, export)?;
     }
 
     Ok(())
@@ -224,9 +224,8 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
     start_on_new_line: bool,
 ) -> FormatResult<()> {
     assert!(!types.is_empty());
-    let should_group_clause = !start_on_new_line
-        && !force_expand
-        && super_type_clause_prefers_group_mode(f.context(), types);
+    let should_group_clause =
+        !start_on_new_line && !force_expand && should_group_super_type_clause(f.context(), types);
 
     let format_clause = format_with(|f| {
         if start_on_new_line {
@@ -265,7 +264,7 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
 }
 
 /// Return whether one super-type clause should use grouped head layout.
-fn super_type_clause_prefers_group_mode(
+fn should_group_super_type_clause(
     context: &DestackFormatContext<'_>,
     types: &[LocalNodeId<Expression>],
 ) -> bool {
@@ -383,29 +382,12 @@ pub(crate) fn format_let_statement_expression<'ast>(
 
     // export import equals
     let handled_export_import_equals =
-        crate::format::declaration::dependency::format_export_import_equals_statement(
-            f,
-            tree,
-            descriptor,
-            declarators,
-        )?;
+        format_export_import_equals_statement(f, tree, descriptor, declarators)?;
+    if handled_export_import_equals {
+        return Ok(());
+    }
 
-    // keyword header
-    if !handled_export_import_equals {
-        if let Some(export) = descriptor.export {
-            write!(f, [export, space()])?;
-        }
-
-        if descriptor.kind == DeclarationKind::Declaration {
-            write!(f, [Keyword::Declare, space()])?;
-        }
-
-        match kind {
-            LetKind::Let => write!(f, [Keyword::Let])?,
-            LetKind::Var => write!(f, [Keyword::Var])?,
-            LetKind::Const => write!(f, [Keyword::Const])?,
-        }
-
+    let format_declarators = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, declarator_id) in declarators.iter().enumerate() {
             if index > 0 {
                 write!(f, [token(",")])?;
@@ -414,9 +396,30 @@ pub(crate) fn format_let_statement_expression<'ast>(
             write!(f, [space()])?;
             format_declarator(f, tree, *declarator_id)?;
         }
-    }
 
-    Ok(())
+        Ok(())
+    });
+
+    write!(
+        f,
+        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(export) = descriptor.export {
+                write!(f, [export, space()])?;
+            }
+
+            if descriptor.kind == DeclarationKind::Declaration {
+                write!(f, [Keyword::Declare, space()])?;
+            }
+
+            match kind {
+                LetKind::Let => write!(f, [Keyword::Let])?,
+                LetKind::Var => write!(f, [Keyword::Var])?,
+                LetKind::Const => write!(f, [Keyword::Const])?,
+            }
+
+            write!(f, [format_declarators])
+        }))]
+    )
 }
 
 /// Format one `using` statement expression.
@@ -427,32 +430,37 @@ pub(crate) fn format_using_statement_expression<'ast>(
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
+    let format_declarators = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        for (index, declarator_id) in declarators.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(",")])?;
+            }
 
-    // keyword header
-    if let Some(export) = descriptor.export {
-        write!(f, [export, space()])?;
-    }
-
-    if descriptor.kind == DeclarationKind::Declaration {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-
-    if asynchrony == Asynchrony::Async {
-        write!(f, [Keyword::Await, space()])?;
-    }
-
-    write!(f, [Keyword::Using])?;
-
-    for (index, declarator_id) in declarators.iter().enumerate() {
-        if index > 0 {
-            write!(f, [token(",")])?;
+            write!(f, [space()])?;
+            format_declarator(f, tree, *declarator_id)?;
         }
 
-        write!(f, [space()])?;
-        format_declarator(f, tree, *declarator_id)?;
-    }
+        Ok(())
+    });
 
-    Ok(())
+    write!(
+        f,
+        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(export) = descriptor.export {
+                write!(f, [export, space()])?;
+            }
+
+            if descriptor.kind == DeclarationKind::Declaration {
+                write!(f, [Keyword::Declare, space()])?;
+            }
+
+            if asynchrony == Asynchrony::Async {
+                write!(f, [Keyword::Await, space()])?;
+            }
+
+            write!(f, [Keyword::Using, format_declarators])
+        }))]
+    )
 }
 
 /// Format a global augmentation declaration.
@@ -570,10 +578,7 @@ pub(crate) fn format_import_alias_declaration<'ast>(
     }
 
     write!(f, [token(";")])?;
-    write!(
-        f,
-        [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
-    )?;
+    write!(f, [line_suffix_boundary_annotations(f.context(), node_id)])?;
     Ok(())
 }
 
@@ -699,10 +704,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
 
     // type alias declarations need trailing semicolon (like const/let)
     write!(f, [token(";")])?;
-    write!(
-        f,
-        [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
-    )?;
+    write!(f, [line_suffix_boundary_annotations(f.context(), node_id)])?;
 
     Ok(())
 }
@@ -738,13 +740,7 @@ impl<'ast> AstFormatNode<'ast, Declaration> for Declaration {
             Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
         );
         let declaration_expression_id = declaration_expression_id(f.context(), node_id);
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
         let mut declaration_emits_boundary_before_terminator = false;
 
         match self {
@@ -889,15 +885,7 @@ impl<'ast> AstFormatNode<'ast, Declaration> for Declaration {
         }
 
         if !declaration_emits_boundary_before_terminator {
-            write!(
-                f,
-                [
-                    crate::format::annotation::line_postfix_boundary_annotations(
-                        f.context(),
-                        node_id
-                    )
-                ]
-            )?;
+            write!(f, [line_suffix_boundary_annotations(f.context(), node_id)])?;
         }
 
         let should_skip_blank_postfix_annotations =
@@ -919,12 +907,10 @@ impl<'ast> AstFormatNode<'ast, Declaration> for Declaration {
         } else {
             write!(
                 f,
-                [
-                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                        f.context(),
-                        node_id
-                    )
-                ]
+                [postfix_annotations_without_line_suffix_boundary(
+                    f.context(),
+                    node_id
+                )]
             )?;
         }
 
