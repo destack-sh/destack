@@ -1005,9 +1005,8 @@ impl Debug for Parser {
 }
 
 impl Parser {
-    /// Create a new parser from a text File and tokenize it.
-    #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
-    pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
+    /// Create one parser for a file before lexing begins.
+    fn parser_for_file(file: Arc<File>, language: LanguageType) -> Self {
         // initialize the lexer for lazy lexing
         let lexer = Lexer::new(file.clone(), language);
 
@@ -1021,7 +1020,7 @@ impl Parser {
         let mut strings =
             LocalStringPool::with_capacity(estimated_string_count, estimated_string_bytes);
         let type_literal_identifiers = TypeLiteralIdentifiers::new(&mut strings);
-        let mut parser = Self {
+        Self {
             file,
             file_id,
             lexer,
@@ -1046,7 +1045,13 @@ impl Parser {
             timings: timings_from_env(),
             stats: ParserStats::new(speculation_stats_enabled_from_env()),
             state: ParserState::new(estimated_tokens, type_literal_identifiers),
-        };
+        }
+    }
+
+    /// Create a new parser from a text File and tokenize it.
+    #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
+    pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
+        let mut parser = Self::parser_for_file(file, language);
 
         // reset parser state to start
         parser.reset();
@@ -1065,7 +1070,11 @@ impl Parser {
         language: LanguageType,
         settings: ParserSettings,
     ) -> Self {
-        let mut parser = Self::lex_file(file, language);
+        let mut parser = Self::parser_for_file(file, language);
+        parser
+            .lexer
+            .set_retain_trivia_tokens(settings.retain_trivia_tokens);
+        parser.reset();
         parser.apply_settings(settings);
         parser
     }
@@ -1075,8 +1084,15 @@ impl Parser {
     pub fn apply_settings(&mut self, settings: ParserSettings) {
         self.options
             .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
-        self.lexer
-            .set_retain_trivia_tokens(settings.retain_trivia_tokens);
+        if self.lexer.tokens().is_empty() && self.lexer.side_tokens().is_empty() {
+            self.lexer
+                .set_retain_trivia_tokens(settings.retain_trivia_tokens);
+        } else {
+            debug_assert!(
+                self.lexer.retains_trivia_tokens() == settings.retain_trivia_tokens,
+                "trivia retention must be configured before lexing starts"
+            );
+        }
     }
 
     /// Enable or disable parser speculation counters.
