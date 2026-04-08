@@ -1,5 +1,6 @@
+use crate::DestackFormatter;
+use crate::format::annotation::{format_raw_comment, infix_or_postfix_annotations};
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
-use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast as ast;
 use destack_ast::{Expression, Keyword, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
@@ -8,44 +9,6 @@ use destack_fir::prelude::{
     soft_space_or_block_indent, space, token,
 };
 use destack_fir::write;
-
-/// Return whether one mapped type has a newline immediately after `{`.
-fn mapped_type_has_newline_after_opening_brace(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let source = context.span_str(context.span(node_id));
-    let mut iter = source.as_bytes().iter().copied().skip(1).peekable();
-
-    while let Some(byte) = iter.next() {
-        match byte {
-            b'\n' | b'\r' => return true,
-            b' ' | b'\t' => {}
-            b'/' => match iter.peek() {
-                Some(&b'/') => {
-                    iter.next();
-                    return iter.any(|byte| matches!(byte, b'\n' | b'\r'));
-                }
-                Some(&b'*') => {
-                    iter.next();
-                    while let Some(byte) = iter.next() {
-                        if matches!(byte, b'\n' | b'\r') {
-                            return true;
-                        }
-                        if byte == b'*' && matches!(iter.peek(), Some(&b'/')) {
-                            iter.next();
-                            break;
-                        }
-                    }
-                }
-                _ => return false,
-            },
-            _ => return false,
-        }
-    }
-
-    false
-}
 
 /// Write the readonly modifier of one mapped type.
 fn write_mapped_type_readonly_modifier<'ast>(
@@ -106,9 +69,12 @@ fn write_mapped_type_trailing_comments<'ast>(
         return Ok(());
     }
 
-    let comment_nodes = f
-        .context()
-        .comment_nodes_in_range(value_span.end, close_brace_token.span.start);
+    let comment_nodes = {
+        let comments = f.context().comments();
+        comments
+            .comments_in_range(value_span.end, close_brace_token.span.start)
+            .to_vec()
+    };
     if comment_nodes.is_empty() {
         return Ok(());
     }
@@ -119,13 +85,13 @@ fn write_mapped_type_trailing_comments<'ast>(
             write!(f, [hard_line_break()])?;
         }
 
-        write!(f, [comment_id])?;
+        format_raw_comment(f, comment_id)?;
     }
 
     Ok(())
 }
 
-/// Format one mapped type using an OXC-like shell.
+/// Format one mapped type using the standard mapped-type shell.
 pub(crate) fn format_type_mapped_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -139,7 +105,10 @@ pub(crate) fn format_type_mapped_expression<'ast>(
         return Ok(());
     }
 
-    let should_expand = mapped_type_has_newline_after_opening_brace(f.context(), node_id);
+    let should_expand = f
+        .context()
+        .source_text()
+        .has_newline_after_opening_brace(f.context().span(node_id).start);
     let should_insert_space_around_brackets = f.context().options.bracket_spacing;
     let field_terminator = token(";");
 
@@ -149,13 +118,7 @@ pub(crate) fn format_type_mapped_expression<'ast>(
             && (f.context().has_infix_annotation(node_id)
                 || f.context().has_postfix_annotation(node_id))
         {
-            write!(
-                f,
-                [crate::format::annotation::infix_or_postfix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
+            write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
         }
 
         write_mapped_type_readonly_modifier(f, modifiers)?;

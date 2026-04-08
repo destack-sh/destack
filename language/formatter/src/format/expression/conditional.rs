@@ -1,5 +1,7 @@
 use super::write_expression_without_trailing_annotations;
-use crate::format::annotation::write_annotation_sequence_without_trailing_break;
+use crate::format::annotation::{
+    format_raw_comment, write_annotation_sequence_without_trailing_break,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{AnnotationPosition, Comment, Expression, Keyword, LocalNodeId, NodeType};
 use destack_fir::format::{Buffer, FormatResult};
@@ -70,7 +72,7 @@ fn expression_has_inline_block_prefix_annotation(
         })
 }
 
-/// Write trailing raw comments before one operator, following the OXC conditional flow.
+/// Write trailing raw comments before one operator, following the conditional flow.
 fn write_trailing_raw_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     mut start: u32,
@@ -78,10 +80,15 @@ fn write_trailing_raw_comments<'ast>(
     operator: u8,
 ) -> FormatResult<()> {
     let mut comments_before_operator = None;
-    let mut selected_comments = Vec::<LocalNodeId<Comment>>::new();
+    let mut selected_comments = Vec::<Comment>::new();
 
-    for comment_id in f.context().comment_nodes_in_range(start, end) {
-        let comment_span = f.context().span(comment_id);
+    let comment_ids = {
+        let comments = f.context().comments();
+        comments.comments_in_range(start, end).to_vec()
+    };
+
+    for comment_id in comment_ids {
+        let comment_span = comment_id.span;
 
         if f.context()
             .has_newline(Span::new(comment_span.file, start, comment_span.start))
@@ -89,7 +96,7 @@ fn write_trailing_raw_comments<'ast>(
             break;
         }
 
-        if f.context().tree.get(comment_id).style == destack_ast::CommentStyle::Slash
+        if comment_id.is_line()
             || f.context()
                 .span_has_newline_before_next_non_whitespace_token(comment_span)
         {
@@ -114,7 +121,7 @@ fn write_trailing_raw_comments<'ast>(
     };
 
     for comment_id in selected_comments {
-        write!(f, [*comment_id])?;
+        format_raw_comment(f, *comment_id)?;
     }
 
     Ok(())
@@ -156,7 +163,7 @@ impl TypeConditionalLike {
         TypeConditionalLayout::Root
     }
 
-    /// Format one conditional seam postfix annotation list with OXC-style trailing breaks.
+    /// Format one conditional trailing postfix annotation list with trailing breaks.
     fn write_trailing_annotations<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
@@ -189,9 +196,31 @@ impl TypeConditionalLike {
         f: &mut DestackFormatter<'ast, '_>,
         layout: TypeConditionalLayout,
     ) -> FormatResult<()> {
-        let format_inner = format_with(|f| {
-            write!(f, [self.left, space(), Keyword::Extends, space()])?;
-            write_expression_without_trailing_annotations(f, self.right)?;
+        let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let left_needs_parentheses = matches!(
+                f.context().tree.get(self.left),
+                Expression::TypeConditional { .. }
+            );
+            if left_needs_parentheses {
+                write!(f, [token("("), self.left, token(")")])?;
+            } else {
+                write!(f, [self.left])?;
+            }
+
+            write!(f, [space(), Keyword::Extends, space()])?;
+
+            let right_needs_parentheses = matches!(
+                f.context().tree.get(self.right),
+                Expression::TypeConditional { .. }
+            );
+            if right_needs_parentheses {
+                write!(f, [token("(")])?;
+                write_expression_without_trailing_annotations(f, self.right)?;
+                write!(f, [token(")")])?;
+            } else {
+                write_expression_without_trailing_annotations(f, self.right)?;
+            }
+
             let alternate_start = f.context().span(self.then_type).start;
             self.write_trailing_annotations(f, self.right, alternate_start, b'?')
         });
@@ -211,7 +240,29 @@ impl TypeConditionalLike {
     ) -> FormatResult<()> {
         let consequent_has_inline_block_prefix =
             expression_has_inline_block_prefix_annotation(f.context(), self.then_type);
-        let consequent_uses_nested_alternate_block_prefix_adapter =
+        let alternate_has_inline_block_prefix =
+            expression_has_inline_block_prefix_annotation(f.context(), self.else_type);
+
+        write!(f, [soft_line_break_or_space(), token("?")])?;
+        if !consequent_has_inline_block_prefix {
+            write!(f, [space()])?;
+        }
+        self.write_consequent(f, layout, consequent_has_inline_block_prefix)?;
+        write!(f, [soft_line_break_or_space(), token(":")])?;
+        if !alternate_has_inline_block_prefix {
+            write!(f, [space()])?;
+        }
+        self.write_alternate(f)
+    }
+
+    /// Write the consequent side of this conditional.
+    fn write_consequent<'ast>(
+        self,
+        f: &mut DestackFormatter<'ast, '_>,
+        layout: TypeConditionalLayout,
+        consequent_has_inline_block_prefix: bool,
+    ) -> FormatResult<()> {
+        let uses_nested_alternate_block_prefix_adapter =
             consequent_has_inline_block_prefix && layout.is_nested_alternate();
         let format_consequent_with_trailing_comments =
             format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -222,7 +273,7 @@ impl TypeConditionalLike {
 
         let format_consequent_with_indentation =
             format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                if consequent_uses_nested_alternate_block_prefix_adapter {
+                if uses_nested_alternate_block_prefix_adapter {
                     let mut prefix_items = Vec::new();
                     for annotation_id in f.context().annotation_ids(self.then_type).iter().copied()
                     {
@@ -274,51 +325,23 @@ impl TypeConditionalLike {
             Ok(())
         });
 
-        let alternate_has_inline_block_prefix =
-            expression_has_inline_block_prefix_annotation(f.context(), self.else_type);
+        write!(f, [format_consequent])
+    }
+
+    /// Write the alternate side of this conditional.
+    fn write_alternate<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let format_alternate = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_expression_without_trailing_annotations(f, self.else_type)
         });
-        let format_alternate = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if f.context().options.indent_style.is_space() {
-                write!(f, [align(2, &format_alternate)])?;
-            } else {
-                write!(f, [indent(&format_alternate)])?;
-            }
 
-            Ok(())
-        });
-        let consequent_operator_space = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if !consequent_has_inline_block_prefix {
-                write!(f, [space()])?;
-            }
-
-            Ok(())
-        });
-        let alternate_operator_space = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if !alternate_has_inline_block_prefix {
-                write!(f, [space()])?;
-            }
-
-            Ok(())
-        });
-
-        write!(
-            f,
-            [
-                soft_line_break_or_space(),
-                token("?"),
-                consequent_operator_space,
-                format_consequent,
-                soft_line_break_or_space(),
-                token(":"),
-                alternate_operator_space,
-                format_alternate
-            ]
-        )
+        if f.context().options.indent_style.is_space() {
+            write!(f, [align(2, &format_alternate)])
+        } else {
+            write!(f, [indent(&format_alternate)])
+        }
     }
 
-    /// Format this conditional using local layout and seam ownership.
+    /// Format this conditional using local layout and boundary ownership.
     fn fmt<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let layout = self.layout(f.context());
 
@@ -367,7 +390,7 @@ impl TypeConditionalLike {
     }
 }
 
-/// Format one conditional type using an OXC-like conditional utility.
+/// Format one conditional type using the shared conditional utility.
 pub(crate) fn format_type_conditional_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,

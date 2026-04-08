@@ -7,6 +7,7 @@ use super::control::{
 };
 use super::ternary::format_ternary;
 use crate::DestackFormatter;
+use crate::format::annotation::infix_or_postfix_annotations;
 use crate::format::declaration::dependency::format_dependency_statement_expression;
 use crate::format::declaration::{
     format_let_statement_expression, format_using_statement_expression,
@@ -40,10 +41,7 @@ pub(crate) fn write_statement_expression_trailing_annotations<'ast>(
 
     write!(
         f,
-        [crate::format::annotation::infix_or_postfix_annotations(
-            f.context(),
-            expression_id
-        )]
+        [infix_or_postfix_annotations(f.context(), expression_id)]
     )
 }
 

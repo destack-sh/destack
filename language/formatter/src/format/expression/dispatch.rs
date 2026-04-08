@@ -1,6 +1,7 @@
+use crate::format::annotation::{prefix_annotations, prefix_annotations_after_offset};
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::expression::{
-    format_primary_expression, format_statement_expression,
+    format_primary_expression, format_statement_expression, is_type_cast_comment_node,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
 use crate::format::operator::{
@@ -96,6 +97,37 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
             write_operator_expression_trailing_annotations(f, expression_id, expression)
         }
     }
+}
+
+/// Write one expression while skipping raw prefix comments before one offset.
+pub(crate) fn write_expression_with_prefix_annotations_after_offset<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    start_offset: u32,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(expression_id);
+    let is_ignored = node_has_ignore_directive(f.context(), expression_id);
+    let type_cast_node_owns_prefix = matches!(expression, Expression::Parenthesized { .. })
+        && is_type_cast_comment_node(f.context(), expression_id);
+
+    if !operator_expression_owns_prefix_annotations(
+        f.context(),
+        expression_id,
+        expression,
+        is_ignored,
+    ) && !type_cast_node_owns_prefix
+    {
+        write!(
+            f,
+            [prefix_annotations_after_offset(
+                f.context(),
+                expression_id,
+                start_offset
+            )]
+        )?;
+    }
+
+    write_expression_without_prefix_annotations(f, expression_id)
 }
 
 /// Format an expression without prefix and postfix annotations.
@@ -196,17 +228,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     ) -> FormatResult<()> {
         let is_ignored = node_has_ignore_directive(f.context(), node_id);
         let type_cast_node_owns_prefix = matches!(self, Expression::Parenthesized { .. })
-            && crate::format::expression::is_type_cast_comment_node(f.context(), node_id);
+            && is_type_cast_comment_node(f.context(), node_id);
         if !operator_expression_owns_prefix_annotations(f.context(), node_id, self, is_ignored)
             && !type_cast_node_owns_prefix
         {
-            write!(
-                f,
-                [crate::format::annotation::prefix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
+            write!(f, [prefix_annotations(f.context(), node_id)])?;
         }
 
         write_expression_without_prefix_annotations(f, node_id)?;

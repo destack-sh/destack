@@ -141,37 +141,6 @@ fn ternary_chain_has_line_comment(
         .is_some_and(|expression_id| ternary_chain_has_line_comment(context, expression_id))
 }
 
-/// Return whether one ternary chain has parenthesized then or else branches.
-fn ternary_chain_has_parenthesized_branch(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, node_id) else {
-        return false;
-    };
-
-    if matches!(
-        context.tree.get(then_expression),
-        Expression::Parenthesized { .. }
-    ) {
-        return true;
-    }
-
-    let Some(else_expression) = else_expression else {
-        return false;
-    };
-
-    if matches!(
-        context.tree.get(else_expression),
-        Expression::Parenthesized { .. }
-    ) {
-        return true;
-    }
-
-    ternary_parts(context.tree, else_expression)
-        .is_some_and(|_| ternary_chain_has_parenthesized_branch(context, else_expression))
-}
-
 /// Return whether one expression is a ternary expression.
 fn expression_is_ternary(
     context: &DestackFormatContext<'_>,
@@ -237,40 +206,6 @@ fn expression_is_in_braced_tree_child_argument(
     }
 }
 
-/// Return whether one tree-like ternary branch should render without extra wrapping.
-fn tree_like_branch_prefers_no_wrap(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-    ternary_is_in_braced_tree_child_argument: bool,
-) -> bool {
-    if !ternary_branch_is_tree_like(context, expression_id) {
-        return false;
-    }
-
-    if !ternary_is_in_braced_tree_child_argument {
-        return false;
-    }
-
-    let expression_id = transparent_inner_expression(context, expression_id);
-    let Expression::TreeExpression {
-        arguments,
-        elements,
-        ..
-    } = context.tree.get(expression_id)
-    else {
-        return false;
-    };
-
-    let has_arguments = arguments
-        .as_ref()
-        .is_some_and(|arguments| !arguments.is_empty());
-    let has_elements = elements
-        .as_ref()
-        .is_some_and(|elements| !elements.is_empty());
-
-    has_arguments || has_elements
-}
-
 /// Return whether one ternary is the alternate branch of a parent ternary.
 fn ternary_is_nested_alternate(
     context: &DestackFormatContext<'_>,
@@ -308,14 +243,6 @@ fn expression_is_nullish_literal(
     )
 }
 
-/// Return one jsx-chain branch expression id without redundant parenthesized wrappers.
-fn jsx_chain_branch_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    transparent_inner_expression(context, expression_id)
-}
-
 /// Format one branch in a jsx ternary chain.
 fn format_jsx_chain_branch<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -323,15 +250,30 @@ fn format_jsx_chain_branch<'ast>(
     is_alternate: bool,
     ternary_is_in_braced_tree_child_argument: bool,
 ) -> FormatResult<()> {
-    let wrapped_branch_expression_id = jsx_chain_branch_expression(f.context(), expression_id);
+    let branch_expression_id = transparent_inner_expression(f.context(), expression_id);
+    let tree_expression_stays_unwrapped = if ternary_is_in_braced_tree_child_argument {
+        match f.context().tree.get(branch_expression_id) {
+            Expression::TreeExpression {
+                arguments,
+                elements,
+                ..
+            } => {
+                arguments
+                    .as_ref()
+                    .is_some_and(|arguments| !arguments.is_empty())
+                    || elements
+                        .as_ref()
+                        .is_some_and(|elements| !elements.is_empty())
+            }
+            _ => false,
+        }
+    } else {
+        false
+    };
 
-    let no_wrap = expression_is_nullish_literal(f.context(), wrapped_branch_expression_id)
-        || (is_alternate && expression_is_ternary(f.context(), wrapped_branch_expression_id))
-        || tree_like_branch_prefers_no_wrap(
-            f.context(),
-            wrapped_branch_expression_id,
-            ternary_is_in_braced_tree_child_argument,
-        );
+    let no_wrap = expression_is_nullish_literal(f.context(), branch_expression_id)
+        || (is_alternate && expression_is_ternary(f.context(), branch_expression_id))
+        || tree_expression_stays_unwrapped;
 
     if no_wrap {
         write!(f, [expression_id])?;
@@ -342,9 +284,82 @@ fn format_jsx_chain_branch<'ast>(
         f,
         [
             if_group_breaks(&token("(")),
-            soft_block_indent(&wrapped_branch_expression_id),
+            soft_block_indent(&branch_expression_id),
             if_group_breaks(&token(")"))
         ]
+    )?;
+
+    Ok(())
+}
+
+/// Format one standard ternary expression.
+fn write_inline_template_ternary<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    condition: LocalNodeId<Expression>,
+    then_expression: LocalNodeId<Expression>,
+    else_expression: Option<LocalNodeId<Expression>>,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [group(&format_args![
+            condition,
+            space(),
+            token("?"),
+            space(),
+            then_expression,
+            space(),
+            token(":"),
+            space(),
+            else_expression
+        ])]
+    )?;
+
+    Ok(())
+}
+
+/// Return whether one standard ternary should expand.
+fn standard_ternary_should_expand(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    condition: LocalNodeId<Expression>,
+    force_expand: bool,
+) -> bool {
+    force_expand
+        || ternary_chain_has_line_comment(context, node_id)
+        || adjacent_statement_argument_has_leading_comments(context, node_id)
+        || adjacent_statement_argument_has_leading_comments(context, condition)
+}
+
+/// Write one standard ternary tail.
+fn write_standard_ternary_tail<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    then_expression: LocalNodeId<Expression>,
+    else_expression: Option<LocalNodeId<Expression>>,
+) -> FormatResult<()> {
+    let format_then_expression = format_with(|f| {
+        write!(f, [then_expression])?;
+        Ok(())
+    });
+
+    let format_else_expression = format_with(|f| {
+        if let Some(else_expression) = else_expression {
+            write!(f, [else_expression])?;
+        }
+        Ok(())
+    });
+
+    write!(
+        f,
+        [indent(&format_args![
+            soft_line_break_or_space(),
+            token("?"),
+            space(),
+            format_then_expression,
+            soft_line_break_or_space(),
+            token(":"),
+            space(),
+            format_else_expression
+        ])]
     )?;
 
     Ok(())
@@ -364,56 +379,16 @@ fn format_standard_ternary<'ast>(
     };
 
     if keep_inline_template_ternary {
-        write!(
-            f,
-            [group(&format_args![
-                condition,
-                space(),
-                token("?"),
-                space(),
-                then_expression,
-                space(),
-                token(":"),
-                space(),
-                else_expression
-            ])]
-        )?;
-        return Ok(());
+        return write_inline_template_ternary(f, condition, then_expression, else_expression);
     }
 
-    let format_then_expression = format_with(|f| {
-        write!(f, [then_expression])?;
-        Ok(())
-    });
-
-    let format_else_expression = format_with(|f| {
-        if let Some(else_expression) = else_expression {
-            write!(f, [else_expression])?;
-        }
-        Ok(())
-    });
-
     let is_nested_alternate = ternary_is_nested_alternate(f.context(), node_id);
-    let should_expand = force_expand
-        || ternary_chain_has_line_comment(f.context(), node_id)
-        || adjacent_statement_argument_has_leading_comments(f.context(), node_id)
-        || adjacent_statement_argument_has_leading_comments(f.context(), condition);
+    let should_expand =
+        standard_ternary_should_expand(f.context(), node_id, condition, force_expand);
 
     let format_inner = format_with(|f| {
         write!(f, [condition])?;
-        write!(
-            f,
-            [indent(&format_args![
-                soft_line_break_or_space(),
-                token("?"),
-                space(),
-                format_then_expression,
-                soft_line_break_or_space(),
-                token(":"),
-                space(),
-                format_else_expression
-            ])]
-        )?;
+        write_standard_ternary_tail(f, then_expression, else_expression)?;
         Ok(())
     });
 
@@ -460,8 +435,7 @@ fn format_jsx_chain_ternary<'ast>(
     };
 
     let should_expand = ternary_chain_has_line_comment(f.context(), node_id)
-        || f.context().node_has_newline(node_id)
-        || ternary_chain_has_parenthesized_branch(f.context(), node_id);
+        || f.context().node_has_newline(node_id);
     let ternary_is_in_braced_tree_child_argument =
         expression_is_in_braced_tree_child_argument(f.context(), node_id);
     write!(

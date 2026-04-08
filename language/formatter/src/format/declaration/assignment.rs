@@ -1,31 +1,30 @@
-use crate::format::chain::transparent_inner_expression;
+use crate::format::annotation::{format_raw_comment, prefix_annotations};
+use crate::format::chain::{MemberChain, transparent_inner_expression};
 use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::{
     default_static_parameter_trailing_separator, write_static_parameter_list,
 };
 use crate::format::expression::expression_has_static_type_arguments;
 use crate::format::operator::{
-    expression_has_type_grouping_semantics, format_binary_expression,
-    normalize_parenthesized_type_grouping_inner_expression,
+    expression_has_type_grouping_semantics, format_binary_expression, format_static_argument_list,
     should_drop_parenthesized_type_expression, transparent_type_binary_root_expression,
-    type_union_prefers_inline_assignment_seam, union_has_trailing_own_line_doc_prefix_annotation,
-    write_type_expression_with_inline_prefix_annotations,
+    union_has_trailing_own_line_doc_comment, write_type_expression_with_inline_prefix_annotations,
     write_type_expression_without_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter, ExpressionFormatRole};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Keyword,
-    LocalNodeId, Mutability, Parameter, TypeKind,
+    Argument, BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
+    Keyword, LocalNodeId, Mutability, Parameter, ScalarLiteral, TypeKind,
 };
 use destack_fir::format::{
-    FormatNode as FirFormatNode, FormatResult, Formatter as FirFormatter, LineMode, VecBuffer,
+    FormatNode, FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer,
 };
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 const MIN_OVERLAP_FOR_BREAK: u32 = 3;
 
-/// One OXC-style assignment-like layout for type aliases.
+/// One assignment-like layout for type aliases.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TypeAliasLayout {
     Fluid,
@@ -34,55 +33,212 @@ enum TypeAliasLayout {
     BreakLeftHandSide,
 }
 
-/// Return whether buffered format nodes may directly break.
-fn buffered_nodes_will_break(nodes: &[FirFormatNode]) -> bool {
-    nodes.iter().any(|node| match node {
-        FirFormatNode::Line(LineMode::Hard | LineMode::Empty) => true,
-        FirFormatNode::Token { text } => text.contains('\n'),
-        FirFormatNode::Text { width, .. } | FirFormatNode::FileSlice { width, .. } => {
-            width.width().is_none()
-        }
-        FirFormatNode::Interned(interned) => buffered_nodes_will_break(interned),
-        FirFormatNode::BestFitting { variants, .. } => {
-            buffered_nodes_will_break(variants.as_slice())
-        }
-        _ => false,
-    })
+/// Return whether one argument expression is short enough to keep a call attached.
+fn is_short_argument(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    threshold: u32,
+) -> bool {
+    let argument_expression_id = match context.tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+        Argument::Error => return false,
+    };
+
+    is_short_expression(context, argument_expression_id, threshold)
 }
 
-/// Return the single-line width of one buffered node list when all parts are measurable.
-fn buffered_nodes_single_line_width(nodes: &[FirFormatNode]) -> Option<u32> {
-    let mut width = 0u32;
+/// Return whether one expression is short enough to keep a call attached.
+fn is_short_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    threshold: u32,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
 
-    for node in nodes {
-        match node {
-            FirFormatNode::Space => width = width.saturating_add(1),
-            FirFormatNode::Token { text } => width = width.saturating_add(text.len() as u32),
-            FirFormatNode::Text {
-                width: text_width, ..
-            }
-            | FirFormatNode::FileSlice {
-                width: text_width, ..
+    match context.tree.get(expression_id) {
+        Expression::Identifier { name } => context.strings.get(*name).len() <= threshold as usize,
+        Expression::Unary { right, .. } => is_short_expression(context, *right, threshold),
+        Expression::ScalarLiteral(
+            ScalarLiteral::Boolean(_)
+            | ScalarLiteral::Integer(_)
+            | ScalarLiteral::Bigint(_)
+            | ScalarLiteral::Float(_),
+        )
+        | Expression::This => true,
+        Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+            context.strings.get(*string_id).len() <= threshold as usize
+        }
+        Expression::ScalarLiteral(ScalarLiteral::RegexString { content, .. }) => {
+            context.strings.get(*content).len() <= threshold as usize
+        }
+        Expression::TemplateExpression { .. } => !context.node_has_newline(expression_id),
+        Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } => {
+            dynamic_arguments.is_empty()
+                && matches!(
+                    context.tree.get(transparent_inner_expression(context, *left)),
+                    Expression::Identifier { name }
+                        if context.strings.get(*name).len()
+                            <= threshold.saturating_sub(2) as usize
+                )
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one static argument list is complex enough to break a call chain.
+fn is_complex_type_arguments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    if static_arguments.len() > 1 {
+        return true;
+    }
+
+    let Some(argument_id) = static_arguments.first().copied() else {
+        return false;
+    };
+    let argument_expression_id = match f.context().tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+        Argument::Error => return false,
+    };
+    let argument_expression_id = transparent_inner_expression(f.context(), argument_expression_id);
+
+    if matches!(
+        f.context().tree.get(argument_expression_id),
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+            ..
+        } | Expression::TypeLiteral(_)
+            | Expression::TypeMapped { .. }
+    ) {
+        return true;
+    }
+
+    let mut buffer = VecBuffer::new(f.state_mut());
+    let formatter = &mut FirFormatter::new(&mut buffer);
+    if format_static_argument_list(formatter, static_arguments).is_err() {
+        return true;
+    }
+
+    buffer.into_vec().as_slice().will_break()
+}
+
+/// Return whether one call or member chain is awkward to break inside an assignment shell.
+pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let threshold = u32::from(f.context().options.line_width) / 4;
+    let root_expression_id = transparent_inner_expression(f.context(), expression_id);
+    let mut current_expression_id = root_expression_id;
+    let mut is_chain = false;
+    let mut has_simple_head = false;
+    let mut call_expression_ids = Vec::new();
+    let mut call_static_argument_groups = Vec::<Vec<LocalNodeId<Argument>>>::new();
+
+    loop {
+        current_expression_id = match f.context().tree.get(current_expression_id) {
+            Expression::Call {
+                left,
+                static_arguments,
+                ..
             } => {
-                width = width.saturating_add(text_width.width()?.value());
+                is_chain = true;
+                call_expression_ids.push(current_expression_id);
+                call_static_argument_groups.push(static_arguments.clone().unwrap_or_default());
+                transparent_inner_expression(f.context(), *left)
             }
-            FirFormatNode::Interned(interned) => {
-                width = width.saturating_add(buffered_nodes_single_line_width(interned)?);
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                is_chain = true;
+                if is_complex_type_arguments(f, static_arguments) {
+                    return false;
+                }
+
+                transparent_inner_expression(f.context(), *left)
             }
-            FirFormatNode::BestFitting { variants, .. } => {
-                width =
-                    width.saturating_add(buffered_nodes_single_line_width(variants.as_slice())?);
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. } => {
+                is_chain = true;
+                transparent_inner_expression(f.context(), *left)
             }
-            FirFormatNode::Line(LineMode::SoftOrSpace) => width = width.saturating_add(1),
-            FirFormatNode::Line(_)
-            | FirFormatNode::ExpandParent
-            | FirFormatNode::SourcePosition { .. }
-            | FirFormatNode::LinePostfixBoundary
-            | FirFormatNode::Tag(_) => return None,
+            Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
+                is_chain = true;
+                transparent_inner_expression(f.context(), *left)
+            }
+            Expression::Identifier { .. } | Expression::This => {
+                has_simple_head = true;
+                break;
+            }
+            _ => break,
+        };
+    }
+
+    if !is_chain || !has_simple_head {
+        return false;
+    }
+
+    if f.context()
+        .comments()
+        .has_comment_in_span(f.context().span(root_expression_id))
+    {
+        return false;
+    }
+
+    if call_expression_ids.is_empty() {
+        return true;
+    }
+
+    if f.context()
+        .comments()
+        .has_comment_in_span(f.context().span(call_expression_ids[0]))
+    {
+        return false;
+    }
+
+    for (index, call_expression_id) in call_expression_ids.iter().copied().enumerate() {
+        let Expression::Call {
+            dynamic_arguments, ..
+        } = f.context().tree.get(call_expression_id)
+        else {
+            continue;
+        };
+
+        let is_breakable_call = match dynamic_arguments.len() {
+            0 => false,
+            1 => {
+                let argument_id = dynamic_arguments[0];
+                !is_short_argument(f.context(), argument_id, threshold)
+            }
+            _ => true,
+        };
+        if is_breakable_call {
+            return false;
+        }
+
+        if let Some(static_arguments) = call_static_argument_groups.get(index)
+            && is_complex_type_arguments(f, static_arguments)
+        {
+            return false;
         }
     }
 
-    Some(width)
+    MemberChain::tail_group_count(f.context(), root_expression_id)
+        .map(|count| count <= 1)
+        .unwrap_or(true)
 }
 
 /// One assignment-like helper for type alias declarations.
@@ -102,12 +258,12 @@ struct TypeAliasAssignmentLike<'a> {
 }
 
 impl<'a> TypeAliasAssignmentLike<'a> {
-    /// Return whether rhs comments should stay leading on the type body, like OXC.
+    /// Return whether rhs comments should stay leading on the type body.
     fn should_print_rhs_comments_as_leading(&self, context: &DestackFormatContext<'_>) -> bool {
         matches!(context.tree.get(self.value_id), Expression::TypeLiteral(_))
     }
 
-    /// Return the raw source offset where left-trailing seam comments begin.
+    /// Return the raw source offset where left-trailing boundary comments begin.
     fn left_trailing_comment_start(&self, context: &DestackFormatContext<'_>) -> Option<u32> {
         if let Some(static_parameters) = self.static_parameters
             && let Some(last_parameter_id) = static_parameters.last().copied()
@@ -127,13 +283,13 @@ impl<'a> TypeAliasAssignmentLike<'a> {
     fn buffer_left<'ast>(
         &self,
         f: &mut DestackFormatter<'ast, '_>,
-    ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+    ) -> FormatResult<(Vec<FormatNode>, bool, bool)> {
         let mut buffer = VecBuffer::new(f.state_mut());
         self.write_left(&mut FirFormatter::new(&mut buffer))?;
 
         let nodes = buffer.into_vec();
-        let may_break = buffered_nodes_will_break(&nodes);
-        let is_short = buffered_nodes_single_line_width(&nodes).is_some_and(|width| {
+        let may_break = nodes.may_directly_break();
+        let is_short = nodes.single_line_width().is_some_and(|width| {
             width < (u32::from(f.context().options.indent_width) + MIN_OVERLAP_FOR_BREAK)
         });
 
@@ -145,7 +301,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         &self,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // type literals keep leading comments on the right side, like OXC
+        // type literals keep leading comments on the right side
         if self.should_print_rhs_comments_as_leading(f.context()) {
             return Ok(());
         }
@@ -154,20 +310,23 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             return Ok(());
         };
 
-        let end_of_line_comments = f.context().end_of_line_comment_nodes_after(start);
+        let end_of_line_comments = f.context().end_of_line_raw_comments_after(start);
         let comment_nodes = if end_of_line_comments.is_empty() {
-            let comment_nodes = f.context().comment_nodes_before_character(start, b'=');
-            if comment_nodes.iter().any(|comment_id| {
-                f.context()
-                    .span_starts_on_own_line(f.context().span(*comment_id))
-            }) {
+            let comment_nodes = {
+                let comments = f.context().comments();
+                comments.comments_before_character(start, b'=').to_vec()
+            };
+            if comment_nodes
+                .iter()
+                .any(|comment_id| f.context().span_starts_on_own_line(comment_id.span))
+            {
                 Vec::new()
             } else {
                 comment_nodes
             }
         } else if end_of_line_comments
             .last()
-            .is_some_and(|comment_id| f.context().tree.get(*comment_id).style == CommentStyle::Star)
+            .is_some_and(|comment| comment.is_block())
         {
             Vec::new()
         } else {
@@ -178,19 +337,18 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         }
 
         for comment_id in &comment_nodes {
-            let comment_span = f.context().span(*comment_id);
+            let comment_span = comment_id.span;
             if f.context().span_starts_on_own_line(comment_span) {
-                write!(f, [hard_line_break(), *comment_id])?;
+                write!(f, [hard_line_break()])?;
+                format_raw_comment(f, *comment_id)?;
             } else {
-                write!(f, [space(), *comment_id])?;
+                write!(f, [space()])?;
+                format_raw_comment(f, *comment_id)?;
             }
         }
 
         // slash comments own the rest of the line before the operator
-        if comment_nodes
-            .iter()
-            .any(|comment_id| f.context().tree.get(*comment_id).style == CommentStyle::Slash)
-        {
+        if comment_nodes.iter().any(|comment_id| comment_id.is_line()) {
             write!(f, [hard_line_break()])?;
         }
 
@@ -228,13 +386,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
                 static_parameters,
                 default_static_parameter_trailing_separator(f),
             )?;
-            write!(
-                f,
-                [crate::format::annotation::prefix_annotations(
-                    f.context(),
-                    self.node_id
-                )]
-            )?;
+            write!(f, [prefix_annotations(f.context(), self.node_id)])?;
         }
 
         // left trailing comments
@@ -243,7 +395,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         Ok(())
     }
 
-    /// Write the operator seam of the type alias.
+    /// Write the operator boundary of the type alias.
     fn write_operator<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [space(), token("=")])
     }
@@ -304,9 +456,9 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         _is_left_short: bool,
     ) -> bool {
         let value_span = context.span(self.value_id);
-        let has_leading_comments = context.has_comments_before(value_span.start);
+        let has_leading_comments = !context.comment_tokens_before(value_span.start).is_empty();
         let has_union_leading_doc_head =
-            union_has_trailing_own_line_doc_prefix_annotation(context, self.value_id);
+            union_has_trailing_own_line_doc_comment(context, self.value_id);
         let transparent_type_binary_root = [
             destack_ast::BinaryOperator::ElementwiseOr,
             destack_ast::BinaryOperator::ElementwiseAnd,
@@ -351,10 +503,6 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             return true;
         }
 
-        if type_union_prefers_inline_assignment_seam(context, self.value_id) {
-            return true;
-        }
-
         matches!(context.tree.get(self.value_id), Expression::TypeLiteral(_))
     }
 
@@ -380,19 +528,22 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         TypeAliasLayout::Fluid
     }
 
-    /// Write the rhs of the type alias for one assignment-like layout.
-    fn write_right<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let normalized_binary_value_id = [
+    /// Return the normalized rhs expression id for one type alias value.
+    fn normalized_right_value_id(
+        &self,
+        context: &DestackFormatContext<'_>,
+    ) -> Option<LocalNodeId<Expression>> {
+        [
             destack_ast::BinaryOperator::ElementwiseOr,
             destack_ast::BinaryOperator::ElementwiseAnd,
         ]
         .into_iter()
         .find_map(|operator| {
             let normalized_root_id =
-                transparent_type_binary_root_expression(f.context(), self.value_id, operator);
+                transparent_type_binary_root_expression(context, self.value_id, operator);
 
             matches!(
-                f.context().tree.get(normalized_root_id),
+                context.tree.get(normalized_root_id),
                 Expression::Binary {
                     operator: root_operator,
                     ..
@@ -400,26 +551,23 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             )
             .then_some(normalized_root_id)
         })
-        .or_else(|| match f.context().tree.get(self.value_id) {
+        .or_else(|| match context.tree.get(self.value_id) {
             Expression::Parenthesized { expression } => {
-                let normalized_inner_id = normalize_parenthesized_type_grouping_inner_expression(
-                    f.context(),
-                    *expression,
-                );
+                let normalized_inner_id = transparent_inner_expression(context, *expression);
                 let should_route_through_type_binary_owner = matches!(
-                    f.context().tree.get(normalized_inner_id),
+                    context.tree.get(normalized_inner_id),
                     Expression::Binary {
                         operator: destack_ast::BinaryOperator::ElementwiseOr
                             | destack_ast::BinaryOperator::ElementwiseAnd,
                         ..
                     }
                 )
-                    && expression_has_type_grouping_semantics(f.context(), normalized_inner_id);
+                    && expression_has_type_grouping_semantics(context, normalized_inner_id);
 
                 if should_route_through_type_binary_owner {
                     Some(normalized_inner_id)
                 } else if should_drop_parenthesized_type_expression(
-                    f.context(),
+                    context,
                     self.value_id,
                     *expression,
                 ) {
@@ -429,27 +577,42 @@ impl<'a> TypeAliasAssignmentLike<'a> {
                 }
             }
             _ => None,
-        });
+        })
+    }
 
-        if let Some(normalized_binary_value_id) = normalized_binary_value_id
-            && let Expression::Binary {
-                left,
-                operator:
-                    operator @ (destack_ast::BinaryOperator::ElementwiseOr
-                    | destack_ast::BinaryOperator::ElementwiseAnd),
-                right,
-            } = f.context().tree.get(normalized_binary_value_id)
-        {
-            let context = f.context().clone();
-            return context.with_expression_format_role_root(
-                self.value_id,
-                ExpressionFormatRole::Type,
-                || format_binary_expression(f, self.value_id, *left, operator, *right),
-            );
-        }
+    /// Write the rhs through the shared binary owner when the value is one type binary.
+    fn write_binary_right<'ast>(
+        &self,
+        f: &mut DestackFormatter<'ast, '_>,
+        normalized_value_id: LocalNodeId<Expression>,
+    ) -> FormatResult<bool> {
+        let Expression::Binary {
+            left,
+            operator:
+                operator @ (destack_ast::BinaryOperator::ElementwiseOr
+                | destack_ast::BinaryOperator::ElementwiseAnd),
+            right,
+        } = f.context().tree.get(normalized_value_id)
+        else {
+            return Ok(false);
+        };
 
-        let value_id = normalized_binary_value_id.unwrap_or(self.value_id);
+        let context = f.context().clone();
+        context.with_assignment_like_type_root(self.value_id, || {
+            context.with_type_expression_root(self.value_id, || {
+                format_binary_expression(f, self.value_id, *left, operator, *right)
+            })
+        })?;
 
+        Ok(true)
+    }
+
+    /// Write the rhs with inline prefix annotations when possible.
+    fn write_non_binary_right<'ast>(
+        &self,
+        f: &mut DestackFormatter<'ast, '_>,
+        value_id: LocalNodeId<Expression>,
+    ) -> FormatResult<()> {
         let has_inline_prefix_annotation = f
             .context()
             .annotation_ids(value_id)
@@ -467,13 +630,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             return write_type_expression_with_inline_prefix_annotations(f, value_id);
         }
 
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                value_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), value_id)])?;
 
         let last_prefix_annotation_id = f
             .context()
@@ -499,6 +656,69 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         write_type_expression_without_prefix_annotations(f, value_id)
     }
 
+    /// Write the rhs of the type alias for one assignment-like layout.
+    fn write_right<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let normalized_value_id = self.normalized_right_value_id(f.context());
+
+        if let Some(normalized_value_id) = normalized_value_id
+            && self.write_binary_right(f, normalized_value_id)?
+        {
+            return Ok(());
+        }
+
+        self.write_non_binary_right(f, normalized_value_id.unwrap_or(self.value_id))
+    }
+
+    /// Write the rhs with the selected assignment-like layout.
+    fn write_layout_right<'ast>(
+        &self,
+        f: &mut DestackFormatter<'ast, '_>,
+        layout: TypeAliasLayout,
+        right: &impl destack_fir::format::Format<DestackFormatContext<'ast>>,
+    ) -> FormatResult<()> {
+        match layout {
+            TypeAliasLayout::Fluid => {
+                let group_id = f.group_id("type_alias_rhs");
+
+                write!(
+                    f,
+                    [
+                        group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
+                        line_suffix_boundary(),
+                        indent_if_group_breaks(right, group_id)
+                    ]
+                )
+            }
+            TypeAliasLayout::BreakAfterOperator => {
+                write!(f, [group(&soft_line_indent_or_space(right))])
+            }
+            TypeAliasLayout::NeverBreakAfterOperator => {
+                write!(f, [space(), right])
+            }
+            TypeAliasLayout::BreakLeftHandSide => {
+                write!(f, [space(), group(right)])
+            }
+        }
+    }
+
+    /// Write the full assignment-like content for one selected layout.
+    fn write_content<'ast>(
+        &self,
+        f: &mut DestackFormatter<'ast, '_>,
+        layout: TypeAliasLayout,
+        left: &impl destack_fir::format::Format<DestackFormatContext<'ast>>,
+        right: &impl destack_fir::format::Format<DestackFormatContext<'ast>>,
+    ) -> FormatResult<()> {
+        if layout == TypeAliasLayout::BreakLeftHandSide {
+            write!(f, [left])?;
+        } else {
+            write!(f, [group(left)])?;
+        }
+
+        self.write_operator(f)?;
+        self.write_layout_right(f, layout, right)
+    }
+
     /// Format the full assignment-like type alias shell.
     fn fmt<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         // lhs buffering
@@ -516,37 +736,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         });
         let right = format_with(|f: &mut DestackFormatter<'ast, '_>| self.write_right(f));
         let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if layout == TypeAliasLayout::BreakLeftHandSide {
-                write!(f, [left])?;
-            } else {
-                write!(f, [group(&left)])?;
-            }
-
-            self.write_operator(f)?;
-
-            match layout {
-                TypeAliasLayout::Fluid => {
-                    let group_id = f.group_id("type_alias_rhs");
-
-                    write!(
-                        f,
-                        [
-                            group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
-                            line_postfix_boundary(),
-                            indent_if_group_breaks(&right, group_id)
-                        ]
-                    )
-                }
-                TypeAliasLayout::BreakAfterOperator => {
-                    write!(f, [group(&soft_line_indent_or_space(&right))])
-                }
-                TypeAliasLayout::NeverBreakAfterOperator => {
-                    write!(f, [space(), right])
-                }
-                TypeAliasLayout::BreakLeftHandSide => {
-                    write!(f, [space(), group(&right)])
-                }
-            }
+            self.write_content(f, layout, &left, &right)
         });
 
         write!(f, [group(&inner_content)])
