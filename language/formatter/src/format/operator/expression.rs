@@ -1,79 +1,30 @@
+use crate::format::annotation::{
+    format_raw_comment, infix_or_postfix_annotations, postfix_annotations,
+};
 use crate::format::call::{
-    format_call_arguments, format_call_expression, format_instantiation_expression,
+    call_should_route_to_chain, format_call_expression, format_instantiation_expression,
+    format_new_expression,
 };
-use crate::format::chain::{
-    call_has_parenthesized_await_member_receiver, extract_parenthesized_index_chain,
-    format_expression_chain, format_maybe_expression, has_chain_parent, is_expression_chain,
-};
+use crate::format::chain::{format_expression_chain, format_maybe_expression};
 use crate::format::expression::{
     expression_has_leading_prefix_comment, format_index_expression, format_member_expression,
-    format_static_argument_list, member_expression_has_optional_chain,
-    member_object_prefers_new_callee_parentheses,
 };
 use crate::format::operator::assign::format_assign_expression;
 use crate::format::operator::binary::format_binary_expression;
 use crate::format::operator::needs_parens_in_postfix_position;
-use crate::format::operator::types::format_type_binary_expression;
+use crate::format::operator::types::{
+    expression_uses_angle_assertion_syntax, format_type_binary_expression,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, CommentStyle, Expression, LocalNodeId, Mutability, PostfixPosition,
-    TokenType, TypeUnaryOperator, UnaryOperator,
+    Comment, CommentKind, Expression, LocalNodeId, Mutability, PostfixPosition, TypeUnaryOperator,
+    UnaryOperator,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
-use destack_fir::prelude::{format_with, hard_line_break, soft_block_indent, space, token};
+use destack_fir::prelude::{hard_line_break, soft_block_indent, space, token};
 use destack_fir::write;
 
-/// Return whether a member object is simple enough for `new a.b()` style callee formatting.
-fn is_simple_new_member_object(
-    tree: &destack_ast::NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    match tree.get(expression_id) {
-        Expression::Identifier { .. }
-        | Expression::QualifiedReference { .. }
-        | Expression::This
-        | Expression::Super
-        | Expression::PrivateIdentifier { .. } => true,
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            is_simple_new_member_object(tree, *left)
-        }
-        Expression::Parenthesized { expression } => is_simple_new_member_object(tree, *expression),
-        _ => false,
-    }
-}
-
-/// Decide whether `new (<member>)()` can unwrap outer parentheses.
-fn should_unwrap_parenthesized_new_member_callee(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
-        return false;
-    }
-
-    if crate::format::expression::parenthesized_has_leading_inner_trivia(
-        context,
-        parenthesized_id,
-        inner_expression_id,
-    ) {
-        return false;
-    }
-
-    match context.tree.get(inner_expression_id) {
-        Expression::Identifier { .. } | Expression::QualifiedReference { .. } => true,
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            if member_expression_has_optional_chain(context, inner_expression_id) {
-                return false;
-            }
-
-            is_simple_new_member_object(context.tree, *left)
-        }
-        _ => false,
-    }
-}
-
-/// Return whether one operator expression serializes infix seams as postfix-only annotations.
+/// Return whether one operator expression serializes infix annotations as postfix-only annotations.
 pub(crate) fn operator_expression_uses_postfix_only_annotations(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
@@ -108,101 +59,23 @@ pub(crate) fn write_operator_expression_trailing_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
-    // postfix-style operator seams own their infix serialization locally
+    // postfix-style operator expressions own their infix serialization locally
     if operator_expression_uses_postfix_only_annotations(f.context(), expression_id, expression) {
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                expression_id
-            )]
-        )?;
+        write!(f, [postfix_annotations(f.context(), expression_id)])?;
         return Ok(());
     }
 
     write!(
         f,
-        [crate::format::annotation::infix_or_postfix_annotations(
-            f.context(),
-            expression_id
-        )]
+        [infix_or_postfix_annotations(f.context(), expression_id)]
     )
-}
-
-/// Format a `new` expression.
-pub(crate) fn format_new_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
-    static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-
-    // unwrap redundant parenthesized member callees
-    let mut left = left;
-    if let Expression::Parenthesized { expression } = tree.get(left)
-        && should_unwrap_parenthesized_new_member_callee(f.context(), left, *expression)
-    {
-        left = *expression;
-    }
-
-    // preserve parenthesized index chains like `(foo[bar])`
-    if let Some((base_expression, indices)) =
-        extract_parenthesized_index_chain(f.context().tree, left)
-    {
-        let formatted_left = format_with(move |f| {
-            write!(f, [token("("), base_expression])?;
-            for index in &indices {
-                write!(f, [token("["), *index, token("]")])?;
-            }
-            write!(f, [token(")")])
-        });
-
-        write!(f, [token("new"), space(), formatted_left])?;
-    }
-    // otherwise use regular member-callee wrapping rules
-    else {
-        let should_wrap_member_callee = matches!(
-            tree.get(left),
-            Expression::Member {
-                left: member_left,
-                ..
-            } | Expression::PrivateMember {
-                left: member_left,
-                ..
-            } if member_object_prefers_new_callee_parentheses(
-                f.context(),
-                *member_left
-            )
-        );
-
-        // keep wrapped member callee when required
-        if should_wrap_member_callee {
-            write!(f, [token("new"), space(), token("("), left, token(")")])?;
-        }
-        // otherwise write regular new callee
-        else {
-            write!(f, [token("new"), space(), left])?;
-        }
-    }
-
-    // write static type arguments
-    if let Some(static_arguments) = static_arguments {
-        format_static_argument_list(f, static_arguments)?;
-    }
-
-    // write dynamic argument list
-    format_call_arguments(f, node_id, dynamic_arguments)?;
-
-    Ok(())
 }
 
 /// Collect block infix comment nodes for one type unary expression node.
 fn type_unary_infix_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-) -> Vec<(CommentStyle, bool, LocalNodeId<Comment>)> {
+) -> Vec<(CommentKind, bool, Comment)> {
     let Expression::TypeUnary { right, .. } = context.tree.get(node_id) else {
         return Vec::new();
     };
@@ -214,21 +87,22 @@ fn type_unary_infix_comments(
     }
 
     context
-        .comment_nodes_in_range(right_span.end, node_span.end)
-        .into_iter()
-        .map(|comment_id| {
-            let comment = context.tree.get(comment_id);
-            let comment_span = context.span(comment_id);
+        .comments()
+        .comments_in_range(right_span.end, node_span.end)
+        .iter()
+        .copied()
+        .map(|comment| {
+            let comment_span = comment.span;
             (
-                comment.style,
+                comment.kind,
                 context.span_has_newline_before_next_non_whitespace_token(comment_span),
-                comment_id,
+                comment,
             )
         })
         .collect()
 }
 
-/// Write a type-unary `as <keyword>` suffix with infix comment seams.
+/// Write a type-unary `as <keyword>` suffix with infix comments.
 fn write_type_unary_as_keyword_with_infix_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -240,56 +114,30 @@ fn write_type_unary_as_keyword_with_infix_comments<'ast>(
         return Ok(());
     }
 
-    if infix_comments.len() == 1
-        && infix_comments[0].0 == CommentStyle::Slash
-        && !infix_comments[0].1
+    if infix_comments.len() == 1 && infix_comments[0].0 == CommentKind::Line && !infix_comments[0].1
     {
-        write!(
-            f,
-            [
-                space(),
-                infix_comments[0].2,
-                hard_line_break(),
-                token(keyword)
-            ]
-        )?;
+        write!(f, [space()])?;
+        format_raw_comment(f, infix_comments[0].2)?;
+        write!(f, [hard_line_break(), token(keyword)])?;
         return Ok(());
     }
 
-    if infix_comments.len() == 1
-        && infix_comments[0].0 == CommentStyle::Star
-        && !infix_comments[0].1
+    if infix_comments.len() == 1 && infix_comments[0].0 != CommentKind::Line && !infix_comments[0].1
     {
-        write!(f, [space(), infix_comments[0].2, space(), token(keyword)])?;
+        write!(f, [space()])?;
+        format_raw_comment(f, infix_comments[0].2)?;
+        write!(f, [space(), token(keyword)])?;
         return Ok(());
     }
 
     write!(f, [hard_line_break()])?;
-    for (comment_index, (_, _, comment_id)) in infix_comments.iter().enumerate() {
+    for (comment_index, (_, _, comment)) in infix_comments.iter().enumerate() {
         if comment_index > 0 {
             write!(f, [hard_line_break()])?;
         }
-        write!(f, [*comment_id])?;
+        format_raw_comment(f, *comment)?;
     }
     write!(f, [hard_line_break(), token(keyword)])
-}
-
-/// Return whether this type-unary node should keep TypeScript angle assertion syntax.
-fn type_unary_prefers_angle_assertion_syntax(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    if context.options.language_type.supports_jsx() {
-        return false;
-    }
-
-    let Some(main_span) = context.tree.get_main_span(node_id) else {
-        return false;
-    };
-
-    context
-        .first_non_trivia_token_in_span(main_span)
-        .is_some_and(|token| token.token.ty == TokenType::LessThan)
 }
 
 /// Format operator and chain expression variants.
@@ -366,7 +214,7 @@ pub(crate) fn format_operator_expression<'ast>(
                 write!(f, [operator, space(), right])?;
             }
             TypeUnaryOperator::AsConst => {
-                if type_unary_prefers_angle_assertion_syntax(f.context(), node_id) {
+                if expression_uses_angle_assertion_syntax(f.context(), node_id, false) {
                     write!(f, [token("<const>"), right])?;
                     return Ok(true);
                 }
@@ -456,12 +304,12 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // member
         Expression::Member { .. } | Expression::PrivateMember { .. } => {
-            format_member_or_chain_expression(f, node_id)?;
+            format_member_expression(f, node_id)?;
         }
 
         // index
         Expression::Index { .. } => {
-            format_index_or_chain_expression(f, node_id)?;
+            format_index_expression(f, node_id)?;
         }
 
         // call
@@ -471,7 +319,7 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // instantiation
         Expression::Instantiation { .. } => {
-            format_instantiation_or_chain_expression(f, node_id)?;
+            format_instantiation_expression(f, node_id)?;
         }
 
         // new
@@ -490,12 +338,12 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // maybe
         Expression::Maybe { .. } => {
-            format_maybe_or_chain_expression(f, node_id)?;
+            format_maybe_expression(f, node_id)?;
         }
 
         // must
         Expression::Must { position, left } => {
-            format_must_or_chain_expression(f, node_id, *position, *left)?;
+            format_must_expression(f, *position, *left)?;
         }
 
         // binary
@@ -546,43 +394,23 @@ pub(crate) fn format_operator_expression<'ast>(
     Ok(true)
 }
 
-/// Format a member expression or route to chain formatting.
-fn format_member_or_chain_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id) {
-        format_expression_chain(f, node_id)?;
-    } else {
-        format_member_expression(f, node_id)?;
-    }
-
-    Ok(())
-}
-
-/// Format an index expression or route to chain formatting.
-fn format_index_or_chain_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id) {
-        format_expression_chain(f, node_id)?;
-    } else {
-        format_index_expression(f, node_id)?;
-    }
-
-    Ok(())
-}
-
 /// Format a call expression or route to chain formatting.
 fn format_call_or_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let call_has_await_wrapped_member_receiver =
-        call_has_parenthesized_await_member_receiver(f.context(), node_id);
+    let Expression::Call {
+        left,
+        dynamic_arguments,
+        ..
+    } = f.context().tree.get(node_id)
+    else {
+        debug_assert!(false, "unexpected expression kind for call-chain routing");
+        return Ok(());
+    };
+
     let should_route_to_chain =
-        is_expression_chain(f.context().tree, node_id) && !call_has_await_wrapped_member_receiver;
+        call_should_route_to_chain(f.context(), node_id, *left, dynamic_arguments);
     if should_route_to_chain {
         format_expression_chain(f, node_id)?;
     } else {
@@ -592,55 +420,22 @@ fn format_call_or_chain_expression<'ast>(
     Ok(())
 }
 
-/// Format an instantiation expression or route to chain formatting.
-fn format_instantiation_or_chain_expression<'ast>(
+/// Format a must expression without chain routing.
+fn format_must_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id) && has_chain_parent(f.context(), node_id) {
-        format_expression_chain(f, node_id)?;
-    } else {
-        format_instantiation_expression(f, node_id)?;
-    }
-
-    Ok(())
-}
-
-/// Format a maybe expression or route to chain formatting.
-fn format_maybe_or_chain_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id) {
-        format_expression_chain(f, node_id)?;
-    } else {
-        format_maybe_expression(f, node_id)?;
-    }
-
-    Ok(())
-}
-
-/// Format a must expression or route to chain formatting.
-fn format_must_or_chain_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
     position: PostfixPosition,
     left: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id) {
-        format_expression_chain(f, node_id)?;
+    let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, left);
+    if needs_parentheses {
+        write!(f, [token("("), left, token(")")])?;
     } else {
-        let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, left);
-        if needs_parentheses {
-            write!(f, [token("("), left, token(")")])?;
-        } else {
-            write!(f, [left])?;
-        }
-        if position == PostfixPosition::Indirect {
-            write!(f, [token(".")])?;
-        }
-        write!(f, [token("!")])?;
+        write!(f, [left])?;
     }
+    if position == PostfixPosition::Indirect {
+        write!(f, [token(".")])?;
+    }
+    write!(f, [token("!")])?;
 
     Ok(())
 }
