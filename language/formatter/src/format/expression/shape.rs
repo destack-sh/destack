@@ -73,6 +73,8 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
         Expression::ScalarLiteral(_)
         | Expression::TypeLiteral(_)
         | Expression::Identifier { .. }
+        | Expression::ImportMeta
+        | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,

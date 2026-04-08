@@ -47,6 +47,8 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
         Expression::Identifier { .. }
         | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
+        | Expression::ImportMeta
+        | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::ScalarLiteral(_)
@@ -166,6 +168,8 @@ pub(crate) fn format_expression<'ast>(
         Expression::Identifier { .. }
         | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
+        | Expression::ImportMeta
+        | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::ScalarLiteral(_)

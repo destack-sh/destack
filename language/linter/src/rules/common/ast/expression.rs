@@ -1617,6 +1617,8 @@ pub fn expression_has_side_effects(
         // pure: references
         ast::Expression::Identifier { .. }
         | ast::Expression::QualifiedReference { .. }
+        | ast::Expression::ImportMeta
+        | ast::Expression::NewTarget
         | ast::Expression::This
         | ast::Expression::Super => false,
 

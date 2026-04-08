@@ -201,6 +201,7 @@ fn expression_constant_truthiness(
         | ast::Expression::ObjectExpression { .. }
         | ast::Expression::New { .. }
         | ast::Expression::Declaration(_)
+        | ast::Expression::ImportMeta
         | ast::Expression::This
         | ast::Expression::Super => Some(true),
         _ => None,
