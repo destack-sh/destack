@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{PackageJson, Repository, Revision, Workspace, WorkspaceOptions};
+use destack_workspace::{Repository, Revision, Workspace, WorkspaceOptions};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -227,7 +227,6 @@ impl CommandContext<'_> {
             load_workspace_task_projects(&resolver, self.repository.as_ref(), revision, &workspace)?
         } else {
             let project_path = resolve_task_project_path(
-                &resolver,
                 self.repository.as_ref(),
                 revision,
                 self.repository.cwd.as_path(),
@@ -310,18 +309,19 @@ struct TaskSpec {
 
 /// Load task and script specifications for one project path.
 fn load_tasks(
-    resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     project_path: &Path,
     destack_config_path: Option<&Path>,
 ) -> super::CommandResult<Vec<TaskSpec>> {
     let mut tasks = if let Some(destack_config_path) = destack_config_path {
-        load_destack_tasks(resolver, destack_config_path)?
+        load_destack_tasks(repository, revision, destack_config_path)?
     } else {
         Vec::new()
     };
 
     // merge package scripts after destack tasks
-    let package_scripts = load_package_scripts(resolver, project_path)?;
+    let package_scripts = load_package_scripts(repository, revision, project_path)?;
     for script in package_scripts {
         if tasks.iter().any(|task| task.name == script.name) {
             continue;
@@ -339,13 +339,22 @@ fn load_task_project(
     workspace_root: &Path,
     project_path: &Path,
 ) -> super::CommandResult<TaskProject> {
+    let repository = resolver.repository();
+    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository
+        .current(&reference)
+        .map_err(|error| error.to_string())?;
+
     let project = relative_project_path(project_path, workspace_root);
-    let destack_config_path = exact_destack_config_path(resolver, project_path);
-    let package_json_path = exact_package_json_path(resolver, project_path);
+    let destack_config_path = exact_destack_config_path(repository, revision, project_path);
     let declaration = if let Some(destack_config_path) = destack_config_path.as_ref() {
         Some(
             resolver
-                .read_destack_config(destack_config_path, destack_resolver::CachePolicy::UseCache)
+                .read_destack(
+                    revision,
+                    destack_config_path,
+                    destack_resolver::CachePolicy::UseCache,
+                )
                 .map_err(|error| error.to_string())?,
         )
     } else {
@@ -356,17 +365,18 @@ fn load_task_project(
 
         if let Some(name) = options.name.clone() {
             Some(name)
-        } else if let Some(package_json_path) = package_json_path.as_ref() {
-            load_package_name(resolver, package_json_path)?
         } else {
-            None
+            load_package_name(repository, revision, project_path)?
         }
-    } else if let Some(package_json_path) = package_json_path.as_ref() {
-        load_package_name(resolver, package_json_path)?
     } else {
-        None
+        load_package_name(repository, revision, project_path)?
     };
-    let tasks = load_tasks(resolver, project_path, destack_config_path.as_deref())?;
+    let tasks = load_tasks(
+        repository,
+        revision,
+        project_path,
+        destack_config_path.as_deref(),
+    )?;
 
     Ok(TaskProject {
         project,
@@ -406,13 +416,15 @@ fn load_workspace_task_projects(
 
 /// Load task specifications from one destack.json file.
 fn load_destack_tasks(
-    resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     destack_config_path: &Path,
 ) -> super::CommandResult<Vec<TaskSpec>> {
-    let content = resolver
-        .fs
-        .read_to_string(destack_config_path)
-        .map_err(|error| format!("failed to read {}: {error}", destack_config_path.display()))?;
+    let file = repository
+        .file_for_path(revision, destack_config_path)
+        .map_err(|error| format!("failed to load {}: {error}", destack_config_path.display()))?
+        .ok_or_else(|| format!("failed to load {}", destack_config_path.display()))?;
+    let content = file.text();
 
     let value: Value =
         serde_json::from_str(&content).map_err(|error| format!("invalid destack.json: {error}"))?;
@@ -472,23 +484,29 @@ fn load_destack_tasks(
 
 /// Load package.json scripts adjacent to one config path.
 fn load_package_scripts(
-    resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     project_path: &Path,
 ) -> super::CommandResult<Vec<TaskSpec>> {
-    let Some(package_path) = exact_package_json_path(resolver, project_path) else {
+    let package = repository
+        .package_for_path(revision, project_path)
+        .map_err(|error| error.to_string())?;
+    let Some(package) = package else {
         return Ok(Vec::new());
     };
 
-    let content = resolver
-        .fs
-        .read_to_string(&package_path)
-        .map_err(|error| format!("failed to read {}: {error}", package_path.display()))?;
-    let package: PackageJson =
-        serde_json::from_str(&content).map_err(|error| format!("invalid package.json: {error}"))?;
-    let Some(scripts) = package.scripts else {
+    let declaration = repository
+        .package_declaration(revision, package.as_ref())
+        .map_err(|error| error.to_string())?;
+    let Some(declaration) = declaration else {
         return Ok(Vec::new());
     };
-    let package_dir = package_path
+
+    let Some(scripts) = declaration.manifest.scripts.as_ref() else {
+        return Ok(Vec::new());
+    };
+    let package_dir = declaration
+        .path
         .parent()
         .map(PathBuf::from)
         .unwrap_or_else(|| project_path.to_path_buf());
@@ -496,8 +514,8 @@ fn load_package_scripts(
     let mut tasks = Vec::new();
     for (name, command) in scripts {
         tasks.push(TaskSpec {
-            name,
-            command,
+            name: name.clone(),
+            command: command.clone(),
             description: None,
             cwd: Some(package_dir.clone()),
             source: TaskSpecSource::PackageJson,
@@ -509,17 +527,22 @@ fn load_package_scripts(
 
 /// Load the package name from one exact package.json path.
 fn load_package_name(
-    resolver: &destack_resolver::Resolver,
-    package_json_path: &Path,
+    repository: &Repository,
+    revision: Revision,
+    project_path: &Path,
 ) -> super::CommandResult<Option<String>> {
-    let content = resolver
-        .fs
-        .read_to_string(package_json_path)
-        .map_err(|error| format!("failed to read {}: {error}", package_json_path.display()))?;
-    let package: PackageJson =
-        serde_json::from_str(&content).map_err(|error| format!("invalid package.json: {error}"))?;
+    let package = repository
+        .package_for_path(revision, project_path)
+        .map_err(|error| error.to_string())?;
+    let Some(package) = package else {
+        return Ok(None);
+    };
 
-    Ok(package.name)
+    let declaration = repository
+        .package_declaration(revision, package.as_ref())
+        .map_err(|error| error.to_string())?;
+
+    Ok(declaration.and_then(|declaration| declaration.name().map(ToOwned::to_owned)))
 }
 
 /// Build one normalized project path relative to the workspace root.
@@ -761,7 +784,6 @@ fn task_command(task: &TaskSpec, args: &[String]) -> String {
 
 /// Resolve the active task project path from cwd or one explicit config path.
 fn resolve_task_project_path(
-    resolver: &destack_resolver::Resolver,
     repository: &Repository,
     revision: Revision,
     cwd: &Path,
@@ -773,10 +795,10 @@ fn resolve_task_project_path(
         } else {
             cwd.join(override_path)
         };
-        let metadata = resolver
-            .fs
-            .metadata(&resolved)
-            .map_err(|_| format!("project path not found: {}", resolved.display()))?;
+        let metadata = repository
+            .metadata_for_path(revision, &resolved)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("project path not found: {}", resolved.display()))?;
 
         if metadata.is_directory {
             resolved
@@ -805,31 +827,16 @@ fn resolve_task_project_path(
 
 /// Return the exact destack.json path for one project directory.
 fn exact_destack_config_path(
-    resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     project_path: &Path,
 ) -> Option<PathBuf> {
     let candidate = project_path.join("destack.json");
-    if resolver
-        .fs
-        .metadata(&candidate)
-        .is_ok_and(|metadata| metadata.is_file)
-    {
-        return Some(candidate);
-    }
-
-    None
-}
-
-/// Return the exact package.json path for one project directory.
-fn exact_package_json_path(
-    resolver: &destack_resolver::Resolver,
-    project_path: &Path,
-) -> Option<PathBuf> {
-    let candidate = project_path.join("package.json");
-    if resolver
-        .fs
-        .metadata(&candidate)
-        .is_ok_and(|metadata| metadata.is_file)
+    if repository
+        .metadata_for_path(revision, &candidate)
+        .ok()
+        .flatten()
+        .is_some_and(|metadata| metadata.is_file)
     {
         return Some(candidate);
     }

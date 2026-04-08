@@ -5,12 +5,15 @@ use std::{env, fs};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, Suite, current_workspace_revision,
-    fixtures_dir, render_unexpected_repository_diagnostic_collection, test_output_dir,
+    fixtures_dir, provide_workspace_artifacts, render_unexpected_repository_diagnostic_collection,
+    test_output_dir,
 };
 use destack_artifact::{ArtifactKey, MemoryCacheStore, OutputContent, OutputFile};
 use destack_compiler::{Compiler, CompilerOptions};
+use destack_linter::Linter;
+use destack_session::Session;
 use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{Repository, Target};
+use destack_workspace::{Ref, Repository, Target};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
@@ -296,12 +299,44 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let repository = Arc::new(
         Repository::open_root_from_fs(test.path.clone(), fs)
             .expect("failed to import repository from emit runner file system")
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+            .with_cache(Arc::new(MemoryCacheStore::new())),
     );
     let actual_root = emit_actual_root(test);
 
+    // set up compiler
+    let compiler = Arc::new(Compiler::new(
+        repository.clone(),
+        CompilerOptions {
+            workers: 1,
+            inject_prelude: false,
+            ..Default::default()
+        },
+    ));
+
+    // materialize the workspace state before reading semantic repository data
+    let linter = Arc::new(Linter::new(repository.clone()));
+    let session = Session::new(
+        test.path.clone(),
+        repository.clone(),
+        Ref::for_workspace_root(repository.workspace_root()),
+        None,
+        compiler.clone(),
+        linter,
+        None,
+        None,
+    )
+    .expect("failed to initialize emit session");
+    session
+        .materialize_filesystem(true)
+        .expect("failed to reload emit workspace");
+    let revision = current_workspace_revision(&repository);
+
     // load the tracked package config through the real repository path
-    let declaration = match repository.load_destack_declaration_for_path(&destack_config_path) {
+    let declaration = match repository
+        .destack_declaration_for_path(revision, &destack_config_path)
+        .expect("failed to load tracked destack.json from revision")
+        .map(|declaration| declaration.as_ref().clone())
+    {
         Some(declaration) => declaration,
         None => {
             return CaseResult::Failed {
@@ -338,7 +373,6 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
             ..Default::default()
         },
     );
-
     // discover source files
     let source_dir = test.path.join("src");
     let source_files = match discover_source_files(&source_dir, SOURCE_EXTENSIONS) {
@@ -354,8 +388,6 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
             message: "no source files found in source directory".to_string(),
         };
     }
-
-    let revision = current_workspace_revision(&repository);
 
     // resolve modules
     let mut module_ids = Vec::new();
@@ -392,11 +424,12 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     }
 
     // link
+    let mut artifact_keys = Vec::new();
     for (target_name, _) in &targets {
         let target_id = repository.intern_target_id(package_id, target_name);
-        compiler.enqueue(revision, ArtifactKey::package_output(package_id, target_id));
+        artifact_keys.push(ArtifactKey::package_output(package_id, target_id));
     }
-    compiler.compile();
+    let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
 
     if trace_timings {
         print_emit_timing_summary(test, &compiler);

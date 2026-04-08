@@ -76,9 +76,16 @@ fn read_config_json(
     resolver: &destack_resolver::Resolver,
     path: &Path,
 ) -> super::CommandResult<serde_json::Value> {
-    let content = resolver
-        .fs
-        .read_to_string(path)
-        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    let repository = resolver.repository();
+    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository
+        .current(&reference)
+        .map_err(|error| error.to_string())?;
+    let file = repository
+        .file_for_path(revision, path)
+        .map_err(|error| format!("failed to load {}: {error}", path.display()))?
+        .ok_or_else(|| format!("failed to load {}", path.display()))?;
+    let content = file.text();
+
     Ok(serde_json::from_str(&content).map_err(|error| format!("invalid destack.json: {error}"))?)
 }

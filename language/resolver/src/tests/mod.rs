@@ -6,11 +6,14 @@ mod pnp;
 mod resolve;
 mod restrictions;
 mod symlink;
+mod tests;
 mod tsconfig;
 #[cfg(target_os = "windows")]
 mod windows;
 
 use std::path::PathBuf;
+
+pub(crate) use tests::test_resolve_context;
 
 #[cfg(target_os = "windows")]
 fn normalize_windows_fixture_root(fixture_root: PathBuf) -> PathBuf {

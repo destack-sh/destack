@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use destack_source::{FileType, PathExt};
 
 use crate::{
-    CachePolicy, Resolution, ResolveError, ResolveFrame, ResolveOrigin, ResolveRequest, Resolver,
+    CachePolicy, Resolution, ResolveContext, ResolveError, ResolveOrigin, ResolvePath,
+    ResolveState, Resolver,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -11,48 +13,66 @@ use pnp::Resolution as PnpResolution;
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
+    /// Normalize one abnormal bare specifier when it contains parent traversal.
+    fn normalize_abnormal_package_specifier(specifier: &str) -> Option<String> {
+        if !specifier.contains("/../..") && !specifier.contains("../../") {
+            return None;
+        }
+
+        let normalized_path = Path::new(specifier).normalize_relative();
+        let mut normalized_specifier = normalized_path.to_string_lossy().into_owned();
+        if specifier.ends_with('/') {
+            normalized_specifier += "/";
+        }
+
+        Some(normalized_specifier)
+    }
+
     /// Resolve one bare package request through package self references or module directories.
     pub(crate) fn resolve_package_or_modules(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Resolution, ResolveError> {
         // parse the bare specifier once for the package resolution path
-        let (package_name, subpath) = Self::parse_package_specifier(specifier);
-        if subpath.is_empty() {
-            ctx.is_fully_specified = false;
-        }
+        let (package_name, subpath) = parse_package_specifier(specifier);
+        let state = if subpath.is_empty() {
+            state.with_fully_specified(false)
+        } else {
+            state
+        };
 
         // try the package itself first
-        if let Some(resolved) = self.rewrite_package_self_reference(path, specifier, ctx)? {
-            return Ok(resolved);
-        }
-
-        // try module directory search
         if let Some(resolved) =
-            self.resolve_modules_from_directory(path, specifier, package_name, subpath, ctx)?
+            self.apply_package_self_reference(path, specifier, state.clone(), ctx)?
         {
             return Ok(resolved);
         }
 
-        // handle abnormal relative specifiers like `jest-runner-../../..`
-        if specifier.contains("/../..") || specifier.contains("../../") {
-            let normalized_path = Path::new(specifier).normalize_relative();
-            let mut normalized_specifier = normalized_path.to_string_lossy().into_owned();
-            if specifier.ends_with('/') {
-                normalized_specifier += "/";
-            }
-            let normalized_specifier = normalized_specifier.as_str();
+        // try module directory search
+        if let Some(resolved) = self.resolve_modules_from_directory(
+            path,
+            specifier,
+            package_name,
+            subpath,
+            state.clone(),
+            ctx,
+        )? {
+            return Ok(resolved);
+        }
 
-            // try module directory search again with the normalized specifier
-            let (package_name, subpath) = Self::parse_package_specifier(normalized_specifier);
+        // handle abnormal relative specifiers like `jest-runner-../../..`
+        if let Some(normalized_specifier) = Self::normalize_abnormal_package_specifier(specifier) {
+            let (package_name, subpath) = parse_package_specifier(&normalized_specifier);
             if package_name == ".."
                 && let Some(resolved) = self.resolve_modules_from_directory(
                     path,
-                    normalized_specifier,
+                    &normalized_specifier,
                     package_name,
                     subpath,
+                    state,
                     ctx,
                 )?
             {
@@ -72,64 +92,74 @@ impl Resolver {
         specifier: &str,
         package_name: &str,
         subpath: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
+        let is_types_condition_active = self.is_types_condition_active();
+
         // resolve through yarn pnp before module directory lookup
         #[cfg(not(target_arch = "wasm32"))]
         if self.options.yarn_pnp
-            && let Some(resolved) = self.resolve_pnp(path, specifier, ctx)?
+            && let Some(resolved) = self.resolve_pnp(path, specifier, state.clone(), ctx)?
         {
             return Ok(Some(resolved));
         }
 
         // search each configured module directory
         for module_name in &self.options.modules {
-            // walk up parent directories
             let mut current = Some(path.to_path_buf());
             while let Some(current_path) = current {
                 // resolve the concrete module directory for this ancestor
-                let Some(module_dir) = self.get_module_directory(&current_path, module_name, ctx)
+                let Some(module_directory) =
+                    self.get_module_directory(&current_path, module_name, ctx)
                 else {
-                    current = current_path.parent().map(|p| p.to_path_buf());
+                    current = current_path.parent().map(Path::to_path_buf);
                     continue;
                 };
 
                 // try types resolution before runtime fallback
-                if self.is_types_condition_active() {
+                if is_types_condition_active {
                     if let Some(resolved) = self.resolve_modules_entry(
-                        &module_dir,
+                        &module_directory,
                         specifier,
                         package_name,
                         subpath,
                         false,
+                        state.clone(),
                         ctx,
                     )? {
                         return Ok(Some(resolved));
                     }
 
                     // try declaration fallback through @types packages
-                    if let Some(resolved) =
-                        self.resolve_types_modules_entry(&module_dir, package_name, subpath, ctx)?
-                    {
+                    if let Some(resolved) = self.resolve_types_modules_entry(
+                        &module_directory,
+                        package_name,
+                        subpath,
+                        state.clone(),
+                        ctx,
+                    )? {
                         return Ok(Some(resolved));
                     }
                 }
 
                 // fall back to runtime package entries
                 if let Some(resolved) = self.resolve_modules_entry(
-                    &module_dir,
+                    &module_directory,
                     specifier,
                     package_name,
                     subpath,
                     true,
+                    state.clone(),
                     ctx,
                 )? {
                     return Ok(Some(resolved));
                 }
 
-                current = current_path.parent().map(|p| p.to_path_buf());
+                current = current_path.parent().map(Path::to_path_buf);
             }
         }
+
         Ok(None)
     }
 
@@ -139,10 +169,11 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // load the active pnp manifest once for this request
-        let manifest = self.read_pnp_manifest()?;
+        let manifest = self.read_pnp_manifest(ctx)?;
 
         // pnpapi is a builtin for pnp aware runtimes
         if specifier == "pnpapi" {
@@ -155,17 +186,17 @@ impl Resolver {
 
         // ask yarn pnp for the unqualified package target
         let resolution =
-            pnp::resolve_to_unqualified_via_manifest(manifest, specifier, &issuer_path);
+            pnp::resolve_to_unqualified_via_manifest(manifest.as_ref(), specifier, &issuer_path);
         let (pnp_path, subpath) = match resolution {
             Ok(PnpResolution::Resolved(path, subpath)) => (path, subpath),
             Ok(PnpResolution::Skipped) => return Ok(None),
-            Err(error) => {
-                return Err(ResolveError::YarnPnpError { error });
-            }
+            Err(error) => return Err(ResolveError::YarnPnpError { error }),
         };
 
         // allow package self and exports checks first
-        if let Some(resolved) = self.rewrite_package_self_reference(&pnp_path, specifier, ctx)? {
+        if let Some(resolved) =
+            self.apply_package_self_reference(&pnp_path, specifier, state.clone(), ctx)?
+        {
             return Ok(Some(resolved));
         }
 
@@ -175,24 +206,26 @@ impl Resolver {
 
         // first try directory resolution for package redirects
         if self.is_directory(&nested_candidate, ctx)
-            && let Some(resolved) = self.probe_directory(&nested_candidate, ctx)?
+            && let Some(resolved) = self.probe_directory(&nested_candidate, state.clone(), ctx)?
         {
             return Ok(Some(resolved));
         }
 
         // then run regular file and directory resolution from the pnp package location
-        let request = ResolveRequest::parse(&inner_request);
+        let request = ResolvePath::parse(&inner_request);
         match self.resolve_request(
             ResolveOrigin::Directory,
             &pnp_path,
             &pnp_path,
             &request,
+            state,
             ctx,
         ) {
             Ok(resolved) => Ok(Some(resolved)),
-            Err(_) => Err(ResolveError::NotFound {
+            Err(error) if error.is_alternative_candidate_miss() => Err(ResolveError::NotFound {
                 specifier: specifier.to_string(),
             }),
+            Err(error) => Err(error),
         }
     }
 
@@ -227,24 +260,31 @@ impl Resolver {
 
     /// Load and cache one Yarn PnP manifest for the resolver cwd.
     #[cfg(not(target_arch = "wasm32"))]
-    fn read_pnp_manifest(&self) -> Result<&pnp::Manifest, ResolveError> {
-        let manifest = self.state.pnp_manifest.get_or_try_init(|| {
-            let cwd = match self.options.cwd.as_deref() {
-                Some(path) => path.to_path_buf(),
-                None => std::env::current_dir().map_err(|error| ResolveError::IoError {
-                    path: PathBuf::from("."),
-                    kind: error.kind(),
-                })?,
-            };
+    fn read_pnp_manifest(
+        &self,
+        ctx: &mut ResolveContext,
+    ) -> Result<Arc<pnp::Manifest>, ResolveError> {
+        if let Some(manifest) = ctx.pnp_manifest() {
+            return Ok(manifest);
+        }
 
-            match pnp::find_pnp_manifest(&cwd) {
-                Ok(Some(manifest)) => Ok(manifest),
-                Ok(None) => Err(ResolveError::FailedToFindYarnPnpManifest { cwd }),
-                Err(error) => Err(ResolveError::YarnPnpError { error }),
+        let cwd = match self.options.cwd.as_deref() {
+            Some(path) => path.to_path_buf(),
+            None => std::env::current_dir().map_err(|error| ResolveError::IoError {
+                path: PathBuf::from("."),
+                kind: error.kind(),
+            })?,
+        };
+
+        match pnp::find_pnp_manifest(&cwd) {
+            Ok(Some(manifest)) => {
+                let manifest = Arc::new(manifest);
+                ctx.remember_pnp_manifest(manifest.clone());
+                Ok(manifest)
             }
-        })?;
-
-        Ok(manifest)
+            Ok(None) => Err(ResolveError::FailedToFindYarnPnpManifest { cwd }),
+            Err(error) => Err(ResolveError::YarnPnpError { error }),
+        }
     }
 
     /// Resolve one specifier from one concrete modules directory.
@@ -255,21 +295,27 @@ impl Resolver {
         package_name: &str,
         subpath: &str,
         allow_runtime_fallback: bool,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
+        let is_types_condition_active = self.is_types_condition_active();
+
         // inspect the concrete package directory when the request has a package name
-        // avoid extra work when the package directory is missing
         if !package_name.is_empty() {
             let package_path = module_directory.normalize_with(package_name);
 
             // try package exports first
             if self.is_directory(&package_path, ctx) {
-                if let Some(resolved) =
-                    self.resolve_package_exports(specifier, subpath, &package_path, ctx)?
-                {
+                if let Some(resolved) = self.resolve_package_exports(
+                    specifier,
+                    subpath,
+                    &package_path,
+                    state.clone(),
+                    ctx,
+                )? {
                     // keep declaration compatible export targets in the type prepass
                     if allow_runtime_fallback
-                        || !self.is_types_condition_active()
+                        || !is_types_condition_active
                         || Self::path_is_types_compatible(&resolved.path)
                     {
                         return Ok(Some(resolved));
@@ -278,20 +324,16 @@ impl Resolver {
 
                 // resolve explicit package types fields for root package requests
                 if (subpath.is_empty() || subpath == ".")
-                    && self.is_types_condition_active()
+                    && is_types_condition_active
                     && let Some(package_id) =
-                        self.read_package_manifest(&package_path, ctx, CachePolicy::UseCache)?
+                        self.read_package(&package_path, ctx, CachePolicy::UseCache)?
+                    && let Some(package) = ctx.package(package_id)
+                    && let Some(declaration) = &package.package_declaration
+                    && let Some(types_field) = declaration.manifest.types.as_deref()
                 {
-                    let package = self.packages.get(package_id);
-                    let package = package.read().unwrap();
-
-                    if let Some(declaration) = &package.package_declaration
-                        && let Some(types_field) = declaration.json.types.as_deref()
-                    {
-                        let types_path = package_path.normalize_with(types_field);
-                        if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
-                            return self.probe_esm_target(specifier, &types_path, ctx);
-                        }
+                    let types_path = package_path.normalize_with(types_field);
+                    if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
+                        return self.probe_esm_target(specifier, &types_path, state.clone(), ctx);
                     }
                 }
             }
@@ -328,15 +370,16 @@ impl Resolver {
 
         // try directory targets
         if self.is_directory(&resolved_path, ctx) {
-            if let Some(resolved) = self.rewrite_path(&resolved_path, ctx)? {
+            if let Some(resolved) = self.apply_path(&resolved_path, state.clone(), ctx)? {
                 return Ok(Some(resolved));
             }
-            if let Some(resolved) = self.probe_directory(&resolved_path, ctx)? {
+
+            if let Some(resolved) = self.probe_directory(&resolved_path, state.clone(), ctx)? {
                 return Ok(Some(resolved));
             }
         }
         // try file targets
-        else if let Some(resolved) = self.probe_file(&resolved_path, ctx)? {
+        else if let Some(resolved) = self.probe_file(&resolved_path, state, ctx)? {
             return Ok(Some(resolved));
         }
 
@@ -349,7 +392,8 @@ impl Resolver {
         module_directory: &Path,
         package_name: &str,
         subpath: &str,
-        ctx: &mut ResolveFrame,
+        state: ResolveState,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<Resolution>, ResolveError> {
         // only type conditioned resolution may use @types fallback
         if !self.is_types_condition_active() {
@@ -367,13 +411,14 @@ impl Resolver {
         };
 
         let types_specifier = format!("{types_package_name}{subpath}");
-        let (types_package_name, types_subpath) = Self::parse_package_specifier(&types_specifier);
+        let (types_package_name, types_subpath) = parse_package_specifier(&types_specifier);
         self.resolve_modules_entry(
             module_directory,
             &types_specifier,
             types_package_name,
             types_subpath,
             true,
+            state,
             ctx,
         )
     }
@@ -418,23 +463,45 @@ impl Resolver {
         &self,
         path: &Path,
         module_name: &str,
-        ctx: &mut ResolveFrame,
+        ctx: &mut ResolveContext,
     ) -> Option<PathBuf> {
         // check if already in the module directory
         if path
             .components()
             .next_back()
-            .is_some_and(|c| c.as_os_str() == module_name)
+            .is_some_and(|component| component.as_os_str() == module_name)
         {
             return Some(path.to_path_buf());
         }
 
         // check subdirectory
-        let subdir = path.join(module_name);
-        if self.is_directory(&subdir, ctx) {
-            Some(subdir)
+        let subdirectory = path.join(module_name);
+        if self.is_directory(&subdirectory, ctx) {
+            Some(subdirectory)
         } else {
             None
         }
     }
+}
+
+/// Parse one bare package specifier into package name and subpath.
+fn parse_package_specifier(specifier: &str) -> (&str, &str) {
+    // find first slash
+    let mut separator_index = specifier.as_bytes().iter().position(|byte| *byte == b'/');
+
+    // scoped packages have format `@scope/package/subpath`
+    if specifier.starts_with('@')
+        && let Some(first_slash) = separator_index
+    {
+        separator_index = specifier.as_bytes()[first_slash + 1..]
+            .iter()
+            .position(|byte| *byte == b'/')
+            .map(|offset| offset + first_slash + 1);
+    }
+
+    // split at the package boundary
+    let package_name = separator_index.map_or(specifier, |index| &specifier[..index]);
+    let package_subpath = separator_index.map_or("", |index| &specifier[index..]);
+
+    (package_name, package_subpath)
 }

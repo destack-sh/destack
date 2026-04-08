@@ -12,7 +12,7 @@ fn test_imports_field_simple() {
     let f = super::fixture().join("imports-field");
     let f2 = super::fixture().join("imports-exports-wildcard/node_modules/m/");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
         conditions: vec!["webpack".into()],
@@ -33,7 +33,7 @@ fn test_imports_field_simple() {
 
     for (comment, path, request, expected) in pass {
         let resolved_path = resolver
-            .resolve_from_directory(&path, request)
+            .resolve_test_directory(&path, request)
             .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
@@ -49,7 +49,7 @@ fn test_imports_field_simple() {
     ];
 
     for (comment, path, request, error) in fail {
-        let resolution = resolver.resolve_from_directory(&path, request);
+        let resolution = resolver.resolve_test_directory(&path, request);
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
@@ -59,13 +59,13 @@ fn test_imports_field_simple() {
 fn test_imports_field_disabled_returns_not_found() {
     let f = super::fixture().join("imports-field");
 
-    let resolver = Resolver::physical(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolveOptions {
         extensions: vec![".js".into()],
         resolve_package_json_imports: false,
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve_from_directory(&f, "#imports-field");
+    let resolution = resolver.resolve_test_directory(&f, "#imports-field");
     assert_eq!(
         resolution,
         Err(ResolveError::NotFound {
@@ -880,7 +880,7 @@ fn test_imports_field_cases() {
     ];
 
     for case in test_cases {
-        let resolver = Resolver::blank(
+        let resolver = Resolver::for_test_file_system(
             Arc::new(MemoryFileSystem::default()),
             ResolveOptions::default(),
         );
@@ -894,7 +894,8 @@ fn test_imports_field_cases() {
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
-            &mut crate::ResolveFrame::default(),
+            crate::ResolveState::new(&resolver.options),
+            &mut super::test_resolve_context(),
         );
         if let Some(expect) = case.expect {
             if expect.is_empty() {

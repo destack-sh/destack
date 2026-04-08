@@ -6,6 +6,7 @@ mod find_references;
 mod highlight;
 mod implementation;
 mod selection_range;
+mod specifier;
 mod type_hierarchy;
 mod workspace_symbol;
 

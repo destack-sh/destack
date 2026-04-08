@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use destack_workspace::PackageJson;
 use serde_json::Value;
 
 use crate::common::ProgramArgs;
@@ -52,24 +51,34 @@ pub fn resolve_script_command(
 ) -> CliResult<Option<ScriptCommand>> {
     let context = workspace_context(program_args, None)?;
     let cwd = context.repository.cwd.clone();
-    resolve_script_command_with_resolver(program_args, script_name, &context.resolver, &cwd)
+    resolve_script_command_with_resolver(
+        program_args,
+        script_name,
+        &context.repository,
+        context.revision,
+        &cwd,
+    )
 }
 
 /// Load task specifications from a destack.json file.
 pub fn load_tasks(
-    resolver: &destack_resolver::Resolver,
+    repository: &destack_workspace::Repository,
+    revision: destack_workspace::Revision,
     destack_config_path: &Path,
 ) -> CliResult<Vec<TaskSpec>> {
-    // read the config file
-    let content = resolver
-        .fs
-        .read_to_string(destack_config_path)
+    // read the config file from repository truth
+    let file = repository
+        .file_for_path(revision, destack_config_path)
         .map_err(|error| {
             CliError::message(format!(
-                "failed to read {}: {error}",
+                "failed to load {}: {error}",
                 destack_config_path.display()
             ))
+        })?
+        .ok_or_else(|| {
+            CliError::message(format!("failed to load {}", destack_config_path.display()))
         })?;
+    let content = file.text();
 
     // parse the config json
     let value: Value = serde_json::from_str(&content)
@@ -152,20 +161,26 @@ pub fn shell_command(command: &str) -> Command {
 fn resolve_destack_config_task(
     program_args: &ProgramArgs,
     name: &str,
-    resolver: &destack_resolver::Resolver,
+    repository: &destack_workspace::Repository,
+    revision: destack_workspace::Revision,
     cwd: &Path,
 ) -> CliResult<Option<TaskSpec>> {
     let destack_config_path = if program_args.config.is_some() {
-        Some(resolve_destack_config_path(program_args, resolver, cwd)?)
+        Some(resolve_destack_config_path(
+            program_args,
+            repository,
+            revision,
+            cwd,
+        )?)
     } else {
-        find_destack_config(resolver, cwd)
+        find_destack_config(repository, revision, cwd)
     };
 
     let Some(destack_config_path) = destack_config_path else {
         return Ok(None);
     };
 
-    let tasks = load_tasks(resolver, &destack_config_path)?;
+    let tasks = load_tasks(repository, revision, &destack_config_path)?;
     Ok(tasks.into_iter().find(|task| task.name == name))
 }
 
@@ -173,13 +188,16 @@ fn resolve_destack_config_task(
 pub(crate) fn resolve_script_command_with_resolver(
     program_args: &ProgramArgs,
     script_name: &str,
-    resolver: &destack_resolver::Resolver,
+    repository: &destack_workspace::Repository,
+    revision: destack_workspace::Revision,
     cwd: &Path,
 ) -> CliResult<Option<ScriptCommand>> {
-    if let Some(task) = resolve_destack_config_task(program_args, script_name, resolver, cwd)? {
+    if let Some(task) =
+        resolve_destack_config_task(program_args, script_name, repository, revision, cwd)?
+    {
         let cwd = task
             .cwd
-            .unwrap_or_else(|| task_base_dir(program_args, resolver, cwd));
+            .unwrap_or_else(|| task_base_dir(program_args, repository, revision, cwd));
         return Ok(Some(ScriptCommand {
             name: task.name,
             command: task.command,
@@ -188,7 +206,7 @@ pub(crate) fn resolve_script_command_with_resolver(
         }));
     }
 
-    if let Some(script) = resolve_package_script(script_name, resolver, cwd)? {
+    if let Some(script) = resolve_package_script(script_name, repository, revision, cwd)? {
         return Ok(Some(script));
     }
 
@@ -198,29 +216,46 @@ pub(crate) fn resolve_script_command_with_resolver(
 /// Resolve a package.json script by name.
 fn resolve_package_script(
     name: &str,
-    resolver: &destack_resolver::Resolver,
+    repository: &destack_workspace::Repository,
+    revision: destack_workspace::Revision,
     cwd: &Path,
 ) -> CliResult<Option<ScriptCommand>> {
-    let Some(package_path) = find_package_json(resolver, cwd)? else {
+    // find the semantic package for the current path
+    let package = repository
+        .package_for_path(revision, cwd)
+        .map_err(|error| {
+            CliError::message(format!(
+                "failed to resolve package for {}: {error}",
+                cwd.display()
+            ))
+        })?;
+    let Some(package) = package else {
         return Ok(None);
     };
 
-    let content = resolver.fs.read_to_string(&package_path).map_err(|error| {
-        CliError::message(format!(
-            "failed to read {}: {error}",
-            package_path.display()
-        ))
-    })?;
-    let package: PackageJson = serde_json::from_str(&content)
-        .map_err(|error| CliError::message(format!("invalid package.json: {error}")))?;
-    let Some(scripts) = package.scripts else {
+    // load the tracked package declaration from the active revision
+    let declaration = repository
+        .package_declaration(revision, package.as_ref())
+        .map_err(|error| {
+            CliError::message(format!(
+                "failed to load package.json for {}: {error}",
+                cwd.display()
+            ))
+        })?;
+    let Some(declaration) = declaration else {
         return Ok(None);
     };
+
+    let Some(scripts) = declaration.manifest.scripts.as_ref() else {
+        return Ok(None);
+    };
+
     let Some(command) = scripts.get(name) else {
         return Ok(None);
     };
 
-    let cwd = package_path
+    let cwd = declaration
+        .path
         .parent()
         .map(PathBuf::from)
         .unwrap_or_else(|| cwd.to_path_buf());
@@ -233,38 +268,15 @@ fn resolve_package_script(
     }))
 }
 
-/// Find the nearest package.json path by walking up directories.
-fn find_package_json(
-    resolver: &destack_resolver::Resolver,
-    cwd: &Path,
-) -> CliResult<Option<PathBuf>> {
-    let mut current = cwd;
-    loop {
-        let candidate = current.join("package.json");
-        if let Ok(metadata) = resolver.fs.metadata(&candidate)
-            && metadata.is_file
-        {
-            return Ok(Some(candidate));
-        }
-
-        let Some(parent) = current.parent() else {
-            return Ok(None);
-        };
-        if parent == current {
-            return Ok(None);
-        }
-        current = parent;
-    }
-}
-
 /// Resolve the base directory for destack.json tasks.
 fn task_base_dir(
     program_args: &ProgramArgs,
-    resolver: &destack_resolver::Resolver,
+    repository: &destack_workspace::Repository,
+    revision: destack_workspace::Revision,
     cwd: &Path,
 ) -> PathBuf {
     // resolve base dir for tasks when no cwd override is provided
-    if let Some(path) = find_destack_config(resolver, cwd)
+    if let Some(path) = find_destack_config(repository, revision, cwd)
         && let Some(parent) = path.parent()
     {
         return parent.to_path_buf();
@@ -277,7 +289,7 @@ fn task_base_dir(
             cwd.join(config)
         };
 
-        if let Ok(metadata) = resolver.fs.metadata(&config_path) {
+        if let Ok(Some(metadata)) = repository.metadata_for_path(revision, &config_path) {
             if metadata.is_directory {
                 return config_path;
             }

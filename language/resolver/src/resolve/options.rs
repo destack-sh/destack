@@ -160,7 +160,11 @@ impl ResolveOptions {
         // find a pnp manifest from cwd up to the root
         #[cfg(not(target_arch = "wasm32"))]
         {
-            pnp::find_pnp_manifest(cwd).ok().flatten().is_some()
+            match pnp::find_pnp_manifest(cwd) {
+                Ok(Some(_)) => true,
+                Ok(None) => false,
+                Err(_) => false,
+            }
         }
 
         // wasm targets do not support pnp filesystem access
@@ -467,7 +471,7 @@ pub struct TypeScriptOptionsLocation {
 }
 
 /// The TypeScript project reference handling policy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeScriptOptionsReferences {
     /// Disable project references.
     Disabled,

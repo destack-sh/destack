@@ -91,6 +91,14 @@ pub enum ResolveError {
         kind: io::ErrorKind,
     },
 
+    /// Repository backed resolution failed.
+    RepositoryError {
+        /// The repository operation context path.
+        path: PathBuf,
+        /// The underlying repository error message.
+        message: String,
+    },
+
     /// File origin resolution received a non file path.
     ExpectedFilePath {
         /// The path that was expected to be a file.
@@ -227,6 +235,7 @@ impl ResolveError {
             Self::InvalidPackageConfigDirectory { .. } => 18,
             Self::PackageImportNotDefined { .. } => 19,
             Self::RecursiveDependency { .. } => 20,
+            Self::RepositoryError { .. } => 26,
         }
     }
 
@@ -259,6 +268,9 @@ impl ResolveError {
             #[cfg(not(target_arch = "wasm32"))]
             Self::YarnPnpError { error } => format!("yarn pnp error: {error}"),
             Self::IoError { path, kind } => format!("IO error at {path:?}: {kind}"),
+            Self::RepositoryError { path, message } => {
+                format!("repository resolution error at {path:?}: {message}")
+            }
             Self::ExpectedFilePath { path } => {
                 format!("expected a file path for file-origin resolution, got {path:?}")
             }

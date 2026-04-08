@@ -4,18 +4,9 @@ use std::path::{Component, Path, PathBuf};
 use destack_source::{FileSystem, PathExt};
 use destack_workspace::ModuleSpecifier;
 
-/// One resolved target for a document link specifier.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpecifierLinkTarget {
-    /// One filesystem path target.
-    File { path: PathBuf },
-    /// One url target.
-    Url { url: String },
-}
-
 /// One shared policy context for specifier matching and rewriting.
 #[derive(Debug, Clone, Copy)]
-pub struct SpecifierPolicy<'a> {
+pub(super) struct SpecifierPolicy<'a> {
     /// The filesystem view used for existence checks.
     pub fs: &'a dyn FileSystem,
     /// The workspace root used for relative rename entries.
@@ -24,7 +15,7 @@ pub struct SpecifierPolicy<'a> {
 
 /// One matched rename target for a specifier.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpecifierRenameMatch {
+pub(super) struct SpecifierRenameMatch {
     /// The matched old target path.
     pub old_path: PathBuf,
     /// The rewritten new target path.
@@ -35,43 +26,8 @@ pub struct SpecifierRenameMatch {
     pub package_directory: Option<PathBuf>,
 }
 
-/// Resolve one document link target from a raw module specifier.
-pub fn resolve_document_link_target(
-    fs: &dyn FileSystem,
-    base_dir: &Path,
-    specifier: &str,
-) -> Option<SpecifierLinkTarget> {
-    // handle urls directly
-    if specifier.starts_with("http://") || specifier.starts_with("https://") {
-        return Some(SpecifierLinkTarget::Url {
-            url: specifier.to_string(),
-        });
-    }
-
-    // handle file urls
-    if let Some(path) = specifier.strip_prefix("file://") {
-        return Some(SpecifierLinkTarget::File {
-            path: resolve_file_target(fs, PathBuf::from(path)),
-        });
-    }
-
-    // handle relative or absolute paths
-    if specifier.starts_with('.') || specifier.starts_with('/') {
-        let mut path = PathBuf::from(specifier);
-        if path.is_relative() {
-            path = base_dir.join(path);
-        }
-
-        return Some(SpecifierLinkTarget::File {
-            path: resolve_file_target(fs, path),
-        });
-    }
-
-    None
-}
-
 /// Match one rename entry for a module specifier.
-pub fn match_specifier_rename(
+pub(super) fn match_specifier_rename(
     policy: &SpecifierPolicy<'_>,
     rename_map: &HashMap<PathBuf, PathBuf>,
     source_path: Option<&Path>,
@@ -181,8 +137,8 @@ pub fn match_specifier_rename(
     })
 }
 
-/// Rewrite one module specifier after a file rename match.
-pub fn rewrite_specifier_for_rename(
+/// Apply one file rename to a module specifier.
+pub(super) fn apply_rename_to_specifier(
     source_path: Option<&Path>,
     specifier: &str,
     rename_match: &SpecifierRenameMatch,
@@ -197,7 +153,7 @@ pub fn rewrite_specifier_for_rename(
             return None;
         }
 
-        let updated_path = rewrite_path_with_common_suffix(
+        let updated_path = apply_common_suffix_rename(
             Path::new(specifier_path),
             &rename_match.old_path,
             &rename_match.new_path,
@@ -224,7 +180,7 @@ pub fn rewrite_specifier_for_rename(
     }
     // absolute specifiers
     else if specifier_path.starts_with('/') {
-        let updated_path = rewrite_path_with_common_suffix(
+        let updated_path = apply_common_suffix_rename(
             Path::new(specifier_path),
             &rename_match.old_path,
             &rename_match.new_path,
@@ -237,7 +193,7 @@ pub fn rewrite_specifier_for_rename(
     }
     // alias specifiers
     else if is_alias_specifier(specifier_path) {
-        let mut updated = rewrite_alias_specifier(
+        let mut updated = apply_alias_rename(
             specifier_path,
             &rename_match.old_path,
             &rename_match.new_path,
@@ -282,41 +238,6 @@ pub fn rewrite_specifier_for_rename(
     }
 
     Some(updated)
-}
-
-/// Resolve one file path target for a module specifier.
-fn resolve_file_target(fs: &dyn FileSystem, path: PathBuf) -> PathBuf {
-    let candidates = document_link_candidates(&path);
-
-    candidates
-        .into_iter()
-        .find(|candidate| {
-            fs.metadata(candidate)
-                .map(|metadata| metadata.is_file || metadata.is_directory || metadata.is_symlink)
-                .unwrap_or(false)
-        })
-        .unwrap_or(path)
-}
-
-/// Build candidate paths for one module specifier.
-fn document_link_candidates(path: &Path) -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
-    candidates.push(path.to_path_buf());
-
-    if path.extension().is_some() {
-        return candidates;
-    }
-
-    let extensions = ["ds", "d.ts", "ts", "tsx"];
-    for extension in extensions {
-        candidates.push(path.with_extension(extension));
-    }
-
-    for extension in extensions {
-        candidates.push(path.join(format!("index.{extension}")));
-    }
-
-    candidates
 }
 
 /// Resolve one rename entry for file uri specifiers.
@@ -708,8 +629,8 @@ fn file_uri_for_path(path: &Path) -> String {
     format!("file://{path_str}")
 }
 
-/// Rewrite one alias specifier based on old and new target paths.
-fn rewrite_alias_specifier(specifier: &str, old_path: &Path, new_path: &Path) -> Option<String> {
+/// Apply one file rename to an alias specifier.
+fn apply_alias_rename(specifier: &str, old_path: &Path, new_path: &Path) -> Option<String> {
     let (prefix, suffix) = split_alias_prefix(specifier)?;
     let suffix = suffix.trim_start_matches('/');
     if suffix.is_empty() {
@@ -835,12 +756,8 @@ fn common_suffix_len(left: &Path, right: &Path) -> usize {
     count
 }
 
-/// Rewrite one path by replacing the shared suffix with the new path suffix.
-fn rewrite_path_with_common_suffix(
-    specifier_path: &Path,
-    old_path: &Path,
-    new_path: &Path,
-) -> PathBuf {
+/// Apply one file rename by replacing the shared suffix with the new path suffix.
+fn apply_common_suffix_rename(specifier_path: &Path, old_path: &Path, new_path: &Path) -> PathBuf {
     let common_len = common_suffix_len(specifier_path, old_path);
     if common_len == 0 {
         return new_path.to_path_buf();
