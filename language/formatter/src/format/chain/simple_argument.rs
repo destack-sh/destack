@@ -58,6 +58,8 @@ fn expression_is_simple_impl(
         Expression::ScalarLiteral(_)
         | Expression::Identifier { .. }
         | Expression::PrivateIdentifier { .. }
+        | Expression::ImportMeta
+        | Expression::NewTarget
         | Expression::This
         | Expression::Super => true,
         Expression::TemplateExpression { value } => {

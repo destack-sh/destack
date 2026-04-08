@@ -539,6 +539,8 @@ fn expression_is_known_pure_statement(expression: &ast::Expression) -> bool {
             | ast::Expression::SequenceExpression { .. }
             | ast::Expression::TemplateExpression { .. }
             | ast::Expression::PrivateIdentifier { .. }
+            | ast::Expression::ImportMeta
+            | ast::Expression::NewTarget
             | ast::Expression::This
             | ast::Expression::Super
     )

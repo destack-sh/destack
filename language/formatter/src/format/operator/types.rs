@@ -34,6 +34,8 @@ pub(crate) fn is_simple_type_binary_left_expression(
         | Expression::Instantiation { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
+        | Expression::ImportMeta
+        | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. }

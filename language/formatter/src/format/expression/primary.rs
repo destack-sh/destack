@@ -361,6 +361,16 @@ pub(crate) fn format_primary_expression<'ast>(
             write!(f, [token("#"), *name])?;
         }
 
+        // import meta
+        Expression::ImportMeta => {
+            write!(f, [Keyword::Import, token("."), token("meta")])?;
+        }
+
+        // new target
+        Expression::NewTarget => {
+            write!(f, [Keyword::New, token("."), token("target")])?;
+        }
+
         // this
         Expression::This => {
             write!(f, [Keyword::This])?;
