@@ -846,9 +846,14 @@ fn write_dependency_item_entries<'ast>(
 
         let item_span = f.context().span(item_id);
         let next_item_start = dependency_item_prefix_start(f.context(), next_item_id);
+        let gap_start = f
+            .context()
+            .next_non_trivia_token_after_span(item_span)
+            .filter(|token| token.token.ty == TokenType::Comma && token.span.end <= next_item_start)
+            .map_or(item_span.end, |token| token.span.end);
 
         write!(f, [token(",")])?;
-        write_dependency_gap_spacing(f, item_span.end, next_item_start, true)?;
+        write_dependency_gap(f, gap_start, next_item_start, true)?;
     }
 
     // trailing separator

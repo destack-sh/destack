@@ -9,7 +9,7 @@ use crate::format::declaration::statement::{
 };
 use crate::format::declaration::{
     expression_needs_statement_terminator, statement_trailing_comment_anchor_end,
-    write_statement_terminator,
+    write_statement_terminator, write_statement_terminator_with_following_start,
 };
 use crate::format::directive::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
@@ -267,6 +267,7 @@ fn format_statement_sequence_expression<'ast>(
     allow_value_tail: bool,
     is_expression_context_tail: bool,
     prefix_after_offset: Option<u32>,
+    following_expression_start: Option<u32>,
 ) -> FormatResult<u32> {
     write_statement_sequence_expression_prefix(f, expression_id, expression, prefix_after_offset)?;
     format_expression(f, expression_id, expression, is_ignored)?;
@@ -276,7 +277,17 @@ fn format_statement_sequence_expression<'ast>(
         expression,
         allow_value_tail && is_expression_context_tail,
     ) {
-        write_statement_terminator(f, expression_id)?;
+        if let Some(following_expression_start) = following_expression_start {
+            let anchor_end = statement_trailing_comment_anchor_end(f.context(), expression_id);
+            write_statement_terminator_with_following_start(
+                f,
+                expression_id,
+                anchor_end,
+                following_expression_start,
+            )?;
+        } else {
+            write_statement_terminator(f, expression_id)?;
+        }
     }
 
     write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
@@ -331,7 +342,7 @@ pub(crate) fn format_block_body_wide<'ast>(
     let block = f.context().tree.get(block_id);
     let allow_value_tail = block_allows_value_tail(f.context(), block_id);
     let leading_comment_nodes = block_leading_line_comment_nodes(f.context(), block_id);
-    let trailing_comment_nodes = block_trailing_comment_nodes(f.context(), block_id);
+    let has_infix_annotation = f.context().has_infix_annotation(block_id);
 
     // body
     write!(f, [token("{"), hard_line_break()])?;
@@ -345,10 +356,7 @@ pub(crate) fn format_block_body_wide<'ast>(
                 }
             ))]
         )?;
-        if !block.is_empty()
-            || !trailing_comment_nodes.is_empty()
-            || f.context().has_infix_annotation(block_id)
-        {
+        if !block.is_empty() || has_infix_annotation {
             write!(f, [hard_line_break()])?;
         }
     }
@@ -364,9 +372,12 @@ pub(crate) fn format_block_body_wide<'ast>(
                 leading_prefix_comment_start
             ))]
         )?;
-        if !trailing_comment_nodes.is_empty() || f.context().has_infix_annotation(block_id) {
-            write!(f, [line_suffix_boundary(), hard_line_break()])?;
-        }
+    }
+
+    let trailing_comment_nodes = block_trailing_comment_nodes(f.context(), block_id);
+
+    if !block.is_empty() && (!trailing_comment_nodes.is_empty() || has_infix_annotation) {
+        write!(f, [line_suffix_boundary(), hard_line_break()])?;
     }
 
     if !trailing_comment_nodes.is_empty() {
@@ -378,7 +389,7 @@ pub(crate) fn format_block_body_wide<'ast>(
                 }
             ))]
         )?;
-        if f.context().has_infix_annotation(block_id) {
+        if has_infix_annotation {
             write!(f, [hard_line_break()])?;
         }
     }
@@ -541,6 +552,9 @@ pub(crate) fn format_block_statement_sequence<'ast>(
         }
 
         let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
+        let following_expression_start = effective_expressions
+            .get(i + 1)
+            .map(|expression_id| f.context().span(*expression_id).start);
         let expression_output_end = format_statement_sequence_expression(
             f,
             expression_id,
@@ -549,6 +563,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             allow_value_tail,
             is_expression_context_tail,
             None,
+            following_expression_start,
         )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
     }
@@ -692,6 +707,14 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
         } else {
             None
         };
+        let following_expression_start = if i + 1 < expression_count {
+            block
+                .iter_expressions()
+                .nth(i + 1)
+                .map(|expression_id| f.context().span(expression_id).start)
+        } else {
+            None
+        };
         let expression_output_end = format_statement_sequence_expression(
             f,
             expression_id,
@@ -700,6 +723,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             allow_value_tail,
             is_expression_context_tail,
             prefix_after_offset,
+            following_expression_start,
         )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
         previous_expression_id = Some(expression_id);
@@ -896,6 +920,9 @@ fn format_program_statement_sequence<'ast>(
             false,
             false,
             None,
+            effective_expressions
+                .get(i + 1)
+                .map(|expression_id| f.context().span(*expression_id).start),
         )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
     }

@@ -2,12 +2,12 @@ use crate::format::chain::{
     has_comment_between_expressions, is_assignment_chain_tail_lambda, is_chain_root,
     is_expression_chain, is_lambda_expression, transparent_inner_expression,
 };
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::expression::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
-    expression_is_trivial_inline_without_annotations, parenthesized_has_leading_inner_newline,
+    expression_is_trivial_inline_without_annotations,
 };
-use crate::format::operator::flattened_binary_operand_count;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
     AnnotationPosition, AssignOperator, Declaration, Expression, LocalNodeId, NodeType,
@@ -62,7 +62,8 @@ pub(crate) fn assignment_drops_parenthesized_operand_wrapper(
         parent_expression,
         Expression::Assign { right, .. } if *right == parenthesized_id
     ) && !context.has_annotation(parenthesized_id)
-        && !parenthesized_has_leading_inner_newline(context, parenthesized_id, inner_expression_id)
+        && !ParenthesizedExpressionView::from_node(context, parenthesized_id)
+            .is_some_and(ParenthesizedExpressionView::has_leading_inner_newline)
         && expression_has_prefix_comment_or_doc_annotation_in_left_spine(
             context,
             inner_expression_id,
@@ -328,9 +329,6 @@ pub(crate) fn right_assignment_parent(
     Some(parent_id)
 }
 
-// assignment shape thresholds
-const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
-
 /// One OXC-style layout for one assignment-like shell.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssignmentLikeLayout {
@@ -364,6 +362,33 @@ pub(crate) fn write_assignment_like_right<'ast>(
         }
         AssignmentLikeLayout::NeverBreakAfterOperator => write!(f, [space(), right]),
         AssignmentLikeLayout::BreakLeftHandSide => write!(f, [space(), group(right)]),
+    }
+}
+
+/// Return whether one rhs shape should prefer breaking after the operator.
+pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    right: LocalNodeId<Expression>,
+) -> bool {
+    let context = f.context();
+    let right = transparent_inner_expression(context, right);
+
+    let has_wide_prefix_comment = {
+        let comments = context.comments();
+
+        comments
+            .comments_before_iter(context.span(right).start)
+            .any(|comment| comment.preceded_by_newline() && comment.followed_by_newline())
+    };
+    if has_wide_prefix_comment {
+        return true;
+    }
+
+    match context.tree.get(right) {
+        // binary-like rhs values first break after `=`
+        Expression::Binary { .. } | Expression::SequenceExpression { .. } => true,
+
+        _ => false,
     }
 }
 
@@ -449,19 +474,10 @@ fn assignment_expression_layout<'ast>(
             .is_some_and(|parent_id| context.node_has_newline(parent_id));
         right_parent_is_long || context.node_has_newline(right_chain_root_id)
     };
-    let right_is_multiline_binary = right_is_binary && {
-        let binary_operand_count = match inner_right_expression {
-            Expression::Binary { operator, .. } => {
-                flattened_binary_operand_count(context, inner_right_id, *operator)
-            }
-            _ => 0,
-        };
-        binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
-            && (right_has_between_comment || right_has_newline)
-    };
     let right_is_inline_atomic =
         expression_is_trivial_inline_without_annotations(context, inner_right_id);
     let right_is_class_declaration = expression_is_class_declaration(context, right);
+    let right_prefers_break_after_operator = assignment_rhs_prefers_break_after_operator(f, right);
 
     // string literals are atomic: never break at `=`
     if is_string_literal {
@@ -506,7 +522,7 @@ fn assignment_expression_layout<'ast>(
     }
 
     // break long binary rhs values after the operator
-    if right_is_multiline_binary {
+    if right_prefers_break_after_operator {
         return Ok(AssignmentLikeLayout::BreakAfterOperator);
     }
 

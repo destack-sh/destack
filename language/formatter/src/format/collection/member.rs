@@ -1,6 +1,6 @@
 use super::property::{format_field_like, format_method_like, format_node_with_directive};
 use crate::format::annotation::{
-    decorator_prefix_annotations, format_raw_comment, infix_or_postfix_annotations,
+    decorator_prefix_annotations, infix_or_postfix_annotations,
     prefix_annotations_without_decorators,
 };
 use crate::format::collection::{
@@ -11,14 +11,15 @@ use crate::format::declaration::signature::{
     format_binding_modifiers_prefix, format_binding_modifiers_prefix_maybe,
     write_static_parameter_list,
 };
+use crate::format::declaration::write_statement_terminator_after_anchor;
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::operator::{
     write_colon_prefixed_type_annotation, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Comment, Declaration, Expression, Keyword, LocalNodeId, Member};
+use destack_ast::{Declaration, Keyword, LocalNodeId, Member};
 use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::{hard_line_break, space, token};
+use destack_fir::prelude::{space, token};
 use destack_fir::write;
 
 /// Format a block of members with empty-annotation and ignore-range handling.
@@ -54,44 +55,12 @@ fn class_member_should_force_quote_keys<'ast>(
     matches!(f.context().tree.get(parent_id), Declaration::Class { .. })
 }
 
-/// Return raw end-of-line comments after one field type and before the member terminator.
-fn field_type_trailing_comment_nodes<'ast>(
-    f: &DestackFormatter<'ast, '_>,
-    value: Option<LocalNodeId<Expression>>,
-    default: Option<LocalNodeId<Expression>>,
-) -> Vec<Comment> {
-    if default.is_some() {
-        return Vec::new();
-    }
-
-    let Some(value_id) = value else {
-        return Vec::new();
-    };
-
-    let value_span = f.context().span(value_id);
-    f.context().end_of_line_raw_comments_after(value_span.end)
-}
-
-/// Write a class field terminator and any trailing field-type comments.
-fn write_field_terminator_and_trailing_comments<'ast>(
+/// Write a class field terminator and any same-line trailing comments.
+fn write_field_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    value: Option<LocalNodeId<Expression>>,
-    default: Option<LocalNodeId<Expression>>,
+    node_id: LocalNodeId<Member>,
 ) -> FormatResult<()> {
-    write!(f, [token(";")])?;
-
-    for comment_id in field_type_trailing_comment_nodes(f, value, default) {
-        let comment_span = comment_id.span;
-        if f.context().span_starts_on_own_line(comment_span) {
-            write!(f, [hard_line_break()])?;
-            format_raw_comment(f, comment_id)?;
-        } else {
-            write!(f, [space()])?;
-            format_raw_comment(f, comment_id)?;
-        }
-    }
-
-    Ok(())
+    write_statement_terminator_after_anchor(f, f.context().span(node_id).end)
 }
 
 impl<'ast> FormatNode<'ast, Member> for Member {
@@ -139,7 +108,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
             // ignored class fields still get one formatter-owned terminator
             if matches!(self, Member::Field { .. }) {
-                write_field_terminator_and_trailing_comments(f, None, None)?;
+                write_field_terminator(f, node_id)?;
             }
 
             return Ok(());
@@ -281,11 +250,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
             let needs_semicolon = matches!(self, Member::Field { .. });
             if needs_semicolon {
-                if let Member::Field { value, default, .. } = self {
-                    write_field_terminator_and_trailing_comments(f, *value, *default)?;
-                } else {
-                    write!(f, [token(";")])?;
-                }
+                write_field_terminator(f, node_id)?;
             }
 
             Ok(())

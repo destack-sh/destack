@@ -2,11 +2,11 @@ use destack_ast::{
     Declaration, DependencyItem, DependencyMode, Expression, FunctionKind, IfKind, LocalNodeId,
     WhileKind,
 };
-use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::token;
+use destack_fir::format::{Buffer, FormatResult, hard_line_break};
+use destack_fir::prelude::{block_indent, format_with, token};
 use destack_fir::write;
 
-use crate::format::annotation::format_trailing_comment_slice;
+use crate::format::annotation::{format_raw_comment, write_raw_comment_slice};
 use crate::format::chain::expression_trivia_anchor_end;
 use crate::{DestackFormatContext, DestackFormatter};
 
@@ -38,6 +38,45 @@ fn statement_terminator_comments_after(
     Vec::new()
 }
 
+/// Return trailing statement comments with one explicit following sibling boundary.
+fn statement_terminator_comments_between(
+    context: &DestackFormatContext<'_>,
+    anchor_end: u32,
+    following_span_start: u32,
+) -> Vec<destack_ast::Comment> {
+    let comments = context.comments().comments_before(following_span_start);
+    let mut cursor = anchor_end;
+    let mut collected = Vec::new();
+
+    for comment in comments.iter().copied() {
+        if comment.span.start < anchor_end {
+            continue;
+        }
+
+        if comment.span.end > following_span_start {
+            break;
+        }
+
+        if !context
+            .source_text()
+            .all_bytes_match(cursor, comment.span.start, |byte| {
+                byte.is_ascii_whitespace() || byte == b';'
+            })
+        {
+            break;
+        }
+
+        cursor = comment.span.end;
+        collected.push(comment);
+
+        if comment.is_line() || comment.followed_by_newline() {
+            break;
+        }
+    }
+
+    collected
+}
+
 /// Write one statement terminator after one explicit source anchor.
 pub(crate) fn write_statement_terminator_after_anchor<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -50,7 +89,67 @@ pub(crate) fn write_statement_terminator_after_anchor<'ast>(
         return Ok(());
     }
 
-    write!(f, [format_trailing_comment_slice(&comments)])
+    write_statement_terminator_comments(f, anchor_end, &comments)
+}
+
+/// Write one statement terminator with one explicit following sibling boundary.
+pub(crate) fn write_statement_terminator_with_following_start<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    _expression_id: LocalNodeId<Expression>,
+    anchor_end: u32,
+    following_span_start: u32,
+) -> FormatResult<()> {
+    write!(f, [token(";")])?;
+
+    let comments =
+        statement_terminator_comments_between(f.context(), anchor_end, following_span_start);
+    if comments.is_empty() {
+        return Ok(());
+    }
+
+    write_statement_terminator_comments(f, anchor_end, &comments)
+}
+
+/// Write statement-boundary comments after one formatter-owned terminator.
+fn write_statement_terminator_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    anchor_end: u32,
+    comments: &[destack_ast::Comment],
+) -> FormatResult<()> {
+    if comments.is_empty() {
+        return Ok(());
+    }
+
+    let first_comment_span = comments[0].span;
+    let comment_is_on_own_line = first_comment_span.start > anchor_end
+        && f.context().has_newline(destack_source::Span::new(
+            first_comment_span.file,
+            anchor_end,
+            first_comment_span.start,
+        ));
+
+    // statement-boundary own-line comments should stay in the statement flow,
+    // not in the generic trailing line-suffix path
+    if comment_is_on_own_line {
+        return write!(
+            f,
+            [block_indent(&format_with(
+                |f: &mut DestackFormatter<'ast, '_>| {
+                    for (index, comment) in comments.iter().copied().enumerate() {
+                        format_raw_comment(f, comment)?;
+
+                        if index + 1 < comments.len() {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+
+                    Ok(())
+                }
+            ))]
+        );
+    }
+
+    write_raw_comment_slice(f, comments)
 }
 
 /// Return whether one export expression still needs the outer statement terminator.
