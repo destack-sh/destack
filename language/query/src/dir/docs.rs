@@ -114,7 +114,7 @@ pub(crate) fn doc_text_for_symbol(
     // prefer semantic documentation attached to the dir declaration
     let dir_tree = ctx.dir().tree();
     if let Some(documentation) = dir_tree.get_documentation(declaration.local_id.id) {
-        return Some(session.strings.get(documentation.text).to_string());
+        return Some(repository.strings.get(documentation.text).to_string());
     }
 
     // resolve the source node for the declaration

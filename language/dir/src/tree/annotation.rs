@@ -10,7 +10,7 @@ pub enum AnnotationPosition {
     Prefix,
     /// Inside the node.
     Infix,
-/// After the node.
+    /// After the node.
     Postfix,
 }
 
@@ -55,7 +55,7 @@ impl Annotation {
 }
 
 /// Normalized semantic documentation attached to one DIR node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct Documentation {
     /// The normalized documentation text.
     pub text: StringId,

@@ -231,8 +231,7 @@ impl<'a> Comments<'a> {
 
     /// Return whether one comment is a suppression comment.
     pub fn is_suppression_comment(&self, comment: &Comment) -> bool {
-        let text = self.span_text(comment.content_span()).trim();
-        matches!(text, "oxfmt-ignore" | "prettier-ignore")
+        is_ignore_suppression_comment(self.span_text(comment.content_span()))
     }
 
     /// Return trailing comments owned by one preceding span inside one enclosing span.
@@ -471,3 +470,4 @@ impl<'ast> DestackFormatterCommentExt<'ast> for DestackFormatter<'ast, '_> {
         result
     }
 }
+use crate::format::directive::is_ignore_suppression_comment;

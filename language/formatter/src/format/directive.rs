@@ -10,16 +10,41 @@ use destack_source::Span;
 use crate::{DestackFormatContext, DestackFormatter};
 
 /// Single-line ignore directive markers supported by formatter behavior.
-const IGNORE_DIRECTIVES: &[&str] = &["prettier-ignore", "oxfmt-ignore"];
+const IGNORE_DIRECTIVES: &[&str] = &[
+    "prettier-ignore",
+    "oxfmt-ignore",
+    "format-ignore",
+    "fmt-ignore",
+    "deno-fmt-ignore",
+];
 
 /// File-level ignore directive markers supported by formatter behavior.
-const IGNORE_FILE_DIRECTIVES: &[&str] = &["prettier-ignore-file", "oxfmt-ignore-file"];
+const IGNORE_FILE_DIRECTIVES: &[&str] = &[
+    "prettier-ignore-file",
+    "oxfmt-ignore-file",
+    "format-ignore-file",
+    "fmt-ignore-file",
+    "deno-fmt-ignore-file",
+];
 
 /// Ignore-range start directive markers supported by formatter behavior.
-const IGNORE_START_DIRECTIVES: &[&str] = &["oxfmt-ignore-start"];
+const IGNORE_START_DIRECTIVES: &[&str] = &[
+    "prettier-ignore-start",
+    "oxfmt-ignore-start",
+    "format-ignore-start",
+    "fmt-ignore-start",
+];
 
 /// Ignore-range end directive markers supported by formatter behavior.
-const IGNORE_END_DIRECTIVES: &[&str] = &["oxfmt-ignore-end"];
+const IGNORE_END_DIRECTIVES: &[&str] = &[
+    "prettier-ignore-end",
+    "oxfmt-ignore-end",
+    "format-ignore-end",
+    "fmt-ignore-end",
+];
+
+/// Prefix ignore directive markers supported by formatter behavior.
+const IGNORE_PREFIX_DIRECTIVES: &[&str] = &["biome-ignore format"];
 
 /// Formatter-owned suppression directives parsed from raw comment text.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -38,6 +63,17 @@ enum IgnoreDirective {
 #[inline]
 fn marker_matches_any(marker: &str, markers: &[&str]) -> bool {
     markers.contains(&marker)
+}
+
+/// Return whether one marker starts with one directive prefix.
+#[inline]
+fn marker_matches_prefix(marker: &str, prefixes: &[&str]) -> bool {
+    prefixes.iter().any(|prefix| {
+        marker == *prefix
+            || marker.strip_prefix(prefix).is_some_and(|suffix| {
+                suffix.starts_with(':') || suffix.starts_with(char::is_whitespace)
+            })
+    })
 }
 
 /// Parse one directive token from one comment token span.
@@ -146,8 +182,18 @@ where
             Some(ctx.extend_span_with_trailing_line_tokens(range_span))
         }
         Some(IgnoreDirective::IgnoreStart) => {
-            let end_span = find_ignore_range_end(ctx, comment_tokens, token.span.end)?;
-            Some(Span::new(token.span.file, token.span.start, end_span.start))
+            let end_token = find_ignore_range_end(ctx, comment_tokens, token.span.end)?;
+            let mut end_span = ctx.extend_span_with_trailing_line_tokens(end_token.span);
+
+            // line end markers should preserve their trailing newline
+            if ctx.comment_is_line(end_token)
+                && let Some((line_index, _)) = ctx.source_position(end_token.span.start)
+                && let Some(next_line_span) = ctx.source_line_span(line_index + 1)
+            {
+                end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
+            }
+
+            Some(Span::new(token.span.file, token.span.start, end_span.end))
         }
         Some(IgnoreDirective::IgnoreFile | IgnoreDirective::IgnoreEnd) | None => None,
     }
@@ -258,6 +304,9 @@ pub fn write_ignored_span<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     span: Span,
 ) -> FormatResult<()> {
+    // raw ignored spans already contain their own comments
+    f.context().comments_mut().skip_comments_before(span.end);
+
     let raw = ignored_span_source(f.context(), span);
     let raw = if !f.context().span_starts_on_own_line(span) {
         dedent_common_leading_whitespace_after_first_line(raw.as_str())
@@ -447,13 +496,13 @@ fn find_ignore_range_end(
     ctx: &DestackFormatContext<'_>,
     comment_tokens: &[TokenSpan],
     start_offset: u32,
-) -> Option<Span> {
+) -> Option<TokenSpan> {
     comment_tokens
         .iter()
         .filter(|token| token.span.start >= start_offset)
         .find_map(|token| {
             if directive_token_for_comment_token(ctx, *token) == Some(IgnoreDirective::IgnoreEnd) {
-                Some(token.span)
+                Some(*token)
             } else {
                 None
             }
@@ -476,6 +525,14 @@ pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
                 | IgnoreDirective::IgnoreStart
                 | IgnoreDirective::IgnoreEnd
         )
+    )
+}
+
+/// Return whether raw comment text suppresses formatter output for the next node.
+pub(crate) fn is_ignore_suppression_comment(raw: &str) -> bool {
+    matches!(
+        parse_directive_token_from_raw(raw),
+        Some(IgnoreDirective::Ignore | IgnoreDirective::IgnoreStart)
     )
 }
 
@@ -532,6 +589,12 @@ fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
         && marker_matches_any(first_significant_line, IGNORE_END_DIRECTIVES)
     {
         return Some(IgnoreDirective::IgnoreEnd);
+    }
+
+    if !has_additional_significant_line
+        && marker_matches_prefix(first_significant_line, IGNORE_PREFIX_DIRECTIVES)
+    {
+        return Some(IgnoreDirective::Ignore);
     }
 
     None

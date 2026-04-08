@@ -58,6 +58,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                context,
             );
         }
 

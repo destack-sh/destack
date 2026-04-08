@@ -414,7 +414,7 @@ pub(crate) fn write_ignored_call_arguments<'ast>(
             soft_block_indent(&separated_entries(
                 ",",
                 dynamic_arguments,
-                TrailingSeparator::Omit,
+                TrailingSeparator::Allowed,
                 Some(group_id),
             )),
             token(")")

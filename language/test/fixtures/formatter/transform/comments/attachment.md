@@ -209,20 +209,20 @@ const Component = () => (
 );
 ```
 
-## Directive Adjacency
+## Prefix Comment Adjacency
 
-### generated directive prelude comments
+### generated prelude comments
 
-Directive-like prefix comments are preserved before pure annotations.
+Stacked prefix comments are preserved before call expressions.
 
 ```ts:main.ts
 /******/
-/*#__PURE__*/ make()
+/* keep-call */ make()
 ```
 
 ```ts expected
 /******/
-/*#__PURE__*/ make();
+/* keep-call */ make();
 ```
 
 ### directive comments around use strict

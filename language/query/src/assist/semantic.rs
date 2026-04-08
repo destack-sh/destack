@@ -539,7 +539,9 @@ pub fn semantic_tokens(
     }
 
     // collect documentation comment tokens
-    let file = session.files.get(ctx.file_id());
+    let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
+        return tokens;
+    };
     for comment in ctx.ast().tree().comments().iter().copied() {
         let raw_text = file.span_str(comment.span);
         let raw_text = raw_text.trim_start();

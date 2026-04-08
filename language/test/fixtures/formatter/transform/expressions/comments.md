@@ -321,7 +321,7 @@ Object . defineProperties    (    exports    , { } );
 
 ```ts expected
 // format-ignore
-Object.defineProperties(exports, {});
+Object . defineProperties    (    exports    , { } );
 ```
 
 ### block ignore preserves expression formatting
@@ -357,7 +357,7 @@ foo ( 1 , 2 );
 
 ```ts expected
 // biome-ignore format: keep spacing
-foo(1, 2);
+foo ( 1 , 2 );
 ```
 
 ### oxfmt ignore preserves statement formatting
@@ -385,7 +385,7 @@ console . error( "hi" );
 
 ```ts expected
 // deno-fmt-ignore
-console.error("hi");
+console . error( "hi" );
 ```
 
 ### prettier ignore preserves object property formatting
@@ -442,8 +442,8 @@ const baz = 3;
 
 ```ts expected
 // fmt-ignore-start
-const foo = 1;
-const bar = 2;
+const foo   = 1;
+const bar=2;
 // fmt-ignore-end
 const baz = 3;
 ```
@@ -462,8 +462,8 @@ const done = true;
 
 ```ts expected
 // format-ignore-start
-const left = 1;
-const right = 2;
+const left   = 1;
+const right=2;
 // format-ignore-end
 const done = true;
 ```
@@ -487,8 +487,8 @@ const obj = {
 const obj = {
     foo: 1,
     // format-ignore-start
-    bar: baz,
-    qux: 2,
+    bar   :    baz,
+    qux:2,
     // format-ignore-end
     zap: 3,
 };
@@ -513,8 +513,8 @@ class Foo {
 class Foo {
     bar: number;
     // format-ignore-start
-    baz: number;
-    qux: number;
+    baz   :    number;
+    qux:number;
     // format-ignore-end
     zap: number;
 }
@@ -539,7 +539,7 @@ const values = [
 const values = [
     1,
     // format-ignore-start
-    foo(1, 2),
+    foo ( 1 ,2 ),
     bar(3),
     // format-ignore-end
     baz(4),
@@ -565,7 +565,7 @@ doThing(
 doThing(
     1,
     // format-ignore-start
-    foo(1, 2),
+    foo ( 1 ,2 ),
     bar(3),
     // format-ignore-end
     4,

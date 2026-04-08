@@ -1,4 +1,4 @@
-use crate::Compiler;
+use crate::{Compiler, CompilerContext};
 use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
@@ -11,8 +11,14 @@ use destack_workspace::Module;
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Derive normalized documentation text from raw AST comments and attach it to DIR nodes.
-    pub(super) fn attach_documentation(&self, module: &Module, ast: &Ast, tree: &mut NodeTree) {
-        let file = self.program.files.get(module.file_id);
+    pub(super) fn attach_documentation(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        tree: &mut NodeTree,
+        context: &CompilerContext<'_>,
+    ) {
+        let file = context.file(module.file_id);
         let node_ids: Vec<_> = tree.iter_node_ids().collect();
 
         // scan every source-backed dir node once
@@ -30,7 +36,7 @@ impl Compiler {
             };
 
             let documentation = Documentation {
-                text: self.program.strings.intern(&documentation),
+                text: self.repository.strings.intern(&documentation),
             };
             tree.set_documentation(node_id.id, documentation);
         }
@@ -48,6 +54,7 @@ impl Compiler {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
+        context: &CompilerContext<'_>,
     ) {
         // bind them
         for ast_annotation_id in ast.tree.get_nodes::<ast::Annotation>() {
@@ -82,7 +89,7 @@ impl Compiler {
                 tree.append_annotation(dir_node_id, LocalNodeId::new(dir_annotation_id.id));
             }
         }
-        self.attach_documentation(module, ast, tree);
+        self.attach_documentation(module, ast, tree, context);
     }
 
     /// Bind an annotation position into a DIR annotation position.
