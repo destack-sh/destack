@@ -1,11 +1,11 @@
 use super::arguments::format_call_arguments;
 use crate::format::annotation::format_trailing_comment_slice;
 use crate::format::chain::extract_parenthesized_index_chain;
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::directive::node_has_ignore_directive;
 use crate::format::expression::{
     format_expression, format_static_argument_list, format_static_member_with_following_suffix,
-    parenthesized_has_leading_inner_trivia, should_unwrap_parenthesized_member_object,
-    write_expression_without_trailing_annotations,
+    should_unwrap_parenthesized_member_object, write_expression_without_trailing_annotations,
 };
 use crate::format::operator::expression_has_static_type_arguments;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -27,7 +27,8 @@ pub(crate) fn call_drops_parenthesized_callee_wrapper(
     ) && expression_has_static_type_arguments(context, inner_expression_id)
         && !context.has_annotation(parenthesized_id)
         && !context.has_annotation(inner_expression_id)
-        && !parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id)
+        && !ParenthesizedExpressionView::from_node(context, parenthesized_id)
+            .is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
 }
 
 /// Format a call expression.

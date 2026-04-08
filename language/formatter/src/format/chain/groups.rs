@@ -2,7 +2,8 @@ use std::cell::Cell;
 
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, chain_operation_is_call_like,
-    chain_operation_node_id, is_numeric_index, transparent_inner_expression,
+    chain_operation_node_id, expression_trivia_anchor_end, is_numeric_index,
+    transparent_inner_expression,
 };
 use crate::DestackFormatContext;
 use crate::format::operator::expression_has_static_type_arguments;
@@ -166,6 +167,13 @@ pub(crate) fn chain_head_operation_count(
     base: &ChainExpressionBase,
     operations: &[ChainExpression],
 ) -> usize {
+    if operations
+        .first()
+        .is_some_and(|operation| chain_operation_has_leading_gap_comment(context, operation))
+    {
+        return 0;
+    }
+
     if chain_base_has_leading_call_like(context, base) {
         return operations
             .iter()
@@ -175,8 +183,9 @@ pub(crate) fn chain_head_operation_count(
 
     let non_call_or_numeric_index_start = operations
         .iter()
+        .skip(1)
         .position(|operation| !chain_operation_stays_in_leading_head(context, operation))
-        .unwrap_or(operations.len());
+        .map_or(operations.len(), |index| index + 1);
 
     let rest = &operations[non_call_or_numeric_index_start..];
     let member_end = rest
@@ -185,6 +194,30 @@ pub(crate) fn chain_head_operation_count(
         .map_or(rest.len(), |index| index.saturating_sub(1));
 
     non_call_or_numeric_index_start + member_end
+}
+
+/// Return whether one chain operation owns a source comment before its leading token.
+fn chain_operation_has_leading_gap_comment(
+    context: &DestackFormatContext<'_>,
+    operation: &ChainExpression,
+) -> bool {
+    let node_id = chain_operation_node_id(operation);
+    let Some(left_id) = super::member::chain_node_left_id(context.tree, node_id) else {
+        return false;
+    };
+
+    let left_end = expression_trivia_anchor_end(context, left_id);
+    let operation_end = context.span(node_id).end;
+    let Some(operation_start) = context
+        .first_non_trivia_token_between(left_end, operation_end)
+        .map(|token| token.span.start)
+    else {
+        return false;
+    };
+
+    context
+        .comments()
+        .has_comment_in_range(left_end, operation_start)
 }
 
 /// Build the tail groups after the head.

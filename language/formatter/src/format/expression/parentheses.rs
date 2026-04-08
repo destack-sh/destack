@@ -6,10 +6,11 @@ use super::{
     write_expression_without_prefix_annotations,
 };
 use crate::format::annotation::{
-    format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
+    format_raw_comment, infix_or_postfix_annotations, prefix_annotations, write_raw_comment_slice,
 };
 use crate::format::call::call_drops_parenthesized_callee_wrapper;
 use crate::format::chain::transparent_inner_expression;
+use crate::format::context::ParenthesizedExpressionView;
 use crate::format::directive::node_has_ignore_directive;
 use crate::format::operator::{
     assignment_drops_parenthesized_operand_wrapper, binary_keeps_unary_left_parenthesized_wrapper,
@@ -43,277 +44,35 @@ enum PreservedParenthesizedLayout {
     Plain,
 }
 
-/// Collect postfix star comments from an inner expression that should render after `)`.
-pub(crate) fn parenthesized_boundary_comments(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    if matches!(
-        context.tree.get(inner_expression_id),
-        Expression::TreeExpression { .. }
-    ) {
-        return Vec::new();
-    }
-
-    let parenthesized_span = context.span(parenthesized_id);
-    let inner_span = context.span(inner_expression_id);
-    if parenthesized_span.file != inner_span.file || inner_span.end >= parenthesized_span.end {
-        return Vec::new();
-    }
-
-    let boundary_span = Span::new(
-        parenthesized_span.file,
-        inner_span.end,
-        parenthesized_span.end,
-    );
-    {
-        let comments = context.comments();
-        comments
-            .comments_in_range(boundary_span.start, boundary_span.end)
-            .to_vec()
-    }
-    .into_iter()
-    .filter(|comment| comment.is_block())
-    .filter(|comment| {
-        context
-            .next_non_whitespace_token_after_span(comment.span)
-            .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis)
-    })
-    .collect()
-}
-
-/// Collect raw comments between one closing `)` and its following postfix continuation.
-pub(crate) fn parenthesized_postfix_comments(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    let parenthesized_span = context.span(parenthesized_id);
-    let Expression::Parenthesized { expression } = context.tree.get(parenthesized_id) else {
-        return Vec::new();
-    };
-    let inner_span = context.span(*expression);
-    let Some(close_parenthesis) = context.next_non_whitespace_token_after_span(inner_span) else {
-        return Vec::new();
-    };
-    if close_parenthesis.token.ty != TokenType::CloseParenthesis
-        || close_parenthesis.span.file != parenthesized_span.file
-    {
-        return Vec::new();
-    }
-
-    let Some(next_token) = context.next_non_trivia_token_after_span(close_parenthesis.span) else {
-        return Vec::new();
-    };
-    if next_token.span.file != parenthesized_span.file
-        || close_parenthesis.span.end >= next_token.span.start
-    {
-        return Vec::new();
-    }
-
-    {
-        let comments = context.comments();
-        comments
-            .comments_in_range(close_parenthesis.span.end, next_token.span.start)
-            .to_vec()
-    }
-}
-
-/// Collect line comments that belong immediately before one closing `)`.
-fn parenthesized_trailing_inner_line_comments(
+/// Collect comments that belong immediately before one closing `)`.
+fn parenthesized_trailing_inner_comments(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     _inner_expression_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
-    let parenthesized_span = context.span(parenthesized_id);
-
-    {
-        let comments = context.comments();
-        comments
-            .comments_in_range(parenthesized_span.start, parenthesized_span.end)
-            .to_vec()
-    }
-    .into_iter()
-    .filter(|comment| comment.is_line())
-    .filter(|comment| {
-        context
-            .next_non_whitespace_token_after_span(comment.span)
-            .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis)
-    })
-    .collect()
+    ParenthesizedExpressionView::from_node(context, parenthesized_id)
+        .map(ParenthesizedExpressionView::trailing_inner_comments)
+        .unwrap_or_default()
 }
 
 /// Collect comments between `(` and the inner expression.
 pub(crate) fn parenthesized_leading_inner_comments(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
+    _inner_expression_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
-    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
-        return Vec::new();
-    }
-
-    let parenthesized_span = context.span(parenthesized_id);
-    let inner_span = context.span(inner_expression_id);
-    let leading_start = parenthesized_span.start.saturating_add(1);
-    if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
-        return Vec::new();
-    }
-
-    let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
-    {
-        let comments = context.comments();
-        comments
-            .comments_in_range(leading_span.start, leading_span.end)
-            .to_vec()
-    }
+    ParenthesizedExpressionView::from_node(context, parenthesized_id)
+        .map(ParenthesizedExpressionView::leading_inner_comments)
+        .unwrap_or_default()
 }
 
 /// Return whether one parenthesized wrapper has explicit `(` and `)` delimiter tokens.
 pub(crate) fn parenthesized_has_explicit_delimiters(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
+    _inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let parenthesized_span = context.span(parenthesized_id);
-    let inner_span = context.span(inner_expression_id);
-
-    if parenthesized_span.file != inner_span.file
-        || parenthesized_span.start >= inner_span.start
-        || inner_span.end >= parenthesized_span.end
-    {
-        return false;
-    }
-
-    let Some(open_parenthesis) = context.previous_non_whitespace_token_before_span(inner_span)
-    else {
-        return false;
-    };
-    if open_parenthesis.token.ty != TokenType::OpenParenthesis
-        || open_parenthesis.span.file != parenthesized_span.file
-        || open_parenthesis.span.start < parenthesized_span.start
-        || open_parenthesis.span.end > parenthesized_span.end
-    {
-        return false;
-    }
-
-    let Some(close_parenthesis) = context.next_non_whitespace_token_after_span(inner_span) else {
-        return false;
-    };
-    if close_parenthesis.token.ty != TokenType::CloseParenthesis
-        || close_parenthesis.span.file != parenthesized_span.file
-        || close_parenthesis.span.start < parenthesized_span.start
-        || close_parenthesis.span.end > parenthesized_span.end
-    {
-        return false;
-    }
-
-    true
-}
-
-/// Return whether source contains leading trivia between `(` and the inner expression.
-pub(crate) fn parenthesized_has_leading_inner_trivia(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    parenthesized_has_leading_inner_pattern(context, parenthesized_id, inner_expression_id, true)
-}
-
-/// Return whether source contains leading comments between `(` and the inner expression.
-pub(crate) fn parenthesized_has_leading_inner_comments(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    parenthesized_has_leading_inner_pattern(context, parenthesized_id, inner_expression_id, false)
-}
-
-/// Return whether source contains a newline between `(` and the inner expression.
-pub(crate) fn parenthesized_has_leading_inner_newline(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
-        return false;
-    }
-
-    let parenthesized_span = context.span(parenthesized_id);
-    let inner_span = context.span(inner_expression_id);
-
-    let leading_start = parenthesized_span.start.saturating_add(1);
-    if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
-        return false;
-    }
-
-    let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
-    context.has_newline(leading_span)
-}
-
-/// Return whether source contains leading comment or newline trivia between `(` and inner.
-fn parenthesized_has_leading_inner_pattern(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-    include_newline: bool,
-) -> bool {
-    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
-        return false;
-    }
-
-    let parenthesized_span = context.span(parenthesized_id);
-    let inner_span = context.span(inner_expression_id);
-
-    let leading_start = parenthesized_span.start.saturating_add(1);
-    if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
-        return false;
-    }
-
-    let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
-    if include_newline && context.has_newline(leading_span) {
-        return true;
-    }
-
-    {
-        let comments = context.comments();
-        comments
-            .comments_in_range(leading_span.start, leading_span.end)
-            .to_vec()
-    }
-    .into_iter()
-    .next()
-    .is_some()
-}
-
-/// Return whether source contains line comments between `(` and the inner expression.
-pub(crate) fn parenthesized_has_leading_inner_line_comment(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
-        return false;
-    }
-
-    let parenthesized_span = context.span(parenthesized_id);
-    let inner_span = context.span(inner_expression_id);
-
-    let leading_start = parenthesized_span.start.saturating_add(1);
-    if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
-        return false;
-    }
-
-    let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
-    context
-        .line_comment_spans
-        .iter()
-        .copied()
-        .any(|comment_span| {
-            comment_span.file == leading_span.file
-                && comment_span.start < leading_span.end
-                && comment_span.end > leading_span.start
-        })
+    ParenthesizedExpressionView::from_node(context, parenthesized_id).is_some()
 }
 
 /// Return whether one expression is the parenthesized node of a type-cast comment wrapper.
@@ -613,8 +372,11 @@ fn format_decorator_or_assignment_parenthesized_expression<'ast>(
 /// Format one preserved wrapper that only keeps a leading newline.
 fn format_newline_only_parenthesized_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    let trailing_inner_comment_nodes =
+        parenthesized_trailing_inner_comments(f.context(), node_id, expression_id);
     let format_inline_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if matches!(
             f.context().tree.get(expression_id),
@@ -632,10 +394,29 @@ fn format_newline_only_parenthesized_expression<'ast>(
     write!(
         f,
         [best_fitting![
-            format_args![token("("), format_inline_expression, token(")")],
             format_args![
                 token("("),
-                block_indent(&group(&expression_id)),
+                format_inline_expression,
+                format_with(|f| write_raw_comment_slice(f, &trailing_inner_comment_nodes)),
+                token(")")
+            ],
+            format_args![
+                token("("),
+                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write!(f, [group(&expression_id)])?;
+
+                    if !trailing_inner_comment_nodes.is_empty() {
+                        write!(
+                            f,
+                            [format_with(|f| write_raw_comment_slice(
+                                f,
+                                &trailing_inner_comment_nodes,
+                            ))]
+                        )?;
+                    }
+
+                    Ok(())
+                })),
                 hard_line_break(),
                 token(")")
             ]
@@ -686,9 +467,11 @@ fn format_leading_comment_parenthesized_expression<'ast>(
 fn write_parenthesized_boundary_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
+    _expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let boundary_comments = parenthesized_boundary_comments(f.context(), node_id, expression_id);
+    let boundary_comments = ParenthesizedExpressionView::from_node(f.context(), node_id)
+        .map(ParenthesizedExpressionView::boundary_comments)
+        .unwrap_or_default();
     for comment in boundary_comments {
         write!(f, [space()])?;
         format_raw_comment(f, comment)?;
@@ -703,8 +486,13 @@ fn format_preserved_parenthesized_expression<'ast>(
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let trailing_inner_line_comments =
-        parenthesized_trailing_inner_line_comments(f.context(), node_id, expression_id);
+    let trailing_inner_comment_nodes =
+        parenthesized_trailing_inner_comments(f.context(), node_id, expression_id);
+    let trailing_inner_line_comments = trailing_inner_comment_nodes
+        .iter()
+        .copied()
+        .filter(|comment| comment.is_line())
+        .collect::<Vec<_>>();
     let layout = preserved_parenthesized_layout(f.context(), node_id, expression_id);
 
     match layout {
@@ -728,6 +516,7 @@ fn format_preserved_parenthesized_expression<'ast>(
                 &arguments,
                 &elements,
                 has_leading_inner_trivia,
+                &trailing_inner_comment_nodes,
             )?;
         }
         PreservedParenthesizedLayout::HoistedCastPrefix => {
@@ -737,13 +526,25 @@ fn format_preserved_parenthesized_expression<'ast>(
             format_decorator_or_assignment_parenthesized_expression(f, expression_id)?;
         }
         PreservedParenthesizedLayout::NewlineOnly => {
-            format_newline_only_parenthesized_expression(f, expression_id)?;
+            format_newline_only_parenthesized_expression(f, node_id, expression_id)?;
         }
         PreservedParenthesizedLayout::LeadingComments => {
             format_leading_comment_parenthesized_expression(f, node_id, expression_id)?;
         }
         PreservedParenthesizedLayout::Plain => {
-            write!(f, [token("("), expression_id, token(")")])?;
+            write!(f, [token("("), expression_id])?;
+
+            if !trailing_inner_comment_nodes.is_empty() {
+                write!(
+                    f,
+                    [format_with(|f| write_raw_comment_slice(
+                        f,
+                        &trailing_inner_comment_nodes,
+                    ))]
+                )?;
+            }
+
+            write!(f, [token(")")])?;
         }
     }
 
@@ -757,12 +558,13 @@ fn preserved_parenthesized_layout(
     expression_id: LocalNodeId<Expression>,
 ) -> PreservedParenthesizedLayout {
     let inner_expression = context.tree.get(expression_id);
+    let parenthesized_view = ParenthesizedExpressionView::from_node(context, node_id);
     let has_leading_inner_trivia =
-        parenthesized_has_leading_inner_trivia(context, node_id, expression_id);
+        parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia);
     let has_leading_inner_comments =
-        parenthesized_has_leading_inner_comments(context, node_id, expression_id);
+        parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_comments);
     let has_leading_inner_newline =
-        parenthesized_has_leading_inner_newline(context, node_id, expression_id);
+        parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_newline);
     let has_inner_decorator_prefix_annotation =
         inner_expression_has_decorator_prefix_annotation(context, expression_id);
     let is_in_assignment_value_context =
