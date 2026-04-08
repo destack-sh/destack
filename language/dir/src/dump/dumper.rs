@@ -1234,6 +1234,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ImportMeta => {
                 self.node("Expression::ImportMeta", id.id).end();
             }
+            Expression::NewTarget => {
+                self.node("Expression::NewTarget", id.id).end();
+            }
             Expression::This => {
                 self.node("Expression::This", id.id).end();
             }

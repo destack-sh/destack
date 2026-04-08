@@ -1,9 +1,9 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
-    Decorator, DependencyItem, Doc, EnumField, Expression, ForEachBinding, FunctionSignature,
-    Generics, Heritage, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId,
-    LocalNodeIdAny, MatchCase, MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, Property, TemplateLiteral, WhereClause,
+    Annotation, Argument, Block, Declaration, DeclarationDescriptor, Declarator, Decorator,
+    DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, Generics, Heritage,
+    IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId, LocalNodeIdAny, MatchCase,
+    MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -177,21 +177,6 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let annotation_id = LocalNodeId::<Annotation>::new(root.id);
             let annotation = tree.get(annotation_id);
             visitor.visit_annotation(tree, annotation_id, annotation);
-        }
-        NodeType::Blank => {
-            let blank_id = LocalNodeId::<Blank>::new(root.id);
-            let blank = tree.get(blank_id);
-            visitor.visit_blank(tree, blank_id, blank);
-        }
-        NodeType::Doc => {
-            let doc_id = LocalNodeId::<Doc>::new(root.id);
-            let doc = tree.get(doc_id);
-            visitor.visit_doc(tree, doc_id, doc);
-        }
-        NodeType::Comment => {
-            let comment_id = LocalNodeId::<Comment>::new(root.id);
-            let comment = tree.get(comment_id);
-            visitor.visit_comment(tree, comment_id, comment);
         }
         NodeType::Decorator => {
             let decorator_id = LocalNodeId::<Decorator>::new(root.id);
@@ -496,7 +481,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::PrivateIdentifier { name: _ } => {}
 
-        Expression::This | Expression::Super => {}
+        Expression::This | Expression::Super | Expression::ImportMeta | Expression::NewTarget => {}
 
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit

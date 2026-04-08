@@ -981,6 +981,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Super => {
                 self.node("Expression::Super", _id.id).end();
             }
+            Expression::ImportMeta => {
+                self.node("Expression::ImportMeta", _id.id).end();
+            }
+            Expression::NewTarget => {
+                self.node("Expression::NewTarget", _id.id).end();
+            }
             Expression::ScalarLiteral(value) => {
                 self.node("Expression::ScalarLiteral", _id.id)
                     .value(value)

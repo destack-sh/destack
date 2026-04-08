@@ -31,13 +31,32 @@ fn assert_bare_import(items: &Option<Vec<LocalNodeId<DependencyItem>>>) {
     assert!(items.is_none());
 }
 
-/// Disambiguate using import meta as a path.
+/// Parse import meta as one dedicated expression root.
 #[test]
-fn test_parse_import_as_path() {
+fn test_parse_import_meta_expression() {
     let mut test = TestParser::new("import.meta.env");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_value_expression_path!(parser, parser.tree.get(expression_id), "import.meta.env");
+
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, static_arguments } => {
+        assert!(static_arguments.is_none());
+        assert_string!(parser, name.expect("expected member name"), "env");
+        assert_node!(parser.tree, *left, Expression::ImportMeta);
+    });
+}
+
+/// Parse new target as one dedicated expression root.
+#[test]
+fn test_parse_new_target_expression() {
+    let mut test = TestParser::new("new.target.member");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, static_arguments } => {
+        assert!(static_arguments.is_none());
+        assert_string!(parser, name.expect("expected member name"), "member");
+        assert_node!(parser.tree, *left, Expression::NewTarget);
+    });
 }
 
 /// Disambiguate import source phase access as a path.
@@ -46,7 +65,7 @@ fn test_parse_import_source_as_path() {
     let mut test = TestParser::new_with_options("import.source", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_value_expression_path!(parser, parser.tree.get(expression_id), "import.source");
+    assert_qualified_reference_path!(parser, parser.tree.get(expression_id), "import.source");
 }
 
 /// Parse import source phase calls as member calls.
@@ -61,7 +80,7 @@ fn test_parse_import_source_call_expression_javascript() {
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert_eq!(dynamic_arguments.len(), 1);
-        assert_value_expression_path!(parser, parser.tree.get(*left), "import.source");
+        assert_qualified_reference_path!(parser, parser.tree.get(*left), "import.source");
     });
 }
 
@@ -77,7 +96,7 @@ fn test_parse_import_source_call_expression_with_template_argument_javascript() 
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert_eq!(dynamic_arguments.len(), 1);
-        assert_value_expression_path!(parser, parser.tree.get(*left), "import.source");
+        assert_qualified_reference_path!(parser, parser.tree.get(*left), "import.source");
         assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::TaggedTemplateExpression { .. });
         });

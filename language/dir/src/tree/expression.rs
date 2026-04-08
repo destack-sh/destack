@@ -295,6 +295,8 @@ pub enum Expression {
 
     /// Import meta intrinsic value.
     ImportMeta,
+    /// New target intrinsic value.
+    NewTarget,
     /// This intrinsic value.
     This,
     /// Super intrinsic value.
@@ -529,6 +531,7 @@ impl Expression {
             Expression::GlobalReference { .. } => "global reference",
             Expression::PrivateIdentifier { .. } => "private identifier",
             Expression::ImportMeta => "import meta",
+            Expression::NewTarget => "new target",
             Expression::This => "this",
             Expression::Super => "super",
 
