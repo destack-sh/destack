@@ -1,17 +1,17 @@
 use crate::{Doctype, DoctypeKind, DoctypeQuoteStyle, Document, Fragment, LocalNodeId, NodeTree};
 
-use super::{Printer, RenderOptions};
+use super::{PrintOptions, Printer};
 
 /// Print one HTML document as HTML source.
 pub fn print_document(tree: &NodeTree, document: LocalNodeId<Document>) -> String {
-    print_document_with_options(tree, document, RenderOptions::default())
+    print_document_with_options(tree, document, PrintOptions::default())
 }
 
 /// Print one HTML document as HTML source with options.
 pub fn print_document_with_options(
     tree: &NodeTree,
     document: LocalNodeId<Document>,
-    options: RenderOptions,
+    options: PrintOptions,
 ) -> String {
     let mut printer = Printer::new(tree, options);
     printer.print_document(document);
@@ -20,14 +20,14 @@ pub fn print_document_with_options(
 
 /// Print one HTML fragment as HTML source.
 pub fn print_fragment(tree: &NodeTree, fragment: LocalNodeId<Fragment>) -> String {
-    print_fragment_with_options(tree, fragment, RenderOptions::default())
+    print_fragment_with_options(tree, fragment, PrintOptions::default())
 }
 
 /// Print one HTML fragment as HTML source with options.
 pub fn print_fragment_with_options(
     tree: &NodeTree,
     fragment: LocalNodeId<Fragment>,
-    options: RenderOptions,
+    options: PrintOptions,
 ) -> String {
     let mut printer = Printer::new(tree, options);
     printer.print_fragment(fragment);
