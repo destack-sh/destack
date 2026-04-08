@@ -1,4 +1,7 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_program_reference_widths};
+use crate::{
+    DestackFormatOptions, assert_format, assert_format_program,
+    assert_format_program_reference_widths,
+};
 use destack_source::FileType;
 
 #[test]
@@ -48,6 +51,21 @@ fn test_format_switch_with_block() {
         "switch (value) {\n\tcase 1: {\n\t\tconst x = 1;\n\t}\n}",
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
+    );
+}
+
+/// Match arm annotations should stay on their own line above the arm.
+#[test]
+fn test_format_match_with_annotated_arm() {
+    assert_format_program!(
+        r#"match (result) { @cold Err(e) => handle(e); Ok(v) => v }"#,
+        r#"match (result) {
+    @cold
+    Err(e) => handle(e)
+    Ok(v) => v
+}
+"#,
+        FileType::Destack,
     );
 }
 
