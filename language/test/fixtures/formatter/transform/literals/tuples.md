@@ -4,16 +4,16 @@ Tests for Destack tuple literal formatting.
 
 ## Basic Tuples
 
-### simple tuple with trailing comma
+### simple tuple
 
-Tuple literals get a trailing comma to distinguish from parenthesized expressions.
+Multi-element tuple literals do not need an extra trailing comma.
 
 ```ds
 ( 1 , 2 , 3 )
 ```
 
 ```ds expected
-(1, 2, 3,);
+(1, 2, 3);
 ```
 
 ### tuple destructuring

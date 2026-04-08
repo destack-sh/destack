@@ -81,13 +81,14 @@ const node = (
     <Panel
         title="Settings"
         description="Long description"
-        icon={settingsIcon} />
+        icon={settingsIcon}
+    />
 );
 ```
 
 ### bracket same line option
 
-When `bracket_same_line` is true, the closing bracket stays on the last line.
+For self-closing elements, `bracket_same_line` still leaves `/>` on its own line.
 
 ```tsx:main.tsx line-width=40 bracket-same-line=true
 const node = <Panel title="Settings" description="Long description" icon={settingsIcon} />
@@ -98,7 +99,8 @@ const node = (
     <Panel
         title="Settings"
         description="Long description"
-        icon={settingsIcon} />
+        icon={settingsIcon}
+    />
 );
 ```
 

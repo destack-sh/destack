@@ -84,16 +84,16 @@ Text nodes collapse whitespace to single spaces.
 <Text> Hello World </Text>;
 ```
 
-### whitespace-only text is ignored
+### whitespace-only text is preserved as a single space
 
-Whitespace-only text is dropped (parser behavior).
+Whitespace-only text normalizes to a single preserved space.
 
 ```ds
 <Text> </Text>
 ```
 
 ```ds expected
-<Text></Text>;
+<Text> </Text>;
 ```
 
 ### whitespace expression container normalizes
@@ -141,7 +141,7 @@ Deeply nested elements format with proper indentation.
 
 ### mixed children
 
-Elements can have mixed content types. Content stays on one line if it fits.
+Elements with mixed text and element children expand into a readable multiline layout.
 
 ```ds
 <Paragraph>Hello <Strong>World</Strong>!</Paragraph>
@@ -149,9 +149,7 @@ Elements can have mixed content types. Content stays on one line if it fits.
 
 ```ds expected
 <Paragraph>
-    Hello
-    <Strong>World</Strong>
-    !
+    Hello <Strong>World</Strong>!
 </Paragraph>;
 ```
 
@@ -251,9 +249,7 @@ Comments inside JSX use expression containers. Block infix comments cause expans
 ```
 
 ```ds expected
-<Container>
-    {/* XOXO: something something add content */}
-</Container>;
+<Container>{/* XOXO: something something add content */}</Container>;
 ```
 
 ## Complex Expression Children
@@ -317,9 +313,11 @@ Ternary with multi-attribute JSX in branches.
 
 ```ds expected
 <div>
-    {loading ? <Spinner size="large" /> : <Content
-        data={data}
-    />}
+    {loading ? (
+        <Spinner size="large" />
+    ) : (
+        <Content data={data} />
+    )}
 </div>;
 ```
 
@@ -379,7 +377,7 @@ createPortal(<Modal isOpen={true} />, document.body)
 ```
 
 ```ds expected
-createPortal(<Modal isOpen />, document.body);
+createPortal(<Modal isOpen={true} />, document.body);
 ```
 
 ### complex jsx in function call breaks
@@ -464,9 +462,9 @@ When `single_attribute_per_line` is true, multiple attributes each get their own
 />;
 ```
 
-### bracket same line keeps closing on last attr line
+### bracket same line keeps self-closing slash on its own line
 
-When `bracket_same_line` is true, the `>` stays on the same line as the last attribute.
+For self-closing tags, `bracket_same_line` does not pull `/>` up onto the last attribute line.
 
 ```ds bracket-same-line=true line-width=30
 <Button variant="primary" size="large" disabled />
@@ -476,12 +474,13 @@ When `bracket_same_line` is true, the `>` stays on the same line as the last att
 <Button
     variant="primary"
     size="large"
-    disabled />;
+    disabled
+/>;
 ```
 
 ### single attr per line with bracket same line combined
 
-Both options can be used together.
+Both options can be combined while still keeping the self-closing `/>` on its own line.
 
 ```ds single-attribute-per-line=true bracket-same-line=true
 <Button variant="primary" size="large" onClick={handleClick} />
@@ -491,5 +490,6 @@ Both options can be used together.
 <Button
     variant="primary"
     size="large"
-    onClick={handleClick} />;
+    onClick={handleClick}
+/>;
 ```

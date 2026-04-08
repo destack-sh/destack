@@ -51,7 +51,7 @@ match (x) {
 
 ### match with annotated arm
 
-Annotations can appear on match arms.
+Annotations can appear on match arms and stay on their own line above the arm.
 
 ```ds
 match (result) { @cold Err(e) => handle(e); Ok(v) => v }

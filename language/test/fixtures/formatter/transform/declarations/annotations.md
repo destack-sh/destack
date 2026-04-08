@@ -116,9 +116,9 @@ class Box {
 }
 ```
 
-### decorated field stays attached
+### decorated field stays on its own line
 
-Decorators stay attached to the following field.
+Body level field decorators stay on their own line above the field.
 
 ```ts:main.ts
 class Box {
@@ -134,9 +134,9 @@ class Box {
 }
 ```
 
-### decorated method stays attached
+### decorated method stays on its own line
 
-Decorators stay attached to the following method.
+Body level method decorators stay on their own line above the method.
 
 ```ts:main.ts
 class Box {
@@ -208,10 +208,9 @@ export type Value = /** union-doc
 ```
 
 ```ts expected
-export type Value =
-    /** union-doc
-     */
-    { ok: true } | { ok: false; value: bigint | null };
+export type Value = /** union-doc
+ */
+{ ok: true } | { ok: false; value: bigint | null };
 ```
 
 ### union last arm trailing line comment
@@ -266,33 +265,33 @@ type Flags<T> = {
 
 ### private accessor hash type annotation
 
-Private accessor hash members with type annotations are parsed and formatted.
+Accessor hash members with type annotations are parsed and formatted.
 
 ```ts:main.ts
 class Foo {
-  private accessor #p: any;
+  accessor #p: any;
 }
 ```
 
 ```ts expected
 class Foo {
-    private accessor #p: any;
+    accessor #p: any;
 }
 ```
 
 ### abstract declare accessor type annotation
 
-Declare accessor fields with type annotations are parsed and formatted.
+Abstract accessor fields with type annotations are parsed and formatted.
 
 ```ts:main.ts
 abstract class Foo {
-  declare accessor prop7: number;
+  abstract accessor prop7: number;
 }
 ```
 
 ```ts expected
 abstract class Foo {
-    declare accessor prop7: number;
+    abstract accessor prop7: number;
 }
 ```
 
@@ -315,21 +314,21 @@ class Outer extends (
 
 ### typescript accessor modifiers with decorators
 
-Accessor fields with mixed modifiers and private hash members are parsed and formatted.
+Accessor fields with mixed modifiers and hash members are parsed and formatted.
 
 ```ts:main.ts
 abstract class Foo {
-  declare accessor prop7: number;
-  private accessor #p: any;
+  abstract accessor prop7: number;
+  accessor #p: any;
   accessor a!: any;
 }
 ```
 
 ```ts expected
 abstract class Foo {
-    declare accessor prop7: number;
-    private accessor #p: any;
-    accessor a: any;
+    abstract accessor prop7: number;
+    accessor #p: any;
+    accessor a!: any;
 }
 ```
 
@@ -499,9 +498,9 @@ type Mixed = null // null-arm
 type Mixed =
     | null // null-arm
     | {
-        y: number;
-        z: string;
-    } // object-arm
+          y: number;
+          z: string;
+      } // object-arm
     | void; // void-arm
 ```
 
@@ -595,13 +594,13 @@ declare module "B" {
 
 ### overload signatures with syntax edge parameters
 
-Overload signatures with optional or rest parameter edge shapes are parsed.
+Overload signatures with optional and rest parameters are parsed.
 
 ```ts:main.ts
 function fn4a(x?: number, y: string)
 function fn4a() {}
 
-function fn5(x: string, ...y: any[], z: string)
+function fn5(x: string, y: string, ...rest: any[])
 function fn5() {}
 ```
 
@@ -609,7 +608,7 @@ function fn5() {}
 function fn4a(x?: number, y: string);
 function fn4a() {}
 
-function fn5(x: string, ...y: any[], z: string);
+function fn5(x: string, y: string, ...rest: any[]);
 function fn5() {}
 ```
 
@@ -651,8 +650,8 @@ type Value<T> = {
 ```ts expected
 type Value<T> = {
     [K in keyof T]:
-    | T[K] // arm-a
-    | undefined; // arm-b
+        | T[K] // arm-a
+        | undefined; // arm-b
 };
 ```
 
@@ -765,8 +764,7 @@ Right & Tail
 ```
 
 ```ts expected
-type Value = Left &
-    // inter-note
+type Value = Left & // inter-note
     Right &
     Tail;
 ```

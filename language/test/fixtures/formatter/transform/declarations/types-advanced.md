@@ -112,8 +112,8 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
 type CamelToSnakeCase<TCamelCaseString extends string> =
     TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
         ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-                ? "_"
-                : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+              ? "_"
+              : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
         : TCamelCaseString;
 ```
 
@@ -180,7 +180,7 @@ type Point = (int32, int32)
 ```
 
 ```ds expected
-type Point = (int32, int32,);
+type Point = (int32, int32);
 ```
 
 ### nested conditional type
@@ -192,7 +192,7 @@ type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
 ```ds expected
-type Nested<T> = T extends string ? (T extends 'a' ? 1 : 2) : 3;
+type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
 ```
 
 ## Intersections and Unions

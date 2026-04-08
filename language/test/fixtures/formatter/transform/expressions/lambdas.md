@@ -479,12 +479,11 @@ const handler = (event) => ({ type: event.type, target: event.target, timestamp:
 ```
 
 ```ds expected
-const handler = (event) =>
-    ({
-        type: event.type,
-        target: event.target,
-        timestamp: Date.now(),
-    });
+const handler = (event) => ({
+    type: event.type,
+    target: event.target,
+    timestamp: Date.now(),
+});
 ```
 
 ### arrow function with chained return breaks

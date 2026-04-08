@@ -179,7 +179,8 @@ const valid = isActive() && /* must have permission */ hasPermission()
 ```
 
 ```ds expected
-const valid = isActive() &&
+const valid =
+    isActive() &&
     /* must have permission */ hasPermission();
 ```
 
@@ -289,8 +290,7 @@ data.filter(x => x.valid) /* now map */ .map(x => x.value)
 ```
 
 ```ds expected
-data
-    .filter((x) => x.valid) /* now map */
+data.filter((x) => x.valid) /* now map */
     .map((x) => x.value);
 ```
 

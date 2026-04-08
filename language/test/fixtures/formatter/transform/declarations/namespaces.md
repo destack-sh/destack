@@ -48,16 +48,16 @@ declare namespace Foo {
 
 ## Module Alias
 
-### module keyword stays module for string literal names
+### string literal ambient module keeps declare module
 
-String-literal declarations keep the `module` keyword.
+String-literal ambient declarations keep the `declare module` form.
 
 ```ts:main.ts
-module   "Bar" { export const value:number }
+declare module   "Bar" { export const value:number }
 ```
 
 ```ts expected
-module "Bar" {
+declare module "Bar" {
     export const value: number;
 }
 ```

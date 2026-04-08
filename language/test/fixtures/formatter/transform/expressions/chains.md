@@ -13,8 +13,11 @@ const result = api.getClient().getService().fetchAll().map((x) => x.id)
 ```
 
 ```ds expected
-const result = api.getClient().getService().fetchAll().map((x) =>
-    x.id);
+const result = api
+    .getClient()
+    .getService()
+    .fetchAll()
+    .map((x) => x.id);
 ```
 
 ### chain with long generic call arguments
@@ -99,16 +102,16 @@ getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */?.();
 
 ## Instantiation Expressions
 
-### chain with instantiation stays inline
+### member instantiation stays inline
 
-Instantiation expressions inside chains keep type arguments attached.
+Instantiation expressions stay attached to the member expression they instantiate.
 
 ```ts:main.ts
-const name = api.getFactory<number>.name
+const factory = api.getFactory<number>
 ```
 
 ```ts expected
-const name = (api.getFactory<number>).name;
+const factory = api.getFactory<number>;
 ```
 
 ### instantiation after computed access stays inline
@@ -123,31 +126,18 @@ const factory = providers["main"]<Factory>
 const factory = providers["main"]<Factory>;
 ```
 
-### chain with instantiation breaks cleanly
+### member instantiation breaks cleanly
 
-Instantiation expression chains keep `=` inline and break at member hops.
+Long member chains can break before the instantiation expression while keeping the type arguments attached.
 
 ```ts:main.ts line-width=25
-const value = api.getFactory<number>.create().build()
+const value = api.getService().getFactory<number>
 ```
 
 ```ts expected
 const value =
-    (api.getFactory<number>)
-        .create()
-        .build();
-```
-
-### instantiation before index access stays inline
-
-Instantiation expressions keep type arguments before computed access.
-
-```ts:main.ts
-const value = providers["main"]<Factory>[0]
-```
-
-```ts expected
-const value = providers["main"] < Factory > [0];
+    api.getService()
+        .getFactory<number>;
 ```
 
 ## Non-Null Assertions

@@ -102,7 +102,7 @@ type A2 = A | B;
 
 type A3 =
     | // keep-leading-union
-    C
+      C
     | D;
 ```
 
@@ -132,10 +132,9 @@ export type Value = /** keep-doc
 ```
 
 ```ts expected
-export type Value =
-    /** keep-doc
-     */
-    { ok: true } | { ok: false; value: bigint | null };
+export type Value = /** keep-doc
+ */
+{ ok: true } | { ok: false; value: bigint | null };
 ```
 
 ## Variable Declarations

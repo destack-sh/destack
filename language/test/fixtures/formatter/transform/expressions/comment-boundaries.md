@@ -184,8 +184,7 @@ const value = source
 ```
 
 ```ts expected
-const value = source
-    .first /* first-boundary */
+const value = source.first /* first-boundary */
     ?.second();
 ```
 
@@ -276,8 +275,7 @@ const value = -// unary-line-note
 ```
 
 ```ts expected
-const value =
-    -(
+const value = -(
     // unary-line-note
     1
 );

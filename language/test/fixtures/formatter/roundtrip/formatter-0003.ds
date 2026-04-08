@@ -53,14 +53,11 @@ export const userRouter = Router.create()
     })
     .get("/users/:id", async (ctx) => {
         const user = await ctx.db.query<User>().where({ id: ctx.params.id }).first();
-
         return user ? Response.json(user) : Response.notFound({ error: "User not found" });
     })
     .post("/users", async (ctx) => {
         const input = await ctx.body<CreateUserInput>();
-
         const result = await ctx.services.user.create(input);
-
         return result.ok ? Response.created(result.value) : Response.badRequest(result.error);
     });
 

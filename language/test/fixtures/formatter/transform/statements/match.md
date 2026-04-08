@@ -225,7 +225,7 @@ match (arr) {
 
 ### array first and last
 
-The `..` pattern matches elements in the middle. Tuples get trailing commas.
+The `..` pattern matches elements in the middle. Multi-element tuple results do not need a trailing comma.
 
 ```ds
 match (arr) { [first, ..., last] => (first, last); _ => null }
@@ -233,7 +233,7 @@ match (arr) { [first, ..., last] => (first, last); _ => null }
 
 ```ds expected
 match (arr) {
-    [first, ..., last] => (first, last,)
+    [first, ..., last] => (first, last)
     _ => null
 }
 ```
@@ -394,7 +394,7 @@ Match arms can have decorators for optimization hints.
 match (event) { @likely Click(pos) => handleClick(pos); @cold Error(e) => logError(e) }
 ```
 
-Decorators appear on their own line above the pattern.
+Body level arm decorators stay on their own line above the arm.
 
 ```ds expected
 match (event) {

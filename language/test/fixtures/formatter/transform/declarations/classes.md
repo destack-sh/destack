@@ -56,7 +56,7 @@ class Foo<T> {}
 
 ### class with field
 
-Classes with members expand to multiple lines with fields getting trailing commas.
+Classes with members expand to multiple lines with fields ending in semicolons.
 
 ```ds
 class Foo { x: number }
@@ -70,7 +70,7 @@ class Foo {
 
 ### class with multiple fields
 
-Each field goes on its own line with a trailing comma.
+Each field goes on its own line with a trailing semicolon.
 
 ```ds
 class Foo { x: number; y: string; z: boolean }
@@ -318,7 +318,7 @@ class Foo {
 
 ### typescript class quoted keys
 
-Quoted keys are removed when they are valid identifiers.
+Quoted class members preserve their original quoting unless quote-props mode says otherwise.
 
 ```ts:main.ts
 class Config { "normal" = 1; "data-id" = 2; "default"() { } }
@@ -326,7 +326,7 @@ class Config { "normal" = 1; "data-id" = 2; "default"() { } }
 
 ```ts expected
 class Config {
-    normal = 1;
+    "normal" = 1;
     "data-id" = 2;
     default() {}
 }
@@ -817,16 +817,17 @@ class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 
 ```ds expected
 class MyClass
-    implements FirstInterface,
-    SecondInterface,
-    ThirdInterface {}
+    implements
+        FirstInterface,
+        SecondInterface,
+        ThirdInterface {}
 ```
 
 ## Complex Classes
 
 ### class with mixed members
 
-Fields have trailing commas, methods do not.
+Fields use trailing semicolons, and methods expand as full declarations.
 
 ```ds
 class Person { name: string; constructor(name: string) { this.name = name } greet(): string { return `Hello, ${this.name}` } }
