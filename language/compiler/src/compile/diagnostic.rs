@@ -1,6 +1,6 @@
 use crate::{
-    AnalyzeError, AnalyzeWarning, Compiler, DiagnosticAnchor, ResolveError, ResolveWarning,
-    TaskError, TaskWarning,
+    AnalyzeError, AnalyzeWarning, CompileError, CompileWarning, Compiler, DiagnosticAnchor,
+    ResolveError, ResolveWarning,
 };
 use destack_artifact::ArtifactStore;
 use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, ModuleId, Span};
@@ -10,19 +10,19 @@ use destack_workspace::{Repository, Revision};
 #[derive(Debug, Clone)]
 pub enum CompileDiagnostic {
     /// Error.
-    Error(TaskError),
+    Error(CompileError),
     /// Warning.
-    Warning(TaskWarning),
+    Warning(CompileWarning),
 }
 
-impl From<TaskError> for CompileDiagnostic {
-    fn from(error: TaskError) -> Self {
+impl From<CompileError> for CompileDiagnostic {
+    fn from(error: CompileError) -> Self {
         Self::Error(error)
     }
 }
 
-impl From<TaskWarning> for CompileDiagnostic {
-    fn from(warning: TaskWarning) -> Self {
+impl From<CompileWarning> for CompileDiagnostic {
+    fn from(warning: CompileWarning) -> Self {
         Self::Warning(warning)
     }
 }
@@ -124,19 +124,19 @@ struct ModuleDiagnosticPolicy {
 
 impl Compiler {
     /// Check whether an error should be emitted.
-    pub(super) fn should_emit_error(&self, revision: Revision, error: &TaskError) -> bool {
+    pub(super) fn should_emit_error(&self, revision: Revision, error: &CompileError) -> bool {
         match error {
-            TaskError::Resolve(error) => self.should_emit_resolve_error(revision, error),
-            TaskError::Analyze(error) => self.should_emit_analyze_error(revision, error),
+            CompileError::Resolve(error) => self.should_emit_resolve_error(revision, error),
+            CompileError::Analyze(error) => self.should_emit_analyze_error(revision, error),
             _ => true,
         }
     }
 
     /// Check whether a warning should be emitted.
-    pub(super) fn should_emit_warning(&self, revision: Revision, warning: &TaskWarning) -> bool {
+    pub(super) fn should_emit_warning(&self, revision: Revision, warning: &CompileWarning) -> bool {
         match warning {
-            TaskWarning::Resolve(warning) => self.should_emit_resolve_warning(revision, warning),
-            TaskWarning::Analyze(warning) => self.should_emit_analyze_warning(revision, warning),
+            CompileWarning::Resolve(warning) => self.should_emit_resolve_warning(revision, warning),
+            CompileWarning::Analyze(warning) => self.should_emit_analyze_warning(revision, warning),
             _ => true,
         }
     }

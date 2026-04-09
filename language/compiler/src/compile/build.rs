@@ -1,34 +1,31 @@
-use destack_artifact::{ArtifactKey, ArtifactStamp};
-use destack_workspace::Edit;
+use destack_artifact::ArtifactVersion;
+use destack_workspace::Change;
 
-use crate::{DiagnosticAnchor, TaskError};
+use crate::{CompileError, DiagnosticAnchor};
 
 /// Requirement for one artifact key.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArtifactRequirement {
     /// The diagnostic anchor for this requirement.
     pub anchor: DiagnosticAnchor,
-    /// The required artifact key.
-    pub key: ArtifactKey,
-    /// The expected stamp for that key.
-    pub stamp: ArtifactStamp,
+    /// The exact required artifact version.
+    pub version: ArtifactVersion,
     /// Optional fallback error if the requirement cannot be satisfied.
-    pub error: Option<Box<TaskError>>,
+    pub error: Option<Box<CompileError>>,
 }
 
 impl ArtifactRequirement {
     /// Create a new artifact requirement.
-    pub fn new(anchor: DiagnosticAnchor, key: ArtifactKey, stamp: ArtifactStamp) -> Self {
+    pub fn new(anchor: DiagnosticAnchor, version: ArtifactVersion) -> Self {
         Self {
             anchor,
-            key,
-            stamp,
+            version,
             error: None,
         }
     }
 
     /// Attach a fallback error to this requirement.
-    pub fn with_error(self, error: TaskError) -> Self {
+    pub fn with_error(self, error: CompileError) -> Self {
         Self {
             error: Some(Box::new(error)),
             ..self
@@ -41,24 +38,24 @@ impl ArtifactRequirement {
 pub struct FileRequirement {
     /// The diagnostic anchor for this requirement.
     pub anchor: DiagnosticAnchor,
-    /// The file edit needed to expand the source world.
-    pub edit: Edit,
+    /// The source change needed to expand the source world.
+    pub change: Change,
     /// Optional fallback error if the requirement cannot be satisfied.
-    pub error: Option<Box<TaskError>>,
+    pub error: Option<Box<CompileError>>,
 }
 
 impl FileRequirement {
     /// Create a new file requirement.
-    pub fn new(anchor: DiagnosticAnchor, edit: Edit) -> Self {
+    pub fn new(anchor: DiagnosticAnchor, change: Change) -> Self {
         Self {
             anchor,
-            edit,
+            change,
             error: None,
         }
     }
 
     /// Attach a fallback error to this requirement.
-    pub fn with_error(self, error: TaskError) -> Self {
+    pub fn with_error(self, error: CompileError) -> Self {
         Self {
             error: Some(Box::new(error)),
             ..self
@@ -85,7 +82,7 @@ impl Requirement {
     }
 
     /// Return the fallback error for this requirement when present.
-    pub fn fallback_error(&self) -> Option<&TaskError> {
+    pub fn fallback_error(&self) -> Option<&CompileError> {
         match self {
             Self::Artifact(requirement) => requirement.error.as_deref(),
             Self::File(requirement) => requirement.error.as_deref(),
@@ -164,6 +161,15 @@ impl RequirementSet {
     pub fn for_each_artifact(&self, mut handle: impl FnMut(&ArtifactRequirement)) {
         self.for_each(|requirement| {
             if let Requirement::Artifact(requirement) = requirement {
+                handle(requirement);
+            }
+        });
+    }
+
+    /// Visit each concrete file requirement in this set.
+    pub fn for_each_file(&self, mut handle: impl FnMut(&FileRequirement)) {
+        self.for_each(|requirement| {
+            if let Requirement::File(requirement) = requirement {
                 handle(requirement);
             }
         });

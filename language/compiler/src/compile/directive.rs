@@ -5,7 +5,8 @@ use destack_source::DiagnosticSeverity;
 use destack_workspace::{DiagnosticPolicy, LintSeverity};
 
 use crate::{
-    AnalyzeError, Compiler, DiagnosticAnchor, ImportError, ResolveError, TaskError, TaskWarning,
+    AnalyzeError, CompileError, CompileWarning, Compiler, DiagnosticAnchor, ImportError,
+    ResolveError,
 };
 
 /// Severity override derived from a diagnostic directive decorator.
@@ -19,26 +20,29 @@ struct DiagnosticDirectiveOverride {
 
 impl Compiler {
     /// Resolve the effective error severity after diagnostic overrides.
-    pub(crate) fn error_effective_severity(&self, error: &TaskError) -> Option<DiagnosticSeverity> {
-        if let TaskError::Analyze(error) = error
+    pub(crate) fn error_effective_severity(
+        &self,
+        error: &CompileError,
+    ) -> Option<DiagnosticSeverity> {
+        if let CompileError::Analyze(error) = error
             && let Some(severity) = self.analyze_policy_severity(error)
         {
             return Some(severity);
         }
 
-        if let TaskError::Import(error) = error
+        if let CompileError::Import(error) = error
             && let Some(severity) = self.import_policy_severity(error)
         {
             return Some(severity);
         }
 
-        if let TaskError::Resolve(error) = error
+        if let CompileError::Resolve(error) = error
             && let Some(severity) = self.resolve_policy_severity(error)
         {
             return Some(severity);
         }
 
-        let TaskError::Optimize(error) = error else {
+        let CompileError::Optimize(error) = error else {
             return Some(DiagnosticSeverity::Error);
         };
 
@@ -52,7 +56,7 @@ impl Compiler {
     /// Resolve the effective warning severity after diagnostic overrides.
     pub(crate) fn warning_effective_severity(
         &self,
-        warning: &TaskWarning,
+        warning: &CompileWarning,
     ) -> Option<DiagnosticSeverity> {
         self.diagnostic_effective_severity(
             warning.anchor(),

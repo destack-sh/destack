@@ -69,13 +69,12 @@ impl Compiler {
         artifact_key: &ArtifactKey,
         requirement: ArtifactRequirement,
     ) -> Option<ArtifactDependency> {
-        if requirement.key == *artifact_key {
+        if requirement.version.key == *artifact_key {
             return None;
         }
 
         Some(ArtifactDependency {
-            key: requirement.key,
-            stamp: requirement.stamp,
+            version: requirement.version,
         })
     }
 }

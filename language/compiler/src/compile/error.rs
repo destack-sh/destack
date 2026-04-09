@@ -3,13 +3,12 @@ use destack_workspace::{Repository, Revision};
 
 use crate::emit::EmitError;
 use crate::{
-    AnalyzeError, ArtifactTaskKeyExt, DiagnosticAnchor, ElaborateError, ExecuteError,
-    GenerateError, ImportError, LinkError, LowerError, OptimizeError, RequirementSet, ResolveError,
-    TaskId, TaskPhase,
+    AnalyzeError, CompilePhase, DiagnosticAnchor, ElaborateError, ExecuteError, GenerateError,
+    ImportError, LinkError, LowerError, OptimizeError, RequirementSet, ResolveError,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TaskError {
+pub enum CompileError {
     /// Error during importing.
     Import(ImportError),
     /// Error during resolution.
@@ -39,20 +38,18 @@ pub enum TaskError {
 /// Internal compiler error (bug in the compiler).
 #[derive(Debug, Clone, PartialEq)]
 pub enum InternalError {
+    /// One compiler entrypoint received a revision that is not semantically usable.
+    InvalidRevision { revision: Revision, message: String },
     /// Task yielded to the same requirement twice in a row.
-    SuspiciousYield {
-        task_id: TaskId,
-        requirement: RequirementSet,
-    },
+    SuspiciousYield { requirement: RequirementSet },
     /// Task exceeded maximum yield count.
     ExcessiveYield {
-        task_id: TaskId,
         artifact_key: ArtifactKey,
         requirement: RequirementSet,
         yield_count: u32,
     },
     /// Circular artifact dependency detected in the scheduler.
-    CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
+    CircularDependency { cycle: Vec<ArtifactKey> },
 }
 
 impl InternalError {
@@ -60,9 +57,10 @@ impl InternalError {
     #[inline]
     pub fn sub_code(&self) -> u16 {
         match self {
-            Self::SuspiciousYield { .. } => 1,
-            Self::ExcessiveYield { .. } => 2,
-            Self::CircularDependency { .. } => 3,
+            Self::InvalidRevision { .. } => 1,
+            Self::SuspiciousYield { .. } => 2,
+            Self::ExcessiveYield { .. } => 3,
+            Self::CircularDependency { .. } => 4,
         }
     }
 
@@ -75,11 +73,13 @@ impl InternalError {
     /// Get the message of the error.
     pub fn message(&self, _repository: &Repository, _artifacts: &ArtifactStore) -> String {
         match self {
-            Self::SuspiciousYield { task_id, .. } => {
-                format!("internal error: task {task_id} yielded to the same requirement twice")
+            Self::InvalidRevision { revision, message } => {
+                format!("internal error: invalid compiler revision {revision}: {message}")
+            }
+            Self::SuspiciousYield { .. } => {
+                "internal error: artifact provide yielded to the same requirement twice".to_string()
             }
             Self::ExcessiveYield {
-                task_id,
                 artifact_key,
                 requirement,
                 yield_count,
@@ -89,10 +89,10 @@ impl InternalError {
                     if requirement.len() == 1 {
                         match first_requirement {
                             crate::Requirement::Artifact(requirement) => {
-                                format!("{:?}", requirement.key)
+                                format!("{:?}", requirement.version.key)
                             }
                             crate::Requirement::File(requirement) => {
-                                format!("{:?}", requirement.edit)
+                                format!("{:?}", requirement.change)
                             }
                         }
                     } else {
@@ -103,20 +103,18 @@ impl InternalError {
                 };
 
                 format!(
-                    "internal error: task {task_id} ({}) yielded {yield_count} times on {requirement_description}",
+                    "internal error: artifact {} yielded {yield_count} times on {requirement_description}",
                     artifact_key.name(),
                 )
             }
 
-            Self::CircularDependency { task_id, cycle, .. } => {
+            Self::CircularDependency { cycle, .. } => {
                 let cycle_str = cycle
                     .iter()
-                    .map(|id| format!("{id}"))
+                    .map(|artifact_key| format!("{artifact_key:?}"))
                     .collect::<Vec<_>>()
                     .join(" -> ");
-                format!(
-                    "internal error: circular artifact requirement involving {task_id}: {cycle_str}"
-                )
+                format!("internal error: circular artifact requirement: {cycle_str}")
             }
         }
     }
@@ -128,26 +126,26 @@ impl std::fmt::Display for InternalError {
     }
 }
 
-impl From<InternalError> for TaskError {
+impl From<InternalError> for CompileError {
     #[inline]
     fn from(error: InternalError) -> Self {
-        TaskError::Internal(error)
+        CompileError::Internal(error)
     }
 }
 
-impl TaskError {
+impl CompileError {
     /// Get the phase of the error, if applicable.
-    pub fn phase(&self) -> Option<TaskPhase> {
+    pub fn phase(&self) -> Option<CompilePhase> {
         match self {
-            Self::Import(_) => Some(TaskPhase::Import),
-            Self::Resolve(_) => Some(TaskPhase::Resolve),
-            Self::Analyze(_) => Some(TaskPhase::Analyze),
-            Self::Elaborate(_) => Some(TaskPhase::Elaborate),
-            Self::Execute(_) => Some(TaskPhase::Execute),
-            Self::Lower(_) => Some(TaskPhase::Lower),
-            Self::Optimize(_) => Some(TaskPhase::Optimize),
-            Self::Generate(_) => Some(TaskPhase::Generate),
-            Self::Link(_) => Some(TaskPhase::Link),
+            Self::Import(_) => Some(CompilePhase::Import),
+            Self::Resolve(_) => Some(CompilePhase::Resolve),
+            Self::Analyze(_) => Some(CompilePhase::Analyze),
+            Self::Elaborate(_) => Some(CompilePhase::Elaborate),
+            Self::Execute(_) => Some(CompilePhase::Execute),
+            Self::Lower(_) => Some(CompilePhase::Lower),
+            Self::Optimize(_) => Some(CompilePhase::Optimize),
+            Self::Generate(_) => Some(CompilePhase::Generate),
+            Self::Link(_) => Some(CompilePhase::Link),
             Self::Emit(_) => None,
             Self::Internal(_) => None,
         }

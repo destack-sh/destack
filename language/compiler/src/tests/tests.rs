@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unreachable_pub)]
 
 use std::fmt::Write;
 use std::ops::Deref;
@@ -24,7 +24,6 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_linter::Linter;
 use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
-use destack_session::Session;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileContent, FileId, FileSystem,
     FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
@@ -36,6 +35,10 @@ use destack_workspace::{
     DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId, Ref, Repository,
     Revision, ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery, TargetGeneratedCodeOptions,
     TargetGeneratedCodePreset,
+    AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
+    CheckFailurePolicy, DivisionCheckPolicy, Edit, Module, Package, Profile, ProfileId, Ref,
+    Repository, Revision, ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery,
+    EsTarget, TargetGeneratedCodeOptions, TargetGeneratedCodePreset,
 };
 use serde_json::{Value as JsonValue, json};
 
@@ -43,6 +46,7 @@ use crate::{
     AnalyzeOptions, CompilePhase, Compiler, CompilerContext, CompilerOptions, default_workers,
 };
 
+use super::provide_artifacts_to_completion;
 use super::tracing::init_tracing;
 
 const DEFAULT_TEST_TIMEOUT_SECONDS: u64 = 10;
@@ -406,8 +410,6 @@ pub struct TestProgram {
     pub compiler: Arc<Compiler>,
     /// The linter.
     pub linter: Arc<Linter>,
-    /// The shared session for high level artifact provision.
-    pub session: Arc<Session>,
     /// The latest diagnostics from one test compiler operation.
     latest_diagnostics: Mutex<DiagnosticCollection>,
     /// Pending artifact roots for the next test compile.
@@ -434,12 +436,10 @@ pub fn root_expression_id(
     index: usize,
 ) -> LocalNodeId<Expression> {
     // select the requested root
-    let root_id = roots
+    roots
         .get(index)
         .copied()
-        .unwrap_or_else(|| panic!("missing root at index {index}"));
-
-    root_id
+        .unwrap_or_else(|| panic!("missing root at index {index}"))
 }
 
 /// Find a let declarator by binding name.
@@ -1287,9 +1287,13 @@ impl TestProgram {
 
         let cache = fs.cache();
         let repository = Arc::new(
-            Repository::open_root_from_fs(root_directory.clone(), fs.fs())
-                .expect("failed to import repository from compiler test file system")
-                .with_cache(cache),
+            Repository::open_root_from_fs(
+                root_directory.clone(),
+                fs.fs(),
+                AmbientSnapshot::default(),
+            )
+            .expect("failed to import repository from compiler test file system")
+            .with_cache(cache),
         );
         let program = Arc::new(TestWorkspaceView::new(repository.clone(), root_directory));
 
@@ -1303,19 +1307,6 @@ impl TestProgram {
         let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
         let workspace_reference = Ref::for_workspace_root(program.root_directory());
         let linter = Arc::new(Linter::new(repository.clone()));
-        let session = Arc::new(
-            Session::new(
-                program.root_directory().clone(),
-                repository.clone(),
-                workspace_reference.clone(),
-                None,
-                compiler.clone(),
-                linter.clone(),
-                None,
-                None,
-            )
-            .expect("failed to initialize compiler test session"),
-        );
 
         // track the seeded package manifest in the initial revision
         repository
@@ -1324,17 +1315,12 @@ impl TestProgram {
                 Change::from([Edit::set_text("package.json", r#"{ "name": "test" }"#)]),
             )
             .unwrap_or_else(|error| panic!("failed to publish initial package manifest: {error}"));
-        session
-            .materialize_filesystem(true)
-            .expect("failed to materialize compiler test workspace");
-
         Self {
             fs,
             repository,
             program,
             compiler,
             linter,
-            session,
             latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
             pending_artifact_keys: Mutex::new(Vec::new()),
             dumper_options: DumperOptions::default(),
@@ -1429,7 +1415,7 @@ impl TestProgram {
         let default_profile = self.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
         key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
-        let profile_id = Profile::from_key(key).id();
+        let profile_id = Profile::id_for_key(&key);
         self.default_profile_override = Some(profile_id);
         self
     }
@@ -1439,7 +1425,7 @@ impl TestProgram {
         let default_profile = self.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
         key.emit = emit;
-        let profile_id = Profile::from_key(key).id();
+        let profile_id = Profile::id_for_key(&key);
         self.default_profile_override = Some(profile_id);
         self
     }
@@ -2318,18 +2304,16 @@ impl TestProgram {
         });
 
         // spawn the provide thread
-        let session = self.session.clone();
+        let compiler = self.compiler.clone();
+        let revision = self.program.current_revision();
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
-            let result = session.provide(&artifact_keys);
-            let _ = tx.send(result);
+            provide_artifacts_to_completion(compiler.as_ref(), revision, &artifact_keys);
+            let _ = tx.send(());
         });
 
         match rx.recv_timeout(timeout) {
-            Ok(Ok(_stats)) => {}
-            Ok(Err(error)) => {
-                panic!("failed to provide compiler test artifacts: {error}");
-            }
+            Ok(()) => {}
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 let snapshot = self.compiler.stats.snapshot_with_repository(
                     self.program.tracked_module_count(),
@@ -2490,7 +2474,7 @@ impl TestProgram {
             && highest >= min_severity
         {
             self.program
-                .print_diagnostics(self.program.current_revision(), &diagnostics);
+                .print_diagnostics(self.program.current_revision(), &diagnostics, 120);
             let severity_name = min_severity.family_name().to_ascii_lowercase();
             panic!(
                 "program has {} unexpected {severity_name}s",
@@ -2514,7 +2498,7 @@ impl TestProgram {
                     .collect(),
             );
             self.program
-                .print_diagnostics(self.program.current_revision(), &matching);
+                .print_diagnostics(self.program.current_revision(), &matching, 120);
             panic!("unexpected diagnostics with prefix '{prefix}'");
         }
     }
@@ -2546,8 +2530,11 @@ impl TestProgram {
                     .cloned()
                     .collect(),
             );
-            self.program
-                .print_diagnostics(self.program.current_revision(), &matching_diagnostics);
+            self.program.print_diagnostics(
+                self.program.current_revision(),
+                &matching_diagnostics,
+                120,
+            );
             let phase_names: Vec<&str> = phases.iter().map(|p| p.name()).collect();
             panic!("unexpected diagnostics for phases: {phase_names:?}");
         }
@@ -2575,7 +2562,7 @@ impl TestProgram {
         let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
         if actual_codes != expected_codes {
             self.program
-                .print_diagnostics(self.program.current_revision(), &diagnostics);
+                .print_diagnostics(self.program.current_revision(), &diagnostics, 120);
             panic!("diagnostic mismatch\nexpected: {expected_codes:?}\nactual: {actual_codes:?}");
         }
     }
@@ -2608,7 +2595,7 @@ impl TestProgram {
         let has_code = diagnostic_vec.iter().any(|d| d.code == code);
         if !has_code {
             self.program
-                .print_diagnostics(self.program.current_revision(), &diagnostics);
+                .print_diagnostics(self.program.current_revision(), &diagnostics, 120);
             let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
             panic!("expected diagnostic with code '{code}' but found: {actual_codes:?}");
         }
@@ -2621,7 +2608,7 @@ impl TestProgram {
         let count = diagnostic_vec.iter().filter(|d| d.code == code).count();
         if count != expected {
             self.program
-                .print_diagnostics(self.program.current_revision(), &diagnostics);
+                .print_diagnostics(self.program.current_revision(), &diagnostics, 120);
             panic!("expected {expected} diagnostics for '{code}', found {count}");
         }
     }
@@ -2633,7 +2620,7 @@ impl TestProgram {
         let has_code = diagnostic_vec.iter().any(|d| d.code == code);
         if has_code {
             self.program
-                .print_diagnostics(self.program.current_revision(), &diagnostics);
+                .print_diagnostics(self.program.current_revision(), &diagnostics, 120);
             panic!("unexpected diagnostic with code '{code}'");
         }
     }
