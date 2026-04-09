@@ -1,6 +1,4 @@
 use std::collections::HashSet;
-
-use destack_dir::AnchoredGlobalNodeId;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;
@@ -11,7 +9,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_type(
         &mut self,
         type_id: dir::LocalTypeId,
-        anchor: AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // predeclare nominal layouts for nested references
         let mut visited = HashSet::new();
@@ -31,7 +29,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_instance_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        anchor: AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
         // resolve the instance type id
         let Some(instance_type_id) = self.types.get_instance_type_id(symbol) else {

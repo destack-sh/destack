@@ -310,34 +310,15 @@ fn fold_branches(
                 }
             }
             mir::Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
-                ..
             } => {
-                // resolve condition constant
-                let condition_constant = constants.constant_at_exit(block_id, *condition);
-                let condition_value = match condition_constant {
-                    Some(mir::Constant::Boolean { value }) => Some(*value),
-                    _ => None,
+                let condition_value = if is_range_allowed {
+                    constraint_truth_value(constraint, exit_ranges)
+                } else {
+                    None
                 };
-                let condition_value = condition_value
-                    .or_else(|| {
-                        if is_range_allowed {
-                            bool_from_range(exit_ranges.get(*condition))
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| {
-                        if is_range_allowed {
-                            constraint_truth_value(constraint, exit_ranges)
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| assume_truth_value(&block, tree, *condition));
 
                 if let Some(is_true) = condition_value {
                     let (target, arguments) = if is_true {
@@ -546,19 +527,15 @@ fn thread_edge_conditions(
                 }
             }
             mir::Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
             } => {
-                // resolve success and failure edges using edge specific ranges
-                let success_edge = resolve_edge_if_available(
+                let _ = (
+                    constraint,
+                    success,
+                    failure,
                     block_id,
-                    *condition,
-                    true,
-                    success.target,
-                    &success.arguments,
-                    tree,
                     constants,
                     ranges,
                     &value_definitions,
@@ -566,48 +543,7 @@ fn thread_edge_conditions(
                     &value_def_blocks,
                     domtree,
                 );
-                let failure_edge = resolve_edge_if_available(
-                    block_id,
-                    *condition,
-                    false,
-                    failure.target,
-                    &failure.arguments,
-                    tree,
-                    constants,
-                    ranges,
-                    &value_definitions,
-                    &value_use_counts,
-                    &value_def_blocks,
-                    domtree,
-                );
-
-                // select rewritten or original edges
-                let (new_success_target, new_success_args) =
-                    success_edge.unwrap_or((success.target, success.arguments.clone()));
-                let (new_failure_target, new_failure_args) =
-                    failure_edge.unwrap_or((failure.target, failure.arguments.clone()));
-
-                // update terminator when edges change
-                let changed_edge = new_success_target != success.target
-                    || new_failure_target != failure.target
-                    || new_success_args != success.arguments
-                    || new_failure_args != failure.arguments;
-                if changed_edge {
-                    Some(mir::Terminator::Check {
-                        condition: *condition,
-                        constraint: constraint.clone(),
-                        success: mir::CheckTarget {
-                            target: new_success_target,
-                            arguments: new_success_args,
-                        },
-                        failure: mir::CheckTarget {
-                            target: new_failure_target,
-                            arguments: new_failure_args,
-                        },
-                    })
-                } else {
-                    None
-                }
+                None
             }
             _ => None,
         };
@@ -733,18 +669,11 @@ fn resolve_edge_target(
             Some((target, resolved_args))
         }
         mir::Terminator::Check {
-            condition,
+            constraint,
             success,
             failure,
-            ..
         } => {
-            let condition_value = resolve_condition_value(
-                *condition,
-                target,
-                &target_ranges,
-                constants,
-                value_definitions,
-            )?;
+            let condition_value = constraint_truth_value(constraint, &target_ranges)?;
             // choose the resolved check target
             let (target, args) = if condition_value {
                 (success.target, success.arguments.as_slice())
@@ -806,7 +735,6 @@ fn is_threadable_condition_block(
     // fetch the condition value used by the terminator
     let condition_value = match terminator {
         mir::Terminator::Branch { condition, .. } => Some(*condition),
-        mir::Terminator::Check { condition, .. } => Some(*condition),
         mir::Terminator::Switch { value, .. } => Some(*value),
         _ => None,
     };
@@ -1861,7 +1789,6 @@ fn rewrite_return_targets(
             terminator.clone()
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -1902,7 +1829,6 @@ fn rewrite_return_targets(
             // rebuild the check when any edge was remapped
             if remapped {
                 return mir::Terminator::Check {
-                    condition: *condition,
                     constraint: constraint.clone(),
                     success: mir::CheckTarget {
                         target: new_success_target,
@@ -2573,7 +2499,6 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
                 }
             }
             mir::Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
@@ -2604,7 +2529,6 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
 
                 if new_success_target != success.target || new_failure_target != failure.target {
                     Some(mir::Terminator::Check {
-                        condition: *condition,
                         constraint: constraint.clone(),
                         success: mir::CheckTarget {
                             target: new_success_target,
@@ -4285,9 +4209,10 @@ b0:
                 } => {
                     check_edge(*resume, resume_arguments, &mut mismatches);
                 }
-                mir::Terminator::Call {
+                mir::Terminator::Invoke {
                     function: _,
                     arguments: _,
+                    signature: _,
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -4296,7 +4221,7 @@ b0:
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
                 }
-                mir::Terminator::CallIndirect {
+                mir::Terminator::InvokeIndirect {
                     callee: _,
                     arguments: _,
                     signature: _,
@@ -4308,7 +4233,7 @@ b0:
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
                 }
-                mir::Terminator::CallVirtual {
+                mir::Terminator::InvokeVirtual {
                     receiver: _,
                     arguments: _,
                     declaring_type: _,
@@ -4322,7 +4247,7 @@ b0:
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
                 }
-                mir::Terminator::CallInterface {
+                mir::Terminator::InvokeInterface {
                     receiver: _,
                     arguments: _,
                     declaring_type: _,
@@ -4420,14 +4345,12 @@ b0:
                     }
                 }
                 mir::Terminator::Check {
-                    condition,
+                    constraint,
                     success,
                     failure,
-                    ..
                 } => {
-                    let mut uses =
-                        Vec::with_capacity(1 + success.arguments.len() + failure.arguments.len());
-                    uses.push(*condition);
+                    let mut uses = Vec::new();
+                    uses.extend(constraint.uses());
                     uses.extend(success.arguments.iter().copied());
                     uses.extend(failure.arguments.iter().copied());
                     for value in uses {
@@ -4500,15 +4423,16 @@ b0:
                         ));
                     }
                 }
-                mir::Terminator::Call {
+                mir::Terminator::Invoke {
                     function: _,
                     arguments: _,
+                    signature: _,
                     normal_target: _,
                     normal_arguments: _,
                     unwind_target: _,
                     unwind_arguments: _,
                 }
-                | mir::Terminator::CallIndirect {
+                | mir::Terminator::InvokeIndirect {
                     callee: _,
                     arguments: _,
                     signature: _,
@@ -4517,7 +4441,7 @@ b0:
                     unwind_target: _,
                     unwind_arguments: _,
                 }
-                | mir::Terminator::CallVirtual {
+                | mir::Terminator::InvokeVirtual {
                     receiver: _,
                     arguments: _,
                     declaring_type: _,
@@ -4528,7 +4452,7 @@ b0:
                     unwind_target: _,
                     unwind_arguments: _,
                 }
-                | mir::Terminator::CallInterface {
+                | mir::Terminator::InvokeInterface {
                     receiver: _,
                     arguments: _,
                     declaring_type: _,

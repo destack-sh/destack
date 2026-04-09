@@ -39,7 +39,9 @@ type Circle {
     color: int32;
     radius: int32;
 }
+
 extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
+
 function Circle.draw(v0: Circle): int32 {
 b0(v0: Circle):
     v1: int32 = field.get v0, 0
@@ -52,10 +54,7 @@ b0(v0: Circle):
         let itab = test.expect_single_interface_table(tree);
 
         // assert the itab slot layout
-        assert!(matches!(
-            itab.entries[0],
-            destack_mir::ItabEntry::TypeDescriptor
-        ));
+        assert!(matches!(itab.entries[0], mir::ItabEntry::TypeDescriptor));
 
         // assert the field offset slot
         let offset = test.expect_interface_field_offset(itab, strings, "color");
@@ -101,7 +100,9 @@ type Circle {
     color: int32;
     radius: int32;
 }
+
 extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
+
 function Circle.draw(v0: Circle): int32 {
 b0(v0: Circle):
     v1: int32 = field.get v0, 0
@@ -291,13 +292,17 @@ type Widget {
     width: int32;
     color: int32;
 }
+
 extern function Shape.area({ area: closure() -> int32, width: int32 }): int32
+
 extern function Paint.paint({ paint: closure() -> int32, color: int32 }): int32
+
 function Widget.area(v0: Widget): int32 {
 b0(v0: Widget):
     v1: int32 = field.get v0, 0
     return v1
 }
+
 function Widget.paint(v0: Widget): int32 {
 b0(v0: Widget):
     v1: int32 = field.get v0, 1
@@ -405,7 +410,7 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
-type Drawable#method:draw#function closure() -> int32
+type Drawable#method:draw#function = closure() -> int32;
 type Drawable { object: ref<void, managed, readonly>, itab: usize }
 type Circle { color: int32, radius: int32 }
 type Drawable#object { draw: Drawable#method:draw#function, color: int32 }
@@ -477,7 +482,9 @@ type Renderable {
 type Sprite {
     value: int32;
 }
+
 extern function Renderable.draw({ draw: closure() -> int32 }): int32
+
 function castRenderable(v0: int32): Renderable {
 b0(v0: int32):
     v1: Sprite = struct Sprite (v0)
@@ -489,6 +496,7 @@ b0(v0: int32):
     v6: Renderable = struct Renderable (v3, v5)
     return v6
 }
+
 function Sprite.draw(v0: Sprite): int32 {
 b0(v0: Sprite):
     v1: int32 = field.get v0, 0

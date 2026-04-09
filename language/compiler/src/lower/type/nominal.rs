@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_core::StringId;
-use destack_dir::{self as dir, GlobalSymbolId, LocalNodeId};
+use destack_dir::{self as dir};
 use destack_mir as mir;
 
 use crate::lower::{
@@ -15,7 +15,7 @@ impl ModuleLowerer<'_> {
     /// Lower and cache the instance layout for a struct or class symbol.
     pub(crate) fn lower_nominal_layout(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // check for cached layout
         if let Some(mir_type) = self.nominal_layouts_by_symbol.get(&symbol).copied() {
@@ -186,7 +186,7 @@ impl ModuleLowerer<'_> {
     /// Collect field inputs for a nominal struct or class instance layout.
     fn collect_nominal_field_inputs(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         seen_fields: &mut HashSet<StringId>,
         source_index_offset: u32,
     ) -> LowerResult<Vec<FieldInput>> {
@@ -295,7 +295,9 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect class symbols that require vtable headers.
-    pub(crate) fn collect_vtable_layout_symbols(&self) -> LowerResult<HashSet<GlobalSymbolId>> {
+    pub(crate) fn collect_vtable_layout_symbols(
+        &self,
+    ) -> LowerResult<HashSet<dir::GlobalSymbolId>> {
         // collect class symbols in declaration order
         let mut class_symbols = Vec::new();
         for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
@@ -328,8 +330,8 @@ impl ModuleLowerer<'_> {
     /// Collect declaration ids that belong to a symbol in this module.
     pub(crate) fn declaration_ids_for_symbol(
         &self,
-        symbol: GlobalSymbolId,
-    ) -> Vec<LocalNodeId<dir::Declaration>> {
+        symbol: dir::GlobalSymbolId,
+    ) -> Vec<dir::LocalNodeId<dir::Declaration>> {
         // read the symbol table entry for declaration lists
         let symbol_entry = self.symbols.get_symbol(symbol.local_id);
         let mut declaration_ids = Vec::new();

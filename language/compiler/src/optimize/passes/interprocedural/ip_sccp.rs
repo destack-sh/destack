@@ -624,7 +624,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
             // record call terminators
             match &block.terminator {
-                mir::Terminator::Call {
+                mir::Terminator::Invoke {
                     function: callee,
                     arguments,
                     ..
@@ -637,9 +637,9 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         arguments: arguments.clone(),
                     });
                 }
-                mir::Terminator::CallIndirect { signature, .. }
-                | mir::Terminator::CallVirtual { signature, .. }
-                | mir::Terminator::CallInterface { signature, .. } => {
+                mir::Terminator::InvokeIndirect { signature, .. }
+                | mir::Terminator::InvokeVirtual { signature, .. }
+                | mir::Terminator::InvokeInterface { signature, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
                         data.indirect_signatures.insert(signature);
                     }
@@ -647,6 +647,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                 mir::Terminator::TailCall {
                     function: callee,
                     arguments,
+                    ..
                 } => {
                     data.callsites.push(DirectCallSite {
                         caller: caller_id,

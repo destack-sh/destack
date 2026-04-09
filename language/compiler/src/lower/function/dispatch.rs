@@ -1,4 +1,3 @@
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -31,9 +30,9 @@ impl FunctionLowerer<'_> {
     /// Resolve a dispatch target for a receiver and target symbol.
     pub(super) fn dispatch_target_for_symbol(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
-        target_symbol: GlobalSymbolId,
+        target_symbol: dir::GlobalSymbolId,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> LowerResult<Option<DispatchTarget>> {
         // resolve interface and class symbols for the receiver
@@ -78,7 +77,7 @@ impl FunctionLowerer<'_> {
     pub(super) fn interface_symbol_for_type(
         &self,
         receiver_type_id: dir::LocalTypeId,
-    ) -> Option<GlobalSymbolId> {
+    ) -> Option<dir::GlobalSymbolId> {
         // resolve the receiver type
         let dir_type = self.context.types.get_type(receiver_type_id);
         match dir_type {
@@ -96,8 +95,8 @@ impl FunctionLowerer<'_> {
     /// Resolve the interface dispatch slot id for a method key.
     fn interface_method_slot_id(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        interface_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        interface_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,
     ) -> LowerResult<u32> {
         // load interface slots for dispatch
@@ -141,8 +140,8 @@ impl FunctionLowerer<'_> {
     /// Resolve the declaring interface type id for dispatch.
     fn interface_declaring_type(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        interface_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        interface_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the declaring interface type id
         let interface_type_id =
@@ -161,8 +160,8 @@ impl FunctionLowerer<'_> {
     /// Resolve a virtual dispatch key for a symbol.
     fn method_key_for_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
     ) -> LowerResult<MethodKey> {
         // require a local symbol for now
         if symbol.module_id != self.context.module_id {
@@ -256,7 +255,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the vtable slot id for a virtual method symbol.
     fn virtual_method_slot_id(
         &self,
-        class_symbol: GlobalSymbolId,
+        class_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,
     ) -> Option<u32> {
         self.context
@@ -268,7 +267,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the declaring MIR type for a virtual call.
     fn declaring_type_for_virtual_call(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the declaring class symbol

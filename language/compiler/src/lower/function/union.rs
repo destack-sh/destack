@@ -1,5 +1,4 @@
 use destack_core::StringId;
-use destack_dir::{AnchoredGlobalNodeId, Expression, LocalNodeId, StaticKey, Type, TypeLiteral};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
@@ -48,7 +47,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn union_payload_zero_value(
         &mut self,
         layout: &UnionLayout,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // build the zero value based on the payload strategy
         match layout.payload_kind {
@@ -65,7 +64,7 @@ impl FunctionLowerer<'_> {
         payload_type: mir::LocalNodeId<mir::Type>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // allocate payload storage on the stack
         let payload_ref_type = self.state.builder.type_reference(
@@ -105,7 +104,7 @@ impl FunctionLowerer<'_> {
         payload_type: mir::LocalNodeId<mir::Type>,
         payload_value: mir::Value,
         target_type: mir::LocalNodeId<mir::Type>,
-        _node: AnchoredGlobalNodeId,
+        _node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // use stack scratch storage for payload reinterpretation
         let payload_ref_type = self.state.builder.type_reference(
@@ -143,7 +142,7 @@ impl FunctionLowerer<'_> {
         variant_type_id: dir::LocalTypeId,
         variant_value: mir::Value,
         variant_mir_type: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // resolve the tag index for the variant
         let tag_index = layout
@@ -199,7 +198,7 @@ impl FunctionLowerer<'_> {
     fn inline_union_payload_zero_value(
         &mut self,
         payload_type: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         let (element, length) = match self.state.builder.tree().get(payload_type) {
             mir::Type::Array {
@@ -224,7 +223,7 @@ impl FunctionLowerer<'_> {
     fn inline_union_payload_zero_element(
         &mut self,
         element_type: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         let element = self.state.builder.tree().get(element_type);
         match element {
@@ -253,10 +252,10 @@ impl FunctionLowerer<'_> {
     /// Resolve a union tag comparison for a discriminant check.
     pub(crate) fn union_tag_comparison(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Option<UnionTagComparison>> {
         // only handle equality comparisons
         if !matches!(
@@ -278,20 +277,20 @@ impl FunctionLowerer<'_> {
             self.context.dir_tree.get(left),
             self.context.dir_tree.get(right),
         ) {
-            (Expression::ScalarLiteral { value }, Expression::Member { .. })
-            | (Expression::ScalarLiteral { value }, Expression::PrivateMember { .. }) => {
+            (dir::Expression::ScalarLiteral { value }, dir::Expression::Member { .. })
+            | (dir::Expression::ScalarLiteral { value }, dir::Expression::PrivateMember { .. }) => {
                 (right, DiscriminantLiteralValue::Scalar(value))
             }
-            (Expression::Member { .. }, Expression::ScalarLiteral { value })
-            | (Expression::PrivateMember { .. }, Expression::ScalarLiteral { value }) => {
+            (dir::Expression::Member { .. }, dir::Expression::ScalarLiteral { value })
+            | (dir::Expression::PrivateMember { .. }, dir::Expression::ScalarLiteral { value }) => {
                 (left, DiscriminantLiteralValue::Scalar(value))
             }
-            (Expression::TypeLiteral { value }, Expression::Member { .. })
-            | (Expression::TypeLiteral { value }, Expression::PrivateMember { .. }) => {
+            (dir::Expression::TypeLiteral { value }, dir::Expression::Member { .. })
+            | (dir::Expression::TypeLiteral { value }, dir::Expression::PrivateMember { .. }) => {
                 (right, DiscriminantLiteralValue::Type(value))
             }
-            (Expression::Member { .. }, Expression::TypeLiteral { value })
-            | (Expression::PrivateMember { .. }, Expression::TypeLiteral { value }) => {
+            (dir::Expression::Member { .. }, dir::Expression::TypeLiteral { value })
+            | (dir::Expression::PrivateMember { .. }, dir::Expression::TypeLiteral { value }) => {
                 (left, DiscriminantLiteralValue::Type(value))
             }
             _ => return Ok(None),
@@ -300,12 +299,12 @@ impl FunctionLowerer<'_> {
         let (member_id, literal_value) = literal_value;
 
         // extract the member access expression
-        let (Expression::Member {
+        let (dir::Expression::Member {
             left: receiver_id,
             name,
             static_arguments,
         }
-        | Expression::PrivateMember {
+        | dir::Expression::PrivateMember {
             left: receiver_id,
             name,
             static_arguments,
@@ -343,8 +342,8 @@ impl FunctionLowerer<'_> {
                 })?
             }
             DiscriminantLiteralValue::Type(literal) => match literal {
-                TypeLiteral::Null => DiscriminantKey::Null,
-                TypeLiteral::Undefined => DiscriminantKey::Undefined,
+                dir::TypeLiteral::Null => DiscriminantKey::Null,
+                dir::TypeLiteral::Undefined => DiscriminantKey::Undefined,
                 _ => {
                     return Ok(None);
                 }
@@ -395,10 +394,10 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_union_discriminant_comparison(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Option<mir::Value>> {
         // resolve the tag comparison data
         let Some(comparison) = self.union_tag_comparison(expression_id, left, operator, right)?
@@ -435,10 +434,10 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_union_literal_comparison(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Option<mir::Value>> {
         // only handle equality comparisons
         if !matches!(
@@ -460,12 +459,12 @@ impl FunctionLowerer<'_> {
         let right_type_id = self.type_for_expression_or_error(right)?;
         let (union_expr, literal_expr_id, union_type_id) = if matches!(
             self.context.types.get_type(left_type_id),
-            Type::Union { .. }
+            dir::Type::Union { .. }
         ) {
             (left, right, left_type_id)
         } else if matches!(
             self.context.types.get_type(right_type_id),
-            Type::Union { .. }
+            dir::Type::Union { .. }
         ) {
             (right, left, right_type_id)
         } else {
@@ -524,17 +523,19 @@ impl FunctionLowerer<'_> {
     /// Resolve a union literal value when possible.
     fn union_literal_value(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<UnionLiteralValue> {
         // resolve literal expressions used in union comparisons
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
-            Expression::ScalarLiteral { value } => Some(UnionLiteralValue::Scalar(value.clone())),
-            Expression::TypeLiteral {
-                value: TypeLiteral::Null,
+            dir::Expression::ScalarLiteral { value } => {
+                Some(UnionLiteralValue::Scalar(value.clone()))
+            }
+            dir::Expression::TypeLiteral {
+                value: dir::TypeLiteral::Null,
             } => Some(UnionLiteralValue::Null),
-            Expression::TypeLiteral {
-                value: TypeLiteral::Undefined,
+            dir::Expression::TypeLiteral {
+                value: dir::TypeLiteral::Undefined,
             } => Some(UnionLiteralValue::Undefined),
             _ => None,
         }
@@ -545,7 +546,7 @@ impl FunctionLowerer<'_> {
         &self,
         layout: &UnionLayout,
         literal: &UnionLiteralValue,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<usize> {
         let tag_index = layout
             .element_types
@@ -553,20 +554,20 @@ impl FunctionLowerer<'_> {
             .position(
                 |element| match (self.context.types.get_type(*element), literal) {
                     (
-                        Type::TypeLiteral {
-                            value: TypeLiteral::ScalarLiteral(value),
+                        dir::Type::TypeLiteral {
+                            value: dir::TypeLiteral::ScalarLiteral(value),
                         },
                         UnionLiteralValue::Scalar(literal),
                     ) => value == literal,
                     (
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Null,
+                        dir::Type::TypeLiteral {
+                            value: dir::TypeLiteral::Null,
                         },
                         UnionLiteralValue::Null,
                     ) => true,
                     (
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Undefined,
+                        dir::Type::TypeLiteral {
+                            value: dir::TypeLiteral::Undefined,
                         },
                         UnionLiteralValue::Undefined,
                     ) => true,
@@ -599,7 +600,7 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_union_tag_check(
         &mut self,
-        condition_id: LocalNodeId<Expression>,
+        condition_id: dir::LocalNodeId<dir::Expression>,
         then_block: mir::LocalNodeId<mir::Block>,
         else_block: mir::LocalNodeId<mir::Block>,
     ) -> LowerResult<bool> {
@@ -607,7 +608,7 @@ impl FunctionLowerer<'_> {
         let condition_id = self.unwrap_expression(condition_id);
 
         // match on binary expressions
-        let Expression::Binary {
+        let dir::Expression::Binary {
             left,
             operator,
             right,
@@ -643,13 +644,13 @@ impl FunctionLowerer<'_> {
     /// Resolve a union discriminant field for a member access.
     pub(crate) fn union_discriminant_field_for_member(
         &self,
-        receiver_id: LocalNodeId<Expression>,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
         field_name: StringId,
     ) -> Option<(dir::LocalTypeId, UnionLayout, UnionDiscriminantField)> {
         // resolve the receiver type
         let receiver_type_id = self.type_for_expression(receiver_id)?;
         let receiver_type = self.context.types.get_type(receiver_type_id);
-        if !matches!(receiver_type, Type::Union { .. }) {
+        if !matches!(receiver_type, dir::Type::Union { .. }) {
             return None;
         }
 
@@ -662,7 +663,7 @@ impl FunctionLowerer<'_> {
         let discriminant = layout.discriminant.as_ref()?;
 
         // match the member name against static keys
-        let key = StaticKey::Name(field_name);
+        let key = dir::StaticKey::Name(field_name);
         let field = discriminant
             .fields
             .iter()
@@ -686,8 +687,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_union_discriminant_member(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        receiver_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
         _receiver_type_id: dir::LocalTypeId,
         layout: UnionLayout,
         field: UnionDiscriminantField,

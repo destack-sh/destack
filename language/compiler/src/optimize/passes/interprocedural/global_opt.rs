@@ -626,18 +626,18 @@ fn terminator_write_arguments(
     terminator: &mir::Terminator,
 ) -> Option<Vec<mir::Value>> {
     match terminator {
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             function,
             arguments,
             ..
         } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
-        mir::Terminator::CallIndirect { arguments, .. } => Some(arguments.clone()),
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeIndirect { arguments, .. } => Some(arguments.clone()),
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             ..
@@ -671,6 +671,7 @@ fn terminator_write_arguments(
         mir::Terminator::TailCall {
             function,
             arguments,
+            ..
         } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
         mir::Terminator::TailCallIndirect { arguments, .. } => Some(arguments.clone()),
         _ => None,

@@ -1406,10 +1406,10 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
         | mir::Terminator::Check { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
-        mir::Terminator::Call { .. } => INLINE_COST_CALL + 1,
-        mir::Terminator::CallIndirect { .. }
-        | mir::Terminator::CallVirtual { .. }
-        | mir::Terminator::CallInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
+        mir::Terminator::Invoke { .. } => INLINE_COST_CALL + 1,
+        mir::Terminator::InvokeIndirect { .. }
+        | mir::Terminator::InvokeVirtual { .. }
+        | mir::Terminator::InvokeInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
         mir::Terminator::Unreachable => 0,
         mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
         mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallInterface { .. } => {

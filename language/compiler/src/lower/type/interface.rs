@@ -1,4 +1,3 @@
-use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -33,7 +32,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // return cached types when available

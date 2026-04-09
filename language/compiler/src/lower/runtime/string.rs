@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use destack_core::StringId;
 use destack_dir as dir;
-use destack_dir::NodeVisitor;
 
 /// Collect string literal ids from a DIR expression tree.
 pub(crate) fn collect_expression_string_literals(
@@ -12,7 +11,7 @@ pub(crate) fn collect_expression_string_literals(
     // walk the tree and gather literal ids
     let mut collector = StringLiteralCollector::default();
     let expression = tree.get(expression_id);
-    collector.visit_expression(tree, expression_id, expression);
+    dir::NodeVisitor::visit_expression(&mut collector, tree, expression_id, expression);
     collector.literals
 }
 
@@ -25,7 +24,7 @@ struct StringLiteralCollector {
     literals: HashSet<StringId>,
 }
 
-impl NodeVisitor for StringLiteralCollector {
+impl dir::NodeVisitor for StringLiteralCollector {
     fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }

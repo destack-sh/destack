@@ -1,4 +1,3 @@
-use destack_dir::{Expression, GlobalSymbolId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -10,7 +9,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn reference_value_for_symbol(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<mir::Value> {
         // prefer local bindings
@@ -57,7 +56,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn bind_this_parameter(
         &mut self,
         node_id: dir::LocalNodeIdAny,
-        symbol: Option<GlobalSymbolId>,
+        symbol: Option<dir::GlobalSymbolId>,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
         // reject duplicate bindings when a symbol is provided
@@ -134,7 +133,7 @@ impl FunctionLowerer<'_> {
     }
 
     /// Check whether a symbol represents `this`.
-    fn symbol_is_this(&self, symbol: GlobalSymbolId) -> bool {
+    fn symbol_is_this(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.state
             .bindings
             .this_symbol
@@ -147,9 +146,9 @@ impl FunctionLowerer<'_> {
         receiver_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         let symbol = match self.context.dir_tree.get(receiver_id) {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+            dir::Expression::LocalReference { target_symbol, .. }
+            | dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => *target_symbol,
             _ => return false,
         };
 
@@ -161,12 +160,12 @@ impl FunctionLowerer<'_> {
     }
 
     /// Check whether a symbol requires an addressable local.
-    pub(crate) fn symbol_needs_addressable_local(&self, symbol: GlobalSymbolId) -> bool {
+    pub(crate) fn symbol_needs_addressable_local(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.state.bindings.address_taken_locals.contains(&symbol)
     }
 
     /// Check whether a symbol requires boxed capture storage.
-    pub(crate) fn symbol_needs_reference_cell(&self, symbol: GlobalSymbolId) -> bool {
+    pub(crate) fn symbol_needs_reference_cell(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.state.bindings.reference_locals.contains(&symbol)
     }
 

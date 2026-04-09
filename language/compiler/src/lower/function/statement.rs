@@ -1,7 +1,3 @@
-use destack_dir::{
-    Declarator, Expression, GlobalSymbolId, IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase,
-    MatchKind, MatchSelector, Pattern,
-};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
@@ -15,13 +11,13 @@ impl FunctionLowerer<'_> {
     /// Lower a statement expression.
     pub(crate) fn lower_statement_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Terminates> {
         match self.context.dir_tree.get(expression_id) {
-            Expression::Labelled { body, symbol, .. } => {
+            dir::Expression::Labelled { body, symbol, .. } => {
                 self.lower_labelled_statement(expression_id, *symbol, *body)
             }
-            Expression::Block { block } => {
+            dir::Expression::Block { block } => {
                 let block = self.context.dir_tree.get(*block);
                 for expr_id in block.iter_expressions() {
                     let terminated = self.lower_statement_expression(expr_id)?;
@@ -31,12 +27,12 @@ impl FunctionLowerer<'_> {
                 }
                 Ok(Terminates::No)
             }
-            Expression::Let {
+            dir::Expression::Let {
                 mutability,
                 declarators,
                 ..
             } => self.lower_let_expression(expression_id, *mutability, declarators),
-            Expression::Return { value } => {
+            dir::Expression::Return { value } => {
                 // handle constructor returns separately
                 if self.state.constructor_state.is_some() {
                     if value.is_some() {
@@ -74,16 +70,16 @@ impl FunctionLowerer<'_> {
                 self.state.builder.return_(return_value);
                 Ok(Terminates::Yes)
             }
-            Expression::If {
+            dir::Expression::If {
                 condition,
                 then_expression,
                 else_expression,
                 ..
             } => match condition {
-                IfCondition::Expression { condition } => {
+                dir::IfCondition::Expression { condition } => {
                     self.lower_if_statement(*condition, *then_expression, *else_expression)
                 }
-                IfCondition::Let { .. } => {
+                dir::IfCondition::Let { .. } => {
                     // if let should be elaborated before lowering
                     Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -94,7 +90,7 @@ impl FunctionLowerer<'_> {
                 }
             },
 
-            Expression::Loop {
+            dir::Expression::Loop {
                 kind,
                 condition,
                 body,
@@ -102,7 +98,7 @@ impl FunctionLowerer<'_> {
                 ..
             } => self.lower_loop_statement(*kind, *condition, *body, *symbol, None),
 
-            Expression::For {
+            dir::Expression::For {
                 initialization,
                 condition,
                 increment,
@@ -118,15 +114,15 @@ impl FunctionLowerer<'_> {
                 None,
             ),
 
-            Expression::Break { target_symbol, .. } => {
+            dir::Expression::Break { target_symbol, .. } => {
                 self.lower_break_statement(expression_id, *target_symbol)
             }
 
-            Expression::Continue { target_symbol, .. } => {
+            dir::Expression::Continue { target_symbol, .. } => {
                 self.lower_continue_statement(expression_id, *target_symbol)
             }
 
-            Expression::Match {
+            dir::Expression::Match {
                 kind,
                 value,
                 cases,
@@ -134,7 +130,7 @@ impl FunctionLowerer<'_> {
                 ..
             } => self.lower_match_statement(expression_id, *kind, *value, cases, *symbol),
 
-            Expression::Call {
+            dir::Expression::Call {
                 left,
                 dynamic_arguments,
                 static_arguments,
@@ -158,9 +154,9 @@ impl FunctionLowerer<'_> {
     /// Lower a let binding statement into locals.
     fn lower_let_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         mutability: dir::Mutability,
-        declarators: &[LocalNodeId<Declarator>],
+        declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> LowerResult<Terminates> {
         // lower each declarator in order
         for declarator_id in declarators {
@@ -189,22 +185,22 @@ impl FunctionLowerer<'_> {
     /// TODO #Architecture: should we elaborate labelled statements away..?
     fn lower_labelled_statement(
         &mut self,
-        _expression_id: LocalNodeId<Expression>,
+        _expression_id: dir::LocalNodeId<dir::Expression>,
         label_symbol: dir::LocalSymbolId,
-        body_id: LocalNodeId<Expression>,
+        body_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Terminates> {
         let label_symbol = label_symbol.into_global(self.context.module_id);
         let body = self.context.dir_tree.get(body_id);
 
         match body {
-            Expression::Loop {
+            dir::Expression::Loop {
                 kind,
                 condition,
                 body,
                 symbol,
                 ..
             } => self.lower_loop_statement(*kind, *condition, *body, *symbol, Some(label_symbol)),
-            Expression::For {
+            dir::Expression::For {
                 initialization,
                 condition,
                 increment,
@@ -242,9 +238,9 @@ impl FunctionLowerer<'_> {
     /// Lower an if statement into blocks and branches.
     fn lower_if_statement(
         &mut self,
-        condition_id: LocalNodeId<Expression>,
-        then_id: LocalNodeId<Expression>,
-        else_id: Option<LocalNodeId<Expression>>,
+        condition_id: dir::LocalNodeId<dir::Expression>,
+        then_id: dir::LocalNodeId<dir::Expression>,
+        else_id: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> LowerResult<Terminates> {
         let then_block = self.state.builder.block();
         let else_block = self.state.builder.block();
@@ -293,10 +289,10 @@ impl FunctionLowerer<'_> {
     fn lower_loop_statement(
         &mut self,
         kind: dir::LoopKind,
-        condition: Option<LocalNodeId<Expression>>,
-        body_id: LocalNodeId<dir::Block>,
+        condition: Option<dir::LocalNodeId<dir::Expression>>,
+        body_id: dir::LocalNodeId<dir::Block>,
         loop_symbol_id: dir::LocalSymbolId,
-        label_symbol: Option<GlobalSymbolId>,
+        label_symbol: Option<dir::GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
         let header_block = self.state.builder.block();
         let body_block = self.state.builder.block();
@@ -427,12 +423,12 @@ impl FunctionLowerer<'_> {
     /// Lower a for statement (C-style for loop).
     fn lower_for_statement(
         &mut self,
-        initialization: Option<LocalNodeId<Expression>>,
-        condition: Option<LocalNodeId<Expression>>,
-        increment: Option<LocalNodeId<Expression>>,
-        body_id: LocalNodeId<dir::Block>,
+        initialization: Option<dir::LocalNodeId<dir::Expression>>,
+        condition: Option<dir::LocalNodeId<dir::Expression>>,
+        increment: Option<dir::LocalNodeId<dir::Expression>>,
+        body_id: dir::LocalNodeId<dir::Block>,
         loop_symbol_id: dir::LocalSymbolId,
-        label_symbol: Option<GlobalSymbolId>,
+        label_symbol: Option<dir::GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
         // lower initialization in current block
         if let Some(init_id) = initialization {
@@ -522,8 +518,8 @@ impl FunctionLowerer<'_> {
     /// Lower a break statement.
     fn lower_break_statement(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: Option<GlobalSymbolId>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: Option<dir::GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
         // labeled break
         let break_block = if let Some(target_symbol) = target_symbol {
@@ -565,8 +561,8 @@ impl FunctionLowerer<'_> {
     /// Lower a continue statement.
     fn lower_continue_statement(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: Option<GlobalSymbolId>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: Option<dir::GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
         let loop_context = self.resolve_loop_context(expression_id, target_symbol)?;
         self.state.builder.jump(loop_context.continue_block);
@@ -576,8 +572,8 @@ impl FunctionLowerer<'_> {
     /// Resolve the loop context for break/continue statements.
     fn resolve_loop_context(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: Option<GlobalSymbolId>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: Option<dir::GlobalSymbolId>,
     ) -> LowerResult<LoopContext> {
         // labeled: look up by symbol, unlabeled: use innermost from stack
         let context = match target_symbol {
@@ -594,7 +590,10 @@ impl FunctionLowerer<'_> {
     }
 
     /// Lower a block body (list of expressions).
-    fn lower_block_body(&mut self, block_id: LocalNodeId<dir::Block>) -> LowerResult<Terminates> {
+    fn lower_block_body(
+        &mut self,
+        block_id: dir::LocalNodeId<dir::Block>,
+    ) -> LowerResult<Terminates> {
         let block = self.context.dir_tree.get(block_id);
         for expr_id in block.iter_expressions() {
             let terminated = self.lower_statement_expression(expr_id)?;
@@ -610,14 +609,14 @@ impl FunctionLowerer<'_> {
     /// For switches on scalar values, generates a chain of comparisons.
     fn lower_match_statement(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        kind: MatchKind,
-        value_id: LocalNodeId<Expression>,
-        cases: &[LocalNodeId<MatchCase>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        kind: dir::MatchKind,
+        value_id: dir::LocalNodeId<dir::Expression>,
+        cases: &[dir::LocalNodeId<dir::MatchCase>],
         _symbol: dir::LocalSymbolId,
     ) -> LowerResult<Terminates> {
         // match expressions must be elaborated before lowering
-        if kind == MatchKind::Match {
+        if kind == dir::MatchKind::Match {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.context.module_id)
@@ -643,7 +642,7 @@ impl FunctionLowerer<'_> {
         for (i, case_id) in cases.iter().enumerate() {
             let case = self.context.dir_tree.get(*case_id);
             match Self::selector_of(case) {
-                MatchSelector::Default => {
+                dir::MatchSelector::Default => {
                     if default_index.is_some() {
                         return Err(LowerError::UnsupportedConstruct {
                             node: expression_id
@@ -654,7 +653,7 @@ impl FunctionLowerer<'_> {
                     }
                     default_index = Some(i);
                 }
-                MatchSelector::Pattern { .. } => {
+                dir::MatchSelector::Pattern { .. } => {
                     pattern_cases.push(i);
                 }
             }
@@ -667,7 +666,7 @@ impl FunctionLowerer<'_> {
         let mut current_block = self.state.builder.current_block();
         for (pos, &case_index) in pattern_cases.iter().enumerate() {
             let case = self.context.dir_tree.get(cases[case_index]);
-            let MatchSelector::Pattern { pattern, guard } = Self::selector_of(case) else {
+            let dir::MatchSelector::Pattern { pattern, guard } = Self::selector_of(case) else {
                 unreachable!()
             };
 
@@ -691,13 +690,13 @@ impl FunctionLowerer<'_> {
 
             let pattern = self.context.dir_tree.get(*pattern);
             match pattern {
-                Pattern::Wildcard => {
+                dir::Pattern::Wildcard => {
                     // wildcard matches everything
                     self.state.builder.switch_to_block(current_block);
                     self.state.builder.jump(case_blocks[case_index]);
                     break;
                 }
-                Pattern::Expression { value } => {
+                dir::Pattern::Expression { value } => {
                     // lower the pattern value
                     let (pattern_value, _) = self.lower_value_expression(*value)?;
 
@@ -737,11 +736,12 @@ impl FunctionLowerer<'_> {
             };
 
             if !terminated.is_yes() {
-                let fallthrough_target = if kind == MatchKind::Switch && i + 1 < case_blocks.len() {
-                    case_blocks[i + 1]
-                } else {
-                    exit_block
-                };
+                let fallthrough_target =
+                    if kind == dir::MatchKind::Switch && i + 1 < case_blocks.len() {
+                        case_blocks[i + 1]
+                    } else {
+                        exit_block
+                    };
                 self.state.builder.jump(fallthrough_target);
                 all_terminate = false;
             }
@@ -764,19 +764,22 @@ impl FunctionLowerer<'_> {
     }
 
     /// Extract the selector from a match case.
-    fn selector_of(case: &MatchCase) -> &MatchSelector {
+    fn selector_of(case: &dir::MatchCase) -> &dir::MatchSelector {
         match case {
-            MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => selector,
+            dir::MatchCase::Expression { selector, .. }
+            | dir::MatchCase::Block { selector, .. } => selector,
         }
     }
 
     /// Extract the body from a match case.
     ///
     /// Returns `Err(expression)` for expression bodies, `Ok(block)` for block bodies.
-    fn body_of(case: &MatchCase) -> Result<LocalNodeId<dir::Block>, LocalNodeId<Expression>> {
+    fn body_of(
+        case: &dir::MatchCase,
+    ) -> Result<dir::LocalNodeId<dir::Block>, dir::LocalNodeId<dir::Expression>> {
         match case {
-            MatchCase::Expression { body, .. } => Err(*body),
-            MatchCase::Block { body, .. } => Ok(*body),
+            dir::MatchCase::Expression { body, .. } => Err(*body),
+            dir::MatchCase::Block { body, .. } => Ok(*body),
         }
     }
 
@@ -792,7 +795,7 @@ impl FunctionLowerer<'_> {
     /// Bind a pattern to a value in the current block.
     pub(crate) fn bind_pattern_value(
         &mut self,
-        pattern_id: LocalNodeId<Pattern>,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
         mutability: Option<dir::Mutability>,
@@ -800,8 +803,8 @@ impl FunctionLowerer<'_> {
         // read the pattern
         let pattern = self.context.dir_tree.get(pattern_id);
         match pattern {
-            Pattern::Wildcard => Ok(()),
-            Pattern::Binding {
+            dir::Pattern::Wildcard => Ok(()),
+            dir::Pattern::Binding {
                 symbol, pattern, ..
             } => {
                 if pattern.is_some() {
@@ -832,16 +835,16 @@ impl FunctionLowerer<'_> {
     /// Bind a pattern to uninitialized storage in the current block.
     fn bind_uninitialized_pattern(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        pattern_id: LocalNodeId<Pattern>,
-        type_expression: Option<LocalNodeId<Expression>>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
+        type_expression: Option<dir::LocalNodeId<dir::Expression>>,
         mutability: Option<dir::Mutability>,
     ) -> LowerResult<()> {
         // read the pattern
         let pattern = self.context.dir_tree.get(pattern_id);
         match pattern {
-            Pattern::Wildcard => Ok(()),
-            Pattern::Binding {
+            dir::Pattern::Wildcard => Ok(()),
+            dir::Pattern::Binding {
                 symbol, pattern, ..
             } => {
                 if pattern.is_some() {
@@ -879,10 +882,10 @@ impl FunctionLowerer<'_> {
     /// Resolve the MIR type for an uninitialized local binding.
     fn uninitialized_binding_type(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        pattern_id: LocalNodeId<Pattern>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
         symbol_id: dir::LocalSymbolId,
-        type_expression: Option<LocalNodeId<Expression>>,
+        type_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the analyzed value type for the symbol
         let symbol = symbol_id.into_global(self.context.module_id);
@@ -935,7 +938,7 @@ impl FunctionLowerer<'_> {
     /// Define a local binding without an initializer value.
     fn define_uninitialized_local_binding(
         &mut self,
-        node_id: LocalNodeIdAny,
+        node_id: dir::LocalNodeIdAny,
         symbol_id: dir::LocalSymbolId,
         mutability: Option<dir::Mutability>,
         value_type: mir::LocalNodeId<mir::Type>,
@@ -997,7 +1000,7 @@ impl FunctionLowerer<'_> {
     /// Define a local binding for a symbol.
     pub(crate) fn define_local_binding(
         &mut self,
-        node_id: LocalNodeIdAny,
+        node_id: dir::LocalNodeIdAny,
         symbol_id: dir::LocalSymbolId,
         mutability: Option<dir::Mutability>,
         value: mir::Value,
@@ -1080,7 +1083,7 @@ impl FunctionLowerer<'_> {
     /// Check that a type is boolean, returning an error otherwise.
     pub(crate) fn check_type_is_bool(
         &self,
-        node_id: LocalNodeId<Expression>,
+        node_id: dir::LocalNodeId<dir::Expression>,
         ty: mir::LocalNodeId<mir::Type>,
         context: &str,
     ) -> LowerResult<()> {

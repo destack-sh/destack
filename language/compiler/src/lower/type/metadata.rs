@@ -1,8 +1,7 @@
 use std::collections::HashMap;
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::StringId;
-use destack_dir::AnchoredGlobalNodeId;
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
 use crate::{FieldLayoutKind, LowerError, LowerResult, StructLayout};
@@ -13,7 +12,26 @@ impl ModuleLowerer<'_> {
         &mut self,
         type_id: dir::LocalTypeId,
         ty: mir::LocalNodeId<mir::Type>,
-        anchor: AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<Option<mir::LayoutId>> {
+        self.layout_metadata_for_mir_type_with_source(Some(type_id), ty, anchor)
+    }
+
+    /// Return layout metadata for one MIR type regardless of DIR provenance.
+    pub(crate) fn layout_metadata_for_mir_type(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<Option<mir::LayoutId>> {
+        self.layout_metadata_for_mir_type_with_source(None, ty, anchor)
+    }
+
+    /// Return layout metadata for one MIR type with an optional DIR source.
+    fn layout_metadata_for_mir_type_with_source(
+        &mut self,
+        type_id: Option<dir::LocalTypeId>,
+        ty: mir::LocalNodeId<mir::Type>,
+        anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<mir::LayoutId>> {
         // skip if metadata already exists
         if let Some(layout_id) = self.builder.tree().type_table.layout_id(ty) {
@@ -22,7 +40,7 @@ impl ModuleLowerer<'_> {
 
         // resolve the cached struct layout when available
         if let Some(layout) = self.type_lowerer.layout_for_type(ty).cloned() {
-            let layout_type = self.layout_type_for_type(type_id, ty, anchor, &layout)?;
+            let layout_type = self.layout_type_for_mir_type(type_id, ty, anchor, &layout)?;
             let layout_id = self.insert_layout_entry(ty, layout_type, &layout);
 
             return Ok(Some(layout_id));
@@ -163,10 +181,10 @@ impl ModuleLowerer<'_> {
     /// Compute layout info for an array type.
     fn array_layout_info(
         &self,
-        type_id: dir::LocalTypeId,
+        type_id: Option<dir::LocalTypeId>,
         element: mir::LocalNodeId<mir::Type>,
         length: u64,
-        anchor: AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<(mir::LayoutType, u32, u32)> {
         // compute element size and alignment
         let element_type = self.builder.tree().get(element);
@@ -176,19 +194,12 @@ impl ModuleLowerer<'_> {
         let stride = align_up(size, alignment);
 
         // validate the array length
-        let length_u32 = u32::try_from(length).map_err(|_| LowerError::UnsupportedType {
-            node: anchor,
-            ty: type_id.into_global(self.module_id),
-            message: "array length exceeds layout limits".to_string(),
+        let length_u32 = u32::try_from(length).map_err(|_| {
+            self.array_layout_error(type_id, anchor, "array length exceeds layout limits")
         })?;
-        let total_size =
-            stride
-                .checked_mul(length_u32)
-                .ok_or_else(|| LowerError::UnsupportedType {
-                    node: anchor,
-                    ty: type_id.into_global(self.module_id),
-                    message: "array layout size overflow".to_string(),
-                })?;
+        let total_size = stride.checked_mul(length_u32).ok_or_else(|| {
+            self.array_layout_error(type_id, anchor, "array layout size overflow")
+        })?;
 
         Ok((
             mir::LayoutType::Array {
@@ -202,11 +213,11 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve the layout kind for a lowered type.
-    fn layout_type_for_type(
+    fn layout_type_for_mir_type(
         &self,
-        type_id: dir::LocalTypeId,
+        type_id: Option<dir::LocalTypeId>,
         mir_type: mir::LocalNodeId<mir::Type>,
-        anchor: AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
         layout: &StructLayout,
     ) -> LowerResult<mir::LayoutType> {
         // prefer union layouts when present
@@ -247,7 +258,9 @@ impl ModuleLowerer<'_> {
             }
         }
         // prefer interface layouts when present
-        else if let Some(interface_layout) = self.type_lowerer.interface_ref_layout(type_id) {
+        else if let Some(type_id) = type_id
+            && let Some(interface_layout) = self.type_lowerer.interface_ref_layout(type_id)
+        {
             let object_field = layout
                 .field(interface_layout.object_field_index)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -267,7 +280,9 @@ impl ModuleLowerer<'_> {
             }
         }
         // use function value layouts for function types
-        else if matches!(self.types.get_type(type_id), dir::Type::Function { .. }) {
+        else if type_id.is_some_and(|type_id| {
+            matches!(self.types.get_type(type_id), dir::Type::Function { .. })
+        }) {
             mir::LayoutType::Closure
         }
         // mark function environments explicitly when present
@@ -286,12 +301,33 @@ impl ModuleLowerer<'_> {
         Ok(layout_type)
     }
 
+    /// Build one consistent array layout error.
+    fn array_layout_error(
+        &self,
+        type_id: Option<dir::LocalTypeId>,
+        anchor: dir::AnchoredGlobalNodeId,
+        message: &str,
+    ) -> LowerError {
+        if let Some(type_id) = type_id {
+            return LowerError::UnsupportedType {
+                node: anchor,
+                ty: type_id.into_global(self.module_id),
+                message: message.to_string(),
+            };
+        }
+
+        LowerError::UnsupportedConstruct {
+            node: anchor,
+            message: message.to_string(),
+        }
+    }
+
     /// Return field map metadata for nominal struct and class layouts.
     pub(crate) fn field_map_metadata_for_type(
         &mut self,
         type_id: dir::LocalTypeId,
         mir_type: mir::LocalNodeId<mir::Type>,
-        anchor: AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<HashMap<StringId, mir::LocalNodeId<mir::Field>>>> {
         // restrict field maps to struct and class payloads
         let Some(symbol) = self.types.symbol_for_instance_type(type_id) else {

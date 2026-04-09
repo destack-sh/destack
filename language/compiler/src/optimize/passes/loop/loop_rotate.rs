@@ -127,11 +127,9 @@ struct RotationCandidate {
     /// Arguments passed to body block from header.
     body_arguments: Vec<mir::Value>,
     /// The condition value used in the header's branch.
-    condition: mir::Value,
+    branch_condition: mir::Value,
     /// True if then-branch goes to body (false means then-branch goes to exit).
     then_to_body: bool,
-    /// The check kind if the header uses a check terminator.
-    check_kind: Option<mir::CheckConstraint>,
 }
 
 /// Check if a loop can be rotated and gather the necessary information.
@@ -161,37 +159,23 @@ fn find_rotation_candidate(
     }
 
     // header must end with conditional branch
-    let (condition, then_target, then_args, else_target, else_args, check_kind) =
-        match &header_block.terminator {
-            mir::Terminator::Branch {
-                condition,
-                then_target,
-                then_arguments,
-                else_target,
-                else_arguments,
-            } => (
-                *condition,
-                *then_target,
-                then_arguments.clone(),
-                *else_target,
-                else_arguments.clone(),
-                None,
-            ),
-            mir::Terminator::Check {
-                condition,
-                constraint,
-                success,
-                failure,
-            } => (
-                *condition,
-                success.target,
-                success.arguments.clone(),
-                failure.target,
-                failure.arguments.clone(),
-                Some(constraint.clone()),
-            ),
-            _ => return None,
-        };
+    let (condition, then_target, then_args, else_target, else_args) = match &header_block.terminator
+    {
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } => (
+            *condition,
+            *then_target,
+            then_arguments.clone(),
+            *else_target,
+            else_arguments.clone(),
+        ),
+        _ => return None,
+    };
 
     // one target inside loop (body), one outside (exit)
     let then_in_loop = lp.blocks.contains(&then_target);
@@ -227,9 +211,8 @@ fn find_rotation_candidate(
         exit_arguments,
         body_block,
         body_arguments,
-        condition,
+        branch_condition: condition,
         then_to_body,
-        check_kind,
     })
 }
 
@@ -296,117 +279,12 @@ fn rotate_loop(
                       map: &HashMap<mir::Value, mir::Value>|
      -> Vec<mir::Value> { args.iter().map(|v| remap(*v, map)).collect() };
 
-    let remap_kind = |kind: &mir::CheckConstraint,
-                      map: &HashMap<mir::Value, mir::Value>|
-     -> mir::CheckConstraint {
-        match kind {
-            mir::CheckConstraint::Bounds {
-                index,
-                length,
-                collection,
-                is_signed,
-            } => mir::CheckConstraint::Bounds {
-                index: remap(*index, map),
-                length: remap(*length, map),
-                collection: remap(*collection, map),
-                is_signed: *is_signed,
-            },
-            mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
-                value: remap(*value, map),
-            },
-            mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
-                divisor: remap(*divisor, map),
-            },
-            mir::CheckConstraint::ShiftRange {
-                value,
-                bit_width,
-                is_signed,
-            } => mir::CheckConstraint::ShiftRange {
-                value: remap(*value, map),
-                bit_width: *bit_width,
-                is_signed: *is_signed,
-            },
-            mir::CheckConstraint::Narrow {
-                value,
-                to_width,
-                is_signed,
-            } => mir::CheckConstraint::Narrow {
-                value: remap(*value, map),
-                to_width: *to_width,
-                is_signed: *is_signed,
-            },
-            mir::CheckConstraint::Overflow {
-                operator,
-                left,
-                right,
-                is_signed,
-            } => mir::CheckConstraint::Overflow {
-                operator: *operator,
-                left: remap(*left, map),
-                right: remap(*right, map),
-                is_signed: *is_signed,
-            },
-            mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
-                value: remap(*value, map),
-                expected: *expected,
-            },
-            mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
-                value: remap(*value, map),
-                expected: *expected,
-            },
-            mir::CheckConstraint::ReceiverType { receiver, expected } => {
-                mir::CheckConstraint::ReceiverType {
-                    receiver: remap(*receiver, map),
-                    expected: *expected,
-                }
-            }
-            mir::CheckConstraint::Implements { receiver, expected } => {
-                mir::CheckConstraint::Implements {
-                    receiver: remap(*receiver, map),
-                    expected: *expected,
-                }
-            }
-        }
-    };
-
     // update preheader: jump -> guard branch
     let remapped_body_args = remap_args(&candidate.body_arguments, &preheader_value_map);
     let remapped_exit_args = remap_args(&candidate.exit_arguments, &preheader_value_map);
-    let preheader_condition = remap(candidate.condition, &preheader_value_map);
+    let preheader_condition = remap(candidate.branch_condition, &preheader_value_map);
 
-    let preheader_terminator = if let Some(constraint) = candidate
-        .check_kind
-        .as_ref()
-        .map(|kind| remap_kind(kind, &preheader_value_map))
-    {
-        if candidate.then_to_body {
-            mir::Terminator::Check {
-                condition: preheader_condition,
-                constraint,
-                success: mir::CheckTarget {
-                    target: candidate.body_block,
-                    arguments: remapped_body_args,
-                },
-                failure: mir::CheckTarget {
-                    target: candidate.exit_block,
-                    arguments: remapped_exit_args,
-                },
-            }
-        } else {
-            mir::Terminator::Check {
-                condition: preheader_condition,
-                constraint,
-                success: mir::CheckTarget {
-                    target: candidate.exit_block,
-                    arguments: remapped_exit_args,
-                },
-                failure: mir::CheckTarget {
-                    target: candidate.body_block,
-                    arguments: remapped_body_args,
-                },
-            }
-        }
-    } else if candidate.then_to_body {
+    let preheader_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
             condition: preheader_condition,
             then_target: candidate.body_block,
@@ -431,41 +309,9 @@ fn rotate_loop(
     // update latch: jump -> rotated branch
     let latch_body_args = remap_args(&candidate.body_arguments, &latch_value_map);
     let latch_exit_args = remap_args(&candidate.exit_arguments, &latch_value_map);
-    let latch_condition = remap(candidate.condition, &latch_value_map);
+    let latch_condition = remap(candidate.branch_condition, &latch_value_map);
 
-    let latch_terminator = if let Some(constraint) = candidate
-        .check_kind
-        .as_ref()
-        .map(|kind| remap_kind(kind, &latch_value_map))
-    {
-        if candidate.then_to_body {
-            mir::Terminator::Check {
-                condition: latch_condition,
-                constraint,
-                success: mir::CheckTarget {
-                    target: candidate.body_block,
-                    arguments: latch_body_args,
-                },
-                failure: mir::CheckTarget {
-                    target: candidate.exit_block,
-                    arguments: latch_exit_args,
-                },
-            }
-        } else {
-            mir::Terminator::Check {
-                condition: latch_condition,
-                constraint,
-                success: mir::CheckTarget {
-                    target: candidate.exit_block,
-                    arguments: latch_exit_args,
-                },
-                failure: mir::CheckTarget {
-                    target: candidate.body_block,
-                    arguments: latch_body_args,
-                },
-            }
-        }
-    } else if candidate.then_to_body {
+    let latch_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
             condition: latch_condition,
             then_target: candidate.body_block,

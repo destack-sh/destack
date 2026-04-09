@@ -628,7 +628,6 @@ fn update_terminator_arguments(
             }
         }
         Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -716,7 +715,6 @@ fn update_terminator_arguments(
                 }
             };
             Terminator::Check {
-                condition: resolve_value(*condition, substitutions),
                 constraint,
                 success: mir::CheckTarget {
                     target: success.target,
@@ -780,19 +778,21 @@ fn update_terminator_arguments(
                 resume_arguments: new_resume_args,
             }
         }
-        Terminator::Call {
+        Terminator::Invoke {
             function,
             arguments,
+            signature,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => Terminator::Call {
+        } => Terminator::Invoke {
             function: *function,
             arguments: arguments
                 .iter()
                 .map(|v| resolve_value(*v, substitutions))
                 .collect(),
+            signature: *signature,
             normal_target: *normal_target,
             normal_arguments: extend_arguments(
                 *normal_target,
@@ -810,7 +810,7 @@ fn update_terminator_arguments(
                 substitutions,
             ),
         },
-        Terminator::CallIndirect {
+        Terminator::InvokeIndirect {
             callee,
             arguments,
             signature,
@@ -818,7 +818,7 @@ fn update_terminator_arguments(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => Terminator::CallIndirect {
+        } => Terminator::InvokeIndirect {
             callee: resolve_value(*callee, substitutions),
             arguments: arguments
                 .iter()
@@ -842,7 +842,7 @@ fn update_terminator_arguments(
                 substitutions,
             ),
         },
-        Terminator::CallVirtual {
+        Terminator::InvokeVirtual {
             receiver,
             arguments,
             declaring_type,
@@ -852,7 +852,7 @@ fn update_terminator_arguments(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => Terminator::CallVirtual {
+        } => Terminator::InvokeVirtual {
             receiver: resolve_value(*receiver, substitutions),
             arguments: arguments
                 .iter()
@@ -878,7 +878,7 @@ fn update_terminator_arguments(
                 substitutions,
             ),
         },
-        Terminator::CallInterface {
+        Terminator::InvokeInterface {
             receiver,
             arguments,
             declaring_type,
@@ -888,7 +888,7 @@ fn update_terminator_arguments(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => Terminator::CallInterface {
+        } => Terminator::InvokeInterface {
             receiver: resolve_value(*receiver, substitutions),
             arguments: arguments
                 .iter()
@@ -928,12 +928,14 @@ fn update_terminator_arguments(
         Terminator::TailCall {
             function,
             arguments,
+            signature,
         } => Terminator::TailCall {
             function: *function,
             arguments: arguments
                 .iter()
                 .map(|v| resolve_value(*v, substitutions))
                 .collect(),
+            signature: *signature,
         },
         Terminator::TailCallVirtual {
             receiver,

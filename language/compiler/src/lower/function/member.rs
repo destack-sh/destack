@@ -1,5 +1,4 @@
 use destack_core::StringId;
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, Resolution, Type};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -19,14 +18,17 @@ enum StaticMemberKind {
 
 impl FunctionLowerer<'_> {
     /// Resolve a static integer literal for tuple indexing.
-    fn static_index_literal(&self, expression_id: LocalNodeId<Expression>) -> LowerResult<usize> {
+    fn static_index_literal(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> LowerResult<usize> {
         // require a compile time integer literal
         let index_expression = self.unwrap_expression(expression_id);
         match self.context.dir_tree.get(index_expression) {
-            Expression::ScalarLiteral {
+            dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Integer(value),
             }
-            | Expression::ScalarLiteral {
+            | dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Bigint(value),
             } if *value >= 0 => Ok(*value as usize),
             _ => Err(self.error(expression_id, "tuple index must be a constant integer")),
@@ -48,8 +50,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_member_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
         field_name: StringId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower getter access into function call
@@ -110,7 +112,7 @@ impl FunctionLowerer<'_> {
             })?;
 
         // ensure constructor fields are initialized before read
-        if matches!(self.context.dir_tree.get(left_id), Expression::This) {
+        if matches!(self.context.dir_tree.get(left_id), dir::Expression::This) {
             let node = expression_id
                 .into_global_any(self.context.module_id)
                 .into_anchored(Some(self.context.profile));
@@ -145,19 +147,22 @@ impl FunctionLowerer<'_> {
     /// Resolve a static member symbol for a member access expression.
     pub(crate) fn resolved_member_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<GlobalSymbolId> {
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
         // read the resolution from analyze
         let resolution = self.get_resolution(expression_id)?;
 
         match resolution {
-            Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
+            dir::Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
             _ => None,
         }
     }
 
     /// Identify static members for a symbol when available.
-    fn static_member_kind_for_symbol(&self, symbol: GlobalSymbolId) -> Option<StaticMemberKind> {
+    fn static_member_kind_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<StaticMemberKind> {
         // load the analyzed dir artifact for this symbol
         let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
         let tree = &dir.tree;
@@ -208,7 +213,7 @@ impl FunctionLowerer<'_> {
     }
 
     /// Return true when a symbol resolves to a static field.
-    pub(crate) fn is_static_field_symbol(&self, symbol: GlobalSymbolId) -> bool {
+    pub(crate) fn is_static_field_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         matches!(
             self.static_member_kind_for_symbol(symbol),
             Some(StaticMemberKind::Field)
@@ -216,7 +221,7 @@ impl FunctionLowerer<'_> {
     }
 
     /// Return true when a symbol resolves to a static method.
-    pub(crate) fn is_static_method_symbol(&self, symbol: GlobalSymbolId) -> bool {
+    pub(crate) fn is_static_method_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         matches!(
             self.static_member_kind_for_symbol(symbol),
             Some(StaticMemberKind::Method)
@@ -226,7 +231,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the function mode for a member symbol when available.
     pub(crate) fn member_mode_for_symbol(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> Option<dir::FunctionMode> {
         // load the analyzed dir artifact for this symbol
         let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
@@ -262,8 +267,8 @@ impl FunctionLowerer<'_> {
     /// Resolve receiver values for member getter/setter calls.
     fn member_call_receivers(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        receiver_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(
         Option<mir::Value>,
         Option<mir::Value>,
@@ -316,9 +321,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_getter_call(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        receiver_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve receiver values for the call
         let (call_receiver, dispatch_receiver, receiver_type_id) =
@@ -434,9 +439,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_setter_call(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        receiver_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
         value: mir::Value,
     ) -> LowerResult<()> {
         // resolve receiver values for the call
@@ -531,9 +536,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_index_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left_id: LocalNodeId<Expression>,
-        index_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
+        index_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the left-hand type
         let left_type_id = self.type_for_expression_or_error(left_id)?;
@@ -543,7 +548,7 @@ impl FunctionLowerer<'_> {
         // handle array indexing
         if matches!(
             self.context.types.get_type(left_type_id),
-            Type::Array { .. } | Type::ArraySized { .. }
+            dir::Type::Array { .. } | dir::Type::ArraySized { .. }
         ) {
             // lower the array value and index
             let (array_value, _array_type) = self.lower_value_expression(left_id)?;

@@ -174,15 +174,15 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
             // record call terminators
             match &block.terminator {
-                mir::Terminator::Call { function, .. } => {
+                mir::Terminator::Invoke { function, .. } => {
                     data.direct_calls
                         .entry(*function)
                         .or_default()
                         .push(DirectCallSite::Terminator(block_id));
                 }
-                mir::Terminator::CallIndirect { signature, .. }
-                | mir::Terminator::CallVirtual { signature, .. }
-                | mir::Terminator::CallInterface { signature, .. } => {
+                mir::Terminator::InvokeIndirect { signature, .. }
+                | mir::Terminator::InvokeVirtual { signature, .. }
+                | mir::Terminator::InvokeInterface { signature, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
                         data.indirect_signatures.insert(signature);
                     }
@@ -335,9 +335,10 @@ fn update_call_sites(
             DirectCallSite::Terminator(block_id) => {
                 let block = tree.get_mut(block_id);
                 match &block.terminator {
-                    mir::Terminator::Call {
+                    mir::Terminator::Invoke {
                         function,
                         arguments,
+                        signature,
                         normal_target,
                         normal_arguments,
                         unwind_target,
@@ -346,9 +347,10 @@ fn update_call_sites(
                         // filter the argument list
                         let new_arguments = remap.filter_by_index(arguments);
 
-                        block.terminator = mir::Terminator::Call {
+                        block.terminator = mir::Terminator::Invoke {
                             function: *function,
                             arguments: new_arguments,
+                            signature: *signature,
                             normal_target: *normal_target,
                             normal_arguments: normal_arguments.clone(),
                             unwind_target: *unwind_target,
@@ -358,6 +360,7 @@ fn update_call_sites(
                     mir::Terminator::TailCall {
                         function,
                         arguments,
+                        signature,
                     } => {
                         // filter the argument list
                         let new_arguments = remap.filter_by_index(arguments);
@@ -365,6 +368,7 @@ fn update_call_sites(
                         block.terminator = mir::Terminator::TailCall {
                             function: *function,
                             arguments: new_arguments,
+                            signature: *signature,
                         };
                     }
                     _ => {}

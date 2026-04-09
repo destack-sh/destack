@@ -1,6 +1,5 @@
-use destack_dir::{Declaration, DeclarationDescriptor, GlobalSymbolId, LocalNodeId, Member};
-
 use crate::{LowerError, LowerResult};
+use destack_dir as dir;
 
 use crate::lower::{GlobalBinding, ModuleLowerer, lower_mutability};
 
@@ -8,13 +7,13 @@ impl ModuleLowerer<'_> {
     /// Get the descriptor for a nominal declaration.
     pub(crate) fn descriptor_for_declaration_or_error<'a>(
         &self,
-        declaration_id: LocalNodeId<Declaration>,
-        declaration: &'a Declaration,
-    ) -> LowerResult<&'a DeclarationDescriptor> {
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &'a dir::Declaration,
+    ) -> LowerResult<&'a dir::DeclarationDescriptor> {
         // require a nominal declaration for constructor lowering
         let is_nominal = matches!(
             declaration,
-            Declaration::Struct { .. } | Declaration::Class { .. }
+            dir::Declaration::Struct { .. } | dir::Declaration::Class { .. }
         );
         if !is_nominal {
             return Err(LowerError::UnsupportedConstruct {
@@ -32,17 +31,17 @@ impl ModuleLowerer<'_> {
     /// Lower a declaration into MIR.
     pub(crate) fn lower_declaration(
         &mut self,
-        declaration_id: LocalNodeId<Declaration>,
-        declaration: &Declaration,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::Declaration,
     ) -> LowerResult<()> {
         match declaration {
-            Declaration::Function { .. } => {
+            dir::Declaration::Function { .. } => {
                 self.lower_function(declaration_id, declaration)?;
                 Ok(())
             }
 
             // struct declarations: lower the type and its methods
-            Declaration::Struct {
+            dir::Declaration::Struct {
                 descriptor,
                 members,
                 ..
@@ -70,7 +69,7 @@ impl ModuleLowerer<'_> {
                 // lower methods
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
-                    if let Member::Method { .. } = member {
+                    if let dir::Member::Method { .. } = member {
                         self.lower_method(
                             *member_id,
                             member,
@@ -85,7 +84,7 @@ impl ModuleLowerer<'_> {
             }
 
             // class declarations: lower the type and its methods
-            Declaration::Class {
+            dir::Declaration::Class {
                 descriptor,
                 members,
                 ..
@@ -110,7 +109,7 @@ impl ModuleLowerer<'_> {
                 // lower methods
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
-                    if let Member::Method { .. } = member {
+                    if let dir::Member::Method { .. } = member {
                         self.lower_method(
                             *member_id,
                             member,
@@ -125,7 +124,7 @@ impl ModuleLowerer<'_> {
             }
 
             // enum declarations: lower the backing type and its methods
-            Declaration::Enum {
+            dir::Declaration::Enum {
                 descriptor,
                 members,
                 ..
@@ -149,7 +148,7 @@ impl ModuleLowerer<'_> {
                 // lower enum methods
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
-                    if let Member::Method { .. } = member {
+                    if let dir::Member::Method { .. } = member {
                         self.lower_method(
                             *member_id,
                             member,
@@ -164,8 +163,8 @@ impl ModuleLowerer<'_> {
             }
 
             // interface declarations are metadata only during lower
-            Declaration::Interface { .. } => Ok(()),
-            Declaration::Type { .. } => Ok(()),
+            dir::Declaration::Interface { .. } => Ok(()),
+            dir::Declaration::Type { .. } => Ok(()),
             _ => Err(LowerError::UnsupportedConstruct {
                 node: declaration_id
                     .into_global_any(self.module_id)
@@ -178,14 +177,14 @@ impl ModuleLowerer<'_> {
     /// Lower static member fields into globals.
     fn lower_static_member_fields(
         &mut self,
-        owner_symbol: GlobalSymbolId,
-        members: &[LocalNodeId<Member>],
+        owner_symbol: dir::GlobalSymbolId,
+        members: &[dir::LocalNodeId<dir::Member>],
     ) -> LowerResult<()> {
         // scan members for static fields
         for member_id in members {
             // skip static non-field members
             let member = self.dir_tree.get(*member_id);
-            let Member::Field {
+            let dir::Member::Field {
                 modifiers,
                 key,
                 default,
@@ -234,7 +233,7 @@ impl ModuleLowerer<'_> {
             // decide mutability from modifiers
             let mutability = modifiers
                 .and_then(|modifiers| modifiers.mutability)
-                .unwrap_or(destack_dir::Mutability::Immutable);
+                .unwrap_or(dir::Mutability::Immutable);
             let mir_mutability = lower_mutability(mutability);
 
             // resolve the global name from the static member path

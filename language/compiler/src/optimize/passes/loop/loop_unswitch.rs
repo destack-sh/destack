@@ -230,8 +230,6 @@ struct UnswitchCandidate {
     else_target: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to else_target.
     else_arguments: Vec<mir::Value>,
-    /// The check kind if the invariant branch is a check.
-    check_kind: Option<mir::CheckConstraint>,
     /// All blocks in the loop.
     loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Arguments passed from preheader to header.
@@ -387,7 +385,7 @@ fn find_unswitchable_loop(
         let block = tree.get(block_id);
 
         // must have a branch terminator
-        let (condition, then_target, then_arguments, else_target, else_arguments, check_kind) =
+        let (condition, then_target, then_arguments, else_target, else_arguments) =
             match &block.terminator {
                 mir::Terminator::Branch {
                     condition,
@@ -401,20 +399,6 @@ fn find_unswitchable_loop(
                     then_arguments.clone(),
                     *else_target,
                     else_arguments.clone(),
-                    None,
-                ),
-                mir::Terminator::Check {
-                    condition,
-                    constraint,
-                    success,
-                    failure,
-                } => (
-                    *condition,
-                    success.target,
-                    success.arguments.clone(),
-                    failure.target,
-                    failure.arguments.clone(),
-                    Some(constraint.clone()),
                 ),
                 _ => continue,
             };
@@ -441,17 +425,6 @@ fn find_unswitchable_loop(
         if bool_from_range(ranges.entry(block_id).get(condition_value)).is_some() {
             continue;
         }
-        let check_kind =
-            check_kind.map(|constraint| remap_check_constraint(constraint, &header_param_rewrites));
-        if let Some(kind) = &check_kind
-            && !kind
-                .uses()
-                .iter()
-                .all(|value| preheader_values.contains(value))
-        {
-            continue;
-        }
-
         // both targets must be different (otherwise branch is effectively a jump)
         if then_target == else_target {
             continue;
@@ -478,7 +451,6 @@ fn find_unswitchable_loop(
             then_arguments,
             else_target,
             else_arguments,
-            check_kind,
             loop_blocks: lp.blocks.clone(),
             preheader_to_header_args,
         });
@@ -631,86 +603,6 @@ fn collect_header_param_rewrites(
     rewrites
 }
 
-/// Remap values inside a check constraint using the rewrite map.
-fn remap_check_constraint(
-    constraint: mir::CheckConstraint,
-    rewrites: &HashMap<mir::Value, mir::Value>,
-) -> mir::CheckConstraint {
-    // remap values through rewrite map
-    let remap =
-        |value: mir::Value| -> mir::Value { rewrites.get(&value).copied().unwrap_or(value) };
-
-    // rebuild the constraint with remapped values
-    match constraint {
-        mir::CheckConstraint::Bounds {
-            index,
-            length,
-            collection,
-            is_signed,
-        } => mir::CheckConstraint::Bounds {
-            index: remap(index),
-            length: remap(length),
-            collection: remap(collection),
-            is_signed,
-        },
-        mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
-            value: remap(value),
-        },
-        mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
-            divisor: remap(divisor),
-        },
-        mir::CheckConstraint::ShiftRange {
-            value,
-            bit_width,
-            is_signed,
-        } => mir::CheckConstraint::ShiftRange {
-            value: remap(value),
-            bit_width,
-            is_signed,
-        },
-        mir::CheckConstraint::Narrow {
-            value,
-            to_width,
-            is_signed,
-        } => mir::CheckConstraint::Narrow {
-            value: remap(value),
-            to_width,
-            is_signed,
-        },
-        mir::CheckConstraint::Overflow {
-            operator,
-            left,
-            right,
-            is_signed,
-        } => mir::CheckConstraint::Overflow {
-            operator,
-            left: remap(left),
-            right: remap(right),
-            is_signed,
-        },
-        mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
-            value: remap(value),
-            expected,
-        },
-        mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
-            value: remap(value),
-            expected,
-        },
-        mir::CheckConstraint::ReceiverType { receiver, expected } => {
-            mir::CheckConstraint::ReceiverType {
-                receiver: remap(receiver),
-                expected,
-            }
-        }
-        mir::CheckConstraint::Implements { receiver, expected } => {
-            mir::CheckConstraint::Implements {
-                receiver: remap(receiver),
-                expected,
-            }
-        }
-    }
-}
-
 /// Perform loop unswitching transformation.
 fn unswitch_loop(
     function: &mut mir::Function,
@@ -767,27 +659,12 @@ fn unswitch_loop(
     } else {
         candidate.condition
     };
-    preheader.terminator = if let Some(constraint) = candidate.check_kind.clone() {
-        mir::Terminator::Check {
-            condition: condition_value,
-            constraint,
-            success: mir::CheckTarget {
-                target: candidate.header,
-                arguments: candidate.preheader_to_header_args.clone(),
-            },
-            failure: mir::CheckTarget {
-                target: cloned_header,
-                arguments: candidate.preheader_to_header_args.clone(),
-            },
-        }
-    } else {
-        mir::Terminator::Branch {
-            condition: condition_value,
-            then_target: candidate.header,
-            then_arguments: candidate.preheader_to_header_args.clone(),
-            else_target: cloned_header,
-            else_arguments: candidate.preheader_to_header_args.clone(),
-        }
+    preheader.terminator = mir::Terminator::Branch {
+        condition: condition_value,
+        then_target: candidate.header,
+        then_arguments: candidate.preheader_to_header_args.clone(),
+        else_target: cloned_header,
+        else_arguments: candidate.preheader_to_header_args.clone(),
     };
     tree.replace(candidate.preheader, preheader);
 

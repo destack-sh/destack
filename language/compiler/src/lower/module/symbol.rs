@@ -1,12 +1,11 @@
-use destack_dir::{GlobalNodeIdAny, LocalSymbolId};
-
 use crate::{LowerError, LowerResult};
+use destack_dir as dir;
 
 use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Get the name of a symbol as a String.
-    pub(crate) fn get_symbol_name(&self, symbol_id: LocalSymbolId) -> Option<String> {
+    pub(crate) fn get_symbol_name(&self, symbol_id: dir::LocalSymbolId) -> Option<String> {
         // read the symbol entry
         let symbol = self.symbols.get_symbol(symbol_id);
 
@@ -19,8 +18,8 @@ impl ModuleLowerer<'_> {
     /// Get the name of a symbol, returning an error if it has no name.
     pub(crate) fn symbol_name(
         &self,
-        symbol_id: LocalSymbolId,
-        node: GlobalNodeIdAny,
+        symbol_id: dir::LocalSymbolId,
+        node: dir::GlobalNodeIdAny,
     ) -> LowerResult<String> {
         // resolve the symbol name
         let name =

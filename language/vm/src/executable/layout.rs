@@ -850,7 +850,7 @@ type Packed {
     #[test]
     fn test_build_layout_uses_canonical_vector_stride() {
         let mir_text = r#"
-type Vec vector<ref<int32, managed, readonly>, 2>"#;
+type Vec = vector<ref<int32, managed, readonly>, 2>"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Vec");
         let layouts = build_layouts(&tree);
@@ -879,7 +879,7 @@ type Vec vector<ref<int32, managed, readonly>, 2>"#;
     #[test]
     fn test_build_layout_traces_newtype_wrapped_managed_reference() {
         let mir_text = r#"
-type Handle newtype<ref<int32, managed, readonly>>
+type Handle = newtype<ref<int32, managed, readonly>>;
 type Holder {
     value: Handle;
 }"#;
@@ -899,7 +899,7 @@ type Holder {
     #[test]
     fn test_build_layout_boxes_function_value() {
         let mir_text = r#"
-type Closure closure() -> int32"#;
+type Closure = closure() -> int32"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Closure");
         let layouts = build_layouts(&tree);
@@ -918,7 +918,7 @@ type Closure closure() -> int32"#;
     #[test]
     fn test_build_layout_traces_boxed_function_value_fields() {
         let mir_text = r#"
-type Closure closure() -> int32
+type Closure = closure() -> int32;
 type Holder {
     pad: uint8;
     action: Closure;

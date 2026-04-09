@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;

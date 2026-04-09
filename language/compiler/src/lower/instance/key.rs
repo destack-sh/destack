@@ -1,15 +1,15 @@
-use destack_dir::GlobalSymbolId;
+use destack_dir as dir;
 
 /// A concrete lowered instance key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum InstanceKey {
     /// A concrete instance keyed only by a symbol.
-    Symbol(GlobalSymbolId),
+    Symbol(dir::GlobalSymbolId),
 }
 
 impl InstanceKey {
     /// Build an instance key for a symbol.
-    pub(crate) const fn symbol(symbol: GlobalSymbolId) -> Self {
+    pub(crate) const fn symbol(symbol: dir::GlobalSymbolId) -> Self {
         Self::Symbol(symbol)
     }
 }

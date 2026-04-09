@@ -1,4 +1,3 @@
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, SymbolSpaceOrder};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -34,8 +33,8 @@ impl ModuleLowerer<'_> {
     pub(crate) fn binding_result_info(
         &mut self,
         signature: &dir::ResolvedSignature,
-        expression_id: LocalNodeId<Expression>,
-        _target_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        _target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<BindingResultInfo> {
         let Some(return_type_id) = signature.return_type else {
             return Err(LowerError::UnsupportedConstruct {
@@ -90,7 +89,7 @@ impl ModuleLowerer<'_> {
     /// Declare the takePlatformError binding for ABI lowering.
     pub(crate) fn declare_take_platform_error_function(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         err_value_type: dir::LocalTypeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         if let Some(function_id) = self.take_platform_error_function {
@@ -144,7 +143,7 @@ impl ModuleLowerer<'_> {
     /// Resolve (and cache) the RuntimeStatus layout for binding ABI lowering.
     pub(crate) fn runtime_status_layout(
         &mut self,
-        _expression_id: LocalNodeId<Expression>,
+        _expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<RuntimeStatusLayout> {
         if let Some(layout) = self.runtime_status_layout {
             return Ok(layout);
@@ -215,12 +214,16 @@ impl ModuleLowerer<'_> {
 
     fn take_platform_error_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<dir::GlobalSymbolId> {
         let name = self.compiler.repository.strings.intern("takePlatformError");
         let symbol = self
             .compiler
-            .get_declared_library_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
+            .get_declared_library_symbol_from(
+                self.profile,
+                name,
+                dir::SymbolSpaceOrder::ValueThenType,
+            )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)
@@ -232,12 +235,16 @@ impl ModuleLowerer<'_> {
 
     fn platform_error_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<dir::GlobalSymbolId> {
         let name = self.compiler.repository.strings.intern("PlatformError");
         let symbol = self
             .compiler
-            .get_declared_library_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
+            .get_declared_library_symbol_from(
+                self.profile,
+                name,
+                dir::SymbolSpaceOrder::ValueThenType,
+            )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)

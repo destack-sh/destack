@@ -70,7 +70,7 @@ pub(crate) fn compute_type_layout(
         mir::Type::Struct { .. }
             | mir::Type::Tuple { .. }
             | mir::Type::Array { .. }
-            | mir::Type::FunctionValue { .. }
+            | mir::Type::Closure { .. }
     ) {
         return Err(CodegenCraneliftError::unsupported_type(
             "missing layout metadata",
@@ -138,7 +138,7 @@ pub(crate) fn compute_type_layout(
         }
 
         // function values: read canonical layout metadata
-        mir::Type::FunctionValue { .. } => {
+        mir::Type::Closure { .. } => {
             let Some(layout) = tree.type_table.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",

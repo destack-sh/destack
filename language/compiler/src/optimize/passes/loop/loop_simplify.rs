@@ -366,7 +366,6 @@ fn redirect_terminator(
             }
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -376,7 +375,6 @@ fn redirect_terminator(
 
             if redirect_success || redirect_failure {
                 Some(mir::Terminator::Check {
-                    condition: *condition,
                     constraint: constraint.clone(),
                     success: mir::CheckTarget {
                         target: if redirect_success {

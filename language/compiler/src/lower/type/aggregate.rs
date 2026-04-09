@@ -1,4 +1,3 @@
-use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -53,7 +52,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         fields: &[dir::TypeField],
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let mut field_inputs = Vec::with_capacity(fields.len());
@@ -95,7 +94,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         elements: &[dir::TypeElement],
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // lower each element type
@@ -126,7 +125,7 @@ impl TypeLowerer {
         element: dir::LocalTypeId,
         count: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // lower the element type

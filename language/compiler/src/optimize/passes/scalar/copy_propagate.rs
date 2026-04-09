@@ -147,28 +147,28 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
                     .unwrap()
                     .push((block_id, resume_arguments.clone()));
             }
-            Terminator::Call {
+            Terminator::Invoke {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | Terminator::CallIndirect {
+            | Terminator::InvokeIndirect {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | Terminator::CallVirtual {
+            | Terminator::InvokeVirtual {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | Terminator::CallInterface {
+            | Terminator::InvokeInterface {
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -388,7 +388,6 @@ fn remove_arguments_at_indices(
             }
         }
         Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -405,7 +404,6 @@ fn remove_arguments_at_indices(
             };
             if new_success_args != success.arguments || new_failure_args != failure.arguments {
                 Terminator::Check {
-                    condition: *condition,
                     constraint: constraint.clone(),
                     success: mir::CheckTarget {
                         target: success.target,

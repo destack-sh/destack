@@ -1,4 +1,3 @@
-use destack_dir::{DynamicKey, GlobalSymbolId, LocalNodeId, Member};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;
@@ -9,12 +8,12 @@ impl ModuleLowerer<'_> {
     /// Declare a stub function for an interface method.
     pub(crate) fn lower_interface_method_stub(
         &mut self,
-        interface_symbol: GlobalSymbolId,
+        interface_symbol: dir::GlobalSymbolId,
         interface_type: mir::LocalNodeId<mir::Type>,
-        member_id: LocalNodeId<Member>,
-        key: Option<&DynamicKey>,
+        member_id: dir::LocalNodeId<dir::Member>,
+        key: Option<&dir::DynamicKey>,
         signature: &dir::FunctionSignature,
-        method_symbol: GlobalSymbolId,
+        method_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         if let Some(function_id) = self.function_for_symbol(method_symbol) {
             return Ok(function_id);

@@ -514,7 +514,6 @@ fn remove_arguments_at_indices(
             }
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -536,7 +535,6 @@ fn remove_arguments_at_indices(
             // rebuild the check when arguments changed
             if new_success_args != success.arguments || new_failure_args != failure.arguments {
                 mir::Terminator::Check {
-                    condition: *condition,
                     constraint: constraint.clone(),
                     success: mir::CheckTarget {
                         target: success.target,

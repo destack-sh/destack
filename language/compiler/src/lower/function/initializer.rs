@@ -1,6 +1,6 @@
+use destack_dir as dir;
 use std::collections::HashSet;
 
-use destack_dir::AnchoredGlobalNodeId;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
@@ -11,7 +11,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn zero_value_for_type(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // initialize recursion guard
         let mut visiting = HashSet::new();
@@ -24,7 +24,7 @@ impl FunctionLowerer<'_> {
     fn zero_value_for_type_inner(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         visiting: &mut HashSet<mir::LocalNodeId<mir::Type>>,
     ) -> LowerResult<mir::Value> {
         // guard against recursive constructor initialization

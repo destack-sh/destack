@@ -1,4 +1,3 @@
-use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
@@ -15,8 +14,8 @@ impl FunctionLowerer<'_> {
         let mut current_id = expression_id;
         loop {
             match self.context.dir_tree.get(current_id) {
-                Expression::Parenthesized { expression } => current_id = *expression,
-                Expression::Cast {
+                dir::Expression::Parenthesized { expression } => current_id = *expression,
+                dir::Expression::Cast {
                     value,
                     source: dir::CastSource::Implicit,
                     ..
@@ -39,10 +38,10 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(super) fn lower_binary_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // short-circuit logical operators need special control flow
         if matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
@@ -180,10 +179,10 @@ impl FunctionLowerer<'_> {
     /// `value is Type` becomes a runtime tag check when needed.
     pub(super) fn lower_type_binary_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
         operator: dir::TypeBinaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // only support runtime type checks for now
         if !matches!(
@@ -319,13 +318,13 @@ impl FunctionLowerer<'_> {
     /// Resolve the target type id for runtime type checks.
     fn type_check_target_type_id(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<dir::LocalTypeId> {
         // prefer nominal newtype references over instance types
         let expression = self.context.dir_tree.get(expression_id);
-        if let Expression::LocalReference { target_symbol, .. }
-        | Expression::ModuleReference { target_symbol, .. }
-        | Expression::GlobalReference { target_symbol, .. } = expression
+        if let dir::Expression::LocalReference { target_symbol, .. }
+        | dir::Expression::ModuleReference { target_symbol, .. }
+        | dir::Expression::GlobalReference { target_symbol, .. } = expression
             && target_symbol.ty() == dir::SymbolType::Newtype
         {
             return self
@@ -381,7 +380,7 @@ impl FunctionLowerer<'_> {
     /// Cast a numeric value to the target scalar type when needed.
     fn cast_numeric_value(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         value: mir::Value,
         source: ScalarType,
         target: ScalarType,
@@ -451,10 +450,10 @@ impl FunctionLowerer<'_> {
     /// Lower null comparisons against nullable references.
     fn lower_nullable_reference_comparison(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Option<mir::Value>> {
         // only handle equality comparisons
         if !matches!(
@@ -476,8 +475,8 @@ impl FunctionLowerer<'_> {
             self.context.dir_tree.get(left),
             self.context.dir_tree.get(right),
         ) {
-            (Expression::TypeLiteral { value }, _) => (right, value),
-            (_, Expression::TypeLiteral { value }) => (left, value),
+            (dir::Expression::TypeLiteral { value }, _) => (right, value),
+            (_, dir::Expression::TypeLiteral { value }) => (left, value),
             _ => return Ok(None),
         };
 
@@ -525,7 +524,7 @@ impl FunctionLowerer<'_> {
     /// Lower overflow-checked integer arithmetic.
     fn lower_overflow_checked_binary(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         left_value: mir::Value,
         right_value: mir::Value,
@@ -571,7 +570,7 @@ impl FunctionLowerer<'_> {
                 .builder
                 .intrinsic(intrinsic, pair_type, vec![left_value, right_value]);
         let result = self.state.builder.field_get(pair, 0);
-        let overflow = self.state.builder.field_get(pair, 1);
+        let _overflow = self.state.builder.field_get(pair, 1);
 
         // emit the overflow check
         let constraint = mir::CheckConstraint::Overflow {
@@ -588,7 +587,7 @@ impl FunctionLowerer<'_> {
     /// Emit division checks for integer division and remainder.
     fn lower_division_checked_binary(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         left_value: mir::Value,
         right_value: mir::Value,
@@ -616,7 +615,7 @@ impl FunctionLowerer<'_> {
 
         // emit signed min / -1 overflow checks
         if is_signed {
-            let min_value = match width {
+            let _min_value = match width {
                 8 => i64::from(i8::MIN),
                 16 => i64::from(i16::MIN),
                 32 => i64::from(i32::MIN),
@@ -645,11 +644,11 @@ impl FunctionLowerer<'_> {
     /// Emit shift checks for integer shift operations.
     fn lower_shift_checked_binary(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right_value: mir::Value,
         left_width: u16,
-        shift_width: u16,
+        _shift_width: u16,
         shift_signed: bool,
     ) -> LowerResult<()> {
         // ensure shift operators are used here
@@ -705,10 +704,10 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_conditional_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        condition_id: LocalNodeId<Expression>,
-        then_id: LocalNodeId<Expression>,
-        else_id: Option<LocalNodeId<Expression>>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        condition_id: dir::LocalNodeId<dir::Expression>,
+        then_id: dir::LocalNodeId<dir::Expression>,
+        else_id: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // require else branch for value expressions
         let else_id = else_id.ok_or_else(|| LowerError::UnsupportedConstruct {

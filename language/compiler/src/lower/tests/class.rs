@@ -1,4 +1,4 @@
-use destack_mir::VtableSlotId;
+use destack_mir as mir;
 use destack_vm::Value;
 
 use crate::TestProgram;
@@ -488,7 +488,7 @@ b0(v0: ref<FileLogger, managed, readonly>):
         let base_type = test.type_parent(tree, derived_type);
 
         let call_logger_info = test.virtual_call_info_by_name(tree, strings, "callLogger");
-        assert_eq!(call_logger_info.slot_id, VtableSlotId::new(2));
+        assert_eq!(call_logger_info.slot_id, mir::VtableSlotId::new(2));
         assert_eq!(call_logger_info.declaring_type, base_type);
     });
 }

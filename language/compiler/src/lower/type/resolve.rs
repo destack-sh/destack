@@ -1,4 +1,3 @@
-use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -9,7 +8,10 @@ use crate::lower::{GlobalBinding, LocalBinding};
 
 impl FunctionLowerer<'_> {
     /// Create a MissingType error for the given expression.
-    pub(crate) fn missing_type_error(&self, expression_id: LocalNodeId<Expression>) -> LowerError {
+    pub(crate) fn missing_type_error(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> LowerError {
         LowerError::MissingType {
             node: expression_id
                 .into_global_any(self.context.module_id)
@@ -18,7 +20,7 @@ impl FunctionLowerer<'_> {
     }
 
     /// Create a MissingType error for the given node.
-    pub(crate) fn missing_type_error_for_node(&self, node_id: GlobalNodeIdAny) -> LowerError {
+    pub(crate) fn missing_type_error_for_node(&self, node_id: dir::GlobalNodeIdAny) -> LowerError {
         LowerError::MissingType {
             node: node_id.into_anchored(Some(self.context.profile)),
         }
@@ -31,7 +33,7 @@ impl FunctionLowerer<'_> {
     /// For aggregate types, looks up the type in the type cache.
     pub(crate) fn lower_type_for_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the dir type id for the expression
         let type_id = self.type_for_expression_or_error(expression_id)?;
@@ -84,7 +86,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the scalar type for a typed expression.
     pub(crate) fn scalar_type_for_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<ScalarType> {
         let type_id = self.type_for_expression(expression_id)?;
         let type_id = self.unwrap_value_type_id(type_id);
@@ -105,7 +107,7 @@ impl FunctionLowerer<'_> {
     /// Only accept analysis-provided types.
     pub(crate) fn type_for_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalTypeId> {
         self.declared_or_inferred_type_id(expression_id)
     }
@@ -113,7 +115,7 @@ impl FunctionLowerer<'_> {
     /// Resolve a DIR type id for an expression or return MissingType.
     pub(crate) fn type_for_expression_or_error(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<dir::LocalTypeId> {
         self.type_for_expression(expression_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
@@ -122,7 +124,7 @@ impl FunctionLowerer<'_> {
     /// Resolve a signature type id for a node or return MissingType.
     pub(crate) fn signature_type_id_for_node_or_error(
         &self,
-        node_id: GlobalNodeIdAny,
+        node_id: dir::GlobalNodeIdAny,
     ) -> LowerResult<dir::LocalTypeId> {
         self.context
             .types
@@ -133,7 +135,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the declared or inferred type id for an expression.
     fn declared_or_inferred_type_id(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalTypeId> {
         let node_id = expression_id.into_global_any(self.context.module_id);
         self.context.types.get_declared_or_inferred_type_id(node_id)
@@ -142,20 +144,20 @@ impl FunctionLowerer<'_> {
     /// Resolve the type id encoded in a type expression node.
     pub(crate) fn type_id_for_type_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalTypeId> {
         // read the type expression node
         let expression = self.context.dir_tree.get(expression_id);
 
         // use the explicit type id when available
-        if let Expression::Type { value } = expression {
+        if let dir::Expression::Type { value } = expression {
             return Some(*value);
         }
 
         // resolve symbol references directly for type expressions
-        if let Expression::LocalReference { target_symbol, .. }
-        | Expression::ModuleReference { target_symbol, .. }
-        | Expression::GlobalReference { target_symbol, .. } = expression
+        if let dir::Expression::LocalReference { target_symbol, .. }
+        | dir::Expression::ModuleReference { target_symbol, .. }
+        | dir::Expression::GlobalReference { target_symbol, .. } = expression
         {
             if let Some(instance_type_id) = self.context.types.get_instance_type_id(*target_symbol)
             {
@@ -185,7 +187,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn class_symbol_for_type(
         &self,
         type_id: dir::LocalTypeId,
-    ) -> Option<GlobalSymbolId> {
+    ) -> Option<dir::GlobalSymbolId> {
         // match the dir type to find a class symbol
         match self.context.types.get_type(type_id) {
             // accept direct class references
@@ -277,8 +279,8 @@ impl FunctionLowerer<'_> {
     /// Resolve a local binding for a symbol reference.
     pub(crate) fn local_binding_for_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<LocalBinding> {
         let binding = self
             .state
@@ -298,8 +300,8 @@ impl FunctionLowerer<'_> {
     /// Resolve a global binding for a symbol reference.
     pub(crate) fn global_binding_for_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<GlobalBinding> {
         let binding = self
             .context
@@ -317,11 +319,11 @@ impl FunctionLowerer<'_> {
 
     /// Get the resolution for an expression from the TypeTable.
     ///
-    /// Returns the Resolution if one is attached to this expression, or None.
+    /// Returns the dir::Resolution if one is attached to this expression, or None.
     pub(crate) fn get_resolution(
         &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<&Resolution> {
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<&dir::Resolution> {
         let node_id = expression_id.into_global_any(self.context.module_id);
         let resolution_id = self.context.types.get_resolution_for_node(node_id)?;
         Some(self.context.types.get_resolution(resolution_id))

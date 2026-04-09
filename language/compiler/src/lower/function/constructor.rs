@@ -1,7 +1,7 @@
+use destack_dir as dir;
 use std::collections::HashSet;
 
 use destack_core::StringId;
-use destack_dir::{AnchoredGlobalNodeId, GlobalSymbolId};
 use destack_mir as mir;
 
 use crate::{LowerError, LowerResult};
@@ -25,8 +25,8 @@ impl FunctionLowerer<'_> {
         &mut self,
         instance_type: mir::LocalNodeId<mir::Type>,
         layout: StructLayout,
-        node: AnchoredGlobalNodeId,
-        class_symbol: Option<GlobalSymbolId>,
+        node: dir::AnchoredGlobalNodeId,
+        class_symbol: Option<dir::GlobalSymbolId>,
     ) -> LowerResult<()> {
         // build the initial instance value for this
         let instance_mir_type = self.state.builder.tree().get(instance_type).clone();
@@ -103,7 +103,7 @@ impl FunctionLowerer<'_> {
     /// Require a constructor field to be initialized before use.
     pub(crate) fn require_constructor_field_initialized(
         &self,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         field_index: u32,
         field_name: StringId,
     ) -> LowerResult<()> {
@@ -128,7 +128,7 @@ impl FunctionLowerer<'_> {
     /// Require all constructor fields to be initialized before returning.
     pub(crate) fn require_constructor_complete(
         &self,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<()> {
         // skip when not in a constructor body
         let Some(state) = self.state.constructor_state.as_ref() else {
@@ -166,7 +166,7 @@ impl FunctionLowerer<'_> {
     /// Return the constructed value from a constructor body.
     pub(crate) fn return_constructor_value(
         &mut self,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<()> {
         // verify all fields are initialized
         self.require_constructor_complete(node)?;

@@ -1,4 +1,3 @@
-use destack_dir::{GlobalSymbolId, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -18,7 +17,7 @@ impl FunctionLowerer<'_> {
     /// Resolve a captured field definition for a symbol.
     pub(crate) fn capture_field_for_symbol(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> Option<FunctionEnvironmentField> {
         let layout = self.function_environment_layout()?;
         layout.field_for_symbol(symbol).copied()
@@ -44,7 +43,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn build_function_environment_for_symbol(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        target_symbol: GlobalSymbolId,
+        target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // allocate and populate the environment when captures exist
         if let Some(env_layout) = self
@@ -217,7 +216,7 @@ impl FunctionLowerer<'_> {
     /// Record the function environment type on one function used as a closure value.
     pub(crate) fn set_function_environment(
         &mut self,
-        expression_id: LocalNodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
         env_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {

@@ -1,4 +1,3 @@
-use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
@@ -21,9 +20,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_cast_operator(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::CastOperator,
-        value_id: LocalNodeId<Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Option<mir::CastOperator>> {
         // return early for identity casts
         if operator == dir::CastOperator::Identity {
@@ -156,8 +155,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_instance_upcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
@@ -213,8 +212,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_instance_downcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
@@ -300,8 +299,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_union_upcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the source and target dir types
         let source_type_id = self.type_for_expression_or_error(value_id)?;
@@ -412,8 +411,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_union_downcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, _source_mir_type) = self.lower_value_expression(value_id)?;
@@ -482,8 +481,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_nullable_upcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
         if self
@@ -556,8 +555,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_nullable_downcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         if self
@@ -611,8 +610,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_interface_upcast(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
         value: mir::Value,
         source_mir_type: mir::LocalNodeId<mir::Type>,
         source_type_id: dir::LocalTypeId,
@@ -695,7 +694,7 @@ impl FunctionLowerer<'_> {
     /// Select an integer cast operator for scalar types.
     fn int_cast_operator_for_scalar(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         source: ScalarType,
         target: ScalarType,
     ) -> LowerResult<Option<mir::CastOperator>> {
@@ -820,25 +819,25 @@ impl FunctionLowerer<'_> {
     /// Resolve the concrete symbol for an expression when possible.
     fn concrete_symbol_for_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
         // peel parenthesized expressions
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
-            Expression::Parenthesized { expression } => {
+            dir::Expression::Parenthesized { expression } => {
                 self.concrete_symbol_for_expression(*expression)
             }
-            Expression::Cast { value, .. } => self.concrete_symbol_for_expression(*value),
-            Expression::New { left, .. } => self.concrete_symbol_for_expression(*left),
-            Expression::TaggedScalarExpression { ty, .. }
-            | Expression::TaggedTupleExpression { ty, .. }
-            | Expression::TaggedObjectExpression { ty, .. } => {
+            dir::Expression::Cast { value, .. } => self.concrete_symbol_for_expression(*value),
+            dir::Expression::New { left, .. } => self.concrete_symbol_for_expression(*left),
+            dir::Expression::TaggedScalarExpression { ty, .. }
+            | dir::Expression::TaggedTupleExpression { ty, .. }
+            | dir::Expression::TaggedObjectExpression { ty, .. } => {
                 let type_id = self.type_id_for_type_expression(*ty)?;
                 self.concrete_symbol_for_type(type_id)
             }
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => match target_symbol.ty() {
+            dir::Expression::LocalReference { target_symbol, .. }
+            | dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => match target_symbol.ty() {
                 dir::SymbolType::Class | dir::SymbolType::Struct => Some(*target_symbol),
                 _ => None,
             },

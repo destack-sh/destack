@@ -656,7 +656,6 @@ fn rewrite_hot_edge_target(
 
     // rewrite check edge targets
     if let mir::Terminator::Check {
-        condition,
         constraint,
         success,
         failure,
@@ -668,7 +667,6 @@ fn rewrite_hot_edge_target(
                 updated_success.target = new_target;
                 updated_success.arguments = Vec::new();
                 Some(mir::Terminator::Check {
-                    condition: *condition,
                     constraint: constraint.clone(),
                     success: updated_success,
                     failure: failure.clone(),
@@ -679,7 +677,6 @@ fn rewrite_hot_edge_target(
                 updated_failure.target = new_target;
                 updated_failure.arguments = Vec::new();
                 Some(mir::Terminator::Check {
-                    condition: *condition,
                     constraint: constraint.clone(),
                     success: success.clone(),
                     failure: updated_failure,

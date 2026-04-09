@@ -158,7 +158,6 @@ fn run_narrow(
         // narrow terminator operands for bounds checks
         let mut new_terminator = block.terminator.clone();
         if let mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -199,7 +198,6 @@ fn run_narrow(
             // replace the terminator when a constraint changed
             if updated {
                 new_terminator = mir::Terminator::Check {
-                    condition: *condition,
                     constraint: updated_constraint,
                     success: success.clone(),
                     failure: failure.clone(),

@@ -3448,12 +3448,10 @@ pub fn terminator_remap(
             remap_args(else_arguments);
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
         } => {
-            remap_value(condition);
             remap_target(&mut success.target);
             remap_args(&mut success.arguments);
             remap_target(&mut failure.target);
@@ -3527,7 +3525,7 @@ pub fn terminator_remap(
             remap_target(resume);
             remap_args(resume_arguments);
         }
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             arguments,
             normal_target,
             normal_arguments,
@@ -3541,7 +3539,7 @@ pub fn terminator_remap(
             remap_target(unwind_target);
             remap_args(unwind_arguments);
         }
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             normal_target,
@@ -3557,7 +3555,7 @@ pub fn terminator_remap(
             remap_target(unwind_target);
             remap_args(unwind_arguments);
         }
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             normal_target,
@@ -3566,7 +3564,7 @@ pub fn terminator_remap(
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             normal_target,
@@ -3594,6 +3592,7 @@ pub fn terminator_remap(
         mir::Terminator::TailCall {
             function: _,
             arguments,
+            ..
         } => {
             remap_args(arguments);
         }

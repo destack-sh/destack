@@ -39,6 +39,7 @@ b0:
     store v4, v5
     return v2
 }
+
 function callOnce(v0: ref<Env, managed>): int32 {
 b0(v0: ref<Env, managed>):
     v1: closure() -> int32 = function.bind step, v0
@@ -76,6 +77,7 @@ b0:
     v1: int32 = load v0
     return v1
 }
+
 function caller(): int32 {
 b0:
     v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
@@ -155,8 +157,7 @@ b0:
 fn test_environment_by_value_field() {
     let mir = r#"
 type Env { value: int32 }
-type Reader closure() -> int32
-
+type Reader = closure() -> int32;
 @environment(ref<Env, managed>)
 function readEnv(): int32 {
 b0:
@@ -294,6 +295,7 @@ b0:
     v2: int32 = load v1
     return v2
 }
+
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
     v1: ref<Env, managed> = managed.alloc Env
@@ -301,6 +303,7 @@ b0(v0: int32):
     store v2, v0
     return v1
 }
+
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
@@ -438,8 +441,7 @@ b0:
 fn test_environment_loaded_from_array() {
     let mir = r#"
 type Env { value: int32 }
-type Reader closure() -> int32
-
+type Reader = closure() -> int32;
 @environment(ref<Env, managed>)
 function readEnv(): int32 {
 b0:

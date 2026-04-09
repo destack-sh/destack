@@ -253,18 +253,6 @@ fn find_constant_exit(
             *else_target,
             else_arguments.clone(),
         ),
-        mir::Terminator::Check {
-            condition,
-            success,
-            failure,
-            ..
-        } => (
-            *condition,
-            success.target,
-            success.arguments.clone(),
-            failure.target,
-            failure.arguments.clone(),
-        ),
         _ => return None,
     };
 

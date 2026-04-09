@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::{StringId, StringPool};
-use destack_dir::AnchoredGlobalNodeId;
 use destack_query::format::format_unique_symbol_qualified_name;
 use destack_source::ModuleId;
 use destack_workspace::Ref;
-use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::lower::static_key_to_field_name;
@@ -125,7 +124,7 @@ impl TypeLowerer {
         type_id: dir::LocalTypeId,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // collect union elements with deduplication
@@ -339,7 +338,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
         let mut non_null = None;
@@ -472,7 +471,7 @@ impl TypeLowerer {
         &self,
         types: &dir::TypeTable,
         elements: &[dir::LocalTypeId],
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         strings: &StringPool,
     ) -> LowerResult<(Vec<dir::LocalTypeId>, Option<UnionDiscriminant>)> {
         // collect discriminant literal fields for each element
@@ -592,7 +591,7 @@ impl TypeLowerer {
         &self,
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<HashMap<dir::StaticKey, DiscriminantLiteral>>> {
         // track visited types to avoid recursion
         let mut visited = HashSet::new();
@@ -604,7 +603,7 @@ impl TypeLowerer {
         &self,
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         visited: &mut HashSet<dir::LocalTypeId>,
     ) -> LowerResult<Option<HashMap<dir::StaticKey, DiscriminantLiteral>>> {
         // stop recursion on cycles
@@ -684,7 +683,7 @@ impl TypeLowerer {
         &self,
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<DiscriminantLiteral>> {
         // track visited types to avoid recursion
         let mut visited = HashSet::new();
@@ -696,7 +695,7 @@ impl TypeLowerer {
         &self,
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         visited: &mut HashSet<dir::LocalTypeId>,
     ) -> LowerResult<Option<DiscriminantLiteral>> {
         // stop recursion on cycles
@@ -770,7 +769,7 @@ impl TypeLowerer {
     /// Compute the minimal unsigned tag width for a tag count.
     fn tag_width_for_discriminant_count(
         count: usize,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<u16> {
         if count <= u8::MAX as usize {
             return Ok(8);
@@ -914,7 +913,7 @@ impl DiscriminantKey {
     }
 
     /// Build a canonical key for a discriminant value.
-    fn from_value(value: &DiscriminantValue, node: AnchoredGlobalNodeId) -> LowerResult<Self> {
+    fn from_value(value: &DiscriminantValue, node: dir::AnchoredGlobalNodeId) -> LowerResult<Self> {
         match value {
             DiscriminantValue::Null => Ok(DiscriminantKey::Null),
             DiscriminantValue::Undefined => Ok(DiscriminantKey::Undefined),
@@ -932,7 +931,7 @@ impl DiscriminantKey {
     /// Build a canonical key from a scalar literal expression.
     pub(crate) fn from_scalar_literal(
         literal: &dir::ScalarLiteral,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<Self>> {
         let key = match literal {
             dir::ScalarLiteral::Boolean(value) => DiscriminantKey::Boolean(*value),
@@ -969,7 +968,10 @@ impl DiscriminantKey {
     }
 
     /// Normalize a number for discriminant ordering and lookup.
-    fn canonical_number_bits(value: f64, node: AnchoredGlobalNodeId) -> LowerResult<(u64, f64)> {
+    fn canonical_number_bits(
+        value: f64,
+        node: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<(u64, f64)> {
         if value.is_nan() {
             return Err(LowerError::UnsupportedConstruct {
                 node,

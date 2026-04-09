@@ -1,5 +1,4 @@
 use destack_core::StringRef;
-use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;
@@ -129,10 +128,10 @@ impl FunctionLowerer<'_> {
     /// Lower an intrinsic binding call when requested by decorators.
     pub(super) fn lower_intrinsic_binding_call(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
         resolution_receiver: Option<dir::LocalTypeId>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<Option<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)>> {
         // resolve the intrinsic binding name
         let name_id = match self.resolve_intrinsic_binding_name_id(target_symbol)? {
@@ -162,10 +161,10 @@ impl FunctionLowerer<'_> {
     /// Lower an intrinsic binding by name.
     fn lower_intrinsic_by_name(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // numeric cast intrinsics
         if name == "fcvt_to_sint.sat" {
@@ -228,8 +227,8 @@ impl FunctionLowerer<'_> {
     /// Lower a saturating cast intrinsic.
     fn lower_saturating_cast_intrinsic(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
         operator: mir::CastOperator,
         intrinsic_name: &str,
@@ -252,8 +251,8 @@ impl FunctionLowerer<'_> {
     /// Lower a vector splat intrinsic.
     fn lower_vector_splat_intrinsic(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (argument, argument_type) =
@@ -274,8 +273,8 @@ impl FunctionLowerer<'_> {
     /// Lower a vector select intrinsic.
     fn lower_vector_select_intrinsic(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let argument_ids = match dynamic_arguments {
@@ -339,10 +338,10 @@ impl FunctionLowerer<'_> {
     /// Lower vector reduce intrinsics and return None when the name does not match.
     fn lower_vector_reduce_intrinsic(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         let operator = match mir::VectorReduceOperator::try_from(name) {
             Ok(operator) => operator,
@@ -367,10 +366,10 @@ impl FunctionLowerer<'_> {
     /// Lower intrinsic names that map directly to MIR intrinsics.
     fn lower_direct_intrinsic(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let intrinsic: mir::Intrinsic = name.parse().map_err(|_| {
             self.error(
@@ -398,8 +397,8 @@ impl FunctionLowerer<'_> {
     /// Lower a single positional argument for an intrinsic call.
     fn lower_single_positional_argument(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         intrinsic_name: &str,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let argument_id = match dynamic_arguments {
@@ -421,7 +420,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the element type for a vector value.
     fn vector_element_type(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         vector_type: mir::LocalNodeId<mir::Type>,
         intrinsic_name: &str,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
@@ -437,7 +436,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the element type and lane count for a vector value.
     fn vector_type_info(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         vector_type: mir::LocalNodeId<mir::Type>,
         intrinsic_name: &str,
     ) -> LowerResult<(mir::LocalNodeId<mir::Type>, u32)> {
@@ -453,8 +452,8 @@ impl FunctionLowerer<'_> {
     /// Lower positional call arguments into MIR values.
     fn lower_positional_arguments(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<Vec<mir::Value>> {
         let mut arguments = Vec::with_capacity(dynamic_arguments.len());
         for argument_id in dynamic_arguments {
@@ -472,9 +471,9 @@ impl FunctionLowerer<'_> {
     /// Lower atomic intrinsics with explicit metadata arguments.
     fn lower_atomic_intrinsic_binding_call(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         kind: AtomicIntrinsicKind,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let base_args = kind.value_argument_count();
@@ -574,9 +573,9 @@ impl FunctionLowerer<'_> {
     /// Extract the expression id for a positional argument.
     fn argument_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<dir::Argument>,
-    ) -> LowerResult<LocalNodeId<Expression>> {
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Argument>,
+    ) -> LowerResult<dir::LocalNodeId<dir::Expression>> {
         let argument = self.context.dir_tree.get(argument_id);
         if !matches!(argument, dir::Argument::Positional { .. }) {
             return Err(self.error(expression_id, "unsupported non-positional argument"));
@@ -588,8 +587,8 @@ impl FunctionLowerer<'_> {
     /// Parse the atomic metadata arguments in their defined order.
     fn parse_atomic_metadata(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        metadata_args: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        metadata_args: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<AtomicMetadata> {
         if metadata_args.len() != ATOMIC_METADATA_SLOTS.len() {
             return Err(self.error(
@@ -676,8 +675,8 @@ impl FunctionLowerer<'_> {
     /// Parse a MemoryOrdering constant from an expression.
     fn parse_memory_ordering(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::MemoryOrdering> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::MemoryOrdering::try_from(name.as_ref()).map_err(|_| {
@@ -691,8 +690,8 @@ impl FunctionLowerer<'_> {
     /// Parse an AtomicScope constant from an expression.
     fn parse_atomic_scope(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::AtomicScope> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::AtomicScope::try_from(name.as_ref()).map_err(|_| {
@@ -706,8 +705,8 @@ impl FunctionLowerer<'_> {
     /// Parse a MemoryScope constant from an expression.
     fn parse_memory_scope(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::MemoryScope> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::MemoryScope::try_from(name.as_ref()).map_err(|_| {
@@ -721,8 +720,8 @@ impl FunctionLowerer<'_> {
     /// Parse a MemoryRegionSet constant from an expression.
     fn parse_memory_location_set(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::MemoryRegionSet> {
         let name = self.enum_member_name(expression_id, argument_id)?;
         mir::MemoryRegionSet::try_from(name.as_ref()).map_err(|_| {
@@ -736,16 +735,17 @@ impl FunctionLowerer<'_> {
     /// Parse a boolean literal for intrinsic metadata.
     fn parse_boolean_literal(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<bool> {
         let mut current = argument_id;
-        while let Expression::Parenthesized { expression } = self.context.dir_tree.get(current) {
+        while let dir::Expression::Parenthesized { expression } = self.context.dir_tree.get(current)
+        {
             current = *expression;
         }
 
         match self.context.dir_tree.get(current) {
-            Expression::ScalarLiteral {
+            dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Boolean(value),
             } => Ok(*value),
             _ => Err(self.error(
@@ -758,11 +758,12 @@ impl FunctionLowerer<'_> {
     /// Resolve the enum member name for an expression.
     fn enum_member_name(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        argument_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<StringRef<'_>> {
         let mut current = argument_id;
-        while let Expression::Parenthesized { expression } = self.context.dir_tree.get(current) {
+        while let dir::Expression::Parenthesized { expression } = self.context.dir_tree.get(current)
+        {
             current = *expression;
         }
 
