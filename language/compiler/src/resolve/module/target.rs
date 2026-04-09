@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::{ProfileId, Target, TargetDiscovery};
+use destack_workspace::{ProfileId, Target, TargetDiscovery, TargetSelection};
 
 use super::globals::GlobalSymbolGroupKey;
-use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue};
+use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryError};
 
 impl Compiler {
     /// Resolve a global symbol group by key and space.
@@ -30,7 +32,13 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<Vec<ModuleId>> {
+    ) -> ResolveResult<Arc<[ModuleId]>> {
+        // active execution cache
+        if let Some(roots) = self.current_global_symbol_table_roots(revision, module_id, profile_id)
+        {
+            return Ok(roots);
+        }
+
         // load module and package metadata
         let module = self
             .repository
@@ -57,7 +65,15 @@ impl Compiler {
 
         // fall back to the current module when no targets exist
         if !has_targets {
-            return Ok(vec![module_id]);
+            let roots = Arc::<[ModuleId]>::from([module_id]);
+            self.store_current_global_symbol_table_roots(
+                revision,
+                module_id,
+                profile_id,
+                Arc::clone(&roots),
+            );
+
+            return Ok(roots);
         }
 
         // prefer roots based on the package target discovery rules
@@ -72,6 +88,15 @@ impl Compiler {
                 .discover_include_modules(revision, package_id, &package_path, &target, &target_id)
                 .map_err(|issue| self.map_target_discovery_issue(issue))?,
         };
+        let roots = Arc::<[ModuleId]>::from(roots);
+
+        self.store_current_global_symbol_table_roots(
+            revision,
+            module_id,
+            profile_id,
+            Arc::clone(&roots),
+        );
+
         Ok(roots)
     }
 
@@ -171,7 +196,7 @@ impl Compiler {
                     .profile_for_target(revision, module_id, target_id)
                     .ok()
                     .flatten()
-                    .map(|profile| self.remember_profile(profile))?;
+                    .map(|profile| profile.id())?;
                 if candidate_profile == profile_id {
                     Some((*target_id, target.clone()))
                 } else {
@@ -191,51 +216,53 @@ impl Compiler {
         }
 
         // multiple profile matches: prefer explicit default target when available
-        let package_options = self
-            .repository
-            .package_options(revision, package_id)
-            .map_err(|error| ResolveError::Internal {
-                message: format!("failed to load package options for {package_id:?}: {error}"),
-            })?;
-        if let Some(config) = package_options.as_ref()
-            && let Some(default_target) = config.default_target.as_ref()
-        {
-            let default_target_id = self.repository.intern_target_id(package_id, default_target);
-            if let Some((target_id, target)) = matching_targets
-                .iter()
-                .find(|(target_id, _)| *target_id == default_target_id)
-            {
-                return Ok(Some((*target_id, target.clone())));
-            }
-
-            let mut target_names: Vec<String> = matching_targets
-                .iter()
-                .map(|(target_id, _)| self.target_name(target_id))
-                .collect();
-            target_names.sort();
-            let available = target_names.join(", ");
-            return Err(ResolveError::InvalidTargetConfig {
-                package: package_id,
-                target: default_target_id,
-                message: format!(
-                    "default target does not match profile target set; profile matches: {available}"
-                ),
-            });
-        }
-
         let mut target_names: Vec<String> = matching_targets
             .iter()
-            .map(|(target_id, _)| self.target_name(target_id))
+            .map(|(target_id, _)| self.target_name_for_revision(revision, target_id))
             .collect();
         target_names.sort();
         let available = target_names.join(", ");
-        Err(ResolveError::InvalidTargetConfig {
-            package: package_id,
-            target: self.repository.intern_target_id(package_id, "default"),
-            message: format!(
-                "multiple targets map to the same profile; set default target to disambiguate: {available}"
-            ),
-        })
+
+        // use the selected package default target when it disambiguates this profile set
+        match self
+            .repository
+            .default_target(revision, package_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load target snapshot for {package_id:?}: {error}"),
+            })? {
+            TargetSelection::Selected { target_id, target } => {
+                if matching_targets
+                    .iter()
+                    .any(|(candidate_target_id, _)| *candidate_target_id == target_id)
+                {
+                    return Ok(Some((target_id, target)));
+                }
+
+                Err(ResolveError::InvalidTargetConfig {
+                    package: package_id,
+                    target: target_id,
+                    message: format!(
+                        "default target does not match profile target set; profile matches: {available}"
+                    ),
+                })
+            }
+            TargetSelection::MissingConfigured { target_id } => {
+                Err(ResolveError::InvalidTargetConfig {
+                    package: package_id,
+                    target: target_id,
+                    message: "default target not found".to_string(),
+                })
+            }
+            TargetSelection::None | TargetSelection::Ambiguous { .. } => {
+                Err(ResolveError::InvalidTargetConfig {
+                    package: package_id,
+                    target: self.repository.intern_target_id(package_id, "default"),
+                    message: format!(
+                        "multiple targets map to the same profile; set default target to disambiguate: {available}"
+                    ),
+                })
+            }
+        }
     }
 
     /// Select the default target for a package.
@@ -244,73 +271,52 @@ impl Compiler {
         revision: destack_workspace::Revision,
         package_id: PackageId,
     ) -> ResolveResult<(TargetId, Target)> {
-        // load package metadata
-        let package = self
+        // map repository target selection into resolve semantics
+        let default_target = self
             .repository
-            .package(revision, package_id)
+            .default_target(revision, package_id)
             .map_err(|error| ResolveError::Internal {
-                message: error.to_string(),
-            })?
-            .ok_or_else(|| ResolveError::Internal {
-                message: format!("missing package for {package_id:?}"),
-            })?;
-        let package_options = self
-            .repository
-            .package_options(revision, package_id)
-            .map_err(|error| ResolveError::Internal {
-                message: format!("failed to load package options for {package_id:?}: {error}"),
+                message: format!("failed to load target snapshot for {package_id:?}: {error}"),
             })?;
 
-        // honor an explicit default target from config
-        if let Some(config) = package_options.as_ref()
-            && let Some(default_target) = config.default_target.as_ref()
-        {
-            let target_id = self.repository.intern_target_id(package_id, default_target);
-            let Some(target) = package.targets.get(&target_id) else {
-                return Err(ResolveError::InvalidTargetConfig {
+        match default_target {
+            TargetSelection::Selected { target_id, target } => Ok((target_id, target)),
+            TargetSelection::MissingConfigured { target_id } => {
+                Err(ResolveError::InvalidTargetConfig {
                     package: package_id,
                     target: target_id,
                     message: "default target not found".to_string(),
-                });
-            };
-            return Ok((target_id, target.clone()));
-        }
-
-        // reject packages with no targets configured
-        if package.targets.is_empty() {
-            return Err(ResolveError::InvalidTargetConfig {
+                })
+            }
+            TargetSelection::None => Err(ResolveError::InvalidTargetConfig {
                 package: package_id,
                 target: self.repository.intern_target_id(package_id, "default"),
                 message: "package has no targets".to_string(),
-            });
-        }
+            }),
+            TargetSelection::Ambiguous { target_ids } => {
+                let mut target_names: Vec<String> = target_ids
+                    .iter()
+                    .map(|target_id| self.target_name_for_revision(revision, target_id))
+                    .collect();
+                target_names.sort();
+                let available = target_names.join(", ");
 
-        // select the only configured target when there is exactly one
-        if package.targets.len() == 1 {
-            let (target_id, target) = package.targets.iter().next().expect("checked len");
-            return Ok((*target_id, target.clone()));
+                Err(ResolveError::InvalidTargetConfig {
+                    package: package_id,
+                    target: self.repository.intern_target_id(package_id, "default"),
+                    message: format!(
+                        "default target not specified; available targets: {available}"
+                    ),
+                })
+            }
         }
-
-        // require an explicit default target when multiple targets exist
-        let mut target_names: Vec<String> = package
-            .targets
-            .keys()
-            .map(|target_id| self.target_name(target_id))
-            .collect();
-        target_names.sort();
-        let available = target_names.join(", ");
-        Err(ResolveError::InvalidTargetConfig {
-            package: package_id,
-            target: self.repository.intern_target_id(package_id, "default"),
-            message: format!("default target not specified; available targets: {available}"),
-        })
     }
 
     /// Map a target discovery issue into a resolve error.
-    fn map_target_discovery_issue(&self, issue: TargetDiscoveryIssue) -> ResolveError {
+    fn map_target_discovery_issue(&self, issue: TargetDiscoveryError) -> ResolveError {
         // normalize issues into invalid target configuration errors
         match issue {
-            TargetDiscoveryIssue::Repository {
+            TargetDiscoveryError::Repository {
                 package,
                 target,
                 message,
@@ -319,14 +325,14 @@ impl Compiler {
                 target,
                 message,
             },
-            TargetDiscoveryIssue::MissingPackagePath { package, target } => {
+            TargetDiscoveryError::MissingPackagePath { package, target } => {
                 ResolveError::InvalidTargetConfig {
                     package,
                     target,
                     message: "entry based discovery requires package path".to_string(),
                 }
             }
-            TargetDiscoveryIssue::MissingEntry {
+            TargetDiscoveryError::MissingEntry {
                 package,
                 target,
                 path,

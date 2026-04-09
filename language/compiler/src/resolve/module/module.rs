@@ -162,9 +162,6 @@ impl Compiler {
             && module.is_builtin()
             && !self.options.validate_builtin_libs
             && (!is_selected_library_module || !is_standard_library_environment_module);
-        let skip_builtin_global_symbol_table = module.language_type.is_declaration()
-            && module.is_builtin()
-            && !self.options.validate_builtin_libs;
         let worklist = ResolveModuleWorklist::from_tree(tree);
         let mut expression_cache = ResolveExpressionCache::default();
 
@@ -199,10 +196,6 @@ impl Compiler {
                 exported_symbols,
                 profile,
             )?;
-
-            if !skip_builtin_global_symbol_table {
-                let _ = self.global_symbol_table_for_module(revision, module.id, profile)?;
-            }
         }
 
         // remaining expressions

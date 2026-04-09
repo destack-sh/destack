@@ -1,4 +1,4 @@
-use crate::TestProgram;
+use crate::{TestProgram, run_to_completion};
 use destack_artifact::{DirPrepared, EmitFormat, ImportedModuleTable, ModuleEdgeRelation, Runtime};
 use destack_dir::{DependencyKind, DependencySource, Expression, ModuleTarget, StaticKey};
 use destack_source::DiagnosticSeverity;
@@ -1168,11 +1168,14 @@ export * from "react";
 
     // direct import resolution should already preserve the external target
     let profile_id = test.default_profile_id(main_module_id);
-    test.compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             compiler.require_dir_prepared(_context.revision(), main_module_id, profile_id)
-        })
-        .unwrap();
+        },
+    )
+    .unwrap();
     let dir = test
         .compiler
         .require_artifact_dir_prepared(test.program.current_revision(), main_module_id, profile_id)
@@ -1183,9 +1186,10 @@ export * from "react";
     let anchor = dir.anchor_node.into_global(main_module_id);
     let target = test.program.strings.intern("react");
     let mut imported_modules = ImportedModuleTable::default();
-    let resolved_target = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let resolved_target = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             compiler.resolve_import(
                 _context.revision(),
                 module,
@@ -1196,8 +1200,9 @@ export * from "react";
                 target,
                 DependencyKind::Value,
             )
-        })
-        .unwrap();
+        },
+    )
+    .unwrap();
     assert_eq!(resolved_target, destack_dir::ModuleTarget::External(target));
 
     test.resolve_module(main_module_id);

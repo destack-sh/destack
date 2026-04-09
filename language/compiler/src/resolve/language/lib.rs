@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, CanonicalStaticKey, LibraryEnvironment, LibrarySymbolKey, ProfileKey,
 };
 use destack_builtin::builtin_library;
 use destack_dir::GlobalSymbolId;
+use destack_source::ModuleId;
 use destack_workspace::{BuiltinLibrarySelection, Builtins, ProfileId, Revision};
 use indexmap::IndexMap;
 
@@ -104,34 +106,56 @@ impl Compiler {
     pub(crate) fn selected_library_modules_from_input(
         &self,
         profile_id: ProfileId,
-    ) -> ResolveResult<Vec<destack_source::ModuleId>> {
+    ) -> ResolveResult<Arc<[ModuleId]>> {
         if !self.options.load_libraries {
-            return Ok(Vec::new());
+            return Ok(Arc::<[ModuleId]>::from([]));
+        }
+
+        // compiler cache
+        if let Some(modules) = self.selected_library_modules_by_profile.get(&profile_id) {
+            let modules: Arc<[ModuleId]> = Arc::clone(modules.value());
+
+            return Ok(modules);
         }
 
         let builtins = self.repository.builtins.as_ref();
 
         let profile_key = self.profile(profile_id).key.clone();
         let selection = self.builtin_library_selection(builtins, &profile_key)?;
+        let modules = Arc::<[ModuleId]>::from(selection.library_modules);
 
-        Ok(selection.library_modules)
+        self.selected_library_modules_by_profile
+            .insert(profile_id, Arc::clone(&modules));
+
+        Ok(modules)
     }
 
     /// Collect ambient builtin library modules from profile input state.
     pub(crate) fn ambient_library_modules_from_input(
         &self,
         profile_id: ProfileId,
-    ) -> ResolveResult<Vec<destack_source::ModuleId>> {
+    ) -> ResolveResult<Arc<[ModuleId]>> {
         if !self.options.load_libraries {
-            return Ok(Vec::new());
+            return Ok(Arc::<[ModuleId]>::from([]));
+        }
+
+        // compiler cache
+        if let Some(modules) = self.ambient_library_modules_by_profile.get(&profile_id) {
+            let modules: Arc<[ModuleId]> = Arc::clone(modules.value());
+
+            return Ok(modules);
         }
 
         let builtins = self.repository.builtins.as_ref();
 
         let profile_key = self.profile(profile_id).key.clone();
         let selection = self.builtin_library_selection(builtins, &profile_key)?;
+        let modules = Arc::<[ModuleId]>::from(selection.ambient_modules);
 
-        Ok(selection.ambient_modules)
+        self.ambient_library_modules_by_profile
+            .insert(profile_id, Arc::clone(&modules));
+
+        Ok(modules)
     }
 
     /// Collect the declared symbol names from builtin libraries.

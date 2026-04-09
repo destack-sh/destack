@@ -9,6 +9,6 @@ mod tests;
 mod warning;
 
 pub use binding::OperatorLanguageSymbolExt;
-pub(crate) use destack_workspace::TargetDiscoveryIssue;
+pub(crate) use destack_workspace::TargetDiscoveryError;
 pub use error::*;
 pub use warning::*;
