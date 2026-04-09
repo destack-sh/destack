@@ -59,6 +59,7 @@ fn test_format_with_locals() {
     let expected = "\
 function withLocals(): int64 {
     local local0: int64, owned
+
 b0:
     v0: int64 = 42int64
     local.set local0, v0
@@ -99,6 +100,7 @@ fn test_format_local_addr() {
     let expected = "\
 function localAddr(): void {
     local local0: int32, owned
+
 b0:
     v0: ref<int32, borrowed, addressSpace(stack)> = local.address local0
     return
@@ -320,12 +322,15 @@ fn test_format_branch() {
 function select(v0: boolean): int32 {
 b0(v0: boolean):
     branch v0, b1, b2
+
 b1:
     v1: int32 = 1int32
     jump b3
+
 b2:
     v2: int32 = 0int32
     jump b3
+
 b3:
     return v1
 }";
@@ -427,6 +432,7 @@ fn test_format_global_variable() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 global counter: int32 = zeroInit
+
 function increment(): void {
 b0:
     v0: ref<int32, raw, addressSpace(global)> = global.address counter
@@ -468,6 +474,7 @@ fn test_format_global_constant() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 global MAGIC: int64, readonly = 42int64
+
 function getMagic(): int64 {
 b0:
     v0: int64 = global.const MAGIC

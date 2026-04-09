@@ -74,6 +74,7 @@ fn test_reject_duplicate_value_definitions() {
 b0:
     v0: int32 = 0int32
     jump b1(v0)
+
 b1(v0: int32):
     return v0
 }"#;
@@ -88,6 +89,7 @@ fn test_reject_block_argument_mismatch() {
     let source = r#"function bad(): void {
 b0:
     jump b1
+
 b1(v0: int32):
     return
 }"#;
@@ -275,9 +277,11 @@ fn test_reject_call_terminator_missing_normal_result_parameter() {
 function caller(v0: int32): int32 {
 b0(v0: int32):
     invoke callee(v0): (int32) -> int32 -> b1, catch b2
+
 b1:
     v1: int32 = 0int32
     return v1
+
 b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
@@ -324,8 +328,10 @@ fn test_reject_call_terminator_with_non_managed_unwind_parameter() {
 function caller(v0: int32): int32 {
 b0(v0: int32):
     invoke callee(v0): (int32) -> int32 -> b1, catch b2
+
 b1(v1: int32):
     return v1
+
 b2(v2: int32):
     return v2
 }"#;
@@ -367,9 +373,11 @@ fn test_reject_duplicate_switch_case_value() {
     let source = r#"function dispatch(v0: int32): int32 {
 b0(v0: int32):
     switch v0, b1, 0 => b1, 0 => b2
+
 b1:
     v1: int32 = 1int32
     return v1
+
 b2:
     v2: int32 = 2int32
     return v2
@@ -857,6 +865,7 @@ fn test_reject_field_get_with_out_of_bounds_index() {
     int32;
     int32;
 }
+
 function bad(v0: Pair): int32 {
 b0(v0: Pair):
     v1: int32 = field.get v0, 3
@@ -876,6 +885,7 @@ fn test_reject_ptr_to_int_for_managed_reference() {
     let source = r#"type Box {
     x: int32;
 }
+
 function bad(): int64 {
 b0:
     v0: ref<Box, managed> = managed.alloc Box
@@ -910,7 +920,8 @@ b0(v0: int32):
 #[test]
 fn test_allow_bitcast_with_transparent_newtype() {
     let source = r#"
-type Handle newtype<ref<int32, raw>>
+type Handle = newtype<ref<int32, raw>>;
+
 function ok(v0: ref<int32, raw>): Handle {
 b0(v0: ref<int32, raw>):
     v1: Handle = cast.bit v0 -> Handle
@@ -926,10 +937,10 @@ fn test_reject_address_space_cast_with_mismatched_pointee() {
     let source = r#"type A {
     x: int32;
 }
-
 type B {
     y: int32;
 }
+
 function bad(): void {
 b0:
     v0: ref<A, raw> = stack.alloc A

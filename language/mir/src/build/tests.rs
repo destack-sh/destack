@@ -87,6 +87,7 @@ fn test_build_function_with_locals() {
     let expected = "\
 function withLocal(): int64 {
     local local0: int64, owned
+
 b0:
     v0: int64 = 42int64
     local.set local0, v0
@@ -145,12 +146,15 @@ fn test_build_function_with_branch() {
 function select(v0: boolean): int32 {
 b0(v0: boolean):
     branch v0, b1, b2
+
 b1:
     v1: int32 = 1int32
     jump b3
+
 b2:
     v2: int32 = 0int32
     jump b3
+
 b3:
     return v1
 }";
@@ -205,11 +209,14 @@ fn test_build_function_with_exceptional_call_terminator() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 extern function callee(int32): int32
+
 function caller(v0: int32): int32 {
 b0(v0: int32):
     invoke callee(v0): (int32) -> int32 -> b1, catch b2
+
 b1(v1: int32):
     return v1
+
 b2(v2: ref<int32, managed, readonly>):
     throw v2
 }";
@@ -377,12 +384,15 @@ fn test_ssa_branch_with_phi() {
 function phiTest(v0: boolean): int32 {
 b0(v0: boolean):
     branch v0, b1, b2
+
 b1:
     v1: int32 = 1int32
     jump b3(v1)
+
 b2:
     v2: int32 = 0int32
     jump b3(v2)
+
 b3(v3: int32):
     return v3
 }";
@@ -442,10 +452,13 @@ function trivialPhi(v0: boolean): int32 {
 b0(v0: boolean):
     v1: int32 = 42int32
     branch v0, b1, b2
+
 b1:
     jump b3
+
 b2:
     jump b3
+
 b3:
     return v1
 }";
@@ -504,10 +517,13 @@ function trivialPhiUnsealed(v0: boolean): int32 {
 b0(v0: boolean):
     v1: int32 = 42int32
     branch v0, b1, b2
+
 b1:
     jump b3
+
 b2:
     jump b3
+
 b3:
     return v1
 }";
@@ -686,8 +702,10 @@ fn test_seal_all_blocks() {
 function multiBlock(): void {
 b0:
     jump b1
+
 b1:
     jump b2
+
 b2:
     return
 }";
@@ -1280,14 +1298,18 @@ function passthrough(v0: boolean): int32 {
 b0(v0: boolean):
     v1: int32 = 1int32
     jump b1(v1)
+
 b1(v2: int32):
     branch v0, b2, b4
+
 b2:
     v3: int32 = 10int32
     v4: int32 = int.add v2, v3
     jump b3
+
 b3:
     jump b1(v4)
+
 b4:
     return v2
 }";
@@ -1358,14 +1380,17 @@ fn test_ssa_multiple_phis_at_merge() {
 function multiPhi(v0: boolean): int32 {
 b0(v0: boolean):
     branch v0, b1, b2
+
 b1:
     v1: int32 = 1int32
     v2: int32 = 10int32
     jump b3(v1, v2)
+
 b2:
     v3: int32 = 2int32
     v4: int32 = 20int32
     jump b3(v3, v4)
+
 b3(v5: int32, v6: int32):
     v7: int32 = int.add v5, v6
     return v7

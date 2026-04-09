@@ -51,8 +51,7 @@ fn test_parse_declaration_semicolons_and_comments() {
     parse_and_format(
         r#"
 // aliases
-type Callable closure(int32) -> int32;
-
+type Callable = closure(int32) -> int32;
 // imports
 extern function callee(int32): int32;
 
@@ -66,9 +65,12 @@ b0(v0: Callable):
     return v2
 }"#,
         r#"
-type Callable closure(int32) -> int32
+type Callable = closure(int32) -> int32;
+
 global Count: int32, readonly = 1int32
+
 extern function callee(int32): int32
+
 function use(v0: Callable): int32 {
 b0(v0: Callable):
     v1: int32 = global.const Count
@@ -79,10 +81,36 @@ b0(v0: Callable):
 }
 
 #[test]
+fn test_roundtrip_dotted_symbol_names() {
+    roundtrip(
+        r#"
+type Status = newtype<int32>;
+
+global Status.Default: Status, readonly = 1int32
+
+function Status.isActive(v0: Status): boolean {
+b0(v0: Status):
+    v1: int32 = cast.bit v0 -> int32
+    v2: int32 = 1int32
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+
+function checkDefault(): boolean {
+b0:
+    v0: Status = global.const Status.Default
+    v1: boolean = call Status.isActive(v0): (Status) -> boolean
+    return v1
+}"#,
+    );
+}
+
+#[test]
 fn test_roundtrip_function_value_type() {
     roundtrip(
         r#"
-type Callable closure(int32) -> int32
+type Callable = closure(int32) -> int32;
+
 function use(v0: Callable): Callable {
 b0(v0: Callable):
     return v0
@@ -140,8 +168,10 @@ type Point {
     @offset(4)
     y: int32;
 }
+
 @section(".rodata")
 global Count: int32, readonly = 1int32
+
 function usePoint(v0: Point): int32 {
 b0(v0: Point):
     v1: int32 = field.get v0, 0
@@ -197,12 +227,15 @@ fn test_roundtrip_branch() {
 function select(v0: boolean): int32 {
 b0(v0: boolean):
     branch v0, b1, b2
+
 b1:
     v1: int32 = 1int32
     jump b3(v1)
+
 b2:
     v2: int32 = 0int32
     jump b3(v2)
+
 b3(v3: int32):
     return v3
 }"#,
@@ -219,9 +252,11 @@ b0(v0: uint32, v1: uint32, v2: int32[4]):
     v3: boolean = int.lt.u v0, v1
     assume v3
     check bounds.u v0, v1, v2 -> b1(v0), b2
+
 b1(v4: uint32):
     v5: int32 = 0int32
     return v5
+
 b2:
     unreachable
 }"#,
@@ -237,18 +272,23 @@ function guard(v0: uint32, v1: ref<void, managed>): int32 {
 b0(v0: uint32, v1: ref<void, managed>):
     v2: boolean = int.eq v0, v0
     check dynamicType v0, int32 -> b1, b4
+
 b1:
     v3: boolean = int.eq v0, v0
     check unionTag v0, 1 -> b4, b5
+
 b2:
     v4: boolean = int.eq v0, v0
     check receiverType v1, int32 -> b2, b4
+
 b3:
     v5: boolean = int.eq v0, v0
     check interfaceConformance v1, int32 -> b3, b5
+
 b4:
     v6: int32 = 0int32
     return v6
+
 b5:
     unreachable
 }"#,
@@ -260,6 +300,7 @@ fn test_roundtrip_call() {
     roundtrip(
         r#"
 extern function callee(int32, int32): int32
+
 function caller(): int32 {
 b0:
     v0: int32 = 1int32
@@ -275,11 +316,14 @@ fn test_roundtrip_exceptional_call_terminator() {
     roundtrip(
         r#"
 extern function callee(int32): int32
+
 function caller(v0: int32): int32 {
 b0(v0: int32):
     invoke callee(v0): (int32) -> int32 -> b1, catch b2
+
 b1(v1: int32):
     return v1
+
 b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#,
@@ -291,6 +335,7 @@ fn test_roundtrip_trap_terminator() {
     roundtrip(
         r#"
 global message: ref<void, managed, readonly>, readonly = "boom"
+
 function trapper(): void {
 b0:
     v0: ref<void, managed, readonly> = global.const message
@@ -304,6 +349,7 @@ fn test_roundtrip_function_addr() {
     roundtrip(
         r#"
 extern function callee(int32): int32
+
 function caller(): int32 {
 b0:
     v0: fn(int32) -> int32 = function.address callee
@@ -324,6 +370,7 @@ b0(v0: int32):
     v1: ref<void, managed> = function.environment
     return v0
 }
+
 @environment(ref<void, managed>)
 function caller(): int32 {
 b0:
@@ -355,12 +402,15 @@ fn test_roundtrip_switch() {
 function dispatch(v0: int32): int32 {
 b0(v0: int32):
     switch v0, b3, 0 => b1, 1 => b2
+
 b1:
     v1: int32 = 100int32
     return v1
+
 b2:
     v2: int32 = 200int32
     return v2
+
 b3:
     v3: int32 = 0int32
     return v3
@@ -416,6 +466,7 @@ function yieldOnce(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 5int32
     yield v1, b1(v0)
+
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -512,6 +563,7 @@ fn test_roundtrip_string_constant() {
     roundtrip(
         r#"
 global stringLiteralHelloWorld: ref<void, managed>, readonly = "hello world"
+
 function stringTest(): void {
 b0:
     v0: ref<void, managed> = global.const stringLiteralHelloWorld
@@ -525,6 +577,7 @@ fn test_roundtrip_string_with_escapes() {
     roundtrip(
         r#"
 global stringLiteralHelloWorldNl: ref<void, managed>, readonly = "hello\nworld"
+
 function escapeTest(): void {
 b0:
     v0: ref<void, managed> = global.const stringLiteralHelloWorldNl
@@ -804,6 +857,7 @@ type Point {
     int32;
     int32;
 }
+
 function usePoint(v0: ref<Point, managed>): ref<Point, managed> {
 b0(v0: ref<Point, managed>):
     return v0
@@ -819,6 +873,7 @@ type Node {
     value: int64;
     next: ref<Node, managed>;
 }
+
 function useNode(v0: ref<Node, managed>): ref<Node, managed> {
 b0(v0: ref<Node, managed>):
     return v0
@@ -890,6 +945,7 @@ type Point {
     int32;
     int32;
 }
+
 function makePoint(v0: int32, v1: int32): Point {
 b0(v0: int32, v1: int32):
     v2: Point = struct Point (v0, v1)
@@ -904,6 +960,7 @@ fn test_type_alias_preserves_layout_metadata() {
 type Env {
     value: int32;
 }
+
 function makeEnv(): ref<Env, managed> {
 b0:
     v0: ref<Env, managed> = managed.alloc Env

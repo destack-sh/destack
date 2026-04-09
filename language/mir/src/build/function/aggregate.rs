@@ -8,6 +8,7 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
+    /// Extract a field from a struct or tuple.
     pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.value_type_or_panic(aggregate, "field.get aggregate");

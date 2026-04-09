@@ -234,53 +234,19 @@ impl<'a> Parser<'a> {
 
     /// Parse a symbol name after `@`.
     pub(super) fn parse_symbol_name(&mut self) -> ParseResult<(String, usize)> {
-        // read the base identifier segment
         let name_token = self.eat_token(TokenType::Identifier)?;
-        let mut name = name_token.text.to_string();
-        let start = name_token.start;
-
-        // consume additional colon segments
-        while self.peek_token(TokenType::Colon)
-            && self
-                .peek_nth_token(1)
-                .is_some_and(|token| token.ty == TokenType::Identifier)
-        {
-            self.eat_token(TokenType::Colon)?;
-            let segment = self.eat_token(TokenType::Identifier)?;
-            name.push(':');
-            name.push_str(segment.text);
-        }
-
-        // return the complete name and start offset
-        Ok((name, start))
+        Ok((name_token.text.to_string(), name_token.start))
     }
 
     /// Scan a symbol name without emitting errors.
     pub(super) fn scan_symbol_name(&mut self) -> Option<String> {
-        // ensure the next token is a symbol segment
         let token = self.peek()?;
         if token.ty != TokenType::Identifier {
             return None;
         }
 
-        // capture the base segment
-        let mut name = token.text.to_string();
+        let name = token.text.to_string();
         self.bump();
-
-        // consume additional colon segments
-        while self.peek_token(TokenType::Colon)
-            && self
-                .peek_nth_token(1)
-                .is_some_and(|token| token.ty == TokenType::Identifier)
-        {
-            self.bump();
-            let token = self.peek()?;
-            name.push(':');
-            name.push_str(token.text);
-            self.bump();
-        }
-
-        // return the scanned name
         Some(name)
     }
 
