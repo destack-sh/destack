@@ -18,9 +18,9 @@ use super::{
     PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId, ProtocolCodec,
     ProtocolCodecError, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
     ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, QueryRequestPayload,
-    QueryResponsePayload, RepositoryId, RescanWorkspaceRequest, ServerInfo, Transport,
+    QueryResponsePayload, ReloadWorkspaceRequest, RepositoryId, ServerInfo, Transport,
     TransportError, WatchBatchRequest, WatchBatchResponse, WorkspaceHandleId,
-    WorkspaceOpenedResponse, WorkspaceRescanResponse, daemon_messages_to_records,
+    WorkspaceOpenedResponse, WorkspaceReloadResponse, daemon_messages_to_records,
     daemon_updates_to_records, diagnostic_file_snapshots, diagnostics_to_batches,
     inline_payload_max_bytes, payload_chunk_bytes,
 };
@@ -403,9 +403,9 @@ impl ProtocolServer {
             DaemonRequest::Shutdown => self.handle_shutdown(),
             DaemonRequest::OpenWorkspace(request) => self.handle_open_workspace(request),
             DaemonRequest::CloseWorkspace(request) => self.handle_close_workspace(request),
-            DaemonRequest::RescanWorkspace(request) => self.handle_rescan_workspace(request),
+            DaemonRequest::ReloadWorkspace(request) => self.handle_reload_workspace(request),
             DaemonRequest::ApplyFileUpdate(request) => self.handle_file_update(request),
-            DaemonRequest::Analyze(request) => self.handle_analyze(request),
+            DaemonRequest::PrepareQuery(request) => self.handle_prepare_query(request),
             DaemonRequest::ApplyWatchBatch(request) => self.handle_watch_batch(request),
             DaemonRequest::Command(request) => self.handle_command(*request),
             DaemonRequest::Query(query) => self.handle_query(query),
@@ -498,7 +498,7 @@ impl ProtocolServer {
         }
 
         // opening a handle should be cheap: load the current diagnostics view without forcing
-        // a rescan or analysis pass for the shared repository
+        // a filesystem reload or analysis pass for the shared repository
         let diagnostics = if request.options.load_index {
             self.diagnostics_for_handle(handle)?
         } else {
@@ -540,21 +540,19 @@ impl ProtocolServer {
         ))
     }
 
-    /// Handle a workspace rescan request.
-    fn handle_rescan_workspace(
+    /// Handle a workspace reload request.
+    fn handle_reload_workspace(
         &self,
-        request: RescanWorkspaceRequest,
+        request: ReloadWorkspaceRequest,
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
         let root = self.root_for_handle(request.handle)?;
-        let rescan = self.daemon.rescan_roots_with_analysis(&[root]);
-        Ok(DaemonResponse::WorkspaceRescanned(
-            WorkspaceRescanResponse {
-                handle: request.handle,
-                updates: daemon_updates_to_records(&rescan.updates),
-                messages: daemon_messages_to_records(&rescan.messages),
-            },
-        ))
+        let reload = self.daemon.reload_workspaces(&[root]);
+        Ok(DaemonResponse::WorkspaceReloaded(WorkspaceReloadResponse {
+            handle: request.handle,
+            updates: daemon_updates_to_records(&reload.updates),
+            messages: daemon_messages_to_records(&reload.messages),
+        }))
     }
 
     /// Handle a file update request.
@@ -585,21 +583,26 @@ impl ProtocolServer {
         }))
     }
 
-    /// Handle an analyze request.
-    fn handle_analyze(
+    /// Handle a prepare-query request.
+    fn handle_prepare_query(
         &self,
-        request: super::AnalyzeRequest,
+        request: super::PrepareQueryRequest,
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
         let root = self.root_for_handle(request.handle)?;
         if !self.path_within_root(&request.path, &root) {
             return Err(self.protocol_error(
                 ProtocolErrorCode::Forbidden,
-                "analyze path is outside workspace root",
+                "path is outside workspace root",
             ));
         }
 
-        let outcome = self.daemon.ensure_query_artifacts_for_path(&request.path);
+        let outcome = (|| {
+            self.daemon
+                .workspace_service
+                .prepare_default_query_for_path(&request.path)
+                .map_err(crate::DaemonError::from)
+        })();
         let (query_ready, detail) = match outcome {
             Ok(()) => (true, None),
             Err(crate::DaemonError::Workspace {
@@ -608,7 +611,7 @@ impl ProtocolServer {
             Err(error) => return Err(self.protocol_error_from_daemon(error)),
         };
 
-        Ok(DaemonResponse::Analyzed(super::AnalyzeResponse {
+        Ok(DaemonResponse::QueryPrepared(super::PrepareQueryResponse {
             handle: request.handle,
             query_ready,
             detail,
@@ -941,7 +944,9 @@ impl ProtocolServer {
             service::LanguageServiceError::QueryNotReady { .. } => ProtocolErrorCode::NotReady,
             service::LanguageServiceError::CacheClearFailed { .. }
             | service::LanguageServiceError::ResolvePathFailed { .. }
-            | service::LanguageServiceError::InvalidatePathFailed { .. }
+            | service::LanguageServiceError::UpdatePathFailed { .. }
+            | service::LanguageServiceError::ReadPathFailed { .. }
+            | service::LanguageServiceError::Repository { .. }
             | service::LanguageServiceError::Internal { .. } => ProtocolErrorCode::Internal,
         };
 
@@ -1212,12 +1217,12 @@ impl ProtocolServer {
 fn workspace_update_from_request(
     update: &FileUpdate,
     repository: &Repository,
-) -> Result<service::FileUpdate, ProtocolError> {
+) -> Result<service::FileMutation, ProtocolError> {
     let content = match &update.update {
-        FileUpdateKind::Text { content } => service::FileUpdate::Text {
+        FileUpdateKind::Text { content } => service::FileMutation::Text {
             content: content.clone(),
         },
-        FileUpdateKind::Bytes { content } => service::FileUpdate::Bytes {
+        FileUpdateKind::Bytes { content } => service::FileMutation::Bytes {
             content: content.clone(),
         },
         FileUpdateKind::Touch => {
@@ -1240,7 +1245,7 @@ fn workspace_update_from_request(
                             retry_after_ms: None,
                         })?;
 
-                service::FileUpdate::Bytes { content }
+                service::FileMutation::Bytes { content }
             } else {
                 let content = repository
                     .file_system()
@@ -1253,10 +1258,10 @@ fn workspace_update_from_request(
                         retry_after_ms: None,
                     })?;
 
-                service::FileUpdate::Text { content }
+                service::FileMutation::Text { content }
             }
         }
-        FileUpdateKind::Removed => service::FileUpdate::Removed,
+        FileUpdateKind::Removed => service::FileMutation::Removed,
     };
     Ok(content)
 }

@@ -120,18 +120,20 @@ pub struct CommandCacheStats {
 pub struct CommandStats {
     /// Elapsed time in milliseconds.
     pub elapsed_ms: u64,
-    /// Number of tasks completed.
-    pub tasks_completed: u64,
-    /// Number of tasks failed.
-    pub tasks_failed: u64,
-    /// Number of tasks skipped.
-    pub tasks_skipped: u64,
+    /// Number of artifact attempts started.
+    pub artifacts_started: u64,
+    /// Number of artifact attempts completed.
+    pub artifacts_completed: u64,
+    /// Number of artifact attempts failed.
+    pub artifacts_failed: u64,
+    /// Number of artifact attempts that yielded requirements.
+    pub artifacts_yielded: u64,
     /// Number of modules processed.
     pub modules_processed: u64,
     /// Number of lines processed.
     pub lines_processed: u64,
-    /// Number of slow tasks detected.
-    pub slow_tasks: u64,
+    /// Number of slow artifact attempts detected.
+    pub artifacts_slow: u64,
     /// Cache statistics when available.
     pub cache: Option<CommandCacheStats>,
     /// Timing tag statistics when available.

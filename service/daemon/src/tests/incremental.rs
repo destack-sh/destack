@@ -50,7 +50,7 @@ fn assert_virtual_navigation_ready(repository: &Repository, path: &Path, source:
         .find(r#"greet("World")"#)
         .expect("expected call marker") as u32
         + 1;
-    let result = query::goto_definition(repository, repository, revision, file_id, offset);
+    let result = query::goto_definition(repository, revision, file_id, offset);
     assert!(result.is_some(), "expected goto definition result");
 }
 
@@ -103,7 +103,11 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
     let fs = TemporaryPhysicalFileSystem::new_with_prefix("daemon_virtual_physical");
     let root = fs.root().to_path_buf();
     let repository = Arc::new(
-        Repository::open_root(root.clone()).with_cache_store(Arc::new(MemoryCacheStore::new())),
+        Repository::open_root(
+            root.clone(),
+            destack_workspace::AmbientSnapshot::capture_process(),
+        )
+        .with_cache(Arc::new(MemoryCacheStore::new())),
     );
 
     // run compiler work in a single worker to avoid test contention
@@ -111,7 +115,7 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
         workers: 1,
         ..CompilerOptions::default()
     };
-    let daemon = Daemon::with_options(repository.clone(), compiler_options);
+    let daemon = Daemon::with_options(repository.clone(), compiler_options, None, None);
 
     // initial diagnostics are empty
     let path = root.join("main.ds");
@@ -172,16 +176,16 @@ fn test_daemon_virtual_update_navigates_exported_function_call() {
     assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
 }
 
-/// Ensure navigation still works after an initial workspace rescan.
+/// Ensure navigation still works after an initial workspace reload.
 #[test]
-fn test_daemon_virtual_update_navigates_after_rescan() {
+fn test_daemon_virtual_update_navigates_after_reload() {
     let test = TestDaemon::new();
     let path = test.root.join("main.ds");
     let source = EXPORTED_NAVIGATION_SOURCE;
 
     let _ = test
         .daemon
-        .rescan_roots_with_analysis(std::slice::from_ref(&test.root));
+        .reload_workspaces(std::slice::from_ref(&test.root));
     let _ = test.update_virtual_file(&path, source);
 
     assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
@@ -207,9 +211,9 @@ fn test_daemon_update_clears_diagnostics_after_fix() {
     );
 }
 
-/// Rescans refresh file contents from disk.
+/// Filesystem reloads refresh file contents from disk.
 #[test]
-fn test_daemon_rescan_refreshes_file() {
+fn test_daemon_reload_refreshes_file() {
     let test = TestDaemon::new();
 
     // create and register the initial file
@@ -221,15 +225,17 @@ fn test_daemon_rescan_refreshes_file() {
         .write(&path, b"export const value = 2;")
         .expect("write updated file");
 
-    // rescan to refresh file contents
-    let result = test.daemon.rescan_roots(std::slice::from_ref(&test.root));
+    // reload to refresh file contents
+    let result = test
+        .daemon
+        .reload_workspaces(std::slice::from_ref(&test.root));
 
-    // check that the rescan reports updates without errors
+    // check that the reload reports updates without errors
     assert!(result.updated());
     assert!(result.messages.is_empty());
 
     let file = test.file_for_path(&path);
-    let FileContent::Text { content } = &file.content else {
+    let FileContent::Text { content } = file.content.payload() else {
         panic!("expected text content");
     };
 
@@ -237,9 +243,9 @@ fn test_daemon_rescan_refreshes_file() {
     assert_eq!(content, "export const value = 2;");
 }
 
-/// Rescan analysis emits diagnostics for invalid content.
+/// Filesystem reload only refreshes source state.
 #[test]
-fn test_daemon_rescan_with_analysis_emits_diagnostics() {
+fn test_daemon_reload_does_not_realize_diagnostics() {
     let test = TestDaemon::new();
 
     // create and register the initial file
@@ -251,24 +257,24 @@ fn test_daemon_rescan_with_analysis_emits_diagnostics() {
         .write(&path, b"export const value = ;")
         .expect("write invalid file");
 
-    // rescan and analyze to surface diagnostics
+    // reload only refreshes the tracked file state
     let result = test
         .daemon
-        .rescan_roots_with_analysis(std::slice::from_ref(&test.root));
+        .reload_workspaces(std::slice::from_ref(&test.root));
     assert!(result.updated());
 
-    // confirm diagnostics for the rescan update
+    // confirm the reload update stays source only
     let file_id = test.file_id_for_path(&path);
     let update = test.update_for_file_id(&result.updates, file_id);
     assert!(
-        !update.diagnostics.is_empty(),
-        "expected diagnostics for invalid rescan content"
+        update.diagnostics.is_empty(),
+        "expected reload to avoid implicit diagnostic realization"
     );
 }
 
-/// Rebuilds module graphs before expanding dependents.
+/// Updates only realize directly changed modules.
 #[test]
-fn test_daemon_update_rebuilds_module_graph() {
+fn test_daemon_update_does_not_fan_out_to_dependents() {
     let test = TestDaemon::new();
 
     let path_a = test.write_text("a.ds", "export const value = 1;");
@@ -277,32 +283,14 @@ fn test_daemon_update_rebuilds_module_graph() {
     let _ = test.update_file(&path_a, "export const value = 1;");
     let _ = test.update_file(&path_b, IMPORT_A_VALUE_SOURCE);
 
-    let revision = current_workspace_revision(test.repository.as_ref());
-    let module_a = test.module_id_for_path(&path_a);
-    let profile_id = test
-        .repository
-        .default_profile_id_for_module(revision, module_a)
-        .expect("expected default profile id for a.ds");
-    test.repository.drop_module_graph(profile_id);
-
     let updates = test.update_file(&path_a, "export const value = 2;");
     let module_b = test.module_id_for_path(&path_b);
 
-    // assertion block: dependent modules are included after rebuild
+    // assertion block: dependent modules are not included implicitly
     assert!(
         updates
             .iter()
-            .any(|update| update.module_id == Some(module_b)),
-        "expected b.ds update after graph rebuild"
-    );
-
-    let revision = current_workspace_revision(test.repository.as_ref());
-    let profile_id = test
-        .repository
-        .default_profile_id_for_module(revision, module_b)
-        .expect("expected default profile id for b.ds");
-    assert!(
-        test.repository.module_graph(revision, profile_id).is_some(),
-        "expected module graph to be rebuilt"
+            .all(|update| update.module_id != Some(module_b)),
+        "expected dependent modules to require explicit realization"
     );
 }

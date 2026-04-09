@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::Compiler;
 use destack_source::{DiagnosticCollection, ModuleId};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -23,8 +22,6 @@ impl CommandContext<'_> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
-        let revision = self.revision()?;
-
         // resolve the target configuration for each module
         let target_overrides = self.common.target_overrides.as_ref();
         let mut module_targets = Vec::new();
@@ -35,11 +32,18 @@ impl CommandContext<'_> {
             module_targets.push((*module_id, target));
         }
 
-        // enqueue build tasks
-        enqueue_build_tasks(&self.repository, &self.compiler, revision, &module_targets)?;
+        // collect build roots
+        let mut artifact_keys = Vec::new();
+        for (module_id, target) in &module_targets {
+            artifact_keys.push(build_root_for_target(*module_id, target));
+        }
 
-        // compile and collect diagnostics
-        self.compiler.compile();
+        // provide the requested build roots
+        let run_stats = self
+            .session
+            .provide(&artifact_keys)
+            .map_err(|error| error.to_string())?;
+        let revision = self.session.revision();
         let raw_diagnostics =
             collect_module_target_diagnostics(&self.repository, revision, &module_targets)?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
@@ -56,7 +60,8 @@ impl CommandContext<'_> {
             .collect::<Result<HashSet<_>, _>>()?
             .len();
         let stats = self
-            .compiler
+            .session
+            .compiler()
             .stats
             .snapshot_with_repository(module_count, Some(&self.repository));
 
@@ -67,7 +72,8 @@ impl CommandContext<'_> {
             profile_count,
             target_ids.len(),
             Some(stats),
-        ))
+        )
+        .with_run_stats(run_stats))
     }
 }
 
@@ -93,19 +99,7 @@ fn collect_module_target_diagnostics(
     Ok(diagnostics)
 }
 
-/// Enqueue build tasks for the provided modules.
-fn enqueue_build_tasks(
-    repository: &Arc<Repository>,
-    compiler: &Arc<Compiler>,
-    revision: Revision,
-    module_targets: &[(ModuleId, ResolvedTarget)],
-) -> super::CommandResult<()> {
-    for (module_id, target) in module_targets {
-        let _profile = repository
-            .profile_id_for_target_or_default(revision, *module_id, &target.id)
-            .map_err(|error| error.to_string())?;
-        compiler.enqueue(revision, ArtifactKey::module_output(*module_id, target.id));
-    }
-
-    Ok(())
+/// Build the requested build root for one target.
+fn build_root_for_target(module_id: ModuleId, target: &ResolvedTarget) -> ArtifactKey {
+    ArtifactKey::module_output(module_id, target.id)
 }

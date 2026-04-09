@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::protocol::{
-    AnalyzeRequest, CacheStatsPayload, DaemonQuery, DaemonQueryResponse, DaemonRequest,
-    DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest,
-    PROTOCOL_VERSION, PayloadBody, ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode,
+    CacheStatsPayload, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, FileUpdate,
+    FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest, PROTOCOL_VERSION, PayloadBody,
+    PrepareQueryRequest, ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode,
     ProtocolLimits, ProtocolRange, ProtocolServerActivity, ProtocolServerOptions, ProtocolVersion,
-    QueryRequestPayload, RescanReason, RescanWorkspaceRequest, WatchBatch, WatchBatchRequest,
+    QueryRequestPayload, ReloadReason, ReloadWorkspaceRequest, WatchBatch, WatchBatchRequest,
     WatchEvent, WatchEventKind, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
     inline_payload_max_bytes,
 };
@@ -233,16 +233,16 @@ fn test_protocol_workspace_query_deferred_payload_roundtrip() {
 
     // open the workspace and ensure query analysis readiness
     let handle = harness.open_workspace();
-    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+    let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
         handle,
         path: file_path.clone(),
     }));
     match response {
-        DaemonResponse::Analyzed(response) => {
-            assert!(response.semantic_query_ready);
+        DaemonResponse::QueryPrepared(response) => {
+            assert!(response.query_ready);
             assert!(response.detail.is_none());
         }
-        other => panic!("unexpected analyze response: {other:?}"),
+        other => panic!("unexpected prepare query response: {other:?}"),
     }
 
     // execute a large semantic tokens query
@@ -339,9 +339,9 @@ fn test_protocol_unknown_workspace_handle() {
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
 
-    let response = harness.send_request(DaemonRequest::RescanWorkspace(RescanWorkspaceRequest {
+    let response = harness.send_request(DaemonRequest::ReloadWorkspace(ReloadWorkspaceRequest {
         handle: WorkspaceHandleId::new(999),
-        reason: RescanReason::Manual,
+        reason: ReloadReason::Manual,
     }));
     match response {
         DaemonResponse::Error(error) => {
@@ -532,13 +532,8 @@ fn test_protocol_virtual_update_query_goto_definition() {
     // assert direct query behavior on the same repository state
     let file_id = harness.test.file_id_for_path(&path);
     let revision = current_workspace_revision(harness.test.repository.as_ref());
-    let direct = query::goto_definition(
-        harness.test.repository.as_ref(),
-        harness.test.repository.as_ref(),
-        revision,
-        file_id,
-        offset,
-    );
+    let direct =
+        query::goto_definition(harness.test.repository.as_ref(), revision, file_id, offset);
     assert!(direct.is_some(), "expected direct goto definition result");
 
     let response = harness.send_request_with_retry(
@@ -591,9 +586,9 @@ fn test_protocol_watch_batch_roundtrip() {
             previous_path: None,
             kind: WatchEventKind::Modified,
         }],
-        status: vec![WatchStatus::RescanRequested {
+        status: vec![WatchStatus::ReloadRequested {
             roots: vec![harness.test.root.clone()],
-            reason: RescanReason::Manual,
+            reason: ReloadReason::Manual,
         }],
         overflowed: true,
         started_at_ns: 10,
@@ -690,16 +685,16 @@ fn test_protocol_workspace_query_hover() {
     let handle = harness.open_workspace();
 
     // ensure analysis is available before running queries
-    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+    let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
         handle,
         path: file_path.clone(),
     }));
     match response {
-        DaemonResponse::Analyzed(response) => {
-            assert!(response.semantic_query_ready);
+        DaemonResponse::QueryPrepared(response) => {
+            assert!(response.query_ready);
             assert!(response.detail.is_none());
         }
-        other => panic!("unexpected analyze response: {other:?}"),
+        other => panic!("unexpected prepare query response: {other:?}"),
     }
 
     // build the hover query
@@ -844,16 +839,16 @@ fn test_protocol_workspace_query_batch() {
     let handle = harness.open_workspace();
 
     // ensure analysis is available before running queries
-    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+    let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
         handle,
         path: file_path.clone(),
     }));
     match response {
-        DaemonResponse::Analyzed(response) => {
-            assert!(response.semantic_query_ready);
+        DaemonResponse::QueryPrepared(response) => {
+            assert!(response.query_ready);
             assert!(response.detail.is_none());
         }
-        other => panic!("unexpected analyze response: {other:?}"),
+        other => panic!("unexpected prepare query response: {other:?}"),
     }
 
     // build the hover query offset
@@ -950,16 +945,16 @@ fn test_protocol_workspace_query_find_references_member_access() {
     let handle = harness.open_workspace();
 
     // ensure analysis is available before running queries
-    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+    let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
         handle,
         path: file_path.clone(),
     }));
     match response {
-        DaemonResponse::Analyzed(response) => {
-            assert!(response.semantic_query_ready);
+        DaemonResponse::QueryPrepared(response) => {
+            assert!(response.query_ready);
             assert!(response.detail.is_none());
         }
-        other => panic!("unexpected analyze response: {other:?}"),
+        other => panic!("unexpected prepare query response: {other:?}"),
     }
 
     // build the find references query offset

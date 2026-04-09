@@ -7,12 +7,11 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
-use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, File, FileId,
-    FileStore, FileSystem, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
+    FileSystem, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{FormatterOptions, Repository};
+use destack_workspace::{FormatterOptions, Repository, Revision};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -64,23 +63,11 @@ impl CommandContext<'_> {
         let suppress_output = false;
         let diagnostic_options = self.diagnostic_options.clone();
         let command_diagnostics = DiagnosticCollector::new();
+        let revision = self.revision()?;
 
         // build formatter state
         let mut summary = FmtSummary::new(check);
-        let default_formatting = self.repository.formatter;
-        let revision = self.revision()?;
-        let workspace_options = self
-            .daemon
-            .repository
-            .workspace_options(revision)
-            .map_err(|error| format!("failed to derive workspace options: {error}"))?;
-        let resolver = Resolver::from_repository(
-            self.repository.as_ref(),
-            ResolveOptions::default_for_workspace(
-                self.repository.cwd.clone(),
-                workspace_options.as_ref(),
-            ),
-        );
+        let default_formatting = workspace_formatting_options(&self.repository, revision)?;
 
         // format inline eval when provided
         if let Some(eval) = format_options.eval.as_ref() {
@@ -95,13 +82,18 @@ impl CommandContext<'_> {
                 eval.clone(),
             );
             let file = Arc::new(file);
-            let files = FileStore::new();
-            files.insert((*file).clone());
+            let file_for_id = |current_file_id| {
+                if current_file_id == file_id {
+                    Some(file.clone())
+                } else {
+                    None
+                }
+            };
 
             let (formatted, diagnostics) = format_file(file.clone(), default_formatting);
             command_diagnostics.merge_from(&diagnostics);
             if check_and_collect_errors(
-                &files,
+                &file_for_id,
                 &diagnostics,
                 &diagnostic_options,
                 suppress_output,
@@ -126,7 +118,7 @@ impl CommandContext<'_> {
         let fs = self.repository.file_system().clone();
         let mut paths = Vec::new();
         if format_options.files.is_empty() {
-            paths = collect_formattable_files(fs.as_ref(), &self.repository.cwd);
+            paths = collect_formattable_files(fs.as_ref(), self.repository.workspace_root());
         } else {
             for path in &format_options.files {
                 paths.push(path.clone());
@@ -145,12 +137,9 @@ impl CommandContext<'_> {
                 summary.files_total += 1;
                 let result = format_single_file(
                     fs.as_ref(),
-                    &resolver,
                     &self.repository,
+                    revision,
                     &path,
-                    &self.repository.cwd,
-                    self.common.config_path.as_deref(),
-                    default_formatting,
                     &command_diagnostics,
                     &diagnostic_options,
                     suppress_output,
@@ -181,12 +170,9 @@ impl CommandContext<'_> {
                     summary.files_total += 1;
                     let result = format_single_file(
                         fs.as_ref(),
-                        &resolver,
                         &self.repository,
+                        revision,
                         &file_path,
-                        &self.repository.cwd,
-                        self.common.config_path.as_deref(),
-                        default_formatting,
                         &command_diagnostics,
                         &diagnostic_options,
                         suppress_output,
@@ -278,7 +264,7 @@ fn summary_payload(summary: &FmtSummary) -> super::CommandResult<serde_json::Val
 
 /// Print diagnostics and return whether there were errors.
 fn check_and_collect_errors(
-    files: &FileStore,
+    file_for_id: &impl Fn(FileId) -> Option<Arc<File>>,
     diagnostics: &DiagnosticCollector,
     diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
@@ -288,14 +274,14 @@ fn check_and_collect_errors(
     let diagnostics = diagnostics.collect().map(diagnostic_options);
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
     if has_errors && !suppress_output {
-        print_diagnostics_to_output(files, &diagnostics, output);
+        print_diagnostics_to_output(file_for_id, &diagnostics, output);
     }
     has_errors
 }
 
 /// Print diagnostics into the command output buffer.
 fn print_diagnostics_to_output(
-    files: &FileStore,
+    file_for_id: &impl Fn(FileId) -> Option<Arc<File>>,
     diagnostics: &DiagnosticCollection,
     output: &mut CommandOutputBuffer,
 ) {
@@ -313,7 +299,7 @@ fn print_diagnostics_to_output(
         .with_line_writer(line_writer);
 
     // render diagnostics into the line buffer
-    print_diagnostics(files, diagnostics, options);
+    print_diagnostics(file_for_id, diagnostics, options);
 
     // flush rendered diagnostics into output
     let mut lines = lines.lock();
@@ -408,21 +394,19 @@ fn collect_formattable_files_in_dir(
 }
 
 /// Get formatting options for a file, checking for destack.json.
-fn get_formatting_options(
-    fs: &dyn FileSystem,
-    resolver: &Resolver,
+fn formatting_options_for_path(
+    repository: &Repository,
+    revision: Revision,
     path: &Path,
-    cwd: &Path,
-    config_override: Option<&Path>,
-    default: FormatterOptions,
 ) -> FormatterOptions {
-    let Some(destack_config_path) = find_destack_config_json(fs, path, cwd, config_override) else {
-        return default;
-    };
-    if let Some(options) = load_destack_config_formatting(resolver, &destack_config_path) {
-        return merge_formatter_options(options, default);
+    let package = repository.package_for_path(revision, path).ok().flatten();
+    if let Some(package) = package
+        && let Ok(Some(package_options)) = repository.package_options(revision, package.id)
+    {
+        return package_options.formatter;
     }
-    default
+
+    workspace_formatting_options(repository, revision).unwrap_or_default()
 }
 
 /// Format a single file, dispatching by file type.
@@ -430,12 +414,9 @@ fn get_formatting_options(
 #[allow(clippy::too_many_arguments)]
 fn format_single_file(
     fs: &dyn FileSystem,
-    resolver: &Resolver,
     repository: &Arc<Repository>,
+    revision: Revision,
     path: &Path,
-    cwd: &Path,
-    config_override: Option<&Path>,
-    default_formatting: FormatterOptions,
     command_diagnostics: &DiagnosticCollector,
     diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
@@ -458,8 +439,7 @@ fn format_single_file(
     }
 
     // get formatting options from destack.json
-    let formatting_options =
-        get_formatting_options(fs, resolver, path, cwd, config_override, default_formatting);
+    let formatting_options = formatting_options_for_path(repository.as_ref(), revision, path);
 
     // read file
     let content = match fs.read_to_string(path) {
@@ -497,13 +477,18 @@ fn format_single_file(
                 content.clone(),
             );
             let file = Arc::new(file);
-            let files = FileStore::new();
-            files.insert((*file).clone());
+            let file_for_id = |current_file_id| {
+                if current_file_id == file_id {
+                    Some(file.clone())
+                } else {
+                    None
+                }
+            };
             let (result, diagnostics) = format_file(file.clone(), formatting_options);
             command_diagnostics.merge_from(&diagnostics);
 
             if check_and_collect_errors(
-                &files,
+                &file_for_id,
                 &diagnostics,
                 diagnostic_options,
                 suppress_output,
@@ -581,111 +566,18 @@ enum FormatResult {
     Error,
 }
 
-/// Find the nearest destack.json by walking up parent directories.
-fn find_destack_config_json(
-    fs: &dyn FileSystem,
-    path: &Path,
-    cwd: &Path,
-    config_override: Option<&Path>,
-) -> Option<PathBuf> {
-    if let Some(config_override) = config_override {
-        let resolved = if config_override.is_absolute() {
-            config_override.to_path_buf()
-        } else {
-            cwd.join(config_override)
-        };
-        let metadata = fs.metadata(&resolved).ok()?;
-        return if metadata.is_directory {
-            Some(resolved.join("destack.json"))
-        } else {
-            Some(resolved)
-        };
-    }
+/// Return workspace scoped formatting options for one revision.
+fn workspace_formatting_options(
+    repository: &Repository,
+    revision: Revision,
+) -> super::CommandResult<FormatterOptions> {
+    let workspace_options = repository
+        .workspace_options(revision)
+        .map_err(|error| format!("failed to derive workspace options: {error}"))?;
 
-    let metadata = fs.metadata(path).ok();
-    let is_file = matches!(metadata, Some(meta) if meta.is_file);
-    let mut current = if is_file {
-        path.parent().map(|p| p.to_path_buf())
-    } else {
-        Some(path.to_path_buf())
-    };
-
-    while let Some(dir) = current {
-        let destack_config_path = dir.join("destack.json");
-        if fs.exists(&destack_config_path).unwrap_or(false) {
-            return Some(destack_config_path);
-        }
-        current = dir.parent().map(|p| p.to_path_buf());
-    }
-
-    None
-}
-
-/// Load formatting options from a destack.json file.
-fn load_destack_config_formatting(
-    resolver: &Resolver,
-    config_path: &Path,
-) -> Option<FormatterOptions> {
-    let config = resolver
-        .read_destack_config(config_path, CachePolicy::UseCache)
-        .ok()?;
-    Some(config.package_options().formatter)
-}
-
-/// Merge formatter options with CLI precedence.
-///
-/// Uses non-default CLI option values to override config-derived values.
-fn merge_formatter_options(
-    config_options: FormatterOptions,
-    cli_and_default_options: FormatterOptions,
-) -> FormatterOptions {
-    let default_options = FormatterOptions::default();
-    let mut merged_options = config_options;
-
-    if cli_and_default_options.line_ending != default_options.line_ending {
-        merged_options.line_ending = cli_and_default_options.line_ending;
-    }
-    if cli_and_default_options.indent_style != default_options.indent_style {
-        merged_options.indent_style = cli_and_default_options.indent_style;
-    }
-    if cli_and_default_options.indent_width != default_options.indent_width {
-        merged_options.indent_width = cli_and_default_options.indent_width;
-    }
-    if cli_and_default_options.line_width != default_options.line_width {
-        merged_options.line_width = cli_and_default_options.line_width;
-    }
-    if cli_and_default_options.quote_style != default_options.quote_style {
-        merged_options.quote_style = cli_and_default_options.quote_style;
-    }
-    if cli_and_default_options.trailing_comma != default_options.trailing_comma {
-        merged_options.trailing_comma = cli_and_default_options.trailing_comma;
-    }
-    if cli_and_default_options.bracket_spacing != default_options.bracket_spacing {
-        merged_options.bracket_spacing = cli_and_default_options.bracket_spacing;
-    }
-    if cli_and_default_options.arrow_parentheses != default_options.arrow_parentheses {
-        merged_options.arrow_parentheses = cli_and_default_options.arrow_parentheses;
-    }
-    if cli_and_default_options.quote_property != default_options.quote_property {
-        merged_options.quote_property = cli_and_default_options.quote_property;
-    }
-    if cli_and_default_options.bracket_same_line != default_options.bracket_same_line {
-        merged_options.bracket_same_line = cli_and_default_options.bracket_same_line;
-    }
-    if cli_and_default_options.single_attribute_per_line
-        != default_options.single_attribute_per_line
-    {
-        merged_options.single_attribute_per_line =
-            cli_and_default_options.single_attribute_per_line;
-    }
-    if cli_and_default_options.organize_imports != default_options.organize_imports {
-        merged_options.organize_imports = cli_and_default_options.organize_imports;
-    }
-    if cli_and_default_options.import_sort_order != default_options.import_sort_order {
-        merged_options.import_sort_order = cli_and_default_options.import_sort_order;
-    }
-
-    merged_options
+    Ok(workspace_options
+        .map(|options| options.package.formatter)
+        .unwrap_or_default())
 }
 
 /// Return whether a file type should be formatted by default.

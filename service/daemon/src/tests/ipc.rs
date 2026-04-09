@@ -128,7 +128,10 @@ impl TestIpcDaemon {
     fn new(prefix: &str) -> Self {
         // build a workspace and daemon instance
         let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
-        let repository = Arc::new(Repository::open_root(root.root().to_path_buf()));
+        let repository = Arc::new(Repository::open_root(
+            root.root().to_path_buf(),
+            destack_workspace::AmbientSnapshot::capture_process(),
+        ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
 

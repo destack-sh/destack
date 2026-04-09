@@ -109,7 +109,7 @@ impl CommandContext<'_> {
             self.resolve_destack_config_path(self.common.config_path.as_deref())
                 .ok()
         } else {
-            self.find_destack_config(&self.repository.cwd)
+            self.find_destack_config(self.session.cwd())
         };
         let declaration = config_path
             .as_ref()
@@ -161,7 +161,7 @@ impl CommandContext<'_> {
 
         let payload = CommandDoctorPayload {
             cli_version: env!("CARGO_PKG_VERSION").to_string(),
-            cwd: self.repository.cwd.display().to_string(),
+            cwd: self.session.cwd().display().to_string(),
             os: os.to_string(),
             arch: arch.to_string(),
             workers: u64::from(self.daemon.compiler_options.workers),

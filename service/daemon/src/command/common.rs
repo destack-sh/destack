@@ -8,6 +8,8 @@ use destack_workspace::{
 };
 use serde::{Deserialize, Serialize};
 
+pub use destack_workspace::ConfigOverride;
+
 /// Command input sources.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CommandInput {
@@ -240,15 +242,6 @@ pub struct CommandEnvVar {
     pub value: String,
 }
 
-/// Configuration override applied to a command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ConfigOverride {
-    /// Override path (e.g. compiler.strict).
-    pub path: String,
-    /// Override payload value.
-    pub value: serde_json::Value,
-}
-
 /// Standard payload for unimplemented command responses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CommandMessagePayload {
@@ -265,6 +258,8 @@ pub struct CommonCommandOptions {
     pub inputs: Vec<CommandInput>,
     /// Whether Destack config fallback should resolve inputs when none are provided.
     pub allow_destack_config_fallback: bool,
+    /// Optional working directory for this command.
+    pub cwd: Option<PathBuf>,
     /// Optional cache directory override.
     pub cache_dir: Option<PathBuf>,
     /// Optional Destack config path override.

@@ -1,10 +1,10 @@
 mod cache;
+mod change;
 mod command;
 mod daemon;
 mod diagnostics;
 mod envelope;
 mod file;
-mod impact;
 mod notification;
 mod output;
 mod payload;
@@ -16,12 +16,12 @@ mod watch;
 mod workspace;
 
 pub use cache::*;
+pub use change::*;
 pub use command::*;
 pub use daemon::*;
 pub use diagnostics::*;
 pub use envelope::*;
 pub use file::*;
-pub use impact::*;
 pub use notification::*;
 pub use output::*;
 pub use payload::*;

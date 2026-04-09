@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_linter::Linter;
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
-use destack_session::Session;
+use destack_session::{FileMutation, Session};
 use destack_source::{DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, TargetId, glob};
 use destack_workspace::{
     DestackDeclaration, OptimizeLevel, Repository, Revision, Target, TargetDiscovery,
@@ -53,7 +53,7 @@ impl<'a> CommandContext<'a> {
         compiler: Arc<destack_compiler::Compiler>,
         common: &'a CommonCommandOptions,
         output: &'a mut CommandOutputBuffer,
-    ) -> Self {
+    ) -> super::CommandResult<Self> {
         // root revision
         let reference = destack_workspace::Ref::for_workspace_root(&root);
         let revision = repository
@@ -62,8 +62,10 @@ impl<'a> CommandContext<'a> {
 
         // private command session
         let linter = Arc::new(Linter::new(repository.clone()));
+        let cwd = common.cwd.clone().unwrap_or_else(|| root.clone());
         let session = Session::fork(
             root.clone(),
+            cwd,
             repository.clone(),
             revision,
             compiler.clone(),
@@ -72,9 +74,16 @@ impl<'a> CommandContext<'a> {
             None,
         )
         .expect("command session should initialize");
+        session
+            .apply_workspace_config_overrides(&common.overrides)
+            .map_err(|error| {
+                super::DaemonCommandError::internal(format!(
+                    "failed to apply command config overrides: {error}"
+                ))
+            })?;
 
         let diagnostic_options = common.diagnostic.clone().unwrap_or_default();
-        Self {
+        Ok(Self {
             daemon,
             root,
             repository,
@@ -82,7 +91,7 @@ impl<'a> CommandContext<'a> {
             common,
             diagnostic_options,
             output,
-        }
+        })
     }
 
     /// Resolve command inputs, falling back to the Destack config when allowed.
@@ -168,7 +177,7 @@ impl<'a> CommandContext<'a> {
         self.session
             .apply_virtual_update(
                 path.as_path(),
-                destack_session::FileUpdate::Text {
+                FileMutation::Text {
                     content: content.to_string(),
                 },
             )
@@ -482,7 +491,7 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     let repository = resolver.repository();
 
     repository
-        .nearest_destack_path(revision, cwd)
+        .nearest_destack_file_path(revision, cwd)
         .ok()
         .flatten()
 }
@@ -518,7 +527,6 @@ fn load_workspace_declarations(
 
     Ok(resolved)
 }
-
 fn collect_sources_from_destack_declaration(
     declaration: &DestackDeclaration,
     target_name: Option<&str>,

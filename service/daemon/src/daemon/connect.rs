@@ -3,6 +3,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use destack_compiler::CompilerOptions;
+use destack_session::{SessionEventHandler, SessionObservationHandler};
 use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonLaunchConfig};
@@ -41,7 +42,7 @@ impl Drop for DaemonConnection {
 }
 
 /// Options for connecting to a daemon.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DaemonConnectOptions {
     /// Client handshake options.
     pub client: ProtocolClientOptions,
@@ -49,10 +50,36 @@ pub struct DaemonConnectOptions {
     pub server: ProtocolServerOptions,
     /// Compiler options for in process connections.
     pub compiler: CompilerOptions,
+    /// Optional session event handler for in process progress.
+    pub session_event_handler: Option<SessionEventHandler>,
+    /// Optional session observation handler for in process instrumentation.
+    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Delay between connection attempts.
     pub retry_delay: Duration,
     /// Maximum time to wait for a daemon.
     pub timeout: Duration,
+}
+
+impl std::fmt::Debug for DaemonConnectOptions {
+    /// Format the visible daemon connect options.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DaemonConnectOptions")
+            .field("client", &self.client)
+            .field("server", &self.server)
+            .field("compiler", &self.compiler)
+            .field(
+                "session_event_handler",
+                &self.session_event_handler.is_some(),
+            )
+            .field(
+                "session_observation_handler",
+                &self.session_observation_handler.is_some(),
+            )
+            .field("retry_delay", &self.retry_delay)
+            .field("timeout", &self.timeout)
+            .finish()
+    }
 }
 
 impl Default for DaemonConnectOptions {
@@ -62,6 +89,8 @@ impl Default for DaemonConnectOptions {
             client: ProtocolClientOptions::default(),
             server: ProtocolServerOptions::default(),
             compiler: CompilerOptions::default(),
+            session_event_handler: None,
+            session_observation_handler: None,
             retry_delay: Duration::from_millis(50),
             timeout: Duration::from_secs(3),
         }
@@ -112,6 +141,8 @@ pub fn connect_in_process_daemon(
     // build service options
     let service_options = DaemonServiceOptions {
         compiler_options: options.compiler.clone(),
+        session_event_handler: options.session_event_handler.clone(),
+        session_observation_handler: options.session_observation_handler.clone(),
         protocol: options.server.clone(),
     };
 

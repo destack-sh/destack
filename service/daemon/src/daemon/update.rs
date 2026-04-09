@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use destack_service::{
-    FileUpdate, LanguageServiceError, LanguageServiceResult, RescanReason, WorkspaceMessage,
-    WorkspaceMessageKind, WorkspaceUpdateRecord,
+    FileMutation, FileUpdate, LanguageServiceError, LanguageServiceMessage,
+    LanguageServiceMessageKind, LanguageServiceResult, ReloadReason,
 };
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
 
 use crate::{
-    Daemon, DaemonError, DaemonMessage, DaemonMessageKind, DaemonRescanResult, DaemonUpdate,
+    Daemon, DaemonError, DaemonMessage, DaemonMessageKind, DaemonReloadResult, DaemonUpdate,
     DaemonUpdateResult, DaemonWatchBatchResult, DaemonWatchEventResult, WatchBatch,
 };
 
@@ -20,7 +20,7 @@ impl Daemon {
         path: &Path,
         content: String,
     ) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileUpdate::Text { content }, true)
+        self.apply_file_update(path, FileMutation::Text { content }, true)
     }
 
     /// Apply a text update without writing to the filesystem.
@@ -29,19 +29,19 @@ impl Daemon {
         path: &Path,
         content: String,
     ) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileUpdate::Text { content }, false)
+        self.apply_file_update(path, FileMutation::Text { content }, false)
     }
 
     /// Mark a file as removed without touching the filesystem.
     pub fn remove_virtual_file(&self, path: &Path) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileUpdate::Removed, false)
+        self.apply_file_update(path, FileMutation::Removed, false)
     }
 
     /// Apply a file update and optionally write to the filesystem.
     pub fn apply_file_update(
         &self,
         path: &Path,
-        update: FileUpdate,
+        update: FileMutation,
         write_to_disk: bool,
     ) -> Result<DaemonUpdateResult, DaemonError> {
         // write the update to disk when requested
@@ -79,11 +79,11 @@ impl Daemon {
         let mut result = DaemonWatchBatchResult::default();
 
         // apply watch statuses first
-        let mut status_rescan_reason = None;
+        let mut status_reload_reason = None;
         for status in &batch.status {
             let status_result = self.handle_watch_status(status);
-            if status_rescan_reason.is_none() {
-                status_rescan_reason = status_result.rescan_reason;
+            if status_reload_reason.is_none() {
+                status_reload_reason = status_result.reload_reason;
             }
             if let Some(message) = status_result.message {
                 result.messages.push(message);
@@ -113,13 +113,13 @@ impl Daemon {
         }
 
         // handle overflow status batches without explicit overflow events
-        if batch.overflowed && !has_overflow_event && status_rescan_reason.is_none() {
-            status_rescan_reason = Some(RescanReason::Overflow);
+        if batch.overflowed && !has_overflow_event && status_reload_reason.is_none() {
+            status_reload_reason = Some(ReloadReason::Overflow);
         }
 
-        // rescan eagerly when status requests a full refresh
-        if let Some(rescan_reason) = status_rescan_reason {
-            match self.workspace_service.rescan_all(rescan_reason) {
+        // reload eagerly when status requests a full refresh
+        if let Some(reload_reason) = status_reload_reason {
+            match self.workspace_service.reload_all_workspaces(reload_reason) {
                 Ok(workspace_result) => {
                     let daemon_result = daemon_update_result_from_workspace(workspace_result);
                     result.updates.extend(daemon_result.updates);
@@ -127,7 +127,7 @@ impl Daemon {
                 }
                 Err(error) => {
                     result.messages.push(workspace_service_error_message(
-                        "watch_rescan_failed",
+                        "watch_reload_failed",
                         &error,
                     ));
                 }
@@ -137,40 +137,30 @@ impl Daemon {
         result
     }
 
-    /// Rescan tracked files for the provided roots.
-    pub fn rescan_roots(&self, roots: &[PathBuf]) -> DaemonRescanResult {
-        self.rescan_roots_with_mode(roots, false)
-    }
-
-    /// Rescan tracked files and analyze updated modules.
-    pub fn rescan_roots_with_analysis(&self, roots: &[PathBuf]) -> DaemonRescanResult {
-        self.rescan_roots_with_mode(roots, true)
-    }
-
-    /// Rescan tracked files for the provided roots and analyze when requested.
-    fn rescan_roots_with_mode(&self, roots: &[PathBuf], analyze: bool) -> DaemonRescanResult {
-        let result = self.workspace_service.rescan_roots(roots, analyze);
+    /// Reload tracked filesystem state for the provided roots.
+    pub fn reload_workspaces(&self, roots: &[PathBuf]) -> DaemonReloadResult {
+        let result = self.workspace_service.reload_workspaces(roots);
         match result {
             Ok(result) => {
                 let daemon_result = daemon_update_result_from_workspace(result);
-                DaemonRescanResult {
+                DaemonReloadResult {
                     updates: daemon_result.updates,
                     messages: daemon_result.messages,
                 }
             }
-            Err(error) => DaemonRescanResult {
+            Err(error) => DaemonReloadResult {
                 updates: Vec::new(),
                 messages: vec![DaemonMessage::new(
                     DaemonMessageKind::Warning,
-                    "rescan_analyze_failed",
-                    format!("watch: failed to analyze updated modules: {error}"),
+                    "reload_filesystem_failed",
+                    format!("watch: failed to reload filesystem state: {error}"),
                 )],
             },
         }
     }
 
     /// Write a file update to disk before applying it.
-    fn write_update_to_disk(&self, path: &Path, update: &FileUpdate) -> Result<(), DaemonError> {
+    fn write_update_to_disk(&self, path: &Path, update: &FileMutation) -> Result<(), DaemonError> {
         let parent = path.parent();
         if let Some(parent) = parent {
             self.repository
@@ -183,7 +173,7 @@ impl Daemon {
         }
 
         match update {
-            FileUpdate::Text { content } => {
+            FileMutation::Text { content } => {
                 self.repository
                     .file_system()
                     .write_string(path, content)
@@ -192,7 +182,7 @@ impl Daemon {
                         error,
                     })?;
             }
-            FileUpdate::Bytes { content } => {
+            FileMutation::Bytes { content } => {
                 self.repository
                     .file_system()
                     .write(path, content)
@@ -201,7 +191,7 @@ impl Daemon {
                         error,
                     })?;
             }
-            FileUpdate::Removed => {
+            FileMutation::Removed => {
                 if let Err(error) = self.repository.file_system().remove_file(path)
                     && error.kind() != io::ErrorKind::NotFound
                 {
@@ -220,7 +210,7 @@ impl Daemon {
     fn handle_watch_status(&self, status: &FileWatchStatus) -> WatchStatusResult {
         match status {
             FileWatchStatus::Error { message } => WatchStatusResult {
-                rescan_reason: None,
+                reload_reason: None,
                 message: Some(DaemonMessage::new(
                     DaemonMessageKind::Warning,
                     "watch_status_error",
@@ -228,19 +218,19 @@ impl Daemon {
                 )),
             },
             FileWatchStatus::RescanRequested { reason, .. } => WatchStatusResult {
-                rescan_reason: Some(rescan_reason_from_watch_reason(reason)),
+                reload_reason: Some(reload_reason_from_watch_reason(reason)),
                 message: Some(DaemonMessage::new(
                     DaemonMessageKind::Info,
-                    "watch_rescan_requested",
-                    watch_rescan_requested_message(reason),
+                    "watch_reload_requested",
+                    watch_reload_requested_message(reason),
                 )),
             },
             FileWatchStatus::Ready { .. } => WatchStatusResult {
-                rescan_reason: None,
+                reload_reason: None,
                 message: None,
             },
             FileWatchStatus::Stopped => WatchStatusResult {
-                rescan_reason: None,
+                reload_reason: None,
                 message: None,
             },
         }
@@ -250,19 +240,19 @@ impl Daemon {
 /// Status handling result.
 #[derive(Debug, Clone, Default)]
 struct WatchStatusResult {
-    /// Optional rescan reason.
-    rescan_reason: Option<RescanReason>,
+    /// Optional reload reason.
+    reload_reason: Option<ReloadReason>,
     /// Optional surfaced message.
     message: Option<DaemonMessage>,
 }
 
 /// Convert a watch rescan reason to workspace service reason.
-fn rescan_reason_from_watch_reason(reason: &FileWatchRescanReason) -> RescanReason {
+fn reload_reason_from_watch_reason(reason: &FileWatchRescanReason) -> ReloadReason {
     match reason {
-        FileWatchRescanReason::Startup => RescanReason::Startup,
-        FileWatchRescanReason::Overflow => RescanReason::Overflow,
-        FileWatchRescanReason::Manual => RescanReason::Manual,
-        FileWatchRescanReason::Update => RescanReason::Update,
+        FileWatchRescanReason::Startup => ReloadReason::Startup,
+        FileWatchRescanReason::Overflow => ReloadReason::Overflow,
+        FileWatchRescanReason::Manual => ReloadReason::Manual,
+        FileWatchRescanReason::Update => ReloadReason::Update,
     }
 }
 
@@ -279,14 +269,14 @@ fn daemon_update_result_from_workspace(result: LanguageServiceResult) -> DaemonU
 }
 
 /// Convert workspace service messages to daemon messages.
-fn daemon_messages_from_workspace(messages: Vec<WorkspaceMessage>) -> Vec<DaemonMessage> {
+fn daemon_messages_from_workspace(messages: Vec<LanguageServiceMessage>) -> Vec<DaemonMessage> {
     messages
         .into_iter()
         .map(|message| {
             let kind = match message.kind {
-                WorkspaceMessageKind::Info => DaemonMessageKind::Info,
-                WorkspaceMessageKind::Warning => DaemonMessageKind::Warning,
-                WorkspaceMessageKind::Error => DaemonMessageKind::Error,
+                LanguageServiceMessageKind::Info => DaemonMessageKind::Info,
+                LanguageServiceMessageKind::Warning => DaemonMessageKind::Warning,
+                LanguageServiceMessageKind::Error => DaemonMessageKind::Error,
             };
 
             DaemonMessage::new(kind, message.code, message.message)
@@ -299,23 +289,23 @@ fn workspace_service_error_message(code: &str, error: &LanguageServiceError) -> 
     DaemonMessage::new(DaemonMessageKind::Error, code, error.to_string())
 }
 
-/// Build a watch rescan requested message.
-fn watch_rescan_requested_message(reason: &FileWatchRescanReason) -> &'static str {
+/// Build a watch reload requested message.
+fn watch_reload_requested_message(reason: &FileWatchRescanReason) -> &'static str {
     match reason {
-        FileWatchRescanReason::Startup => "watch: rescan requested at startup",
-        FileWatchRescanReason::Overflow => "watch: rescan requested after overflow",
-        FileWatchRescanReason::Manual => "watch: rescan requested",
-        FileWatchRescanReason::Update => "watch: rescan requested after update",
+        FileWatchRescanReason::Startup => "watch: filesystem reload requested at startup",
+        FileWatchRescanReason::Overflow => "watch: filesystem reload requested after overflow",
+        FileWatchRescanReason::Manual => "watch: filesystem reload requested",
+        FileWatchRescanReason::Update => "watch: filesystem reload requested after update",
     }
 }
 
 /// Convert a workspace update into daemon shape.
-fn daemon_update_from_workspace(update: WorkspaceUpdateRecord) -> DaemonUpdate {
+fn daemon_update_from_workspace(update: FileUpdate) -> DaemonUpdate {
     DaemonUpdate {
         module_id: update.module_id,
         file_id: update.file_id,
         file: update.file,
-        impact: update.impact,
+        kind: update.kind,
         diagnostics: update.diagnostics,
     }
 }

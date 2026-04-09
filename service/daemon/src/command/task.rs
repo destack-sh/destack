@@ -229,7 +229,7 @@ impl CommandContext<'_> {
             let project_path = resolve_task_project_path(
                 self.repository.as_ref(),
                 revision,
-                self.repository.cwd.as_path(),
+                self.repository.workspace_root(),
                 self.common.config_path.as_deref(),
             )?;
             vec![load_task_project(
@@ -427,7 +427,7 @@ fn load_destack_tasks(
     let content = file.text();
 
     let value: Value =
-        serde_json::from_str(&content).map_err(|error| format!("invalid destack.json: {error}"))?;
+        serde_json::from_str(content).map_err(|error| format!("invalid destack.json: {error}"))?;
 
     let Some(tasks_value) = value.get("tasks") else {
         return Ok(Vec::new());

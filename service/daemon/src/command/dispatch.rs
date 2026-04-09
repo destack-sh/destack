@@ -2,6 +2,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use destack_compiler::StatsSnapshot;
+use destack_session::SessionStats;
 use destack_source::{Diagnostic, DiagnosticCollection};
 use destack_workspace::Revision;
 
@@ -82,6 +83,8 @@ pub(super) struct CommandOutcome {
     pub(super) target_count: usize,
     /// Stats snapshot from compiler execution.
     pub(super) stats: Option<StatsSnapshot>,
+    /// Session owned run summary.
+    pub(super) run_stats: Option<SessionStats>,
 }
 
 impl CommandOutcome {
@@ -102,12 +105,19 @@ impl CommandOutcome {
             profile_count,
             target_count,
             stats,
+            run_stats: None,
         }
     }
 
     /// Attach a command-specific payload.
     pub(super) fn with_data(mut self, data: serde_json::Value) -> Self {
         self.data = Some(data);
+        self
+    }
+
+    /// Attach session owned run stats.
+    pub(super) fn with_run_stats(mut self, run_stats: SessionStats) -> Self {
+        self.run_stats = Some(run_stats);
         self
     }
 }
@@ -133,7 +143,7 @@ impl Daemon {
                     compiler.clone(),
                     common,
                     &mut output,
-                );
+                )?;
 
                 // execute the requested command
                 let result = match payload {
@@ -156,14 +166,17 @@ impl Daemon {
                 };
 
                 // finalize stats and output
-                let stats_payload = result
-                    .stats
-                    .as_ref()
-                    .map(|stats| command_stats_from_snapshot(stats, start_time.elapsed()));
+                let stats_payload = result.stats.as_ref().map(|stats| {
+                    command_stats_from_snapshot(
+                        stats,
+                        result.run_stats.unwrap_or_default(),
+                        start_time.elapsed(),
+                    )
+                });
                 let data = result.data.clone();
                 let exit_code = result.exit_code;
                 let success = exit_code == 0;
-                let revision = context.revision().map_err(DaemonCommandError::from)?;
+                let revision = context.revision()?;
 
                 Ok(DaemonCommandResult {
                     revision,
@@ -187,7 +200,11 @@ impl Daemon {
 }
 
 /// Map stats snapshots into daemon command payloads.
-fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> CommandStats {
+fn command_stats_from_snapshot(
+    snapshot: &StatsSnapshot,
+    run_stats: SessionStats,
+    elapsed: Duration,
+) -> CommandStats {
     // collect cache totals
     let elapsed_ms = elapsed.as_millis() as u64;
     let cache_totals = snapshot.cache_totals();
@@ -217,12 +234,13 @@ fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> C
     // build stats payload
     CommandStats {
         elapsed_ms,
-        tasks_completed: snapshot.tasks.completed as u64,
-        tasks_failed: snapshot.tasks.failed as u64,
-        tasks_skipped: snapshot.tasks.skipped as u64,
+        artifacts_started: run_stats.started as u64,
+        artifacts_completed: run_stats.completed as u64,
+        artifacts_failed: run_stats.failed as u64,
+        artifacts_yielded: run_stats.yielded as u64,
         modules_processed: snapshot.modules_processed() as u64,
         lines_processed: snapshot.modules.lines_processed as u64,
-        slow_tasks: snapshot.slow_tasks as u64,
+        artifacts_slow: run_stats.slow as u64,
         cache: Some(cache),
         timings,
     }
