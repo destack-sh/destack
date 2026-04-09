@@ -379,6 +379,10 @@ pub(crate) fn format_let_statement_expression<'ast>(
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
+    let has_any_initializer = declarators
+        .iter()
+        .copied()
+        .any(|declarator_id| tree.get(declarator_id).value.is_some());
 
     // export import equals
     let handled_export_import_equals =
@@ -388,12 +392,24 @@ pub(crate) fn format_let_statement_expression<'ast>(
     }
 
     let format_declarators = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        for (index, declarator_id) in declarators.iter().enumerate() {
-            if index > 0 {
-                write!(f, [token(",")])?;
+        let Some((first_declarator_id, trailing_declarator_ids)) = declarators.split_first() else {
+            return Ok(());
+        };
+
+        // first declarator
+        write!(f, [space()])?;
+        format_declarator(f, tree, *first_declarator_id)?;
+
+        // trailing declarators
+        for declarator_id in trailing_declarator_ids {
+            write!(f, [token(",")])?;
+
+            if has_any_initializer {
+                write!(f, [hard_line_break()])?;
+            } else {
+                write!(f, [soft_line_break_or_space()])?;
             }
 
-            write!(f, [space()])?;
             format_declarator(f, tree, *declarator_id)?;
         }
 
@@ -417,7 +433,11 @@ pub(crate) fn format_let_statement_expression<'ast>(
                 LetKind::Const => write!(f, [Keyword::Const])?,
             }
 
-            write!(f, [format_declarators])
+            if declarators.len() > 1 {
+                write!(f, [indent(&format_declarators)])
+            } else {
+                write!(f, [format_declarators])
+            }
         }))]
     )
 }

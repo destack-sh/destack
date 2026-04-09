@@ -34,7 +34,8 @@ pub(crate) use self::shape::{
     array_elements_are_fill_candidates, array_has_only_boundary_comments,
     expression_has_leading_prefix_comment, expression_has_only_prefix_comment_or_doc_annotations,
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
-    expression_is_trivial_inline_without_annotations, sequence_expression_needs_parens,
+    expression_has_type_cast_comment_head, expression_is_trivial_inline_without_annotations,
+    expression_type_cast_comment_head_start, sequence_expression_needs_parens,
     should_hoist_parenthesized_inner_cast_prefix_comments,
 };
 pub use self::shape::{

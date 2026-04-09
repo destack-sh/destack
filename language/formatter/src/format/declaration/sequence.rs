@@ -14,7 +14,10 @@ use crate::format::declaration::{
 use crate::format::directive::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
-use crate::format::expression::format_expression;
+use crate::format::expression::{
+    expression_has_type_cast_comment_head, expression_type_cast_comment_head_start,
+    format_expression,
+};
 use destack_ast::{
     AnnotationPosition, Block, BlockContext, Declaration, Expression, FunctionKind, FunctionMode,
     IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan,
@@ -88,6 +91,12 @@ fn expression_prefix_start(
     default_start: u32,
 ) -> u32 {
     let mut start = default_start;
+
+    if let Some(type_cast_comment_start) =
+        expression_type_cast_comment_head_start(context, expression_id)
+    {
+        start = start.min(type_cast_comment_start);
+    }
 
     for comment in raw_prefix_comment_nodes(context, expression_id) {
         start = start.min(comment.span.start);
@@ -242,6 +251,10 @@ fn write_statement_sequence_expression_prefix<'ast>(
         }
 
         return write_annotation_sequence(f, &prefix_items);
+    }
+
+    if expression_has_type_cast_comment_head(f.context(), expression_id) {
+        return Ok(());
     }
 
     if let Some(start_offset) = start_offset {
@@ -552,9 +565,10 @@ pub(crate) fn format_block_statement_sequence<'ast>(
         }
 
         let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
-        let following_expression_start = effective_expressions
-            .get(i + 1)
-            .map(|expression_id| f.context().span(*expression_id).start);
+        let following_expression_start = effective_expressions.get(i + 1).map(|expression_id| {
+            let expression_span = f.context().span(*expression_id);
+            expression_prefix_start(f.context(), *expression_id, expression_span.start)
+        });
         let expression_output_end = format_statement_sequence_expression(
             f,
             expression_id,
@@ -708,10 +722,10 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             None
         };
         let following_expression_start = if i + 1 < expression_count {
-            block
-                .iter_expressions()
-                .nth(i + 1)
-                .map(|expression_id| f.context().span(expression_id).start)
+            block.iter_expressions().nth(i + 1).map(|expression_id| {
+                let expression_span = f.context().span(expression_id);
+                expression_prefix_start(f.context(), expression_id, expression_span.start)
+            })
         } else {
             None
         };

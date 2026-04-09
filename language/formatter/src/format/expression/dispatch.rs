@@ -1,7 +1,7 @@
 use crate::format::annotation::{prefix_annotations, prefix_annotations_after_offset};
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::expression::{
-    format_primary_expression, format_statement_expression, is_type_cast_comment_node,
+    expression_has_type_cast_comment_head, format_primary_expression, format_statement_expression,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
 use crate::format::operator::{
@@ -109,8 +109,8 @@ pub(crate) fn write_expression_with_prefix_annotations_after_offset<'ast>(
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
     let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-    let type_cast_node_owns_prefix = matches!(expression, Expression::Parenthesized { .. })
-        && is_type_cast_comment_node(f.context(), expression_id);
+    let type_cast_node_owns_prefix =
+        expression_has_type_cast_comment_head(f.context(), expression_id);
 
     if !operator_expression_owns_prefix_annotations(
         f.context(),
@@ -231,8 +231,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let is_ignored = node_has_ignore_directive(f.context(), node_id);
-        let type_cast_node_owns_prefix = matches!(self, Expression::Parenthesized { .. })
-            && is_type_cast_comment_node(f.context(), node_id);
+        let type_cast_node_owns_prefix =
+            expression_has_type_cast_comment_head(f.context(), node_id);
         if !operator_expression_owns_prefix_annotations(f.context(), node_id, self, is_ignored)
             && !type_cast_node_owns_prefix
         {
