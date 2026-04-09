@@ -2,13 +2,13 @@ use destack_artifact::ArtifactStore;
 use destack_workspace::{Repository, Revision};
 
 use crate::{
-    AnalyzeWarning, DiagnosticAnchor, ElaborateWarning, ExecuteWarning, GenerateWarning,
-    ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, TaskPhase,
+    AnalyzeWarning, CompilePhase, DiagnosticAnchor, ElaborateWarning, ExecuteWarning,
+    GenerateWarning, ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning,
 };
 
 /// Warning during compilation.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TaskWarning {
+pub enum CompileWarning {
     /// Warning during importing.
     Import(ImportWarning),
     /// Warning during resolution.
@@ -31,19 +31,19 @@ pub enum TaskWarning {
     Link(LinkWarning),
 }
 
-impl TaskWarning {
+impl CompileWarning {
     /// Get the phase of the warning.
-    pub fn phase(&self) -> TaskPhase {
+    pub fn phase(&self) -> CompilePhase {
         match self {
-            Self::Import(_) => TaskPhase::Import,
-            Self::Resolve(_) => TaskPhase::Resolve,
-            Self::Analyze(_) => TaskPhase::Analyze,
-            Self::Elaborate(_) => TaskPhase::Elaborate,
-            Self::Execute(_) => TaskPhase::Execute,
-            Self::Lower(_) => TaskPhase::Lower,
-            Self::Optimize(_) => TaskPhase::Optimize,
-            Self::Generate(_) => TaskPhase::Generate,
-            Self::Link(_) => TaskPhase::Link,
+            Self::Import(_) => CompilePhase::Import,
+            Self::Resolve(_) => CompilePhase::Resolve,
+            Self::Analyze(_) => CompilePhase::Analyze,
+            Self::Elaborate(_) => CompilePhase::Elaborate,
+            Self::Execute(_) => CompilePhase::Execute,
+            Self::Lower(_) => CompilePhase::Lower,
+            Self::Optimize(_) => CompilePhase::Optimize,
+            Self::Generate(_) => CompilePhase::Generate,
+            Self::Link(_) => CompilePhase::Link,
         }
     }
 

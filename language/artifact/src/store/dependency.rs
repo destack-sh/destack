@@ -1,12 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactKey, ArtifactStamp};
+use crate::ArtifactVersion;
 
 /// Live dependency proof for one published artifact version.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ArtifactDependency {
-    /// The required artifact key.
-    pub key: ArtifactKey,
-    /// The exact dependency stamp used while building the artifact.
-    pub stamp: ArtifactStamp,
+    /// The exact dependency version used while building the artifact.
+    pub version: ArtifactVersion,
 }

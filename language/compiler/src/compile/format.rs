@@ -228,13 +228,15 @@ impl DiagnosticFormat for PackageStamp {
 impl DiagnosticFormat for TargetId {
     fn diagnostic_fmt(
         &self,
-        _revision: Revision,
+        revision: Revision,
         repository: &Repository,
         _artifacts: &ArtifactStore,
     ) -> String {
         repository
-            .target_name_by_target_id(*self)
-            .map(|name| name.to_string())
+            .effective_target(revision, *self)
+            .ok()
+            .flatten()
+            .map(|target| target.name)
             .unwrap_or_else(|| self.to_string())
     }
 }

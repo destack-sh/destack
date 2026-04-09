@@ -1,18 +1,21 @@
 use std::cell::RefCell;
+use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPinSet, ArtifactVersion};
+use destack_source::ModuleId;
 use destack_workspace::{
-    ArtifactRequirement as ProvideArtifactRequirement, ProvideError, RepositoryError,
+    ArtifactRequirement as ProvideArtifactRequirement, ProfileId, ProvideError, RepositoryError,
     RepositorySnapshot, Requirement as ProvideRequirement, RequirementSet as ProvideRequirementSet,
     Revision, SourceRequirement,
 };
+use rustc_hash::FxHashMap;
 
+use crate::resolve::module::globals::{GlobalSymbolTable, GlobalSymbolTableCacheKey};
 #[cfg(test)]
 use crate::tests::scenario::CompilerScenarioEvent;
 use crate::{CompileError, Compiler, CompilerContext, CompilerObservationHandler, InternalError};
 
 /// The internal compiler state for one active execution context.
-#[derive(Debug)]
 struct ActiveProvideContext {
     /// The running artifact key for this context.
     artifact_key: Option<ArtifactKey>,
@@ -22,20 +25,35 @@ struct ActiveProvideContext {
     retained_artifacts: ArtifactPinSet,
     /// The artifact requirements satisfied during this context.
     requirements: Vec<crate::ArtifactRequirement>,
-}
-
-/// The current compiler execution scope for this thread.
-#[derive(Default)]
-struct ProvideScope {
-    /// The active execution context for this thread.
-    context: Option<ActiveProvideContext>,
+    /// The exact artifact versions already computed in this context.
+    current_versions: FxHashMap<ArtifactKey, ArtifactVersion>,
+    /// The selected global symbol table roots already computed in this context.
+    global_symbol_table_roots: FxHashMap<(ModuleId, ProfileId), Arc<[ModuleId]>>,
+    /// The global symbol tables already built in this context.
+    global_symbol_tables: FxHashMap<GlobalSymbolTableCacheKey, Arc<GlobalSymbolTable>>,
     /// The active observation handler for this thread.
     observation_handler: Option<CompilerObservationHandler>,
 }
 
+impl std::fmt::Debug for ActiveProvideContext {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ActiveProvideContext")
+            .field("artifact_key", &self.artifact_key)
+            .field("snapshot", &"...")
+            .field("retained_artifacts", &self.retained_artifacts)
+            .field("requirements", &self.requirements)
+            .field("observation_handler", &self.observation_handler.is_some())
+            .finish()
+    }
+}
+
 impl ActiveProvideContext {
     /// Create one active execution context from one compiler context.
-    fn new(context: &CompilerContext<'_>) -> Result<Self, RepositoryError> {
+    fn new(
+        context: &CompilerContext<'_>,
+        observation_handler: Option<CompilerObservationHandler>,
+    ) -> Result<Self, RepositoryError> {
         Ok(Self {
             artifact_key: context.artifact_key(),
             snapshot: context.snapshot().clone(),
@@ -43,23 +61,49 @@ impl ActiveProvideContext {
                 context.compiler().repository.artifact_store().clone(),
             ),
             requirements: Vec::new(),
+            current_versions: FxHashMap::default(),
+            global_symbol_table_roots: FxHashMap::default(),
+            global_symbol_tables: FxHashMap::default(),
+            observation_handler,
         })
     }
 }
 
 thread_local! {
     /// The current compiler execution scope for this thread.
-    static CURRENT_PROVIDE_SCOPE: RefCell<ProvideScope> = const { RefCell::new(ProvideScope {
-        context: None,
-        observation_handler: None,
-    }) };
+    static CURRENT_PROVIDE_CONTEXT: RefCell<Option<ActiveProvideContext>> = const { RefCell::new(None) };
 }
 
 impl Compiler {
+    /// Run one action with the active exact version cache when it exists.
+    pub(crate) fn with_active_artifact_versions<T>(
+        &self,
+        action: impl FnOnce(
+            Option<(
+                &destack_workspace::RepositorySnapshot,
+                Revision,
+                &mut FxHashMap<ArtifactKey, ArtifactVersion>,
+            )>,
+        ) -> T,
+    ) -> T {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            let mut current = current.borrow_mut();
+            let caches = current.as_mut().map(|context| {
+                (
+                    &context.snapshot,
+                    context.snapshot.revision(),
+                    &mut context.current_versions,
+                )
+            });
+
+            action(caches)
+        })
+    }
+
     /// Return the active compiler context for this execution scope when it exists.
     pub(crate) fn current_context_maybe(&self) -> Option<CompilerContext<'_>> {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
-            current.borrow().context.as_ref().map(|context| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            current.borrow().as_ref().map(|context| {
                 CompilerContext::new(self, context.snapshot.clone(), context.artifact_key)
             })
         })
@@ -100,33 +144,22 @@ impl Compiler {
 
     /// Return the artifact key currently executing on this thread.
     pub(crate) fn current_artifact_key(&self) -> Option<ArtifactKey> {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
             current
                 .borrow()
-                .context
                 .as_ref()
                 .and_then(|context| context.artifact_key)
         })
     }
 
-    /// Run one action with one temporary compiler observation handler.
-    pub fn with_observation_handler<T>(
-        &self,
-        handler: Option<CompilerObservationHandler>,
-        action: impl FnOnce() -> T,
-    ) -> T {
-        let previous = CURRENT_PROVIDE_SCOPE.with(|current| {
-            let mut current = current.borrow_mut();
-            std::mem::replace(&mut current.observation_handler, handler)
-        });
-        let _guard = ObservationHandlerGuard { previous };
-
-        action()
-    }
-
     /// Return the active compiler observation handler for this thread.
     pub(crate) fn current_observation_handler(&self) -> Option<CompilerObservationHandler> {
-        CURRENT_PROVIDE_SCOPE.with(|current| current.borrow().observation_handler.clone())
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            current
+                .borrow()
+                .as_ref()
+                .and_then(|context| context.observation_handler.clone())
+        })
     }
 
     /// Return the revision currently active for this execution scope.
@@ -142,14 +175,25 @@ impl Compiler {
         compiler_context: CompilerContext<'_>,
         action: impl FnOnce(&CompilerContext<'_>) -> T,
     ) -> T {
-        let context = ActiveProvideContext::new(&compiler_context)
+        self.with_execution_context(compiler_context, None, action)
+            .0
+    }
+
+    /// Run one action inside one explicit compiler execution scope.
+    fn with_execution_context<T>(
+        &self,
+        compiler_context: CompilerContext<'_>,
+        observation_handler: Option<CompilerObservationHandler>,
+        action: impl FnOnce(&CompilerContext<'_>) -> T,
+    ) -> (T, ActiveProvideContext) {
+        let context = ActiveProvideContext::new(&compiler_context, observation_handler)
             .unwrap_or_else(|error| panic!("failed to activate compiler context: {error}"));
 
-        CURRENT_PROVIDE_SCOPE.with(|current| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
             let mut current = current.borrow_mut();
 
             assert!(
-                current.context.is_none(),
+                current.is_none(),
                 "nested compiler execution scopes are not allowed",
             );
             assert!(
@@ -160,28 +204,32 @@ impl Compiler {
                 context.requirements.is_empty(),
                 "compiler requirement log must be empty before entering a provide scope",
             );
+            assert!(
+                context.current_versions.is_empty(),
+                "compiler exact version cache must be empty before entering a provide scope",
+            );
+            assert!(
+                context.global_symbol_table_roots.is_empty(),
+                "compiler global symbol table roots cache must be empty before entering a provide scope",
+            );
+            assert!(
+                context.global_symbol_tables.is_empty(),
+                "compiler global symbol table cache must be empty before entering a provide scope",
+            );
 
-            current.context = Some(context);
+            *current = Some(context);
         });
 
         let result = action(&compiler_context);
 
-        CURRENT_PROVIDE_SCOPE.with(|current| {
-            let context = current
+        let context = CURRENT_PROVIDE_CONTEXT.with(|current| {
+            current
                 .borrow_mut()
-                .context
                 .take()
-                .expect("compiler execution scope should be active on exit");
-
-            assert!(
-                context.requirements.is_empty(),
-                "compiler requirement log must be empty after leaving a provide scope",
-            );
-
-            drop(context);
+                .expect("compiler execution scope should be active on exit")
         });
 
-        result
+        (result, context)
     }
 
     /// Record one satisfied artifact requirement for the current provide attempt.
@@ -190,16 +238,17 @@ impl Compiler {
             return;
         }
 
-        CURRENT_PROVIDE_SCOPE.with(|current| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
             let mut current = current.borrow_mut();
             let context = current
-                .context
                 .as_mut()
                 .expect("compiler requirement log requires one active provide context");
 
-            if context.requirements.iter().any(|existing| {
-                existing.key == requirement.key && existing.stamp == requirement.stamp
-            }) {
+            if context
+                .requirements
+                .iter()
+                .any(|existing| existing.version == requirement.version)
+            {
                 return;
             }
 
@@ -212,11 +261,12 @@ impl Compiler {
         &self,
         requirement: &crate::ArtifactRequirement,
     ) -> bool {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
-            current.borrow().context.as_ref().is_some_and(|context| {
-                context.requirements.iter().any(|existing| {
-                    existing.key == requirement.key && existing.stamp == requirement.stamp
-                })
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            current.borrow().as_ref().is_some_and(|context| {
+                context
+                    .requirements
+                    .iter()
+                    .any(|existing| existing.version == requirement.version)
             })
         })
     }
@@ -225,10 +275,9 @@ impl Compiler {
     fn should_record_current_requirement(&self, requirement: &crate::ArtifactRequirement) -> bool {
         let _ = requirement;
 
-        CURRENT_PROVIDE_SCOPE.with(|current| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
             current
                 .borrow()
-                .context
                 .as_ref()
                 .is_some_and(|context| context.artifact_key.is_some())
         })
@@ -236,31 +285,18 @@ impl Compiler {
 
     /// Clear the current provide requirement log.
     fn clear_current_requirements(&self) {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
-            if let Some(context) = current.borrow_mut().context.as_mut() {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            if let Some(context) = current.borrow_mut().as_mut() {
                 context.requirements.clear();
             }
         });
     }
 
-    /// Take the current provide requirement log.
-    fn take_current_requirements(&self) -> Vec<crate::ArtifactRequirement> {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
-            let mut current = current.borrow_mut();
-            let Some(context) = current.context.as_mut() else {
-                return Vec::new();
-            };
-
-            std::mem::take(&mut context.requirements)
-        })
-    }
-
     /// Clone the current provide requirement log.
     pub(crate) fn current_requirements(&self) -> Vec<crate::ArtifactRequirement> {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
             current
                 .borrow()
-                .context
                 .as_ref()
                 .map(|context| context.requirements.clone())
                 .unwrap_or_default()
@@ -269,13 +305,98 @@ impl Compiler {
 
     /// Retain one exact live artifact version for the current execution scope.
     pub(crate) fn retain_current_artifact_version(&self, version: &ArtifactVersion) {
-        CURRENT_PROVIDE_SCOPE.with(|current| {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
             let mut current = current.borrow_mut();
-            let Some(context) = current.context.as_mut() else {
+            let Some(context) = current.as_mut() else {
                 return;
             };
 
             context.retained_artifacts.pin(*version);
+        });
+    }
+
+    /// Return the cached global symbol table roots for one module and profile in the active revision.
+    pub(crate) fn current_global_symbol_table_roots(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> Option<Arc<[ModuleId]>> {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            let current = current.borrow();
+            let context = current.as_ref()?;
+
+            if context.snapshot.revision() != revision {
+                return None;
+            }
+
+            context
+                .global_symbol_table_roots
+                .get(&(module_id, profile_id))
+                .cloned()
+        })
+    }
+
+    /// Store the global symbol table roots for one module and profile in the active revision.
+    pub(crate) fn store_current_global_symbol_table_roots(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        roots: Arc<[ModuleId]>,
+    ) {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            let mut current = current.borrow_mut();
+            let Some(context) = current.as_mut() else {
+                return;
+            };
+
+            if context.snapshot.revision() != revision {
+                return;
+            }
+
+            context
+                .global_symbol_table_roots
+                .insert((module_id, profile_id), roots);
+        });
+    }
+
+    /// Return the cached global symbol table for one key in the active revision.
+    pub(crate) fn current_global_symbol_table(
+        &self,
+        revision: Revision,
+        cache_key: &GlobalSymbolTableCacheKey,
+    ) -> Option<Arc<GlobalSymbolTable>> {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            let current = current.borrow();
+            let context = current.as_ref()?;
+
+            if context.snapshot.revision() != revision {
+                return None;
+            }
+
+            context.global_symbol_tables.get(cache_key).cloned()
+        })
+    }
+
+    /// Store one global symbol table for one key in the active revision.
+    pub(crate) fn store_current_global_symbol_table(
+        &self,
+        revision: Revision,
+        cache_key: GlobalSymbolTableCacheKey,
+        table: Arc<GlobalSymbolTable>,
+    ) {
+        CURRENT_PROVIDE_CONTEXT.with(|current| {
+            let mut current = current.borrow_mut();
+            let Some(context) = current.as_mut() else {
+                return;
+            };
+
+            if context.snapshot.revision() != revision {
+                return;
+            }
+
+            context.global_symbol_tables.insert(cache_key, table);
         });
     }
 
@@ -285,6 +406,16 @@ impl Compiler {
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<(), ProvideError<CompileError>> {
+        self.provide_with_observation_handler(revision, artifact_key, None)
+    }
+
+    /// Provide one compiler owned artifact key for one revision with one observation handler.
+    pub fn provide_with_observation_handler(
+        &self,
+        revision: Revision,
+        artifact_key: ArtifactKey,
+        observation_handler: Option<CompilerObservationHandler>,
+    ) -> Result<(), ProvideError<CompileError>> {
         let context = self
             .artifact_context(revision, artifact_key)
             .map_err(|error| {
@@ -293,12 +424,13 @@ impl Compiler {
                     message: error.to_string(),
                 }))
             })?;
-        let result = self.with_context(context, |context| {
-            self.clear_current_requirements();
-            self.execute_artifact(context, artifact_key)
-        });
+        let (result, active_context) =
+            self.with_execution_context(context, observation_handler, |context| {
+                self.clear_current_requirements();
+                self.execute_artifact(context, artifact_key)
+            });
 
-        self.finish_provide_result(revision, artifact_key, result)
+        self.finish_provide_result(revision, artifact_key, result, active_context)
     }
 
     /// Execute one compiler owned artifact key.
@@ -385,13 +517,14 @@ impl Compiler {
         revision: Revision,
         artifact_key: ArtifactKey,
         result: Result<(), CompileError>,
+        active_context: ActiveProvideContext,
     ) -> Result<(), ProvideError<CompileError>> {
         // successful provides commit their diagnostics and exact dependency log
         if result.is_ok() {
             #[cfg(test)]
             self.emit_scenario_event(CompilerScenarioEvent::BeforeTaskCommit { artifact_key });
 
-            let _requirements = self.take_current_requirements();
+            let _requirements = active_context.requirements;
             self.flush_diagnostics();
 
             return Ok(());
@@ -402,19 +535,20 @@ impl Compiler {
         // yielded requirements belong to the outer driver, not the provider
         if let Some(requirements) = error.yielded_to() {
             let requirements = strip_compiler_requirements(requirements);
-            self.clear_current_requirements();
 
             return Err(ProvideError::Requirements(requirements));
         }
 
         // hard failures publish an exact failed artifact version immediately
-        let mut dependencies = self.live_dependencies_for_current_artifact(&artifact_key);
+        let mut dependencies = self.live_dependencies_for_artifact_requirements(
+            &artifact_key,
+            &active_context.requirements,
+        );
         if let Some(requirement) = error.blocking_requirement() {
             dependencies
                 .extend(self.live_dependencies_for_requirement_set(&artifact_key, requirement));
         }
 
-        self.clear_current_requirements();
         self.publish_failed_artifact_version(revision, artifact_key, dependencies);
         self.error_for_artifact(revision, Some(artifact_key), error.clone());
         self.flush_diagnostics();
@@ -441,8 +575,7 @@ fn strip_compiler_requirements(requirements: &crate::RequirementSet) -> ProvideR
     requirements.for_each(|requirement| match requirement {
         crate::Requirement::Artifact(requirement) => {
             converted_requirements.push(ProvideRequirement::Artifact(ProvideArtifactRequirement {
-                key: requirement.key,
-                stamp: requirement.stamp,
+                version: requirement.version,
             }));
         }
         crate::Requirement::File(requirement) => {
@@ -465,29 +598,13 @@ fn strip_compiler_requirements(requirements: &crate::RequirementSet) -> ProvideR
     }
 }
 
-/// Guard that restores the previous observation handler on drop.
-struct ObservationHandlerGuard {
-    /// The previous handler for this thread.
-    previous: Option<CompilerObservationHandler>,
-}
-
-impl Drop for ObservationHandlerGuard {
-    fn drop(&mut self) {
-        let previous = self.previous.take();
-
-        CURRENT_PROVIDE_SCOPE.with(|current| {
-            current.borrow_mut().observation_handler = previous;
-        });
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use destack_workspace::{Change, Ref, Repository};
+    use destack_workspace::{AmbientSnapshot, Change, Ref, Repository};
 
     use crate::{Compiler, CompilerOptions};
 
@@ -497,7 +614,10 @@ mod tests {
         let root = unique_test_root("compiler-revision-scope");
         fs::create_dir_all(&root).expect("compiler revision scope test root should exist");
 
-        let repository = Arc::new(Repository::open_root(root.clone()));
+        let repository = Arc::new(Repository::open_root(
+            root.clone(),
+            AmbientSnapshot::default(),
+        ));
         let compiler = Compiler::new(Arc::clone(&repository), CompilerOptions::default());
         let reference = Ref::for_workspace_root(&root);
         let base_revision = repository

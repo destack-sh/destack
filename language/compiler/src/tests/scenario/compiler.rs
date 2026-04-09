@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, Ast, DirPrepared, DirResolved, MemoryCacheStore};
 use destack_source::{ModuleId, PhysicalFileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{Change, Edit, Ref, Repository};
+use destack_workspace::{AmbientSnapshot, Change, Edit, Ref, Repository};
 
-use crate::tests::TestWorkspaceView;
+use crate::tests::{TestWorkspaceView, provide_artifacts_to_completion};
 use crate::{Compiler, CompilerOptions};
 
 use super::{CompilerEdit, CompilerEditScript};
@@ -180,13 +180,16 @@ impl CompilerScenarioWorkspace {
     {
         // build the repository and workspace view
         let root_path = self.root_path().to_path_buf();
-        let mut repository =
-            Repository::open_root_from_fs(root_path.clone(), Arc::new(PhysicalFileSystem))
-                .expect("failed to import compiler scenario workspace");
+        let mut repository = Repository::open_root_from_fs(
+            root_path.clone(),
+            Arc::new(PhysicalFileSystem),
+            AmbientSnapshot::default(),
+        )
+        .expect("failed to import compiler scenario workspace");
 
         // cache backend
         if self.scenario.cache_mode == ScenarioCacheMode::Off {
-            repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
+            repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
         }
 
         // build the live workspace view and compiler
@@ -315,9 +318,13 @@ impl CompilerScenarioRun {
         self.workspace.open()
     }
 
-    /// Enqueue one artifact against the current workspace revision.
-    pub(crate) fn enqueue(&self, artifact_key: ArtifactKey) {
-        self.compiler.enqueue(self.current_revision(), artifact_key);
+    /// Provide one exact artifact immediately.
+    pub(crate) fn provide(&self, artifact_key: ArtifactKey) {
+        provide_artifacts_to_completion(
+            self.compiler.as_ref(),
+            self.current_revision(),
+            &[artifact_key],
+        );
     }
 }
 
@@ -360,53 +367,42 @@ impl ScenarioModule {
     /// Return whether the AST is currently available.
     pub(crate) fn ast_is_available(&self) -> bool {
         self.run
-            .compiler
-            .artifact_key_is_available(self.run.current_revision(), &self.ast_key())
+            .program()
+            .repository()
+            .ast(self.run.current_revision(), self.module_id)
+            .is_some()
     }
 
     /// Return whether the resolved DIR is currently available.
     pub(crate) fn dir_resolved_is_available(&self) -> bool {
         self.run
-            .compiler
-            .artifact_key_is_available(self.run.current_revision(), &self.dir_resolved_key())
+            .program()
+            .repository()
+            .dir_resolved(
+                self.run.current_revision(),
+                self.module_id,
+                self.profile_id(),
+            )
+            .is_some()
     }
 
     /// Require the AST for this module.
     pub(crate) fn require_ast(&self) {
-        self.run
-            .compiler()
-            .run_to_completion(self.run.current_revision(), |compiler, _context| {
-                compiler.require_ast(_context.revision(), self.module_id)
-            })
-            .unwrap_or_else(|error| panic!("failed to require scenario ast: {error:?}"));
+        self.run.provide(ArtifactKey::ast(self.module_id));
     }
 
     /// Require the prepared DIR for this module.
     pub(crate) fn require_dir_prepared(&self) {
-        // resolve the ambient profile once
         let profile_id = self.profile_id();
-
-        // build the prepared dir to completion
         self.run
-            .compiler()
-            .run_to_completion(self.run.current_revision(), |compiler, _context| {
-                compiler.require_dir_prepared(_context.revision(), self.module_id, profile_id)
-            })
-            .unwrap_or_else(|error| panic!("failed to require scenario prepared dir: {error:?}"));
+            .provide(ArtifactKey::dir_prepared(self.module_id, profile_id));
     }
 
     /// Require the resolved DIR for this module.
     pub(crate) fn require_dir_resolved(&self) {
-        // resolve the ambient profile once
         let profile_id = self.profile_id();
-
-        // build the resolved dir to completion
         self.run
-            .compiler()
-            .run_to_completion(self.run.current_revision(), |compiler, _context| {
-                compiler.require_dir_resolved(_context.revision(), self.module_id, profile_id)
-            })
-            .unwrap_or_else(|error| panic!("failed to require scenario resolved dir: {error:?}"));
+            .provide(ArtifactKey::dir_resolved(self.module_id, profile_id));
     }
 
     /// Return the published AST for this module.
@@ -508,8 +504,12 @@ pub(crate) fn build_disk_cache_compiler(
     }
 
     let repository = Arc::new(
-        Repository::open_root_from_fs(root_path.clone(), Arc::new(PhysicalFileSystem))
-            .expect("failed to import disk-cache compiler workspace"),
+        Repository::open_root_from_fs(
+            root_path.clone(),
+            Arc::new(PhysicalFileSystem),
+            AmbientSnapshot::default(),
+        )
+        .expect("failed to import disk-cache compiler workspace"),
     );
     let program = Arc::new(TestWorkspaceView::new(
         repository.clone(),
@@ -546,9 +546,13 @@ pub(crate) fn build_memory_cache_compiler(
     }
 
     let repository = Arc::new(
-        Repository::open_root_from_fs(root_path.clone(), Arc::new(PhysicalFileSystem))
-            .expect("failed to import memory-cache compiler workspace")
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        Repository::open_root_from_fs(
+            root_path.clone(),
+            Arc::new(PhysicalFileSystem),
+            AmbientSnapshot::default(),
+        )
+        .expect("failed to import memory-cache compiler workspace")
+        .with_cache(Arc::new(MemoryCacheStore::new())),
     );
     let program = Arc::new(TestWorkspaceView::new(
         repository.clone(),

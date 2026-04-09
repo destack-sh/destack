@@ -17,6 +17,17 @@ use crate::{
 /// One versioned artifact family map.
 type ArtifactMap<T> = DashMap<ArtifactVersion, Arc<T>>;
 
+/// Exact availability status for one artifact version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArtifactStatus {
+    /// The exact payload is published.
+    Ready,
+    /// The exact attempt failed.
+    Failed,
+    /// The exact version is missing.
+    Missing,
+}
+
 /// One exact artifact version entry.
 #[derive(Debug, Clone)]
 struct ArtifactEntry {
@@ -319,7 +330,7 @@ impl ArtifactStore {
         let mut seen = HashSet::new();
         let dependencies = dependencies
             .into_iter()
-            .filter(|dependency| seen.insert((dependency.key, dependency.stamp)))
+            .filter(|dependency| seen.insert(dependency.version))
             .collect();
         let mut entry = self.entry_mut(*version);
         entry.dependencies = dependencies;
@@ -356,6 +367,21 @@ impl ArtifactStore {
     /// Return whether one exact artifact version entry exists.
     pub fn exists(&self, version: &ArtifactVersion) -> bool {
         self.entries.contains_key(version)
+    }
+
+    /// Return the exact availability status for one artifact version.
+    pub fn status(&self, version: &ArtifactVersion) -> ArtifactStatus {
+        // published payload
+        if self.contains(version) {
+            return ArtifactStatus::Ready;
+        }
+
+        // failed attempt
+        if self.exists(version) {
+            return ArtifactStatus::Failed;
+        }
+
+        ArtifactStatus::Missing
     }
 
     /// Return whether one exact artifact payload is published.

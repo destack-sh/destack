@@ -556,8 +556,7 @@ impl Linter {
             .into_iter()
             .map(|artifact_key| {
                 ArtifactRequirement {
-                    key: artifact_key,
-                    stamp: self.repository.artifact_stamp(revision, &artifact_key),
+                    version: self.repository.artifact_version(revision, &artifact_key),
                 }
                 .into()
             })
@@ -677,8 +676,5 @@ fn artifact_dependency(
 ) -> ArtifactDependency {
     let version = repository.artifact_version(revision, &artifact_key);
 
-    ArtifactDependency {
-        key: artifact_key,
-        stamp: version.stamp,
-    }
+    ArtifactDependency { version }
 }
