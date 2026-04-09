@@ -37,6 +37,12 @@ pub enum ArtifactFamily {
     ModuleOutput,
     /// Output entries for one package target.
     PackageOutput,
+    /// One realized module lint surface.
+    ModuleLinted,
+    /// One realized package lint surface.
+    PackageLinted,
+    /// One realized workspace lint surface.
+    WorkspaceLinted,
 }
 
 /// Validation contract for reusing one persisted artifact image across fresh processes.
@@ -70,7 +76,10 @@ impl ArtifactFamily {
             | Self::MirBase
             | Self::MirOptimized
             | Self::ModuleOutput
-            | Self::PackageOutput => Some(PersistedImageValidation::DependencyValidated),
+            | Self::PackageOutput
+            | Self::ModuleLinted
+            | Self::PackageLinted
+            | Self::WorkspaceLinted => Some(PersistedImageValidation::DependencyValidated),
         }
     }
 }

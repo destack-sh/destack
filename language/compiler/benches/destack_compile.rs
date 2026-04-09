@@ -1,7 +1,9 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
+use destack_session::Session;
 use destack_source::{FileType, ModuleId, glob};
 use destack_workspace::{Change, Edit, Ref, Repository};
 use pprof::ProfilerGuard;
@@ -110,8 +112,11 @@ fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
     (sources, total_lines)
 }
 
-/// Create a compiler and materialize modules.
-fn build_compiler(workspace_root: &Path, sources: &[SourceFile]) -> (Compiler, Vec<ModuleId>) {
+/// Create a compiler, session, and materialize modules.
+fn build_workspace(
+    workspace_root: &Path,
+    sources: &[SourceFile],
+) -> (Arc<Compiler>, Arc<Session>, Vec<ModuleId>) {
     // repository
     let workspace_root = workspace_root.to_path_buf();
     let repository = Arc::new(Repository::open_root(workspace_root.clone()));
@@ -140,15 +145,32 @@ fn build_compiler(workspace_root: &Path, sources: &[SourceFile]) -> (Compiler, V
     }
 
     // compiler
-    let compiler = Compiler::new(
-        repository,
+    let compiler = Arc::new(Compiler::new(
+        repository.clone(),
         CompilerOptions {
             workers: 1,
             ..Default::default()
         },
+    ));
+    let linter = Arc::new(Linter::new(repository.clone()));
+    let session = Arc::new(
+        Session::new(
+            workspace_root.clone(),
+            repository,
+            reference,
+            None,
+            compiler.clone(),
+            linter,
+            None,
+            None,
+        )
+        .expect("failed to initialize compiler bench session"),
     );
+    session
+        .materialize_filesystem(true)
+        .expect("failed to materialize compiler bench workspace");
 
-    (compiler, modules)
+    (compiler, session, modules)
 }
 
 /// Return the current workspace revision for one compiler repository.
@@ -162,51 +184,31 @@ fn current_workspace_revision(compiler: &Compiler) -> destack_workspace::Revisio
 }
 
 /// Run a compiler pass for the selected mode.
-fn run_compile(compiler: &Compiler, modules: &[ModuleId], mode: CompileMode) {
+fn run_compile(session: &Session, compiler: &Compiler, modules: &[ModuleId], mode: CompileMode) {
     let revision = current_workspace_revision(compiler);
+    let mut artifact_keys = Vec::with_capacity(modules.len());
 
-    // enqueue work
+    // collect root artifacts
     for module_id in modules.iter().copied() {
-        // profile for module
         let profile_id = compiler
             .context(revision)
             .unwrap_or_else(|message| panic!("{message}"))
             .default_profile_id_for_module(module_id);
 
-        // build analyzed dir requirements to completion
+        // choose the root for this module
         match mode {
-            CompileMode::Check | CompileMode::Lint => compiler
-                .run_to_completion(revision, |compiler, _context| {
-                    compiler.require_dir_analyzed(module_id, profile_id)
-                })
-                .unwrap_or_else(|error| {
-                    panic!("failed to analyze benchmark module {module_id:?}: {error:?}")
-                }),
+            CompileMode::Check => {
+                artifact_keys.push(ArtifactKey::dir_analyzed(module_id, profile_id))
+            }
+            CompileMode::Lint => {
+                artifact_keys.push(ArtifactKey::module_linted(module_id, profile_id))
+            }
         }
     }
 
-    // lint after compiler products are ready
-    if matches!(mode, CompileMode::Lint) {
-        let linter = Linter::new(compiler.repository.clone());
-        for module_id in modules.iter().copied() {
-            let profile_id = compiler
-                .context(revision)
-                .unwrap_or_else(|message| panic!("{message}"))
-                .default_profile_id_for_module(module_id);
-            let profile = compiler
-                .repository
-                .default_profile_for_module(revision, module_id)
-                .unwrap_or_else(|error| {
-                    panic!("failed to resolve default profile for {module_id:?}: {error}")
-                });
-            assert_eq!(profile.id(), profile_id);
-            linter
-                .lint_module(revision, module_id, profile)
-                .unwrap_or_else(|error| {
-                    panic!("failed to lint benchmark module {module_id:?}: {error}")
-                });
-        }
-    }
+    session
+        .provide(&artifact_keys)
+        .unwrap_or_else(|error| panic!("failed to provide benchmark artifacts: {error}"));
 }
 
 /// Benchmark compile workloads for the workspace.
@@ -231,10 +233,16 @@ fn bench_compile(criterion: &mut Criterion) {
         |bencher, source_files| {
             bencher.iter(|| {
                 // build compiler
-                let (compiler, modules) = build_compiler(&workspace_root_path, source_files);
+                let (compiler, session, modules) =
+                    build_workspace(&workspace_root_path, source_files);
 
                 // run compile
-                run_compile(&compiler, &modules, CompileMode::Check);
+                run_compile(
+                    session.as_ref(),
+                    compiler.as_ref(),
+                    &modules,
+                    CompileMode::Check,
+                );
 
                 // capture stats
                 black_box(compiler.stats.snapshot());
@@ -249,10 +257,16 @@ fn bench_compile(criterion: &mut Criterion) {
         |bencher, source_files| {
             bencher.iter(|| {
                 // build compiler
-                let (compiler, modules) = build_compiler(&workspace_root_path, source_files);
+                let (compiler, session, modules) =
+                    build_workspace(&workspace_root_path, source_files);
 
                 // run compile
-                run_compile(&compiler, &modules, CompileMode::Lint);
+                run_compile(
+                    session.as_ref(),
+                    compiler.as_ref(),
+                    &modules,
+                    CompileMode::Lint,
+                );
 
                 // capture stats
                 black_box(compiler.stats.snapshot());

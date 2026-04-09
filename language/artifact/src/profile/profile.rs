@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 
-use super::{EnvSnapshot, normalize_profile_keys};
+use super::{EnvironmentStamp, normalize_profile_keys};
 use crate::{EmitFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor};
 
 /// Flags that affect profile identity.
@@ -87,8 +87,8 @@ pub struct ProfileKey {
     pub test: bool,
     /// Skip declaration diagnostics in compatibility mode.
     pub skip_lib_check: bool,
-    /// Comptime environment snapshot for `import.meta.env`.
-    pub env: EnvSnapshot,
+    /// Comptime environment stamp for `import.meta.env`.
+    pub env: EnvironmentStamp,
     /// Flags that affect semantic behavior.
     pub flags: ProfileFlags,
 }
@@ -107,7 +107,7 @@ impl ProfileKey {
         debug: bool,
         test: bool,
         skip_lib_check: bool,
-        env: EnvSnapshot,
+        env: EnvironmentStamp,
         flags: ProfileFlags,
     ) -> Self {
         let lib = normalize_profile_keys(lib);

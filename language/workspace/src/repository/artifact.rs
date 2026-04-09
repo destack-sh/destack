@@ -7,7 +7,7 @@ use destack_artifact::{
     ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
     DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment,
     LanguageEnvironment, LibraryEnvironment, Loader, MirBase, MirOptimized, ModuleGraph,
-    ModuleOutput, PackageOutput, ProfileKey,
+    ModuleLinted, ModuleOutput, PackageLinted, PackageOutput, ProfileKey, WorkspaceLinted,
 };
 use destack_source::{
     DiagnosticCollection, FileId, LanguageType, ModuleId, PackageId, ProfileId, TargetId,
@@ -164,15 +164,25 @@ impl Repository {
             .unwrap_or_default()
     }
 
-    /// Return diagnostics across the current artifact family slice for one module profile.
-    pub fn module_artifact_diagnostics(
+    /// Return diagnostics for one set of exact revision-scoped artifact keys.
+    fn artifact_diagnostics_for_keys(
         &self,
         revision: Revision,
-        module_id: ModuleId,
-        profile_id: ProfileId,
+        artifact_keys: impl IntoIterator<Item = ArtifactKey>,
     ) -> DiagnosticCollection {
         let mut diagnostics = DiagnosticCollection::new();
-        let artifact_keys = [
+
+        // accumulate exact artifact diagnostics
+        for artifact_key in artifact_keys {
+            diagnostics.merge_from(&self.artifact_diagnostics(revision, &artifact_key));
+        }
+
+        diagnostics
+    }
+
+    /// Return the current artifact family keys for one module/profile slice.
+    fn module_artifact_keys(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 10] {
+        [
             ArtifactKey::ast(module_id),
             ArtifactKey::data(module_id),
             ArtifactKey::dir_base(module_id),
@@ -183,13 +193,34 @@ impl Repository {
             ArtifactKey::dir_analyzed(module_id, profile_id),
             ArtifactKey::dir_elaborated(module_id, profile_id),
             ArtifactKey::dir_patched(module_id, profile_id),
-        ];
+            ArtifactKey::module_linted(module_id, profile_id),
+        ]
+    }
 
-        for artifact_key in artifact_keys {
-            diagnostics.merge_from(&self.artifact_diagnostics(revision, &artifact_key));
-        }
+    /// Return the current target artifact family keys for one module/profile/target slice.
+    fn module_target_artifact_keys(
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        target_id: TargetId,
+    ) -> [ArtifactKey; 3] {
+        [
+            ArtifactKey::mir_base(module_id, profile_id, target_id),
+            ArtifactKey::mir_optimized(module_id, profile_id, target_id),
+            ArtifactKey::module_output(module_id, target_id),
+        ]
+    }
 
-        diagnostics
+    /// Return diagnostics across the current artifact family slice for one module profile.
+    pub fn module_artifact_diagnostics(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> DiagnosticCollection {
+        self.artifact_diagnostics_for_keys(
+            revision,
+            Self::module_artifact_keys(module_id, profile_id),
+        )
     }
 
     /// Return diagnostics across the current target artifact family slice for one module target.
@@ -201,15 +232,12 @@ impl Repository {
         target_id: TargetId,
     ) -> DiagnosticCollection {
         let mut diagnostics = self.module_artifact_diagnostics(revision, module_id, profile_id);
-        let artifact_keys = [
-            ArtifactKey::mir_base(module_id, profile_id, target_id),
-            ArtifactKey::mir_optimized(module_id, profile_id, target_id),
-            ArtifactKey::module_output(module_id, target_id),
-        ];
+        let target_diagnostics = self.artifact_diagnostics_for_keys(
+            revision,
+            Self::module_target_artifact_keys(module_id, profile_id, target_id),
+        );
 
-        for artifact_key in artifact_keys {
-            diagnostics.merge_from(&self.artifact_diagnostics(revision, &artifact_key));
-        }
+        diagnostics.merge_from(&target_diagnostics);
 
         diagnostics
     }
@@ -274,6 +302,15 @@ impl Repository {
             }
             ArtifactKey::PackageOutput { package, target } => {
                 self.package_output_artifact_stamp(revision, artifact_key, *package, *target)
+            }
+            ArtifactKey::ModuleLinted { module, profile } => {
+                self.module_profile_artifact_stamp(revision, artifact_key, *module, *profile)
+            }
+            ArtifactKey::PackageLinted { package } => {
+                self.package_lint_artifact_stamp(revision, artifact_key, *package)
+            }
+            ArtifactKey::WorkspaceLinted => {
+                self.workspace_lint_artifact_stamp(revision, artifact_key)
             }
         };
 
@@ -370,9 +407,10 @@ impl Repository {
     ) -> ArtifactStamp {
         let module = self.module_output_stamp(revision, module_id);
         let profile = self
-            .profile_for_target(revision, module_id, &target_id)
+            .profile_id_for_target(revision, module_id, &target_id)
             .ok()
             .flatten()
+            .and_then(|profile_id| self.profile(revision, profile_id).ok().flatten())
             .map(|profile| profile.key);
         let target = self.module_target_stamp(revision, module_id, target_id);
 
@@ -391,6 +429,40 @@ impl Repository {
         let target = self.package_target_stamp(revision, package_id, target_id);
 
         self.stamp_for(&(artifact_key, package, target))
+    }
+
+    /// Return the stamp for one package lint artifact.
+    fn package_lint_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        package_id: PackageId,
+    ) -> ArtifactStamp {
+        let package = self.package_output_stamp(revision, package_id);
+        let module_inputs = self.package_lint_module_inputs(revision, package_id);
+
+        self.stamp_for(&(artifact_key, package, module_inputs))
+    }
+
+    /// Return the stamp for one workspace lint artifact.
+    fn workspace_lint_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> ArtifactStamp {
+        let package_ids = self.workspace_package_ids(revision).unwrap_or_default();
+        let package_inputs = package_ids
+            .into_iter()
+            .map(|package_id| {
+                (
+                    package_id,
+                    self.package_output_stamp(revision, package_id),
+                    self.package_lint_module_inputs(revision, package_id),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        self.stamp_for(&(artifact_key, package_inputs))
     }
 
     /// Check whether one module profile has the required live artifacts.
@@ -419,10 +491,12 @@ impl Repository {
         revision: Revision,
         module_id: ModuleId,
     ) -> Option<ModuleSourceStamp> {
-        let revision_state = self.revision(revision).ok()?;
         let workspace = self.workspace(revision).ok()?;
         let module = workspace.module(module_id)?;
-        let content_id = revision_state.file_content_id(module.file_id);
+        let content_id = self
+            .file_content_id(revision, module.file_id)
+            .ok()
+            .flatten();
 
         Some(ModuleSourceStamp {
             module_id: module.id,
@@ -441,33 +515,18 @@ impl Repository {
         revision: Revision,
         module_id: ModuleId,
     ) -> Option<ModuleOutputStamp> {
-        let revision_state = self.revision(revision).ok()?;
         let workspace = self.workspace(revision).ok()?;
         let module = workspace.module(module_id)?;
-        let package = workspace.package(module.package_id);
-        let package_path = package.and_then(|package| package.path.as_ref());
-        let package_file_id =
-            package_path.map(|path| self.file_id_for_workspace_path(&path.join("package.json")));
-        let package_file_id =
-            package_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
-        let destack_file_id =
-            package_path.map(|path| self.file_id_for_workspace_path(&path.join("destack.json")));
-        let destack_file_id =
-            destack_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
-        let tsconfig_file_id = module
-            .path
-            .as_ref()
-            .and_then(|path| {
-                self.applicable_tsconfig_file_id_at_path(revision, path)
-                    .ok()
-            })
-            .flatten();
+        let package = workspace.package(module.package_id)?;
+
+        // snapshot dependencies
         let package_file_content_id =
-            package_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+            self.file_content_id_for_optional_file(revision, package.package_file_id);
         let destack_file_content_id =
-            destack_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+            self.file_content_id_for_optional_file(revision, package.destack_file_id);
+        let tsconfig_file_id = module.tsconfig_file_id;
         let tsconfig_content_id =
-            tsconfig_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+            self.file_content_id_for_optional_file(revision, tsconfig_file_id);
 
         let source = self.module_source_stamp(revision, module_id)?;
 
@@ -486,33 +545,16 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Option<PackageOutputStamp> {
-        let revision_state = self.revision(revision).ok()?;
         let workspace = self.workspace(revision).ok()?;
         let package = workspace.package(package_id)?;
-        let package_file_id = package
-            .path
-            .as_ref()
-            .map(|path| self.file_id_for_workspace_path(&path.join("package.json")));
-        let package_file_id =
-            package_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
-        let destack_file_id = package
-            .path
-            .as_ref()
-            .map(|path| self.file_id_for_workspace_path(&path.join("destack.json")));
-        let destack_file_id =
-            destack_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
-        let tsconfig_file_id = package
-            .path
-            .as_ref()
-            .map(|path| self.file_id_for_workspace_path(&path.join("tsconfig.json")));
-        let tsconfig_file_id =
-            tsconfig_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
+
+        // snapshot dependencies
         let package_content_id =
-            package_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+            self.file_content_id_for_optional_file(revision, package.package_file_id);
         let destack_content_id =
-            destack_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+            self.file_content_id_for_optional_file(revision, package.destack_file_id);
         let tsconfig_content_id =
-            tsconfig_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+            self.file_content_id_for_optional_file(revision, package.tsconfig_file_id);
 
         Some(PackageOutputStamp {
             package_id: package.id,
@@ -524,6 +566,39 @@ impl Repository {
         })
     }
 
+    /// Return one revision scoped content id for one optional file id.
+    fn file_content_id_for_optional_file(
+        &self,
+        revision: Revision,
+        file_id: Option<FileId>,
+    ) -> Option<FileContentId> {
+        let file_id = file_id?;
+
+        self.file_content_id(revision, file_id).ok().flatten()
+    }
+
+    /// Return the module inputs used by one package lint artifact.
+    fn package_lint_module_inputs(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Vec<(ModuleId, Option<ModuleOutputStamp>, Option<ProfileId>)> {
+        let mut module_ids = self
+            .package_module_ids(revision, package_id)
+            .unwrap_or_default();
+        module_ids.sort_unstable();
+
+        module_ids
+            .into_iter()
+            .map(|module_id| {
+                let profile_id = self.default_profile_id_for_module(revision, module_id).ok();
+                let module = self.module_output_stamp(revision, module_id);
+
+                (module_id, module, profile_id)
+            })
+            .collect()
+    }
+
     /// Return one resolved module target stamp for one revision target.
     fn module_target_stamp(
         &self,
@@ -531,16 +606,12 @@ impl Repository {
         module_id: ModuleId,
         target_id: TargetId,
     ) -> Option<ModuleTargetStamp> {
-        let module = self.module(revision, module_id).ok().flatten()?;
-        let package = self.package(revision, module.package_id).ok().flatten()?;
-        let target = package.targets.get(&target_id).cloned().or_else(|| {
-            self.target_name_by_target_id(target_id)
-                .and_then(|name| Target::implicit_for_name(name.as_ref()))
-        })?;
+        let target = self.effective_target(revision, target_id).ok().flatten()?;
         let profile = self
-            .profile_for_target(revision, module_id, &target_id)
+            .profile_id_for_target(revision, module_id, &target_id)
             .ok()
             .flatten()
+            .and_then(|profile_id| self.profile(revision, profile_id).ok().flatten())
             .map(|profile| profile.key);
 
         Some(ModuleTargetStamp { target, profile })
@@ -550,15 +621,10 @@ impl Repository {
     fn package_target_stamp(
         &self,
         revision: Revision,
-        package_id: PackageId,
+        _package_id: PackageId,
         target_id: TargetId,
     ) -> Option<PackageTargetStamp> {
-        let package = self.package(revision, package_id).ok().flatten()?;
-
-        let target = package.targets.get(&target_id).cloned().or_else(|| {
-            self.target_name_by_target_id(target_id)
-                .and_then(|name| Target::implicit_for_name(name.as_ref()))
-        })?;
+        let target = self.effective_target(revision, target_id).ok().flatten()?;
 
         Some(PackageTargetStamp { target })
     }
@@ -787,5 +853,36 @@ impl Repository {
         );
 
         self.artifact_store().package_output(&version)
+    }
+
+    /// Return the module lint surface for one revision-scoped module profile.
+    pub fn module_linted(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> Option<Arc<ModuleLinted>> {
+        let version =
+            self.artifact_version(revision, &ArtifactKey::module_linted(module_id, profile_id));
+
+        self.artifact_store().module_linted(&version)
+    }
+
+    /// Return the package lint surface for one revision-scoped package.
+    pub fn package_linted(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Option<Arc<PackageLinted>> {
+        let version = self.artifact_version(revision, &ArtifactKey::package_linted(package_id));
+
+        self.artifact_store().package_linted(&version)
+    }
+
+    /// Return the workspace lint surface for one revision.
+    pub fn workspace_linted(&self, revision: Revision) -> Option<Arc<WorkspaceLinted>> {
+        let version = self.artifact_version(revision, &ArtifactKey::workspace_linted());
+
+        self.artifact_store().workspace_linted(&version)
     }
 }

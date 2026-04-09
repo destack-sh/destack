@@ -5,14 +5,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
-    ArtifactKey, EmitFormat, EnvSnapshot, MemoryCacheStore, Platform, ProfileFlags, ProfileKey,
-    Runtime,
+    ArtifactKey, EmitFormat, EnvironmentStamp, MemoryCacheStore, Platform, ProfileFlags,
+    ProfileKey, Runtime,
 };
 use destack_ast::NodeParentIndex;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
+use destack_session::Session;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit as SourceEdit, File, FileId,
     FileType, LanguageType, MemoryFileSystem, ModuleId, Uri, print_diff,
@@ -47,8 +48,12 @@ pub(crate) struct TestProgram {
     profile: Profile,
     /// The compiler.
     compiler: Arc<Compiler>,
+    /// The shared session over the workspace root.
+    session: Arc<Session>,
     /// The latest compiler diagnostics for this test harness.
     latest_diagnostics: Mutex<DiagnosticCollection>,
+    /// Pending artifact roots for the next compiler run.
+    pending_artifact_keys: Mutex<Vec<ArtifactKey>>,
     /// The lint runner.
     runner: LintRunner,
     /// Linter options for tests (all rules enabled by default).
@@ -187,7 +192,7 @@ impl TestProgram {
         let repository = Arc::new(
             Repository::open_root_from_fs(cwd.clone(), fs.clone())
                 .expect("failed to import repository from linter test file system")
-                .with_cache_store(TEST_CACHE_STORE.clone()),
+                .with_cache(TEST_CACHE_STORE.clone()),
         );
 
         // libs
@@ -205,7 +210,7 @@ impl TestProgram {
             false,
             false,
             false,
-            EnvSnapshot::from_env_all(),
+            EnvironmentStamp::from_env_all(),
             ProfileFlags::default(),
         );
         let profile = Profile::from_key(profile_key);
@@ -220,9 +225,24 @@ impl TestProgram {
             },
         ));
 
-        // keep the compiler profile cache aligned with the explicit test profile
-        let _ = compiler.remember_profile(profile.clone());
-
+        let head = Ref::for_workspace_root(repository.workspace_root());
+        let linter = Arc::new(super::Linter::new(repository.clone()));
+        let session = Arc::new(
+            Session::new(
+                repository.workspace_root().to_path_buf(),
+                repository.clone(),
+                head,
+                None,
+                compiler.clone(),
+                linter,
+                None,
+                None,
+            )
+            .expect("failed to initialize linter test session"),
+        );
+        session
+            .materialize_filesystem(true)
+            .expect("failed to materialize linter test workspace");
         let runner = LintRunner::new(rules);
 
         Self {
@@ -230,7 +250,9 @@ impl TestProgram {
             repository,
             profile,
             compiler,
+            session,
             latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
+            pending_artifact_keys: Mutex::new(Vec::new()),
             runner,
             linter_options: test_linter_options(),
             has_enqueued_profile_resolution: AtomicBool::new(false),
@@ -331,28 +353,26 @@ impl TestProgram {
 
     /// Import a module.
     pub(crate) fn import_module(&self, module: ModuleId) {
-        self.compiler
-            .enqueue(self.current_revision(), ArtifactKey::DirBase { module });
+        self.pending_artifact_keys
+            .lock()
+            .push(ArtifactKey::DirBase { module });
     }
 
     /// Resolve a module.
     pub(crate) fn resolve_module(&self, module: ModuleId) {
-        self.compiler.enqueue(
-            self.current_revision(),
-            ArtifactKey::DirResolved {
+        self.pending_artifact_keys
+            .lock()
+            .push(ArtifactKey::DirResolved {
                 module,
                 profile: self.profile_id(),
-            },
-        );
+            });
     }
 
     /// Resolve the language environment for the current profile.
     pub(crate) fn resolve_language_environment(&self) {
-        self.compiler
-            .run_to_completion(self.current_revision(), |compiler| {
-                compiler.require_language_environment(self.profile_id())
-            })
-            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
+        self.session
+            .provide(&[ArtifactKey::language_environment(self.profile_id())])
+            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error}"));
 
         // publish diagnostics from this compiler operation into the test harness
         self.replace_latest_diagnostics(self.compiler.take_diagnostics());
@@ -360,11 +380,9 @@ impl TestProgram {
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
-        self.compiler
-            .run_to_completion(self.current_revision(), |compiler| {
-                compiler.require_library_environment(self.profile_id())
-            })
-            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
+        self.session
+            .provide(&[ArtifactKey::library_environment(self.profile_id())])
+            .unwrap_or_else(|error| panic!("failed to resolve libs: {error}"));
 
         // publish diagnostics from this compiler operation into the test harness
         self.replace_latest_diagnostics(self.compiler.take_diagnostics());
@@ -385,18 +403,24 @@ impl TestProgram {
 
     /// Analyze a module.
     pub(crate) fn analyze_module(&self, module: ModuleId) {
-        self.compiler.enqueue(
-            self.current_revision(),
-            ArtifactKey::DirAnalyzed {
+        self.pending_artifact_keys
+            .lock()
+            .push(ArtifactKey::DirAnalyzed {
                 module,
                 profile: self.profile_id(),
-            },
-        );
+            });
     }
 
     /// Run all queued tasks.
     pub(crate) fn compile(&self) {
-        self.compiler.compile();
+        let artifact_keys = {
+            let mut pending_artifact_keys = self.pending_artifact_keys.lock();
+            std::mem::take(&mut *pending_artifact_keys)
+        };
+
+        self.session
+            .provide(&artifact_keys)
+            .unwrap_or_else(|error| panic!("failed to provide linter test artifacts: {error}"));
 
         // publish diagnostics from this compiler run into the test harness
         self.replace_latest_diagnostics(self.compiler.take_diagnostics());

@@ -3,12 +3,12 @@ use destack_artifact::{
     ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, ProfileKey,
 };
 use destack_source::ProfileId;
-use destack_workspace::Revision;
+use destack_workspace::{Profile, Revision};
 
 impl Compiler {
     /// Return the live profile id for one stable image profile key.
     fn profile_id_for_artifact_image_key(&self, profile_key: &ProfileKey) -> Option<ProfileId> {
-        Some(self.remember_profile_key(profile_key.clone()))
+        Some(Profile::id_for_key(profile_key))
     }
 
     /// Build the expected persisted image header for one stable image key.
@@ -202,6 +202,9 @@ impl Compiler {
             ArtifactImageKey::PackageOutput { package, target } => {
                 self.package_output_image_header(revision, *package, target)
             }
+            ArtifactImageKey::ModuleLinted { .. }
+            | ArtifactImageKey::PackageLinted { .. }
+            | ArtifactImageKey::WorkspaceLinted => None,
         };
 
         Ok(header)

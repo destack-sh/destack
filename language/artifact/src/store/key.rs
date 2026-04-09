@@ -4,6 +4,15 @@ use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::{ArtifactFamily, ProfileKey};
 
+/// Provider that owns one artifact key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ArtifactProvider {
+    /// Compiler owned artifacts.
+    Compiler,
+    /// Linter owned artifacts.
+    Linter,
+}
+
 /// Stamp captured for one artifact build.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
@@ -125,13 +134,19 @@ pub enum ArtifactKey<P = ProfileId> {
         package: PackageId,
         target: TargetId,
     },
+    /// Realized lint diagnostics for one module profile.
+    ModuleLinted { module: ModuleId, profile: P },
+    /// Realized lint diagnostics for one package.
+    PackageLinted { package: PackageId },
+    /// Realized lint diagnostics for the workspace.
+    WorkspaceLinted,
 }
 
 impl<P> ArtifactKey<P> {
     /// Return the package referenced by this artifact key when one exists.
     pub fn package_id(&self) -> Option<PackageId> {
         match self {
-            Self::PackageOutput { package, .. } => Some(*package),
+            Self::PackageOutput { package, .. } | Self::PackageLinted { package } => Some(*package),
             _ => None,
         }
     }
@@ -234,6 +249,21 @@ impl<P> ArtifactKey<P> {
         Self::PackageOutput { package, target }
     }
 
+    /// Build one module lint artifact key.
+    pub fn module_linted(module: ModuleId, profile: P) -> Self {
+        Self::ModuleLinted { module, profile }
+    }
+
+    /// Build one package lint artifact key.
+    pub fn package_linted(package: PackageId) -> Self {
+        Self::PackageLinted { package }
+    }
+
+    /// Build one workspace lint artifact key.
+    pub fn workspace_linted() -> Self {
+        Self::WorkspaceLinted
+    }
+
     /// Return the artifact family for this key.
     pub fn family(&self) -> ArtifactFamily {
         match self {
@@ -255,6 +285,61 @@ impl<P> ArtifactKey<P> {
             Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
             Self::ModuleOutput { .. } => ArtifactFamily::ModuleOutput,
             Self::PackageOutput { .. } => ArtifactFamily::PackageOutput,
+            Self::ModuleLinted { .. } => ArtifactFamily::ModuleLinted,
+            Self::PackageLinted { .. } => ArtifactFamily::PackageLinted,
+            Self::WorkspaceLinted => ArtifactFamily::WorkspaceLinted,
+        }
+    }
+
+    /// Return the provider that owns this key.
+    pub fn provider(&self) -> ArtifactProvider {
+        match self {
+            Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
+                ArtifactProvider::Linter
+            }
+            Self::ModuleGraph { .. }
+            | Self::LanguageEnvironment { .. }
+            | Self::IntrinsicEnvironment { .. }
+            | Self::LibraryEnvironment { .. }
+            | Self::Ast { .. }
+            | Self::DirBase { .. }
+            | Self::DirPrepared { .. }
+            | Self::DirResolved { .. }
+            | Self::DirDeclared { .. }
+            | Self::DirInterface { .. }
+            | Self::DirAnalyzed { .. }
+            | Self::DirElaborated { .. }
+            | Self::DirPatched { .. }
+            | Self::MirBase { .. }
+            | Self::MirOptimized { .. }
+            | Self::ModuleOutput { .. }
+            | Self::PackageOutput { .. } => ArtifactProvider::Compiler,
+        }
+    }
+
+    /// Return the stable short name for this key.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::ModuleGraph { .. } => "module_graph",
+            Self::LanguageEnvironment { .. } => "language_environment",
+            Self::IntrinsicEnvironment { .. } => "intrinsic_environment",
+            Self::LibraryEnvironment { .. } => "library_environment",
+            Self::Ast { .. } => "ast",
+            Self::DirBase { .. } => "dir_base",
+            Self::DirPrepared { .. } => "dir_prepared",
+            Self::DirResolved { .. } => "dir_resolved",
+            Self::DirDeclared { .. } => "dir_declared",
+            Self::DirInterface { .. } => "dir_interface",
+            Self::DirAnalyzed { .. } => "dir_analyzed",
+            Self::DirElaborated { .. } => "dir_elaborated",
+            Self::DirPatched { .. } => "dir_patched",
+            Self::MirBase { .. } => "mir_base",
+            Self::MirOptimized { .. } => "mir_optimized",
+            Self::ModuleOutput { .. } => "module_output",
+            Self::PackageOutput { .. } => "package_output",
+            Self::ModuleLinted { .. } => "module_linted",
+            Self::PackageLinted { .. } => "package_linted",
+            Self::WorkspaceLinted => "workspace_linted",
         }
     }
 
@@ -273,12 +358,15 @@ impl<P> ArtifactKey<P> {
             | Self::DirPatched { module, .. }
             | Self::MirBase { module, .. }
             | Self::MirOptimized { module, .. }
-            | Self::ModuleOutput { module, .. } => Some(*module),
+            | Self::ModuleOutput { module, .. }
+            | Self::ModuleLinted { module, .. } => Some(*module),
             Self::ModuleGraph { .. }
             | Self::LanguageEnvironment { .. }
             | Self::IntrinsicEnvironment { .. }
             | Self::LibraryEnvironment { .. }
-            | Self::PackageOutput { .. } => None,
+            | Self::PackageOutput { .. }
+            | Self::PackageLinted { .. }
+            | Self::WorkspaceLinted => None,
         }
     }
 }
@@ -299,12 +387,15 @@ impl ArtifactKey<ProfileId> {
             | Self::DirElaborated { profile, .. }
             | Self::DirPatched { profile, .. }
             | Self::MirBase { profile, .. }
-            | Self::MirOptimized { profile, .. } => Some(*profile),
+            | Self::MirOptimized { profile, .. }
+            | Self::ModuleLinted { profile, .. } => Some(*profile),
             Self::Ast { .. }
             | Self::Data { .. }
             | Self::DirBase { .. }
             | Self::ModuleOutput { .. }
-            | Self::PackageOutput { .. } => None,
+            | Self::PackageOutput { .. }
+            | Self::PackageLinted { .. }
+            | Self::WorkspaceLinted => None,
         }
     }
 
@@ -383,6 +474,14 @@ impl ArtifactKey<ProfileId> {
                 package: *package,
                 target: *target,
             },
+            Self::ModuleLinted { module, profile } => ArtifactImageKey::ModuleLinted {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::PackageLinted { package } => {
+                ArtifactImageKey::PackageLinted { package: *package }
+            }
+            Self::WorkspaceLinted => ArtifactImageKey::WorkspaceLinted,
         }
     }
 }

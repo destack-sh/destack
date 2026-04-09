@@ -9,7 +9,9 @@ use crate::tests::TestWorkspaceView;
 
 /// Build one stable profile key for scenario cache tests.
 pub(crate) fn test_profile_key() -> destack_artifact::ProfileKey {
-    use destack_artifact::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
+    use destack_artifact::{
+        EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey, Runtime,
+    };
 
     ProfileKey::new(
         EmitFormat::Js,
@@ -22,7 +24,7 @@ pub(crate) fn test_profile_key() -> destack_artifact::ProfileKey {
         false,
         false,
         false,
-        EnvSnapshot::Whitelist {
+        EnvironmentStamp::Whitelist {
             keys: Vec::new(),
             hash: 0,
         },
@@ -40,7 +42,7 @@ pub(crate) fn append_file_text(
 
     // load the current text contents
     let file = program.source_file(file_id);
-    let FileContent::Text { content } = &file.content else {
+    let FileContent::Text { content } = file.content.payload() else {
         panic!("expected text file");
     };
 

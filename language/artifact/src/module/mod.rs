@@ -7,6 +7,7 @@ mod graph;
 mod html;
 mod image;
 mod kind;
+mod lint;
 mod loader;
 mod mir;
 
@@ -19,5 +20,6 @@ pub use graph::*;
 pub use html::*;
 pub use image::*;
 pub use kind::*;
+pub use lint::*;
 pub use loader::*;
 pub use mir::*;
