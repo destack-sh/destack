@@ -1,141 +1,102 @@
-
-function @memcmp_chunks(v0: i64, v1: i64) -> i64 {
-
-// entry, clamp length
-block0(v0: i64, v1: i64):
-    v2: i64 = iconst 16i64
-    v3: bool = icmp_slt v1, v2
-    branch v3, block1, block2
-
-// merge branch, continue
-block1:
-    jump block3(v2)
-
-// merge branch, continue
-block2:
-    jump block3(v1)
-
-// entry, init state
-block3(v4: i64):
-    v5: ref<managed u8> = managed.alloc_array u8, v4
-    v6: ref<managed u8> = managed.alloc_array u8, v4
-    v7: i64 = iconst 0i64
-    jump block4(v7, v4, v5, v6)
-
-// loop condition, fill buffers
-block4(v8: i64, v9: i64, v10: ref<managed u8>, v11: ref<managed u8>):
-    v12: bool = icmp_sge v8, v9
-    branch v12, block9(v9, v10, v11), block5
-
-// fill buffers
-block5:
-    v13: i64 = iconst 3i64
-    v14: i64 = imul v8, v13
-    v15: i64 = iconst 1i64
-    v16: i64 = iadd v14, v15
-    v17: i64 = iconst 255i64
-    v18: i64 = band v16, v17
-    v19: u8 = trunc v18 -> u8
-    v20: ref<borrowed u8> = element.addr v10, v8
+function memcmpChunks(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = 16int64
+    v3: boolean = int.lt.s v1, v2
+    branch v3, b1, b2
+b1:
+    jump b3(v2)
+b2:
+    jump b3(v1)
+b3(v4: int64):
+    v5: ref<uint8, managed> = managed.allocArray uint8, v4
+    v6: ref<uint8, managed> = managed.allocArray uint8, v4
+    v7: int64 = 0int64
+    jump b4(v7, v4, v5, v6)
+b4(v8: int64, v9: int64, v10: ref<uint8, managed>, v11: ref<uint8, managed>):
+    v12: boolean = int.ge.s v8, v9
+    branch v12, b9(v9, v10, v11), b5
+b5:
+    v13: int64 = 3int64
+    v14: int64 = int.mul v8, v13
+    v15: int64 = 1int64
+    v16: int64 = int.add v14, v15
+    v17: int64 = 255int64
+    v18: int64 = int.and v16, v17
+    v19: uint8 = cast.truncate v18 -> uint8
+    v20: ref<uint8, borrowed> = element.address v10, v8
     store v20, v19
-    v21: i64 = iconst 7i64
-    v22: i64 = band v8, v21
-    v23: i64 = iconst 0i64
-    v24: bool = icmp_eq v22, v23
-    branch v24, block6(v18, v8, v9, v10, v11), block7(v19, v8, v9, v10, v11)
-
-// fill right buffer with offset
-block6(v25: i64, v26: i64, v27: i64, v28: ref<managed u8>, v29: ref<managed u8>):
-    v30: i64 = iconst 1i64
-    v31: i64 = iadd v25, v30
-    v32: i64 = iconst 255i64
-    v33: i64 = band v31, v32
-    v34: u8 = trunc v33 -> u8
-    v35: ref<borrowed u8> = element.addr v29, v26
+    v21: int64 = 7int64
+    v22: int64 = int.and v8, v21
+    v23: int64 = 0int64
+    v24: boolean = int.eq v22, v23
+    branch v24, b6(v18, v8, v9, v10, v11), b7(v19, v8, v9, v10, v11)
+b6(v25: int64, v26: int64, v27: int64, v28: ref<uint8, managed>, v29: ref<uint8, managed>):
+    v30: int64 = 1int64
+    v31: int64 = int.add v25, v30
+    v32: int64 = 255int64
+    v33: int64 = int.and v31, v32
+    v34: uint8 = cast.truncate v33 -> uint8
+    v35: ref<uint8, borrowed> = element.address v29, v26
     store v35, v34
-    jump block8(v26, v27, v28, v29)
-
-// fill right buffer without offset
-block7(v36: u8, v37: i64, v38: i64, v39: ref<managed u8>, v40: ref<managed u8>):
-    v41: ref<borrowed u8> = element.addr v40, v37
+    jump b8(v26, v27, v28, v29)
+b7(v36: uint8, v37: int64, v38: int64, v39: ref<uint8, managed>, v40: ref<uint8, managed>):
+    v41: ref<uint8, borrowed> = element.address v40, v37
     store v41, v36
-    jump block8(v37, v38, v39, v40)
-
-// advance fill loop
-block8(v42: i64, v43: i64, v44: ref<managed u8>, v45: ref<managed u8>):
-    v46: i64 = iconst 1i64
-    v47: i64 = iadd v42, v46
-    jump block4(v47, v43, v44, v45)
-
-// init compare loop
-block9(v48: i64, v49: ref<managed u8>, v50: ref<managed u8>):
-    v51: i64 = iconst 0i64
-    v52: i64 = iconst 0i64
-    jump block10(v51, v52, v48, v49, v50)
-
-// loop condition, compare chunks
-block10(v53: i64, v54: i64, v55: i64, v56: ref<managed u8>, v57: ref<managed u8>):
-    v58: bool = icmp_sge v53, v55
-    branch v58, block15(v54), block11
-
-// compute chunk length
-block11:
-    v59: i64 = isub v55, v53
-    v60: i64 = iconst 16i64
-    v61: bool = icmp_slt v59, v60
-    branch v61, block12(v59, v53, v54, v55, v56, v57), block13(v60, v53, v54, v55, v56, v57)
-
-// use tail length
-block12(v62: i64, v63: i64, v64: i64, v65: i64, v66: ref<managed u8>, v67: ref<managed u8>):
-    jump block14(v62, v63, v64, v65, v66, v67)
-
-// use full chunk length
-block13(v68: i64, v69: i64, v70: i64, v71: i64, v72: ref<managed u8>, v73: ref<managed u8>):
-    jump block14(v68, v69, v70, v71, v72, v73)
-
-// compare chunk
-block14(v74: i64, v75: i64, v76: i64, v77: i64, v78: ref<managed u8>, v79: ref<managed u8>):
-    v80: ref<borrowed u8> = element.addr v78, v75
-    v81: ref<borrowed u8> = element.addr v79, v75
-    v82: i32 = intrinsic.memcmp(v80, v81, v74)
-    v83: i64 = sextend v82 -> i64
-    v84: i64 = iadd v76, v83
-    v85: i64 = iadd v75, v74
-    jump block10(v85, v84, v77, v78, v79)
-
-// init scale loop
-block15(v86: i64):
-    v87: i64 = iconst 0i64
-    v88: i64 = iconst 0i64
-    jump block16(v87, v88, v86)
-
-// loop condition, scale result
-block16(v89: i64, v90: i64, v91: i64):
-    v92: bool = icmp_sge v89, v0
-    branch v92, block18(v90), block17
-
-// loop body, accumulate
-block17:
-    v93: i64 = iadd v90, v91
-    v94: i64 = iconst 1i64
-    v95: i64 = iadd v89, v94
-    jump block16(v95, v93, v91)
-
-// return result
-block18(v96: i64):
-    v97: i64 = bxor v0, v4
-    v98: i64 = iconst 7i64
-    v99: i64 = imul v97, v98
-    v100: i64 = iadd v96, v99
-    v101: i64 = iconst 3i64
-    v102: i64 = iadd v100, v101
-    v103: i64 = iconst 3i64
-    v104: i64 = sshr v96, v103
-    v105: i64 = bxor v102, v104
-    v106: i64 = iconst 33i64
-    v107: i64 = imul v105, v106
-    v108: i64 = iconst 255i64
-    v109: i64 = band v97, v108
-    v110: i64 = iadd v107, v109
+    jump b8(v37, v38, v39, v40)
+b8(v42: int64, v43: int64, v44: ref<uint8, managed>, v45: ref<uint8, managed>):
+    v46: int64 = 1int64
+    v47: int64 = int.add v42, v46
+    jump b4(v47, v43, v44, v45)
+b9(v48: int64, v49: ref<uint8, managed>, v50: ref<uint8, managed>):
+    v51: int64 = 0int64
+    v52: int64 = 0int64
+    jump b10(v51, v52, v48, v49, v50)
+b10(v53: int64, v54: int64, v55: int64, v56: ref<uint8, managed>, v57: ref<uint8, managed>):
+    v58: boolean = int.ge.s v53, v55
+    branch v58, b15(v54), b11
+b11:
+    v59: int64 = int.sub v55, v53
+    v60: int64 = 16int64
+    v61: boolean = int.lt.s v59, v60
+    branch v61, b12(v59, v53, v54, v55, v56, v57), b13(v60, v53, v54, v55, v56, v57)
+b12(v62: int64, v63: int64, v64: int64, v65: int64, v66: ref<uint8, managed>, v67: ref<uint8, managed>):
+    jump b14(v62, v63, v64, v65, v66, v67)
+b13(v68: int64, v69: int64, v70: int64, v71: int64, v72: ref<uint8, managed>, v73: ref<uint8, managed>):
+    jump b14(v68, v69, v70, v71, v72, v73)
+b14(v74: int64, v75: int64, v76: int64, v77: int64, v78: ref<uint8, managed>, v79: ref<uint8, managed>):
+    v80: ref<uint8, borrowed> = element.address v78, v75
+    v81: ref<uint8, borrowed> = element.address v79, v75
+    v82: int32 = intrinsic.memcmp(v80, v81, v74)
+    v83: int64 = cast.extend.s v82 -> int64
+    v84: int64 = int.add v76, v83
+    v85: int64 = int.add v75, v74
+    jump b10(v85, v84, v77, v78, v79)
+b15(v86: int64):
+    v87: int64 = 0int64
+    v88: int64 = 0int64
+    jump b16(v87, v88, v86)
+b16(v89: int64, v90: int64, v91: int64):
+    v92: boolean = int.ge.s v89, v0
+    branch v92, b18(v90), b17
+b17:
+    v93: int64 = int.add v90, v91
+    v94: int64 = 1int64
+    v95: int64 = int.add v89, v94
+    jump b16(v95, v93, v91)
+b18(v96: int64):
+    v97: int64 = int.xor v0, v4
+    v98: int64 = 7int64
+    v99: int64 = int.mul v97, v98
+    v100: int64 = int.add v96, v99
+    v101: int64 = 3int64
+    v102: int64 = int.add v100, v101
+    v103: int64 = 3int64
+    v104: int64 = int.shiftRight.s v96, v103
+    v105: int64 = int.xor v102, v104
+    v106: int64 = 33int64
+    v107: int64 = int.mul v105, v106
+    v108: int64 = 255int64
+    v109: int64 = int.and v97, v108
+    v110: int64 = int.add v107, v109
     return v110
 }

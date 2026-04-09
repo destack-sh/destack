@@ -1,29 +1,20 @@
-
-function @raw_alloc_drop(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    v2: i64 = iconst 0i64
-    jump block1(v1, v2)
-
-// loop condition, check limit
-block1(v3: i64, v4: i64):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2
-
-// loop body, update memory
-block2:
-    v6: ref<raw i64> = raw.alloc i64
+function rawAllocDrop(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 0int64
+    v2: int64 = 0int64
+    jump b1(v1, v2)
+b1(v3: int64, v4: int64):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2
+b2:
+    v6: ref<int64, raw> = raw.alloc int64
     store v6, v3
-    v7: i64 = load v6
+    v7: int64 = load v6
     raw.drop v6
-    v8: i64 = iadd v4, v7
-    v9: i64 = iconst 1i64
-    v10: i64 = iadd v3, v9
-    jump block1(v10, v8)
-
-// return result
-block3(v11: i64):
+    v8: int64 = int.add v4, v7
+    v9: int64 = 1int64
+    v10: int64 = int.add v3, v9
+    jump b1(v10, v8)
+b3(v11: int64):
     return v11
 }

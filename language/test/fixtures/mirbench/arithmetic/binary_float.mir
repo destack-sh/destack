@@ -1,27 +1,18 @@
-
-function @binary_float(v0: i64, v1: f64, v2: f64, v3: f64) -> f64 {
-
-// entry, init state
-block0(v0: i64, v1: f64, v2: f64, v3: f64):
-    v4: i64 = iconst 0i64
-    jump block1(v4, v1)
-
-// loop condition, check limit
-block1(v5: i64, v6: f64):
-    v7: bool = icmp_sge v5, v0
-    branch v7, block3(v6), block2
-
-// loop body, update accumulators
-block2:
-    v8: f64 = fadd v6, v2
-    v9: f64 = fmul v8, v3
-    v10: f64 = fsub v9, v2
-    v11: f64 = fdiv v10, v3
-    v12: i64 = iconst 1i64
-    v13: i64 = iadd v5, v12
-    jump block1(v13, v11)
-
-// return result
-block3(v14: f64):
+function binaryFloat(v0: int64, v1: float64, v2: float64, v3: float64): float64 {
+b0(v0: int64, v1: float64, v2: float64, v3: float64):
+    v4: int64 = 0int64
+    jump b1(v4, v1)
+b1(v5: int64, v6: float64):
+    v7: boolean = int.ge.s v5, v0
+    branch v7, b3(v6), b2
+b2:
+    v8: float64 = float.add v6, v2
+    v9: float64 = float.mul v8, v3
+    v10: float64 = float.sub v9, v2
+    v11: float64 = float.div v10, v3
+    v12: int64 = 1int64
+    v13: int64 = int.add v5, v12
+    jump b1(v13, v11)
+b3(v14: float64):
     return v14
 }

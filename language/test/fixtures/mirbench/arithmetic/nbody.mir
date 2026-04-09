@@ -1,161 +1,112 @@
-
-function @nbody(v0: i64) -> i64 {
-
-// entry, init allocations
-block0(v0: i64):
-    v1: i64 = iconst 32i64
-    v2: ref<managed i64> = managed.alloc_array i64, v1
-    v3: ref<managed i64> = managed.alloc_array i64, v1
-    v4: i64 = iconst 0i64
-    jump block1(v4)
-
-// loop condition, check limit
-block1(v5: i64):
-    v6: bool = icmp_sge v5, v1
-    branch v6, block3, block2
-
-// loop body, update aggregates
-block2:
-    v7: i64 = iconst 1i64
-    v8: i64 = iadd v5, v7
-    v9: i64 = iconst 2i64
-    v10: i64 = imul v5, v9
-    v11: i64 = iadd v10, v7
-    v12: ref<borrowed i64> = element.addr v2, v5
+function nbody(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 32int64
+    v2: ref<int64, managed> = managed.allocArray int64, v1
+    v3: ref<int64, managed> = managed.allocArray int64, v1
+    v4: int64 = 0int64
+    jump b1(v4)
+b1(v5: int64):
+    v6: boolean = int.ge.s v5, v1
+    branch v6, b3, b2
+b2:
+    v7: int64 = 1int64
+    v8: int64 = int.add v5, v7
+    v9: int64 = 2int64
+    v10: int64 = int.mul v5, v9
+    v11: int64 = int.add v10, v7
+    v12: ref<int64, borrowed> = element.address v2, v5
     store v12, v8
-    v13: ref<borrowed i64> = element.addr v3, v5
+    v13: ref<int64, borrowed> = element.address v3, v5
     store v13, v11
-    v14: i64 = iadd v5, v7
-    jump block1(v14)
-
-// branch on condition
-block3:
-    v15: i64 = iconst 64i64
-    v16: i64 = sdiv v0, v15
-    v17: i64 = iconst 1i64
-    v18: bool = icmp_slt v16, v17
-    branch v18, block4, block5
-
-// merge branch, continue
-block4:
-    jump block6(v17)
-
-// merge branch, continue
-block5:
-    jump block6(v16)
-
-// merge branch, continue
-block6(v19: i64):
-    v20: i64 = iconst 0i64
-    jump block7(v20, v19)
-
-// loop condition, check limit
-block7(v21: i64, v22: i64):
-    v23: bool = icmp_sge v21, v22
-    branch v23, block24, block8
-
-// merge branch, continue
-block8:
-    v24: i64 = iconst 0i64
-    jump block9(v24, v21, v22)
-
-// loop condition, check limit
-block9(v25: i64, v26: i64, v27: i64):
-    v28: bool = icmp_sge v25, v1
-    branch v28, block22(v26, v27), block10
-
-// merge branch, continue
-block10:
-    v29: ref<borrowed i64> = element.addr v2, v25
-    v30: i64 = load v29
-    v31: i64 = iconst 0i64
-    v32: i64 = iconst 0i64
-    jump block11(v32, v31, v30, v25, v26, v27)
-
-// loop condition, check limit
-block11(v33: i64, v34: i64, v35: i64, v36: i64, v37: i64, v38: i64):
-    v39: bool = icmp_sge v33, v1
-    branch v39, block18(v34, v35, v36, v37, v38), block12
-
-// base case check
-block12:
-    v40: bool = icmp_eq v33, v36
-    branch v40, block17, block13
-
-// branch on condition
-block13:
-    v41: ref<borrowed i64> = element.addr v2, v33
-    v42: i64 = load v41
-    v43: i64 = isub v42, v35
-    v44: i64 = iconst 0i64
-    v45: bool = icmp_slt v43, v44
-    branch v45, block14, block15
-
-// merge branch, continue
-block14:
-    v46: i64 = ineg v43
-    jump block16(v46, v43, v34, v35, v36, v37, v38, v33)
-
-// merge branch, continue
-block15:
-    jump block16(v43, v43, v34, v35, v36, v37, v38, v33)
-
-// merge branches, advance loop
-block16(v47: i64, v48: i64, v49: i64, v50: i64, v51: i64, v52: i64, v53: i64, v54: i64):
-    v55: i64 = iconst 1i64
-    v56: i64 = iadd v47, v55
-    v57: i64 = sdiv v48, v56
-    v58: i64 = iadd v49, v57
-    v59: i64 = iconst 1i64
-    v60: i64 = iadd v54, v59
-    jump block11(v60, v58, v50, v51, v52, v53)
-
-// loop body, update accumulators
-block17:
-    v61: i64 = iconst 1i64
-    v62: i64 = iadd v33, v61
-    jump block11(v62, v34, v35, v36, v37, v38)
-
-// loop body, update aggregates
-block18(v63: i64, v64: i64, v65: i64, v66: i64, v67: i64):
-    v68: ref<borrowed i64> = element.addr v3, v65
-    v69: i64 = load v68
-    v70: i64 = iadd v69, v63
-    v71: i64 = iadd v64, v70
+    v14: int64 = int.add v5, v7
+    jump b1(v14)
+b3:
+    v15: int64 = 64int64
+    v16: int64 = int.div.s v0, v15
+    v17: int64 = 1int64
+    v18: boolean = int.lt.s v16, v17
+    branch v18, b4, b5
+b4:
+    jump b6(v17)
+b5:
+    jump b6(v16)
+b6(v19: int64):
+    v20: int64 = 0int64
+    jump b7(v20, v19)
+b7(v21: int64, v22: int64):
+    v23: boolean = int.ge.s v21, v22
+    branch v23, b20, b8
+b8:
+    v24: int64 = 0int64
+    jump b9(v24, v21, v22)
+b9(v25: int64, v26: int64, v27: int64):
+    v28: boolean = int.ge.s v25, v1
+    branch v28, b19(v26, v27), b10
+b10:
+    v29: ref<int64, borrowed> = element.address v2, v25
+    v30: int64 = load v29
+    v31: int64 = 0int64
+    v32: int64 = 0int64
+    jump b11(v32, v31, v30, v25, v26, v27)
+b11(v33: int64, v34: int64, v35: int64, v36: int64, v37: int64, v38: int64):
+    v39: boolean = int.ge.s v33, v1
+    branch v39, b18(v34, v35, v36, v37, v38), b12
+b12:
+    v40: boolean = int.eq v33, v36
+    branch v40, b17, b13
+b13:
+    v41: ref<int64, borrowed> = element.address v2, v33
+    v42: int64 = load v41
+    v43: int64 = int.sub v42, v35
+    v44: int64 = 0int64
+    v45: boolean = int.lt.s v43, v44
+    branch v45, b14, b15
+b14:
+    v46: int64 = int.negate v43
+    jump b16(v46, v43, v34, v35, v36, v37, v38, v33)
+b15:
+    jump b16(v43, v43, v34, v35, v36, v37, v38, v33)
+b16(v47: int64, v48: int64, v49: int64, v50: int64, v51: int64, v52: int64, v53: int64, v54: int64):
+    v55: int64 = 1int64
+    v56: int64 = int.add v47, v55
+    v57: int64 = int.div.s v48, v56
+    v58: int64 = int.add v49, v57
+    v59: int64 = 1int64
+    v60: int64 = int.add v54, v59
+    jump b11(v60, v58, v50, v51, v52, v53)
+b17:
+    v61: int64 = 1int64
+    v62: int64 = int.add v33, v61
+    jump b11(v62, v34, v35, v36, v37, v38)
+b18(v63: int64, v64: int64, v65: int64, v66: int64, v67: int64):
+    v68: ref<int64, borrowed> = element.address v3, v65
+    v69: int64 = load v68
+    v70: int64 = int.add v69, v63
+    v71: int64 = int.add v64, v70
     store v68, v70
-    v72: ref<borrowed i64> = element.addr v2, v65
+    v72: ref<int64, borrowed> = element.address v2, v65
     store v72, v71
-    v73: i64 = iconst 1i64
-    v74: i64 = iadd v65, v73
-    jump block9(v74, v66, v67)
-
-// loop body, update accumulators
-block22(v75: i64, v76: i64):
-    v77: i64 = iconst 1i64
-    v78: i64 = iadd v75, v77
-    jump block7(v78, v76)
-
-// merge branch, continue
-block24:
-    v79: i64 = iconst 0i64
-    v80: i64 = iconst 0i64
-    jump block25(v79, v80)
-
-// loop condition, check limit
-block25(v81: i64, v82: i64):
-    v83: bool = icmp_sge v81, v1
-    branch v83, block27(v82), block26
-
-// loop body, update aggregates
-block26:
-    v84: ref<borrowed i64> = element.addr v2, v81
-    v85: i64 = load v84
-    v86: i64 = iadd v82, v85
-    v87: i64 = iconst 1i64
-    v88: i64 = iadd v81, v87
-    jump block25(v88, v86)
-
-// return result
-block27(v89: i64):
+    v73: int64 = 1int64
+    v74: int64 = int.add v65, v73
+    jump b9(v74, v66, v67)
+b19(v75: int64, v76: int64):
+    v77: int64 = 1int64
+    v78: int64 = int.add v75, v77
+    jump b7(v78, v76)
+b20:
+    v79: int64 = 0int64
+    v80: int64 = 0int64
+    jump b21(v79, v80)
+b21(v81: int64, v82: int64):
+    v83: boolean = int.ge.s v81, v1
+    branch v83, b23(v82), b22
+b22:
+    v84: ref<int64, borrowed> = element.address v2, v81
+    v85: int64 = load v84
+    v86: int64 = int.add v82, v85
+    v87: int64 = 1int64
+    v88: int64 = int.add v81, v87
+    jump b21(v88, v86)
+b23(v89: int64):
     return v89
 }

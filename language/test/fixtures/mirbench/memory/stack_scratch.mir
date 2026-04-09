@@ -1,35 +1,26 @@
-
-function @stack_scratch(v0: i64) -> i64 {
-
-// entry, init allocations
-block0(v0: i64):
-    v1: ref<raw addrspace(stack) i64> = stack.alloc i64
-    v2: ref<raw addrspace(stack) i64> = stack.alloc i64
-    v3: i64 = iconst 0i64
-    v4: i64 = iconst 1i64
+function stackScratch(v0: int64): int64 {
+b0(v0: int64):
+    v1: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v2: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v3: int64 = 0int64
+    v4: int64 = 1int64
     store v1, v3
     store v2, v4
-    jump block1(v3, v1, v2)
-
-// loop condition, check limit
-block1(v5: i64, v6: ref<raw i64>, v7: ref<raw i64>):
-    v8: bool = icmp_sge v5, v0
-    branch v8, block3(v6, v7), block2
-
-// loop body, update memory
-block2:
-    v9: i64 = load v6
-    v10: i64 = load v7
-    v11: i64 = iadd v9, v10
+    jump b1(v3, v1, v2)
+b1(v5: int64, v6: ref<int64, raw>, v7: ref<int64, raw>):
+    v8: boolean = int.ge.s v5, v0
+    branch v8, b3(v6, v7), b2
+b2:
+    v9: int64 = load v6
+    v10: int64 = load v7
+    v11: int64 = int.add v9, v10
     store v6, v10
     store v7, v11
-    v12: i64 = iconst 1i64
-    v13: i64 = iadd v5, v12
-    jump block1(v13, v6, v7)
-
-// return accumulated value
-block3(v14: ref<raw i64>, v15: ref<raw i64>):
-    v16: i64 = load v15
+    v12: int64 = 1int64
+    v13: int64 = int.add v5, v12
+    jump b1(v13, v6, v7)
+b3(v14: ref<int64, raw>, v15: ref<int64, raw>):
+    v16: int64 = load v15
     stack.drop v14
     stack.drop v15
     return v16

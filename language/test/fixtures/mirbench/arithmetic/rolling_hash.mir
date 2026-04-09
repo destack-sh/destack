@@ -1,53 +1,44 @@
-
-function @rolling_hash(v0: i64) -> i64 {
-
-// entry, init ring buffer
-block0(v0: i64):
-    v1: i64 = iconst 8i64
-    v2: ref<managed i64> = managed.alloc_array i64, v1
-    v3: i64 = iconst 0i64
-    v4: i64 = iconst 0i64
-    v5: i64 = iconst 0i64
-    v6: i64 = iconst 0i64
-    jump block1(v3, v4, v5, v6, v2)
-
-// loop condition, check limit
-block1(v7: i64, v8: i64, v9: i64, v10: i64, v11: ref<managed i64>):
-    v12: bool = icmp_sge v7, v0
-    branch v12, block3(v9, v10), block2
-
-// loop body, update hashes
-block2:
-    v13: i64 = iconst 1103515245i64
-    v14: i64 = imul v7, v13
-    v15: i64 = iconst 12345i64
-    v16: i64 = iadd v14, v15
-    v17: i64 = iconst 255i64
-    v18: i64 = band v16, v17
-    v19: ref<borrowed i64> = element.addr v11, v8
-    v20: i64 = load v19
+function rollingHash(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 8int64
+    v2: ref<int64, managed> = managed.allocArray int64, v1
+    v3: int64 = 0int64
+    v4: int64 = 0int64
+    v5: int64 = 0int64
+    v6: int64 = 0int64
+    jump b1(v3, v4, v5, v6, v2)
+b1(v7: int64, v8: int64, v9: int64, v10: int64, v11: ref<int64, managed>):
+    v12: boolean = int.ge.s v7, v0
+    branch v12, b3(v9, v10), b2
+b2:
+    v13: int64 = 1103515245int64
+    v14: int64 = int.mul v7, v13
+    v15: int64 = 12345int64
+    v16: int64 = int.add v14, v15
+    v17: int64 = 255int64
+    v18: int64 = int.and v16, v17
+    v19: ref<int64, borrowed> = element.address v11, v8
+    v20: int64 = load v19
     store v19, v18
-    v21: i64 = iadd v9, v18
-    v22: i64 = isub v21, v20
-    v23: i64 = iconst 1i64
-    v24: i64 = iadd v8, v23
-    v25: i64 = iconst 7i64
-    v26: i64 = band v24, v25
-    v27: i64 = iconst 16777619i64
-    v28: i64 = imul v10, v27
-    v29: i64 = band v22, v17
-    v30: i64 = bxor v18, v29
-    v31: i64 = iadd v28, v30
-    v32: i64 = band v7, v25
-    v33: i64 = iconst 0i64
-    v34: bool = icmp_eq v32, v33
-    v35: i64 = bxor v31, v22
-    v36: i64 = select v34, v35, v31
-    v37: i64 = iadd v7, v23
-    jump block1(v37, v26, v22, v36, v11)
-
-// return result
-block3(v38: i64, v39: i64):
-    v40: i64 = bxor v38, v39
+    v21: int64 = int.add v9, v18
+    v22: int64 = int.sub v21, v20
+    v23: int64 = 1int64
+    v24: int64 = int.add v8, v23
+    v25: int64 = 7int64
+    v26: int64 = int.and v24, v25
+    v27: int64 = 16777619int64
+    v28: int64 = int.mul v10, v27
+    v29: int64 = int.and v22, v17
+    v30: int64 = int.xor v18, v29
+    v31: int64 = int.add v28, v30
+    v32: int64 = int.and v7, v25
+    v33: int64 = 0int64
+    v34: boolean = int.eq v32, v33
+    v35: int64 = int.xor v31, v22
+    v36: int64 = select v34, v35, v31
+    v37: int64 = int.add v7, v23
+    jump b1(v37, v26, v22, v36, v11)
+b3(v38: int64, v39: int64):
+    v40: int64 = int.xor v38, v39
     return v40
 }

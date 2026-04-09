@@ -2,7 +2,7 @@ use super::super::{Program, scale_axis};
 use destack_heap::Value;
 
 declare_program! {
-    /// Bitset like updates using popcnt and rotate intrinsics.
+    /// Bitset like updates using populationCount and rotate intrinsics.
     pub const BITSET_OPS,
     name: "bitset_ops",
     source: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/mirbench/intrinsics/bitset_ops.mir")),

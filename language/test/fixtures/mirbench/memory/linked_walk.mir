@@ -1,68 +1,68 @@
 
-type @Node = { value: i64, next: ref<raw addrspace(heap) @Node> }
+type Node { value: int64, next: ref<Node, raw, addressSpace(heap)> }
 
-function @build_list(v0: i64, v1: ref<raw addrspace(heap) @Node>) -> ref<raw addrspace(heap) @Node> {
+function buildList(v0: int64, v1: ref<Node, raw, addressSpace(heap)>): ref<Node, raw, addressSpace(heap)> {
 
 // entry, init state
-block0(v0: i64, v1: ref<raw addrspace(heap) @Node>):
-    v2: i64 = iconst 0i64
-    v3: bool = icmp_eq v0, v2
-    branch v3, block2, block1
+b0(v0: int64, v1: ref<Node, raw, addressSpace(heap)>):
+    v2: int64 = 0int64
+    v3: boolean = int.eq v0, v2
+    branch v3, b2, b1
 
 // return accumulated value
-block1:
-    v4: ref<raw addrspace(heap) @Node> = raw.alloc @Node
-    v5: ref<raw addrspace(heap) i64> = field.addr v4, 0
+b1:
+    v4: ref<Node, raw, addressSpace(heap)> = raw.alloc Node
+    v5: ref<int64, raw, addressSpace(heap)> = field.address v4, 0
     store v5, v0
-    v6: ref<raw addrspace(heap) ref<raw addrspace(heap) @Node>> = field.addr v4, 1
+    v6: ref<ref<Node, raw, addressSpace(heap)>, raw, addressSpace(heap)> = field.address v4, 1
     store v6, v1
-    v7: i64 = iconst 1i64
-    v8: i64 = isub v0, v7
-    v9: ref<raw addrspace(heap) @Node> = call @build_list(v8, v4)
+    v7: int64 = 1int64
+    v8: int64 = int.sub v0, v7
+    v9: ref<Node, raw, addressSpace(heap)> = call buildList(v8, v4): (int64, ref<Node, raw, addressSpace(heap)>) -> ref<Node, raw, addressSpace(heap)>
     return v9
 
 // return result
-block2:
+b2:
     return v1
 }
 
-function @walk_list(v0: ref<raw addrspace(heap) @Node>, v1: i64) -> i64 {
+function walkList(v0: ref<Node, raw, addressSpace(heap)>, v1: int64): int64 {
 
 // entry, init state
-block0(v0: ref<raw addrspace(heap) @Node>, v1: i64):
-    v2: ref<raw addrspace(heap) i64> = field.addr v0, 0
-    v3: i64 = load v2
-    v4: i64 = iconst 0i64
-    v5: bool = icmp_eq v3, v4
-    branch v5, block2, block1
+b0(v0: ref<Node, raw, addressSpace(heap)>, v1: int64):
+    v2: ref<int64, raw, addressSpace(heap)> = field.address v0, 0
+    v3: int64 = load v2
+    v4: int64 = 0int64
+    v5: boolean = int.eq v3, v4
+    branch v5, b2, b1
 
 // return accumulated value
-block1:
-    v6: i64 = iadd v1, v3
-    v7: ref<raw addrspace(heap) ref<raw addrspace(heap) @Node>> = field.addr v0, 1
-    v8: ref<raw addrspace(heap) @Node> = load v7
-    v9: i64 = call @walk_list(v8, v6)
+b1:
+    v6: int64 = int.add v1, v3
+    v7: ref<ref<Node, raw, addressSpace(heap)>, raw, addressSpace(heap)> = field.address v0, 1
+    v8: ref<Node, raw, addressSpace(heap)> = load v7
+    v9: int64 = call walkList(v8, v6): (ref<Node, raw, addressSpace(heap)>, int64) -> int64
     return v9
 
 // return result
-block2:
+b2:
     return v1
 }
 
-function @linked_walk(v0: i64) -> i64 {
-local0: ref<raw addrspace(heap) @Node>
+function linkedWalk(v0: int64): int64 {
+local local0: ref<Node, raw, addressSpace(heap)>
 
 // entry, init allocations, call helper
-block0(v0: i64):
-    v1: ref<raw addrspace(heap) @Node> = raw.alloc @Node
-    v2: i64 = iconst 0i64
+b0(v0: int64):
+    v1: ref<Node, raw, addressSpace(heap)> = raw.alloc Node
+    v2: int64 = 0int64
     local.set local0, v1
-    v3: ref<raw addrspace(heap) @Node> = local.get local0
-    v4: ref<raw addrspace(heap) i64> = field.addr v1, 0
+    v3: ref<Node, raw, addressSpace(heap)> = local.get local0
+    v4: ref<int64, raw, addressSpace(heap)> = field.address v1, 0
     store v4, v2
-    v5: ref<raw addrspace(heap) ref<raw addrspace(heap) @Node>> = field.addr v1, 1
+    v5: ref<ref<Node, raw, addressSpace(heap)>, raw, addressSpace(heap)> = field.address v1, 1
     store v5, v3
-    v6: ref<raw addrspace(heap) @Node> = call @build_list(v0, v1)
-    v7: i64 = call @walk_list(v6, v2)
+    v6: ref<Node, raw, addressSpace(heap)> = call buildList(v0, v1): (int64, ref<Node, raw, addressSpace(heap)>) -> ref<Node, raw, addressSpace(heap)>
+    v7: int64 = call walkList(v6, v2): (ref<Node, raw, addressSpace(heap)>, int64) -> int64
     return v7
 }

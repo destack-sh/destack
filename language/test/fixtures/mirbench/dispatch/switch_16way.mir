@@ -1,110 +1,67 @@
-
-function @switch_16way(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    jump block1(v1, v1)
-
-// loop condition, check limit
-block1(v2: i64, v3: i64):
-    v4: bool = icmp_sge v2, v0
-    branch v4, block19(v3), block2
-
-// switch on selector
-block2:
-    v5: i64 = iconst 16i64
-    v6: i64 = srem v2, v5
-    switch v6, block3, 0 => block3, 1 => block4, 2 => block5, 3 => block6, 4 => block7, 5 => block8, 6 => block9, 7 => block10, 8 => block11, 9 => block12, 10 => block13, 11 => block14, 12 => block15, 13 => block16, 14 => block17, 15 => block18
-
-// merge branch, continue
-block3:
-    v7: i64 = iconst 0i64
-    jump block20(v7)
-
-// merge branch, continue
-block4:
-    v8: i64 = iconst 1i64
-    jump block20(v8)
-
-// merge branch, continue
-block5:
-    v9: i64 = iconst 2i64
-    jump block20(v9)
-
-// merge branch, continue
-block6:
-    v10: i64 = iconst 3i64
-    jump block20(v10)
-
-// merge branch, continue
-block7:
-    v11: i64 = iconst 4i64
-    jump block20(v11)
-
-// merge branch, continue
-block8:
-    v12: i64 = iconst 5i64
-    jump block20(v12)
-
-// merge branch, continue
-block9:
-    v13: i64 = iconst 6i64
-    jump block20(v13)
-
-// merge branch, continue
-block10:
-    v14: i64 = iconst 7i64
-    jump block20(v14)
-
-// merge branch, continue
-block11:
-    v15: i64 = iconst 8i64
-    jump block20(v15)
-
-// merge branch, continue
-block12:
-    v16: i64 = iconst 9i64
-    jump block20(v16)
-
-// merge branch, continue
-block13:
-    v17: i64 = iconst 10i64
-    jump block20(v17)
-
-// merge branch, continue
-block14:
-    v18: i64 = iconst 11i64
-    jump block20(v18)
-
-// merge branch, continue
-block15:
-    v19: i64 = iconst 12i64
-    jump block20(v19)
-
-// merge branch, continue
-block16:
-    v20: i64 = iconst 13i64
-    jump block20(v20)
-
-// merge branch, continue
-block17:
-    v21: i64 = iconst 14i64
-    jump block20(v21)
-
-// merge branch, continue
-block18:
-    v22: i64 = iconst 15i64
-    jump block20(v22)
-
-// merge branches, advance loop
-block20(v23: i64):
-    v24: i64 = iadd v3, v23
-    v25: i64 = iconst 1i64
-    v26: i64 = iadd v2, v25
-    jump block1(v26, v24)
-
-// return result
-block19(v27: i64):
+function switch16way(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 0int64
+    jump b1(v1, v1)
+b1(v2: int64, v3: int64):
+    v4: boolean = int.ge.s v2, v0
+    branch v4, b20(v3), b2
+b2:
+    v5: int64 = 16int64
+    v6: int64 = int.rem.s v2, v5
+    switch v6, b3, 0 => b3, 1 => b4, 2 => b5, 3 => b6, 4 => b7, 5 => b8, 6 => b9, 7 => b10, 8 => b11, 9 => b12, 10 => b13, 11 => b14, 12 => b15, 13 => b16, 14 => b17, 15 => b18
+b3:
+    v7: int64 = 0int64
+    jump b19(v7)
+b4:
+    v8: int64 = 1int64
+    jump b19(v8)
+b5:
+    v9: int64 = 2int64
+    jump b19(v9)
+b6:
+    v10: int64 = 3int64
+    jump b19(v10)
+b7:
+    v11: int64 = 4int64
+    jump b19(v11)
+b8:
+    v12: int64 = 5int64
+    jump b19(v12)
+b9:
+    v13: int64 = 6int64
+    jump b19(v13)
+b10:
+    v14: int64 = 7int64
+    jump b19(v14)
+b11:
+    v15: int64 = 8int64
+    jump b19(v15)
+b12:
+    v16: int64 = 9int64
+    jump b19(v16)
+b13:
+    v17: int64 = 10int64
+    jump b19(v17)
+b14:
+    v18: int64 = 11int64
+    jump b19(v18)
+b15:
+    v19: int64 = 12int64
+    jump b19(v19)
+b16:
+    v20: int64 = 13int64
+    jump b19(v20)
+b17:
+    v21: int64 = 14int64
+    jump b19(v21)
+b18:
+    v22: int64 = 15int64
+    jump b19(v22)
+b19(v23: int64):
+    v24: int64 = int.add v3, v23
+    v25: int64 = 1int64
+    v26: int64 = int.add v2, v25
+    jump b1(v26, v24)
+b20(v27: int64):
     return v27
 }

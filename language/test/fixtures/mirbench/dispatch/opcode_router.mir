@@ -1,107 +1,76 @@
-
-function @opcode_router(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: ref<managed i64> = managed.alloc_array i64, v0
-    v2: i64 = iconst 0i64
-    jump block1(v2, v1)
-
-// loop condition, fill opcodes
-block1(v3: i64, v4: ref<managed i64>):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2
-
-// fill opcode values
-block2:
-    v6: i64 = iconst 1103515245i64
-    v7: i64 = imul v3, v6
-    v8: i64 = iconst 12345i64
-    v9: i64 = iadd v7, v8
-    v10: i64 = iconst 6i64
-    v11: i64 = srem v9, v10
-    v12: ref<borrowed i64> = element.addr v4, v3
+function opcodeRouter(v0: int64): int64 {
+b0(v0: int64):
+    v1: ref<int64, managed> = managed.allocArray int64, v0
+    v2: int64 = 0int64
+    jump b1(v2, v1)
+b1(v3: int64, v4: ref<int64, managed>):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2
+b2:
+    v6: int64 = 1103515245int64
+    v7: int64 = int.mul v3, v6
+    v8: int64 = 12345int64
+    v9: int64 = int.add v7, v8
+    v10: int64 = 6int64
+    v11: int64 = int.rem.s v9, v10
+    v12: ref<int64, borrowed> = element.address v4, v3
     store v12, v11
-    v13: i64 = iconst 1i64
-    v14: i64 = iadd v3, v13
-    jump block1(v14, v4)
-
-// init router loop
-block3(v15: ref<managed i64>):
-    v16: i64 = iconst 0i64
-    v17: i64 = iconst 0i64
-    jump block4(v16, v17, v15)
-
-// loop condition, route opcodes
-block4(v18: i64, v19: i64, v20: ref<managed i64>):
-    v21: bool = icmp_sge v18, v0
-    branch v21, block10(v19), block5
-
-// load opcode and dispatch
-block5:
-    v22: ref<borrowed i64> = element.addr v20, v18
-    v23: i64 = load v22
-    switch v23, block9, 0 => block6, 1 => block7, 2 => block8, 3 => block11, 4 => block12, 5 => block13
-
-// opcode 0, add index
-block6:
-    v24: i64 = iadd v19, v18
-    jump block14(v24, v18, v20)
-
-// opcode 1, xor opcode
-block7:
-    v25: i64 = bxor v19, v23
-    jump block14(v25, v18, v20)
-
-// opcode 2, double acc
-block8:
-    v26: i64 = iconst 2i64
-    v27: i64 = imul v19, v26
-    jump block14(v27, v18, v20)
-
-// opcode 3, subtract index
-block11:
-    v28: i64 = isub v19, v18
-    jump block14(v28, v18, v20)
-
-// opcode 4, add constant
-block12:
-    v29: i64 = iconst 3i64
-    v30: i64 = iadd v19, v29
-    jump block14(v30, v18, v20)
-
-// opcode 5, bump acc
-block13:
-    v31: i64 = iconst 1i64
-    v32: i64 = iadd v19, v31
-    jump block14(v32, v18, v20)
-
-// default opcode
-block9:
-    v33: i64 = iconst 5i64
-    v34: i64 = iadd v19, v33
-    jump block14(v34, v18, v20)
-
-// advance loop
-block14(v35: i64, v36: i64, v37: ref<managed i64>):
-    v38: i64 = iconst 1i64
-    v39: i64 = iadd v36, v38
-    jump block4(v39, v35, v37)
-
-// return result
-block10(v40: i64):
-    v41: i64 = iconst 7i64
-    v42: i64 = imul v0, v41
-    v43: i64 = iadd v40, v42
-    v44: i64 = iconst 3i64
-    v45: i64 = iadd v43, v44
-    v46: i64 = iconst 3i64
-    v47: i64 = sshr v40, v46
-    v48: i64 = bxor v45, v47
-    v49: i64 = iconst 33i64
-    v50: i64 = imul v48, v49
-    v51: i64 = iconst 255i64
-    v52: i64 = band v0, v51
-    v53: i64 = iadd v50, v52
+    v13: int64 = 1int64
+    v14: int64 = int.add v3, v13
+    jump b1(v14, v4)
+b3(v15: ref<int64, managed>):
+    v16: int64 = 0int64
+    v17: int64 = 0int64
+    jump b4(v16, v17, v15)
+b4(v18: int64, v19: int64, v20: ref<int64, managed>):
+    v21: boolean = int.ge.s v18, v0
+    branch v21, b14(v19), b5
+b5:
+    v22: ref<int64, borrowed> = element.address v20, v18
+    v23: int64 = load v22
+    switch v23, b12, 0 => b6, 1 => b7, 2 => b8, 3 => b9, 4 => b10, 5 => b11
+b6:
+    v24: int64 = int.add v19, v18
+    jump b13(v24, v18, v20)
+b7:
+    v25: int64 = int.xor v19, v23
+    jump b13(v25, v18, v20)
+b8:
+    v26: int64 = 2int64
+    v27: int64 = int.mul v19, v26
+    jump b13(v27, v18, v20)
+b9:
+    v28: int64 = int.sub v19, v18
+    jump b13(v28, v18, v20)
+b10:
+    v29: int64 = 3int64
+    v30: int64 = int.add v19, v29
+    jump b13(v30, v18, v20)
+b11:
+    v31: int64 = 1int64
+    v32: int64 = int.add v19, v31
+    jump b13(v32, v18, v20)
+b12:
+    v33: int64 = 5int64
+    v34: int64 = int.add v19, v33
+    jump b13(v34, v18, v20)
+b13(v35: int64, v36: int64, v37: ref<int64, managed>):
+    v38: int64 = 1int64
+    v39: int64 = int.add v36, v38
+    jump b4(v39, v35, v37)
+b14(v40: int64):
+    v41: int64 = 7int64
+    v42: int64 = int.mul v0, v41
+    v43: int64 = int.add v40, v42
+    v44: int64 = 3int64
+    v45: int64 = int.add v43, v44
+    v46: int64 = 3int64
+    v47: int64 = int.shiftRight.s v40, v46
+    v48: int64 = int.xor v45, v47
+    v49: int64 = 33int64
+    v50: int64 = int.mul v48, v49
+    v51: int64 = 255int64
+    v52: int64 = int.and v0, v51
+    v53: int64 = int.add v50, v52
     return v53
 }
