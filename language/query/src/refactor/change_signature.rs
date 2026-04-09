@@ -107,11 +107,11 @@ pub fn change_signature(
 
     // narrow the scan to modules that actually call the target
     let mut candidate_modules = HashSet::new();
-    for entry in repository.call_index_entries_for_callee(canonical_id) {
+    for entry in repository.call_index_entries_for_callee(revision, canonical_id) {
         candidate_modules.insert(entry.module_id);
     }
     if let Some(owner_symbol) = constructor_owner {
-        for entry in repository.call_index_entries_for_callee(owner_symbol) {
+        for entry in repository.call_index_entries_for_callee(revision, owner_symbol) {
             candidate_modules.insert(entry.module_id);
         }
     }

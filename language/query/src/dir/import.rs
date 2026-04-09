@@ -168,7 +168,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
         let Some(module) = repository.module(revision, module_id).ok().flatten() else {
             continue;
         };

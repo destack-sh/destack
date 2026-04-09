@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+
+use destack_artifact::ArtifactKey;
+use destack_source::{ModuleId, ProfileId, Uri};
 use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
@@ -155,6 +159,101 @@ impl QueryRequest {
     pub fn execution_mode(&self) -> QueryExecutionMode {
         self.method_id().execution_mode()
     }
+
+    /// Return the targeted document path for this query when it has one.
+    pub fn path(&self) -> Option<PathBuf> {
+        let uri = match self {
+            Self::Completion(params) => &params.uri,
+            Self::Hover(params) => &params.uri,
+            Self::SignatureHelp(params) => &params.uri,
+            Self::InlayHints(params) => &params.uri,
+            Self::CodeLenses(params) => &params.uri,
+            Self::FoldingRanges(params) => &params.uri,
+            Self::SemanticTokens(params) => &params.uri,
+            Self::SemanticTokensRange(params) => &params.uri,
+            Self::DocumentSymbols(params) => &params.uri,
+            Self::DocumentLinks(params) => &params.uri,
+            Self::DocumentHighlight(params) => &params.uri,
+            Self::SelectionRanges(params) => &params.uri,
+            Self::GotoDefinition(params) => &params.uri,
+            Self::GotoDeclaration(params) => &params.uri,
+            Self::GotoTypeDefinition(params) => &params.uri,
+            Self::GotoImplementation(params) => &params.uri,
+            Self::FindReferences(params) => &params.uri,
+            Self::PrepareCallHierarchy(params) => &params.uri,
+            Self::PrepareTypeHierarchy(params) => &params.uri,
+            Self::PrepareRename(params) => &params.uri,
+            Self::Rename(params) => &params.uri,
+            Self::ExtractFunction(params) => &params.uri,
+            Self::ExtractVariable(params) => &params.uri,
+            Self::Inline(params) => &params.uri,
+            Self::ChangeSignature(params) => &params.uri,
+            Self::CodeActions(params) => &params.uri,
+            Self::ResolveCodeLens(_)
+            | Self::WorkspaceSymbols(_)
+            | Self::ResolveDocumentLink(_)
+            | Self::CallHierarchyIncoming(_)
+            | Self::CallHierarchyOutgoing(_)
+            | Self::TypeHierarchySupertypes(_)
+            | Self::TypeHierarchySubtypes(_)
+            | Self::RenameFiles(_) => return None,
+        };
+
+        query_path_from_uri(uri)
+    }
+
+    /// Return the default prepared artifact root for this query when it needs one.
+    pub fn default_artifact_key(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactKey> {
+        let has_document_root = matches!(
+            self,
+            Self::Completion(_)
+                | Self::Hover(_)
+                | Self::SignatureHelp(_)
+                | Self::InlayHints(_)
+                | Self::CodeLenses(_)
+                | Self::FoldingRanges(_)
+                | Self::SemanticTokens(_)
+                | Self::SemanticTokensRange(_)
+                | Self::DocumentSymbols(_)
+                | Self::DocumentLinks(_)
+                | Self::DocumentHighlight(_)
+                | Self::SelectionRanges(_)
+                | Self::GotoDefinition(_)
+                | Self::GotoDeclaration(_)
+                | Self::GotoTypeDefinition(_)
+                | Self::GotoImplementation(_)
+                | Self::FindReferences(_)
+                | Self::PrepareCallHierarchy(_)
+                | Self::PrepareTypeHierarchy(_)
+                | Self::PrepareRename(_)
+                | Self::Rename(_)
+                | Self::ExtractFunction(_)
+                | Self::ExtractVariable(_)
+                | Self::Inline(_)
+                | Self::ChangeSignature(_)
+                | Self::CodeActions(_)
+        );
+
+        if !has_document_root {
+            return None;
+        }
+
+        Some(default_document_artifact_key(module_id, profile_id))
+    }
+}
+
+/// Return the default prepared artifact root for one document query.
+pub fn default_document_artifact_key(module_id: ModuleId, profile_id: ProfileId) -> ArtifactKey {
+    ArtifactKey::dir_analyzed(module_id, profile_id)
+}
+
+/// Return a filesystem path for one query uri when it points at a file.
+fn query_path_from_uri(uri: &Uri) -> Option<PathBuf> {
+    uri.to_path_buf()
 }
 
 /// Query response payload.

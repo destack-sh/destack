@@ -1350,7 +1350,8 @@ impl<'a> CompletionBuilder<'a> {
 
         let mut results = Vec::new();
         let mut seen: HashSet<(ModuleId, dir::LocalSymbolId)> = HashSet::new();
-        let exports = search_importable_symbols(self.repository, prefix, current_module_id);
+        let exports =
+            search_importable_symbols(self.repository, self.revision, prefix, current_module_id);
 
         // turn indexed export matches into importable completions
         for export in exports {

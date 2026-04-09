@@ -439,7 +439,8 @@ fn collect_auto_import_actions_for_symbol(
     let current_language_type = get_module_by_file_id(repository, revision, file)
         .map(|module| module.language_type)
         .unwrap_or_default();
-    let mut candidates = search_importable_symbols(repository, symbol_name, exclude_module_id);
+    let mut candidates =
+        search_importable_symbols(repository, revision, symbol_name, exclude_module_id);
     candidates.retain(|export| {
         export.name == symbol_name
             && matches_symbol_space_filter(export.kind, export.space, space_filter)

@@ -274,7 +274,7 @@ fn count_references(
     };
 
     let mut count = 0;
-    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
@@ -300,7 +300,7 @@ fn count_implementations(
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
     repository
-        .nominal_index_entries_for_target(canonical_id)
+        .nominal_index_entries_for_target(revision, canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelationKind::Implements)
         .count()
@@ -314,7 +314,7 @@ fn count_subclasses(
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
     repository
-        .nominal_index_entries_for_target(canonical_id)
+        .nominal_index_entries_for_target(revision, canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelationKind::Extends)
         .count()

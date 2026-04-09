@@ -1,5 +1,5 @@
 use destack_source::{FileId, Span};
-use destack_workspace::Repository;
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{RepositoryQueryIndexExt, symbol_relevance, workspace_symbol_sort_key};
@@ -42,6 +42,7 @@ pub struct WorkspaceSymbolsResponse {
 /// Returns symbols whose names match the lexical query.
 pub fn workspace_symbols(
     repository: &Repository,
+    revision: Revision,
     query: &str,
     max_results: usize,
 ) -> Vec<WorkspaceSymbol> {
@@ -52,7 +53,7 @@ pub fn workspace_symbols(
     let query = query.trim();
 
     // collect candidate entries from the workspace symbol index
-    for entry in repository.search_workspace_symbol_entries(query) {
+    for entry in repository.search_workspace_symbol_entries(revision, query) {
         let Some(relevance) = symbol_relevance(&entry, query) else {
             continue;
         };

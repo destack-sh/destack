@@ -142,7 +142,7 @@ fn find_references_to_symbol(
     };
 
     // collect references across candidate modules only
-    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };

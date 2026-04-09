@@ -199,7 +199,7 @@ pub fn subtypes(
     let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
 
     // search cached direct nominal edges across the repository
-    let entries = repository.nominal_index_entries_for_target(canonical_id);
+    let entries = repository.nominal_index_entries_for_target(revision, canonical_id);
 
     for entry in entries {
         let matches = entry.target_symbol == canonical_id
