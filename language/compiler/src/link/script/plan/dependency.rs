@@ -19,8 +19,12 @@ impl Compiler {
         module_id: ModuleId,
         target_id: &TargetId,
         package_id: PackageId,
+        context: &CompilerContext<'_>,
     ) -> LinkResult<Option<ScriptArtifact>> {
-        let Some(artifact) = self.module_output(module_id, target_id) else {
+        let Some(artifact) =
+            self.repository
+                .module_output(context.revision(), module_id, *target_id)
+        else {
             return Ok(None);
         };
         let ModuleOutput::Script(script) = artifact.as_ref() else {
@@ -132,7 +136,9 @@ impl Compiler {
         package_id: PackageId,
         context: &CompilerContext<'_>,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_script_artifact(module_id, target_id, package_id)? else {
+        let Some(script) =
+            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
@@ -172,7 +178,9 @@ impl Compiler {
         package_id: PackageId,
         context: &CompilerContext<'_>,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_script_artifact(module_id, target_id, package_id)? else {
+        let Some(script) =
+            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
@@ -213,7 +221,9 @@ impl Compiler {
         package_id: PackageId,
         context: &CompilerContext<'_>,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_script_artifact(module_id, target_id, package_id)? else {
+        let Some(script) =
+            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
@@ -249,7 +259,9 @@ impl Compiler {
         package_id: PackageId,
         context: &CompilerContext<'_>,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_script_artifact(module_id, target_id, package_id)? else {
+        let Some(script) =
+            self.linked_script_artifact(module_id, target_id, package_id, context)?
+        else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();

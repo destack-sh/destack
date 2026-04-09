@@ -3,6 +3,7 @@ mod format;
 mod fragment;
 mod html5lib;
 mod lex;
+mod minify;
 mod print;
 mod resource;
 mod roundtrip;

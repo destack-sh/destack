@@ -37,7 +37,7 @@ pub(super) fn print_html_document(
     Ok(html::print::print_document_with_options(
         &document.tree,
         document.document,
-        html::print::RenderOptions {
+        html::print::PrintOptions {
             is_minified: linker.target.should_minify_bundle_html_output(),
         },
     ))
