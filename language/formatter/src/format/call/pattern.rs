@@ -140,6 +140,21 @@ pub(crate) fn call_should_route_to_chain(
     expression_is_member_chain_callee(context, left)
 }
 
+/// Return whether one instantiation expression should use member-chain formatting.
+pub(crate) fn instantiation_should_route_to_chain(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+) -> bool {
+    if !is_expression_chain(context.tree, node_id)
+        || !chain_has_call_like_expression(context.tree, node_id)
+    {
+        return false;
+    }
+
+    expression_is_member_chain_callee(context, left)
+}
+
 /// Return whether one call callee is a member-chain root.
 fn expression_is_member_chain_callee(
     context: &DestackFormatContext<'_>,
