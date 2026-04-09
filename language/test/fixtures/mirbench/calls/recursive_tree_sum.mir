@@ -1,45 +1,35 @@
-
-function @tree_sum(v0: i64) -> i64 {
-
-// entry, check base case
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    v2: bool = icmp_eq v0, v1
-    branch v2, block1, block2
-
-// base case
-block1:
-    v3: i64 = iconst 1i64
+function treeSum(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 0int64
+    v2: boolean = int.eq v0, v1
+    branch v2, b1, b2
+b1:
+    v3: int64 = 1int64
     return v3
-
-// recursive case
-block2:
-    v4: i64 = iconst 1i64
-    v5: i64 = isub v0, v4
-    v6: i64 = call @tree_sum(v5) -> fn(i64) -> i64
-    v7: i64 = call @tree_sum(v5) -> fn(i64) -> i64
-    v8: i64 = iadd v6, v7
-    v9: i64 = iadd v8, v4
+b2:
+    v4: int64 = 1int64
+    v5: int64 = int.sub v0, v4
+    v6: int64 = call treeSum(v5): (int64) -> int64
+    v7: int64 = call treeSum(v5): (int64) -> int64
+    v8: int64 = int.add v6, v7
+    v9: int64 = int.add v8, v4
     return v9
 }
-
-function @recursive_tree_sum(v0: i64) -> i64 {
-
-// entry, call tree sum
-block0(v0: i64):
-    v1: i64 = call @tree_sum(v0) -> fn(i64) -> i64
-    v2: i64 = iconst 7i64
-    v3: i64 = imul v0, v2
-    v4: i64 = iadd v1, v3
-    v5: i64 = iconst 3i64
-    v6: i64 = iadd v4, v5
-    v7: i64 = iconst 3i64
-    v8: i64 = sshr v1, v7
-    v9: i64 = bxor v6, v8
-    v10: i64 = iconst 33i64
-    v11: i64 = imul v9, v10
-    v12: i64 = iconst 255i64
-    v13: i64 = band v0, v12
-    v14: i64 = iadd v11, v13
+function recursiveTreeSum(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = call treeSum(v0): (int64) -> int64
+    v2: int64 = 7int64
+    v3: int64 = int.mul v0, v2
+    v4: int64 = int.add v1, v3
+    v5: int64 = 3int64
+    v6: int64 = int.add v4, v5
+    v7: int64 = 3int64
+    v8: int64 = int.shiftRight.s v1, v7
+    v9: int64 = int.xor v6, v8
+    v10: int64 = 33int64
+    v11: int64 = int.mul v9, v10
+    v12: int64 = 255int64
+    v13: int64 = int.and v0, v12
+    v14: int64 = int.add v11, v13
     return v14
 }

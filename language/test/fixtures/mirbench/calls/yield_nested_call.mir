@@ -1,37 +1,23 @@
-
-function @yield_inner(v0: i64) -> i64 {
-
-// entry, yield once
-block0(v0: i64):
-    yield v0, block1(v0)
-
-// resume, return combined value
-block1(v1: i64, v2: i64):
-    v3: i64 = iadd v1, v2
+function yieldInner(v0: int64): int64 {
+b0(v0: int64):
+    yield v0, b1(v0)
+b1(v1: int64, v2: int64):
+    v3: int64 = int.add v1, v2
     return v3
 }
-
-function @yield_nested_call(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    v2: i64 = iconst 1i64
-    jump block1(v1, v1)
-
-// loop condition, check limit
-block1(v3: i64, v4: i64):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2(v3, v4)
-
-// loop body, call yielding helper
-block2(v6: i64, v7: i64):
-    v8: i64 = call @yield_inner(v6)
-    v9: i64 = iadd v7, v8
-    v10: i64 = iadd v6, v2
-    jump block1(v10, v9)
-
-// return result
-block3(v11: i64):
+function yieldNestedCall(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 0int64
+    v2: int64 = 1int64
+    jump b1(v1, v1)
+b1(v3: int64, v4: int64):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2(v3, v4)
+b2(v6: int64, v7: int64):
+    v8: int64 = call yieldInner(v6): (int64) -> int64
+    v9: int64 = int.add v7, v8
+    v10: int64 = int.add v6, v2
+    jump b1(v10, v9)
+b3(v11: int64):
     return v11
 }

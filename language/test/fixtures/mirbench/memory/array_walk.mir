@@ -1,46 +1,31 @@
-
-function @array_walk(v0: i64) -> i64 {
-
-// entry, init allocations
-block0(v0: i64):
-    v1: ref<managed i64> = managed.alloc_array i64, v0
-    v2: i64 = iconst 0i64
-    jump block1(v2, v1)
-
-// loop condition, check limit
-block1(v3: i64, v4: ref<managed i64>):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2
-
-// loop body, update aggregates
-block2:
-    v6: ref<borrowed i64> = element.addr v4, v3
+function arrayWalk(v0: int64): int64 {
+b0(v0: int64):
+    v1: ref<int64, managed> = managed.allocArray int64, v0
+    v2: int64 = 0int64
+    jump b1(v2, v1)
+b1(v3: int64, v4: ref<int64, managed>):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2
+b2:
+    v6: ref<int64, borrowed> = element.address v4, v3
     store v6, v3
-    v7: i64 = iconst 1i64
-    v8: i64 = iadd v3, v7
-    jump block1(v8, v4)
-
-// merge branch, continue
-block3(v9: ref<managed i64>):
-    v10: i64 = iconst 0i64
-    v11: i64 = iconst 0i64
-    jump block4(v10, v9, v11)
-
-// loop condition, check limit
-block4(v12: i64, v13: ref<managed i64>, v14: i64):
-    v15: bool = icmp_sge v12, v0
-    branch v15, block6(v14), block5
-
-// loop body, update aggregates
-block5:
-    v16: ref<borrowed i64> = element.addr v13, v12
-    v17: i64 = load v16
-    v18: i64 = iadd v14, v17
-    v19: i64 = iconst 1i64
-    v20: i64 = iadd v12, v19
-    jump block4(v20, v13, v18)
-
-// return result
-block6(v21: i64):
+    v7: int64 = 1int64
+    v8: int64 = int.add v3, v7
+    jump b1(v8, v4)
+b3(v9: ref<int64, managed>):
+    v10: int64 = 0int64
+    v11: int64 = 0int64
+    jump b4(v10, v9, v11)
+b4(v12: int64, v13: ref<int64, managed>, v14: int64):
+    v15: boolean = int.ge.s v12, v0
+    branch v15, b6(v14), b5
+b5:
+    v16: ref<int64, borrowed> = element.address v13, v12
+    v17: int64 = load v16
+    v18: int64 = int.add v14, v17
+    v19: int64 = 1int64
+    v20: int64 = int.add v12, v19
+    jump b4(v20, v13, v18)
+b6(v21: int64):
     return v21
 }

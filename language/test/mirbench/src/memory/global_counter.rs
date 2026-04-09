@@ -24,7 +24,7 @@ fn expected_global_counter(iterations: i64) -> i64 {
 }
 
 declare_program! {
-    /// Loop that mixes global.const and global.addr access.
+    /// Loop that mixes global.const and global.address access.
     pub const GLOBAL_COUNTER,
     name: "global_counter",
     source: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/mirbench/memory/global_counter.mir")),

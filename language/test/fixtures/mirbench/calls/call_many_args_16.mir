@@ -1,67 +1,67 @@
 
-function @sum16(
-    v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64, v6: i64, v7: i64,
-    v8: i64, v9: i64, v10: i64, v11: i64, v12: i64, v13: i64, v14: i64, v15: i64
-) -> i64 {
-block0(
-    v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64, v6: i64, v7: i64,
-    v8: i64, v9: i64, v10: i64, v11: i64, v12: i64, v13: i64, v14: i64, v15: i64
+function sum16(
+    v0: int64, v1: int64, v2: int64, v3: int64, v4: int64, v5: int64, v6: int64, v7: int64,
+    v8: int64, v9: int64, v10: int64, v11: int64, v12: int64, v13: int64, v14: int64, v15: int64
+) -> int64 {
+b0(
+    v0: int64, v1: int64, v2: int64, v3: int64, v4: int64, v5: int64, v6: int64, v7: int64,
+    v8: int64, v9: int64, v10: int64, v11: int64, v12: int64, v13: int64, v14: int64, v15: int64
 ):
-    v16: i64 = iadd v0, v1
-    v17: i64 = iadd v16, v2
-    v18: i64 = iadd v17, v3
-    v19: i64 = iadd v18, v4
-    v20: i64 = iadd v19, v5
-    v21: i64 = iadd v20, v6
-    v22: i64 = iadd v21, v7
-    v23: i64 = iadd v22, v8
-    v24: i64 = iadd v23, v9
-    v25: i64 = iadd v24, v10
-    v26: i64 = iadd v25, v11
-    v27: i64 = iadd v26, v12
-    v28: i64 = iadd v27, v13
-    v29: i64 = iadd v28, v14
-    v30: i64 = iadd v29, v15
+    v16: int64 = int.add v0, v1
+    v17: int64 = int.add v16, v2
+    v18: int64 = int.add v17, v3
+    v19: int64 = int.add v18, v4
+    v20: int64 = int.add v19, v5
+    v21: int64 = int.add v20, v6
+    v22: int64 = int.add v21, v7
+    v23: int64 = int.add v22, v8
+    v24: int64 = int.add v23, v9
+    v25: int64 = int.add v24, v10
+    v26: int64 = int.add v25, v11
+    v27: int64 = int.add v26, v12
+    v28: int64 = int.add v27, v13
+    v29: int64 = int.add v28, v14
+    v30: int64 = int.add v29, v15
     return v30
 }
 
-function @call_many_args_16(v0: i64) -> i64 {
+function callManyArgs16(v0: int64): int64 {
 
 // entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    jump block1(v1, v1)
+b0(v0: int64):
+    v1: int64 = 0int64
+    jump b1(v1, v1)
 
 // loop condition, check limit
-block1(v2: i64, v3: i64):
-    v4: bool = icmp_sge v2, v0
-    branch v4, block3(v3), block2
+b1(v2: int64, v3: int64):
+    v4: boolean = int.ge.s v2, v0
+    branch v4, b3(v3), b2
 
 // loop body, call helper
-block2:
-    v5: i64 = iconst 1i64
-    v6: i64 = iconst 2i64
-    v7: i64 = iconst 3i64
-    v8: i64 = iconst 4i64
-    v9: i64 = iconst 5i64
-    v10: i64 = iconst 6i64
-    v11: i64 = iconst 7i64
-    v12: i64 = iconst 8i64
-    v13: i64 = iconst 9i64
-    v14: i64 = iconst 10i64
-    v15: i64 = iconst 11i64
-    v16: i64 = iconst 12i64
-    v17: i64 = iconst 13i64
-    v18: i64 = iconst 14i64
-    v19: i64 = iconst 15i64
-    v20: i64 = iconst 16i64
-    v21: i64 = call @sum16(v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20)
-    v22: i64 = iadd v3, v21
-    v23: i64 = iconst 1i64
-    v24: i64 = iadd v2, v23
-    jump block1(v24, v22)
+b2:
+    v5: int64 = 1int64
+    v6: int64 = 2int64
+    v7: int64 = 3int64
+    v8: int64 = 4int64
+    v9: int64 = 5int64
+    v10: int64 = 6int64
+    v11: int64 = 7int64
+    v12: int64 = 8int64
+    v13: int64 = 9int64
+    v14: int64 = 10int64
+    v15: int64 = 11int64
+    v16: int64 = 12int64
+    v17: int64 = 13int64
+    v18: int64 = 14int64
+    v19: int64 = 15int64
+    v20: int64 = 16int64
+    v21: int64 = call sum16(v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20): (int64, int64, int64, int64, int64, int64, int64, int64, int64, int64, int64, int64, int64, int64, int64, int64) -> int64
+    v22: int64 = int.add v3, v21
+    v23: int64 = 1int64
+    v24: int64 = int.add v2, v23
+    jump b1(v24, v22)
 
 // return result
-block3(v25: i64):
+b3(v25: int64):
     return v25
 }

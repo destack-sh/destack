@@ -2,7 +2,7 @@ use super::super::{Program, scale_axis};
 use destack_heap::Value;
 
 declare_program! {
-    /// Bit manipulation intrinsics including clz, ctz, and popcnt.
+    /// Bit manipulation intrinsics including leadingZeroCount, trailingZeroCount, and populationCount.
     pub const BIT_OPS,
     name: "bit_ops",
     source: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/mirbench/intrinsics/bit_ops.mir")),

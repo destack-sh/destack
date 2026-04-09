@@ -1,40 +1,31 @@
-
-function @crc32_like(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = iconst 0i64
-    jump block1(v2, v1)
-
-// loop condition, check limit
-block1(v3: i64, v4: i64):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2
-
-// loop body, update memory
-block2:
-    v6: i64 = iconst 31i64
-    v7: i64 = imul v3, v6
-    v8: i64 = iconst 17i64
-    v9: i64 = iadd v7, v8
-    v10: i64 = iconst 255i64
-    v11: i64 = band v9, v10
-    v12: i64 = bxor v4, v11
-    v13: i64 = iconst 5i64
-    v14: i64 = intrinsic.rotate_left(v12, v13)
-    v15: i64 = intrinsic.byte_swap(v14)
-    v16: i64 = iconst 517762881i64
-    v17: i64 = imul v15, v16
-    v18: i64 = bxor v17, v11
-    v19: i64 = iconst 11i64
-    v20: i64 = intrinsic.rotate_right(v18, v19)
-    v21: i64 = iconst 2246822519i64
-    v22: i64 = imul v20, v21
-    v23: i64 = iconst 1i64
-    v24: i64 = iadd v3, v23
-    jump block1(v24, v22)
-
-// return result
-block3(v25: i64):
+function crc32Like(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = 0int64
+    jump b1(v2, v1)
+b1(v3: int64, v4: int64):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2
+b2:
+    v6: int64 = 31int64
+    v7: int64 = int.mul v3, v6
+    v8: int64 = 17int64
+    v9: int64 = int.add v7, v8
+    v10: int64 = 255int64
+    v11: int64 = int.and v9, v10
+    v12: int64 = int.xor v4, v11
+    v13: int64 = 5int64
+    v14: int64 = intrinsic.rotateLeft(v12, v13)
+    v15: int64 = intrinsic.byteSwap(v14)
+    v16: int64 = 517762881int64
+    v17: int64 = int.mul v15, v16
+    v18: int64 = int.xor v17, v11
+    v19: int64 = 11int64
+    v20: int64 = intrinsic.rotateRight(v18, v19)
+    v21: int64 = 2246822519int64
+    v22: int64 = int.mul v20, v21
+    v23: int64 = 1int64
+    v24: int64 = int.add v3, v23
+    jump b1(v24, v22)
+b3(v25: int64):
     return v25
 }

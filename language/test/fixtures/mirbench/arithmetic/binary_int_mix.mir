@@ -1,41 +1,32 @@
-
-function @binary_int_mix(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    v2: i64 = iconst 12345i64
-    jump block1(v1, v2)
-
-// loop condition, check limit
-block1(v3: i64, v4: i64):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2
-
-// loop body, update accumulators
-block2:
-    v6: i64 = iconst 1i64
-    v7: i64 = iadd v4, v3
-    v8: i64 = isub v7, v6
-    v9: i64 = imul v8, v6
-    v10: i64 = iconst 7i64
-    v11: i64 = sdiv v9, v10
-    v12: i64 = iconst 13i64
-    v13: i64 = srem v11, v12
-    v14: i64 = iconst 3i64
-    v15: i64 = ishl v13, v14
-    v16: i64 = iconst 1i64
-    v17: i64 = sshr v15, v16
-    v18: i64 = iconst 255i64
-    v19: i64 = band v17, v18
-    v20: i64 = iconst 170i64
-    v21: i64 = bxor v19, v20
-    v22: i64 = iconst 85i64
-    v23: i64 = bor v21, v22
-    v24: i64 = iadd v3, v6
-    jump block1(v24, v23)
-
-// return result
-block3(v25: i64):
+function binaryIntMix(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 0int64
+    v2: int64 = 12345int64
+    jump b1(v1, v2)
+b1(v3: int64, v4: int64):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2
+b2:
+    v6: int64 = 1int64
+    v7: int64 = int.add v4, v3
+    v8: int64 = int.sub v7, v6
+    v9: int64 = int.mul v8, v6
+    v10: int64 = 7int64
+    v11: int64 = int.div.s v9, v10
+    v12: int64 = 13int64
+    v13: int64 = int.rem.s v11, v12
+    v14: int64 = 3int64
+    v15: int64 = int.shiftLeft v13, v14
+    v16: int64 = 1int64
+    v17: int64 = int.shiftRight.s v15, v16
+    v18: int64 = 255int64
+    v19: int64 = int.and v17, v18
+    v20: int64 = 170int64
+    v21: int64 = int.xor v19, v20
+    v22: int64 = 85int64
+    v23: int64 = int.or v21, v22
+    v24: int64 = int.add v3, v6
+    jump b1(v24, v23)
+b3(v25: int64):
     return v25
 }

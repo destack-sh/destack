@@ -1,86 +1,65 @@
-
-function @histogram(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 64i64
-    v2: ref<managed i64> = managed.alloc_array i64, v1
-    v3: i64 = iconst 0i64
-    jump block1(v3, v2)
-
-// loop condition, zero buckets
-block1(v4: i64, v5: ref<managed i64>):
-    v6: bool = icmp_sge v4, v1
-    branch v6, block3(v5), block2
-
-// zero bucket
-block2:
-    v7: ref<borrowed i64> = element.addr v5, v4
-    v8: i64 = iconst 0i64
+function histogram(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 64int64
+    v2: ref<int64, managed> = managed.allocArray int64, v1
+    v3: int64 = 0int64
+    jump b1(v3, v2)
+b1(v4: int64, v5: ref<int64, managed>):
+    v6: boolean = int.ge.s v4, v1
+    branch v6, b3(v5), b2
+b2:
+    v7: ref<int64, borrowed> = element.address v5, v4
+    v8: int64 = 0int64
     store v7, v8
-    v9: i64 = iconst 1i64
-    v10: i64 = iadd v4, v9
-    jump block1(v10, v5)
-
-// init update loop
-block3(v11: ref<managed i64>):
-    v12: i64 = iconst 0i64
-    jump block4(v12, v11)
-
-// loop condition, update buckets
-block4(v13: i64, v14: ref<managed i64>):
-    v15: bool = icmp_sge v13, v0
-    branch v15, block6(v14), block5
-
-// update bucket
-block5:
-    v16: i64 = iconst 1103515245i64
-    v17: i64 = imul v13, v16
-    v18: i64 = iconst 12345i64
-    v19: i64 = iadd v17, v18
-    v20: i64 = srem v19, v1
-    v21: ref<borrowed i64> = element.addr v14, v20
-    v22: i64 = load v21
-    v23: i64 = iconst 1i64
-    v24: i64 = iadd v22, v23
+    v9: int64 = 1int64
+    v10: int64 = int.add v4, v9
+    jump b1(v10, v5)
+b3(v11: ref<int64, managed>):
+    v12: int64 = 0int64
+    jump b4(v12, v11)
+b4(v13: int64, v14: ref<int64, managed>):
+    v15: boolean = int.ge.s v13, v0
+    branch v15, b6(v14), b5
+b5:
+    v16: int64 = 1103515245int64
+    v17: int64 = int.mul v13, v16
+    v18: int64 = 12345int64
+    v19: int64 = int.add v17, v18
+    v20: int64 = int.rem.s v19, v1
+    v21: ref<int64, borrowed> = element.address v14, v20
+    v22: int64 = load v21
+    v23: int64 = 1int64
+    v24: int64 = int.add v22, v23
     store v21, v24
-    v25: i64 = iadd v13, v23
-    jump block4(v25, v14)
-
-// init sum loop
-block6(v26: ref<managed i64>):
-    v27: i64 = iconst 0i64
-    v28: i64 = iconst 0i64
-    jump block7(v27, v28, v26)
-
-// loop condition, sum buckets
-block7(v29: i64, v30: i64, v31: ref<managed i64>):
-    v32: bool = icmp_sge v29, v1
-    branch v32, block9(v30), block8
-
-// sum bucket
-block8:
-    v33: ref<borrowed i64> = element.addr v31, v29
-    v34: i64 = load v33
-    v35: i64 = iadd v30, v34
-    v36: i64 = iconst 1i64
-    v37: i64 = iadd v29, v36
-    jump block7(v37, v35, v31)
-
-// return result
-block9(v38: i64):
-    v39: i64 = iconst 7i64
-    v40: i64 = imul v0, v39
-    v41: i64 = iadd v38, v40
-    v42: i64 = iconst 3i64
-    v43: i64 = iadd v41, v42
-    v44: i64 = iconst 3i64
-    v45: i64 = sshr v38, v44
-    v46: i64 = bxor v43, v45
-    v47: i64 = iconst 33i64
-    v48: i64 = imul v46, v47
-    v49: i64 = iconst 255i64
-    v50: i64 = band v0, v49
-    v51: i64 = iadd v48, v50
+    v25: int64 = int.add v13, v23
+    jump b4(v25, v14)
+b6(v26: ref<int64, managed>):
+    v27: int64 = 0int64
+    v28: int64 = 0int64
+    jump b7(v27, v28, v26)
+b7(v29: int64, v30: int64, v31: ref<int64, managed>):
+    v32: boolean = int.ge.s v29, v1
+    branch v32, b9(v30), b8
+b8:
+    v33: ref<int64, borrowed> = element.address v31, v29
+    v34: int64 = load v33
+    v35: int64 = int.add v30, v34
+    v36: int64 = 1int64
+    v37: int64 = int.add v29, v36
+    jump b7(v37, v35, v31)
+b9(v38: int64):
+    v39: int64 = 7int64
+    v40: int64 = int.mul v0, v39
+    v41: int64 = int.add v38, v40
+    v42: int64 = 3int64
+    v43: int64 = int.add v41, v42
+    v44: int64 = 3int64
+    v45: int64 = int.shiftRight.s v38, v44
+    v46: int64 = int.xor v43, v45
+    v47: int64 = 33int64
+    v48: int64 = int.mul v46, v47
+    v49: int64 = 255int64
+    v50: int64 = int.and v0, v49
+    v51: int64 = int.add v48, v50
     return v51
 }

@@ -1,122 +1,89 @@
-
-function @stage1(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = iadd v0, v1
-    v3: i64 = iconst 3i64
-    v4: i64 = imul v2, v3
+function stage1(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = int.add v0, v1
+    v3: int64 = 3int64
+    v4: int64 = int.mul v2, v3
     return v4
 }
-
-function @stage2(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = bxor v0, v1
-    v3: i64 = iconst 5i64
-    v4: i64 = iadd v2, v3
+function stage2(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = int.xor v0, v1
+    v3: int64 = 5int64
+    v4: int64 = int.add v2, v3
     return v4
 }
-
-function @stage3(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = isub v0, v1
-    v3: i64 = iconst 2i64
-    v4: i64 = imul v2, v3
-    v5: i64 = iconst 11i64
-    v6: i64 = iadd v4, v5
+function stage3(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = int.sub v0, v1
+    v3: int64 = 2int64
+    v4: int64 = int.mul v2, v3
+    v5: int64 = 11int64
+    v6: int64 = int.add v4, v5
     return v6
 }
-
-function @stage4(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = bor v0, v1
-    v3: i64 = iconst 13i64
-    v4: i64 = iadd v2, v3
-    v5: i64 = iconst 1i64
-    v6: i64 = sshr v0, v5
-    v7: i64 = bxor v4, v6
+function stage4(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = int.or v0, v1
+    v3: int64 = 13int64
+    v4: int64 = int.add v2, v3
+    v5: int64 = 1int64
+    v6: int64 = int.shiftRight.s v0, v5
+    v7: int64 = int.xor v4, v6
     return v7
 }
-
-function @stage5(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = band v0, v1
-    v3: i64 = iconst 17i64
-    v4: i64 = iadd v2, v3
-    v5: i64 = iconst 1i64
-    v6: i64 = ishl v4, v5
+function stage5(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = int.and v0, v1
+    v3: int64 = 17int64
+    v4: int64 = int.add v2, v3
+    v5: int64 = 1int64
+    v6: int64 = int.shiftLeft v4, v5
     return v6
 }
-
-function @stage6(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = iconst 19i64
-    v3: i64 = iadd v0, v2
-    v4: i64 = bxor v3, v1
+function stage6(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = 19int64
+    v3: int64 = int.add v0, v2
+    v4: int64 = int.xor v3, v1
     return v4
 }
-
-function @stage7(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = iconst 1i64
-    v3: i64 = ishl v0, v2
-    v4: i64 = bxor v3, v1
-    v5: i64 = iconst 23i64
-    v6: i64 = iadd v4, v5
+function stage7(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = 1int64
+    v3: int64 = int.shiftLeft v0, v2
+    v4: int64 = int.xor v3, v1
+    v5: int64 = 23int64
+    v6: int64 = int.add v4, v5
     return v6
 }
-
-function @stage8(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = iconst 7i64
-    v3: i64 = imul v0, v2
-    v4: i64 = isub v3, v1
-    v5: i64 = iconst 5i64
-    v6: i64 = bxor v4, v5
+function stage8(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = 7int64
+    v3: int64 = int.mul v0, v2
+    v4: int64 = int.sub v3, v1
+    v5: int64 = 5int64
+    v6: int64 = int.xor v4, v5
     return v6
 }
-
-function @call_pipeline_chain(v0: i64, v1: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64, v1: i64):
-    v2: i64 = iconst 0i64
-    jump block1(v2, v1)
-
-// loop condition, check limit
-block1(v3: i64, v4: i64):
-    v5: bool = icmp_sge v3, v0
-    branch v5, block3(v4), block2
-
-// loop body, call helper
-block2:
-    v6: i64 = call @stage1(v4, v3)
-    v7: i64 = call @stage2(v6, v3)
-    v8: i64 = call @stage3(v7, v3)
-    v9: i64 = call @stage4(v8, v3)
-    v10: i64 = call @stage5(v9, v3)
-    v11: i64 = call @stage6(v10, v3)
-    v12: i64 = call @stage7(v11, v3)
-    v13: i64 = call @stage8(v12, v3)
-    v14: i64 = iconst 1i64
-    v15: i64 = iadd v3, v14
-    jump block1(v15, v13)
-
-// return result
-block3(v16: i64):
+function callPipelineChain(v0: int64, v1: int64): int64 {
+b0(v0: int64, v1: int64):
+    v2: int64 = 0int64
+    jump b1(v2, v1)
+b1(v3: int64, v4: int64):
+    v5: boolean = int.ge.s v3, v0
+    branch v5, b3(v4), b2
+b2:
+    v6: int64 = call stage1(v4, v3): (int64, int64) -> int64
+    v7: int64 = call stage2(v6, v3): (int64, int64) -> int64
+    v8: int64 = call stage3(v7, v3): (int64, int64) -> int64
+    v9: int64 = call stage4(v8, v3): (int64, int64) -> int64
+    v10: int64 = call stage5(v9, v3): (int64, int64) -> int64
+    v11: int64 = call stage6(v10, v3): (int64, int64) -> int64
+    v12: int64 = call stage7(v11, v3): (int64, int64) -> int64
+    v13: int64 = call stage8(v12, v3): (int64, int64) -> int64
+    v14: int64 = 1int64
+    v15: int64 = int.add v3, v14
+    jump b1(v15, v13)
+b3(v16: int64):
     return v16
 }

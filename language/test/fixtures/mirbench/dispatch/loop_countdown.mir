@@ -1,19 +1,12 @@
-
-function @loop_countdown(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 0i64
-    v2: bool = icmp_eq v0, v1
-    branch v2, block2, block1
-
-// loop body, update accumulators
-block1:
-    v3: i64 = iconst 1i64
-    v4: i64 = isub v0, v3
-    jump block0(v4)
-
-// return result
-block2:
+function loopCountdown(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 0int64
+    v2: boolean = int.eq v0, v1
+    branch v2, b2, b1
+b1:
+    v3: int64 = 1int64
+    v4: int64 = int.sub v0, v3
+    jump b0(v4)
+b2:
     return v0
 }

@@ -1,103 +1,78 @@
-
-function @small_map(v0: i64) -> i64 {
-
-// entry, init state
-block0(v0: i64):
-    v1: i64 = iconst 64i64
-    v2: ref<managed i64> = managed.alloc_array i64, v1
-    v3: ref<managed i64> = managed.alloc_array i64, v1
-    v4: i64 = iconst 0i64
-    v5: i64 = iconst 0i64
-    v6: i64 = iconst 0i64
-    jump block1(v6, v4, v5, v2, v3, v1)
-
-// loop condition, check limit
-block1(v7: i64, v8: i64, v9: i64, v10: ref<managed i64>, v11: ref<managed i64>, v12: i64):
-    v13: bool = icmp_sge v7, v0
-    branch v13, block12(v9, v8), block2
-
-// compute hash
-block2:
-    v14: i64 = iconst 1103515245i64
-    v15: i64 = imul v7, v14
-    v16: i64 = iconst 12345i64
-    v17: i64 = iadd v15, v16
-    v18: i64 = iconst 16i64
-    v19: i64 = sshr v17, v18
-    v20: i64 = bxor v17, v19
-    v21: i64 = iconst 1i64
-    v22: i64 = iadd v17, v21
-    v23: i64 = iconst 0i64
-    jump block3(v23, v9, v8, v20, v22, v7, v10, v11, v12)
-
-// loop condition, scan entries
-block3(v24: i64, v25: i64, v26: i64, v27: i64, v28: i64, v29: i64, v30: ref<managed i64>, v31: ref<managed i64>, v32: i64):
-    v33: bool = icmp_sge v24, v26
-    branch v33, block7(v29, v26, v25, v27, v28, v30, v31, v32), block4
-
-// compare key
-block4:
-    v34: ref<borrowed i64> = element.addr v30, v24
-    v35: i64 = load v34
-    v36: bool = icmp_eq v35, v27
-    branch v36, block5(v24, v26, v27, v25, v29, v28, v30, v31, v32), block6(v24, v26, v25, v27, v28, v29, v30, v31, v32)
-
-// found entry
-block5(v37: i64, v38: i64, v39: i64, v40: i64, v41: i64, v42: i64, v43: ref<managed i64>, v44: ref<managed i64>, v45: i64):
-    v46: ref<borrowed i64> = element.addr v44, v37
-    v47: i64 = load v46
-    v48: i64 = iadd v40, v47
+function smallMap(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = 64int64
+    v2: ref<int64, managed> = managed.allocArray int64, v1
+    v3: ref<int64, managed> = managed.allocArray int64, v1
+    v4: int64 = 0int64
+    v5: int64 = 0int64
+    v6: int64 = 0int64
+    jump b1(v6, v4, v5, v2, v3, v1)
+b1(v7: int64, v8: int64, v9: int64, v10: ref<int64, managed>, v11: ref<int64, managed>, v12: int64):
+    v13: boolean = int.ge.s v7, v0
+    branch v13, b11(v9, v8), b2
+b2:
+    v14: int64 = 1103515245int64
+    v15: int64 = int.mul v7, v14
+    v16: int64 = 12345int64
+    v17: int64 = int.add v15, v16
+    v18: int64 = 16int64
+    v19: int64 = int.shiftRight.s v17, v18
+    v20: int64 = int.xor v17, v19
+    v21: int64 = 1int64
+    v22: int64 = int.add v17, v21
+    v23: int64 = 0int64
+    jump b3(v23, v9, v8, v20, v22, v7, v10, v11, v12)
+b3(v24: int64, v25: int64, v26: int64, v27: int64, v28: int64, v29: int64, v30: ref<int64, managed>, v31: ref<int64, managed>, v32: int64):
+    v33: boolean = int.ge.s v24, v26
+    branch v33, b7(v29, v26, v25, v27, v28, v30, v31, v32), b4
+b4:
+    v34: ref<int64, borrowed> = element.address v30, v24
+    v35: int64 = load v34
+    v36: boolean = int.eq v35, v27
+    branch v36, b5(v24, v26, v27, v25, v29, v28, v30, v31, v32), b6(v24, v26, v25, v27, v28, v29, v30, v31, v32)
+b5(v37: int64, v38: int64, v39: int64, v40: int64, v41: int64, v42: int64, v43: ref<int64, managed>, v44: ref<int64, managed>, v45: int64):
+    v46: ref<int64, borrowed> = element.address v44, v37
+    v47: int64 = load v46
+    v48: int64 = int.add v40, v47
     store v46, v42
-    jump block10(v41, v38, v48, v43, v44, v45)
-
-// advance scan
-block6(v49: i64, v50: i64, v51: i64, v52: i64, v53: i64, v54: i64, v55: ref<managed i64>, v56: ref<managed i64>, v57: i64):
-    v58: i64 = iconst 1i64
-    v59: i64 = iadd v49, v58
-    jump block3(v59, v51, v50, v52, v53, v54, v55, v56, v57)
-
-// insert or drop
-block7(v60: i64, v61: i64, v62: i64, v63: i64, v64: i64, v65: ref<managed i64>, v66: ref<managed i64>, v67: i64):
-    v68: bool = icmp_sge v61, v67
-    branch v68, block9(v60, v61, v62, v63, v65, v66, v67), block8(v60, v61, v62, v63, v64, v65, v66, v67)
-
-// insert entry
-block8(v69: i64, v70: i64, v71: i64, v72: i64, v73: i64, v74: ref<managed i64>, v75: ref<managed i64>, v76: i64):
-    v77: ref<borrowed i64> = element.addr v74, v70
+    jump b10(v41, v38, v48, v43, v44, v45)
+b6(v49: int64, v50: int64, v51: int64, v52: int64, v53: int64, v54: int64, v55: ref<int64, managed>, v56: ref<int64, managed>, v57: int64):
+    v58: int64 = 1int64
+    v59: int64 = int.add v49, v58
+    jump b3(v59, v51, v50, v52, v53, v54, v55, v56, v57)
+b7(v60: int64, v61: int64, v62: int64, v63: int64, v64: int64, v65: ref<int64, managed>, v66: ref<int64, managed>, v67: int64):
+    v68: boolean = int.ge.s v61, v67
+    branch v68, b9(v60, v61, v62, v63, v65, v66, v67), b8(v60, v61, v62, v63, v64, v65, v66, v67)
+b8(v69: int64, v70: int64, v71: int64, v72: int64, v73: int64, v74: ref<int64, managed>, v75: ref<int64, managed>, v76: int64):
+    v77: ref<int64, borrowed> = element.address v74, v70
     store v77, v72
-    v78: ref<borrowed i64> = element.addr v75, v70
+    v78: ref<int64, borrowed> = element.address v75, v70
     store v78, v73
-    v79: i64 = iadd v71, v73
-    v80: i64 = iconst 1i64
-    v81: i64 = iadd v70, v80
-    jump block10(v69, v81, v79, v74, v75, v76)
-
-// table full
-block9(v82: i64, v83: i64, v84: i64, v85: i64, v86: ref<managed i64>, v87: ref<managed i64>, v88: i64):
-    v89: i64 = iadd v84, v85
-    jump block10(v82, v83, v89, v86, v87, v88)
-
-// advance loop
-block10(v90: i64, v91: i64, v92: i64, v93: ref<managed i64>, v94: ref<managed i64>, v95: i64):
-    v96: i64 = iconst 1i64
-    v97: i64 = iadd v90, v96
-    jump block1(v97, v91, v92, v93, v94, v95)
-
-// return result
-block12(v98: i64, v99: i64):
-    v100: i64 = iadd v98, v99
-    v101: i64 = iconst 7i64
-    v102: i64 = imul v0, v101
-    v103: i64 = iadd v100, v102
-    v104: i64 = iconst 3i64
-    v105: i64 = iadd v103, v104
-    v106: i64 = iconst 3i64
-    v107: i64 = sshr v100, v106
-    v108: i64 = bxor v105, v107
-    v109: i64 = iconst 33i64
-    v110: i64 = imul v108, v109
-    v111: i64 = iconst 255i64
-    v112: i64 = band v0, v111
-    v113: i64 = iadd v110, v112
+    v79: int64 = int.add v71, v73
+    v80: int64 = 1int64
+    v81: int64 = int.add v70, v80
+    jump b10(v69, v81, v79, v74, v75, v76)
+b9(v82: int64, v83: int64, v84: int64, v85: int64, v86: ref<int64, managed>, v87: ref<int64, managed>, v88: int64):
+    v89: int64 = int.add v84, v85
+    jump b10(v82, v83, v89, v86, v87, v88)
+b10(v90: int64, v91: int64, v92: int64, v93: ref<int64, managed>, v94: ref<int64, managed>, v95: int64):
+    v96: int64 = 1int64
+    v97: int64 = int.add v90, v96
+    jump b1(v97, v91, v92, v93, v94, v95)
+b11(v98: int64, v99: int64):
+    v100: int64 = int.add v98, v99
+    v101: int64 = 7int64
+    v102: int64 = int.mul v0, v101
+    v103: int64 = int.add v100, v102
+    v104: int64 = 3int64
+    v105: int64 = int.add v103, v104
+    v106: int64 = 3int64
+    v107: int64 = int.shiftRight.s v100, v106
+    v108: int64 = int.xor v105, v107
+    v109: int64 = 33int64
+    v110: int64 = int.mul v108, v109
+    v111: int64 = 255int64
+    v112: int64 = int.and v0, v111
+    v113: int64 = int.add v110, v112
     return v113
 }
