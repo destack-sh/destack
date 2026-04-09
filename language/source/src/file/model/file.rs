@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{FileType, Span, Uri, fnv1a_64, strip_json};
+use crate::{FileType, Span, Uri, fnv1a_64};
 
 fn normalize_logical_path(value: &str) -> String {
     value.replace('\\', "/")
@@ -63,10 +64,8 @@ pub struct File {
     pub ty: FileType,
     /// The length of the File in bytes.
     pub len: u32,
-    /// The content of the File.
-    pub content: FileContent,
-    /// Start line byte offsets for fast line -> byte position lookup.
-    pub line_start_offsets: Option<Vec<u32>>,
+    /// The shared content entry for the File.
+    pub content: Arc<FileContentEntry>,
 }
 
 /// The content of a File.
@@ -74,60 +73,57 @@ pub struct File {
 pub enum FileContent {
     /// Text content.
     Text { content: String },
-    /// JSON content.
-    Json {
-        content: String,
-        value: serde_json::Value,
-    },
     /// Binary content.
     Binary { content: Vec<u8> },
-    /// Content is known missing on disk.
-    Missing,
-    /// Content not yet loaded.
-    Unloaded,
+}
+
+/// One canonical content payload and its derived data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileContentEntry {
+    /// The raw content payload.
+    pub payload: FileContent,
+    /// Shared line index for text content.
+    line_index: Option<Arc<[u32]>>,
+}
+
+impl FileContentEntry {
+    /// Build one shared content entry from one payload.
+    pub fn new(payload: FileContent) -> Self {
+        let line_index = match &payload {
+            FileContent::Text { content } => Some(Arc::<[u32]>::from(
+                File::precompute_line_start_offsets(content),
+            )),
+            FileContent::Binary { .. } => None,
+        };
+
+        Self {
+            payload,
+            line_index,
+        }
+    }
+
+    /// Return the raw payload.
+    pub fn payload(&self) -> &FileContent {
+        &self.payload
+    }
+
+    /// Return shared line start offsets when present.
+    pub fn line_index(&self) -> Option<&[u32]> {
+        self.line_index.as_deref()
+    }
+
+    /// Return true when this entry has one cached line index.
+    pub fn has_line_index(&self) -> bool {
+        self.line_index.is_some()
+    }
+
+    /// Clear any cached line index on this entry.
+    pub fn clear_line_index(&mut self) {
+        self.line_index = None;
+    }
 }
 
 impl File {
-    /// Create a blank unloaded File (content not yet loaded).
-    pub fn unloaded(
-        id: FileId,
-        name: String,
-        uri: Uri,
-        path: Option<PathBuf>,
-        ty: FileType,
-    ) -> Self {
-        Self {
-            id,
-            name,
-            uri,
-            path,
-            ty,
-            len: 0,
-            content: FileContent::Unloaded,
-            line_start_offsets: None,
-        }
-    }
-
-    /// Create a File that is known missing on disk.
-    pub fn missing(
-        id: FileId,
-        name: String,
-        uri: Uri,
-        path: Option<PathBuf>,
-        ty: FileType,
-    ) -> Self {
-        Self {
-            id,
-            name,
-            uri,
-            path,
-            ty,
-            len: 0,
-            content: FileContent::Missing,
-            line_start_offsets: None,
-        }
-    }
-
     /// Create an empty source in some format.
     pub fn empty_text(ty: FileType) -> Self {
         Self::from_text(
@@ -138,16 +134,6 @@ impl File {
             ty,
             String::new(),
         )
-    }
-
-    /// Check if this file has content loaded.
-    pub fn is_loaded(&self) -> bool {
-        !matches!(self.content, FileContent::Unloaded | FileContent::Missing)
-    }
-
-    /// Check if this file is known missing.
-    pub fn is_missing(&self) -> bool {
-        matches!(self.content, FileContent::Missing)
     }
 
     /// Precompute line start byte offsets for O(1) line.
@@ -172,6 +158,31 @@ impl File {
         }
     }
 
+    /// Build one file from shared content.
+    pub fn from_content(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+        content: Arc<FileContentEntry>,
+    ) -> Self {
+        let len = match content.payload() {
+            FileContent::Text { content } => content.len() as u32,
+            FileContent::Binary { content } => content.len() as u32,
+        };
+
+        Self {
+            id,
+            name,
+            uri,
+            path,
+            ty,
+            len,
+            content,
+        }
+    }
+
     /// Create a new File.
     pub fn from_text(
         id: FileId,
@@ -182,92 +193,14 @@ impl File {
         content: String,
     ) -> Self {
         let content = Self::normalize_line_endings(content);
-        let len = content.len() as u32;
-        let line_start_offsets = Self::precompute_line_start_offsets(&content);
-        Self {
+        Self::from_content(
             id,
             name,
             uri,
             path,
             ty,
-            content: FileContent::Text { content },
-            len,
-            line_start_offsets: Some(line_start_offsets),
-        }
-    }
-
-    /// Create a new file from text as JSON.
-    pub fn from_text_as_json(
-        id: FileId,
-        name: String,
-        uri: Uri,
-        path: Option<PathBuf>,
-        ty: FileType,
-        content: String,
-    ) -> Result<Self, serde_json::Error> {
-        let content = Self::normalize_line_endings(content);
-        // strip BOM from content for parsing, but keep original content
-        let json_str = content.strip_prefix('\u{feff}').unwrap_or(&content);
-
-        let json = serde_json::from_str(json_str)?;
-        let len = content.len() as u32;
-        let line_start_offsets = Self::precompute_line_start_offsets(&content);
-        let file = Self {
-            id,
-            name,
-            uri,
-            path,
-            ty,
-            content: FileContent::Json {
-                content,
-                value: json,
-            },
-            len,
-            line_start_offsets: Some(line_start_offsets),
-        };
-        Ok(file)
-    }
-
-    /// Create a new file from text as JSONC (JSON with comments).
-    pub fn from_text_as_jsonc(
-        id: FileId,
-        name: String,
-        uri: Uri,
-        path: Option<PathBuf>,
-        ty: FileType,
-        content: String,
-    ) -> Result<Self, serde_json::Error> {
-        let content = Self::normalize_line_endings(content);
-        // strip BOM from content for parsing
-        let json_content = content.strip_prefix('\u{feff}').unwrap_or(&content);
-
-        // strip comments from JSONC
-        let json_str = strip_json(json_content).map_err(serde_json::Error::io)?;
-
-        // default to empty object if the file is empty
-        let json_str = if json_str.trim().is_empty() {
-            "{}".to_string()
-        } else {
-            json_str
-        };
-
-        let json = serde_json::from_str(&json_str)?;
-        let len = content.len() as u32;
-        let line_start_offsets = Self::precompute_line_start_offsets(&content);
-        let file = Self {
-            id,
-            name,
-            uri,
-            path,
-            ty,
-            content: FileContent::Json {
-                content,
-                value: json,
-            },
-            len,
-            line_start_offsets: Some(line_start_offsets),
-        };
-        Ok(file)
+            Arc::new(FileContentEntry::new(FileContent::Text { content })),
+        )
     }
 
     /// Create a new binary file from bytes.
@@ -279,53 +212,38 @@ impl File {
         ty: FileType,
         content: Vec<u8>,
     ) -> Self {
-        let len = content.len() as u32;
-        Self {
+        Self::from_content(
             id,
             name,
             uri,
             path,
             ty,
-            len,
-            content: FileContent::Binary { content },
-            line_start_offsets: None,
-        }
-    }
-
-    /// Create a new file from bytes as JSON.
-    pub fn from_bytes_as_json(
-        id: FileId,
-        name: String,
-        uri: Uri,
-        path: Option<PathBuf>,
-        ty: FileType,
-        bytes: Vec<u8>,
-    ) -> Result<Self, serde_json::Error> {
-        let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
-        Self::from_text_as_json(id, name, uri, path, ty, content)
-    }
-
-    /// Create a new file from bytes as JSONC.
-    pub fn from_bytes_as_jsonc(
-        id: FileId,
-        name: String,
-        uri: Uri,
-        path: Option<PathBuf>,
-        ty: FileType,
-        bytes: Vec<u8>,
-    ) -> Result<Self, serde_json::Error> {
-        let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
-        Self::from_text_as_jsonc(id, name, uri, path, ty, content)
+            Arc::new(FileContentEntry::new(FileContent::Binary { content })),
+        )
     }
 
     /// Get the text content of the File (empty if not text).
     #[inline]
     pub fn text(&self) -> &str {
-        match &self.content {
+        match self.content.payload() {
             FileContent::Text { content } => content,
-            FileContent::Json { content, .. } => content,
             _ => "",
         }
+    }
+
+    /// Return shared line start offsets when present.
+    pub fn line_start_offsets(&self) -> Option<&[u32]> {
+        self.content.line_index()
+    }
+
+    /// Return true when this file has one cached line index.
+    pub fn has_line_index(&self) -> bool {
+        self.content.has_line_index()
+    }
+
+    /// Clear any cached line index on this file view.
+    pub fn clear_line_index(&mut self) {
+        Arc::make_mut(&mut self.content).clear_line_index();
     }
 
     /// Return whether the file starts with a hashbang line.
@@ -340,14 +258,9 @@ impl File {
     /// Get the string slice for a given span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> Option<&str> {
-        match &self.content {
+        match self.content.payload() {
             FileContent::Text { content } => Some(&content[span.start as usize..span.end as usize]),
-            FileContent::Json { content, .. } => {
-                Some(&content[span.start as usize..span.end as usize])
-            }
             FileContent::Binary { .. } => None,
-            FileContent::Missing => None,
-            FileContent::Unloaded => None,
         }
     }
 
@@ -368,7 +281,7 @@ impl File {
     /// Uses precomputed offsets for O(1) performance.
     #[inline]
     pub fn get_line_span(&self, line_index: u32) -> Option<Span> {
-        let Some(line_start_offsets) = &self.line_start_offsets else {
+        let Some(line_start_offsets) = self.line_start_offsets() else {
             return None;
         };
         let line_start = *line_start_offsets.get(line_index as usize)?;
@@ -386,7 +299,7 @@ impl File {
     /// Returns (line_index, column_index), both 0-based.
     /// Uses binary search for O(log n) performance.
     pub fn get_position(&self, byte_index: u32) -> Option<(u32, u32)> {
-        let Some(line_start_offsets) = &self.line_start_offsets else {
+        let Some(line_start_offsets) = self.line_start_offsets() else {
             return None;
         };
         if byte_index > self.len {
@@ -414,7 +327,7 @@ impl File {
     /// Check if two byte positions are on the same line.
     #[inline]
     pub fn is_same_line(&self, pos_a: u32, pos_b: u32) -> bool {
-        let Some(line_start_offsets) = &self.line_start_offsets else {
+        let Some(line_start_offsets) = self.line_start_offsets() else {
             return false;
         };
 
@@ -438,7 +351,7 @@ impl File {
     /// Returns the byte index, or None if the position is invalid.
     /// Uses precomputed line offsets for O(1) performance.
     pub fn get_byte_position(&self, line_index: u32, column: u32) -> Option<u32> {
-        let Some(line_start_offsets) = &self.line_start_offsets else {
+        let Some(line_start_offsets) = self.line_start_offsets() else {
             return None;
         };
         let line_start = *line_start_offsets.get(line_index as usize)?;
@@ -494,7 +407,7 @@ impl File {
 
     /// Get the number of lines in the source (at least 1 for empty content).
     pub fn line_count(&self) -> u32 {
-        if let Some(line_start_offsets) = &self.line_start_offsets {
+        if let Some(line_start_offsets) = self.line_start_offsets() {
             line_start_offsets.len() as u32
         } else {
             0

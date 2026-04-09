@@ -1,14 +1,12 @@
-use destack_artifact::{ArtifactKey, ArtifactStamp};
+use destack_artifact::ArtifactVersion;
 
 use crate::Change;
 
 /// One artifact dependency needed before one provide attempt can continue.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArtifactRequirement {
-    /// The exact artifact key that is needed.
-    pub key: ArtifactKey,
-    /// The expected stamp for that key.
-    pub stamp: ArtifactStamp,
+    /// The exact artifact version that is needed.
+    pub version: ArtifactVersion,
 }
 
 /// One source edit needed before one provide attempt can continue.
@@ -70,6 +68,15 @@ impl RequirementSet {
     pub fn for_each_artifact(&self, mut handle: impl FnMut(&ArtifactRequirement)) {
         self.for_each(|requirement| {
             if let Requirement::Artifact(requirement) = requirement {
+                handle(requirement);
+            }
+        });
+    }
+
+    /// Visit each source requirement in this set.
+    pub fn for_each_source(&self, mut handle: impl FnMut(&SourceRequirement)) {
+        self.for_each(|requirement| {
+            if let Requirement::Source(requirement) = requirement {
                 handle(requirement);
             }
         });

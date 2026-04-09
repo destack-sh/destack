@@ -3,9 +3,10 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
+use dashmap::DashMap;
 use im::OrdMap;
 use parking_lot::RwLock;
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -206,10 +207,11 @@ pub struct RevisionState {
     /// The cached profile view for this revision.
     pub profiles: OnceLock<Arc<OrdMap<ProfileId, Profile>>>,
     /// The cached artifact stamp for each revision local artifact key.
-    pub artifact_stamps: OnceLock<Arc<RwLock<FxHashMap<ArtifactKey, ArtifactStamp>>>>,
+    pub artifact_stamps: OnceLock<Arc<DashMap<ArtifactKey, ArtifactStamp, FxBuildHasher>>>,
     /// The cached query index for this revision.
     pub query_index: OnceLock<Arc<RwLock<QueryIndex>>>,
 
+    // NOTE #Cleanup: not loving the RevisionState's OnceLock<Arc<RwLock<FxHashMap<...>>> mess
     /// The cached package declarations for this revision.
     pub package_declarations:
         OnceLock<Arc<RwLock<FxHashMap<FileId, Option<Arc<PackageDeclaration>>>>>>,

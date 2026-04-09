@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use dashmap::mapref::entry::Entry;
 use destack_artifact::{
     ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
     DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment,
@@ -12,9 +13,9 @@ use destack_artifact::{
 use destack_source::{
     DiagnosticCollection, FileId, LanguageType, ModuleId, PackageId, ProfileId, TargetId,
 };
-use rustc_hash::FxHasher;
+use rustc_hash::{FxBuildHasher, FxHasher};
 
-use crate::repository::{FileContentId, Repository, RepositoryError, Revision};
+use crate::repository::{FileContentId, Repository, RepositoryError, Revision, RevisionState};
 use crate::{ModuleSource, PackageKind, Target};
 
 /// One structural stamp for one revision-scoped source module.
@@ -247,15 +248,22 @@ impl Repository {
         let revision_state = self
             .revision(revision)
             .unwrap_or_else(|error| panic!("missing revision state for artifact stamp: {error}"));
+        self.artifact_stamp_for_revision_state(revision, revision_state.as_ref(), artifact_key)
+    }
+
+    /// Return the artifact stamp for one pinned revision state.
+    pub(crate) fn artifact_stamp_for_revision_state(
+        &self,
+        revision: Revision,
+        revision_state: &RevisionState,
+        artifact_key: &ArtifactKey,
+    ) -> ArtifactStamp {
         let artifact_stamps = revision_state
             .artifact_stamps
-            .get_or_init(|| Arc::new(parking_lot::RwLock::new(rustc_hash::FxHashMap::default())));
+            .get_or_init(|| Arc::new(dashmap::DashMap::with_hasher(FxBuildHasher)));
 
-        {
-            let artifact_stamps = artifact_stamps.read();
-            if let Some(stamp) = artifact_stamps.get(artifact_key) {
-                return *stamp;
-            }
+        if let Some(stamp) = artifact_stamps.get(artifact_key) {
+            return *stamp;
         }
 
         let stamp = match artifact_key {
@@ -314,10 +322,13 @@ impl Repository {
             }
         };
 
-        let mut artifact_stamps = artifact_stamps.write();
-        let entry = artifact_stamps.entry(*artifact_key).or_insert(stamp);
-
-        *entry
+        match artifact_stamps.entry(*artifact_key) {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
+                entry.insert(stamp);
+                stamp
+            }
+        }
     }
 
     // FUGU #Architecture: revisit workspace artifact stamp business
