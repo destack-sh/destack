@@ -30,9 +30,8 @@ pub(crate) use self::r#type::{
 };
 pub(crate) use self::types::is_object_like_type_expression;
 pub(crate) use self::union::{
-    binary_like_is_type_intersection, binary_like_is_type_union, flatten_binary_like_operands,
-    flatten_type_binary_expression, format_type_intersection_binary_layout,
-    format_type_union_binary_layout, operator_expression_owns_prefix_annotations,
-    transparent_type_binary_root_expression, type_binary_operand_needs_grouping_parentheses,
-    type_union_operand_separator_span,
+    binary_like_is_type_intersection, binary_like_is_type_union, flatten_type_binary_expression,
+    format_type_intersection_binary_layout, format_type_union_binary_layout,
+    operator_expression_owns_prefix_annotations, transparent_type_binary_root_expression,
+    type_binary_operand_needs_grouping_parentheses, type_union_operand_separator_span,
 };

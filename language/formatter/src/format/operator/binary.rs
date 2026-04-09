@@ -1,7 +1,11 @@
 use crate::format::annotation::{format_trailing_comments_before_boundary, prefix_annotations};
-use crate::format::expression::write_expression_without_prefix_annotations;
+use crate::format::context::ParenthesizedExpressionView;
+use crate::format::expression::{
+    expression_has_only_prefix_comment_or_doc_annotations, is_type_cast_comment_node,
+    write_expression_without_prefix_annotations,
+};
 use crate::format::operator::{
-    binary_like_is_type_intersection, binary_like_is_type_union, flatten_binary_like_operands,
+    binary_like_is_type_intersection, binary_like_is_type_union,
     format_type_intersection_binary_layout, type_binary_operand_needs_grouping_parentheses,
 };
 use crate::{DestackFormatContext, DestackFormatter};
@@ -11,7 +15,8 @@ use destack_ast::{
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
-    block_indent, format_with, group, hard_line_break, soft_line_break_or_space, space, token,
+    block_indent, format_with, group, hard_line_break, indent, soft_line_break_or_space, space,
+    token,
 };
 use destack_fir::write;
 use destack_source::Span;
@@ -273,32 +278,62 @@ fn binary_operand_requires_grouping_parentheses(
         && !should_flatten_binary(parent_operator, *operand_operator)
 }
 
-/// Flattens a binary expression chain into a list of operands.
-///
-/// For `a + b + c`, returns [(None, a), (Some(+), b), (Some(+), c)].
-pub(crate) fn flatten_binary_expression(
+/// Return whether one expression is a binary node.
+#[inline]
+fn expression_is_binary(expression: &Expression) -> bool {
+    matches!(expression, Expression::Binary { .. })
+}
+
+/// Return whether one flattened rhs owner should group its operator and rhs shell.
+fn flattened_operand_owner_should_group(
+    context: &DestackFormatContext<'_>,
+    owner_id: LocalNodeId<Expression>,
+) -> bool {
+    let parent_is_binary = context
+        .parent(owner_id)
+        .is_some_and(|(parent_id, parent_type)| {
+            parent_type == NodeType::Expression
+                && expression_is_binary(context.tree.get(LocalNodeId::<Expression>::new(parent_id)))
+        });
+    let Expression::Binary { left, right, .. } = context.tree.get(owner_id) else {
+        return true;
+    };
+    let left_is_binary = expression_is_binary(context.tree.get(*left));
+    let right_is_binary = expression_is_binary(context.tree.get(*right));
+
+    !(parent_is_binary || left_is_binary || right_is_binary)
+}
+
+/// Flattens a binary expression chain while preserving the source owner of each rhs operand.
+fn flatten_binary_expression_with_owners(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-) -> SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]> {
+) -> (
+    SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+    SmallVec<[Option<LocalNodeId<Expression>>; 8]>,
+) {
     let mut operands = SmallVec::new();
-    flatten_binary_recursive(
+    let mut owner_ids = SmallVec::new();
+    flatten_binary_recursive_with_owners(
         context,
         expression_id,
         target_operator,
         &mut operands,
+        &mut owner_ids,
         None,
         true,
     );
-    operands
+    (operands, owner_ids)
 }
 
-/// Recursively collect binary expression operands.
-fn flatten_binary_recursive(
+/// Recursively collect binary expression operands together with their source owners.
+fn flatten_binary_recursive_with_owners(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
     operands: &mut SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+    owner_ids: &mut SmallVec<[Option<LocalNodeId<Expression>>; 8]>,
     preceding_operator: Option<BinaryOperator>,
     is_root: bool,
 ) {
@@ -312,15 +347,25 @@ fn flatten_binary_recursive(
         && (!context.has_annotation(expression_id) || is_root)
     {
         // recursively flatten the left side
-        flatten_binary_recursive(context, *left, target_operator, operands, None, false);
+        flatten_binary_recursive_with_owners(
+            context,
+            *left,
+            target_operator,
+            operands,
+            owner_ids,
+            None,
+            false,
+        );
 
-        // add the right operand with its operator
+        // add the right operand with its source owner
         operands.push((Some(*operator), *right));
+        owner_ids.push(Some(expression_id));
         return;
     }
 
     // not a binary expression or different precedence: add as-is
     operands.push((preceding_operator, expression_id));
+    owner_ids.push(None);
 }
 
 /// Return precedence value for an expression.
@@ -382,6 +427,28 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
     parent_operator: BinaryOperator,
     operand_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    let operand_id = match f.context().tree.get(operand_id) {
+        Expression::Parenthesized { expression } => {
+            let parent_expression = Expression::Binary {
+                left: operand_id,
+                operator: parent_operator,
+                right: operand_id,
+            };
+
+            if binary_drops_parenthesized_operand_wrapper(
+                f.context(),
+                operand_id,
+                *expression,
+                &parent_expression,
+            ) {
+                *expression
+            } else {
+                operand_id
+            }
+        }
+        _ => operand_id,
+    };
+
     let operand_has_annotation = f.context().has_annotation(operand_id);
     let expression = f.context().tree.get(operand_id);
     let needs_type_grouping_parentheses =
@@ -462,6 +529,71 @@ pub(crate) fn binary_keeps_unary_left_parenthesized_wrapper(
     ) && matches!(inner_expression, Expression::Unary { .. })
 }
 
+/// Decide whether a binary operand can drop one parenthesized wrapper.
+pub(crate) fn binary_drops_parenthesized_operand_wrapper(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+) -> bool {
+    let Expression::Binary { operator, .. } = parent_expression else {
+        return false;
+    };
+
+    if is_type_cast_comment_node(context, parenthesized_id)
+        || context.has_annotation(parenthesized_id)
+        || context.has_annotation(inner_expression_id)
+        || expression_has_only_prefix_comment_or_doc_annotations(context, parenthesized_id)
+        || expression_has_only_prefix_comment_or_doc_annotations(context, inner_expression_id)
+        || ParenthesizedExpressionView::from_node(context, parenthesized_id)
+            .is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
+    {
+        return false;
+    }
+
+    let inner_expression = context.tree.get(inner_expression_id);
+    if binary_keeps_unary_left_parenthesized_wrapper(
+        parenthesized_id,
+        inner_expression,
+        parent_expression,
+    ) {
+        return false;
+    }
+
+    let suppress_precedence_parentheses_for_type_binary = matches!(
+        (inner_expression, operator),
+        (
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Is
+                    | TypeBinaryOperator::In
+                    | TypeBinaryOperator::InstanceOf,
+                ..
+            },
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
+        )
+    );
+    let needs_mixed_logical_grouping_parentheses = matches!(
+        (operator, inner_expression),
+        (
+            BinaryOperator::Or | BinaryOperator::Coalesce,
+            Expression::Binary {
+                operator: BinaryOperator::And | BinaryOperator::Coalesce,
+                ..
+            },
+        )
+    );
+    let needs_precedence_parentheses = (expression_precedence(inner_expression)
+        < operator.precedence_group() as u16
+        || binary_operand_requires_grouping_parentheses(context, *operator, parenthesized_id))
+        && !suppress_precedence_parentheses_for_type_binary;
+    let needs_type_grouping_parentheses =
+        type_binary_operand_needs_grouping_parentheses(context, *operator, parenthesized_id);
+
+    !(needs_precedence_parentheses
+        || needs_type_grouping_parentheses
+        || needs_mixed_logical_grouping_parentheses)
+}
+
 /// Return whether one binary operator is logical.
 #[inline]
 pub(crate) fn is_logical_binary_operator(operator: BinaryOperator) -> bool {
@@ -498,6 +630,7 @@ struct BinaryLikeExpression {
     node_id: LocalNodeId<Expression>,
     operator: BinaryOperator,
     operands: SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+    operand_owner_ids: SmallVec<[Option<LocalNodeId<Expression>>; 8]>,
 }
 
 impl BinaryLikeExpression {
@@ -507,12 +640,14 @@ impl BinaryLikeExpression {
         node_id: LocalNodeId<Expression>,
         operator: BinaryOperator,
     ) -> Self {
-        let operands = flatten_binary_like_operands(context, node_id, operator);
+        let (operands, operand_owner_ids) =
+            flatten_binary_expression_with_owners(context, node_id, operator);
 
         Self {
             node_id,
             operator,
             operands,
+            operand_owner_ids,
         }
     }
 
@@ -535,33 +670,33 @@ impl BinaryLikeExpression {
             return Ok(());
         };
 
+        let format_tail = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let mut previous_expression = Some(head_expression);
+
+            for (index, operand) in self.operands.iter().enumerate().skip(1) {
+                let operand_operator = operand
+                    .0
+                    .expect("flattened non-head binary operand has an operator");
+                self.write_flattened_operand(
+                    f,
+                    index,
+                    operand_operator,
+                    operand.1,
+                    previous_expression,
+                )?;
+                previous_expression = Some(operand.1);
+            }
+
+            Ok(())
+        });
+
         write!(
             f,
             [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 format_binary_operand_with_grouping_parentheses(f, self.operator, head_expression)?;
 
                 if self.operands.len() > 1 {
-                    write!(
-                        f,
-                        [format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            let mut previous_expression = Some(head_expression);
-
-                            for operand in self.operands.iter().skip(1) {
-                                let operand_operator = operand
-                                    .0
-                                    .expect("flattened non-head binary operand has an operator");
-                                self.write_flattened_operand(
-                                    f,
-                                    operand_operator,
-                                    operand.1,
-                                    previous_expression,
-                                )?;
-                                previous_expression = Some(operand.1);
-                            }
-
-                            Ok(())
-                        })]
-                    )?;
+                    write!(f, [indent(&format_tail)])?;
                 }
 
                 Ok(())
@@ -576,6 +711,7 @@ impl BinaryLikeExpression {
     fn write_flattened_operand<'ast>(
         &self,
         f: &mut DestackFormatter<'ast, '_>,
+        operand_index: usize,
         operand_operator: BinaryOperator,
         operand_expression: LocalNodeId<Expression>,
         previous_expression: Option<LocalNodeId<Expression>>,
@@ -601,8 +737,27 @@ impl BinaryLikeExpression {
             write_space_after_binary_left_if_needed(f, previous_expression, operand_operator)?;
         }
 
-        write!(f, [operand_operator, soft_line_break_or_space()])?;
-        format_binary_operand_with_grouping_parentheses(f, self.operator, operand_expression)
+        let operator_and_operand = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write!(f, [operand_operator, soft_line_break_or_space()])?;
+            format_binary_operand_with_grouping_parentheses(f, self.operator, operand_expression)
+        });
+
+        let owner_id = self.operand_owner_ids.get(operand_index).copied().flatten();
+
+        if owner_id
+            .is_some_and(|owner_id| flattened_operand_owner_should_group(f.context(), owner_id))
+        {
+            let should_break = previous_expression.is_some_and(|previous_expression| {
+                binary_expression_has_line_suffix_comment(f.context(), previous_expression)
+            });
+
+            return write!(
+                f,
+                [group(&operator_and_operand).should_expand(should_break)]
+            );
+        }
+
+        write!(f, [operator_and_operand])
     }
 }
 
