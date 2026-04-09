@@ -2,22 +2,25 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions};
+use destack_linter::Linter;
+use destack_session::{
+    Session, SessionEventHandler, SessionObservationHandler, canonical_path_or_original,
+};
 use destack_source::OverlayFileSystem;
 use destack_workspace::{Ref, Repository, Revision};
 
-use super::workspace::{WorkspaceSession, tracked_document_key};
 use super::{LanguageService, LanguageServiceError};
 
 impl LanguageService {
     /// Resolve the owning workspace root for any workspace-scoped path.
     fn workspace_root_for_owned_path(&self, path: &Path) -> Option<PathBuf> {
-        let canonical_path = tracked_document_key(path);
+        let canonical_path = canonical_path_or_original(path);
         let mut best_root = None;
         let mut best_depth = 0usize;
 
         for entry in self.workspaces_by_root.iter() {
             let root = entry.key();
-            let canonical_root = tracked_document_key(root);
+            let canonical_root = canonical_path_or_original(root);
 
             let matches_root =
                 path.starts_with(root) || canonical_path.starts_with(&canonical_root);
@@ -47,41 +50,41 @@ impl LanguageService {
     }
 
     /// Resolve the owning workspace root for a semantic path.
-    fn workspace_root_for_semantic_path(&self, path: &Path) -> Option<PathBuf> {
-        let canonical_path = tracked_document_key(path);
+    fn semantic_workspace_root_for_path(
+        &self,
+        path: &Path,
+    ) -> Result<Option<PathBuf>, LanguageServiceError> {
+        let canonical_path = canonical_path_or_original(path);
         let mut best_root = None;
         let mut best_depth = 0usize;
 
         for workspace in self.workspaces_by_root.iter() {
-            let is_member = workspace.value().owns_semantic_path(path)
+            let is_member = workspace.value().owns_semantic_path(path)?
                 || (canonical_path != path
-                    && workspace.value().owns_semantic_path(&canonical_path));
+                    && workspace.value().owns_semantic_path(&canonical_path)?);
             if !is_member {
                 continue;
             }
 
-            let canonical_root = tracked_document_key(&workspace.value().root);
+            let canonical_root = canonical_path_or_original(workspace.value().root());
             let depth = canonical_root.components().count();
             if depth <= best_depth {
                 continue;
             }
 
             best_depth = depth;
-            best_root = Some(workspace.value().root.clone());
+            best_root = Some(workspace.value().root().to_path_buf());
         }
 
-        best_root
+        Ok(best_root)
     }
 
     /// Resolve the workspace that already owns one tracked document.
-    pub(super) fn tracked_workspace_for_path(&self, path: &Path) -> Option<Arc<WorkspaceSession>> {
-        let canonical_path = tracked_document_key(path);
+    pub(super) fn tracked_workspace_for_path(&self, path: &Path) -> Option<Arc<Session>> {
+        let canonical_path = canonical_path_or_original(path);
 
         for workspace in self.workspaces_by_root.iter() {
-            if workspace
-                .value()
-                .has_tracked_document_for_path(&canonical_path)
-            {
+            if workspace.value().has_open_file_for_path(&canonical_path) {
                 return Some(Arc::clone(workspace.value()));
             }
         }
@@ -93,7 +96,7 @@ impl LanguageService {
     pub(super) fn workspace_for_document_path(
         &self,
         path: &Path,
-    ) -> Result<Arc<WorkspaceSession>, LanguageServiceError> {
+    ) -> Result<Arc<Session>, LanguageServiceError> {
         // prefer the existing tracked owner before rediscovering semantic routing
         if let Some(workspace) = self.tracked_workspace_for_path(path) {
             return Ok(workspace);
@@ -113,11 +116,15 @@ impl LanguageService {
         overlay_fs: Option<Arc<OverlayFileSystem>>,
         roots: Vec<PathBuf>,
         compiler_options: CompilerOptions,
+        session_event_handler: Option<SessionEventHandler>,
+        session_observation_handler: Option<SessionObservationHandler>,
     ) -> Result<Self, LanguageServiceError> {
         let service = Self {
             repository,
             overlay_fs,
             compiler_execution_options: compiler_options,
+            session_event_handler,
+            session_observation_handler,
             workspaces_by_root: dashmap::DashMap::new(),
         };
 
@@ -134,13 +141,12 @@ impl LanguageService {
             return Ok(());
         }
 
-        let workspace = Arc::new(self.build_workspace_session(root.clone())?);
+        let session = Arc::new(self.build_session(root.clone())?);
         self.workspaces_by_root
-            .insert(root.clone(), Arc::clone(&workspace));
+            .insert(root.clone(), Arc::clone(&session));
 
         // synchronize the current file system state for the new workspace ref
-        let _mutation_guard = workspace.enter_mutation();
-        let result = workspace.sync_file_system();
+        let result = session.discover_filesystem();
         let Err(error) = result else {
             return Ok(());
         };
@@ -148,7 +154,7 @@ impl LanguageService {
         // rollback a failed root open so service state stays consistent
         self.workspaces_by_root.remove(root.as_path());
 
-        Err(error)
+        Err(LanguageServiceError::from(error))
     }
 
     /// Close an opened workspace root.
@@ -213,44 +219,49 @@ impl LanguageService {
     pub(super) fn workspace_for_root(
         &self,
         root: &Path,
-    ) -> Result<Arc<WorkspaceSession>, LanguageServiceError> {
+    ) -> Result<Arc<Session>, LanguageServiceError> {
         let root = root.to_path_buf();
 
         if !self.workspaces_by_root.contains_key(&root) {
             self.open_workspace_root(root.clone())?;
         }
 
-        let workspace = self
+        let session = self
             .workspaces_by_root
             .get(root.as_path())
             .map(|entry| Arc::clone(entry.value()))
             .ok_or(LanguageServiceError::RevisionNotTracked { root: root.clone() })?;
 
-        if workspace.root != root {
+        if session.root() != root {
             return Err(LanguageServiceError::Internal {
                 detail: format!(
                     "workspace root mismatch: expected {}, found {}",
                     root.display(),
-                    workspace.root.display()
+                    session.root().display()
                 ),
             });
         }
 
-        Ok(workspace)
+        Ok(session)
     }
 
     /// Resolve or create a workspace for a path.
     pub(super) fn workspace_for_path(
         &self,
         path: &Path,
-    ) -> Result<Arc<WorkspaceSession>, LanguageServiceError> {
-        let Some(root) = self.workspace_root_for_semantic_path(path) else {
+    ) -> Result<Arc<Session>, LanguageServiceError> {
+        let Some(root) = self.semantic_workspace_root_for_path(path)? else {
             return Err(LanguageServiceError::PathNotInWorkspace {
                 path: path.to_path_buf(),
             });
         };
 
         self.workspace_for_root(&root)
+    }
+
+    /// Return the session for the workspace that owns a path.
+    pub fn session_for_path(&self, path: &Path) -> Result<Arc<Session>, LanguageServiceError> {
+        self.workspace_for_path(path)
     }
 
     /// Resolve the current semantic revision for the workspace that owns a path.
@@ -284,10 +295,7 @@ impl LanguageService {
     }
 
     /// Build a workspace for a root.
-    fn build_workspace_session(
-        &self,
-        root: PathBuf,
-    ) -> Result<WorkspaceSession, LanguageServiceError> {
+    fn build_session(&self, root: PathBuf) -> Result<Session, LanguageServiceError> {
         let revision_ref = Ref::for_workspace_root(root.as_path());
 
         if self.repository.current(&revision_ref).is_err() {
@@ -301,13 +309,21 @@ impl LanguageService {
             self.repository.clone(),
             self.compiler_execution_options.clone(),
         ));
+        let linter = Arc::new(Linter::new(self.repository.clone()));
 
-        Ok(WorkspaceSession::new(
+        let cwd = root.clone();
+
+        Session::new(
             root,
+            cwd,
             self.repository.clone(),
             revision_ref,
             self.overlay_fs.clone(),
             compiler,
-        ))
+            linter,
+            self.session_event_handler.clone(),
+            self.session_observation_handler.clone(),
+        )
+        .map_err(LanguageServiceError::from)
     }
 }
