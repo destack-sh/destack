@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use destack_query as query;
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
+use destack_session::Session;
 use destack_source::{Diagnostic, DiagnosticCollection, File, FileId, Span, Uri};
 use destack_workspace::{Repository, RepositorySnapshot, Revision};
 
-use super::workspace::WorkspaceSession;
 use super::{
     DocumentDiagnosticSnapshot, LanguageService, LanguageServiceError, WorkspaceDiagnosticSnapshot,
 };
@@ -16,20 +16,49 @@ impl LanguageService {
     /// Run one callback under the coherent read lock for a workspace root.
     fn with_workspace_read<T, F>(&self, root: &Path, callback: F) -> Result<T, LanguageServiceError>
     where
-        F: FnOnce(&WorkspaceSession, &RepositorySnapshot) -> Result<T, LanguageServiceError>,
+        F: FnOnce(&Session, &RepositorySnapshot) -> Result<T, LanguageServiceError>,
     {
         // resolve the owning workspace and repository
         let workspace = self.workspace_for_root(root)?;
 
         // hold the workspace read section for the full query
         let _query_guard = workspace.enter_query();
-        let snapshot = workspace.snapshot();
+        let repository = workspace.repository();
+        let snapshot = repository
+            .snapshot(workspace.revision())
+            .map_err(LanguageServiceError::from)?;
 
         callback(workspace.as_ref(), &snapshot)
     }
 
-    /// Run one callback with a coherent query-artifact-ready file snapshot for a path.
-    pub fn with_query_file_for_path<T, F>(
+    /// Prepare the default query artifact root for one document path.
+    pub fn prepare_default_query_for_path(&self, path: &Path) -> Result<(), LanguageServiceError> {
+        let workspace = self.workspace_for_document_path(path)?;
+        let module_id = workspace.admit_module_for_path(path).map_err(|error| {
+            LanguageServiceError::QueryNotReady {
+                detail: format!("query preparation failed for {}: {error}", path.display()),
+            }
+        })?;
+        let revision = workspace.revision();
+        let profile_id = workspace
+            .repository()
+            .default_profile_id_for_module(revision, module_id)
+            .map_err(|error| LanguageServiceError::QueryNotReady {
+                detail: format!("query preparation failed for {}: {error}", path.display()),
+            })?;
+        let artifact_key = query::default_document_artifact_key(module_id, profile_id);
+
+        workspace.provide(&[artifact_key]).map_err(|error| {
+            LanguageServiceError::QueryNotReady {
+                detail: format!("query preparation failed for {}: {error}", path.display()),
+            }
+        })?;
+
+        Ok(())
+    }
+
+    /// Run one callback with a coherent file snapshot for a path.
+    pub fn with_file_for_path<T, F>(
         &self,
         path: &Path,
         callback: F,
@@ -44,13 +73,12 @@ impl LanguageService {
             let repository = snapshot.repository();
             let revision = snapshot.revision();
 
-            // require one tracked query-artifact-ready file for the request
-            let file_id = workspace.resolve_file_id_for_path(path).ok_or_else(|| {
+            // require one tracked file for the request
+            let file_id = workspace.file_id_for_path(path)?.ok_or_else(|| {
                 LanguageServiceError::FileNotTracked {
                     path: path.to_path_buf(),
                 }
             })?;
-            let file_id = self.ensure_query_artifacts_for_file(repository, revision, file_id)?;
             let file = workspace.file_for_id(file_id)?;
 
             callback(repository, file_id, file, revision)
@@ -108,8 +136,8 @@ impl LanguageService {
 
             // tracked documents
             let mut tracked_documents = std::collections::HashMap::new();
-            for (path, uri, version) in workspace.tracked_document_identities() {
-                let Some(file_id) = workspace.resolve_file_id_for_path(&path) else {
+            for (path, uri, version) in workspace.open_file_identities() {
+                let Some(file_id) = workspace.file_id_for_path(&path)? else {
                     continue;
                 };
 
@@ -167,7 +195,9 @@ impl LanguageService {
     where
         F: FnOnce(FileId, &File) -> Option<query::QueryRequest>,
     {
-        self.with_query_file_for_path(path, |repository, file_id, file, revision| {
+        self.prepare_default_query_for_path(path)?;
+
+        self.with_file_for_path(path, |repository, file_id, file, revision| {
             // build the request from the exact file snapshot used for result conversion
             let Some(request) = build_request(file_id, &file) else {
                 return Ok(None);
@@ -259,6 +289,8 @@ impl LanguageService {
             });
         }
 
+        self.prepare_query_request(&envelope.request)?;
+
         self.with_workspace_read(root, |_workspace, snapshot| {
             // dispatch pure read query execution
             let repository = snapshot.repository();
@@ -312,7 +344,6 @@ impl LanguageService {
 
         // serialize write queries with all other workspace mutations
         let _mutation_guard = workspace.enter_mutation();
-        let repository = workspace.repository();
         let current_revision = workspace.revision();
 
         // require a matching revision precondition for write requests
@@ -327,18 +358,15 @@ impl LanguageService {
         }
 
         // root the checked revision for the full request
+        let repository = workspace.repository();
         let snapshot = repository
-            .snapshot(current_revision)
+            .snapshot(workspace.revision())
             .map_err(LanguageServiceError::from)?;
 
         // dispatch mutating query execution
-        let response = self.execute_query_request(
-            snapshot.repository(),
-            current_revision,
-            None,
-            envelope.request,
-        )?;
-        let revision = workspace.revision();
+        let revision = snapshot.revision();
+        let response =
+            self.execute_query_request(snapshot.repository(), revision, None, envelope.request)?;
 
         Ok(QueryResponseEnvelope { revision, response })
     }
@@ -501,6 +529,7 @@ impl LanguageService {
             query::QueryRequest::WorkspaceSymbols(params) => {
                 let symbols = query::workspace_symbols(
                     repository,
+                    revision,
                     &params.query,
                     params.max_results as usize,
                 );
@@ -856,35 +885,31 @@ impl LanguageService {
         revision: Revision,
         uri: &Uri,
     ) -> Option<FileId> {
-        // prefer module lookups by uri
+        // prefer one module lookup by uri
         if let Ok(Some(module_id)) = repository.module_id_for_uri(revision, uri)
             && let Ok(Some(module)) = repository.module(revision, module_id)
         {
             return Some(module.file_id);
         }
 
-        // fall back to module lookups by path
-        if let Some(path) = uri.to_path_buf()
-            && let Ok(Some(module_id)) = repository.module_id_for_path(revision, &path)
-            && let Ok(Some(module)) = repository.module(revision, module_id)
-        {
-            return Some(module.file_id);
+        // then try direct file identity for the exact uri form
+        if let Some(path) = uri.to_path_buf() {
+            let file_id = repository.file_id_for_workspace_path(&path);
+
+            return match repository.file(revision, file_id) {
+                Ok(Some(_file)) => Some(file_id),
+                Ok(None) => None,
+                Err(_error) => None,
+            };
         }
 
-        // fall back to direct file identity by uri
         let file_id = FileId::from_logical_str(uri.as_ref());
-        if repository.file(revision, file_id).ok().flatten().is_some() {
-            return Some(file_id);
-        }
 
-        // finally try direct workspace file identity by path
-        let path = uri.to_path_buf()?;
-        let file_id = repository.file_id_for_workspace_path(&path);
-        if repository.file(revision, file_id).ok().flatten().is_some() {
-            return Some(file_id);
+        match repository.file(revision, file_id) {
+            Ok(Some(_file)) => Some(file_id),
+            Ok(None) => None,
+            Err(_error) => None,
         }
-
-        None
     }
 
     /// Ensure query artifacts are ready for a file.
@@ -902,23 +927,18 @@ impl LanguageService {
         // build a detailed failure summary for diagnostics
         let detail = match repository
             .module_id_for_file(revision, file_id)
-            .ok()
-            .flatten()
+            .map_err(LanguageServiceError::from)?
         {
             None => format!("file_id={file_id:?} module_id=<missing>"),
             Some(module_id) => {
-                let module = repository.module(revision, module_id).ok().flatten();
-                let module = match module {
-                    Some(module) => module,
-                    None => {
-                        return Err(LanguageServiceError::QueryNotReady {
-                            detail: format!(
-                                "file_id={file_id:?} module_id={module_id:?} module=<missing>"
-                            ),
-                        });
-                    }
-                };
-
+                let module = repository
+                    .module(revision, module_id)
+                    .map_err(LanguageServiceError::from)?
+                    .ok_or_else(|| LanguageServiceError::QueryNotReady {
+                        detail: format!(
+                            "file_id={file_id:?} module_id={module_id:?} module=<missing>"
+                        ),
+                    })?;
                 let requested_profile_id = match repository
                     .default_profile_id_for_module(revision, module.id)
                 {
@@ -951,14 +971,50 @@ impl LanguageService {
                     .as_ref()
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|| "<none>".to_string());
+                let query_root = format!("DirAnalyzed({module_id:?}, {requested_profile_id:?})");
 
                 format!(
-                    "file_id={file_id:?} module_id={module_id:?} requested_profile_id={requested_profile_id:?} selected_profile_id={selected_profile_id:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} resolved_dir_ready={resolved_dir_ready} analyzed_dir_ready={analyzed_dir_ready} path={path}",
+                    "file_id={file_id:?} module_id={module_id:?} query_root={query_root} requested_profile_id={requested_profile_id:?} selected_profile_id={selected_profile_id:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} resolved_dir_ready={resolved_dir_ready} analyzed_dir_ready={analyzed_dir_ready} path={path}",
                 )
             }
         };
 
         Err(LanguageServiceError::QueryNotReady { detail })
+    }
+
+    /// Prepare one query request when it targets one document path.
+    fn prepare_query_request(
+        &self,
+        request: &query::QueryRequest,
+    ) -> Result<(), LanguageServiceError> {
+        let Some(path) = request.path() else {
+            return Ok(());
+        };
+
+        let workspace = self.workspace_for_document_path(&path)?;
+        let module_id = workspace.admit_module_for_path(&path).map_err(|error| {
+            LanguageServiceError::QueryNotReady {
+                detail: format!("query preparation failed for {}: {error}", path.display()),
+            }
+        })?;
+        let revision = workspace.revision();
+        let profile_id = workspace
+            .repository()
+            .default_profile_id_for_module(revision, module_id)
+            .map_err(|error| LanguageServiceError::QueryNotReady {
+                detail: format!("query preparation failed for {}: {error}", path.display()),
+            })?;
+        let Some(artifact_key) = request.default_artifact_key(module_id, profile_id) else {
+            return Ok(());
+        };
+
+        workspace.provide(&[artifact_key]).map_err(|error| {
+            LanguageServiceError::QueryNotReady {
+                detail: format!("query preparation failed for {}: {error}", path.display()),
+            }
+        })?;
+
+        Ok(())
     }
 
     /// Check if query artifacts are ready for the file.
@@ -969,31 +1025,21 @@ impl LanguageService {
         file_id: FileId,
     ) -> bool {
         // resolve the module for this file id
-        let Some(module_id) = repository
-            .module_id_for_file(revision, file_id)
-            .ok()
-            .flatten()
-        else {
-            return false;
+        let module_id = match repository.module_id_for_file(revision, file_id) {
+            Ok(Some(module_id)) => module_id,
+            Ok(None) => return false,
+            Err(_error) => return false,
         };
 
-        // require both ast and profile dir state
-        let Ok(requested_profile) = repository.default_profile_id_for_module(revision, module_id)
-        else {
-            return false;
+        // require one default query profile for the module
+        let profile_id = match repository.default_profile_id_for_module(revision, module_id) {
+            Ok(profile_id) => profile_id,
+            Err(_error) => return false,
         };
-        let Some(profile) = repository.available_profile_id_for_module(
-            revision,
-            module_id,
-            requested_profile,
-            true,
-        ) else {
-            return false;
-        };
-        repository.ast(revision, module_id).is_some()
-            && repository
-                .dir_analyzed(revision, module_id, profile)
-                .is_some()
+
+        repository
+            .dir_analyzed(revision, module_id, profile_id)
+            .is_some()
     }
 
     /// Build a span from offsets for a file.
@@ -1007,7 +1053,7 @@ impl LanguageService {
 
 /// Return current diagnostics grouped by file for one workspace session.
 fn current_root_diagnostics_by_file(
-    workspace: &WorkspaceSession,
+    workspace: &Session,
     repository: &Repository,
 ) -> Result<HashMap<FileId, Vec<Diagnostic>>, LanguageServiceError> {
     current_repository_diagnostics_by_file(repository, workspace.revision())

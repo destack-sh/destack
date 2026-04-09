@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
+use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::Repository;
+use destack_workspace::AmbientSnapshot;
 
 use crate::{LanguageService, LanguageServiceResult};
 
@@ -41,9 +41,12 @@ impl TestLanguageService {
             PhysicalFileSystem::new(),
         )));
         let repository = Arc::new(
-            Repository::open_detected_from_fs(root.clone(), overlay.clone())
-                .expect("failed to import repository from overlay fs")
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+            open_repository_from_fs(
+                root.clone(),
+                overlay.clone(),
+                AmbientSnapshot::capture_process(),
+            )
+            .expect("failed to import repository from overlay fs"),
         );
         // keep compiler execution deterministic for service tests
         let compiler_options = CompilerOptions {
@@ -55,6 +58,8 @@ impl TestLanguageService {
             Some(overlay),
             roots.clone(),
             compiler_options,
+            None,
+            None,
         )
         .expect("expected workspace service");
 

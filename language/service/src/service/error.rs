@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use destack_query::{QueryExecutionMode, QueryMethodId};
+use destack_session::SessionError;
 use destack_source::{FileId, ModuleId};
 use destack_workspace::{RepositoryError, Revision};
 
@@ -21,8 +22,15 @@ pub enum LanguageServiceError {
         /// The failure detail.
         detail: String,
     },
-    /// Impact calculation failed for a path.
-    InvalidatePathFailed {
+    /// Semantic update failed for a path.
+    UpdatePathFailed {
+        /// The path that failed.
+        path: PathBuf,
+        /// The failure detail.
+        detail: String,
+    },
+    /// Reading a path failed.
+    ReadPathFailed {
         /// The path that failed.
         path: PathBuf,
         /// The failure detail.
@@ -80,6 +88,11 @@ pub enum LanguageServiceError {
         /// The current semantic revision.
         current: Revision,
     },
+    /// Repository work failed inside the service.
+    Repository {
+        /// The failure detail.
+        detail: String,
+    },
     /// The semantic revision entry is missing for a workspace root.
     RevisionNotTracked {
         /// The workspace root missing revision state.
@@ -110,12 +123,11 @@ impl std::fmt::Display for LanguageServiceError {
             LanguageServiceError::ResolvePathFailed { path, detail } => {
                 write!(formatter, "resolve failed for {}: {detail}", path.display())
             }
-            LanguageServiceError::InvalidatePathFailed { path, detail } => {
-                write!(
-                    formatter,
-                    "invalidate failed for {}: {detail}",
-                    path.display()
-                )
+            LanguageServiceError::UpdatePathFailed { path, detail } => {
+                write!(formatter, "update failed for {}: {detail}", path.display())
+            }
+            LanguageServiceError::ReadPathFailed { path, detail } => {
+                write!(formatter, "read failed for {}: {detail}", path.display())
             }
             LanguageServiceError::FileNotTracked { path } => {
                 write!(formatter, "file not tracked: {}", path.display())
@@ -169,6 +181,9 @@ impl std::fmt::Display for LanguageServiceError {
                     "stale query revision: expected {expected}, current {current}"
                 )
             }
+            LanguageServiceError::Repository { detail } => {
+                write!(formatter, "workspace service repository error: {detail}")
+            }
             LanguageServiceError::RevisionNotTracked { root } => {
                 write!(
                     formatter,
@@ -190,8 +205,41 @@ impl std::error::Error for LanguageServiceError {}
 
 impl From<RepositoryError> for LanguageServiceError {
     fn from(error: RepositoryError) -> Self {
-        LanguageServiceError::Internal {
+        LanguageServiceError::Repository {
             detail: error.to_string(),
+        }
+    }
+}
+
+impl From<SessionError> for LanguageServiceError {
+    fn from(error: SessionError) -> Self {
+        match error {
+            SessionError::ResolvePathFailed { path, detail } => {
+                LanguageServiceError::ResolvePathFailed { path, detail }
+            }
+            SessionError::UpdatePathFailed { path, detail } => {
+                LanguageServiceError::UpdatePathFailed { path, detail }
+            }
+            SessionError::ReadPathFailed { path, detail } => {
+                LanguageServiceError::ReadPathFailed { path, detail }
+            }
+            SessionError::FileIdNotTracked { file_id } => {
+                LanguageServiceError::FileIdNotTracked { file_id }
+            }
+            SessionError::ModuleIdNotTracked { module_id } => {
+                LanguageServiceError::ModuleIdNotTracked { module_id }
+            }
+            SessionError::StaleOpenFileVersion {
+                path,
+                incoming,
+                current,
+            } => LanguageServiceError::StaleDocumentVersion {
+                path,
+                incoming,
+                current,
+            },
+            SessionError::Repository { detail } => LanguageServiceError::Repository { detail },
+            SessionError::Internal { detail } => LanguageServiceError::Internal { detail },
         }
     }
 }

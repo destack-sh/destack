@@ -65,9 +65,9 @@ fn test_workspace_service_close_document_restores_filesystem_diagnostics() {
     );
 }
 
-/// Fan out config impact updates to affected workspace modules.
+/// Keep config updates scoped to direct file publishes.
 #[test]
-fn test_workspace_service_config_update_fanout_emits_module_updates() {
+fn test_workspace_service_config_update_stays_direct() {
     let test = TestLanguageService::new("workspace_service_config_fanout");
     let _package_path = test.write_text(
         "package.json",
@@ -82,7 +82,7 @@ fn test_workspace_service_config_update_fanout_emits_module_updates() {
     let _ = test.update_virtual_text(&module_b, "export const b = ;\n");
     let _ = test.update_virtual_text(&config_path, "{ \"compilerOptions\": {} }\n");
 
-    // change the config and expect fanout updates for both modules
+    // change the config and expect only the config publish
     let updated = test.update_virtual_text(
         &config_path,
         "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
@@ -95,11 +95,15 @@ fn test_workspace_service_config_update_fanout_emits_module_updates() {
         .collect();
 
     assert!(
-        updated_paths.iter().any(|path| path == &module_a),
-        "expected config update fanout for a.ds"
+        updated_paths.iter().all(|path| path != &module_a),
+        "expected config updates to avoid implicit module fanout"
     );
     assert!(
-        updated_paths.iter().any(|path| path == &module_b),
-        "expected config update fanout for b.ds"
+        updated_paths.iter().all(|path| path != &module_b),
+        "expected config updates to avoid implicit module fanout"
+    );
+    assert!(
+        updated_paths.iter().any(|path| path == &config_path),
+        "expected direct config publish"
     );
 }
