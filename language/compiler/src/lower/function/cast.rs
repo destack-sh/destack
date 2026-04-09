@@ -152,7 +152,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed readonly @Animal> = bitcast v0 -> ref<managed readonly @Animal>
+    /// v1: ref<Animal, managed, readonly> = cast.bit v0 -> ref<Animal, managed, readonly>
     /// ```
     pub(crate) fn lower_instance_upcast(
         &mut self,
@@ -189,7 +189,7 @@ impl FunctionLowerer<'_> {
             return Ok((value, target_mir_type));
         }
 
-        // bitcast references to the target type
+        // cast.bit references -> the target type
         let source_type = self.state.builder.tree().get(source_mir_type).clone();
         if let mir::Type::Reference { .. } = source_type {
             let value = self.state.builder.bitcast(value, target_mir_type);
@@ -209,7 +209,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed readonly @Dog> = bitcast v0 -> ref<managed readonly @Dog>
+    /// v1: ref<Dog, managed, readonly> = cast.bit v0 -> ref<Dog, managed, readonly>
     /// ```
     pub(crate) fn lower_instance_downcast(
         &mut self,
@@ -268,7 +268,7 @@ impl FunctionLowerer<'_> {
             return Ok((value, target_mir_type));
         }
 
-        // bitcast references to the target type
+        // cast.bit references -> the target type
         let source_type = self.state.builder.tree().get(source_mir_type).clone();
         if let mir::Type::Reference { .. } = source_type {
             let value = self.state.builder.bitcast(value, target_mir_type);
@@ -294,9 +294,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: u8 = iconst 0
-    /// v2: [usize; 1] = <payload>
-    /// v3: @Union = struct @Union (v1, v2)
+    /// v1: uint8 = const 0
+    /// v2: usize[1] = <payload>
+    /// v3: Union = struct Union (v1, v2)
     /// ```
     pub(crate) fn lower_union_upcast(
         &mut self,
@@ -478,7 +478,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref?<managed readonly @Node> = bitcast v0 -> ref?<managed readonly @Node>
+    /// v1: ref?<Node, managed, readonly> = cast.bit v0 -> ref?<Node, managed, readonly>
     /// ```
     pub(crate) fn lower_nullable_upcast(
         &mut self,
@@ -552,7 +552,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed readonly @Node> = bitcast v0 -> ref<managed readonly @Node>
+    /// v1: ref<Node, managed, readonly> = cast.bit v0 -> ref<Node, managed, readonly>
     /// ```
     pub(crate) fn lower_nullable_downcast(
         &mut self,

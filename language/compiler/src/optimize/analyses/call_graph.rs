@@ -272,7 +272,7 @@ enum SignatureType {
         result: Box<SignatureType>,
     },
     /// Callable closure value signature.
-    FunctionValue {
+    Closure {
         /// The bare function pointer signature.
         signature: Box<SignatureType>,
     },
@@ -408,7 +408,7 @@ impl SignatureType {
 
                 SignatureType::FunctionPointer { parameters, result }
             }
-            mir::Type::FunctionValue { signature } => SignatureType::FunctionValue {
+            mir::Type::Closure { signature } => SignatureType::Closure {
                 signature: Box::new(SignatureType::from_type(tree, *signature)),
             },
         }
@@ -1577,14 +1577,15 @@ mod tests {
     #[test]
     fn test_call_graph_direct_call() {
         let test = TestProgram::new(
-            r#"function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 7i32
+            r#"
+function callee(): int32 {
+b0:
+    v0: int32 = 7int32
     return v0
 }
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -1610,23 +1611,24 @@ block0:
     #[test]
     fn test_call_graph_scc_recursion() {
         let test = TestProgram::new(
-            r#"function @a() -> void {
-block0:
-    call @b() -> fn() -> void
+            r#"
+function a(): void {
+b0:
+    call b(): () -> void
     return
 }
-function @b() -> void {
-block0:
-    call @a() -> fn() -> void
+function b(): void {
+b0:
+    call a(): () -> void
     return
 }
-function @c() -> void {
-block0:
-    call @c() -> fn() -> void
+function c(): void {
+b0:
+    call c(): () -> void
     return
 }
-function @d() -> void {
-block0:
+function d(): void {
+b0:
     return
 }"#,
         );
@@ -1649,9 +1651,9 @@ block0:
     #[test]
     fn test_call_graph_indirect_unknown() {
         let test = TestProgram::new(
-            r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+            r#"
+function test(v0: fn(int32) -> int32, v1: int32): int32  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#,
         );
@@ -1673,13 +1675,14 @@ block0(v0: fn(i32) -> i32, v1: i32):
     #[test]
     fn test_call_graph_tailcall_direct() {
         let test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    tailcall @callee(v0)
+function test(v0: int32): int32 {
+b0(v0: int32):
+    tailCall callee(v0): (int32) -> int32
 }"#,
         );
 
@@ -1699,9 +1702,10 @@ block0(v0: i32):
     #[test]
     fn test_call_graph_tailcall_indirect_unknown() {
         let test = TestProgram::new(
-            r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    tailcall.indirect v0(v1) -> fn(i32) -> i32
+            r#"
+function test(v0: fn(int32) -> int32, v1: int32): int32 {
+b0(v0: fn(int32) -> int32, v1: int32):
+    tailCall.indirect v0(v1): (int32) -> int32
 }"#,
         );
 
@@ -1720,13 +1724,14 @@ block0(v0: fn(i32) -> i32, v1: i32):
     #[test]
     fn test_call_graph_call_indirect_unknown() {
         let test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+
+function test(v0: fn(int32) -> int32, v1: int32): int32  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#,
         );
@@ -1745,16 +1750,17 @@ block0(v0: fn(i32) -> i32, v1: i32):
     #[test]
     fn test_call_graph_call_terminator_direct() {
         let test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+function test(v0: int32): int32 {
+b0(v0: int32):
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#,
         );
@@ -1777,13 +1783,14 @@ block2(v2: ref<managed readonly i32>):
     #[test]
     fn test_call_graph_virtual_dispatch_is_partial() {
         let mut test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call.virtual v0, i32, 1(v0) -> fn(i32) -> i32
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
     return v1
 }"#,
         );
@@ -1836,16 +1843,17 @@ block0(v0: i32):
     #[test]
     fn test_call_graph_call_virtual_terminator_is_partial() {
         let mut test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    call.virtual v0, i32, 1(v0) -> fn(i32) -> i32 normal block1 unwind block2
-block1(v1: i32):
+function test(v0: int32): int32 {
+b0(v0: int32):
+    invoke.virtual v0, int32, 1(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#,
         );
@@ -1888,9 +1896,10 @@ block2(v2: ref<managed readonly i32>):
         let module_a = module_work_item(
             package_id,
             0,
-            r#"export function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 3i32
+            r#"
+export function callee(): int32 {
+b0:
+    v0: int32 = 3int32
     return v0
 }"#,
         );
@@ -1898,10 +1907,11 @@ block0:
         let module_b = module_work_item(
             package_id,
             1,
-            r#"extern function @callee() -> i32
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+            r#"
+extern function callee(): int32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -1932,10 +1942,11 @@ block0:
         let module = module_work_item(
             package_id,
             0,
-            r#"extern function @callee() -> i32
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+            r#"
+extern function callee(): int32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -1967,9 +1978,10 @@ block0:
         let module_a = module_work_item(
             package_id,
             0,
-            r#"function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+            r#"
+function callee(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#,
         );
@@ -1977,10 +1989,11 @@ block0:
         let module_b = module_work_item(
             package_id,
             1,
-            r#"extern function @callee() -> i32
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+            r#"
+extern function callee(): int32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -2011,8 +2024,9 @@ block0:
         let module_a = module_work_item(
             package_id,
             0,
-            r#"export function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+export function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }"#,
         );
@@ -2020,10 +2034,11 @@ block0(v0: i32):
         let module_b = module_work_item(
             package_id,
             1,
-            r#"extern function @callee(i64) -> i64
-function @test(v0: i64) -> i64 {
-block0(v0: i64):
-    v1: i64 = call @callee(v0) -> fn(i64) -> i64
+            r#"
+extern function callee(int64): int64
+function test(v0: int64): int64 {
+b0(v0: int64):
+    v1: int64 = call callee(v0): (int64) -> int64
     return v1
 }"#,
         );
@@ -2057,10 +2072,11 @@ block0(v0: i64):
         let caller_module = module_work_item(
             caller_pkg,
             0,
-            r#"extern function @callee() -> i32
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+            r#"
+extern function callee(): int32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -2068,9 +2084,10 @@ block0:
         let callee_module = module_work_item(
             callee_pkg,
             0,
-            r#"export function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
+            r#"
+export function callee(): int32 {
+b0:
+    v0: int32 = 9int32
     return v0
 }"#,
         );
@@ -2113,10 +2130,11 @@ block0:
         let caller_module = module_work_item(
             caller_pkg,
             0,
-            r#"extern function @callee() -> i32
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+            r#"
+extern function callee(): int32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -2124,9 +2142,10 @@ block0:
         let callee_module_a = module_work_item(
             callee_pkg_a,
             0,
-            r#"export function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+            r#"
+export function callee(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#,
         );
@@ -2134,9 +2153,10 @@ block0:
         let callee_module_b = module_work_item(
             callee_pkg_b,
             0,
-            r#"export function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
+            r#"
+export function callee(): int32 {
+b0:
+    v0: int32 = 2int32
     return v0
 }"#,
         );

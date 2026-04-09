@@ -574,18 +574,13 @@ impl FunctionLowerer<'_> {
         let overflow = self.state.builder.field_get(pair, 1);
 
         // emit the overflow check
-        let condition = self.state.builder.bnot(overflow);
         let constraint = mir::CheckConstraint::Overflow {
             operator: constraint_operator,
             left: left_value,
             right: right_value,
             is_signed,
         };
-        self.emit_check(
-            condition,
-            constraint,
-            RUNTIME_CHECK_MESSAGES.integer_overflow,
-        )?;
+        self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.integer_overflow)?;
 
         Ok(result)
     }
@@ -614,19 +609,10 @@ impl FunctionLowerer<'_> {
         }
 
         // build the div-zero check
-        let zero = self.state.builder.iconst(0, width as u8, is_signed);
-        let condition =
-            self.state
-                .builder
-                .binary_op(mir::BinaryOperator::NotEqual, right_value, zero);
         let constraint = mir::CheckConstraint::DivZero {
             divisor: right_value,
         };
-        self.emit_check(
-            condition,
-            constraint,
-            RUNTIME_CHECK_MESSAGES.division_by_zero,
-        )?;
+        self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.division_by_zero)?;
 
         // emit signed min / -1 overflow checks
         if is_signed {
@@ -644,33 +630,13 @@ impl FunctionLowerer<'_> {
                     });
                 }
             };
-            let min_const = self.state.builder.iconst(min_value, width as u8, true);
-            let neg_one = self.state.builder.iconst(-1, width as u8, true);
-            let left_is_min =
-                self.state
-                    .builder
-                    .binary_op(mir::BinaryOperator::Equal, left_value, min_const);
-            let right_is_neg_one =
-                self.state
-                    .builder
-                    .binary_op(mir::BinaryOperator::Equal, right_value, neg_one);
-            let overflow = self.state.builder.binary_op(
-                mir::BinaryOperator::And,
-                left_is_min,
-                right_is_neg_one,
-            );
-            let condition = self.state.builder.bnot(overflow);
             let constraint = mir::CheckConstraint::Overflow {
                 operator: mir::BinaryOperator::SignedDivide,
                 left: left_value,
                 right: right_value,
                 is_signed,
             };
-            self.emit_check(
-                condition,
-                constraint,
-                RUNTIME_CHECK_MESSAGES.division_overflow,
-            )?;
+            self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.division_overflow)?;
         }
 
         Ok(())
@@ -707,49 +673,12 @@ impl FunctionLowerer<'_> {
                 .into_anchored(Some(self.context.profile)),
             message: "shift width exceeds check constraint limits".to_string(),
         })?;
-        let shift_width =
-            u8::try_from(shift_width).map_err(|_| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
-                message: "shift amount width exceeds check constraint limits".to_string(),
-            })?;
-        let bit_width_value =
-            self.state
-                .builder
-                .iconst(bit_width as i64, shift_width, shift_signed);
-        let condition = if shift_signed {
-            let zero = self.state.builder.iconst(0, shift_width, true);
-            let non_negative = self.state.builder.binary_op(
-                mir::BinaryOperator::SignedGreaterEqual,
-                right_value,
-                zero,
-            );
-            let in_range = self.state.builder.binary_op(
-                mir::BinaryOperator::SignedLessThan,
-                right_value,
-                bit_width_value,
-            );
-            self.state
-                .builder
-                .binary_op(mir::BinaryOperator::And, non_negative, in_range)
-        } else {
-            self.state.builder.binary_op(
-                mir::BinaryOperator::UnsignedLessThan,
-                right_value,
-                bit_width_value,
-            )
-        };
         let constraint = mir::CheckConstraint::ShiftRange {
             value: right_value,
             bit_width,
             is_signed: shift_signed,
         };
-        self.emit_check(
-            condition,
-            constraint,
-            RUNTIME_CHECK_MESSAGES.shift_out_of_range,
-        )?;
+        self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.shift_out_of_range)?;
 
         Ok(())
     }
@@ -763,15 +692,15 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// block0(v0: bool):
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     v1: i32 = iconst 1
-    ///     jump block3(v1)
-    /// block2:
-    ///     v2: i32 = iconst 2
-    ///     jump block3(v2)
-    /// block3(v3: i32):
+    /// bb0(v0: boolean):
+    ///     branch v0, bb1, bb2
+    /// bb1:
+    ///     v1: int32 = const 1
+    ///     jump bb3(v1)
+    /// bb2:
+    ///     v2: int32 = const 2
+    ///     jump bb3(v2)
+    /// bb3(v3: int32):
     ///     return v3
     /// ```
     pub(crate) fn lower_conditional_expression(

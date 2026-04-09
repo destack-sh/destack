@@ -32,25 +32,25 @@ declare_pass! {
     /// 3) Aliasing through field and element access.
     ///
     /// ```mir
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32
-    ///     v1 = iconst 42i32
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32
+    ///     v1 = 42int32
     ///     store v0, v1
     ///     v2 = load v0       // forwarded from store
     ///     v3 = load v0       // forwarded from store load to load
-    ///     v4 = iadd v2, v3
+    ///     v4 = int.add v2, v3
     ///     return v4
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32
-    ///     v1 = iconst 42i32
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32
+    ///     v1 = 42int32
     ///     store v0, v1
-    ///     v4 = iadd v1, v1
+    ///     v4 = int.add v1, v1
     ///     return v4
     /// }
     /// ```
@@ -616,7 +616,7 @@ fn resolve_trivial_clobber(
 /// Check if an intrinsic acts as a memory barrier.
 fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
     // match barrier intrinsics
-    matches!(intrinsic, mir::Intrinsic::GcWriteBarrier)
+    matches!(intrinsic, mir::Intrinsic::WriteBarrier)
 }
 
 #[cfg(test)]
@@ -627,18 +627,20 @@ mod tests {
     /// Store then load from same pointer forwards the stored value.
     #[test]
     fn test_forward_simple_store_load() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
     return v1
 }"#;
@@ -651,13 +653,14 @@ block0:
     /// Store to one pointer, load from different pointer: no forwarding.
     #[test]
     fn test_no_forward_different_pointers() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
         let expected = input;
@@ -670,21 +673,23 @@ block0:
     /// Second store kills first, load forwards from second store.
     #[test]
     fn test_kill_on_clobbering_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 100i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
+    v2: int32 = 100int32
     store v0, v1
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 100i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
+    v2: int32 = 100int32
     store v0, v1
     store v0, v2
     return v2
@@ -698,22 +703,24 @@ block0:
     /// Multiple loads from same pointer all forward to stored value.
     #[test]
     fn test_forward_multiple_loads() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
-    v3: i32 = load v0
-    v4: i32 = iadd v2, v3
+    v2: int32 = load v0
+    v3: int32 = load v0
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = iadd v1, v1
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -725,33 +732,35 @@ block0:
     /// Trivial memory phis forward through a merge.
     #[test]
     fn test_forward_through_trivial_memory_phi() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: bool = iconst true
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: boolean = true
     store v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v3: i32 = load v0
+    branch v2, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: bool = iconst true
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: boolean = true
     store v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+    branch v2, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return v1
 }"#;
 
@@ -763,37 +772,39 @@ block3:
     /// Trivial memory phis with multiple incoming edges are forwarded.
     #[test]
     fn test_forward_through_triple_memory_phi() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: u32 = iconst 0u32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: uint32 = 0uint32
     store v0, v1
-    switch v2, block1, 0 => block2, 1 => block3
-block1:
-    jump block4
-block2:
-    jump block4
-block3:
-    jump block4
-block4:
-    v3: i32 = load v0
+    switch v2, b1, 0 => b2, 1 => b3
+b1:
+    jump b4
+b2:
+    jump b4
+b3:
+    jump b4
+b4:
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: u32 = iconst 0u32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: uint32 = 0uint32
     store v0, v1
-    switch v2, block1, 0 => block2, 1 => block3
-block1:
-    jump block4
-block2:
-    jump block4
-block3:
-    jump block4
-block4:
+    switch v2, b1, 0 => b2, 1 => b3
+b1:
+    jump b4
+b2:
+    jump b4
+b3:
+    jump b4
+b4:
     return v1
 }"#;
 
@@ -805,23 +816,25 @@ block4:
     /// Store to non aliasing pointer does not kill available store.
     #[test]
     fn test_forward_through_non_aliasing_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
-    v3: i32 = iconst 100i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
+    v3: int32 = 100int32
     store v0, v2
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
-    v3: i32 = iconst 100i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
+    v3: int32 = 100int32
     store v0, v2
     store v1, v3
     return v2
@@ -835,22 +848,30 @@ block0:
     /// Store to field, load from same field forwards correctly.
     #[test]
     fn test_forward_field_access() {
-        let input = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 42i32
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 42int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
-        let expected = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 42i32
+        let expected = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 42int32
     store v1, v2
     return v2
 }"#;
@@ -863,32 +884,40 @@ block0:
     /// Store to different fields: forward each independently.
     #[test]
     fn test_forward_different_fields() {
-        let input = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 1
-    v3: i32 = iconst 10i32
-    v4: i32 = iconst 20i32
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 1
+    v3: int32 = 10int32
+    v4: int32 = 20int32
     store v1, v3
     store v2, v4
-    v5: i32 = load v1
-    v6: i32 = load v2
-    v7: i32 = iadd v5, v6
+    v5: int32 = load v1
+    v6: int32 = load v2
+    v7: int32 = int.add v5, v6
     return v7
 }"#;
-        let expected = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 1
-    v3: i32 = iconst 10i32
-    v4: i32 = iconst 20i32
+        let expected = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 1
+    v3: int32 = 10int32
+    v4: int32 = 20int32
     store v1, v3
     store v2, v4
-    v5: i32 = iadd v3, v4
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
 
@@ -900,17 +929,19 @@ block0:
     /// Load followed by another load from same location uses first result.
     #[test]
     fn test_load_to_load_forwarding() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -922,21 +953,23 @@ block0(v0: ref<raw i32>):
     /// Store between loads kills the first load's availability.
     #[test]
     fn test_load_load_killed_by_store() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = iconst 99i32
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = 99int32
     store v0, v2
-    v3: i32 = load v0
-    v4: i32 = iadd v1, v3
+    v3: int32 = load v0
+    v4: int32 = int.add v1, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = iconst 99i32
+        let expected = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = 99int32
     store v0, v2
-    v3: i32 = iadd v1, v2
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
 
@@ -948,23 +981,25 @@ block0(v0: ref<raw i32>):
     /// Store in entry block forwards to dominated block.
     #[test]
     fn test_cross_block_forward_simple() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    jump block1
-block1:
-    v2: i32 = load v0
+    jump b1
+b1:
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    jump block1
-block1:
+    jump b1
+b1:
     return v1
 }"#;
 
@@ -976,32 +1011,34 @@ block1:
     /// Store in entry forwards to both branches of a diamond.
     #[test]
     fn test_cross_block_forward_diamond() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    branch v0, block1, block2
-block1:
-    v3: i32 = load v1
-    jump block3(v3)
-block2:
-    v4: i32 = load v1
-    jump block3(v4)
-block3(v5: i32):
+    branch v0, b1, b2
+b1:
+    v3: int32 = load v1
+    jump b3(v3)
+b2:
+    v4: int32 = load v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    branch v0, block1, block2
-block1:
-    jump block3(v2)
-block2:
-    jump block3(v2)
-block3(v3: i32):
+    branch v0, b1, b2
+b1:
+    jump b3(v2)
+b2:
+    jump b3(v2)
+b3(v3: int32):
     return v3
 }"#;
 
@@ -1013,18 +1050,19 @@ block3(v3: i32):
     /// Store in one branch does not forward to sibling branch.
     #[test]
     fn test_no_forward_across_non_dominating_blocks() {
-        let input = r#"function @test(v0: bool, v1: ref<raw i32>) -> i32 {
-block0(v0: bool, v1: ref<raw i32>):
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean, v1: ref<int32, raw>): int32 {
+b0(v0: boolean, v1: ref<int32, raw>):
+    branch v0, b1, b2
+b1:
+    v2: int32 = 42int32
     store v1, v2
-    jump block3
-block2:
-    v3: i32 = load v1
-    jump block3
-block3:
-    v4: i32 = iconst 0i32
+    jump b3
+b2:
+    v3: int32 = load v1
+    jump b3
+b3:
+    v4: int32 = 0int32
     return v4
 }"#;
         let expected = input;
@@ -1037,31 +1075,33 @@ block3:
     /// Deep dominator chain: store in entry reaches deeply nested block.
     #[test]
     fn test_cross_block_deep_chain() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
-    v2: i32 = load v0
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
     return v1
 }"#;
 
@@ -1073,21 +1113,23 @@ block3:
     /// Load in entry forwards to dominated blocks.
     #[test]
     fn test_cross_block_load_to_load() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    jump block1
-block1:
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    jump b1
+b1:
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    jump block1
-block1:
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    jump b1
+b1:
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -1099,14 +1141,15 @@ block1:
     /// Call with pointer argument may clobber: no forwarding.
     #[test]
     fn test_no_forward_after_call() {
-        let input = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v2: i32 = load v0
+    call external(v0): (ref<int32, raw>) -> void
+    v2: int32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1119,23 +1162,25 @@ block0:
     /// Readnone calls do not block forwarding.
     #[test]
     fn test_forward_across_readnone_call() {
-        let input = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v2: i32 = load v0
+    call external(v0): (ref<int32, raw>) -> void
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    call @external(v0) -> fn(ref<raw i32>) -> void
+    call external(v0): (ref<int32, raw>) -> void
     return v1
 }"#;
 
@@ -1162,16 +1207,17 @@ block0:
     /// Call in dominator block kills forwarding to dominated blocks.
     #[test]
     fn test_call_kills_cross_block() {
-        let input = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    jump block1
-block1:
-    v2: i32 = load v0
+    call external(v0): (ref<int32, raw>) -> void
+    jump b1
+b1:
+    v2: int32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1184,25 +1230,27 @@ block1:
     /// Volatile load only blocks forwarding for the accessed location.
     #[test]
     fn test_volatile_load_is_barrier() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
-    v3: i32 = load v1
-    v4: i32 = load v0
-    v5: i32 = iadd v3, v4
+    v3: int32 = load v1
+    v4: int32 = load v0
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
-    v3: i32 = load v1
-    v4: i32 = iadd v3, v2
+    v3: int32 = load v1
+    v4: int32 = int.add v3, v2
     return v4
 }"#;
 
@@ -1229,23 +1277,25 @@ block0:
     /// Volatile store only blocks forwarding for the accessed location.
     #[test]
     fn test_volatile_store_is_barrier() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
-    v3: i32 = iconst 99i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
+    v3: int32 = 99int32
     store v0, v2
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
-    v3: i32 = iconst 99i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
+    v3: int32 = 99int32
     store v0, v2
     store v1, v3
     return v2
@@ -1274,15 +1324,16 @@ block0:
     /// Atomic load acts as memory barrier.
     #[test]
     fn test_atomic_load_is_barrier() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
-    v3: i32 = atomic.load v1, ordering=acquire, scope=device, memory_scope=device, semantics=any
-    v4: i32 = load v0
-    v5: i32 = iadd v3, v4
+    v3: int32 = atomic.load v1, acquire, device, device, any
+    v4: int32 = load v0
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
         let expected = input;
@@ -1295,15 +1346,16 @@ block0:
     /// Atomic store acts as memory barrier.
     #[test]
     fn test_atomic_store_is_barrier() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
-    v3: i32 = iconst 99i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
+    v3: int32 = 99int32
     store v0, v2
-    atomic.store v1, v3, ordering=release, scope=device, memory_scope=device, semantics=any
-    v4: i32 = load v0
+    atomic.store v1, v3, release, device, device, any
+    v4: int32 = load v0
     return v4
 }"#;
         let expected = input;
@@ -1316,13 +1368,14 @@ block0:
     /// Atomic fence acts as memory barrier.
     #[test]
     fn test_atomic_fence_is_barrier() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
-    v2: i32 = load v0
+    atomic.fence seq_cst, device, device, any
+    v2: int32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1335,20 +1388,22 @@ block0:
     /// Scoped noalias metadata keeps stores from clobbering unrelated loads.
     #[test]
     fn test_forward_across_noalias_scope() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
     return v2
 }"#;
@@ -1392,20 +1447,22 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// TBAA tags disambiguate unrelated accesses.
     #[test]
     fn test_forward_across_tbaa_disjoint() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
     return v2
 }"#;
@@ -1453,20 +1510,22 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// Disjoint TBAA offsets prevent clobbering stores from blocking forwarding.
     #[test]
     fn test_forward_across_tbaa_disjoint_offsets() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
     return v2
 }"#;
@@ -1513,12 +1572,13 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// Size mismatches prevent forwarding from matching pointers.
     #[test]
     fn test_no_forward_size_mismatch() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1559,22 +1619,24 @@ block0:
     /// Transitive substitutions are resolved correctly.
     #[test]
     fn test_transitive_substitution() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
-    v3: i32 = load v0
-    v4: i32 = iadd v2, v3
+    v2: int32 = load v0
+    v3: int32 = load v0
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = iadd v1, v1
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -1586,7 +1648,8 @@ block0:
     /// Empty function (import) is handled.
     #[test]
     fn test_skip_import_function() {
-        let input = r#"extern function @external() -> void"#;
+        let input = r#"
+extern function external(): void"#;
         let expected = input;
 
         let mut test = TestProgram::new(input);
@@ -1597,9 +1660,10 @@ block0:
     /// No changes returns AnalysisPreservation::all().
     #[test]
     fn test_no_changes_preserves_all() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
         let expected = input;

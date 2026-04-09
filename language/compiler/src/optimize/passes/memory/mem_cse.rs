@@ -24,10 +24,10 @@ declare_pass! {
     ///  because the memory contents are unchanged.
     ///
     /// ```mir
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32
-    ///     v1 = iconst 7i32
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32
+    ///     v1 = 7int32
     ///     store v0, v1
     ///     store v0, v1
     ///     v2 = load v0
@@ -36,10 +36,10 @@ declare_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32
-    ///     v1 = iconst 7i32
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32
+    ///     v1 = 7int32
     ///     store v0, v1
     ///     v2 = load v0
     ///     return v2
@@ -590,21 +590,23 @@ mod tests {
     /// Redundant store of the same value is removed.
     #[test]
     fn test_remove_redundant_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -616,23 +618,25 @@ block0:
     /// Redundant store with equivalent constants is removed.
     #[test]
     fn test_remove_redundant_store_with_equal_constants() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: i32 = iconst 7i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: int32 = 7int32
     store v0, v1
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: i32 = iconst 7i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: int32 = 7int32
     store v0, v1
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -644,27 +648,29 @@ block0:
     /// Redundant store with equivalent binary value is removed.
     #[test]
     fn test_remove_redundant_store_with_equivalent_binary() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
     store v0, v3
-    v4: i32 = iadd v1, v2
+    v4: int32 = int.add v1, v2
     store v0, v4
-    v5: i32 = load v0
+    v5: int32 = load v0
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
     store v0, v3
-    v4: i32 = iadd v1, v2
-    v5: i32 = load v0
+    v4: int32 = int.add v1, v2
+    v5: int32 = load v0
     return v5
 }"#;
 
@@ -676,27 +682,29 @@ block0:
     /// Redundant store with commuted binary value is removed.
     #[test]
     fn test_remove_redundant_store_with_commuted_binary() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
     store v0, v3
-    v4: i32 = iadd v2, v1
+    v4: int32 = int.add v2, v1
     store v0, v4
-    v5: i32 = load v0
+    v5: int32 = load v0
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
     store v0, v3
-    v4: i32 = iadd v2, v1
-    v5: i32 = load v0
+    v4: int32 = int.add v2, v1
+    v5: int32 = load v0
     return v5
 }"#;
 
@@ -708,27 +716,29 @@ block0:
     /// Redundant store with constant propagated value is removed.
     #[test]
     fn test_remove_redundant_store_with_constant_propagation() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
-    v4: i32 = iconst 5i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
+    v4: int32 = 5int32
     store v0, v3
     store v0, v4
-    v5: i32 = load v0
+    v5: int32 = load v0
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
-    v4: i32 = iconst 5i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
+    v4: int32 = 5int32
     store v0, v3
-    v5: i32 = load v0
+    v5: int32 = load v0
     return v5
 }"#;
 
@@ -740,31 +750,33 @@ block0:
     /// Redundant store across a read only call is removed.
     #[test]
     fn test_remove_redundant_store_across_read_only_call() {
-        let input = r#"function @callee() -> void {
-block0:
+        let input = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
+    call callee(): () -> void
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @callee() -> void {
-block0:
+        let expected = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
-    v2: i32 = load v0
+    call callee(): () -> void
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -781,18 +793,19 @@ block0:
     /// Store across a write call is preserved.
     #[test]
     fn test_preserve_store_across_write_call() {
-        let input = r#"function @callee() -> void {
-block0:
+        let input = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
+    call callee(): () -> void
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -809,31 +822,33 @@ block0:
     /// Redundant store across heap only call is removed.
     #[test]
     fn test_remove_redundant_store_across_heap_only_call() {
-        let input = r#"function @callee() -> void {
-block0:
+        let input = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
+    call callee(): () -> void
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @callee() -> void {
-block0:
+        let expected = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
-    v2: i32 = load v0
+    call callee(): () -> void
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -850,31 +865,33 @@ block0:
     /// Redundant store across disjoint address space call is removed.
     #[test]
     fn test_remove_redundant_store_across_address_space_call() {
-        let input = r#"function @callee() -> void {
-block0:
+        let input = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
+    call callee(): () -> void
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-        let expected = r#"function @callee() -> void {
-block0:
+        let expected = r#"
+function callee(): void {
+b0:
     return
 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
-    call @callee() -> fn() -> void
-    v2: i32 = load v0
+    call callee(): () -> void
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -892,14 +909,15 @@ block0:
     /// Distinct store values are preserved.
     #[test]
     fn test_preserve_store_with_different_value() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
-    v2: i32 = iconst 9i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
+    v2: int32 = 9int32
     store v0, v1
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -911,15 +929,16 @@ block0:
     /// Store after an intervening clobber is preserved.
     #[test]
     fn test_preserve_store_after_clobber() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     store v0, v1
     store v0, v2
     store v0, v1
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -931,13 +950,14 @@ block0:
     /// Volatile stores are never removed.
     #[test]
     fn test_preserve_volatile_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -970,13 +990,14 @@ block0:
     /// Atomic stores are never removed.
     #[test]
     fn test_preserve_atomic_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 7i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 7int32
     store v0, v1
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -999,7 +1020,7 @@ block0:
             Vec::new(),
             None,
             false,
-            Some(mir::MemoryOrdering::SeqCst),
+            Some(mir::MemoryOrdering::SequentiallyConsistent),
         );
 
         test.run_pass(&MemCse);
@@ -1009,35 +1030,37 @@ block0:
     /// Redundant store after identical incoming stores is removed.
     #[test]
     fn test_remove_redundant_store_after_phi() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 7i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 7int32
+    branch v0, b1, b2
+b1:
     store v1, v2
-    jump block3
-block2:
+    jump b3
+b2:
     store v1, v2
-    jump block3
-block3:
+    jump b3
+b3:
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 7i32
-    branch v0, block1, block2
-block1:
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 7int32
+    branch v0, b1, b2
+b1:
     store v1, v2
-    jump block3
-block2:
+    jump b3
+b2:
     store v1, v2
-    jump block3
-block3:
-    v3: i32 = load v1
+    jump b3
+b3:
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -1049,21 +1072,22 @@ block3:
     /// Store after divergent incoming values is preserved.
     #[test]
     fn test_preserve_store_after_phi_with_different_values() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 7i32
-    v3: i32 = iconst 9i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 7int32
+    v3: int32 = 9int32
+    branch v0, b1, b2
+b1:
     store v1, v2
-    jump block3
-block2:
+    jump b3
+b2:
     store v1, v3
-    jump block3
-block3:
+    jump b3
+b3:
     store v1, v2
-    v4: i32 = load v1
+    v4: int32 = load v1
     return v4
 }"#;
 
@@ -1075,21 +1099,23 @@ block3:
     /// Redundant local sets are removed.
     #[test]
     fn test_remove_redundant_local_set() {
-        let input = r#"function @test() -> i32 {
-    local0: i32 ; owned
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#;
-        let expected = r#"function @test() -> i32 {
-    local0: i32 ; owned
-block0:
-    v0: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#;
 
@@ -1101,20 +1127,22 @@ block0:
     /// Redundant memset is removed.
     #[test]
     fn test_remove_redundant_memset() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i8 = iconst 0i8
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int8 = 0int8
+    v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
     intrinsic.memset(v0, v1, v2)
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i8 = iconst 0i8
-    v2: i64 = iconst 4i64
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int8 = 0int8
+    v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
     return
 }"#;
@@ -1127,20 +1155,22 @@ block0:
     /// Redundant memcpy is removed.
     #[test]
     fn test_remove_redundant_memcpy() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
     intrinsic.memcpy(v0, v1, v2)
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
     return
 }"#;
@@ -1153,12 +1183,13 @@ block0:
     /// Memcpy with differing size is preserved.
     #[test]
     fn test_preserve_memcpy_with_different_size() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
-    v3: i64 = iconst 8i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
+    v3: int64 = 8int64
     intrinsic.memcpy(v0, v1, v2)
     intrinsic.memcpy(v0, v1, v3)
     return
@@ -1172,12 +1203,13 @@ block0:
     /// Memcpy with source changes is preserved.
     #[test]
     fn test_preserve_memcpy_with_source_change() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
-    v3: i32 = iconst 7i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
+    v3: int32 = 7int32
     intrinsic.memcpy(v0, v1, v2)
     store v1, v3
     intrinsic.memcpy(v0, v1, v2)
@@ -1192,20 +1224,22 @@ block0:
     /// Redundant memmove is removed when source is stable.
     #[test]
     fn test_remove_redundant_memmove() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memmove(v0, v1, v2)
     intrinsic.memmove(v0, v1, v2)
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memmove(v0, v1, v2)
     return
 }"#;
@@ -1218,15 +1252,16 @@ block0:
     /// Memmove with overlapping regions is preserved.
     #[test]
     fn test_preserve_overlapping_memmove() {
-        let input = r#"type @Bytes = [i8; 12]
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) @Bytes> = stack.alloc @Bytes
-    v1: i64 = iconst 0i64
-    v2: i64 = iconst 4i64
-    v3: ref<borrowed i8> = element.addr v0, v1
-    v4: ref<borrowed i8> = element.addr v0, v2
-    v5: i64 = iconst 8i64
+        let input = r#"
+type Bytes int8[12]
+function test(): void {
+b0:
+    v0: ref<Bytes, raw, addressSpace(stack)> = stack.alloc Bytes
+    v1: int64 = 0int64
+    v2: int64 = 4int64
+    v3: ref<int8, borrowed> = element.address v0, v1
+    v4: ref<int8, borrowed> = element.address v0, v2
+    v5: int64 = 8int64
     intrinsic.memmove(v4, v3, v5)
     intrinsic.memmove(v4, v3, v5)
     return

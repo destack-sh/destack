@@ -13,20 +13,20 @@ declare_pass! {
     /// written, then rewrites direct loads to `global.const` for faster access.
     ///
     /// ```mir
-    /// global @value: i32 = 42i32 ;
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = global.addr @value -> ref<raw i32>
-    ///     v1 = load v0 -> i32
+    /// global value: int32 = 42int32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = global.address value -> ref<int32, raw>
+    ///     v1 = load v0 -> int32
     ///     return v1
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// global @value: i32 = 42i32 ; readonly
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v1 = global.const @value
+    /// global value: int32, readonly = 42int32
+    /// function root(): int32 {
+    /// b0:
+    ///     v1 = global.const value
     ///     return v1
     /// }
     /// ```
@@ -92,7 +92,7 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
             continue;
         };
 
-        // ensure all global.addr uses are direct loads
+        // ensure all global.address uses are direct loads
         if !addr_entries.iter().all(|entry| {
             let Some(uses) = use_maps.get(&entry.function_id) else {
                 return true;
@@ -146,7 +146,7 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
             }
 
             if entry_changed {
-                // remove the global.addr instruction after rewriting loads
+                // remove the global.address instruction after rewriting loads
                 let block = tree.get_mut(entry.block_id);
                 block.instructions.retain(|id| *id != entry.instruction_id);
                 tree.debug_table
@@ -173,20 +173,20 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
     changed
 }
 
-/// Description of a global.addr instruction.
+/// Description of a global.address instruction.
 #[derive(Debug, Clone, Copy)]
 struct GlobalAddrEntry {
     /// The function containing the instruction.
     function_id: mir::LocalNodeId<mir::Function>,
     /// The block containing the instruction.
     block_id: mir::LocalNodeId<mir::Block>,
-    /// The instruction id for the global.addr.
+    /// The instruction id for the global.address.
     instruction_id: mir::LocalNodeId<mir::Instruction>,
-    /// The destination value for the global.addr.
+    /// The destination value for the global.address.
     destination: mir::Value,
 }
 
-/// Collected global.addr instructions for the module.
+/// Collected global.address instructions for the module.
 #[derive(Debug, Default)]
 struct GlobalAddrInfo {
     /// Map from global id to its address instructions.
@@ -195,12 +195,12 @@ struct GlobalAddrInfo {
     by_value: HashMap<mir::Value, mir::LocalNodeId<mir::Global>>,
 }
 
-/// Collect global.addr instructions for the module.
+/// Collect global.address instructions for the module.
 fn collect_global_addr_info(tree: &mir::NodeTree) -> GlobalAddrInfo {
     // prepare the address info container
     let mut info = GlobalAddrInfo::default();
 
-    // scan function bodies for global.addr
+    // scan function bodies for global.address
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
         if function.entry.is_none() {
             continue;
@@ -501,7 +501,7 @@ fn global_addr_base(
             } => {
                 if matches!(
                     intrinsic,
-                    mir::Intrinsic::AddrSpaceCast | mir::Intrinsic::Transmute
+                    mir::Intrinsic::AddressSpaceCast | mir::Intrinsic::Transmute
                 ) {
                     let argument = tree.get_arguments(*arguments).first()?;
                     current = *argument;
@@ -515,7 +515,7 @@ fn global_addr_base(
     }
 }
 
-/// Update debug info for a removed global.addr value.
+/// Update debug info for a removed global.address value.
 fn update_debug_for_removed_global_addr(
     function_id: mir::LocalNodeId<mir::Function>,
     removed_value: mir::Value,
@@ -594,7 +594,7 @@ fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
         mir::Intrinsic::Memcpy
             | mir::Intrinsic::Memmove
             | mir::Intrinsic::Memset
-            | mir::Intrinsic::GcWriteBarrier
+            | mir::Intrinsic::WriteBarrier
     )
 }
 
@@ -694,18 +694,20 @@ mod tests {
     /// Loads from immutable globals are rewritten to global.const.
     #[test]
     fn test_global_opt_rewrites_loads() {
-        let input = r#"global @value: i32 = 42i32 ;
-function @root() -> i32 {
-block0:
-    v0: ref<raw i32> = global.addr @value
-    v1: i32 = load v0
+        let input = r#"
+global value: int32 = 42int32
+function root(): int32 {
+b0:
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = load v0
     return v1
 }"#;
 
-        let expected = r#"global @value: i32 = 42i32 ; readonly
-function @root() -> i32 {
-block0:
-    v0: i32 = global.const @value
+        let expected = r#"
+global value: int32, readonly = 42int32
+function root(): int32 {
+b0:
+    v0: int32 = global.const value
     return v0
 }"#;
 
@@ -717,11 +719,12 @@ block0:
     /// Globals that are stored to remain mutable.
     #[test]
     fn test_global_opt_skips_written_global() {
-        let input = r#"global @value: i32 = 0i32 ;
-function @root() -> void {
-block0:
-    v0: ref<raw i32> = global.addr @value
-    v1: i32 = iconst 1i32
+        let input = r#"
+global value: int32 = 0int32
+function root(): void {
+b0:
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = 1int32
     store v0, v1
     return
 }"#;
@@ -734,12 +737,13 @@ block0:
     /// Address space casts that feed stores keep globals mutable.
     #[test]
     fn test_global_opt_skips_addrspace_cast_store() {
-        let input = r#"global @value: i32 = 0i32 ;
-function @root() -> void {
-block0:
-    v0: ref<raw i32> = global.addr @value
-    v1: ref<raw i32> = intrinsic.addrspace.cast(v0)
-    v2: i32 = iconst 1i32
+        let input = r#"
+global value: int32 = 0int32
+function root(): void {
+b0:
+    v0: ref<int32, raw> = global.address value
+    v1: ref<int32, raw> = intrinsic.addressSpace.cast(v0)
+    v2: int32 = 1int32
     store v1, v2
     return
 }"#;
@@ -752,10 +756,11 @@ block0:
     /// Terminator uses prevent const rewriting.
     #[test]
     fn test_global_opt_skips_terminator_use() {
-        let input = r#"global @value: i32 = 42i32 ;
-function @root() -> ref<raw i32> {
-block0:
-    v0: ref<raw i32> = global.addr @value
+        let input = r#"
+global value: int32 = 42int32
+function root(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw> = global.address value
     return v0
 }"#;
 
@@ -764,21 +769,23 @@ block0:
         test.assert_output(input);
     }
 
-    /// Debug locations are updated when global.addr is removed.
+    /// Debug locations are updated when global.address is removed.
     #[test]
     fn test_global_opt_updates_debug_locations() {
-        let input = r#"global @value: i32 = 42i32 ;
-function @root() -> i32 {
-block0:
-    v0: ref<raw i32> = global.addr @value
-    v1: i32 = load v0
+        let input = r#"
+global value: int32 = 42int32
+function root(): int32 {
+b0:
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = load v0
     return v1
 }"#;
 
-        let expected = r#"global @value: i32 = 42i32 ; readonly
-function @root() -> i32 {
-block0:
-    v0: i32 = global.const @value
+        let expected = r#"
+global value: int32, readonly = 42int32
+function root(): int32 {
+b0:
+    v0: int32 = global.const value
     return v0
 }"#;
 
@@ -793,7 +800,7 @@ block0:
                     mir::Instruction::GlobalAddr { .. }
                 )
             })
-            .expect("missing global.addr");
+            .expect("missing global.address");
 
         let (destination, global_id) = match test.tree.get(instruction_id) {
             mir::Instruction::GlobalAddr {
@@ -870,20 +877,21 @@ block0:
     /// Exceptional call terminators keep written globals mutable.
     #[test]
     fn test_global_opt_skips_call_terminator_global_write() {
-        let input = r#"global @value: i32 = 0i32 ;
-function @write(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
-    v1: i32 = iconst 1i32
+        let input = r#"
+global value: int32 = 0int32
+function write(v0: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>):
+    v1: int32 = 1int32
     store v0, v1
     return
 }
-function @root(v0: ref<managed readonly void>) -> void {
-block0(v0: ref<managed readonly void>):
-    v1: ref<raw i32> = global.addr @value
-    call @write(v1) normal block1 unwind block2
-block1:
+function root(v0: ref<void, managed, readonly>): void {
+b0(v0: ref<void, managed, readonly>):
+    v1: ref<int32, raw> = global.address value
+    invoke write(v1): (ref<int32, raw>) -> void -> b1, catch b2
+b1:
     return
-block2(v2: ref<managed readonly void>):
+b2(v2: ref<void, managed, readonly>):
     throw v2
 }"#;
 

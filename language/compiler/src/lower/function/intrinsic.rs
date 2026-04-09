@@ -99,7 +99,7 @@ impl AtomicIntrinsicKind {
             "atomic.fetch.umax" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Umax,
             }),
-            "atomic.fetch.fadd" => Some(Self::Rmw {
+            "atomic.fetch.float.add" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Fadd,
             }),
             "atomic.fetch.fmin" => Some(Self::Rmw {

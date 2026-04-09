@@ -396,7 +396,7 @@ impl TypeLowerer {
                 let total_size = self.align_up(current_offset, max_align);
                 (total_size, max_align)
             }
-            mir::Type::FunctionValue { signature } => {
+            mir::Type::Closure { signature } => {
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
                 let environment = tree.function_value_environment_type();

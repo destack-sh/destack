@@ -17,53 +17,53 @@ declare_pass! {
     /// contains only read effects and the induction starts are loop invariant.
     ///
     /// ```mir
-    /// function @before(v0: u32) -> i32 {
-    /// block0(v0: u32):
-    ///     v1 = iconst 0u32
-    ///     v2 = iconst 4u32
-    ///     v3 = iconst 1u32
-    ///     v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     jump block1(v1)
-    /// block1(v5: u32):
-    ///     v6 = icmp_ult v5, v2
-    ///     branch v6, block2(v1), block6
-    /// block2(v7: u32):
-    ///     v8 = icmp_ult v7, v2
-    ///     branch v8, block3(v7), block4
-    /// block3(v9: u32):
-    ///     v10 = load v4 -> i32
-    ///     v11 = iadd v9, v3
-    ///     jump block2(v11)
-    /// block4:
-    ///     v12 = iadd v5, v3
-    ///     jump block1(v12)
-    /// block6:
+    /// function before(v0: uint32): int32 {
+    /// b0(v0: uint32):
+    ///     v1 = 0uint32
+    ///     v2 = 4uint32
+    ///     v3 = 1uint32
+    ///     v4 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     jump b1(v1)
+    /// b1(v5: uint32):
+    ///     v6 = int.lt.u v5, v2
+    ///     branch v6, b2(v1), b6
+    /// b2(v7: uint32):
+    ///     v8 = int.lt.u v7, v2
+    ///     branch v8, b3(v7), b4
+    /// b3(v9: uint32):
+    ///     v10 = load v4 -> int32
+    ///     v11 = int.add v9, v3
+    ///     jump b2(v11)
+    /// b4:
+    ///     v12 = int.add v5, v3
+    ///     jump b1(v12)
+    /// b6:
     ///     return v10
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: u32) -> i32 {
-    /// block0(v0: u32):
-    ///     v1 = iconst 0u32
-    ///     v2 = iconst 4u32
-    ///     v3 = iconst 1u32
-    ///     v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     jump block2(v1)
-    /// block1(v5: u32):
-    ///     v6 = icmp_ult v5, v2
-    ///     branch v6, block4, block3
-    /// block2(v7: u32):
-    ///     v8 = icmp_ult v7, v2
-    ///     branch v8, block1(v1), block6
-    /// block3(v9: u32):
-    ///     v10 = load v4 -> i32
-    ///     v11 = iadd v9, v3
-    ///     jump block1(v11)
-    /// block4:
-    ///     v12 = iadd v5, v3
-    ///     jump block2(v12)
-    /// block6:
+    /// function after(v0: uint32): int32 {
+    /// b0(v0: uint32):
+    ///     v1 = 0uint32
+    ///     v2 = 4uint32
+    ///     v3 = 1uint32
+    ///     v4 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     jump b2(v1)
+    /// b1(v5: uint32):
+    ///     v6 = int.lt.u v5, v2
+    ///     branch v6, b4, b3
+    /// b2(v7: uint32):
+    ///     v8 = int.lt.u v7, v2
+    ///     branch v8, b1(v1), b6
+    /// b3(v9: uint32):
+    ///     v10 = load v4 -> int32
+    ///     v11 = int.add v9, v3
+    ///     jump b1(v11)
+    /// b4:
+    ///     v12 = int.add v5, v3
+    ///     jump b2(v12)
+    /// b6:
     ///     return v10
     /// }
     /// ```
@@ -436,53 +436,55 @@ mod tests {
     /// Perfectly nested read only loops are interchanged.
     #[test]
     fn test_loop_interchange_swaps_nested_loop() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block5
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4:
-    v12: u32 = iadd v6, v3
-    jump block1(v12)
-block5:
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4:
+    v12: uint32 = int.add v6, v3
+    jump b1(v12)
+b5:
     return v5
 }"#;
 
-        let expected = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block2(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block4, block3
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block1(v1), block5
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4:
-    v12: u32 = iadd v6, v3
-    jump block1(v12)
-block5:
+        let expected = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b2(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b4, b3
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b1(v1), b5
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4:
+    v12: uint32 = int.add v6, v3
+    jump b1(v12)
+b5:
     return v5
 }"#;
 
@@ -494,27 +496,28 @@ block5:
     /// Loops with stores are not interchanged.
     #[test]
     fn test_loop_interchange_skips_writes() {
-        let input = r#"function @test(v0: u32) -> void {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    jump block1(v1)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2(v1), block5
-block2(v7: u32):
-    v8: bool = icmp_ult v7, v2
-    branch v8, block3(v7), block4
-block3(v9: u32):
+        let input = r#"
+function test(v0: uint32): void {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    jump b1(v1)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2(v1), b5
+b2(v7: uint32):
+    v8: boolean = int.lt.u v7, v2
+    branch v8, b3(v7), b4
+b3(v9: uint32):
     store v4, v9
-    v10: u32 = iadd v9, v3
-    jump block2(v10)
-block4:
-    v11: u32 = iadd v5, v3
-    jump block1(v11)
-block5:
+    v10: uint32 = int.add v9, v3
+    jump b2(v10)
+b4:
+    v11: uint32 = int.add v5, v3
+    jump b1(v11)
+b5:
     return
 }"#;
 
@@ -526,29 +529,30 @@ block5:
     /// Inner exits that do not target the outer latch prevent interchange.
     #[test]
     fn test_loop_interchange_skips_inner_exit_mismatch() {
-        let input = r#"function @test(v0: u32) -> void {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    jump block1(v1)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2(v1), block6
-block2(v7: u32):
-    v8: bool = icmp_ult v7, v2
-    branch v8, block3, block4
-block3:
-    v9: i32 = load v4
-    v10: u32 = iadd v7, v3
-    jump block2(v10)
-block4:
-    jump block5
-block5:
-    v11: u32 = iadd v5, v3
-    jump block1(v11)
-block6:
+        let input = r#"
+function test(v0: uint32): void {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    jump b1(v1)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2(v1), b6
+b2(v7: uint32):
+    v8: boolean = int.lt.u v7, v2
+    branch v8, b3, b4
+b3:
+    v9: int32 = load v4
+    v10: uint32 = int.add v7, v3
+    jump b2(v10)
+b4:
+    jump b5
+b5:
+    v11: uint32 = int.add v5, v3
+    jump b1(v11)
+b6:
     return
 }"#;
 
@@ -560,29 +564,30 @@ block6:
     /// Inner header values unavailable at the outer preheader prevent interchange.
     #[test]
     fn test_loop_interchange_skips_unavailable_inner_args() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    v8: u32 = iadd v6, v3
-    branch v7, block2(v1, v8), block5
-block2(v9: u32, v10: u32):
-    v11: bool = icmp_ult v9, v2
-    branch v11, block3, block4
-block3:
-    v12: i32 = load v4
-    v13: u32 = iadd v9, v3
-    jump block2(v13, v10)
-block4:
-    v14: u32 = iadd v6, v3
-    jump block1(v14)
-block5:
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    v8: uint32 = int.add v6, v3
+    branch v7, b2(v1, v8), b5
+b2(v9: uint32, v10: uint32):
+    v11: boolean = int.lt.u v9, v2
+    branch v11, b3, b4
+b3:
+    v12: int32 = load v4
+    v13: uint32 = int.add v9, v3
+    jump b2(v13, v10)
+b4:
+    v14: uint32 = int.add v6, v3
+    jump b1(v14)
+b5:
     return v5
 }"#;
 
@@ -594,29 +599,30 @@ block5:
     /// Non jump inner latches prevent interchange.
     #[test]
     fn test_loop_interchange_skips_non_jump_inner_latch() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block5
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    v12: bool = icmp_ult v8, v2
-    branch v12, block2(v11), block4
-block4:
-    v13: u32 = iadd v6, v3
-    jump block1(v13)
-block5:
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    v12: boolean = int.lt.u v8, v2
+    branch v12, b2(v11), b4
+b4:
+    v13: uint32 = int.add v6, v3
+    jump b1(v13)
+b5:
     return v5
 }"#;
 
@@ -628,28 +634,29 @@ block5:
     /// Inner latch parameters prevent interchange.
     #[test]
     fn test_loop_interchange_skips_inner_latch_parameters() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block5
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4(v8)
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4(v12: u32):
-    v13: u32 = iadd v6, v3
-    jump block1(v13)
-block5:
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4(v8)
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4(v12: uint32):
+    v13: uint32 = int.add v6, v3
+    jump b1(v13)
+b5:
     return v5
 }"#;
 
@@ -661,57 +668,59 @@ block5:
     /// Missing outer preheaders prevent interchange.
     #[test]
     fn test_loop_interchange_skips_missing_preheader() {
-        let input = r#"function @test(v0: bool, v1: u32) -> i32 {
-block0(v0: bool, v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 4u32
-    v4: u32 = iconst 1u32
-    v5: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v6: i32 = iconst 0i32
-    branch v0, block1(v2), block2(v2)
-block2(v7: u32):
-    jump block1(v7)
-block1(v8: u32):
-    v9: bool = icmp_ult v8, v3
-    branch v9, block3(v2), block6
-block3(v10: u32):
-    v11: bool = icmp_ult v10, v3
-    branch v11, block4, block5
-block4:
-    v12: i32 = load v5
-    v13: u32 = iadd v10, v4
-    jump block3(v13)
-block5:
-    v14: u32 = iadd v8, v4
-    jump block1(v14)
-block6:
+        let input = r#"
+function test(v0: boolean, v1: uint32): int32 {
+b0(v0: boolean, v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 4uint32
+    v4: uint32 = 1uint32
+    v5: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v6: int32 = 0int32
+    branch v0, b2(v2), b1(v2)
+b1(v7: uint32):
+    jump b2(v7)
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v3
+    branch v9, b3(v2), b6
+b3(v10: uint32):
+    v11: boolean = int.lt.u v10, v3
+    branch v11, b4, b5
+b4:
+    v12: int32 = load v5
+    v13: uint32 = int.add v10, v4
+    jump b3(v13)
+b5:
+    v14: uint32 = int.add v8, v4
+    jump b2(v14)
+b6:
     return v6
 }"#;
 
-        let expected = r#"function @test(v0: bool, v1: u32) -> i32 {
-block0(v0: bool, v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 4u32
-    v4: u32 = iconst 1u32
-    v5: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v6: i32 = iconst 0i32
-    branch v0, block2(v2), block1(v2)
-block1(v7: u32):
-    jump block2(v7)
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v3
-    branch v9, block3(v2), block6
-block3(v10: u32):
-    v11: bool = icmp_ult v10, v3
-    branch v11, block4, block5
-block4:
-    v12: i32 = load v5
-    v13: u32 = iadd v10, v4
-    jump block3(v13)
-block5:
-    v14: u32 = iadd v8, v4
-    jump block2(v14)
-block6:
+        let expected = r#"
+function test(v0: boolean, v1: uint32): int32 {
+b0(v0: boolean, v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 4uint32
+    v4: uint32 = 1uint32
+    v5: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v6: int32 = 0int32
+    branch v0, b2(v2), b1(v2)
+b1(v7: uint32):
+    jump b2(v7)
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v3
+    branch v9, b3(v2), b6
+b3(v10: uint32):
+    v11: boolean = int.lt.u v10, v3
+    branch v11, b4, b5
+b4:
+    v12: int32 = load v5
+    v13: uint32 = int.add v10, v4
+    jump b3(v13)
+b5:
+    v14: uint32 = int.add v8, v4
+    jump b2(v14)
+b6:
     return v6
 }"#;
 
@@ -723,30 +732,31 @@ block6:
     /// Non perfect nesting prevents interchange.
     #[test]
     fn test_loop_interchange_skips_non_perfect_nesting() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block6
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4:
-    v12: u32 = iadd v6, v3
-    jump block5(v12)
-block5(v13: u32):
-    jump block1(v13)
-block6:
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b6
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4:
+    v12: uint32 = int.add v6, v3
+    jump b5(v12)
+b5(v13: uint32):
+    jump b1(v13)
+b6:
     return v5
 }"#;
 
@@ -758,53 +768,55 @@ block6:
     /// Inner exit arguments prevent interchange.
     #[test]
     fn test_loop_interchange_skips_inner_exit_arguments() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block6
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4(v8)
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4(v12: u32):
-    v13: u32 = iadd v6, v3
-    jump block1(v13)
-block6:
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4(v8)
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4(v12: uint32):
+    v13: uint32 = int.add v6, v3
+    jump b1(v13)
+b5:
     return v5
 }"#;
 
-        let expected = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block5
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4(v8)
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4(v12: u32):
-    v13: u32 = iadd v6, v3
-    jump block1(v13)
-block5:
+        let expected = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4(v8)
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4(v12: uint32):
+    v13: uint32 = int.add v6, v3
+    jump b1(v13)
+b5:
     return v5
 }"#;
 
@@ -816,53 +828,55 @@ block5:
     /// Outer exit arguments prevent interchange.
     #[test]
     fn test_loop_interchange_skips_outer_exit_arguments() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block6(v6)
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4:
-    v12: u32 = iadd v6, v3
-    jump block1(v12)
-block6(v13: u32):
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5(v6)
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4:
+    v12: uint32 = int.add v6, v3
+    jump b1(v12)
+b5(v13: uint32):
     return v5
 }"#;
 
-        let expected = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 4u32
-    v3: u32 = iconst 1u32
-    v4: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v5: i32 = iconst 0i32
-    jump block1(v1)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2(v1), block5(v6)
-block2(v8: u32):
-    v9: bool = icmp_ult v8, v2
-    branch v9, block3, block4
-block3:
-    v10: i32 = load v4
-    v11: u32 = iadd v8, v3
-    jump block2(v11)
-block4:
-    v12: u32 = iadd v6, v3
-    jump block1(v12)
-block5(v13: u32):
+        let expected = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 4uint32
+    v3: uint32 = 1uint32
+    v4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v5: int32 = 0int32
+    jump b1(v1)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2(v1), b5(v6)
+b2(v8: uint32):
+    v9: boolean = int.lt.u v8, v2
+    branch v9, b3, b4
+b3:
+    v10: int32 = load v4
+    v11: uint32 = int.add v8, v3
+    jump b2(v11)
+b4:
+    v12: uint32 = int.add v6, v3
+    jump b1(v12)
+b5(v13: uint32):
     return v5
 }"#;
 

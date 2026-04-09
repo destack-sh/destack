@@ -30,27 +30,27 @@ declare_pass! {
     /// the original operands.
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: i32, v2: bool) -> i32 {
-    /// block0(v0: i32, v1: i32, v2: bool):
-    ///     v3 = iadd v0, v1
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     v4 = iadd v0, v1
+    /// function before(v0: int32, v1: int32, v2: boolean): int32 {
+    /// b0(v0: int32, v1: int32, v2: boolean):
+    ///     v3 = int.add v0, v1
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     v4 = int.add v0, v1
     ///     return v4
-    /// block2:
-    ///     v5 = iadd v0, v1
+    /// b2:
+    ///     v5 = int.add v0, v1
     ///     return v5
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32, v1: i32, v2: bool) -> i32 {
-    /// block0(v0: i32, v1: i32, v2: bool):
-    ///     v3 = iadd v0, v1
-    ///     branch v2, block1, block2
-    /// block1:
+    /// function after(v0: int32, v1: int32, v2: boolean): int32 {
+    /// b0(v0: int32, v1: int32, v2: boolean):
+    ///     v3 = int.add v0, v1
+    ///     branch v2, b1, b2
+    /// b1:
     ///     return v3
-    /// block2:
+    /// b2:
     ///     return v3
     /// }
     /// ```
@@ -698,24 +698,26 @@ mod tests {
     /// Expression in entry block is available in dominated blocks.
     #[test]
     fn test_eliminate_cross_block() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    v4: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    v4: int32 = int.add v0, v1
     return v4
-block2:
-    v5: i32 = iadd v0, v1
+b2:
+    v5: int32 = int.add v0, v1
     return v5
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
     return v3
-block2:
+b2:
     return v3
 }"#;
 
@@ -727,16 +729,17 @@ block2:
     /// Expression in block1 is not available in block2 (not dominated).
     #[test]
     fn test_skip_non_dominating_blocks() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -748,27 +751,29 @@ block3(v5: i32):
     /// Expression from entry is available through multiple levels of domination.
     #[test]
     fn test_eliminate_through_dominator_chain() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = imul v2, v2
-    jump block2
-block2:
-    v4: i32 = iadd v0, v1
-    v5: i32 = iadd v3, v4
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.mul v2, v2
+    jump b2
+b2:
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = imul v2, v2
-    jump block2
-block2:
-    v4: i32 = iadd v3, v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.mul v2, v2
+    jump b2
+b2:
+    v4: int32 = int.add v3, v2
     return v4
 }"#;
 
@@ -780,21 +785,23 @@ block2:
     /// Commutative operands (v0 + v1 and v1 + v0) are recognized as equivalent.
     #[test]
     fn test_eliminate_commutative() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = iadd v1, v0
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.add v1, v0
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = iadd v2, v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.add v2, v2
     return v3
 }"#;
 
@@ -806,29 +813,31 @@ block1:
     /// Substitutions are applied transitively through multiple redundancies.
     #[test]
     fn test_apply_transitive_substitutions() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = iadd v0, v1
-    v4: i32 = imul v3, v3
-    jump block2
-block2:
-    v5: i32 = iadd v0, v1
-    v6: i32 = imul v5, v5
-    v7: i32 = iadd v4, v6
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.mul v3, v3
+    jump b2
+b2:
+    v5: int32 = int.add v0, v1
+    v6: int32 = int.mul v5, v5
+    v7: int32 = int.add v4, v6
     return v7
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = imul v2, v2
-    jump block2
-block2:
-    v4: i32 = iadd v3, v3
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.mul v2, v2
+    jump b2
+b2:
+    v4: int32 = int.add v3, v3
     return v4
 }"#;
 
@@ -840,17 +849,19 @@ block2:
     /// GVN also handles local redundancies within a single block.
     #[test]
     fn test_eliminate_local_redundancies() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v2, v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v2, v2
     return v3
 }"#;
 
@@ -862,27 +873,29 @@ block0(v0: i32, v1: i32):
     /// Deeply nested dominator tree is handled correctly.
     #[test]
     fn test_eliminate_through_deep_chain() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
-    v3: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
+    v3: int32 = int.add v0, v1
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
     return v2
 }"#;
 
@@ -894,28 +907,30 @@ block3:
     /// Diamond CFG with expressions in both branches.
     #[test]
     fn test_eliminate_in_diamond_cfg() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block2:
-    v5: i32 = iadd v0, v1
-    jump block3(v5)
-block3(v6: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b2:
+    v5: int32 = int.add v0, v1
+    jump b3(v5)
+b3(v6: int32):
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3(v3)
-block2:
-    jump block3(v3)
-block3(v4: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    jump b3(v3)
+b2:
+    jump b3(v3)
+b3(v4: int32):
     return v4
 }"#;
 
@@ -927,15 +942,16 @@ block3(v4: i32):
     /// Unique expressions are preserved unchanged.
     #[test]
     fn test_preserve_unique_expressions() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    v4: i32 = isub v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    v4: int32 = int.sub v0, v1
     return v4
-block2:
-    v5: i32 = imul v0, v1
+b2:
+    v5: int32 = int.mul v0, v1
     return v5
 }"#;
 
@@ -947,21 +963,23 @@ block2:
     /// Unary operations are properly GVN'd across blocks.
     #[test]
     fn test_eliminate_unary_cross_block() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = ineg v0
-    jump block1
-block1:
-    v2: i32 = ineg v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.negate v0
+    jump b1
+b1:
+    v2: int32 = int.negate v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = ineg v0
-    jump block1
-block1:
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.negate v0
+    jump b1
+b1:
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -973,21 +991,23 @@ block1:
     /// Field access is properly GVN'd across blocks.
     #[test]
     fn test_eliminate_field_get_cross_block() {
-        let input = r#"function @test(v0: (i32, i32)) -> i32 {
-block0(v0: (i32, i32)):
-    v1: i32 = field.get v0, 0
-    jump block1
-block1:
-    v2: i32 = field.get v0, 0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: (int32, int32)): int32 {
+b0(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    jump b1
+b1:
+    v2: int32 = field.get v0, 0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: (i32, i32)) -> i32 {
-block0(v0: (i32, i32)):
-    v1: i32 = field.get v0, 0
-    jump block1
-block1:
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(v0: (int32, int32)): int32 {
+b0(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    jump b1
+b1:
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -999,24 +1019,26 @@ block1:
     /// Multiple independent expressions are all handled.
     #[test]
     fn test_eliminate_multiple_expressions() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = imul v0, v1
-    jump block1
-block1:
-    v4: i32 = iadd v0, v1
-    v5: i32 = imul v0, v1
-    v6: i32 = iadd v4, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.mul v0, v1
+    jump b1
+b1:
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.mul v0, v1
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = imul v0, v1
-    jump block1
-block1:
-    v4: i32 = iadd v2, v3
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.mul v0, v1
+    jump b1
+b1:
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
 
@@ -1028,22 +1050,24 @@ block1:
     /// Tuple field extraction is forwarded across blocks.
     #[test]
     fn test_aggregate_tuple_cross_block() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: (i32, i32) = tuple (i32, i32) (v0, v1)
-    jump block1
-block1:
-    v3: i32 = field.get v2, 0
-    v4: i32 = field.get v2, 1
-    v5: i32 = iadd v3, v4
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    jump b1
+b1:
+    v3: int32 = field.get v2, 0
+    v4: int32 = field.get v2, 1
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: (i32, i32) = tuple (i32, i32) (v0, v1)
-    jump block1
-block1:
-    v3: i32 = iadd v0, v1
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    jump b1
+b1:
+    v3: int32 = int.add v0, v1
     return v3
 }"#;
 
@@ -1055,24 +1079,32 @@ block1:
     /// Struct field extraction is forwarded across blocks.
     #[test]
     fn test_aggregate_struct_cross_block() {
-        let input = r#"type @Point = { i32, i32 }
-function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: @Point = struct @Point (v0, v1)
-    jump block1
-block1:
-    v3: i32 = field.get v2, 0
-    v4: i32 = field.get v2, 1
-    v5: i32 = iadd v3, v4
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
+    jump b1
+b1:
+    v3: int32 = field.get v2, 0
+    v4: int32 = field.get v2, 1
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
-        let expected = r#"type @Point = { i32, i32 }
-function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: @Point = struct @Point (v0, v1)
-    jump block1
-block1:
-    v3: i32 = iadd v0, v1
+        let expected = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
+    jump b1
+b1:
+    v3: int32 = int.add v0, v1
     return v3
 }"#;
 
@@ -1084,27 +1116,29 @@ block1:
     /// Aggregate forwarding through deep dominator chain.
     #[test]
     fn test_aggregate_through_deep_chain() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: (i32, i32) = tuple (i32, i32) (v0, v1)
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
-    v3: i32 = field.get v2, 1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
+    v3: int32 = field.get v2, 1
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: (i32, i32) = tuple (i32, i32) (v0, v1)
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
     return v1
 }"#;
 
@@ -1116,31 +1150,33 @@ block3:
     /// Aggregate in non-dominating block is not forwarded.
     #[test]
     fn test_aggregate_skip_non_dominating() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: (i32, i32) = tuple (i32, i32) (v0, v1)
-    jump block3(v3)
-block2:
-    v4: (i32, i32) = tuple (i32, i32) (v1, v0)
-    v5: i32 = field.get v4, 0
-    jump block3(v4)
-block3(v6: (i32, i32)):
-    v7: i32 = field.get v6, 0
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    jump b3(v3)
+b2:
+    v4: (int32, int32) = tuple (int32, int32) (v1, v0)
+    v5: int32 = field.get v4, 0
+    jump b3(v4)
+b3(v6: (int32, int32)):
+    v7: int32 = field.get v6, 0
     return v7
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: (i32, i32) = tuple (i32, i32) (v0, v1)
-    jump block3(v3)
-block2:
-    v4: (i32, i32) = tuple (i32, i32) (v1, v0)
-    jump block3(v4)
-block3(v5: (i32, i32)):
-    v6: i32 = field.get v5, 0
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    jump b3(v3)
+b2:
+    v4: (int32, int32) = tuple (int32, int32) (v1, v0)
+    jump b3(v4)
+b3(v5: (int32, int32)):
+    v6: int32 = field.get v5, 0
     return v6
 }"#;
 
@@ -1152,28 +1188,30 @@ block3(v5: (i32, i32)):
     /// Diamond CFG with aggregate extraction in both branches.
     #[test]
     fn test_aggregate_diamond_cfg() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: (i32, i32) = tuple (i32, i32) (v0, v1)
-    branch v2, block1, block2
-block1:
-    v4: i32 = field.get v3, 0
-    jump block3(v4)
-block2:
-    v5: i32 = field.get v3, 1
-    jump block3(v5)
-block3(v6: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    branch v2, b1, b2
+b1:
+    v4: int32 = field.get v3, 0
+    jump b3(v4)
+b2:
+    v5: int32 = field.get v3, 1
+    jump b3(v5)
+b3(v6: int32):
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: (i32, i32) = tuple (i32, i32) (v0, v1)
-    branch v2, block1, block2
-block1:
-    jump block3(v0)
-block2:
-    jump block3(v1)
-block3(v4: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    branch v2, b1, b2
+b1:
+    jump b3(v0)
+b2:
+    jump b3(v1)
+b3(v4: int32):
     return v4
 }"#;
 
@@ -1185,24 +1223,26 @@ block3(v4: i32):
     /// Aggregate forwarding combined with regular GVN.
     #[test]
     fn test_aggregate_combined_with_gvn() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: (i32, i32) = tuple (i32, i32) (v2, v1)
-    jump block1
-block1:
-    v4: i32 = iadd v0, v1
-    v5: i32 = field.get v3, 0
-    v6: i32 = iadd v4, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: (int32, int32) = tuple (int32, int32) (v2, v1)
+    jump b1
+b1:
+    v4: int32 = int.add v0, v1
+    v5: int32 = field.get v3, 0
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: (i32, i32) = tuple (i32, i32) (v2, v1)
-    jump block1
-block1:
-    v4: i32 = iadd v2, v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: (int32, int32) = tuple (int32, int32) (v2, v1)
+    jump b1
+b1:
+    v4: int32 = int.add v2, v2
     return v4
 }"#;
 
@@ -1214,23 +1254,25 @@ block1:
     /// Loads are value numbered across dominated blocks when not clobbered.
     #[test]
     fn test_eliminate_loads_across_blocks() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    jump block1
-block1:
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    jump b1
+b1:
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    jump block1
-block1:
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    jump b1
+b1:
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -1242,15 +1284,16 @@ block1:
     /// Loads are not value numbered across intervening stores.
     #[test]
     fn test_preserve_loads_after_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    v2: int32 = 1int32
     store v0, v2
-    jump block1
-block1:
-    v3: i32 = load v0
+    jump b1
+b1:
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -1262,21 +1305,23 @@ block1:
     /// Scoped noalias metadata keeps unrelated stores from blocking load GVN.
     #[test]
     fn test_forward_loads_across_noalias_scope() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = load v0
-    v3: i32 = iconst 2i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = load v0
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
-    v5: i32 = iadd v2, v4
+    v4: int32 = load v0
+    v5: int32 = int.add v2, v4
     return v5
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = load v0
-    v3: i32 = iconst 2i32
+        let expected = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = load v0
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = iadd v2, v2
+    v4: int32 = int.add v2, v2
     return v4
 }"#;
 
@@ -1319,21 +1364,23 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// Disjoint TBAA offsets allow loads to forward across unrelated stores.
     #[test]
     fn test_forward_loads_across_tbaa_disjoint_offsets() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = load v0
-    v3: i32 = iconst 2i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = load v0
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
-    v5: i32 = iadd v2, v4
+    v4: int32 = load v0
+    v5: int32 = int.add v2, v4
     return v5
 }"#;
-        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = load v0
-    v3: i32 = iconst 2i32
+        let expected = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = load v0
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = iadd v2, v2
+    v4: int32 = int.add v2, v2
     return v4
 }"#;
 
@@ -1388,11 +1435,12 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// Size mismatches prevent load forwarding.
     #[test]
     fn test_no_forward_load_size_mismatch() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
         let expected = input;
@@ -1432,23 +1480,25 @@ block0(v0: ref<raw i32>):
     /// Readnone calls do not block load value numbering.
     #[test]
     fn test_forward_loads_across_readnone_call() {
-        let input = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    call external(v0): (ref<int32, raw>) -> void
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    call external(v0): (ref<int32, raw>) -> void
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 

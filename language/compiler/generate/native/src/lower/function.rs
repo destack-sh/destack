@@ -319,7 +319,7 @@ impl<'a> FunctionLowerer<'a> {
             ))
         };
         match instruction {
-            // const: iconst or fconst (type-specific immediate load)
+            // const: const or fconst (type-specific immediate load)
             mir::Instruction::Const { destination, value } => {
                 // turn null into null pointer
                 if matches!(value, mir::Constant::Null) {
@@ -331,7 +331,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
             }
 
-            // binary: iadd/isub/imul/etc (arithmetic) or icmp (comparison)
+            // binary: int.add/int.sub/int.mul/etc (arithmetic) or icmp (comparison)
             mir::Instruction::Binary {
                 destination,
                 operator,
@@ -461,7 +461,7 @@ impl<'a> FunctionLowerer<'a> {
                     self.value_type_or_error(*destination, instruction_id.into_any())?;
                 let mir::Type::FunctionValue { .. } = self.tree.get(destination_type) else {
                     return Err(CodegenCraneliftError::Internal {
-                        message: "function.value result must be a callable value".into(),
+                        message: "function.bind result must be a callable value".into(),
                     });
                 };
 
@@ -1221,7 +1221,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 mir::TrapKind::Panic => {
                     return Err(CodegenCraneliftError::Internal {
-                        message: "trap panic is not supported in native codegen yet".into(),
+                        message: "trap.panic is not supported in native codegen yet".into(),
                     });
                 }
             },

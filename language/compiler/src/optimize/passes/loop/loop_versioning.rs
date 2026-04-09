@@ -20,62 +20,62 @@ declare_pass! {
     /// The fast version removes bounds checks inside the loop.
     ///
     /// ```mir
-    /// function @before(v0: [u8; 8], v1: u32, v2: u32) -> void {
-    /// block0(v0: [u8; 8], v1: u32, v2: u32):
-    ///     v3 = iconst 0u32
-    ///     v4 = iconst 1u32
-    ///     jump block1(v3)
-    /// block1(v5: u32):
-    ///     v6 = icmp_ult v5, v2
-    ///     branch v6, block2, block3
-    /// block2:
-    ///     v7 = icmp_ult v5, v1
-    ///     check v7, bounds.unsigned v5, v1, v0, block4, block5
-    /// block4:
-    ///     v8 = element.addr v0, v5
-    ///     v9 = iconst 1u8
+    /// function before(v0: uint8[8], v1: uint32, v2: uint32): void {
+    /// b0(v0: uint8[8], v1: uint32, v2: uint32):
+    ///     v3 = 0uint32
+    ///     v4 = 1uint32
+    ///     jump b1(v3)
+    /// b1(v5: uint32):
+    ///     v6 = int.lt.u v5, v2
+    ///     branch v6, b2, b3
+    /// b2:
+    ///     v7 = int.lt.u v5, v1
+    ///     check bounds.u v5, v1, v0 -> b4, b5
+    /// b4:
+    ///     v8 = element.address v0, v5
+    ///     v9 = 1uint8
     ///     store v8, v9
-    ///     v10 = iadd v5, v4
-    ///     jump block1(v10)
-    /// block5:
+    ///     v10 = int.add v5, v4
+    ///     jump b1(v10)
+    /// b5:
     ///     unreachable
-    /// block3:
+    /// b3:
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: [u8; 8], v1: u32, v2: u32) -> void {
-    /// block0(v0: [u8; 8], v1: u32, v2: u32):
-    ///     v3 = iconst 0u32
-    ///     v4 = iconst 1u32
-    ///     v11 = icmp_ule v2, v1
-    ///     branch v11, block6(v3), block1(v3)
-    /// block1(v5: u32):
-    ///     v6 = icmp_ult v5, v2
-    ///     branch v6, block2, block3
-    /// block2:
-    ///     v7 = icmp_ult v5, v1
-    ///     check v7, bounds.unsigned v5, v1, v0, block4, block5
-    /// block4:
-    ///     v8 = element.addr v0, v5
-    ///     v9 = iconst 1u8
+    /// function after(v0: uint8[8], v1: uint32, v2: uint32): void {
+    /// b0(v0: uint8[8], v1: uint32, v2: uint32):
+    ///     v3 = 0uint32
+    ///     v4 = 1uint32
+    ///     v11 = int.le.u v2, v1
+    ///     branch v11, b6(v3), b1(v3)
+    /// b1(v5: uint32):
+    ///     v6 = int.lt.u v5, v2
+    ///     branch v6, b2, b3
+    /// b2:
+    ///     v7 = int.lt.u v5, v1
+    ///     check bounds.u v5, v1, v0 -> b4, b5
+    /// b4:
+    ///     v8 = element.address v0, v5
+    ///     v9 = 1uint8
     ///     store v8, v9
-    ///     v10 = iadd v5, v4
-    ///     jump block1(v10)
-    /// block5:
+    ///     v10 = int.add v5, v4
+    ///     jump b1(v10)
+    /// b5:
     ///     unreachable
-    /// block3:
+    /// b3:
     ///     return
-    /// block6(v12: u32):
-    ///     v13 = icmp_ult v12, v2
-    ///     branch v13, block7, block3
-    /// block7:
-    ///     v14 = element.addr v0, v12
-    ///     v15 = iconst 1u8
+    /// b6(v12: uint32):
+    ///     v13 = int.lt.u v12, v2
+    ///     branch v13, b7, b3
+    /// b7:
+    ///     v14 = element.address v0, v12
+    ///     v15 = 1uint8
     ///     store v14, v15
-    ///     v16 = iadd v12, v4
-    ///     jump block6(v16)
+    ///     v16 = int.add v12, v4
+    ///     jump b6(v16)
     /// }
     /// ```
     #[pass(id = "loop-versioning")]
@@ -630,63 +630,65 @@ mod tests {
     /// Loop versioning inserts a fast path for bounds checks.
     #[test]
     fn test_loop_versioning_bounds_guard() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: bool = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block4, block5
-block4:
-    v8: ref<borrowed u8> = element.addr v0, v5
-    v9: u8 = iconst 1u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1uint8
     store v8, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block5:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    v5: bool = icmp_ule v2, v1
-    branch v5, block6(v3), block1(v3)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2, block5
-block2:
-    v8: bool = icmp_ult v6, v1
-    check v8, bounds.unsigned v6, v1, v0, block3, block4
-block3:
-    v9: ref<borrowed u8> = element.addr v0, v6
-    v10: u8 = iconst 1u8
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    v5: boolean = int.le.u v2, v1
+    branch v5, b6(v3), b1(v3)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2, b5
+b2:
+    v8: boolean = int.lt.u v6, v1
+    check bounds.u v6, v1, v0 -> b3, b4
+b3:
+    v9: ref<uint8, borrowed> = element.address v0, v6
+    v10: uint8 = 1uint8
     store v9, v10
-    v11: u32 = iadd v6, v4
-    jump block1(v11)
-block4:
+    v11: uint32 = int.add v6, v4
+    jump b1(v11)
+b4:
     unreachable
-block5:
+b5:
     return
-block6(v12: u32):
-    v13: bool = icmp_ult v12, v2
-    branch v13, block7, block5
-block7:
-    v14: bool = icmp_ult v12, v1
-    jump block8
-block8:
-    v15: ref<borrowed u8> = element.addr v0, v12
-    v16: u8 = iconst 1u8
+b6(v12: uint32):
+    v13: boolean = int.lt.u v12, v2
+    branch v13, b7, b5
+b7:
+    v14: boolean = int.lt.u v12, v1
+    jump b8
+b8:
+    v15: ref<uint8, borrowed> = element.address v0, v12
+    v16: uint8 = 1uint8
     store v15, v16
-    v17: u32 = iadd v12, v4
-    jump block6(v17)
+    v17: uint32 = int.add v12, v4
+    jump b6(v17)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -697,63 +699,65 @@ block8:
     /// Loop versioning handles non zero induction starts.
     #[test]
     fn test_loop_versioning_non_zero_start() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 2u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: bool = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block4, block5
-block4:
-    v8: ref<borrowed u8> = element.addr v0, v5
-    v9: u8 = iconst 1u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 2uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1uint8
     store v8, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block5:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 2u32
-    v4: u32 = iconst 1u32
-    v5: bool = icmp_ule v2, v1
-    branch v5, block6(v3), block1(v3)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2, block5
-block2:
-    v8: bool = icmp_ult v6, v1
-    check v8, bounds.unsigned v6, v1, v0, block3, block4
-block3:
-    v9: ref<borrowed u8> = element.addr v0, v6
-    v10: u8 = iconst 1u8
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 2uint32
+    v4: uint32 = 1uint32
+    v5: boolean = int.le.u v2, v1
+    branch v5, b6(v3), b1(v3)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2, b5
+b2:
+    v8: boolean = int.lt.u v6, v1
+    check bounds.u v6, v1, v0 -> b3, b4
+b3:
+    v9: ref<uint8, borrowed> = element.address v0, v6
+    v10: uint8 = 1uint8
     store v9, v10
-    v11: u32 = iadd v6, v4
-    jump block1(v11)
-block4:
+    v11: uint32 = int.add v6, v4
+    jump b1(v11)
+b4:
     unreachable
-block5:
+b5:
     return
-block6(v12: u32):
-    v13: bool = icmp_ult v12, v2
-    branch v13, block7, block5
-block7:
-    v14: bool = icmp_ult v12, v1
-    jump block8
-block8:
-    v15: ref<borrowed u8> = element.addr v0, v12
-    v16: u8 = iconst 1u8
+b6(v12: uint32):
+    v13: boolean = int.lt.u v12, v2
+    branch v13, b7, b5
+b7:
+    v14: boolean = int.lt.u v12, v1
+    jump b8
+b8:
+    v15: ref<uint8, borrowed> = element.address v0, v12
+    v16: uint8 = 1uint8
     store v15, v16
-    v17: u32 = iadd v12, v4
-    jump block6(v17)
+    v17: uint32 = int.add v12, v4
+    jump b6(v17)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -764,26 +768,27 @@ block8:
     /// Signed bounds checks are not versioned.
     #[test]
     fn test_loop_versioning_skips_signed_bounds() {
-        let input = r#"function @test(v0: [i32; 8], v1: i32, v2: i32) -> void {
-block0(v0: [i32; 8], v1: i32, v2: i32):
-    v3: i32 = iconst 0i32
-    v4: i32 = iconst 1i32
-    jump block1(v3)
-block1(v5: i32):
-    v6: bool = icmp_slt v5, v2
-    branch v6, block2, block3
-block2:
-    v7: bool = icmp_slt v5, v1
-    check v7, bounds.signed v5, v1, v0, block4, block5
-block3:
+        let input = r#"
+function test(v0: int32[8], v1: int32, v2: int32): void {
+b0(v0: int32[8], v1: int32, v2: int32):
+    v3: int32 = 0int32
+    v4: int32 = 1int32
+    jump b1(v3)
+b1(v5: int32):
+    v6: boolean = int.lt.s v5, v2
+    branch v6, b2, b3
+b2:
+    v7: boolean = int.lt.s v5, v1
+    check bounds.s v5, v1, v0 -> b4, b5
+b3:
     return
-block4:
-    v8: ref<borrowed i32> = element.addr v0, v5
-    v9: i32 = iconst 1i32
+b4:
+    v8: ref<int32, borrowed> = element.address v0, v5
+    v9: int32 = 1int32
     store v8, v9
-    v10: i32 = iadd v5, v4
-    jump block1(v10)
-block5:
+    v10: int32 = int.add v5, v4
+    jump b1(v10)
+b5:
     unreachable
 }"#;
 
@@ -795,26 +800,27 @@ block5:
     /// Mismatched integer types prevent versioning.
     #[test]
     fn test_loop_versioning_skips_type_mismatch() {
-        let input = r#"function @test(v0: [u8; 8], v1: i32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: i32, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: bool = icmp_ult v5, v2
-    check v7, bounds.unsigned v5, v1, v0, block4, block5
-block3:
+        let input = r#"
+function test(v0: uint8[8], v1: int32, v2: uint32): void {
+b0(v0: uint8[8], v1: int32, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
+b2:
+    v7: boolean = int.lt.u v5, v2
+    check bounds.u v5, v1, v0 -> b4, b5
+b3:
     return
-block4:
-    v8: ref<borrowed u8> = element.addr v0, v5
-    v9: u8 = iconst 1u8
+b4:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1uint8
     store v8, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block5:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b5:
     unreachable
 }"#;
 
@@ -826,63 +832,65 @@ block5:
     /// Non unit strides are still versioned.
     #[test]
     fn test_loop_versioning_handles_non_unit_stride() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 2u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: bool = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block4, block5
-block4:
-    v8: ref<borrowed u8> = element.addr v0, v5
-    v9: u8 = iconst 1u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 2uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1uint8
     store v8, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block5:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 2u32
-    v5: bool = icmp_ule v2, v1
-    branch v5, block6(v3), block1(v3)
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v2
-    branch v7, block2, block5
-block2:
-    v8: bool = icmp_ult v6, v1
-    check v8, bounds.unsigned v6, v1, v0, block3, block4
-block3:
-    v9: ref<borrowed u8> = element.addr v0, v6
-    v10: u8 = iconst 1u8
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 2uint32
+    v5: boolean = int.le.u v2, v1
+    branch v5, b6(v3), b1(v3)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v2
+    branch v7, b2, b5
+b2:
+    v8: boolean = int.lt.u v6, v1
+    check bounds.u v6, v1, v0 -> b3, b4
+b3:
+    v9: ref<uint8, borrowed> = element.address v0, v6
+    v10: uint8 = 1uint8
     store v9, v10
-    v11: u32 = iadd v6, v4
-    jump block1(v11)
-block4:
+    v11: uint32 = int.add v6, v4
+    jump b1(v11)
+b4:
     unreachable
-block5:
+b5:
     return
-block6(v12: u32):
-    v13: bool = icmp_ult v12, v2
-    branch v13, block7, block5
-block7:
-    v14: bool = icmp_ult v12, v1
-    jump block8
-block8:
-    v15: ref<borrowed u8> = element.addr v0, v12
-    v16: u8 = iconst 1u8
+b6(v12: uint32):
+    v13: boolean = int.lt.u v12, v2
+    branch v13, b7, b5
+b7:
+    v14: boolean = int.lt.u v12, v1
+    jump b8
+b8:
+    v15: ref<uint8, borrowed> = element.address v0, v12
+    v16: uint8 = 1uint8
     store v15, v16
-    v17: u32 = iadd v12, v4
-    jump block6(v17)
+    v17: uint32 = int.add v12, v4
+    jump b6(v17)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -893,26 +901,27 @@ block8:
     /// Non strict loop guards are not versioned.
     #[test]
     fn test_loop_versioning_skips_non_strict_guard() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ule v5, v2
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block3, block4
-block3:
-    v8: ref<borrowed u8> = element.addr v0, v5
-    v9: u8 = iconst 1u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.le.u v5, v2
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1uint8
     store v8, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block4:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 

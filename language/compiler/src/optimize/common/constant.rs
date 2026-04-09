@@ -414,15 +414,17 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
 
     // fold integer unary intrinsics
     let folded_integer_unary = match intrinsic {
-        Intrinsic::Clz => fold_int_unary(first, |value, width| {
+        Intrinsic::LeadingZeroCount => fold_int_unary(first, |value, width| {
             let leading = value.leading_zeros();
             let adjust = u32::from(64u8.saturating_sub(width));
             Some((leading - adjust) as u64)
         }),
-        Intrinsic::Ctz => {
+        Intrinsic::TrailingZeroCount => {
             fold_int_unary(first, |value, _width| Some(value.trailing_zeros() as u64))
         }
-        Intrinsic::Popcnt => fold_int_unary(first, |value, _width| Some(value.count_ones() as u64)),
+        Intrinsic::PopulationCount => {
+            fold_int_unary(first, |value, _width| Some(value.count_ones() as u64))
+        }
         Intrinsic::ByteSwap => fold_int_unary(first, |value, width| {
             if width % 8 != 0 {
                 return None;
@@ -486,7 +488,7 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
 
     // fold float binary and ternary intrinsics
     match intrinsic {
-        Intrinsic::Copysign => fold_float_binary(arguments, |left, right| left.copysign(right)),
+        Intrinsic::CopySign => fold_float_binary(arguments, |left, right| left.copysign(right)),
         Intrinsic::Atan2 => fold_float_binary(arguments, |left, right| left.atan2(right)),
         Intrinsic::Pow => fold_float_binary(arguments, |left, right| left.powf(right)),
         Intrinsic::Fma => fold_float_ternary(arguments, |a, b, c| a.mul_add(b, c)),

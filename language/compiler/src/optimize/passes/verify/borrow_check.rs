@@ -17,7 +17,7 @@ use crate::{OptimizeError, OptimizeWarning};
 declare_pass! {
     /// Verify borrow rules for references.
     ///
-    /// Tracks active borrows created by `field.addr` and `element.addr`, and detects:
+    /// Tracks active borrows created by `field.address` and `element.address`, and detects:
     /// - Drop while borrowed: `drop` or `raw.free` of a value with active borrows (always error)
     /// - Conflicting borrows: new borrow conflicts with existing (strict mode: error, lenient: warning)
     /// - Invalidated references: `store` through a pointer may invalidate other borrows
@@ -49,7 +49,7 @@ struct ActiveBorrow {
     created_at: mir::LocalNodeId<Instruction>,
     /// Provenance chain: all values this borrow transitively borrows from.
     ///
-    /// If v3 = field.addr v2 and v2 = field.addr v0, then v3's provenance is {v2, v0}.
+    /// If v3 = field.address v2 and v2 = field.address v0, then v3's provenance is {v2, v0}.
     /// This allows us to detect when dropping any value in the chain invalidates the borrow.
     provenance: HashSet<Value>,
 }
@@ -126,7 +126,7 @@ impl<'a> BorrowCheckContext<'a> {
 
     /// Determine mutability for a derived reference based on source type.
     ///
-    /// For field.addr/element.addr, the result inherits mutability from source.
+    /// For field.address/element.address, the result inherits mutability from source.
     fn derive_mutability(&self, source: Value) -> bool {
         let ty_id = self.value_types.require_value_type(source);
         let ty = self.tree.get(ty_id);
@@ -436,8 +436,8 @@ impl<'a> BorrowCheckContext<'a> {
     /// Uses alias analysis to detect may-alias relationships between reference
     /// values. This enables more precise
     /// conflict detection:
-    /// - Two field.addr to different fields of same struct: NoAlias (no conflict)
-    /// - Two field.addr to same field: MayAlias/MustAlias (conflict if mutable)
+    /// - Two field.address to different fields of same struct: NoAlias (no conflict)
+    /// - Two field.address to same field: MayAlias/MustAlias (conflict if mutable)
     /// - Unrelated allocations: NoAlias (no conflict)
     fn check_new_borrow(
         &mut self,
@@ -878,7 +878,7 @@ fn check_instruction(
     context: &impl DiagnosticEmitter,
 ) {
     match instruction {
-        // field.addr creates a borrow of the aggregate
+        // field.address creates a borrow of the aggregate
         Instruction::FieldAddr {
             destination,
             aggregate,
@@ -900,7 +900,7 @@ fn check_instruction(
             );
         }
 
-        // element.addr creates a borrow of the array
+        // element.address creates a borrow of the array
         Instruction::ElementAddr {
             destination,
             array,
@@ -935,7 +935,7 @@ fn check_instruction(
         // local.get loads a value without creating a borrow
         Instruction::LocalGet { .. } => {}
 
-        // local.addr creates a borrow of a local
+        // local.address creates a borrow of a local
         Instruction::LocalAddr {
             destination,
             local,
@@ -1094,9 +1094,10 @@ mod tests {
     /// Simple function with no borrows passes verification.
     #[test]
     fn test_verify_no_borrows() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -1109,12 +1110,13 @@ block0:
     /// Field address with no other borrows is valid.
     #[test]
     fn test_verify_single_field_addr() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -1126,11 +1128,12 @@ block0:
     /// Sequential loads from same pointer is valid.
     #[test]
     fn test_verify_sequential_loads() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
 
@@ -1142,8 +1145,9 @@ block0(v0: ref<raw i32>):
     /// Store through pointer is valid.
     #[test]
     fn test_verify_store_no_conflict() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: i32) -> void {
-block0(v0: ref<raw i32>, v1: i32):
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: int32): void {
+b0(v0: ref<int32, raw>, v1: int32):
     store v0, v1
     return
 }"#;
@@ -1156,12 +1160,13 @@ block0(v0: ref<raw i32>, v1: i32):
     /// Dropping while borrowed is detected.
     #[test]
     fn test_detect_drop_while_borrowed() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<borrowed i32> = field.addr v0, 0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, borrowed> = field.address v0, 0
     raw.drop v0
-    v2: i32 = load v1
+    v2: int32 = load v1
     return v2
 }"#;
 
@@ -1173,12 +1178,13 @@ block0:
     /// raw.free while borrowed is detected.
     #[test]
     fn test_detect_raw_free_while_borrowed() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw i32> = raw.alloc i32
-    v1: ref<borrowed i32> = field.addr v0, 0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw> = raw.alloc int32
+    v1: ref<int32, borrowed> = field.address v0, 0
     raw.free v0
-    v2: i32 = load v1
+    v2: int32 = load v1
     return v2
 }"#;
 
@@ -1190,12 +1196,13 @@ block0:
     /// local.set without existing borrows is valid.
     #[test]
     fn test_verify_local_set_no_borrow() {
-        let input = r#"function @test() -> i32 {
-local0: i32
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 42int32
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#;
 
@@ -1207,15 +1214,16 @@ block0:
     /// local.set while borrowed is rejected.
     #[test]
     fn test_detect_local_set_while_borrowed() {
-        let input = r#"function @test() -> void {
-local0: i32 ; owned
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): void {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v2: i32 = iconst 2i32
+    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v2: int32 = 2int32
     local.set local0, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return
 }"#;
 
@@ -1227,15 +1235,16 @@ block0:
     /// Multiple shared local borrows do not conflict.
     #[test]
     fn test_verify_local_shared_borrows_no_conflict() {
-        let input = r#"function @test() -> void {
-local0: i32 ; owned
-block0:
-    v0: i32 = iconst 0i32
+        let input = r#"
+function test(): void {
+    local local0: int32, owned
+b0:
+    v0: int32 = 0int32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) readonly i32> = local.addr local0
-    v2: ref<borrowed addrspace(stack) readonly i32> = local.addr local0
-    v3: i32 = load v1
-    v4: i32 = load v2
+    v1: ref<int32, borrowed, readonly, addressSpace(stack)> = local.address local0
+    v2: ref<int32, borrowed, readonly, addressSpace(stack)> = local.address local0
+    v3: int32 = load v1
+    v4: int32 = load v2
     return
 }"#;
 
@@ -1247,17 +1256,18 @@ block0:
     /// local borrows propagate through block parameters.
     #[test]
     fn test_detect_local_borrow_propagates_across_blocks() {
-        let input = r#"function @test() -> void {
-local0: i32 ; owned
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): void {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    jump block1(v1)
-block1(v2: ref<borrowed addrspace(stack) i32>):
-    v3: i32 = iconst 2i32
+    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    jump b1(v1)
+b1(v2: ref<int32, borrowed, addressSpace(stack)>):
+    v3: int32 = 2int32
     local.set local0, v3
-    v4: i32 = load v2
+    v4: int32 = load v2
     return
 }"#;
 
@@ -1269,15 +1279,16 @@ block1(v2: ref<borrowed addrspace(stack) i32>):
     /// Multiple mutable local borrows conflict.
     #[test]
     fn test_detect_local_borrow_conflict() {
-        let input = r#"function @test() -> void {
-local0: i32 ; owned
-block0:
-    v0: i32 = iconst 0i32
+        let input = r#"
+function test(): void {
+    local local0: int32, owned
+b0:
+    v0: int32 = 0int32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v2: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v3: i32 = load v1
-    v4: i32 = load v2
+    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v2: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v3: int32 = load v1
+    v4: int32 = load v2
     return
 }"#;
 
@@ -1289,11 +1300,12 @@ block0:
     /// Multiple parameters with no conflicts is valid.
     #[test]
     fn test_verify_multiple_params_no_conflict() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = load v0
-    v3: i32 = load v1
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = load v0
+    v3: int32 = load v1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
 
@@ -1305,14 +1317,15 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// Drop while borrowed in strict mode emits error.
     #[test]
     fn test_strict_mode_drop_while_borrowed() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
     raw.drop v0
-    v3: i32 = load v2
+    v3: int32 = load v2
     return v3
 }"#;
 
@@ -1326,14 +1339,15 @@ block0:
     /// Drop while borrowed is always an error, even in lenient mode.
     #[test]
     fn test_detect_drop_while_borrowed_lenient_mode() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
     raw.drop v0
-    v3: i32 = load v2
+    v3: int32 = load v2
     return v3
 }"#;
 
@@ -1345,12 +1359,13 @@ block0:
     /// Single field access is valid.
     #[test]
     fn test_verify_single_field_access() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -1362,9 +1377,10 @@ block0:
     /// Load through reference is valid.
     #[test]
     fn test_verify_load() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
     return v1
 }"#;
 
@@ -1376,8 +1392,9 @@ block0(v0: ref<raw i32>):
     /// Multiple sequential stores to same location are valid.
     #[test]
     fn test_verify_multiple_stores_sequential() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: i32, v2: i32) -> void {
-block0(v0: ref<raw i32>, v1: i32, v2: i32):
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: int32, v2: int32): void {
+b0(v0: ref<int32, raw>, v1: int32, v2: int32):
     store v0, v1
     store v0, v2
     return
@@ -1394,13 +1411,14 @@ block0(v0: ref<raw i32>, v1: i32, v2: i32):
     /// and dropping v0 is valid.
     #[test]
     fn test_verify_borrow_expires_after_use() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = load v2
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = load v2
     raw.drop v0
     return v3
 }"#;
@@ -1415,14 +1433,15 @@ block0:
     /// Borrow does not expire if reference is still live.
     #[test]
     fn test_detect_borrow_still_live() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
     raw.drop v0
-    v3: i32 = load v2
+    v3: int32 = load v2
     return v3
 }"#;
 
@@ -1436,14 +1455,15 @@ block0:
     /// Element address also creates borrow that tracks lifetime.
     #[test]
     fn test_verify_element_addr_borrow_expires() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = iconst 0i32
-    v3: ref<borrowed i32> = element.addr v0, v2
-    v4: i32 = load v3
+    v2: int32 = 0int32
+    v3: ref<int32, borrowed> = element.address v0, v2
+    v4: int32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -1457,15 +1477,16 @@ block0:
     /// Direct field address borrow is tracked even with intermediate operations.
     #[test]
     fn test_detect_direct_borrow_still_live() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = iconst 10i32
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = 10int32
     raw.drop v0
-    v4: i32 = load v2
+    v4: int32 = load v2
     return v4
 }"#;
 
@@ -1475,21 +1496,22 @@ block0:
         test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
-    /// Chained field.addr tracks transitive provenance.
+    /// Chained field.address tracks transitive provenance.
     ///
-    /// v3 = field.addr v2 where v2 = field.addr v0 means dropping v0 while
+    /// v3 = field.address v2 where v2 = field.address v0 means dropping v0 while
     /// v3 is live should be an error.
     #[test]
     fn test_detect_transitive_borrow_chain() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = field.addr v2, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = field.address v2, 0
     raw.drop v0
-    v4: i32 = load v3
+    v4: int32 = load v3
     return v4
 }"#;
 
@@ -1502,16 +1524,17 @@ block0:
     /// Deep transitive chain (v0 -> v2 -> v3 -> v4) tracks correctly.
     #[test]
     fn test_detect_deep_transitive_chain() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = field.addr v2, 0
-    v4: ref<borrowed i32> = field.addr v3, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = field.address v2, 0
+    v4: ref<int32, borrowed> = field.address v3, 0
     raw.drop v0
-    v5: i32 = load v4
+    v5: int32 = load v4
     return v5
 }"#;
 
@@ -1524,14 +1547,15 @@ block0:
     /// Transitive borrow expires when intermediate references are dead.
     #[test]
     fn test_verify_transitive_borrow_expires() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = field.addr v2, 0
-    v4: i32 = load v3
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = field.address v2, 0
+    v4: int32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -1546,15 +1570,16 @@ block0:
     /// Dropping intermediate value in chain is still error if final ref is live.
     #[test]
     fn test_detect_drop_intermediate_while_borrowed() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = field.addr v2, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = field.address v2, 0
     raw.drop v2
-    v4: i32 = load v3
+    v4: int32 = load v3
     return v4
 }"#;
 
@@ -1567,13 +1592,14 @@ block0:
     /// Mutable borrow while existing mutable borrow is detected in strict mode.
     #[test]
     fn test_detect_mutable_borrow_conflict_strict() {
-        let input = r#"function @test(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = load v1
-    v4: i32 = load v2
-    v5: i32 = iadd v3, v4
+        let input = r#"
+function test(v0: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = load v1
+    v4: int32 = load v2
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
 
@@ -1581,7 +1607,7 @@ block0(v0: ref<borrowed i32>):
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
-        // v2 = field.addr while v1 still borrows v0 - both are mutable since v0 is mut
+        // v2 = field.address while v1 still borrows v0 - both are mutable since v0 is mut
         // mutable borrow while existing mutable borrow is conflict
         test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
@@ -1589,13 +1615,14 @@ block0(v0: ref<borrowed i32>):
     /// Shared borrows don't conflict with each other.
     #[test]
     fn test_verify_multiple_shared_borrows() {
-        let input = r#"function @test(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = load v1
-    v4: i32 = load v2
-    v5: i32 = iadd v3, v4
+        let input = r#"
+function test(v0: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = load v1
+    v4: int32 = load v2
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
 
@@ -1608,20 +1635,21 @@ block0(v0: ref<borrowed i32>):
     /// Borrow that flows through diamond control flow.
     #[test]
     fn test_detect_borrow_through_diamond() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v1, 0
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+    v3: ref<int32, borrowed> = field.address v1, 0
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     raw.drop v1
-    v4: i32 = load v3
+    v4: int32 = load v3
     return v4
 }"#;
 
@@ -1637,23 +1665,24 @@ block3:
     /// At merge: v1 is "maybe borrowed" - dropping v1 should error
     #[test]
     fn test_detect_maybe_borrowed_one_branch() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 42int32
     store v1, v3
     store v2, v3
-    branch v0, block1, block2
-block1:
-    v4: ref<borrowed i32> = field.addr v1, 0
-    jump block3(v4)
-block2:
-    v5: ref<borrowed i32> = field.addr v2, 0
-    jump block3(v5)
-block3(v6: ref<raw i32>):
+    branch v0, b1, b2
+b1:
+    v4: ref<int32, borrowed> = field.address v1, 0
+    jump b3(v4)
+b2:
+    v5: ref<int32, borrowed> = field.address v2, 0
+    jump b3(v5)
+b3(v6: ref<int32, raw>):
     raw.drop v1
-    v7: i32 = load v6
+    v7: int32 = load v6
     raw.drop v2
     return v7
 }"#;
@@ -1670,21 +1699,22 @@ block3(v6: ref<raw i32>):
     /// Borrow expires before merge - drop after merge is ok.
     #[test]
     fn test_verify_borrow_expires_before_merge() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    branch v0, block1, block2
-block1:
-    v3: ref<borrowed i32> = field.addr v1, 0
-    v4: i32 = load v3
-    jump block3(v4)
-block2:
-    v5: ref<borrowed i32> = field.addr v1, 0
-    v6: i32 = load v5
-    jump block3(v6)
-block3(v7: i32):
+    branch v0, b1, b2
+b1:
+    v3: ref<int32, borrowed> = field.address v1, 0
+    v4: int32 = load v3
+    jump b3(v4)
+b2:
+    v5: ref<int32, borrowed> = field.address v1, 0
+    v6: int32 = load v5
+    jump b3(v6)
+b3(v7: int32):
     raw.drop v1
     return v7
 }"#;
@@ -1699,24 +1729,25 @@ block3(v7: i32):
     /// Loop with borrow - borrow created and used within loop body.
     #[test]
     fn test_verify_loop_borrow_local() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     store v1, v0
-    jump block1
-block1:
-    v2: ref<borrowed i32> = field.addr v1, 0
-    v3: i32 = load v2
-    v4: i32 = iconst 0i32
-    v5: bool = icmp_sgt v3, v4
-    branch v5, block2, block3
-block2:
-    v6: i32 = iconst 1i32
-    v7: i32 = isub v3, v6
+    jump b1
+b1:
+    v2: ref<int32, borrowed> = field.address v1, 0
+    v3: int32 = load v2
+    v4: int32 = 0int32
+    v5: boolean = int.gt.s v3, v4
+    branch v5, b2, b3
+b2:
+    v6: int32 = 1int32
+    v7: int32 = int.sub v3, v6
     store v1, v7
-    jump block1
-block3:
-    v8: i32 = load v1
+    jump b1
+b3:
+    v8: int32 = load v1
     raw.drop v1
     return v8
 }"#;
@@ -1731,20 +1762,21 @@ block3:
     /// Borrow escapes loop iteration - error.
     #[test]
     fn test_detect_borrow_escapes_loop() {
-        let input = r#"function @test(v0: i32) -> ref<raw i32> {
-block0(v0: i32):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+        let input = r#"
+function test(v0: int32): ref<int32, raw> {
+b0(v0: int32):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     store v1, v0
-    v2: ref<borrowed i32> = field.addr v1, 0
-    jump block1(v2)
-block1(v3: ref<raw i32>):
-    v4: i32 = load v3
-    v5: i32 = iconst 0i32
-    v6: bool = icmp_sgt v4, v5
-    branch v6, block2, block3
-block2:
-    jump block1(v3)
-block3:
+    v2: ref<int32, borrowed> = field.address v1, 0
+    jump b1(v2)
+b1(v3: ref<int32, raw>):
+    v4: int32 = load v3
+    v5: int32 = 0int32
+    v6: boolean = int.gt.s v4, v5
+    branch v6, b2, b3
+b2:
+    jump b1(v3)
+b3:
     return v3
 }"#;
 
@@ -1762,19 +1794,20 @@ block3:
     /// because alias analysis proves they cannot refer to the same memory.
     #[test]
     fn test_alias_different_allocations_no_conflict() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
+    v3: int32 = 2int32
     store v0, v2
     store v1, v3
-    v4: ref<borrowed i32> = field.addr v0, 0
-    v5: ref<borrowed i32> = field.addr v1, 0
-    v6: i32 = load v4
-    v7: i32 = load v5
-    v8: i32 = iadd v6, v7
+    v4: ref<int32, borrowed> = field.address v0, 0
+    v5: ref<int32, borrowed> = field.address v1, 0
+    v6: int32 = load v4
+    v7: int32 = load v5
+    v8: int32 = int.add v6, v7
     raw.drop v0
     raw.drop v1
     return v8
@@ -1794,17 +1827,18 @@ block0:
     /// so storing through one doesn't invalidate borrows of the other.
     #[test]
     fn test_alias_store_unrelated_pointers_no_conflict() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: i32 = iconst 99i32
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: int32 = 99int32
     store v1, v4
-    v5: i32 = load v3
+    v5: int32 = load v3
     raw.drop v0
     raw.drop v1
     return v5
@@ -1822,16 +1856,17 @@ block0:
     /// because alias analysis proves they refer to different memory.
     #[test]
     fn test_alias_concurrent_mutable_borrows_different_allocs() {
-        let input = r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = field.addr v1, 0
-    v4: i32 = iconst 42i32
+        let input = r#"
+function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = field.address v1, 0
+    v4: int32 = 42int32
     store v2, v4
     store v3, v4
-    v5: i32 = load v0
-    v6: i32 = load v1
-    v7: i32 = iadd v5, v6
+    v5: int32 = load v0
+    v6: int32 = load v1
+    v7: int32 = int.add v5, v6
     return v7
 }"#;
 
@@ -1849,16 +1884,17 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
     /// Alias analysis proves the dropped value doesn't alias the borrowed value's origin.
     #[test]
     fn test_alias_drop_unrelated_allocation_while_other_borrowed() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<int32, borrowed> = field.address v0, 0
     raw.drop v1
-    v4: i32 = load v3
+    v4: int32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -1875,19 +1911,20 @@ block0:
     /// address spaces.
     #[test]
     fn test_alias_global_vs_stack_no_conflict() {
-        let input = r#"global @g1: i32 = 42i32
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g1
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+global g1: int32 = 42int32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g1
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: ref<borrowed i32> = field.addr v1, 0
-    v5: i32 = load v3
-    v6: i32 = load v4
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: ref<int32, borrowed> = field.address v1, 0
+    v5: int32 = load v3
+    v6: int32 = load v4
     raw.drop v1
-    v7: i32 = iadd v5, v6
+    v7: int32 = int.add v5, v6
     return v7
 }"#;
 
@@ -1904,19 +1941,20 @@ block0:
     /// Different allocation types in the same function are independent.
     #[test]
     fn test_alias_managed_vs_raw_no_conflict() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: ref<raw i32> = raw.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, raw> = raw.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: ref<borrowed i32> = field.addr v1, 0
-    v5: i32 = load v3
-    v6: i32 = load v4
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: ref<int32, borrowed> = field.address v1, 0
+    v5: int32 = load v3
+    v6: int32 = load v4
     raw.free v1
-    v7: i32 = iadd v5, v6
+    v7: int32 = int.add v5, v6
     return v7
 }"#;
 
@@ -1934,25 +1972,26 @@ block0:
     /// alias any previous allocation.
     #[test]
     fn test_alias_sequential_allocations_no_conflict() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 1i32
-    v4: i32 = iconst 2i32
-    v5: i32 = iconst 3i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 1int32
+    v4: int32 = 2int32
+    v5: int32 = 3int32
     store v0, v3
     store v1, v4
     store v2, v5
-    v6: ref<borrowed i32> = field.addr v0, 0
-    v7: ref<borrowed i32> = field.addr v1, 0
-    v8: ref<borrowed i32> = field.addr v2, 0
-    v9: i32 = load v6
-    v10: i32 = load v7
-    v11: i32 = load v8
-    v12: i32 = iadd v9, v10
-    v13: i32 = iadd v12, v11
+    v6: ref<int32, borrowed> = field.address v0, 0
+    v7: ref<int32, borrowed> = field.address v1, 0
+    v8: ref<int32, borrowed> = field.address v2, 0
+    v9: int32 = load v6
+    v10: int32 = load v7
+    v11: int32 = load v8
+    v12: int32 = int.add v9, v10
+    v13: int32 = int.add v12, v11
     raw.drop v0
     raw.drop v1
     raw.drop v2
@@ -1969,18 +2008,19 @@ block0:
 
     /// Same allocation, same field access - detects conflict for mutable borrows.
     ///
-    /// When two field.addr instructions access the same allocation at the same field,
+    /// When two field.address instructions access the same allocation at the same field,
     /// mutable borrows conflict because they may alias the same memory.
     #[test]
     fn test_alias_same_allocation_same_field_conflict() {
         // in strict mode with mutable ref, same field access conflicts
-        let input_mut = r#"function @test(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = load v1
-    v4: i32 = load v2
-    v5: i32 = iadd v3, v4
+        let input_mut = r#"
+function test(v0: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = load v1
+    v4: int32 = load v2
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
 
@@ -1997,12 +2037,13 @@ block0(v0: ref<borrowed i32>):
     /// When a store may alias an existing borrow's origin, the borrow is invalidated.
     #[test]
     fn test_alias_store_invalidates_aliasing_borrow() {
-        let input = r#"function @test(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 99i32
+        let input = r#"
+function test(v0: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 99int32
     store v0, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -2020,17 +2061,18 @@ block0(v0: ref<borrowed i32>):
     /// Alias analysis detects when a dropped value may alias an existing borrow origin.
     #[test]
     fn test_alias_drop_aliasing_value_detected() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = field.address v0, 0
     raw.drop v0
-    v4: i32 = load v2
-    v5: i32 = load v3
-    v6: i32 = iadd v4, v5
+    v4: int32 = load v2
+    v5: int32 = load v3
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
 
@@ -2045,15 +2087,16 @@ block0:
     /// Pointer casts preserve provenance for alias analysis.
     #[test]
     fn test_alias_cast_preserves_provenance() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<raw i32> = bitcast v0 -> ref<raw i32>
-    v3: ref<borrowed i32> = field.addr v2, 0
+    v2: ref<int32, raw> = cast.bit v0 -> ref<int32, raw>
+    v3: ref<int32, borrowed> = field.address v2, 0
     raw.drop v0
-    v4: i32 = load v3
+    v4: int32 = load v3
     return v4
 }"#;
 
@@ -2067,19 +2110,20 @@ block0:
     /// Select between two borrows preserves both origins.
     #[test]
     fn test_select_merges_borrow_origins() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 10i32
-    v4: i32 = iconst 20i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 10int32
+    v4: int32 = 20int32
     store v1, v3
     store v2, v4
-    v5: ref<borrowed i32> = field.addr v1, 0
-    v6: ref<borrowed i32> = field.addr v2, 0
-    v7: ref<borrowed i32> = select v0, v5, v6
+    v5: ref<int32, borrowed> = field.address v1, 0
+    v6: ref<int32, borrowed> = field.address v2, 0
+    v7: ref<int32, borrowed> = select v0, v5, v6
     raw.drop v1
-    v8: i32 = load v7
+    v8: int32 = load v7
     return v8
 }"#;
 
@@ -2094,17 +2138,18 @@ block0(v0: bool):
     /// Cast propagation carries borrow info across blocks.
     #[test]
     fn test_cast_propagates_borrow_across_blocks() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    jump block1(v2)
-block1(v3: ref<borrowed i32>):
-    v4: ref<borrowed i32> = bitcast v3 -> ref<borrowed i32>
+    v2: ref<int32, borrowed> = field.address v0, 0
+    jump b1(v2)
+b1(v3: ref<int32, borrowed>):
+    v4: ref<int32, borrowed> = cast.bit v3 -> ref<int32, borrowed>
     raw.drop v0
-    v5: i32 = load v4
+    v5: int32 = load v4
     return v5
 }"#;
 
@@ -2117,16 +2162,17 @@ block1(v3: ref<borrowed i32>):
     /// Local borrows propagate through select.
     #[test]
     fn test_select_propagates_local_borrows() {
-        let input = r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool):
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean): int32 {
+    local local0: int32, owned
+b0(v0: boolean):
+    v1: int32 = 42int32
     local.set local0, v1
-    v2: ref<borrowed i32> = local.addr local0
-    v3: ref<borrowed i32> = select v0, v2, v2
-    v4: i32 = iconst 7i32
+    v2: ref<int32, borrowed> = local.address local0
+    v3: ref<int32, borrowed> = select v0, v2, v2
+    v4: int32 = 7int32
     local.set local0, v4
-    v5: i32 = load v3
+    v5: int32 = load v3
     return v5
 }"#;
 
@@ -2141,15 +2187,16 @@ block0(v0: bool):
     /// Raw references do not participate in borrow checking.
     #[test]
     fn test_raw_reference_skips_borrow_tracking() {
-        let input = r#"function @test() -> i32 {
-    local0: i32 ; owned
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<raw addrspace(stack) i32> = local.addr local0
-    v2: i32 = iconst 2i32
+    v1: ref<int32, raw, addressSpace(stack)> = local.address local0
+    v2: int32 = 2int32
     local.set local0, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -2164,27 +2211,27 @@ block0:
     /// borrowed parameter, the return value borrows from that argument.
     #[test]
     fn test_track_call_borrow_from_single_param() {
-        let input = r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function identity(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = call identity(v2): (ref<int32, borrowed>) -> ref<int32, borrowed>
     raw.drop v0
-    v4: i32 = load v3
+    v4: int32 = load v3
     return v4
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&BorrowCheck);
 
-        // v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a borrow of v2 which borrows from v0
+        // v3 = call identity(v2) returns a borrow of v2 which borrows from v0
         // dropping v0 while v3 is live should be an error
         test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
@@ -2195,20 +2242,20 @@ block0:
     /// borrow from any arguments.
     #[test]
     fn test_track_call_static_lifetime_no_borrow() {
-        let input = r#"function @getStatic(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function getStatic(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = call @getStatic(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = call getStatic(v2): (ref<int32, borrowed>) -> ref<int32, borrowed>
     raw.drop v0
-    v4: i32 = load v3
+    v4: int32 = load v3
     return v4
 }"#;
 
@@ -2228,23 +2275,23 @@ block0:
     /// the return borrows from, only those params are tracked.
     #[test]
     fn test_track_call_explicit_param_lifetime() {
-        let input = r#"function @pickFirst(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+        let input = r#"
+function pickFirst(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: ref<borrowed i32> = field.addr v1, 0
-    v5: ref<borrowed i32> = call @pickFirst(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: ref<int32, borrowed> = field.address v1, 0
+    v5: ref<int32, borrowed> = call pickFirst(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
     raw.drop v1
-    v6: i32 = load v5
+    v6: int32 = load v5
     raw.drop v0
     return v6
 }"#;
@@ -2264,23 +2311,23 @@ block0:
     /// the return may borrow from all of them.
     #[test]
     fn test_track_call_conservative_multi_param() {
-        let input = r#"function @pick_any(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+        let input = r#"
+function pickAny(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: ref<borrowed i32> = field.addr v1, 0
-    v5: ref<borrowed i32> = call @pick_any(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: ref<int32, borrowed> = field.address v1, 0
+    v5: ref<int32, borrowed> = call pickAny(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
     raw.drop v1
-    v6: i32 = load v5
+    v6: int32 = load v5
     raw.drop v0
     return v6
 }"#;
@@ -2299,19 +2346,19 @@ block0:
     /// tracking is needed for the call.
     #[test]
     fn test_track_call_no_borrow_for_value_return() {
-        let input = r#"function @deref(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: i32 = load v0
+        let input = r#"
+function deref(v0: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>):
+    v1: int32 = load v0
     return v1
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = call @deref(v2) -> fn(ref<borrowed i32>) -> i32
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = call deref(v2): (ref<int32, borrowed>) -> int32
     raw.drop v0
     return v3
 }"#;
@@ -2330,19 +2377,19 @@ block0:
     /// is no longer live, allowing the original value to be dropped.
     #[test]
     fn test_track_call_borrow_expires_after_use() {
-        let input = r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function identity(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: ref<borrowed i32> = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
-    v4: i32 = load v3
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: ref<int32, borrowed> = call identity(v2): (ref<int32, borrowed>) -> ref<int32, borrowed>
+    v4: int32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -2361,23 +2408,23 @@ block0:
     /// the return may borrow from any of them.
     #[test]
     fn test_track_call_explicit_multi_param_lifetime() {
-        let input = r#"function @pickEither(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+        let input = r#"
+function pickEither(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: ref<borrowed i32> = field.addr v1, 0
-    v5: ref<borrowed i32> = call @pickEither(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: ref<int32, borrowed> = field.address v1, 0
+    v5: ref<int32, borrowed> = call pickEither(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
     raw.drop v0
-    v6: i32 = load v5
+    v6: int32 = load v5
     raw.drop v1
     return v6
 }"#;
@@ -2398,23 +2445,24 @@ block0:
     /// dropping param 0's origin is safe.
     #[test]
     fn test_track_call_explicit_second_param_lifetime() {
-        let input = r#"function @pickSecond(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+        let input = r#"
+function pickSecond(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v1
 }
 
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: ref<borrowed i32> = field.addr v1, 0
-    v5: ref<borrowed i32> = call @pickSecond(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: ref<int32, borrowed> = field.address v1, 0
+    v5: ref<int32, borrowed> = call pickSecond(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
     raw.drop v0
-    v6: i32 = load v5
+    v6: int32 = load v5
     raw.drop v1
     return v6
 }"#;
@@ -2432,22 +2480,22 @@ block0:
 
     /// Call returning mutable borrowed reference propagates mutability.
     ///
-    /// When a function returns ref<borrowed T>, the returned borrow
+    /// When a function returns ref<T, borrowed>, the returned borrow
     /// should be tracked as mutable and conflict with other borrows.
     #[test]
     fn test_track_call_mutable_return_conflicts() {
-        let input = r#"function @getMut(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function getMut(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }
-
-function @test(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = call @getMut(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
-    v2: ref<borrowed i32> = field.addr v0, 0
-    v3: i32 = load v1
-    v4: i32 = load v2
-    v5: i32 = iadd v3, v4
+function test(v0: ref<int32, borrowed>): int32 {
+b0(v0: ref<int32, borrowed>):
+    v1: ref<int32, borrowed> = call getMut(v0): (ref<int32, borrowed>) -> ref<int32, borrowed>
+    v2: ref<int32, borrowed> = field.address v0, 0
+    v3: int32 = load v1
+    v4: int32 = load v2
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
 
@@ -2456,30 +2504,30 @@ block0(v0: ref<borrowed i32>):
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
 
-        // v1 = call @getMut(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a mutable borrow from v0
-        // v2 = field.addr v0, 0 creates another mutable borrow of v0
+        // v1 = call getMut(v0) returns a mutable borrow from v0
+        // v2 = field.address v0, 0 creates another mutable borrow of v0
         // these should conflict in strict mode
         test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 
     /// Call returning shared borrowed reference allows concurrent shared borrows.
     ///
-    /// When a function returns ref<borrowed T> (shared), the returned borrow
+    /// When a function returns ref<T, borrowed> (shared), the returned borrow
     /// should be tracked as shared and not conflict with other shared borrows.
     #[test]
     fn test_track_call_shared_return_no_conflict() {
-        let input = r#"function @getShared(v0: ref<borrowed readonly i32>) -> ref<borrowed readonly i32> {
-block0(v0: ref<borrowed readonly i32>):
+        let input = r#"
+function getShared(v0: ref<int32, borrowed, readonly>): ref<int32, borrowed, readonly> {
+b0(v0: ref<int32, borrowed, readonly>):
     return v0
 }
-
-function @test(v0: ref<borrowed readonly i32>) -> i32 {
-block0(v0: ref<borrowed readonly i32>):
-    v1: ref<borrowed readonly i32> = call @getShared(v0) -> fn(ref<borrowed readonly i32>) -> ref<borrowed readonly i32>
-    v2: ref<borrowed readonly i32> = field.addr v0, 0
-    v3: i32 = load v1
-    v4: i32 = load v2
-    v5: i32 = iadd v3, v4
+function test(v0: ref<int32, borrowed, readonly>): int32 {
+b0(v0: ref<int32, borrowed, readonly>):
+    v1: ref<int32, borrowed, readonly> = call getShared(v0): (ref<int32, borrowed, readonly>) -> ref<int32, borrowed, readonly>
+    v2: ref<int32, borrowed, readonly> = field.address v0, 0
+    v3: int32 = load v1
+    v4: int32 = load v2
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
 
@@ -2488,34 +2536,34 @@ block0(v0: ref<borrowed readonly i32>):
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
 
-        // v1 = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a shared borrow from v0
-        // v2 = field.addr v0, 0 creates another shared borrow of v0
+        // v1 = call getShared(v0) returns a shared borrow from v0
+        // v2 = field.address v0, 0 creates another shared borrow of v0
         // shared + shared is okay
         test.assert_no_errors();
     }
 
-    /// Mutable borrow from call conflicts with subsequent mutable field.addr.
+    /// Mutable borrow from call conflicts with subsequent mutable field.address.
     ///
     /// Tests that mutability is correctly propagated through the call and
     /// detected when creating another mutable borrow.
     #[test]
     fn test_track_call_mutable_borrow_then_field_addr_conflict() {
-        let input = r#"function @getMutRef(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = field.addr v0, 0
+        let input = r#"
+function getMutRef(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }
-
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = call @getMutRef(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
-    v3: ref<borrowed i32> = field.addr v0, 0
-    v4: i32 = load v2
-    v5: i32 = load v3
-    v6: i32 = iadd v4, v5
+    v2: ref<int32, borrowed> = call getMutRef(v0): (ref<int32, borrowed>) -> ref<int32, borrowed>
+    v3: ref<int32, borrowed> = field.address v0, 0
+    v4: int32 = load v2
+    v5: int32 = load v3
+    v6: int32 = int.add v4, v5
     raw.drop v0
     return v6
 }"#;
@@ -2526,8 +2574,8 @@ block0:
         test.run_pass_with_options(&BorrowCheck, options);
 
         // v2 is a mutable borrow returned from call
-        // v3 = field.addr v0 creates another borrow from v0
-        // since v0 is stack.alloc (not mut ref param), the field.addr creates
+        // v3 = field.address v0 creates another borrow from v0
+        // since v0 is stack.alloc (not mut ref param), the field.address creates
         // a mutable borrow (conservative default), so this should conflict
         test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }

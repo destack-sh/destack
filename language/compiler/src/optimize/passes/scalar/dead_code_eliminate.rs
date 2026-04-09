@@ -20,17 +20,17 @@ declare_pass! {
     /// Also removes local or memory stores that are overwritten before any read.
     ///
     /// ```mir
-    /// function @before(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst 42i32
-    ///     v2 = iadd v0, v1
+    /// function before(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = 42int32
+    ///     v2 = int.add v0, v1
     ///     return v0
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
     ///     return v0
     /// }
     /// ```
@@ -319,18 +319,20 @@ mod tests {
     #[test]
     fn test_eliminate_unused_instruction() {
         // v1 and v2 are unused
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v0
 }"#;
 
         // expected output
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#;
 
@@ -344,11 +346,12 @@ block0:
     #[test]
     fn test_preserve_used_chain() {
         // source test
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -362,20 +365,22 @@ block0:
     #[test]
     fn test_eliminate_multiple_dead() {
         // only v0 is used
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v1, v2
-    v4: i32 = iconst 4i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v1, v2
+    v4: int32 = 4int32
     return v0
 }"#;
 
         // expected output
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#;
 
@@ -389,14 +394,15 @@ block0:
     #[test]
     fn test_preserve_side_effect_call() {
         // source test
-        let input = r#"function @test() -> void {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = call @side_effect(v0) -> fn(i32) -> i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = call sideEffect(v0): (int32) -> int32
     return
 }
-function @side_effect(v0: i32) -> i32 {
-block0(v0: i32):
+function sideEffect(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }"#;
 
@@ -410,28 +416,30 @@ block0(v0: i32):
     #[test]
     fn test_eliminate_dead_in_multiple_blocks() {
         // v2, v3, v4, v5 are all dead
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iconst 3i32
-    v4: i32 = iconst 4i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = 3int32
+    v4: int32 = 4int32
     return v1
-block2:
-    v5: i32 = iconst 5i32
+b2:
+    v5: int32 = 5int32
     return v1
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    branch v0, block1, block2
-block1:
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
+b2:
     return v1
 }"#;
 
@@ -444,10 +452,11 @@ block2:
     /// Volatile loads are kept even when unused.
     #[test]
     fn test_preserve_volatile_load() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
     return
 }"#;
 
@@ -483,12 +492,13 @@ block0:
     /// Volatile stores are not removed even when overwritten.
     #[test]
     fn test_preserve_volatile_store_overwritten() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = iconst 2i32
+    v2: int32 = 2int32
     store v0, v2
     return
 }"#;
@@ -526,15 +536,16 @@ block0:
     #[test]
     fn test_preserve_terminator_uses() {
         // source test
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: bool = icmp_sgt v0, v1
-    branch v2, block1, block2
-block1:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: boolean = int.gt.s v0, v1
+    branch v2, b1, b2
+b1:
     return v0
-block2:
+b2:
     return v1
 }"#;
 
@@ -548,20 +559,22 @@ block2:
     #[test]
     fn test_eliminate_transitive_dead() {
         // v2, v3, v4 depend on each other but none used in return
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
-    v3: i32 = imul v2, v0
-    v4: i32 = isub v3, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.mul v2, v0
+    v4: int32 = int.sub v3, v1
     return v0
 }"#;
 
         // expected output
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#;
 
@@ -575,23 +588,25 @@ block0:
     #[test]
     fn test_preserve_block_arguments() {
         // v3 is dead, but v1 and v2 are used as block arguments
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 3i32
-    branch v0, block1(v1), block1(v2)
-block1(v4: i32):
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = 3int32
+    branch v0, b1(v1), b1(v2)
+b1(v4: int32):
     return v4
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1(v1), block1(v2)
-block1(v3: i32):
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1(v1), b1(v2)
+b1(v3: int32):
     return v3
 }"#;
 
@@ -605,17 +620,19 @@ block1(v3: i32):
     #[test]
     fn test_eliminate_all_instructions() {
         // source test
-        let input = r#"function @test() -> void {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): void {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test() -> void {
-block0:
+        let expected = r#"
+function test(): void {
+b0:
     return
 }"#;
 
@@ -629,36 +646,38 @@ block0:
     #[test]
     fn test_eliminate_dead_in_loop() {
         // v3, v4, v5 are all dead (none of their results are used)
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
-    v1: i32 = iconst 100i32
-    jump block1
-block1:
-    v2: bool = icmp_slt v0, v1
-    v3: i32 = iconst 999i32
-    branch v2, block2, block3
-block2:
-    v4: i32 = iconst 1i32
-    v5: i32 = imul v3, v3
-    jump block1
-block3:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 0int32
+    v1: int32 = 100int32
+    jump b1
+b1:
+    v2: boolean = int.lt.s v0, v1
+    v3: int32 = 999int32
+    branch v2, b2, b3
+b2:
+    v4: int32 = 1int32
+    v5: int32 = int.mul v3, v3
+    jump b1
+b3:
     return v0
 }"#;
 
         // expected output
         // v3, v4, v5 are all eliminated since their results are never used
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
-    v1: i32 = iconst 100i32
-    jump block1
-block1:
-    v2: bool = icmp_slt v0, v1
-    branch v2, block2, block3
-block2:
-    jump block1
-block3:
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 0int32
+    v1: int32 = 100int32
+    jump b1
+b1:
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b2, b3
+b2:
+    jump b1
+b3:
     return v0
 }"#;
 
@@ -672,33 +691,35 @@ block3:
     #[test]
     fn test_eliminate_dead_in_diamond() {
         // v2, v3, v5 are dead
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 3i32
-    jump block3(v1)
-block2:
-    v4: i32 = iconst 4i32
-    v5: i32 = iconst 5i32
-    jump block3(v4)
-block3(v6: i32):
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 2int32
+    v3: int32 = 3int32
+    jump b3(v1)
+b2:
+    v4: int32 = 4int32
+    v5: int32 = 5int32
+    jump b3(v4)
+b3(v6: int32):
     return v6
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    branch v0, block1, block2
-block1:
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 4i32
-    jump block3(v2)
-block3(v3: i32):
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    branch v0, b1, b2
+b1:
+    jump b3(v1)
+b2:
+    v2: int32 = 4int32
+    jump b3(v2)
+b3(v3: int32):
     return v3
 }"#;
 
@@ -712,16 +733,17 @@ block3(v3: i32):
     #[test]
     fn test_preserve_multiple_side_effect_calls() {
         // source test
-        let input = r#"function @test() -> void {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = call @side_effect(v0) -> fn(i32) -> i32
-    v2: i32 = call @side_effect(v0) -> fn(i32) -> i32
-    v3: i32 = call @side_effect(v0) -> fn(i32) -> i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = call sideEffect(v0): (int32) -> int32
+    v2: int32 = call sideEffect(v0): (int32) -> int32
+    v3: int32 = call sideEffect(v0): (int32) -> int32
     return
 }
-function @side_effect(v0: i32) -> i32 {
-block0(v0: i32):
+function sideEffect(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }"#;
 
@@ -735,23 +757,25 @@ block0(v0: i32):
     #[test]
     fn test_remove_overwritten_local_set() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    v1: i32 = iconst 3i32
+    v1: int32 = 3int32
     local.set local0, v1
-    v2: i32 = local.get local0
+    v2: int32 = local.get local0
     return v2
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
-    v1: i32 = iconst 3i32
+        let expected = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = 3int32
     local.set local0, v1
-    v2: i32 = local.get local0
+    v2: int32 = local.get local0
     return v2
 }"#;
 
@@ -765,17 +789,19 @@ block0(v0: i32):
     #[test]
     fn test_remove_unread_local_set() {
         // source test
-        let input = r#"function @test(v0: i32) -> void {
-    local0: i32 ; owned
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): void {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> void {
-    local0: i32 ; owned
-block0(v0: i32):
+        let expected = r#"
+function test(v0: int32): void {
+    local local0: int32, owned
+b0(v0: int32):
     return
 }"#;
 
@@ -789,21 +815,23 @@ block0(v0: i32):
     #[test]
     fn test_remove_overwritten_store() {
         // source test
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     store v0, v1
     store v0, v2
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 2i32
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 2int32
     store v0, v1
     return
 }"#;
@@ -818,13 +846,14 @@ block0:
     #[test]
     fn test_preserve_store_used_by_load() {
         // source test
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = load v0
-    v3: i32 = iconst 2i32
+    v2: int32 = load v0
+    v3: int32 = 2int32
     store v0, v3
     return v2
 }"#;

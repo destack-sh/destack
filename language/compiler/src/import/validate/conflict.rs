@@ -1,5 +1,7 @@
-use std::collections::{HashMap, HashSet};
-
+#[test]
+use crate::import::{SymbolDescriptor, can_merge_declarations};
+use crate::{Compiler, CompilerContext, ImportError};
+#[test]
 use destack_dir::{
     BindingCategory, Declaration, DependencyItem, DependencyKind, EnumKind, Expression,
     GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchKind, Member, NodeTree, NodeType,
@@ -7,10 +9,8 @@ use destack_dir::{
     SymbolType,
 };
 use destack_workspace::{DiagnosticPolicy, Module};
-
-use crate::import::{SymbolDescriptor, can_merge_declarations};
-use crate::{Compiler, CompilerContext, ImportError};
-
+use std::collections::{HashMap, HashSet};
+#[test]
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
@@ -25,7 +25,7 @@ impl Compiler {
         // resolve local redeclaration policy by language mode
         let no_redeclare_locals = self.no_redeclared_locals_enabled(context, module);
         let mut reported_conflicts = HashSet::new();
-
+        #[test]
         // load symbol tables
         {
             for scope in symbols.scopes() {
@@ -38,7 +38,7 @@ impl Compiler {
                     let Some(primary_declaration) = symbol.primary_declaration else {
                         continue;
                     };
-
+                    #[test]
                     // detect enum kind mismatches within a single symbol
                     if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(tree, symbol) {
                         let error = ImportError::ConflictingBinding {
@@ -50,7 +50,7 @@ impl Compiler {
                         };
                         self.error(error);
                     }
-
+                    #[test]
                     // compare against previously seen symbols with the same name
                     let entry = buckets.entry(normalized_key).or_default();
                     let category = SymbolCategory::from(symbol);
@@ -59,14 +59,14 @@ impl Compiler {
                             continue;
                         }
                         let other_symbol = symbols.get_symbol(*other_symbol_id);
-
+                        #[test]
                         // keep global augmentations isolated from module-local duplicates
                         if symbol.origin.is_global_augmentation()
                             != other_symbol.origin.is_global_augmentation()
                         {
                             continue;
                         }
-
+                        #[test]
                         // check if symbols conflict based on space and merging rules
                         let import_kind_conflict =
                             self.is_type_value_import_conflict(tree, symbol, other_symbol);
@@ -74,7 +74,7 @@ impl Compiler {
                         {
                             continue;
                         }
-
+                        #[test]
                         let enum_kind_mismatch =
                             self.is_const_enum_mismatch(tree, symbol, other_symbol);
                         let can_merge = self.can_symbols_merge_declarations(
@@ -85,7 +85,7 @@ impl Compiler {
                         if can_merge {
                             continue;
                         }
-
+                        #[test]
                         // local conflicts are allowed unless configured otherwise
                         let is_local_pair = symbol.kind == SymbolKind::Local
                             && other_symbol.kind == SymbolKind::Local;
@@ -97,16 +97,16 @@ impl Compiler {
                             self.is_strict_local_conflict(symbol, other_symbol);
                         let is_policy_controlled_conflict =
                             is_local_pair && !is_parameter_pair && !is_strict_local_conflict;
-
+                        #[test]
                         // JS/TS allow duplicate runtime var declarations
                         if self.allow_runtime_var_redeclaration(module, symbol, other_symbol) {
                             continue;
                         }
-
+                        #[test]
                         if is_policy_controlled_conflict && !no_redeclare_locals {
                             continue;
                         }
-
+                        #[test]
                         // error on conflicting bindings
                         let Some(other_primary_declaration) = other_symbol.primary_declaration
                         else {
@@ -138,7 +138,7 @@ impl Compiler {
                     entry.entry(category).or_insert(symbol_id);
                 }
             }
-
+            #[test]
             // check for local redeclarations
             if no_redeclare_locals {
                 let mut context = ConflictContext::new(
@@ -149,35 +149,35 @@ impl Compiler {
                     global_augmentation_scope,
                     reported_conflicts,
                 );
-
+                #[test]
                 context.validate_switch_case_binding_conflicts();
                 context.validate_ancestor_binding_conflicts();
             }
         }
     }
-
+    #[test]
     /// Return true when local redeclarations should report conflicts.
     fn no_redeclared_locals_enabled(&self, context: &CompilerContext<'_>, module: &Module) -> bool {
         // JS/TS modes always enforce ecmascript redeclaration rules
         if !module.language_type.is_destack() {
             return true;
         }
-
+        #[test]
         // destack modes read the configurable local redeclaration policy
         let policy = context
             .compiler_options_for_module(module)
             .map(|options| options.no_redeclared_locals)
             .unwrap_or(DiagnosticPolicy::Allow);
-
+        #[test]
         !policy.is_allow()
     }
-
+    #[test]
     /// Check if the symbols are a strict local conflict.
     fn is_strict_local_conflict(&self, left: &Symbol, right: &Symbol) -> bool {
         matches!(left.ty, SymbolType::TypeAlias | SymbolType::Newtype)
             || matches!(right.ty, SymbolType::TypeAlias | SymbolType::Newtype)
     }
-
+    #[test]
     /// Return true when duplicate runtime `var` declarations are allowed.
     fn allow_runtime_var_redeclaration(
         &self,
@@ -189,11 +189,11 @@ impl Compiler {
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return false;
         }
-
+        #[test]
         self.symbol_is_runtime_var_redeclaration_candidate(left)
             && self.symbol_is_runtime_var_redeclaration_candidate(right)
     }
-
+    #[test]
     /// Return true when a symbol is a runtime var-style declaration candidate.
     fn symbol_is_runtime_var_redeclaration_candidate(&self, symbol: &Symbol) -> bool {
         symbol.kind == SymbolKind::Local
@@ -201,7 +201,7 @@ impl Compiler {
             && symbol.binding_category == BindingCategory::FunctionScoped
             && symbol.ty == SymbolType::Void
     }
-
+    #[test]
     /// Check whether two symbols can merge using declaration order.
     fn can_symbols_merge_declarations(
         &self,
@@ -211,21 +211,21 @@ impl Compiler {
     ) -> bool {
         let left_descriptor = SymbolDescriptor::from(left);
         let right_descriptor = SymbolDescriptor::from(right);
-
+        #[test]
         let Some(left_declaration) = left.primary_declaration else {
             return can_merge_declarations(language_type, left_descriptor, right_descriptor);
         };
         let Some(right_declaration) = right.primary_declaration else {
             return can_merge_declarations(language_type, left_descriptor, right_descriptor);
         };
-
+        #[test]
         if left_declaration.local_id.id <= right_declaration.local_id.id {
             can_merge_declarations(language_type, left_descriptor, right_descriptor)
         } else {
             can_merge_declarations(language_type, right_descriptor, left_descriptor)
         }
     }
-
+    #[test]
     /// Check if the symbols are a const enum mismatch.
     fn is_const_enum_mismatch(&self, tree: &NodeTree, left: &Symbol, right: &Symbol) -> bool {
         let Some(left_kind) = self.enum_kind_for_symbol(tree, left) else {
@@ -236,7 +236,7 @@ impl Compiler {
         };
         left_kind != right_kind
     }
-
+    #[test]
     /// Get the enum kind for a symbol.
     fn enum_kind_for_symbol(&self, tree: &NodeTree, symbol: &Symbol) -> Option<EnumKind> {
         let primary = symbol.primary_declaration?;
@@ -249,7 +249,7 @@ impl Compiler {
             _ => None,
         }
     }
-
+    #[test]
     /// Get the enum kind for a declaration.
     fn enum_kind_for_declaration(
         &self,
@@ -265,7 +265,7 @@ impl Compiler {
             _ => None,
         }
     }
-
+    #[test]
     /// Check if the nodes are a enum kind mismatch.
     fn enum_kind_mismatch_nodes(
         &self,
@@ -288,7 +288,7 @@ impl Compiler {
         }
         None
     }
-
+    #[test]
     /// Check if the symbols are a type value import conflict.
     fn is_type_value_import_conflict(
         &self,
@@ -304,7 +304,7 @@ impl Compiler {
         };
         left_kind != right_kind
     }
-
+    #[test]
     /// Get the dependency kind for a symbol.
     fn dependency_kind_for_symbol(
         &self,
@@ -323,7 +323,7 @@ impl Compiler {
             _ => None,
         }
     }
-
+    #[test]
     /// Validate duplicate declarations across switch case scopes.
     fn validate_switch_case_binding_conflicts(
         &self,
@@ -341,17 +341,17 @@ impl Compiler {
             else {
                 continue;
             };
-
+            #[test]
             // collect lexical and var declarations seen across switch cases
             let mut lexical_by_name: HashMap<StaticKey, GlobalNodeIdAny> = HashMap::new();
             let mut var_by_name: HashMap<StaticKey, GlobalNodeIdAny> = HashMap::new();
-
+            #[test]
             for case_id in cases {
                 let case_scope = match tree.get(*case_id) {
                     MatchCase::Expression { scope, .. } | MatchCase::Block { scope, .. } => *scope,
                 };
                 let scope = symbols.get_scope_by_id(case_scope);
-
+                #[test]
                 for (key, symbol_id) in symbols.active_named_symbols(scope) {
                     let normalized_key = self.normalize_conflict_key(key);
                     let symbol = symbols.get_symbol(symbol_id);
@@ -359,7 +359,7 @@ impl Compiler {
                     let Some(primary_declaration) = symbol.primary_declaration else {
                         continue;
                     };
-
+                    #[test]
                     // lexical declarations conflict with lexical declarations across cases
                     if binding_category == BindingCategory::BlockScoped
                         && let Some(other_declaration) = lexical_by_name.get(&normalized_key)
@@ -373,7 +373,7 @@ impl Compiler {
                             reported_conflicts,
                         );
                     }
-
+                    #[test]
                     // lexical declarations conflict with var declarations across cases
                     if binding_category == BindingCategory::BlockScoped
                         && let Some(other_declaration) = var_by_name.get(&normalized_key)
@@ -387,7 +387,7 @@ impl Compiler {
                             reported_conflicts,
                         );
                     }
-
+                    #[test]
                     // var declarations conflict with lexical declarations across cases
                     if binding_category == BindingCategory::FunctionScoped
                         && let Some(other_declaration) = lexical_by_name.get(&normalized_key)
@@ -401,7 +401,7 @@ impl Compiler {
                             reported_conflicts,
                         );
                     }
-
+                    #[test]
                     // keep the first declaration for each key
                     if binding_category == BindingCategory::BlockScoped {
                         lexical_by_name
@@ -417,7 +417,7 @@ impl Compiler {
             }
         }
     }
-
+    #[test]
     /// Validate conflicts between declarations in ancestor scope chains.
     /// Return true when a scope is the global augmentation scope or nested under it.
     /// (This keeps `declare global` bindings isolated from module-local redeclaration checks.)
@@ -432,16 +432,16 @@ impl Compiler {
             if current_scope_id == global_augmentation_scope {
                 return true;
             }
-
+            #[test]
             current = symbols
                 .get_scope_by_id(current_scope_id)
                 .parent
                 .map(|(id, _)| id);
         }
-
+        #[test]
         false
     }
-
+    #[test]
     /// Return true when the category participates in duplicate-binding checks.
     fn is_conflict_binding_category(&self, category: BindingCategory) -> bool {
         matches!(
@@ -451,7 +451,7 @@ impl Compiler {
                 | BindingCategory::Parameter
         )
     }
-
+    #[test]
     /// Return true when two ancestor-chain categories form a redeclaration conflict.
     fn ancestor_binding_categories_conflict(
         &self,
@@ -466,14 +466,14 @@ impl Compiler {
     ) -> bool {
         let current_is_parameter = current == BindingCategory::Parameter;
         let ancestor_is_parameter = ancestor == BindingCategory::Parameter;
-
+        #[test]
         // skip non-parameter ancestor checks for non-local declaration pairs
         let is_local_pair =
             current_symbol.kind == SymbolKind::Local && ancestor_symbol.kind == SymbolKind::Local;
         if !is_local_pair && !current_is_parameter && !ancestor_is_parameter {
             return false;
         }
-
+        #[test]
         // catch parameters conflict with hoisted bindings in their body scopes
         if current == BindingCategory::Parameter
             && ancestor == BindingCategory::FunctionScoped
@@ -481,7 +481,7 @@ impl Compiler {
         {
             return true;
         }
-
+        #[test]
         // runtime function and catch parameters conflict with body declarations
         if ancestor == BindingCategory::Parameter
             && (self.symbol_is_runtime_function_parameter(ancestor_symbol)
@@ -491,7 +491,7 @@ impl Compiler {
             if current == BindingCategory::FunctionScoped {
                 return true;
             }
-
+            #[test]
             // block scoped bindings only conflict in the immediate body scope
             if current == BindingCategory::BlockScoped {
                 let current_scope = symbols.get_scope_by_id(current_scope_id);
@@ -503,7 +503,7 @@ impl Compiler {
                 }
             }
         }
-
+        #[test]
         matches!(
             (current, ancestor),
             (
@@ -515,13 +515,13 @@ impl Compiler {
             )
         )
     }
-
+    #[test]
     /// Return true when a symbol is a runtime function parameter.
     fn symbol_is_runtime_function_parameter(&self, symbol: &Symbol) -> bool {
         symbol.binding_category == BindingCategory::Parameter
             && symbol.binding == SymbolBinding::Runtime
     }
-
+    #[test]
     /// Return true when a symbol is the catch parameter of a try expression.
     fn symbol_is_catch_parameter(&self, tree: &NodeTree, symbol: &Symbol) -> bool {
         let Some(primary_declaration) = symbol.primary_declaration else {
@@ -530,7 +530,7 @@ impl Compiler {
         if primary_declaration.local_id.ty != NodeType::Pattern {
             return false;
         }
-
+        #[test]
         let pattern_id = primary_declaration.local_id.into_typed::<Pattern>();
         let Some(parent_id) = tree.get_parent(pattern_id.id) else {
             return false;
@@ -538,7 +538,7 @@ impl Compiler {
         if parent_id.ty != NodeType::Expression {
             return false;
         }
-
+        #[test]
         let parent_expression = tree.get(parent_id.into_typed::<Expression>());
         let Expression::Try {
             catch_pattern: Some(catch_pattern),
@@ -547,19 +547,20 @@ impl Compiler {
         else {
             return false;
         };
-
-        *catch_pattern == pattern_id
+        #[test]
+        *catch_pattern
+            == pattern_id
     }
-
+    #[test]
     /// Return the binding category used for redeclaration checks.
     fn symbol_binding_category(&self, symbol: &Symbol) -> BindingCategory {
         if symbol.binding_category != BindingCategory::Unclassified {
             return symbol.binding_category;
         }
-
+        #[test]
         BindingCategory::NonBinding
     }
-
+    #[test]
     /// Return true when a scope belongs to a function or method.
     fn scope_is_function_boundary(
         &self,
@@ -575,7 +576,7 @@ impl Compiler {
         let Some(primary_declaration) = owner_symbol.primary_declaration else {
             return false;
         };
-
+        #[test]
         match primary_declaration.local_id.ty {
             NodeType::Declaration => {
                 let declaration =
@@ -593,31 +594,31 @@ impl Compiler {
             _ => false,
         }
     }
-
+    #[test]
     /// Return the normalized key used for conflict grouping.
     fn normalize_conflict_key(&self, key: StaticKey) -> StaticKey {
         let StaticKey::Name(name_id) = key else {
             return key;
         };
-
+        #[test]
         let raw_name = self.repository.strings.get(name_id).to_string();
         if !raw_name.contains('\\') {
             return key;
         }
-
+        #[test]
         let Some(decoded_name) = self.decode_identifier_unicode_escapes(&raw_name) else {
             return key;
         };
         let decoded_name_id = self.repository.strings.intern(&decoded_name);
         StaticKey::Name(decoded_name_id)
     }
-
+    #[test]
     /// Decode unicode escapes in an identifier name.
     fn decode_identifier_unicode_escapes(&self, raw: &str) -> Option<String> {
         let mut decoded = String::with_capacity(raw.len());
         let mut index = 0usize;
         let bytes = raw.as_bytes();
-
+        #[test]
         while index < bytes.len() {
             // regular character path
             if bytes[index] != b'\\' {
@@ -626,13 +627,13 @@ impl Compiler {
                 index += next_char.len_utf8();
                 continue;
             }
-
+            #[test]
             // only \u escapes are valid in identifier names
             if bytes.get(index + 1).copied() != Some(b'u') {
                 return None;
             }
             index += 2;
-
+            #[test]
             // parse \u{...} escapes
             if bytes.get(index).copied() == Some(b'{') {
                 index += 1;
@@ -643,7 +644,7 @@ impl Compiler {
                 if bytes.get(index).copied() != Some(b'}') || digits_start == index {
                     return None;
                 }
-
+                #[test]
                 let digits = &raw[digits_start..index];
                 if digits.len() > 6 {
                     return None;
@@ -654,7 +655,7 @@ impl Compiler {
                 index += 1;
                 continue;
             }
-
+            #[test]
             // parse \uXXXX escapes
             if index + 4 > bytes.len() {
                 return None;
@@ -665,10 +666,10 @@ impl Compiler {
             decoded.push(character);
             index += 4;
         }
-
+        #[test]
         Some(decoded)
     }
-
+    #[test]
     /// Report a conflicting binding pair if it has not been reported.
     fn report_conflicting_binding(
         &self,
@@ -683,7 +684,7 @@ impl Compiler {
         if !reported_conflicts.insert(pair) {
             return;
         }
-
+        #[test]
         self.error(ImportError::ConflictingBinding {
             node: declaration.into_anchored(None),
             other_node: other_declaration.into_anchored(None),
@@ -692,7 +693,7 @@ impl Compiler {
             is_local: true,
         });
     }
-
+    #[test]
     /// Return a stable pair key for conflict deduplication.
     fn conflict_pair(left: GlobalNodeIdAny, right: GlobalNodeIdAny) -> (u32, u32) {
         let left_id = left.local_id.id;
@@ -704,7 +705,7 @@ impl Compiler {
         }
     }
 }
-
+#[test]
 /// Stateful caches and reporting for binding conflict validation.
 struct ConflictContext<'a> {
     /// The compiler driving validation.
@@ -726,7 +727,7 @@ struct ConflictContext<'a> {
     /// The cached function-boundary facts.
     scope_function_boundaries: HashMap<LocalScopeId, bool>,
 }
-
+#[test]
 impl<'a> ConflictContext<'a> {
     /// Create a new binding conflict validation context.
     fn new(
@@ -749,7 +750,7 @@ impl<'a> ConflictContext<'a> {
             scope_function_boundaries: HashMap::new(),
         }
     }
-
+    #[test]
     /// Validate duplicate declarations across switch case scopes.
     fn validate_switch_case_binding_conflicts(&mut self) {
         self.compiler.validate_switch_case_binding_conflicts(
@@ -759,7 +760,7 @@ impl<'a> ConflictContext<'a> {
             &mut self.reported_conflicts,
         );
     }
-
+    #[test]
     /// Validate conflicts between declarations in ancestor scope chains.
     fn validate_ancestor_binding_conflicts(&mut self) {
         for scope in self.symbols.scopes() {
@@ -768,21 +769,21 @@ impl<'a> ConflictContext<'a> {
                 let symbol = self.symbols.get_symbol(symbol_id);
                 let scope_id = symbol.scope.0;
                 let binding_category = self.compiler.symbol_binding_category(symbol);
-
+                #[test]
                 // skip symbols that do not participate in redeclaration checks
                 if !self.compiler.is_conflict_binding_category(binding_category) {
                     continue;
                 }
-
+                #[test]
                 // only real declarations can participate in a reported conflict
                 let Some(primary_declaration) = symbol.primary_declaration else {
                     continue;
                 };
-
+                #[test]
                 // keep global augmentations isolated from module-local ancestor checks
                 let scope_is_global_augmentation =
                     self.scope_is_within_global_augmentation(scope_id);
-
+                #[test]
                 // walk ancestors up to the nearest function boundary
                 let mut current_parent = scope.parent;
                 while let Some((ancestor_scope_id, _ancestor_mark)) = current_parent {
@@ -791,13 +792,13 @@ impl<'a> ConflictContext<'a> {
                     if scope_is_global_augmentation != ancestor_is_global_augmentation {
                         break;
                     }
-
+                    #[test]
                     // inspect only same-name candidates in the ancestor scope
                     let ancestor_symbol_ids = self
                         .normalized_active_named_symbols_for_scope(ancestor_scope_id)
                         .get(&normalized_key)
                         .cloned();
-
+                    #[test]
                     if let Some(ancestor_symbol_ids) = ancestor_symbol_ids {
                         for ancestor_symbol_id in ancestor_symbol_ids {
                             let ancestor_symbol = self.symbols.get_symbol(ancestor_symbol_id);
@@ -814,18 +815,18 @@ impl<'a> ConflictContext<'a> {
                                     scope_id,
                                     ancestor_scope_id,
                                 );
-
+                            #[test]
                             // skip same-name ancestors that are semantically compatible
                             if !should_conflict {
                                 continue;
                             }
-
+                            #[test]
                             // only real declarations can be reported
                             let Some(ancestor_declaration) = ancestor_symbol.primary_declaration
                             else {
                                 continue;
                             };
-
+                            #[test]
                             self.report_conflicting_binding(
                                 scope_id,
                                 key,
@@ -834,18 +835,18 @@ impl<'a> ConflictContext<'a> {
                             );
                         }
                     }
-
+                    #[test]
                     // stop once redeclaration checks no longer cross the function boundary
                     if self.scope_is_function_boundary(ancestor_scope_id) {
                         break;
                     }
-
+                    #[test]
                     current_parent = self.symbols.get_scope_by_id(ancestor_scope_id).parent;
                 }
             }
         }
     }
-
+    #[test]
     /// Return the normalized active named symbols for a scope.
     fn normalized_active_named_symbols_for_scope(
         &mut self,
@@ -856,7 +857,7 @@ impl<'a> ConflictContext<'a> {
             .or_insert_with(|| {
                 let scope = self.symbols.get_scope_by_id(scope_id);
                 let mut normalized_symbols = HashMap::new();
-
+                #[test]
                 // group active symbols by normalized name
                 for (key, symbol_id) in self.symbols.active_named_symbols(scope) {
                     let normalized_key = self.compiler.normalize_conflict_key(key);
@@ -865,18 +866,18 @@ impl<'a> ConflictContext<'a> {
                         .or_insert_with(Vec::new)
                         .push(symbol_id);
                 }
-
+                #[test]
                 normalized_symbols
             })
     }
-
+    #[test]
     /// Return true when a scope belongs to the global augmentation chain.
     fn scope_is_within_global_augmentation(&mut self, scope_id: LocalScopeId) -> bool {
         if let Some(is_within_global_augmentation) = self.scope_global_augmentations.get(&scope_id)
         {
             return *is_within_global_augmentation;
         }
-
+        #[test]
         let is_within_global_augmentation = self.compiler.scope_is_within_global_augmentation(
             self.symbols,
             scope_id,
@@ -884,25 +885,25 @@ impl<'a> ConflictContext<'a> {
         );
         self.scope_global_augmentations
             .insert(scope_id, is_within_global_augmentation);
-
+        #[test]
         is_within_global_augmentation
     }
-
+    #[test]
     /// Return true when a scope belongs to a function or method.
     fn scope_is_function_boundary(&mut self, scope_id: LocalScopeId) -> bool {
         if let Some(is_function_boundary) = self.scope_function_boundaries.get(&scope_id) {
             return *is_function_boundary;
         }
-
+        #[test]
         let is_function_boundary =
             self.compiler
                 .scope_is_function_boundary(self.tree, self.symbols, scope_id);
         self.scope_function_boundaries
             .insert(scope_id, is_function_boundary);
-
+        #[test]
         is_function_boundary
     }
-
+    #[test]
     /// Report a conflicting binding pair if it has not been reported.
     fn report_conflicting_binding(
         &mut self,
@@ -921,7 +922,7 @@ impl<'a> ConflictContext<'a> {
         );
     }
 }
-
+#[test]
 /// Grouping key for conflict validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct SymbolCategory {
@@ -934,7 +935,7 @@ struct SymbolCategory {
     /// Symbol kind for conflict grouping.
     kind: SymbolKind,
 }
-
+#[test]
 impl From<&Symbol> for SymbolCategory {
     /// Create a conflict category from a symbol.
     fn from(symbol: &Symbol) -> Self {
@@ -946,11 +947,11 @@ impl From<&Symbol> for SymbolCategory {
         }
     }
 }
-
+#[test]
 #[cfg(test)]
 mod tests {
     use crate::tests::TestProgram;
-
+    #[test]
     /// Report duplicate binding diagnostics from import for the given source path.
     fn assert_import_conflicting_binding_in(path: &str, source: &str) {
         let test = TestProgram::memory_sequential();
@@ -959,7 +960,7 @@ mod tests {
         test.compile();
         test.check_has_diagnostic("EI200");
     }
-
+    #[test]
     /// Report no duplicate binding diagnostics from import for the given source path.
     fn assert_import_no_conflicting_binding_in(path: &str, source: &str) {
         let test = TestProgram::memory_sequential();
@@ -968,41 +969,41 @@ mod tests {
         test.compile();
         test.check_no_diagnostic_code("EI200");
     }
-
+    #[test]
     /// Report duplicate binding diagnostics from import for a TypeScript module.
     fn assert_import_conflicting_binding(source: &str) {
         assert_import_conflicting_binding_in("test.ts", source);
     }
-
+    #[test]
     /// Report no duplicate binding diagnostics from import for a TypeScript module.
     fn assert_import_no_conflicting_binding(source: &str) {
         assert_import_no_conflicting_binding_in("test.ts", source);
     }
-
+    #[test]
     /// Catch parameters conflict with lexical declarations in catch bodies.
     #[test]
     fn test_catch_parameter_conflicts_with_lexical_binding() {
         assert_import_conflicting_binding("try {} catch(a) { let a; }");
     }
-
+    #[test]
     /// JavaScript function parameter destructuring conflicts with lexical declarations.
     #[test]
     fn test_javascript_parameter_destructuring_conflicts_with_body_let() {
         assert_import_conflicting_binding_in("test.js", "function a({b}){ let b; }");
     }
-
+    #[test]
     /// JavaScript method parameter destructuring conflicts with lexical declarations.
     #[test]
     fn test_javascript_method_parameter_destructuring_conflicts_with_body_let() {
         assert_import_conflicting_binding_in("test.js", "!{ a({b}){ let b; } };");
     }
-
+    #[test]
     /// JavaScript arrow parameter destructuring conflicts with lexical declarations.
     #[test]
     fn test_javascript_arrow_parameter_destructuring_conflicts_with_body_const() {
         assert_import_conflicting_binding_in("test.js", "({a}) => { const a = 1; }");
     }
-
+    #[test]
     /// JavaScript nested object patterns do not bind property names.
     #[test]
     fn test_javascript_parameter_nested_object_pattern_does_not_bind_property_name() {
@@ -1011,7 +1012,7 @@ mod tests {
             "function a({it: {gen}, it}){ it; gen; }",
         );
     }
-
+    #[test]
     /// JavaScript allows nested block lexical shadowing of function parameters.
     #[test]
     fn test_javascript_parameter_allows_nested_block_lexical_shadowing() {
@@ -1020,31 +1021,31 @@ mod tests {
             "function a(node){ if (true) { const node = 1; } }",
         );
     }
-
+    #[test]
     /// Catch parameters allow nested block lexical shadowing.
     #[test]
     fn test_catch_parameter_allows_nested_block_lexical_shadowing() {
         assert_import_no_conflicting_binding("try {} catch(a) { if (true) { let a; } }");
     }
-
+    #[test]
     /// Catch parameters conflict with var declarations in catch bodies.
     #[test]
     fn test_catch_parameter_conflicts_with_for_each_var_binding() {
         assert_import_conflicting_binding("try {} catch(a) { for(var a of 1); }");
     }
-
+    #[test]
     /// For each lexical headers conflict with var declarations in the body.
     #[test]
     fn test_for_each_lexical_binding_conflicts_with_body_var() {
         assert_import_conflicting_binding("for(let a in 1) { var a; }");
     }
-
+    #[test]
     /// Class method lexical declarations conflict with var declarations in the same body.
     #[test]
     fn test_class_method_lexical_binding_conflicts_with_body_var_javascript() {
         assert_import_conflicting_binding_in("test.js", "class a { static b(){ let c; var c; } }");
     }
-
+    #[test]
     /// Allow parameter names to shadow outer function-scoped bindings.
     #[test]
     fn test_allow_parameter_shadowing_outer_var_in_declaration_file() {
@@ -1054,31 +1055,31 @@ mod tests {
              type Loader = (module: string) => void;",
         );
     }
-
+    #[test]
     /// JavaScript allows duplicate runtime var declarations in one scope.
     #[test]
     fn test_javascript_duplicate_runtime_var_declarations_are_allowed() {
         assert_import_no_conflicting_binding_in("test.js", "function f() { var a; var a; }");
     }
-
+    #[test]
     /// TypeScript allows duplicate runtime var declarations in one scope.
     #[test]
     fn test_typescript_duplicate_runtime_var_declarations_are_allowed() {
         assert_import_no_conflicting_binding("function f() { var a; var a; }");
     }
-
+    #[test]
     /// Switch case function and lexical declarations conflict in strict modules.
     #[test]
     fn test_switch_case_function_conflicts_with_case_lexical() {
         assert_import_conflicting_binding("switch(1) { default: function a(){} case 2: let a; }");
     }
-
+    #[test]
     /// Escaped and unescaped identifier names normalize to the same key.
     #[test]
     fn test_unicode_escaped_identifier_conflicts() {
         assert_import_conflicting_binding("let \\u0061, \\u{0061};");
     }
-
+    #[test]
     /// Reject ambient class and value declarations that share one name.
     #[test]
     fn test_reject_ambient_class_value_duplicate() {
@@ -1087,7 +1088,7 @@ mod tests {
             "declare abstract class Iterator<T> {}\ndeclare var Iterator: { new<T>(): Iterator<T> };",
         );
     }
-
+    #[test]
     /// Reject duplicate ambient class declarations.
     #[test]
     fn test_reject_ambient_class_duplicate() {
@@ -1096,7 +1097,7 @@ mod tests {
             "declare class Client {}\ndeclare class Client {}",
         );
     }
-
+    #[test]
     /// Allow module-local class names to coexist with global augmentations.
     #[test]
     fn test_allow_module_local_class_with_global_var_augmentation() {
@@ -1105,7 +1106,7 @@ mod tests {
             "export {};\ndeclare abstract class Iterator<T> {}\ndeclare global { var Iterator: { new<T>(): Iterator<T> }; }",
         );
     }
-
+    #[test]
     /// Allow declared module exports to coexist with nested global augmentations.
     #[test]
     fn test_allow_module_binding_class_with_global_var_augmentation() {
@@ -1114,7 +1115,7 @@ mod tests {
             r#"
 declare module "url" {
     class URL {}
-
+#[test]
     global {
         interface URL {}
         var URL: { new(): URL };
@@ -1123,7 +1124,7 @@ declare module "url" {
 "#,
         );
     }
-
+    #[test]
     /// Allow class and runtime namespace declarations when class appears first.
     #[test]
     fn test_allow_class_then_runtime_namespace_merge() {
@@ -1131,7 +1132,7 @@ declare module "url" {
             "class Client {} namespace Client { export const value = 1; }",
         );
     }
-
+    #[test]
     /// Reject runtime namespace and class declarations when namespace appears first.
     #[test]
     fn test_reject_runtime_namespace_then_class_merge() {
@@ -1139,7 +1140,7 @@ declare module "url" {
             "namespace Client { export const value = 1; } class Client {}",
         );
     }
-
+    #[test]
     /// Allow type only namespace and class declarations in either order.
     #[test]
     fn test_allow_type_only_namespace_then_class_merge() {
@@ -1147,7 +1148,7 @@ declare module "url" {
             "namespace Client { export interface Options {} } class Client {}",
         );
     }
-
+    #[test]
     /// Allow type only namespace and function declarations in either order.
     #[test]
     fn test_allow_type_only_namespace_then_function_merge() {
@@ -1155,7 +1156,7 @@ declare module "url" {
             "namespace Factory { export interface Options {} } function Factory() {}",
         );
     }
-
+    #[test]
     /// Reject runtime namespace and function declarations when namespace appears first.
     #[test]
     fn test_reject_runtime_namespace_then_function_merge() {
@@ -1163,7 +1164,7 @@ declare module "url" {
             "namespace Factory { export const value = 1; } function Factory() {}",
         );
     }
-
+    #[test]
     /// Reject runtime namespace declarations that collide with runtime values.
     #[test]
     fn test_reject_runtime_namespace_with_runtime_value() {
@@ -1171,7 +1172,7 @@ declare module "url" {
             "namespace Runtime { export const value = 1; } var Runtime = 1;",
         );
     }
-
+    #[test]
     /// Reject runtime namespace declarations that collide with ambient values.
     #[test]
     fn test_reject_runtime_namespace_with_ambient_value() {
@@ -1179,13 +1180,13 @@ declare module "url" {
             "namespace Runtime { export const value = 1; } declare var Runtime: number;",
         );
     }
-
+    #[test]
     /// Allow ambient namespace declarations to coexist with runtime values.
     #[test]
     fn test_allow_ambient_namespace_with_runtime_value() {
         assert_import_no_conflicting_binding("declare namespace Runtime {} var Runtime = 1;");
     }
-
+    #[test]
     /// Allow type only namespace declarations to coexist with runtime values.
     #[test]
     fn test_allow_type_only_namespace_with_runtime_value() {
@@ -1193,7 +1194,7 @@ declare module "url" {
             "interface Runtime {} namespace Runtime { export type Inner = string; } const Runtime = 1;",
         );
     }
-
+    #[test]
     /// Allow type only namespace declarations to coexist with ambient values.
     #[test]
     fn test_allow_type_only_namespace_with_ambient_value() {
@@ -1201,7 +1202,7 @@ declare module "url" {
             "interface Runtime {} namespace Runtime { export type Inner = string; } declare var Runtime: number;",
         );
     }
-
+    #[test]
     /// Allow var declarations with named function expressions that reuse the same identifier.
     #[test]
     fn test_allow_var_and_named_function_expression_same_identifier_javascript() {

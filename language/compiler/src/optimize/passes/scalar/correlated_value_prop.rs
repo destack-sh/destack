@@ -17,33 +17,33 @@ declare_pass! {
     /// uses of one value with the other within the dominated region.
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = icmp_eq v0, v1
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     v3 = iadd v0, v1
-    ///     jump block3(v3)
-    /// block2:
-    ///     v4 = isub v0, v1
-    ///     jump block3(v4)
-    /// block3(v5: i32):
+    /// function before(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.eq v0, v1
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     v3 = int.add v0, v1
+    ///     jump b3(v3)
+    /// b2:
+    ///     v4 = int.sub v0, v1
+    ///     jump b3(v4)
+    /// b3(v5: int32):
     ///     return v5
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = icmp_eq v0, v1
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     v3 = iadd v0, v0
-    ///     jump block3(v3)
-    /// block2:
-    ///     v4 = isub v0, v1
-    ///     jump block3(v4)
-    /// block3(v5: i32):
+    /// function after(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.eq v0, v1
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     v3 = int.add v0, v0
+    ///     jump b3(v3)
+    /// b2:
+    ///     v4 = int.sub v0, v1
+    ///     jump b3(v4)
+    /// b3(v5: int32):
     ///     return v5
     /// }
     /// ```
@@ -763,32 +763,34 @@ mod tests {
     #[test]
     fn test_cvp_substitutes_equal_values() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = isub v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.sub v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v0
-    jump block3(v3)
-block2:
-    v4: i32 = isub v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v0
+    jump b3(v3)
+b2:
+    v4: int32 = int.sub v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -802,28 +804,30 @@ block3(v5: i32):
     #[test]
     fn test_cvp_inverts_not_equal() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_ne v0, v1
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.ne v0, v1
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
     return v3
-block2:
-    v4: i32 = isub v0, v1
+b2:
+    v4: int32 = int.sub v0, v1
     return v4
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_ne v0, v1
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.ne v0, v1
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
     return v3
-block2:
-    v4: i32 = isub v0, v0
+b2:
+    v4: int32 = int.sub v0, v0
     return v4
 }"#;
 
@@ -837,28 +841,30 @@ block2:
     #[test]
     fn test_cvp_prefers_constant_operand() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 7i32
-    v3: bool = icmp_eq v0, v2
-    branch v3, block1, block2
-block1:
-    v4: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 7int32
+    v3: boolean = int.eq v0, v2
+    branch v3, b1, b2
+b1:
+    v4: int32 = int.add v0, v1
     return v4
-block2:
+b2:
     return v0
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 7i32
-    v3: bool = icmp_eq v0, v2
-    branch v3, block1, block2
-block1:
-    v4: i32 = iadd v2, v1
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 7int32
+    v3: boolean = int.eq v0, v2
+    branch v3, b1, b2
+b1:
+    v4: int32 = int.add v2, v1
     return v4
-block2:
+b2:
     return v0
 }"#;
 
@@ -872,15 +878,16 @@ block2:
     #[test]
     fn test_cvp_skips_float_equal() {
         // source test
-        let input = r#"function @test(v0: f64, v1: f64) -> f64 {
-block0(v0: f64, v1: f64):
-    v2: bool = fcmp_eq v0, v1
-    branch v2, block1, block2
-block1:
-    v3: f64 = fadd v0, v1
+        let input = r#"
+function test(v0: float64, v1: float64): float64 {
+b0(v0: float64, v1: float64):
+    v2: boolean = float.eq v0, v1
+    branch v2, b1, b2
+b1:
+    v3: float64 = float.add v0, v1
     return v3
-block2:
-    v4: f64 = fsub v0, v1
+b2:
+    v4: float64 = float.sub v0, v1
     return v4
 }"#;
 
@@ -894,30 +901,32 @@ block2:
     #[test]
     fn test_cvp_propagates_into_dominated_blocks() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3
-block2:
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    branch v2, b1, b2
+b1:
+    jump b3
+b2:
     return v0
-block3:
-    v3: i32 = iadd v0, v1
+b3:
+    v3: int32 = int.add v0, v1
     return v3
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3
-block2:
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    branch v2, b1, b2
+b1:
+    jump b3
+b2:
     return v0
-block3:
-    v3: i32 = iadd v0, v0
+b3:
+    v3: int32 = int.add v0, v0
     return v3
 }"#;
 
@@ -931,30 +940,32 @@ block3:
     #[test]
     fn test_cvp_handles_negated_equal() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    v3: bool = bnot v2
-    branch v3, block1, block2
-block1:
-    v4: i32 = isub v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    v3: boolean = int.not v2
+    branch v3, b1, b2
+b1:
+    v4: int32 = int.sub v0, v1
     return v4
-block2:
-    v5: i32 = iadd v0, v1
+b2:
+    v5: int32 = int.add v0, v1
     return v5
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    v3: bool = bnot v2
-    branch v3, block1, block2
-block1:
-    v4: i32 = isub v0, v1
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    v3: boolean = int.not v2
+    branch v3, b1, b2
+b1:
+    v4: int32 = int.sub v0, v1
     return v4
-block2:
-    v5: i32 = iadd v0, v0
+b2:
+    v5: int32 = int.add v0, v0
     return v5
 }"#;
 
@@ -968,26 +979,28 @@ block2:
     #[test]
     fn test_cvp_handles_check_terminator() {
         // source test
-        let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
-block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3: bool = icmp_eq v0, v1
-    check v3, bounds.unsigned v0, v1, v2, block1, block2
-block1:
-    v4: u32 = iadd v0, v1
+        let input = r#"
+function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: uint32[4]):
+    v3: boolean = int.eq v0, v1
+    check bounds.u v0, v1, v2 -> b1, b2
+b1:
+    v4: uint32 = int.add v0, v1
     return v4
-block2:
+b2:
     return v0
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
-block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3: bool = icmp_eq v0, v1
-    check v3, bounds.unsigned v0, v1, v2, block1, block2
-block1:
-    v4: u32 = iadd v0, v0
+        let expected = r#"
+function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: uint32[4]):
+    v3: boolean = int.eq v0, v1
+    check bounds.u v0, v1, v2 -> b1, b2
+b1:
+    v4: uint32 = int.add v0, v0
     return v4
-block2:
+b2:
     return v0
 }"#;
 
@@ -1001,15 +1014,16 @@ block2:
     #[test]
     fn test_cvp_requires_single_predecessor() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
     return v3
-block2:
-    jump block1
+b2:
+    jump b1
 }"#;
 
         // run the pass and verify output
@@ -1022,28 +1036,30 @@ block2:
     #[test]
     fn test_cvp_range_constraint_then_edge() {
         // source test
-        let input = r#"function @test(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    v2: bool = icmp_slt v0, v1
-    branch v2, block1, block2
-block1:
-    v3: bool = icmp_slt v0, v1
+        let input = r#"
+function test(v0: int32): boolean {
+b0(v0: int32):
+    v1: int32 = 5int32
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b1, b2
+b1:
+    v3: boolean = int.lt.s v0, v1
     return v3
-block2:
+b2:
     return v2
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    v2: bool = icmp_slt v0, v1
-    branch v2, block1, block2
-block1:
-    v3: bool = iconst true
+        let expected = r#"
+function test(v0: int32): boolean {
+b0(v0: int32):
+    v1: int32 = 5int32
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b1, b2
+b1:
+    v3: boolean = true
     return v3
-block2:
+b2:
     return v2
 }"#;
 
@@ -1057,28 +1073,30 @@ block2:
     #[test]
     fn test_cvp_range_constraint_else_edge() {
         // source test
-        let input = r#"function @test(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    v2: bool = icmp_slt v0, v1
-    branch v2, block1, block2
-block1:
+        let input = r#"
+function test(v0: int32): boolean {
+b0(v0: int32):
+    v1: int32 = 5int32
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b1, b2
+b1:
     return v2
-block2:
-    v3: bool = icmp_slt v0, v1
+b2:
+    v3: boolean = int.lt.s v0, v1
     return v3
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    v2: bool = icmp_slt v0, v1
-    branch v2, block1, block2
-block1:
+        let expected = r#"
+function test(v0: int32): boolean {
+b0(v0: int32):
+    v1: int32 = 5int32
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b1, b2
+b1:
     return v2
-block2:
-    v3: bool = iconst false
+b2:
+    v3: boolean = false
     return v3
 }"#;
 

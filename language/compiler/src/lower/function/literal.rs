@@ -15,7 +15,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v0: i32 = iconst 1
+    /// v0: int32 = const 1
     /// ```
     pub(crate) fn lower_scalar_literal(
         &mut self,

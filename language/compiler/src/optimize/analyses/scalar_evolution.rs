@@ -1359,16 +1359,17 @@ mod tests {
     #[test]
     fn test_addrec_simple_loop() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
-    v6: bool = icmp_slt v5, v1
-    branch v6, block1(v5), block2(v5)
-block2(v7: i32):
+            r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
+    v6: boolean = int.lt.s v5, v1
+    branch v6, b1(v5), b2(v5)
+b2(v7: int32):
     return v7
 }"#,
         );
@@ -1412,15 +1413,16 @@ block2(v7: i32):
     #[test]
     fn test_no_addrec_for_non_linear_update() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 1i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = imul v3, v1
-    v5: bool = icmp_slt v4, v1
-    branch v5, block1(v4), block2(v4)
-block2(v6: i32):
+            r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 1int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = int.mul v3, v1
+    v5: boolean = int.lt.s v4, v1
+    branch v5, b1(v4), b2(v4)
+b2(v6: int32):
     return v6
 }"#,
         );
@@ -1450,16 +1452,17 @@ block2(v6: i32):
     #[test]
     fn test_addrec_subtract_step() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 10i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 1i32
-    v4: i32 = isub v2, v3
-    v5: bool = icmp_sgt v4, v0
-    branch v5, block1(v4), block2(v4)
-block2(v6: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 1int32
+    v4: int32 = int.sub v2, v3
+    v5: boolean = int.gt.s v4, v0
+    branch v5, b1(v4), b2(v4)
+b2(v6: int32):
     return v6
 }"#,
         );
@@ -1503,16 +1506,17 @@ block2(v6: i32):
     #[test]
     fn test_addrec_zero_step() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: bool = icmp_slt v2, v0
-    branch v3, block2(v2), block3(v2)
-block2(v4: i32):
-    jump block1(v4)
-block3(v5: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 5int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: boolean = int.lt.s v2, v0
+    branch v3, b2(v2), b3(v2)
+b2(v4: int32):
+    jump b1(v4)
+b3(v5: int32):
     return v5
 }"#,
         );
@@ -1556,18 +1560,19 @@ block3(v5: i32):
     #[test]
     fn test_addrec_derived_value() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = iconst 2i32
-    v5: i32 = iadd v3, v4
-    v6: i32 = iconst 1i32
-    v7: i32 = iadd v3, v6
-    v8: bool = icmp_slt v7, v1
-    branch v8, block1(v7), block2(v5)
-block2(v9: i32):
+            r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = 2int32
+    v5: int32 = int.add v3, v4
+    v6: int32 = 1int32
+    v7: int32 = int.add v3, v6
+    v8: boolean = int.lt.s v7, v1
+    branch v8, b1(v7), b2(v5)
+b2(v9: int32):
     return v9
 }"#,
         );
@@ -1613,17 +1618,18 @@ block2(v9: i32):
     #[test]
     fn test_addrec_addrec_sum() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iadd v2, v2
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v2, v4
-    v6: bool = icmp_slt v5, v0
-    branch v6, block1(v5), block2(v3)
-block2(v7: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = int.add v2, v2
+    v4: int32 = 1int32
+    v5: int32 = int.add v2, v4
+    v6: boolean = int.lt.s v5, v0
+    branch v6, b1(v5), b2(v3)
+b2(v7: int32):
     return v7
 }"#,
         );
@@ -1668,18 +1674,19 @@ block2(v7: i32):
     #[test]
     fn test_addrec_mul_constant() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 2i32
-    v4: i32 = imul v2, v3
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v2, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v4)
-block2(v8: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 2int32
+    v4: int32 = int.mul v2, v3
+    v5: int32 = 1int32
+    v6: int32 = int.add v2, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6), b2(v4)
+b2(v8: int32):
     return v8
 }"#,
         );
@@ -1724,17 +1731,18 @@ block2(v8: i32):
     #[test]
     fn test_addrec_mul_invariant() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = imul v3, v1
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v3, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v4)
-block2(v8: i32):
+            r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = int.mul v3, v1
+    v5: int32 = 1int32
+    v6: int32 = int.add v3, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6), b2(v4)
+b2(v8: int32):
     return v8
 }"#,
         );
@@ -1776,18 +1784,19 @@ block2(v8: i32):
     #[test]
     fn test_addrec_nested_additive_step() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 1i32
-    v4: i32 = iadd v2, v3
-    v5: i32 = iconst 2i32
-    v6: i32 = iadd v4, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v6)
-block2(v8: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 1int32
+    v4: int32 = int.add v2, v3
+    v5: int32 = 2int32
+    v6: int32 = int.add v4, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6), b2(v6)
+b2(v8: int32):
     return v8
 }"#,
         );
@@ -1831,18 +1840,19 @@ block2(v8: i32):
     #[test]
     fn test_addrec_nested_subtract_step() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 10i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 1i32
-    v4: i32 = isub v2, v3
-    v5: i32 = iconst 2i32
-    v6: i32 = isub v4, v5
-    v7: bool = icmp_sgt v6, v0
-    branch v7, block1(v6), block2(v6)
-block2(v8: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 1int32
+    v4: int32 = int.sub v2, v3
+    v5: int32 = 2int32
+    v6: int32 = int.sub v4, v5
+    v7: boolean = int.gt.s v6, v0
+    branch v7, b1(v6), b2(v6)
+b2(v8: int32):
     return v8
 }"#,
         );
@@ -1886,18 +1896,19 @@ block2(v8: i32):
     #[test]
     fn test_scev_signed_divide_by_negative_one() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst -1i32
-    v4: i32 = sdiv v2, v3
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v2, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v4)
-block2(v8: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = -1int32
+    v4: int32 = int.div.s v2, v3
+    v5: int32 = 1int32
+    v6: int32 = int.add v2, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6), b2(v4)
+b2(v8: int32):
     return v8
 }"#,
         );
@@ -1942,18 +1953,19 @@ block2(v8: i32):
     #[test]
     fn test_scev_shift_right_operations() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 1i32
-    v4: i32 = sshr v2, v3
-    v5: i32 = ushr v2, v3
-    v6: i32 = iadd v2, v3
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v4)
-block2(v8: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 1int32
+    v4: int32 = int.shiftRight.s v2, v3
+    v5: int32 = int.shiftRight.u v2, v3
+    v6: int32 = int.add v2, v3
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6), b2(v4)
+b2(v8: int32):
     return v8
 }"#,
         );
@@ -2013,22 +2025,23 @@ block2(v8: i32):
     #[test]
     fn test_scev_extended_operations() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32, v1: i32) -> i64 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = iconst 2i32
-    v5: i32 = sdiv v3, v4
-    v6: i32 = iconst 3i32
-    v7: i32 = ishl v3, v6
-    v8: i32 = iconst 1i32
-    v9: i32 = srem v3, v8
-    v10: i64 = sextend v3 -> i64
-    v11: u64 = uextend v3 -> u64
-    v12: bool = icmp_slt v3, v1
-    branch v12, block1(v3), block2(v10)
-block2(v13: i64):
+            r#"
+function test(v0: int32, v1: int32): int64 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = 2int32
+    v5: int32 = int.div.s v3, v4
+    v6: int32 = 3int32
+    v7: int32 = int.shiftLeft v3, v6
+    v8: int32 = 1int32
+    v9: int32 = int.rem.s v3, v8
+    v10: int64 = cast.extend.s v3 -> int64
+    v11: uint64 = cast.extend.u v3 -> uint64
+    v12: boolean = int.lt.s v3, v1
+    branch v12, b1(v3), b2(v10)
+b2(v13: int64):
     return v13
 }"#,
         );

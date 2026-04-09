@@ -77,11 +77,12 @@ mod tests {
     #[test]
     fn test_compute_liveness_through_function_analyses() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+            r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#,
         );

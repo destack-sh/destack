@@ -417,10 +417,11 @@ mod tests {
     #[test]
     fn test_detect_self_loop() {
         let test = TestProgram::new(
-            r#"function @self_loop(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block0(v0), block1
-block1:
+            r#"
+function selfLoop(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b0(v0), b1
+b1:
     return
 }"#,
         );
@@ -444,12 +445,13 @@ block1:
     #[test]
     fn test_self_loop_excludes_predecessor() {
         let test = TestProgram::new(
-            r#"function @self_loop_entry(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+            r#"
+function selfLoopEntry(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return
 }"#,
         );
@@ -473,14 +475,15 @@ block2:
     #[test]
     fn test_detect_while_loop() {
         let test = TestProgram::new(
-            r#"function @while_loop(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block2, block3
-block2:
-    jump block1(v1)
-block3:
+            r#"
+function whileLoop(v0: boolean): void {
+b0(v0: boolean):
+    jump b1(v0)
+b1(v1: boolean):
+    branch v1, b2, b3
+b2:
+    jump b1(v1)
+b3:
     return
 }"#,
         );
@@ -513,16 +516,17 @@ block3:
     #[test]
     fn test_detect_nested_loops() {
         let test = TestProgram::new(
-            r#"function @nested(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1(v0, v1)
-block1(v2: bool, v3: bool):
-    branch v2, block2(v3), block4
-block2(v4: bool):
-    branch v4, block3, block1(v2, v4)
-block3:
-    jump block2(v4)
-block4:
+            r#"
+function nested(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1(v0, v1)
+b1(v2: boolean, v3: boolean):
+    branch v2, b2(v3), b4
+b2(v4: boolean):
+    branch v4, b3, b1(v2, v4)
+b3:
+    jump b2(v4)
+b4:
     return
 }"#,
         );
@@ -560,14 +564,15 @@ block4:
     #[test]
     fn test_compute_loop_depth() {
         let test = TestProgram::new(
-            r#"function @depth(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block2(v1), block3
-block2(v2: bool):
-    branch v2, block2(v2), block1(v2)
-block3:
+            r#"
+function depth(v0: boolean): void {
+b0(v0: boolean):
+    jump b1(v0)
+b1(v1: boolean):
+    branch v1, b2(v1), b3
+b2(v2: boolean):
+    branch v2, b2(v2), b1(v2)
+b3:
     return
 }"#,
         );
@@ -601,14 +606,15 @@ block3:
     #[test]
     fn test_handle_no_loops() {
         let test = TestProgram::new(
-            r#"function @no_loops(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+            r#"
+function noLoops(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return
 }"#,
         );
@@ -631,15 +637,16 @@ block3:
     #[test]
     fn test_merge_multiple_latches() {
         let test = TestProgram::new(
-            r#"function @multi_latch(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block2, block3
-block2:
-    jump block1(v1)
-block3:
-    jump block1(v1)
+            r#"
+function multiLatch(v0: boolean): void {
+b0(v0: boolean):
+    jump b1(v0)
+b1(v1: boolean):
+    branch v1, b2, b3
+b2:
+    jump b1(v1)
+b3:
+    jump b1(v1)
 }"#,
         );
 
@@ -660,16 +667,17 @@ block3:
     #[test]
     fn test_compute_exit_info() {
         let test = TestProgram::new(
-            r#"function @exits(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1(v0, v1)
-block1(v2: bool, v3: bool):
-    branch v2, block2(v3), block4
-block2(v4: bool):
-    branch v4, block1(v2, v4), block3
-block3:
+            r#"
+function exits(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1(v0, v1)
+b1(v2: boolean, v3: boolean):
+    branch v2, b2(v3), b4
+b2(v4: boolean):
+    branch v4, b1(v2, v4), b3
+b3:
     return
-block4:
+b4:
     return
 }"#,
         );
@@ -704,14 +712,15 @@ block4:
     #[test]
     fn test_return_innermost_loop() {
         let test = TestProgram::new(
-            r#"function @innermost(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block2(v1), block3
-block2(v2: bool):
-    branch v2, block2(v2), block1(v2)
-block3:
+            r#"
+function innermost(v0: boolean): void {
+b0(v0: boolean):
+    jump b1(v0)
+b1(v1: boolean):
+    branch v1, b2(v1), b3
+b2(v2: boolean):
+    branch v2, b2(v2), b1(v2)
+b3:
     return
 }"#,
         );
@@ -737,14 +746,15 @@ block3:
     #[test]
     fn test_iterate_top_level_loops() {
         let test = TestProgram::new(
-            r#"function @two_outer(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1(v0)
-block1(v2: bool):
-    branch v2, block1(v2), block2(v1)
-block2(v3: bool):
-    branch v3, block2(v3), block3
-block3:
+            r#"
+function twoOuter(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1(v0)
+b1(v2: boolean):
+    branch v2, b1(v2), b2(v1)
+b2(v3: boolean):
+    branch v3, b2(v3), b3
+b3:
     return
 }"#,
         );
@@ -764,14 +774,15 @@ block3:
     #[test]
     fn test_iterate_child_loops() {
         let test = TestProgram::new(
-            r#"function @parent_child(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1(v0, v1)
-block1(v2: bool, v3: bool):
-    branch v2, block2(v3), block3
-block2(v4: bool):
-    branch v4, block2(v4), block1(v2, v4)
-block3:
+            r#"
+function parentChild(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1(v0, v1)
+b1(v2: boolean, v3: boolean):
+    branch v2, b2(v3), b3
+b2(v4: boolean):
+    branch v4, b2(v4), b1(v2, v4)
+b3:
     return
 }"#,
         );

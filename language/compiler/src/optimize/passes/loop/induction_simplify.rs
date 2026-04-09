@@ -18,33 +18,33 @@ declare_pass! {
     /// rewrites uses to the canonical parameter.
     ///
     /// ```mir
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = iconst 0i32
-    ///     jump block1(v0, v0)
-    /// block1(v1: i32, v2: i32):
-    ///     v3 = iadd v1, v2
-    ///     v4 = iconst 1i32
-    ///     v5 = iadd v1, v4
-    ///     v6 = icmp_slt v5, v0
-    ///     branch v6, block1(v5, v5), block2(v2)
-    /// block2(v7: i32):
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = 0int32
+    ///     jump b1(v0, v0)
+    /// b1(v1: int32, v2: int32):
+    ///     v3 = int.add v1, v2
+    ///     v4 = 1int32
+    ///     v5 = int.add v1, v4
+    ///     v6 = int.lt.s v5, v0
+    ///     branch v6, b1(v5, v5), b2(v2)
+    /// b2(v7: int32):
     ///     return v7
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = iconst 0i32
-    ///     jump block1(v0)
-    /// block1(v1: i32):
-    ///     v3 = iadd v1, v1
-    ///     v4 = iconst 1i32
-    ///     v5 = iadd v1, v4
-    ///     v6 = icmp_slt v5, v0
-    ///     branch v6, block1(v5), block2(v1)
-    /// block2(v7: i32):
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = 0int32
+    ///     jump b1(v0)
+    /// b1(v1: int32):
+    ///     v3 = int.add v1, v1
+    ///     v4 = 1int32
+    ///     v5 = int.add v1, v4
+    ///     v6 = int.lt.s v5, v0
+    ///     branch v6, b1(v5), b2(v1)
+    /// b2(v7: int32):
     ///     return v7
     /// }
     /// ```
@@ -662,32 +662,34 @@ mod tests {
     #[test]
     fn test_simplify_redundant_induction_params() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1, v1)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v2, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6, v6), block2(v3)
-block2(v8: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1, v1)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
+    v5: int32 = 1int32
+    v6: int32 = int.add v2, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6, v6), b2(v3)
+b2(v8: int32):
     return v8
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iadd v2, v2
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v2, v4
-    v6: bool = icmp_slt v5, v0
-    branch v6, block1(v5), block2(v2)
-block2(v7: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = int.add v2, v2
+    v4: int32 = 1int32
+    v5: int32 = int.add v2, v4
+    v6: boolean = int.lt.s v5, v0
+    branch v6, b1(v5), b2(v2)
+b2(v7: int32):
     return v7
 }"#;
 
@@ -701,18 +703,19 @@ block2(v7: i32):
     #[test]
     fn test_preserve_distinct_induction_params() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    jump block1(v1, v1)
-block1(v4: i32, v5: i32):
-    v6: i32 = iadd v4, v2
-    v7: i32 = iadd v5, v3
-    v8: bool = icmp_slt v6, v0
-    branch v8, block1(v6, v7), block2(v5)
-block2(v9: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    jump b1(v1, v1)
+b1(v4: int32, v5: int32):
+    v6: int32 = int.add v4, v2
+    v7: int32 = int.add v5, v3
+    v8: boolean = int.lt.s v6, v0
+    branch v8, b1(v6, v7), b2(v5)
+b2(v9: int32):
     return v9
 }"#;
 
@@ -726,34 +729,36 @@ block2(v9: i32):
     #[test]
     fn test_simplify_multiple_redundant_params() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1, v1, v1)
-block1(v2: i32, v3: i32, v4: i32):
-    v5: i32 = iadd v2, v3
-    v6: i32 = iadd v3, v4
-    v7: i32 = iconst 1i32
-    v8: i32 = iadd v2, v7
-    v9: bool = icmp_slt v8, v0
-    branch v9, block1(v8, v8, v8), block2(v4)
-block2(v10: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1, v1, v1)
+b1(v2: int32, v3: int32, v4: int32):
+    v5: int32 = int.add v2, v3
+    v6: int32 = int.add v3, v4
+    v7: int32 = 1int32
+    v8: int32 = int.add v2, v7
+    v9: boolean = int.lt.s v8, v0
+    branch v9, b1(v8, v8, v8), b2(v4)
+b2(v10: int32):
     return v10
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iadd v2, v2
-    v4: i32 = iadd v2, v2
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v2, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v2)
-block2(v8: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = int.add v2, v2
+    v4: int32 = int.add v2, v2
+    v5: int32 = 1int32
+    v6: int32 = int.add v2, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6), b2(v2)
+b2(v8: int32):
     return v8
 }"#;
 
@@ -767,36 +772,38 @@ block2(v8: i32):
     #[test]
     fn test_simplify_forwarded_signature_match() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1, v1)
-block1(v2: i32, v3: i32):
-    jump block2(v2, v3)
-block2(v4: i32, v5: i32):
-    v6: i32 = iadd v4, v5
-    v7: i32 = iconst 1i32
-    v8: i32 = iadd v4, v7
-    v9: bool = icmp_slt v8, v0
-    branch v9, block2(v8, v8), block3(v5)
-block3(v10: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1, v1)
+b1(v2: int32, v3: int32):
+    jump b2(v2, v3)
+b2(v4: int32, v5: int32):
+    v6: int32 = int.add v4, v5
+    v7: int32 = 1int32
+    v8: int32 = int.add v4, v7
+    v9: boolean = int.lt.s v8, v0
+    branch v9, b2(v8, v8), b3(v5)
+b3(v10: int32):
     return v10
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1, v1)
-block1(v2: i32, v3: i32):
-    jump block2(v2)
-block2(v4: i32):
-    v5: i32 = iadd v4, v4
-    v6: i32 = iconst 1i32
-    v7: i32 = iadd v4, v6
-    v8: bool = icmp_slt v7, v0
-    branch v8, block2(v7), block3(v4)
-block3(v9: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1, v1)
+b1(v2: int32, v3: int32):
+    jump b2(v2)
+b2(v4: int32):
+    v5: int32 = int.add v4, v4
+    v6: int32 = 1int32
+    v7: int32 = int.add v4, v6
+    v8: boolean = int.lt.s v7, v0
+    branch v8, b2(v7), b3(v4)
+b3(v9: int32):
     return v9
 }"#;
 
@@ -810,19 +817,20 @@ block3(v9: i32):
     #[test]
     fn test_preserve_different_typed_recurrences() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: u32 = iconst 0u32
-    v3: i32 = iconst 1i32
-    v4: u32 = iconst 1u32
-    jump block1(v1, v2)
-block1(v5: i32, v6: u32):
-    v7: i32 = iadd v5, v3
-    v8: u32 = iadd v6, v4
-    v9: bool = icmp_slt v7, v0
-    branch v9, block1(v7, v8), block2(v5)
-block2(v10: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: uint32 = 0uint32
+    v3: int32 = 1int32
+    v4: uint32 = 1uint32
+    jump b1(v1, v2)
+b1(v5: int32, v6: uint32):
+    v7: int32 = int.add v5, v3
+    v8: uint32 = int.add v6, v4
+    v9: boolean = int.lt.s v7, v0
+    branch v9, b1(v7, v8), b2(v5)
+b2(v10: int32):
     return v10
 }"#;
 
@@ -836,32 +844,34 @@ block2(v10: i32):
     #[test]
     fn test_simplify_check_terminator() {
         // source test
-        let input = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1, v1)
-block1(v4: u32, v5: u32):
-    v6: u32 = iadd v4, v2
-    v7: bool = icmp_ult v6, v3
-    check v7, bounds.unsigned v6, v3, v0, block1(v6, v6), block2
-block2:
+        let input = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1, v1)
+b1(v4: uint32, v5: uint32):
+    v6: uint32 = int.add v4, v2
+    v7: boolean = int.lt.u v6, v3
+    check bounds.u v6, v3, v0 -> b1(v6, v6), b2
+b2:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = iadd v4, v2
-    v6: bool = icmp_ult v5, v3
-    check v6, bounds.unsigned v5, v3, v0, block1(v5), block2
-block2:
+        let expected = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.add v4, v2
+    v6: boolean = int.lt.u v5, v3
+    check bounds.u v5, v3, v0 -> b1(v5), b2
+b2:
     return
 }"#;
 
@@ -875,32 +885,34 @@ block2:
     #[test]
     fn test_simplify_switch_terminator() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    jump block1(v1, v1)
-block1(v3: i32, v4: i32):
-    v5: i32 = iadd v3, v2
-    v6: i32 = iadd v4, v2
-    v7: bool = icmp_slt v5, v0
-    switch v7, block2, 0 => block1(v5, v6), 1 => block2
-block2:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    jump b1(v1, v1)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v2
+    v6: int32 = int.add v4, v2
+    v7: boolean = int.lt.s v5, v0
+    switch v7, b2, 0 => b1(v5, v6), 1 => b2
+b2:
     return v3
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    jump block1(v1)
-block1(v3: i32):
-    v4: i32 = iadd v3, v2
-    v5: i32 = iadd v3, v2
-    v6: bool = icmp_slt v4, v0
-    switch v6, block2, 0 => block1(v4), 1 => block2
-block2:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    jump b1(v1)
+b1(v3: int32):
+    v4: int32 = int.add v3, v2
+    v5: int32 = int.add v3, v2
+    v6: boolean = int.lt.s v4, v0
+    switch v6, b2, 0 => b1(v4), 1 => b2
+b2:
     return v3
 }"#;
 
@@ -914,35 +926,37 @@ block2:
     #[test]
     fn test_simplify_affine_offset_induction() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1, v2)
-block1(v4: i32, v5: i32):
-    v6: i32 = iadd v4, v2
-    v7: i32 = iadd v5, v2
-    v8: bool = icmp_slt v6, v3
-    branch v8, block1(v6, v7), block2(v5)
-block2(v9: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1, v2)
+b1(v4: int32, v5: int32):
+    v6: int32 = int.add v4, v2
+    v7: int32 = int.add v5, v2
+    v8: boolean = int.lt.s v6, v3
+    branch v8, b1(v6, v7), b2(v5)
+b2(v9: int32):
     return v9
 }"#;
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v4, v5
-    v7: i32 = iadd v4, v2
-    v8: i32 = iadd v6, v2
-    v9: bool = icmp_slt v7, v3
-    branch v9, block1(v7), block2(v6)
-block2(v10: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: int32 = 1int32
+    v6: int32 = int.add v4, v5
+    v7: int32 = int.add v4, v2
+    v8: int32 = int.add v6, v2
+    v9: boolean = int.lt.s v7, v3
+    branch v9, b1(v7), b2(v6)
+b2(v10: int32):
     return v10
 }"#;
 
@@ -956,32 +970,34 @@ block2(v10: i32):
     #[test]
     fn test_simplify_equivalent_recurrence_distinct_latch_values() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    jump block1(v1, v1)
-block1(v3: i32, v4: i32):
-    v5: i32 = iadd v3, v2
-    v6: i32 = iadd v4, v2
-    v7: bool = icmp_slt v5, v0
-    branch v7, block1(v5, v6), block2(v4)
-block2(v8: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    jump b1(v1, v1)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v2
+    v6: int32 = int.add v4, v2
+    v7: boolean = int.lt.s v5, v0
+    branch v7, b1(v5, v6), b2(v4)
+b2(v8: int32):
     return v8
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    jump block1(v1)
-block1(v3: i32):
-    v4: i32 = iadd v3, v2
-    v5: i32 = iadd v3, v2
-    v6: bool = icmp_slt v4, v0
-    branch v6, block1(v4), block2(v3)
-block2(v7: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    jump b1(v1)
+b1(v3: int32):
+    v4: int32 = int.add v3, v2
+    v5: int32 = int.add v3, v2
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b1(v4), b2(v3)
+b2(v7: int32):
     return v7
 }"#;
 
@@ -995,17 +1011,18 @@ block2(v7: i32):
     #[test]
     fn test_param_signature_equivalence() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1, v1)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v2, v5
-    v7: bool = icmp_slt v6, v0
-    branch v7, block1(v6, v6), block2(v3)
-block2(v8: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1, v1)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
+    v5: int32 = 1int32
+    v6: int32 = int.add v2, v5
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b1(v6, v6), b2(v3)
+b2(v8: int32):
     return v8
 }"#;
 

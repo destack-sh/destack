@@ -14,19 +14,19 @@ declare_pass! {
     /// This reduces comparison operand widths without changing observable semantics.
     ///
     /// ```mir
-    /// function @before(v0: u32, v1: u32) -> bool {
-    /// block0(v0: u32, v1: u32):
-    ///     v2 = icmp_ult v0, v1
+    /// function before(v0: uint32, v1: uint32): boolean {
+    /// b0(v0: uint32, v1: uint32):
+    ///     v2 = int.lt.u v0, v1
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: u32, v1: u32) -> bool {
-    /// block0(v0: u32, v1: u32):
-    ///     v2 = trunc v0 -> u8
-    ///     v3 = trunc v1 -> u8
-    ///     v4 = icmp_ult v2, v3
+    /// function after(v0: uint32, v1: uint32): boolean {
+    /// b0(v0: uint32, v1: uint32):
+    ///     v2 = cast.truncate v0 -> uint8
+    ///     v3 = cast.truncate v1 -> uint8
+    ///     v4 = int.lt.u v2, v3
     ///     return v4
     /// }
     /// ```
@@ -416,25 +416,27 @@ mod tests {
     /// Narrowing inserts truncation casts before integer comparisons.
     #[test]
     fn test_narrow_comparison_operands() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: u32 = iconst 3u32
-    v1: u32 = iconst 4u32
-    v2: bool = icmp_ult v0, v1
-    v3: bool = icmp_ult v0, v0
-    v4: bool = band v2, v3
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: uint32 = 3uint32
+    v1: uint32 = 4uint32
+    v2: boolean = int.lt.u v0, v1
+    v3: boolean = int.lt.u v0, v0
+    v4: boolean = int.and v2, v3
     return v4
 }"#;
 
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: u32 = iconst 3u32
-    v1: u32 = iconst 4u32
-    v2: u3 = trunc v0 -> u3
-    v3: u3 = trunc v1 -> u3
-    v4: bool = icmp_ult v2, v3
-    v5: bool = icmp_ult v2, v2
-    v6: bool = band v4, v5
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: uint32 = 3uint32
+    v1: uint32 = 4uint32
+    v2: u3 = cast.truncate v0 -> u3
+    v3: u3 = cast.truncate v1 -> u3
+    v4: boolean = int.lt.u v2, v3
+    v5: boolean = int.lt.u v2, v2
+    v6: boolean = int.and v4, v5
     return v6
 }"#;
 
@@ -446,21 +448,23 @@ block0:
     /// Signed comparisons are narrowed with signed types.
     #[test]
     fn test_narrow_signed_comparison() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 0i32
-    v1: i32 = iconst 1i32
-    v2: bool = icmp_slt v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 0int32
+    v1: int32 = 1int32
+    v2: boolean = int.lt.s v0, v1
     return v2
 }"#;
 
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 0i32
-    v1: i32 = iconst 1i32
-    v2: i2 = trunc v0 -> i2
-    v3: i2 = trunc v1 -> i2
-    v4: bool = icmp_slt v2, v3
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 0int32
+    v1: int32 = 1int32
+    v2: i2 = cast.truncate v0 -> i2
+    v3: i2 = cast.truncate v1 -> i2
+    v4: boolean = int.lt.s v2, v3
     return v4
 }"#;
 
@@ -472,31 +476,33 @@ block0:
     /// Bounds checks are narrowed when indices fit within smaller widths.
     #[test]
     fn test_narrow_bounds_check_operands() {
-        let input = r#"function @test(v0: [u8; 8]) -> u8 {
-block0(v0: [u8; 8]):
-    v1: u32 = iconst 2u32
-    v2: u32 = iconst 4u32
-    v3: bool = icmp_ult v1, v2
-    check v3, bounds.unsigned v1, v2, v0, block1, block2
-block1:
-    v4: u8 = element.get v0, v1
+        let input = r#"
+function test(v0: uint8[8]): uint8 {
+b0(v0: uint8[8]):
+    v1: uint32 = 2uint32
+    v2: uint32 = 4uint32
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
+b1:
+    v4: uint8 = element.get v0, v1
     return v4
-block2:
+b2:
     unreachable
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8]) -> u8 {
-block0(v0: [u8; 8]):
-    v1: u32 = iconst 2u32
-    v2: u32 = iconst 4u32
-    v3: u3 = trunc v1 -> u3
-    v4: u3 = trunc v2 -> u3
-    v5: bool = icmp_ult v3, v4
-    check v5, bounds.unsigned v3, v4, v0, block1, block2
-block1:
-    v6: u8 = element.get v0, v1
+        let expected = r#"
+function test(v0: uint8[8]): uint8 {
+b0(v0: uint8[8]):
+    v1: uint32 = 2uint32
+    v2: uint32 = 4uint32
+    v3: u3 = cast.truncate v1 -> u3
+    v4: u3 = cast.truncate v2 -> u3
+    v5: boolean = int.lt.u v3, v4
+    check bounds.u v3, v4, v0 -> b1, b2
+b1:
+    v6: uint8 = element.get v0, v1
     return v6
-block2:
+b2:
     unreachable
 }"#;
 
@@ -508,9 +514,10 @@ block2:
     /// Comparisons with unknown ranges are left unchanged.
     #[test]
     fn test_narrow_skips_unknown_ranges() {
-        let input = r#"function @test(v0: u32, v1: u32) -> bool {
-block0(v0: u32, v1: u32):
-    v2: bool = icmp_ult v0, v1
+        let input = r#"
+function test(v0: uint32, v1: uint32): boolean {
+b0(v0: uint32, v1: uint32):
+    v2: boolean = int.lt.u v0, v1
     return v2
 }"#;
 
@@ -522,15 +529,16 @@ block0(v0: u32, v1: u32):
     /// Mismatched integer widths are not narrowed.
     #[test]
     fn test_narrow_skips_mismatched_widths() {
-        let input = r#"function @test(v0: [u8; 8]) -> void {
-block0(v0: [u8; 8]):
-    v1: u32 = iconst 2u32
-    v2: u64 = iconst 4u64
-    v3: bool = icmp_ult v1, v2
-    check v3, bounds.unsigned v1, v2, v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: uint8[8]): void {
+b0(v0: uint8[8]):
+    v1: uint32 = 2uint32
+    v2: uint64 = 4uint64
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
+b1:
     return
-block2:
+b2:
     unreachable
 }"#;
 
@@ -542,11 +550,12 @@ block2:
     /// Full range signed values are not narrowed.
     #[test]
     fn test_narrow_skips_full_range_signed() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst -2147483648i32
-    v1: i32 = iconst 2147483647i32
-    v2: bool = icmp_slt v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: int32 = -2147483648int32
+    v1: int32 = 2147483647int32
+    v2: boolean = int.lt.s v0, v1
     return v2
 }"#;
 

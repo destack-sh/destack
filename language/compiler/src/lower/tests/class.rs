@@ -65,20 +65,20 @@ function sumBox(value: int32): int32 {
         module_id,
         "native",
         r#"
-type @Box = { value: i32 }
-
-function @sumBox(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: @Box = struct @Box (v0)
-    v2: ref<managed readonly @Box> = managed.alloc @Box
-    store v2, v1
-    v3: @Box = load v2
-    v4: i32 = field.get v3, 0
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v4, v5
-    return v6
+type Box {
+    value: int32;
 }
-        "#,
+function sumBox(v0: int32): int32 {
+b0(v0: int32):
+    v1: Box = struct Box (v0)
+    v2: ref<Box, managed, readonly> = managed.alloc Box
+    store v2, v1
+    v3: Box = load v2
+    v4: int32 = field.get v3, 0
+    v5: int32 = 1int32
+    v6: int32 = int.add v4, v5
+    return v6
+}"#,
     );
 
     // assert the runtime output
@@ -124,27 +124,24 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
-global @PacketHeader#vtable: [ref?<raw addrspace(global) readonly void>; 2] = zeroinit ; readonly
-global @MessageHeader#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-
-function @readPacketSize(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<raw addrspace(global) readonly [ref?<raw addrspace(global) readonly void>; 2]> = global.addr @PacketHeader#vtable
-    v2: ref<raw addrspace(global) readonly void> = bitcast v1 -> ref<raw addrspace(global) readonly void>
-    v3: { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 } = struct { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 } (v2, v0)
-    v4: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }
+global PacketHeader#vtable: ref?<void, raw, readonly, addressSpace(global)>[2], readonly = zeroInit
+global MessageHeader#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+function readPacketSize(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<ref?<void, raw, readonly, addressSpace(global)>[2], raw, readonly, addressSpace(global)> = global.address PacketHeader#vtable
+    v2: ref<void, raw, readonly, addressSpace(global)> = cast.bit v1 -> ref<void, raw, readonly, addressSpace(global)>
+    v3: { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 } = struct { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 } (v2, v0)
+    v4: ref<{ vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }, managed, readonly> = managed.alloc { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }
     store v4, v3
-    v5: { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 } = load v4
-    v6: i32 = field.get v5, 1
+    v5: { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 } = load v4
+    v6: int32 = field.get v5, 1
     return v6
 }
-
-function @MessageHeader.ping(v0: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }>) -> i32 {
-block0(v0: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }>):
-    v1: i32 = iconst 1i32
+function MessageHeader.ping(v0: ref<{ vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }, managed, readonly>): int32 {
+b0(v0: ref<{ vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }, managed, readonly>):
+    v1: int32 = 1int32
     return v1
-}
-        "#,
+}"#,
     );
 }
 
@@ -288,30 +285,32 @@ function useDog(d: Dog): int32 {
         module_id,
         "native",
         r#"
-type @Animal = { @vtable: ref<raw addrspace(global) readonly void>, name: i32 }
-type @Dog = { @vtable: ref<raw addrspace(global) readonly void>, name: i32, breed: i32 }
-
-global @Animal#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-global @Dog#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-
-function @useDog(v0: ref<managed readonly @Dog>) -> i32 {
-block0(v0: ref<managed readonly @Dog>):
-    v1: i32 = call.virtual v0, @Dog, 2(v0) -> fn(ref<managed readonly @Dog>) -> i32
+type Animal {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    name: int32;
+}
+type Dog {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    name: int32;
+    breed: int32;
+}
+global Animal#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global Dog#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+function useDog(v0: ref<Dog, managed, readonly>): int32 {
+b0(v0: ref<Dog, managed, readonly>):
+    v1: int32 = call.virtual v0, Dog, 2(v0): (ref<Dog, managed, readonly>) -> int32
     return v1
 }
-
-function @Animal.speak(v0: ref<managed readonly @Animal>) -> i32 {
-block0(v0: ref<managed readonly @Animal>):
-    v1: i32 = iconst 1i32
+function Animal.speak(v0: ref<Animal, managed, readonly>): int32 {
+b0(v0: ref<Animal, managed, readonly>):
+    v1: int32 = 1int32
     return v1
 }
-
-function @Dog.speak(v0: ref<managed readonly @Dog>) -> i32 {
-block0(v0: ref<managed readonly @Dog>):
-    v1: i32 = iconst 2i32
+function Dog.speak(v0: ref<Dog, managed, readonly>): int32 {
+b0(v0: ref<Dog, managed, readonly>):
+    v1: int32 = 2int32
     return v1
-}
-        "#,
+}"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -368,35 +367,31 @@ class Car extends Vehicle {
         module_id,
         "native",
         r#"
-type @Struct0 = { @vtable: ref<raw addrspace(global) readonly void> }
-
-global @Vehicle#vtable: [ref?<raw addrspace(global) readonly void>; 4] = zeroinit ; readonly
-global @Car#vtable: [ref?<raw addrspace(global) readonly void>; 5] = zeroinit ; readonly
-
-function @Vehicle.start(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = iconst 1i32
+type Struct0 {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+}
+global Vehicle#vtable: ref?<void, raw, readonly, addressSpace(global)>[4], readonly = zeroInit
+global Car#vtable: ref?<void, raw, readonly, addressSpace(global)>[5], readonly = zeroInit
+function Vehicle.start(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = 1int32
     return v1
 }
-
-function @Vehicle.stop(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = iconst 2i32
+function Vehicle.stop(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = 2int32
     return v1
 }
-
-function @Car.start(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = iconst 3i32
+function Car.start(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = 3int32
     return v1
 }
-
-function @Car.honk(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = iconst 4i32
+function Car.honk(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = 4int32
     return v1
-}
-        "#,
+}"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -459,30 +454,32 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type @Logger = { @vtable: ref<raw addrspace(global) readonly void>, logLevel: i32 }
-type @FileLogger = { @vtable: ref<raw addrspace(global) readonly void>, logLevel: i32, fileMode: i32 }
-
-global @Logger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-global @FileLogger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-
-function @callLogger(v0: ref<managed readonly @Logger>) -> i32 {
-block0(v0: ref<managed readonly @Logger>):
-    v1: i32 = call.virtual v0, @Logger, 2(v0) -> fn(ref<managed readonly @Logger>) -> i32
+type Logger {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    logLevel: int32;
+}
+type FileLogger {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    logLevel: int32;
+    fileMode: int32;
+}
+global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+function callLogger(v0: ref<Logger, managed, readonly>): int32 {
+b0(v0: ref<Logger, managed, readonly>):
+    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
     return v1
 }
-
-function @Logger.log(v0: ref<managed readonly @Logger>) -> i32 {
-block0(v0: ref<managed readonly @Logger>):
-    v1: i32 = iconst 1i32
+function Logger.log(v0: ref<Logger, managed, readonly>): int32 {
+b0(v0: ref<Logger, managed, readonly>):
+    v1: int32 = 1int32
     return v1
 }
-
-function @FileLogger.log(v0: ref<managed readonly @FileLogger>) -> i32 {
-block0(v0: ref<managed readonly @FileLogger>):
-    v1: i32 = iconst 2i32
+function FileLogger.log(v0: ref<FileLogger, managed, readonly>): int32 {
+b0(v0: ref<FileLogger, managed, readonly>):
+    v1: int32 = 2int32
     return v1
-}
-        "#,
+}"#,
     );
 
     // inspect call metadata
@@ -528,29 +525,26 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type @Struct0 = { @vtable: ref<raw addrspace(global) readonly void> }
-
-global @Logger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-global @FileLogger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-
-function @callLogger(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = call.virtual v0, @Struct0, 2(v0) -> fn(ref<managed readonly @Struct0>) -> i32
+type Struct0 {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+}
+global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+function callLogger(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = call.virtual v0, Struct0, 2(v0): (ref<Struct0, managed, readonly>) -> int32
     return v1
 }
-
-function @Logger.log(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = iconst 1i32
+function Logger.log(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = 1int32
     return v1
 }
-
-function @FileLogger.log(v0: ref<managed readonly @Struct0>) -> i32 {
-block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = iconst 2i32
+function FileLogger.log(v0: ref<Struct0, managed, readonly>): int32 {
+b0(v0: ref<Struct0, managed, readonly>):
+    v1: int32 = 2int32
     return v1
-}
-        "#,
+}"#,
     );
 }
 

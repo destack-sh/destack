@@ -16,23 +16,23 @@ declare_pass! {
     /// A block parameter is a "copy" when all predecessors pass the same value.
     ///
     /// ```mir
-    /// function @before(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     jump block1(v0)
-    /// block1(v1: i32):
-    ///     jump block2(v1)
-    /// block2(v2: i32):
+    /// function before(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     jump b1(v0)
+    /// b1(v1: int32):
+    ///     jump b2(v1)
+    /// b2(v2: int32):
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     jump block1
-    /// block1:
-    ///     jump block2
-    /// block2:
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     jump b1
+    /// b1:
+    ///     jump b2
+    /// b2:
     ///     return v0
     /// }
     /// ```
@@ -496,26 +496,28 @@ mod tests {
     /// Block parameter that receives the same value from all predecessors is eliminated.
     #[test]
     fn test_propagate_uniform_incoming_value() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    branch v0, block1, block2
-block1:
-    jump block3(v0)
-block2:
-    jump block3(v0)
-block3(v1: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    branch v0, b1, b2
+b1:
+    jump b3(v0)
+b2:
+    jump b3(v0)
+b3(v1: int32):
     return v1
 }"#;
 
         // v1 is always v0, so replace uses of v1 with v0 and remove the parameter
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return v0
 }"#;
 
@@ -527,15 +529,16 @@ block3:
     /// Block parameter with different values from predecessors is NOT eliminated.
     #[test]
     fn test_preserve_varying_incoming_values() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    branch v0, block1, block2
-block1:
-    jump block3(v0)
-block2:
-    jump block3(v1)
-block3(v2: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    branch v0, b1, b2
+b1:
+    jump b3(v0)
+b2:
+    jump b3(v1)
+b3(v2: int32):
     return v2
 }"#;
 
@@ -549,17 +552,19 @@ block3(v2: i32):
     /// Single predecessor block parameter is a trivial copy.
     #[test]
     fn test_propagate_single_predecessor() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1(v0)
-block1(v1: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    jump b1(v0)
+b1(v1: int32):
     return v1
 }"#;
 
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1
-block1:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    jump b1
+b1:
     return v0
 }"#;
 
@@ -571,22 +576,24 @@ block1:
     /// Chained copies are resolved transitively.
     #[test]
     fn test_propagate_through_chain() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1(v0)
-block1(v1: i32):
-    jump block2(v1)
-block2(v2: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    jump b1(v0)
+b1(v1: int32):
+    jump b2(v1)
+b2(v2: int32):
     return v2
 }"#;
 
         // v1 = v0, v2 = v1 = v0
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1
-block1:
-    jump block2
-block2:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    jump b1
+b1:
+    jump b2
+b2:
     return v0
 }"#;
 
@@ -598,32 +605,34 @@ block2:
     /// Multiple parameters, only some are copies.
     #[test]
     fn test_propagate_partial_copies() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 10i32
-    jump block3(v0, v2)
-block2:
-    v3: i32 = iconst 20i32
-    jump block3(v0, v3)
-block3(v4: i32, v5: i32):
-    v6: i32 = iadd v4, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    branch v0, b1, b2
+b1:
+    v2: int32 = 10int32
+    jump b3(v0, v2)
+b2:
+    v3: int32 = 20int32
+    jump b3(v0, v3)
+b3(v4: int32, v5: int32):
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
 
         // v4 is always v0 (copy), but v5 differs between predecessors
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 10i32
-    jump block3(v2)
-block2:
-    v3: i32 = iconst 20i32
-    jump block3(v3)
-block3(v4: i32):
-    v5: i32 = iadd v0, v4
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    branch v0, b1, b2
+b1:
+    v2: int32 = 10int32
+    jump b3(v2)
+b2:
+    v3: int32 = 20int32
+    jump b3(v3)
+b3(v4: int32):
+    v5: int32 = int.add v0, v4
     return v5
 }"#;
 
@@ -635,10 +644,11 @@ block3(v4: i32):
     /// No copies means no changes.
     #[test]
     fn test_preserve_without_copies() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -650,14 +660,16 @@ block0(v0: i32):
     /// Selects with identical arms are removed.
     #[test]
     fn test_remove_redundant_select() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = select v0, v1, v1
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = select v0, v1, v1
     return v2
 }"#;
 
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
     return v1
 }"#;
 

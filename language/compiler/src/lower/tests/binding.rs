@@ -56,16 +56,15 @@ function assignReturn(x: number): number {
         module_id,
         "native",
         r#"
-function @assignReturn(v0: f64) -> f64 {
-block0(v0: f64):
-    v1: f64 = iconst 1f64
-    v2: f64 = fadd v0, v1
-    v3: f64 = iconst 2f64
-    v4: f64 = fadd v2, v3
-    v5: f64 = fadd v4, v0
+function assignReturn(v0: float64): float64 {
+b0(v0: float64):
+    v1: float64 = 1float64
+    v2: float64 = float.add v0, v1
+    v3: float64 = 2float64
+    v4: float64 = float.add v2, v3
+    v5: float64 = float.add v4, v0
     return v5
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(
@@ -99,14 +98,13 @@ function borrowLocal(x: int32): &int32 {
         module_id,
         "native",
         r#"
-function @borrowLocal(v0: i32) -> ref<borrowed i32> {
-    local0: i32 ; owned
-block0(v0: i32):
+function borrowLocal(v0: int32): ref<int32, borrowed> {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    v1: ref<borrowed i32> = local.addr local0
+    v1: ref<int32, borrowed> = local.address local0
     return v1
-}
-        "#,
+}"#,
     );
 }
 
@@ -131,16 +129,15 @@ function borrowTemp(x: int32): &int32 {
         module_id,
         "native",
         r#"
-function @borrowTemp(v0: i32) -> ref<borrowed i32> {
-    local0: i32 ; owned
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
+function borrowTemp(v0: int32): ref<int32, borrowed> {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
     local.set local0, v2
-    v3: ref<borrowed i32> = local.addr local0
+    v3: ref<int32, borrowed> = local.address local0
     return v3
-}
-        "#,
+}"#,
     );
 }
 
@@ -170,14 +167,15 @@ function borrowField(point: &Point): &int32 {
         module_id,
         "native",
         r#"
-type @Point = { x: i32, y: i32 }
-
-function @borrowField(v0: ref<borrowed @Point>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed @Point>):
-    v1: ref<borrowed i32> = field.addr v0, 0
-    return v1
+type Point {
+    x: int32;
+    y: int32;
 }
-        "#,
+function borrowField(v0: ref<Point, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<Point, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    return v1
+}"#,
     );
 }
 
@@ -204,16 +202,15 @@ function borrowElement(values: int32[4]): &int32 {
         module_id,
         "native",
         r#"
-function @borrowElement(v0: [i32; 4]) -> ref<borrowed i32> {
-    local0: [i32; 4] ; owned, readonly
-block0(v0: [i32; 4]):
+function borrowElement(v0: int32[4]): ref<int32, borrowed> {
+    local local0: int32[4], owned, readonly
+b0(v0: int32[4]):
     local.set local0, v0
-    v1: [i32; 4] = local.get local0
-    v2: i32 = iconst 2i32
-    v3: ref<borrowed i32> = element.addr v1, v2
+    v1: int32[4] = local.get local0
+    v2: int32 = 2int32
+    v3: ref<int32, borrowed> = element.address v1, v2
     return v3
-}
-        "#,
+}"#,
     );
 }
 
@@ -241,25 +238,24 @@ function borrowElementChecked(values: int32[4]): &int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
-
-function @borrowElementChecked(v0: [i32; 4]) -> ref<borrowed i32> {
-    local0: [i32; 4] ; owned, readonly
-block0(v0: [i32; 4]):
+global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
+function borrowElementChecked(v0: int32[4]): ref<int32, borrowed> {
+    local local0: int32[4], owned, readonly
+b0(v0: int32[4]):
     local.set local0, v0
-    v1: [i32; 4] = local.get local0
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 4i32
-    v4: i32 = iconst 0i32
-    v5: bool = icmp_sge v2, v4
-    v6: bool = icmp_slt v2, v3
-    v7: bool = band v5, v6
-    check v7, bounds.signed v2, v3, v1, block2, block1
-block1:
-    v8: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    trap panic v8
-block2:
-    v9: ref<borrowed i32> = element.addr v1, v2
+    v1: int32[4] = local.get local0
+    v2: int32 = 2int32
+    v3: int32 = 4int32
+    v4: int32 = 0int32
+    v5: boolean = int.ge.s v2, v4
+    v6: boolean = int.lt.s v2, v3
+    v7: boolean = int.and v5, v6
+    check bounds.s v2, v3, v1 -> b2, b1
+b1:
+    v8: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    trap.panic v8
+b2:
+    v9: ref<int32, borrowed> = element.address v1, v2
     return v9
 }
         "#;
@@ -291,13 +287,12 @@ function borrowElementRef(values: &int32[4]): &int32 {
         module_id,
         "native",
         r#"
-function @borrowElementRef(v0: ref<borrowed [i32; 4]>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed [i32; 4]>):
-    v1: i32 = iconst 2i32
-    v2: ref<borrowed i32> = element.addr v0, v1
+function borrowElementRef(v0: ref<int32[4], borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32[4], borrowed>):
+    v1: int32 = 2int32
+    v2: ref<int32, borrowed> = element.address v0, v1
     return v2
-}
-        "#,
+}"#,
     );
 }
 
@@ -325,22 +320,21 @@ function borrowElementRefChecked(values: &int32[4]): &int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
-
-function @borrowElementRefChecked(v0: ref<borrowed [i32; 4]>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed [i32; 4]>):
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 4i32
-    v3: i32 = iconst 0i32
-    v4: bool = icmp_sge v1, v3
-    v5: bool = icmp_slt v1, v2
-    v6: bool = band v4, v5
-    check v6, bounds.signed v1, v2, v0, block2, block1
-block1:
-    v7: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    trap panic v7
-block2:
-    v8: ref<borrowed i32> = element.addr v0, v1
+global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
+function borrowElementRefChecked(v0: ref<int32[4], borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32[4], borrowed>):
+    v1: int32 = 2int32
+    v2: int32 = 4int32
+    v3: int32 = 0int32
+    v4: boolean = int.ge.s v1, v3
+    v5: boolean = int.lt.s v1, v2
+    v6: boolean = int.and v4, v5
+    check bounds.s v1, v2, v0 -> b2, b1
+b1:
+    v7: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    trap.panic v7
+b2:
+    v8: ref<int32, borrowed> = element.address v0, v1
     return v8
 }
         "#;
@@ -374,18 +368,18 @@ function borrowGreeter(greeter: Greeter): &Greeter {
         module_id,
         "native",
         r#"
-type @Greeter = { @object: ref<managed readonly void>, @itab: usize }
-
-extern function @Greeter.greet({ greet: fnvalue<fn() -> i32> }) -> i32
-
-function @borrowGreeter(v0: @Greeter) -> ref<borrowed @Greeter> {
-    local0: @Greeter ; owned, readonly
-block0(v0: @Greeter):
-    local.set local0, v0
-    v1: ref<borrowed @Greeter> = local.addr local0
-    return v1
+type Greeter {
+    object: ref<void, managed, readonly>;
+    itab: usize;
 }
-        "#,
+extern function Greeter.greet({ greet: closure() -> int32 }): int32
+function borrowGreeter(v0: Greeter): ref<Greeter, borrowed> {
+    local local0: Greeter, owned, readonly
+b0(v0: Greeter):
+    local.set local0, v0
+    v1: ref<Greeter, borrowed> = local.address local0
+    return v1
+}"#,
     );
 }
 
@@ -414,15 +408,15 @@ class Counter {
         module_id,
         "native",
         r#"
-type @Counter = { @vtable: ref<raw addrspace(global) readonly void>, value: i32 }
-
-global @Counter#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
-
-function @Counter.borrowValue(v0: ref<managed readonly @Counter>) -> ref<borrowed i32> {
-block0(v0: ref<managed readonly @Counter>):
-    v1: ref<borrowed i32> = field.addr v0, 1
-    return v1
+type Counter {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    value: int32;
 }
-        "#,
+global Counter#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+function Counter.borrowValue(v0: ref<Counter, managed, readonly>): ref<int32, borrowed> {
+b0(v0: ref<Counter, managed, readonly>):
+    v1: ref<int32, borrowed> = field.address v0, 1
+    return v1
+}"#,
     );
 }

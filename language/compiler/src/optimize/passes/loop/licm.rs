@@ -28,27 +28,27 @@ declare_pass! {
     /// Potentially trapping instructions such as integer division are only hoisted when range analysis proves the operation is safe and the block executes on every iteration.
     ///
     /// ```mir
-    /// function @before(v0: bool, v1: i32) -> i32 {
-    /// block0(v0: bool, v1: i32):
-    ///     v2 = iconst 3i32
-    ///     jump block1
-    /// block1:
-    ///     v3 = iadd v1, v2
-    ///     branch v0, block1, block2
-    /// block2:
+    /// function before(v0: boolean, v1: int32): int32 {
+    /// b0(v0: boolean, v1: int32):
+    ///     v2 = 3int32
+    ///     jump b1
+    /// b1:
+    ///     v3 = int.add v1, v2
+    ///     branch v0, b1, b2
+    /// b2:
     ///     return v3
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool, v1: i32) -> i32 {
-    /// block0(v0: bool, v1: i32):
-    ///     v2 = iconst 3i32
-    ///     v3 = iadd v1, v2
-    ///     jump block1
-    /// block1:
-    ///     branch v0, block1, block2
-    /// block2:
+    /// function after(v0: boolean, v1: int32): int32 {
+    /// b0(v0: boolean, v1: int32):
+    ///     v2 = 3int32
+    ///     v3 = int.add v1, v2
+    ///     jump b1
+    /// b1:
+    ///     branch v0, b1, b2
+    /// b2:
     ///     return v3
     /// }
     /// ```
@@ -889,23 +889,25 @@ mod tests {
     /// Constant in loop is hoisted to preheader.
     #[test]
     fn test_hoist_constant() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    jump block1
-block1:
-    v1: i32 = iconst 42i32
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    jump b1
+b1:
+    v1: int32 = 42int32
+    branch v0, b1, b2
+b2:
     return v1
 }"#;
-        // v1 = iconst 42 should be hoisted to block0
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 42i32
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        // v1 = 42 should be hoisted to b0
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 42int32
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return v1
 }"#;
         let mut test = TestProgram::new(input);
@@ -917,23 +919,25 @@ block2:
     /// Binary operation on invariant operands is hoisted.
     #[test]
     fn test_hoist_binary_invariant() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    jump block1
-block1:
-    v3: i32 = iadd v1, v2
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    jump b1
+b1:
+    v3: int32 = int.add v1, v2
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
-        // v3 = iadd v1, v2 is invariant (v1, v2 are function params)
-        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    v3: i32 = iadd v1, v2
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        // v3 = int.add v1, v2 is invariant (v1, v2 are function params)
+        let expected = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -945,27 +949,29 @@ block2:
     /// Chain of invariant operations is hoisted.
     #[test]
     fn test_hoist_chain() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    jump block1
-block1:
-    v2: i32 = iconst 10i32
-    v3: i32 = iadd v1, v2
-    v4: i32 = imul v3, v2
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    jump b1
+b1:
+    v2: int32 = 10int32
+    v3: int32 = int.add v1, v2
+    v4: int32 = int.mul v3, v2
+    branch v0, b1, b2
+b2:
     return v4
 }"#;
         // all three instructions are invariant
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 10i32
-    v3: i32 = iadd v1, v2
-    v4: i32 = imul v3, v2
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 10int32
+    v3: int32 = int.add v1, v2
+    v4: int32 = int.mul v3, v2
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -977,26 +983,28 @@ block2:
     /// Operation using loop variant value is not hoisted.
     #[test]
     fn test_no_hoist_variant() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 1i32
-    v4: i32 = iadd v2, v3
-    branch v0, block1(v4), block2
-block2:
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 1int32
+    v4: int32 = int.add v2, v3
+    branch v0, b1(v4), b2
+b2:
     return v4
 }"#;
         // v3 is invariant and can be hoisted
         // v4 depends on v2 which is a loop phi, so v4 cannot be hoisted
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 1i32
-    jump block1(v1)
-block1(v3: i32):
-    v4: i32 = iadd v3, v2
-    branch v0, block1(v4), block2
-block2:
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 1int32
+    jump b1(v1)
+b1(v3: int32):
+    v4: int32 = int.add v3, v2
+    branch v0, b1(v4), b2
+b2:
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -1008,9 +1016,10 @@ block2:
     /// Function without loops is unchanged.
     #[test]
     fn test_no_loops() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -1021,13 +1030,14 @@ block0(v0: i32, v1: i32):
     /// Already hoisted code is unchanged.
     #[test]
     fn test_already_hoisted() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    v3: i32 = iadd v1, v2
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -1039,32 +1049,34 @@ block2:
     /// Invariant in inner loop is hoisted to the inner preheader.
     #[test]
     fn test_hoist_nested_inner() {
-        let input = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
-block0(v0: bool, v1: bool, v2: i32):
-    jump block1
-block1:
-    jump block2
-block2:
-    v3: i32 = iconst 5i32
-    v4: i32 = iadd v2, v3
-    branch v1, block2, block3
-block3:
-    branch v0, block1, block4
-block4:
+        let input = r#"
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+b0(v0: boolean, v1: boolean, v2: int32):
+    jump b1
+b1:
+    jump b2
+b2:
+    v3: int32 = 5int32
+    v4: int32 = int.add v2, v3
+    branch v1, b2, b3
+b3:
+    branch v0, b1, b4
+b4:
     return v4
 }"#;
-        let expected = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
-block0(v0: bool, v1: bool, v2: i32):
-    jump block1
-block1:
-    v3: i32 = iconst 5i32
-    v4: i32 = iadd v2, v3
-    jump block2
-block2:
-    branch v1, block2, block3
-block3:
-    branch v0, block1, block4
-block4:
+        let expected = r#"
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+b0(v0: boolean, v1: boolean, v2: int32):
+    jump b1
+b1:
+    v3: int32 = 5int32
+    v4: int32 = int.add v2, v3
+    jump b2
+b2:
+    branch v1, b2, b3
+b3:
+    branch v0, b1, b4
+b4:
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -1076,27 +1088,29 @@ block4:
     /// Read only intrinsics are hoisted when invariant.
     #[test]
     fn test_hoist_read_only_intrinsic() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
-    jump block1
-block1:
-    v3: i32 = intrinsic.memcmp(v1, v1, v2)
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
+    jump b1
+b1:
+    v3: int32 = intrinsic.memcmp(v1, v1, v2)
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
-    v3: i32 = intrinsic.memcmp(v1, v1, v2)
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
+    v3: int32 = intrinsic.memcmp(v1, v1, v2)
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
 
@@ -1109,19 +1123,19 @@ block2:
     /// Calls are not hoisted (side effects).
     #[test]
     fn test_no_hoist_call() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    jump block1
-block1:
-    v1: i32 = call @get_value() -> fn() -> i32
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    jump b1
+b1:
+    v1: int32 = call getValue(): () -> int32
+    branch v0, b1, b2
+b2:
     return v1
 }
-
-function @get_value() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+function getValue(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
         // call should not be hoisted
@@ -1135,13 +1149,14 @@ block0:
     /// Allocations are not hoisted (each iteration needs fresh allocation).
     #[test]
     fn test_no_hoist_alloc() {
-        let input = r#"function @test(v0: bool) -> ref<managed i32> {
-block0(v0: bool):
-    jump block1
-block1:
-    v1: ref<managed i32> = managed.alloc i32
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean): ref<int32, managed> {
+b0(v0: boolean):
+    jump b1
+b1:
+    v1: ref<int32, managed> = managed.alloc int32
+    branch v0, b1, b2
+b2:
     return v1
 }"#;
         // managed.alloc should stay in loop: each iteration allocates a new object
@@ -1155,34 +1170,36 @@ block2:
     /// Invariant load with no clobbering stores is hoisted.
     #[test]
     fn test_hoist_invariant_load() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 1int32
     store v1, v3
-    jump block1
-block1:
-    v4: i32 = iconst 2i32
+    jump b1
+b1:
+    v4: int32 = 2int32
     store v2, v4
-    v5: i32 = load v1
-    branch v0, block1, block2
-block2:
+    v5: int32 = load v1
+    branch v0, b1, b2
+b2:
     return v5
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 1int32
     store v1, v3
-    v4: i32 = iconst 2i32
-    v5: i32 = load v1
-    jump block1
-block1:
+    v4: int32 = 2int32
+    v5: int32 = load v1
+    jump b1
+b1:
     store v2, v4
-    branch v0, block1, block2
-block2:
+    branch v0, b1, b2
+b2:
     return v5
 }"#;
 
@@ -1195,32 +1212,34 @@ block2:
     /// Invariant load is not hoisted when the loop writes the same location.
     #[test]
     fn test_skip_hoist_clobbered_load() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
-    jump block1
-block1:
-    v3: i32 = load v1
-    v4: i32 = iconst 2i32
+    jump b1
+b1:
+    v3: int32 = load v1
+    v4: int32 = 2int32
     store v1, v4
-    branch v0, block1, block2
-block2:
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
-    v3: i32 = iconst 2i32
-    jump block1
-block1:
-    v4: i32 = load v1
+    v3: int32 = 2int32
+    jump b1
+b1:
+    v4: int32 = load v1
     store v1, v3
-    branch v0, block1, block2
-block2:
+    branch v0, b1, b2
+b2:
     return v4
 }"#;
 
@@ -1233,22 +1252,23 @@ block2:
     /// Load in a conditional block is not hoisted.
     #[test]
     fn test_skip_hoist_conditional_load() {
-        let input = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 1int32
     store v2, v3
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
-    v4: i32 = load v2
-    jump block4(v4)
-block3:
-    jump block4(v3)
-block4(v5: i32):
-    branch v1, block1, block5
-block5:
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
+    v4: int32 = load v2
+    jump b4(v4)
+b3:
+    jump b4(v3)
+b4(v5: int32):
+    branch v1, b1, b5
+b5:
     return v5
 }"#;
 
@@ -1261,28 +1281,30 @@ block5:
     /// Invariant local get is hoisted to the preheader.
     #[test]
     fn test_hoist_local_get() {
-        let input = r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool):
-    v1: i32 = iconst 3i32
+        let input = r#"
+function test(v0: boolean): int32 {
+    local local0: int32, owned
+b0(v0: boolean):
+    v1: int32 = 3int32
     local.set local0, v1
-    jump block1
-block1:
-    v2: i32 = local.get local0
-    branch v0, block1, block2
-block2:
+    jump b1
+b1:
+    v2: int32 = local.get local0
+    branch v0, b1, b2
+b2:
     return v2
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool):
-    v1: i32 = iconst 3i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+    local local0: int32, owned
+b0(v0: boolean):
+    v1: int32 = 3int32
     local.set local0, v1
-    v2: i32 = local.get local0
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+    v2: int32 = local.get local0
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return v2
 }"#;
 
@@ -1295,21 +1317,22 @@ block2:
     /// Load with a clobbering call is not hoisted.
     #[test]
     fn test_skip_hoist_load_with_call() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
-    jump block1
-block1:
-    v3: i32 = load v1
-    call @touch(v1) -> fn(ref<raw i32>) -> void
-    branch v0, block1, block2
-block2:
+    jump b1
+b1:
+    v3: int32 = load v1
+    call touch(v1): (ref<int32, raw>) -> void
+    branch v0, b1, b2
+b2:
     return v3
 }
-function @touch(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
+function touch(v0: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>):
     return
 }"#;
 
@@ -1322,26 +1345,28 @@ block0(v0: ref<raw i32>):
     /// Load with a disjoint alias scope is hoisted.
     #[test]
     fn test_hoist_load_with_noalias_scope() {
-        let input = r#"function @test(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>) -> i32 {
-block0(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>):
-    jump block1
-block1:
-    v3: i32 = load v1
-    v4: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>): int32 {
+b0(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>):
+    jump b1
+b1:
+    v3: int32 = load v1
+    v4: int32 = 1int32
     store v2, v4
-    branch v0, block1, block2
-block2:
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
-        let expected = r#"function @test(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>) -> i32 {
-block0(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>):
-    v3: i32 = load v1
-    v4: i32 = iconst 1i32
-    jump block1
-block1:
+        let expected = r#"
+function test(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>): int32 {
+b0(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>):
+    v3: int32 = load v1
+    v4: int32 = 1int32
+    jump b1
+b1:
     store v2, v4
-    branch v0, block1, block2
-block2:
+    branch v0, b1, b2
+b2:
     return v3
 }"#;
 
@@ -1387,38 +1412,40 @@ block2:
     /// Multiple independent loops each get their invariants hoisted.
     #[test]
     fn test_multiple_loops() {
-        let input = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
-block0(v0: bool, v1: bool, v2: i32):
-    jump block1
-block1:
-    v3: i32 = iconst 10i32
-    branch v0, block1, block2
-block2:
-    jump block3
-block3:
-    v4: i32 = iconst 20i32
-    v5: i32 = iadd v2, v4
-    branch v1, block3, block4
-block4:
-    v6: i32 = iadd v3, v5
+        let input = r#"
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+b0(v0: boolean, v1: boolean, v2: int32):
+    jump b1
+b1:
+    v3: int32 = 10int32
+    branch v0, b1, b2
+b2:
+    jump b3
+b3:
+    v4: int32 = 20int32
+    v5: int32 = int.add v2, v4
+    branch v1, b3, b4
+b4:
+    v6: int32 = int.add v3, v5
     return v6
 }"#;
-        // v3 hoisted from loop1 to block0
-        // v4, v5 hoisted from loop3 to block2
-        let expected = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
-block0(v0: bool, v1: bool, v2: i32):
-    v3: i32 = iconst 10i32
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
-    v4: i32 = iconst 20i32
-    v5: i32 = iadd v2, v4
-    jump block3
-block3:
-    branch v1, block3, block4
-block4:
-    v6: i32 = iadd v3, v5
+        // v3 hoisted from loop1 to b0
+        // v4, v5 hoisted from loop3 to b2
+        let expected = r#"
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+b0(v0: boolean, v1: boolean, v2: int32):
+    v3: int32 = 10int32
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
+    v4: int32 = 20int32
+    v5: int32 = int.add v2, v4
+    jump b3
+b3:
+    branch v1, b3, b4
+b4:
+    v6: int32 = int.add v3, v5
     return v6
 }"#;
         let mut test = TestProgram::new(input);
@@ -1430,38 +1457,40 @@ block4:
     /// Safe division is hoisted when the divisor is proven not zero.
     #[test]
     fn test_hoist_safe_division() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 10i32
-    v3: i32 = iconst 2i32
-    jump block1(v0)
-block1(v4: i32):
-    v5: i32 = sdiv v2, v3
-    v6: bool = icmp_slt v4, v1
-    branch v6, block2, block3
-block2:
-    v7: i32 = iadd v4, v1
-    jump block1(v7)
-block3:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 0int32
+    v1: int32 = 1int32
+    v2: int32 = 10int32
+    v3: int32 = 2int32
+    jump b1(v0)
+b1(v4: int32):
+    v5: int32 = int.div.s v2, v3
+    v6: boolean = int.lt.s v4, v1
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.add v4, v1
+    jump b1(v7)
+b3:
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 10i32
-    v3: i32 = iconst 2i32
-    v4: i32 = sdiv v2, v3
-    jump block1(v0)
-block1(v5: i32):
-    v6: bool = icmp_slt v5, v1
-    branch v6, block2, block3
-block2:
-    v7: i32 = iadd v5, v1
-    jump block1(v7)
-block3:
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 0int32
+    v1: int32 = 1int32
+    v2: int32 = 10int32
+    v3: int32 = 2int32
+    v4: int32 = int.div.s v2, v3
+    jump b1(v0)
+b1(v5: int32):
+    v6: boolean = int.lt.s v5, v1
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.add v5, v1
+    jump b1(v7)
+b3:
     return v4
 }"#;
 
@@ -1474,20 +1503,21 @@ block3:
     /// Potentially trapping division remains in the loop.
     #[test]
     fn test_skip_trapping_division() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 10i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: i32 = sdiv v3, v0
-    v6: bool = icmp_slt v4, v2
-    branch v6, block2, block3
-block2:
-    v7: i32 = iadd v4, v2
-    jump block1(v7)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 10int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: int32 = int.div.s v3, v0
+    v6: boolean = int.lt.s v4, v2
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.add v4, v2
+    jump b1(v7)
+b3:
     return v5
 }"#;
 

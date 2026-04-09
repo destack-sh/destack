@@ -20,48 +20,48 @@ declare_pass! {
     ///
     /// This pass recognizes simple byte memset loops and copy loops with a canonical induction
     /// variable.
-    /// It requires a single store to `element.addr` and, for copies, a single load feeding that
+    /// It requires a single store to `element.address` and, for copies, a single load feeding that
     /// store.
     ///
     /// ```mir
-    /// function @before(v0: [u8; 8], v1: u32) -> void {
-    /// block0(v0: [u8; 8], v1: u32):
-    ///     v2 = iconst 0u32
-    ///     v3 = iconst 1u32
-    ///     jump block1(v2)
-    /// block1(v4: u32):
-    ///     v5 = icmp_ult v4, v1
-    ///     branch v5, block2, block3
-    /// block2:
-    ///     v6 = element.addr v0, v4
-    ///     v7 = iconst 0u8
+    /// function before(v0: uint8[8], v1: uint32): void {
+    /// b0(v0: uint8[8], v1: uint32):
+    ///     v2 = 0uint32
+    ///     v3 = 1uint32
+    ///     jump b1(v2)
+    /// b1(v4: uint32):
+    ///     v5 = int.lt.u v4, v1
+    ///     branch v5, b2, b3
+    /// b2:
+    ///     v6 = element.address v0, v4
+    ///     v7 = 0uint8
     ///     store v6, v7
-    ///     v8 = iadd v4, v3
-    ///     jump block1(v8)
-    /// block3:
+    ///     v8 = int.add v4, v3
+    ///     jump b1(v8)
+    /// b3:
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: [u8; 8], v1: u32) -> void {
-    /// block0(v0: [u8; 8], v1: u32):
-    ///     v2 = iconst 0u32
-    ///     v3 = iconst 1u32
-    ///     v9 = iconst 0u8
-    ///     v10 = element.addr v0, v2
+    /// function after(v0: uint8[8], v1: uint32): void {
+    /// b0(v0: uint8[8], v1: uint32):
+    ///     v2 = 0uint32
+    ///     v3 = 1uint32
+    ///     v9 = 0uint8
+    ///     v10 = element.address v0, v2
     ///     intrinsic.memset(v10, v9, v1)
-    ///     jump block3
-    /// block1(v4: u32):
-    ///     v5 = icmp_ult v4, v1
-    ///     branch v5, block2, block3
-    /// block2:
-    ///     v6 = element.addr v0, v4
-    ///     v7 = iconst 0u8
+    ///     jump b3
+    /// b1(v4: uint32):
+    ///     v5 = int.lt.u v4, v1
+    ///     branch v5, b2, b3
+    /// b2:
+    ///     v6 = element.address v0, v4
+    ///     v7 = 0uint8
     ///     store v6, v7
-    ///     v8 = iadd v4, v3
-    ///     jump block1(v8)
-    /// block3:
+    ///     v8 = int.add v4, v3
+    ///     jump b1(v8)
+    /// b3:
     ///     return
     /// }
     /// ```
@@ -702,7 +702,7 @@ fn match_memcpy_pattern(
         return None;
     }
 
-    // resolve both addresses back to element.addr
+    // resolve both addresses back to element.address
     let (dest_array, dest_index, dest_element_addr_type) =
         element_addr_for_pointer(store_ptr, tree, value_definitions)?;
     let (src_array, src_index, src_element_addr_type) =
@@ -1339,42 +1339,44 @@ mod tests {
     /// Memset loops are lowered to intrinsic.memset.
     #[test]
     fn test_loop_idiom_memset() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0uint8
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    v4: u8 = iconst 0u8
-    v5: ref<borrowed u8> = element.addr v0, v2
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    v4: uint8 = 0uint8
+    v5: ref<uint8, borrowed> = element.address v0, v2
     intrinsic.memset(v5, v4, v1)
-    jump block3
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v1
-    branch v7, block2, block3
-block2:
-    v8: ref<borrowed u8> = element.addr v0, v6
-    v9: u8 = iconst 0u8
+    jump b3
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v1
+    branch v7, b2, b3
+b2:
+    v8: ref<uint8, borrowed> = element.address v0, v6
+    v9: uint8 = 0uint8
     store v8, v9
-    v10: u32 = iadd v6, v3
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v6, v3
+    jump b1(v10)
+b3:
     return
 }"#;
 
@@ -1386,46 +1388,48 @@ block3:
     /// Memset loops with a separate latch are lowered.
     #[test]
     fn test_loop_idiom_memset_multi_block() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block4
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b4
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0uint8
     store v6, v7
-    jump block3(v4)
-block3(v8: u32):
-    v9: u32 = iadd v8, v3
-    jump block1(v9)
-block4:
+    jump b3(v4)
+b3(v8: uint32):
+    v9: uint32 = int.add v8, v3
+    jump b1(v9)
+b4:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    v4: u8 = iconst 0u8
-    v5: ref<borrowed u8> = element.addr v0, v2
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    v4: uint8 = 0uint8
+    v5: ref<uint8, borrowed> = element.address v0, v2
     intrinsic.memset(v5, v4, v1)
-    jump block4
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v1
-    branch v7, block2, block4
-block2:
-    v8: ref<borrowed u8> = element.addr v0, v6
-    v9: u8 = iconst 0u8
+    jump b4
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v1
+    branch v7, b2, b4
+b2:
+    v8: ref<uint8, borrowed> = element.address v0, v6
+    v9: uint8 = 0uint8
     store v8, v9
-    jump block3(v6)
-block3(v10: u32):
-    v11: u32 = iadd v10, v3
-    jump block1(v11)
-block4:
+    jump b3(v6)
+b3(v10: uint32):
+    v11: uint32 = int.add v10, v3
+    jump b1(v11)
+b4:
     return
 }"#;
 
@@ -1437,21 +1441,22 @@ block4:
     /// Volatile stores are not lowered into memset.
     #[test]
     fn test_loop_idiom_skips_volatile_store() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0uint8
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }"#;
 
@@ -1496,44 +1501,46 @@ block3:
     /// Memcpy loops are lowered to intrinsic.memcpy.
     #[test]
     fn test_loop_idiom_memcpy() {
-        let input = r#"function @test(v0: [u8; 8], v1: [u8; 8], v2: u32) -> void {
-block0(v0: [u8; 8], v1: [u8; 8], v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v0, v5
-    v8: ref<borrowed u8> = element.addr v1, v5
-    v9: u8 = load v8
+        let input = r#"
+function test(v0: uint8[8], v1: uint8[8], v2: uint32): void {
+b0(v0: uint8[8], v1: uint8[8], v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed> = element.address v1, v5
+    v9: uint8 = load v8
     store v7, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: [u8; 8], v2: u32) -> void {
-block0(v0: [u8; 8], v1: [u8; 8], v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    v5: ref<borrowed u8> = element.addr v0, v3
-    v6: ref<borrowed u8> = element.addr v1, v3
+        let expected = r#"
+function test(v0: uint8[8], v1: uint8[8], v2: uint32): void {
+b0(v0: uint8[8], v1: uint8[8], v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    v5: ref<uint8, borrowed> = element.address v0, v3
+    v6: ref<uint8, borrowed> = element.address v1, v3
     intrinsic.memcpy(v5, v6, v2)
-    jump block3
-block1(v7: u32):
-    v8: bool = icmp_ult v7, v2
-    branch v8, block2, block3
-block2:
-    v9: ref<borrowed u8> = element.addr v0, v7
-    v10: ref<borrowed u8> = element.addr v1, v7
-    v11: u8 = load v10
+    jump b3
+b1(v7: uint32):
+    v8: boolean = int.lt.u v7, v2
+    branch v8, b2, b3
+b2:
+    v9: ref<uint8, borrowed> = element.address v0, v7
+    v10: ref<uint8, borrowed> = element.address v1, v7
+    v11: uint8 = load v10
     store v9, v11
-    v12: u32 = iadd v7, v4
-    jump block1(v12)
-block3:
+    v12: uint32 = int.add v7, v4
+    jump b1(v12)
+b3:
     return
 }"#;
 
@@ -1545,42 +1552,44 @@ block3:
     /// Overlapping copy loops use memmove.
     #[test]
     fn test_loop_idiom_memmove_aliasing() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = load v6
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = load v6
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    v4: ref<borrowed u8> = element.addr v0, v2
-    v5: ref<borrowed u8> = element.addr v0, v2
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    v4: ref<uint8, borrowed> = element.address v0, v2
+    v5: ref<uint8, borrowed> = element.address v0, v2
     intrinsic.memmove(v4, v5, v1)
-    jump block3
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v1
-    branch v7, block2, block3
-block2:
-    v8: ref<borrowed u8> = element.addr v0, v6
-    v9: u8 = load v8
+    jump b3
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v1
+    branch v7, b2, b3
+b2:
+    v8: ref<uint8, borrowed> = element.address v0, v6
+    v9: uint8 = load v8
     store v8, v9
-    v10: u32 = iadd v6, v3
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v6, v3
+    jump b1(v10)
+b3:
     return
 }"#;
 
@@ -1592,48 +1601,50 @@ block3:
     /// Memcpy uses byte length when element size exceeds one byte.
     #[test]
     fn test_loop_idiom_memcpy_multiplies_length() {
-        let input = r#"function @test(v0: [u32; 8], v1: [u32; 8]) -> void {
-block0(v0: [u32; 8], v1: [u32; 8]):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    v4: u32 = iconst 4u32
-    jump block1(v2)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v4
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u32> = element.addr v0, v5
-    v8: ref<borrowed u32> = element.addr v1, v5
-    v9: u32 = load v8
+        let input = r#"
+function test(v0: uint32[8], v1: uint32[8]): void {
+b0(v0: uint32[8], v1: uint32[8]):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    v4: uint32 = 4uint32
+    jump b1(v2)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v4
+    branch v6, b2, b3
+b2:
+    v7: ref<uint32, borrowed> = element.address v0, v5
+    v8: ref<uint32, borrowed> = element.address v1, v5
+    v9: uint32 = load v8
     store v7, v9
-    v10: u32 = iadd v5, v3
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v5, v3
+    jump b1(v10)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u32; 8], v1: [u32; 8]) -> void {
-block0(v0: [u32; 8], v1: [u32; 8]):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    v4: u32 = iconst 4u32
-    v5: u32 = iconst 4u32
-    v6: u32 = imul v4, v5
-    v7: ref<borrowed u32> = element.addr v0, v2
-    v8: ref<borrowed u32> = element.addr v1, v2
+        let expected = r#"
+function test(v0: uint32[8], v1: uint32[8]): void {
+b0(v0: uint32[8], v1: uint32[8]):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    v4: uint32 = 4uint32
+    v5: uint32 = 4uint32
+    v6: uint32 = int.mul v4, v5
+    v7: ref<uint32, borrowed> = element.address v0, v2
+    v8: ref<uint32, borrowed> = element.address v1, v2
     intrinsic.memcpy(v7, v8, v6)
-    jump block3
-block1(v9: u32):
-    v10: bool = icmp_ult v9, v4
-    branch v10, block2, block3
-block2:
-    v11: ref<borrowed u32> = element.addr v0, v9
-    v12: ref<borrowed u32> = element.addr v1, v9
-    v13: u32 = load v12
+    jump b3
+b1(v9: uint32):
+    v10: boolean = int.lt.u v9, v4
+    branch v10, b2, b3
+b2:
+    v11: ref<uint32, borrowed> = element.address v0, v9
+    v12: ref<uint32, borrowed> = element.address v1, v9
+    v13: uint32 = load v12
     store v11, v13
-    v14: u32 = iadd v9, v3
-    jump block1(v14)
-block3:
+    v14: uint32 = int.add v9, v3
+    jump b1(v14)
+b3:
     return
 }"#;
 
@@ -1645,49 +1656,51 @@ block3:
     /// Non zero starts scale byte length for wider elements.
     #[test]
     fn test_loop_idiom_memcpy_non_zero_start_multiplies_length() {
-        let input = r#"function @test(v0: [u32; 8], v1: [u32; 8]) -> void {
-block0(v0: [u32; 8], v1: [u32; 8]):
-    v2: u32 = iconst 2u32
-    v3: u32 = iconst 1u32
-    v4: u32 = iconst 8u32
-    jump block1(v2)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v4
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u32> = element.addr v0, v5
-    v8: ref<borrowed u32> = element.addr v1, v5
-    v9: u32 = load v8
+        let input = r#"
+function test(v0: uint32[8], v1: uint32[8]): void {
+b0(v0: uint32[8], v1: uint32[8]):
+    v2: uint32 = 2uint32
+    v3: uint32 = 1uint32
+    v4: uint32 = 8uint32
+    jump b1(v2)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v4
+    branch v6, b2, b3
+b2:
+    v7: ref<uint32, borrowed> = element.address v0, v5
+    v8: ref<uint32, borrowed> = element.address v1, v5
+    v9: uint32 = load v8
     store v7, v9
-    v10: u32 = iadd v5, v3
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v5, v3
+    jump b1(v10)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u32; 8], v1: [u32; 8]) -> void {
-block0(v0: [u32; 8], v1: [u32; 8]):
-    v2: u32 = iconst 2u32
-    v3: u32 = iconst 1u32
-    v4: u32 = iconst 8u32
-    v5: u32 = isub v4, v2
-    v6: u32 = iconst 4u32
-    v7: u32 = imul v5, v6
-    v8: ref<borrowed u32> = element.addr v0, v2
-    v9: ref<borrowed u32> = element.addr v1, v2
+        let expected = r#"
+function test(v0: uint32[8], v1: uint32[8]): void {
+b0(v0: uint32[8], v1: uint32[8]):
+    v2: uint32 = 2uint32
+    v3: uint32 = 1uint32
+    v4: uint32 = 8uint32
+    v5: uint32 = int.sub v4, v2
+    v6: uint32 = 4uint32
+    v7: uint32 = int.mul v5, v6
+    v8: ref<uint32, borrowed> = element.address v0, v2
+    v9: ref<uint32, borrowed> = element.address v1, v2
     intrinsic.memcpy(v8, v9, v7)
-    jump block3
-block1(v10: u32):
-    v11: bool = icmp_ult v10, v4
-    branch v11, block2, block3
-block2:
-    v12: ref<borrowed u32> = element.addr v0, v10
-    v13: ref<borrowed u32> = element.addr v1, v10
-    v14: u32 = load v13
+    jump b3
+b1(v10: uint32):
+    v11: boolean = int.lt.u v10, v4
+    branch v11, b2, b3
+b2:
+    v12: ref<uint32, borrowed> = element.address v0, v10
+    v13: ref<uint32, borrowed> = element.address v1, v10
+    v14: uint32 = load v13
     store v12, v14
-    v15: u32 = iadd v10, v3
-    jump block1(v15)
-block3:
+    v15: uint32 = int.add v10, v3
+    jump b1(v15)
+b3:
     return
 }"#;
 
@@ -1699,47 +1712,49 @@ block3:
     /// Loops with non zero starts insert a guard.
     #[test]
     fn test_loop_idiom_guards_non_zero_start() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 1uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0uint8
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 1u32
-    v4: bool = icmp_ule v2, v1
-    branch v4, block4, block3
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v1
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v0, v5
-    v8: u8 = iconst 0u8
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 1uint32
+    v3: uint32 = 1uint32
+    v4: boolean = int.le.u v2, v1
+    branch v4, b4, b3
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v1
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: uint8 = 0uint8
     store v7, v8
-    v9: u32 = iadd v5, v3
-    jump block1(v9)
-block3:
+    v9: uint32 = int.add v5, v3
+    jump b1(v9)
+b3:
     return
-block4:
-    v10: u32 = isub v1, v2
-    v11: u8 = iconst 0u8
-    v12: ref<borrowed u8> = element.addr v0, v2
+b4:
+    v10: uint32 = int.sub v1, v2
+    v11: uint8 = 0uint8
+    v12: ref<uint8, borrowed> = element.address v0, v2
     intrinsic.memset(v12, v11, v10)
-    jump block3
+    jump b3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1750,47 +1765,49 @@ block4:
     /// Non zero starts guard memcpy lowering.
     #[test]
     fn test_loop_idiom_memcpy_guards_non_zero_start() {
-        let input = r#"function @test(v0: [u8; 8], v1: [u8; 8], v2: u32, v3: u32) -> void {
-block0(v0: [u8; 8], v1: [u8; 8], v2: u32, v3: u32):
-    v4: u32 = iconst 1u32
-    jump block1(v2)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v3
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v0, v5
-    v8: ref<borrowed u8> = element.addr v1, v5
-    v9: u8 = load v8
+        let input = r#"
+function test(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32): void {
+b0(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32):
+    v4: uint32 = 1uint32
+    jump b1(v2)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v3
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed> = element.address v1, v5
+    v9: uint8 = load v8
     store v7, v9
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: [u8; 8], v2: u32, v3: u32) -> void {
-block0(v0: [u8; 8], v1: [u8; 8], v2: u32, v3: u32):
-    v4: u32 = iconst 1u32
-    v5: bool = icmp_ule v2, v3
-    branch v5, block4, block3
-block1(v6: u32):
-    v7: bool = icmp_ult v6, v3
-    branch v7, block2, block3
-block2:
-    v8: ref<borrowed u8> = element.addr v0, v6
-    v9: ref<borrowed u8> = element.addr v1, v6
-    v10: u8 = load v9
+        let expected = r#"
+function test(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32): void {
+b0(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32):
+    v4: uint32 = 1uint32
+    v5: boolean = int.le.u v2, v3
+    branch v5, b4, b3
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v3
+    branch v7, b2, b3
+b2:
+    v8: ref<uint8, borrowed> = element.address v0, v6
+    v9: ref<uint8, borrowed> = element.address v1, v6
+    v10: uint8 = load v9
     store v8, v10
-    v11: u32 = iadd v6, v4
-    jump block1(v11)
-block3:
+    v11: uint32 = int.add v6, v4
+    jump b1(v11)
+b3:
     return
-block4:
-    v12: u32 = isub v3, v2
-    v13: ref<borrowed u8> = element.addr v0, v2
-    v14: ref<borrowed u8> = element.addr v1, v2
+b4:
+    v12: uint32 = int.sub v3, v2
+    v13: ref<uint8, borrowed> = element.address v0, v2
+    v14: ref<uint8, borrowed> = element.address v1, v2
     intrinsic.memcpy(v13, v14, v12)
-    jump block3
+    jump b3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1801,45 +1818,47 @@ block4:
     /// Non zero starts guard memmove lowering.
     #[test]
     fn test_loop_idiom_memmove_guards_non_zero_start() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = load v6
+        let input = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = load v6
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3: u32 = iconst 1u32
-    v4: bool = icmp_ule v2, v1
-    branch v4, block4, block3
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v1
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v0, v5
-    v8: u8 = load v7
+        let expected = r#"
+function test(v0: uint8[8], v1: uint32, v2: uint32): void {
+b0(v0: uint8[8], v1: uint32, v2: uint32):
+    v3: uint32 = 1uint32
+    v4: boolean = int.le.u v2, v1
+    branch v4, b4, b3
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v1
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: uint8 = load v7
     store v7, v8
-    v9: u32 = iadd v5, v3
-    jump block1(v9)
-block3:
+    v9: uint32 = int.add v5, v3
+    jump b1(v9)
+b3:
     return
-block4:
-    v10: u32 = isub v1, v2
-    v11: ref<borrowed u8> = element.addr v0, v2
-    v12: ref<borrowed u8> = element.addr v0, v2
+b4:
+    v10: uint32 = int.sub v1, v2
+    v11: ref<uint8, borrowed> = element.address v0, v2
+    v12: ref<uint8, borrowed> = element.address v0, v2
     intrinsic.memmove(v11, v12, v10)
-    jump block3
+    jump b3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1850,21 +1869,22 @@ block4:
     /// Loops with non unit stride are not lowered.
     #[test]
     fn test_loop_idiom_skips_non_unit_stride() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 2u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 2uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0uint8
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }"#;
 
@@ -1876,25 +1896,26 @@ block3:
     /// Loops with conditional stores are not lowered.
     #[test]
     fn test_loop_idiom_skips_conditional_store() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: bool) -> void {
-block0(v0: [u8; 8], v1: u32, v2: bool):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v1
-    branch v6, block2(v5), block5
-block2(v7: u32):
-    branch v2, block3(v7), block4(v7)
-block3(v8: u32):
-    v9: ref<borrowed u8> = element.addr v0, v8
-    v10: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32, v2: boolean): void {
+b0(v0: uint8[8], v1: uint32, v2: boolean):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v1
+    branch v6, b2(v5), b5
+b2(v7: uint32):
+    branch v2, b3(v7), b4(v7)
+b3(v8: uint32):
+    v9: ref<uint8, borrowed> = element.address v0, v8
+    v10: uint8 = 0uint8
     store v9, v10
-    jump block4(v8)
-block4(v11: u32):
-    v12: u32 = iadd v11, v4
-    jump block1(v12)
-block5:
+    jump b4(v8)
+b4(v11: uint32):
+    v12: uint32 = int.add v11, v4
+    jump b1(v12)
+b5:
     return
 }"#;
 
@@ -1906,31 +1927,32 @@ block5:
     /// Loops with nested stores are not lowered.
     #[test]
     fn test_loop_idiom_skips_nested_store() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    v4: u32 = iconst 2u32
-    jump block1(v2)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v1
-    branch v6, block2, block6
-block2:
-    v7: u32 = iconst 0u32
-    jump block3(v7)
-block3(v8: u32):
-    v9: ref<borrowed u8> = element.addr v0, v5
-    v10: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    v4: uint32 = 2uint32
+    jump b1(v2)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v1
+    branch v6, b2, b6
+b2:
+    v7: uint32 = 0uint32
+    jump b3(v7)
+b3(v8: uint32):
+    v9: ref<uint8, borrowed> = element.address v0, v5
+    v10: uint8 = 0uint8
     store v9, v10
-    v11: bool = icmp_ult v8, v4
-    branch v11, block4(v8), block5
-block4(v12: u32):
-    v13: u32 = iadd v12, v3
-    jump block3(v13)
-block5:
-    v14: u32 = iadd v5, v3
-    jump block1(v14)
-block6:
+    v11: boolean = int.lt.u v8, v4
+    branch v11, b4(v8), b5
+b4(v12: uint32):
+    v13: uint32 = int.add v12, v3
+    jump b3(v13)
+b5:
+    v14: uint32 = int.add v5, v3
+    jump b1(v14)
+b6:
     return
 }"#;
 
@@ -1942,22 +1964,23 @@ block6:
     /// Loops with variant arrays are not lowered.
     #[test]
     fn test_loop_idiom_skips_variant_array() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2, v0)
-block1(v4: u32, v5: [u8; 8]):
-    v6: bool = icmp_ult v4, v1
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v5, v4
-    v8: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2, v0)
+b1(v4: uint32, v5: uint8[8]):
+    v6: boolean = int.lt.u v4, v1
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v5, v4
+    v8: uint8 = 0uint8
     store v7, v8
-    v9: [u8; 8] = element.set v5, v4, v8
-    v10: u32 = iadd v4, v3
-    jump block1(v10, v9)
-block3:
+    v9: uint8[8] = element.set v5, v4, v8
+    v10: uint32 = int.add v4, v3
+    jump b1(v10, v9)
+b3:
     return
 }"#;
 
@@ -1969,20 +1992,21 @@ block3:
     /// Loops with non constant stores are left unchanged.
     #[test]
     fn test_loop_idiom_skips_non_constant_store() {
-        let input = r#"function @test(v0: [u8; 8], v1: u8, v2: u32) -> void {
-block0(v0: [u8; 8], v1: u8, v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v0, v5
+        let input = r#"
+function test(v0: uint8[8], v1: uint8, v2: uint32): void {
+b0(v0: uint8[8], v1: uint8, v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
     store v7, v1
-    v8: u32 = iadd v5, v4
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v5, v4
+    jump b1(v8)
+b3:
     return
 }"#;
 
@@ -1994,26 +2018,27 @@ block3:
     /// Loops with side effects are not lowered.
     #[test]
     fn test_loop_idiom_skips_side_effects() {
-        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
-block0(v0: [u8; 8], v1: u32):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v1
-    branch v5, block2, block3
-block2:
-    call @touch(v4) -> fn(u32) -> void
-    v6: ref<borrowed u8> = element.addr v0, v4
-    v7: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint32): void {
+b0(v0: uint8[8], v1: uint32):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
+b2:
+    call touch(v4): (uint32) -> void
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0uint8
     store v6, v7
-    v8: u32 = iadd v4, v3
-    jump block1(v8)
-block3:
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return
 }
-function @touch(v0: u32) -> void {
-block0(v0: u32):
+function touch(v0: uint32): void {
+b0(v0: uint32):
     return
 }"#;
 
@@ -2025,23 +2050,24 @@ block0(v0: u32):
     /// Loops with multiple stores are not lowered.
     #[test]
     fn test_loop_idiom_skips_multiple_stores() {
-        let input = r#"function @test(v0: [u8; 8], v1: [u8; 8], v2: u32) -> void {
-block0(v0: [u8; 8], v1: [u8; 8], v2: u32):
-    v3: u32 = iconst 0u32
-    v4: u32 = iconst 1u32
-    jump block1(v3)
-block1(v5: u32):
-    v6: bool = icmp_ult v5, v2
-    branch v6, block2, block3
-block2:
-    v7: ref<borrowed u8> = element.addr v0, v5
-    v8: u8 = iconst 0u8
+        let input = r#"
+function test(v0: uint8[8], v1: uint8[8], v2: uint32): void {
+b0(v0: uint8[8], v1: uint8[8], v2: uint32):
+    v3: uint32 = 0uint32
+    v4: uint32 = 1uint32
+    jump b1(v3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: uint8 = 0uint8
     store v7, v8
-    v9: ref<borrowed u8> = element.addr v1, v5
+    v9: ref<uint8, borrowed> = element.address v1, v5
     store v9, v8
-    v10: u32 = iadd v5, v4
-    jump block1(v10)
-block3:
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
+b3:
     return
 }"#;
 

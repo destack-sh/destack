@@ -501,35 +501,37 @@ mod tests {
     /// Simple while loop is rotated to do-while with guard.
     #[test]
     fn test_basic_rotation() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
-    jump block1
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
+    jump b1
+b3:
     return
 }"#;
         // after rotation:
-        // - preheader (block0) gets the guard branch
-        // - latch (block2) gets the rotated branch
-        // - header (block1) becomes dead and is removed by SimplifyCfg
+        // - preheader (b0) gets the guard branch
+        // - latch (b2) gets the rotated branch
+        // - header (b1) becomes dead and is removed by SimplifyCfg
         // - critical edges are split into jump blocks
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block2, block1
-block1:
-    jump block6
-block2:
-    jump block3
-block3:
-    branch v0, block5, block4
-block4:
-    jump block6
-block5:
-    jump block3
-block6:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    jump b6
+b2:
+    jump b3
+b3:
+    branch v0, b5, b4
+b4:
+    jump b6
+b5:
+    jump b3
+b6:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -543,45 +545,47 @@ block6:
     #[test]
     fn test_rotation_with_phi() {
         // header passes all its params to body, so rotation is valid
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: bool = icmp_slt v2, v1
-    jump block1(v2, v3)
-block1(v4: i32, v5: bool):
-    branch v5, block2(v4, v5), block3(v4)
-block2(v6: i32, v7: bool):
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v6, v8
-    v10: bool = icmp_slt v9, v1
-    jump block1(v9, v10)
-block3(v11: i32):
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: boolean = int.lt.s v2, v1
+    jump b1(v2, v3)
+b1(v4: int32, v5: boolean):
+    branch v5, b2(v4, v5), b3(v4)
+b2(v6: int32, v7: boolean):
+    v8: int32 = 1int32
+    v9: int32 = int.add v6, v8
+    v10: boolean = int.lt.s v9, v1
+    jump b1(v9, v10)
+b3(v11: int32):
     return v11
 }"#;
         // after rotation:
-        // - block0: guard branch using initial condition v3
-        // - block2: latch branch using computed condition v10
-        // - block1 becomes dead and is removed
+        // - b0: guard branch using initial condition v3
+        // - b2: latch branch using computed condition v10
+        // - b1 becomes dead and is removed
         // - critical edges are split into jump blocks
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: bool = icmp_slt v2, v1
-    branch v3, block2(v2, v3), block1(v2)
-block1(v4: i32):
-    jump block6(v4)
-block2(v5: i32, v6: bool):
-    jump block3(v5, v6)
-block3(v7: i32, v8: bool):
-    v9: i32 = iconst 1i32
-    v10: i32 = iadd v7, v9
-    v11: bool = icmp_slt v10, v1
-    branch v11, block5(v10, v11), block4(v10)
-block4(v12: i32):
-    jump block6(v12)
-block5(v13: i32, v14: bool):
-    jump block3(v13, v14)
-block6(v15: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: boolean = int.lt.s v2, v1
+    branch v3, b2(v2, v3), b1(v2)
+b1(v4: int32):
+    jump b6(v4)
+b2(v5: int32, v6: boolean):
+    jump b3(v5, v6)
+b3(v7: int32, v8: boolean):
+    v9: int32 = 1int32
+    v10: int32 = int.add v7, v9
+    v11: boolean = int.lt.s v10, v1
+    branch v11, b5(v10, v11), b4(v10)
+b4(v12: int32):
+    jump b6(v12)
+b5(v13: int32, v14: boolean):
+    jump b3(v13, v14)
+b6(v15: int32):
     return v15
 }"#;
         let mut test = TestProgram::new(input);
@@ -594,32 +598,34 @@ block6(v15: i32):
     /// Loop with false-to-body (inverted condition) is rotated correctly.
     #[test]
     fn test_rotation_inverted_condition() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block3, block2
-block2:
-    jump block1
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b3, b2
+b2:
+    jump b1
+b3:
     return
 }"#;
         // condition false -> body, condition true -> exit
         // critical edges are split after SimplifyCfg
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block2, block1
-block1:
-    jump block3
-block2:
-    jump block6
-block3:
-    branch v0, block5, block4
-block4:
-    jump block3
-block5:
-    jump block6
-block6:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    jump b3
+b2:
+    jump b6
+b3:
+    branch v0, b5, b4
+b4:
+    jump b3
+b5:
+    jump b6
+b6:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -632,16 +638,17 @@ block6:
     /// Loop with instructions in header is not rotated.
     #[test]
     fn test_no_rotate_header_with_instructions() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    jump block1
-block1:
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v1, v2
-    branch v0, block2, block3
-block2:
-    jump block1
-block3:
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    jump b1
+b1:
+    v2: int32 = 1int32
+    v3: int32 = int.add v1, v2
+    branch v0, b2, b3
+b2:
+    jump b1
+b3:
     return v3
 }"#;
         // header has instructions, don't rotate
@@ -655,12 +662,13 @@ block3:
     /// Single-block loop is not rotated.
     #[test]
     fn test_no_rotate_single_block() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return
 }"#;
         // latch == header, don't rotate
@@ -674,14 +682,15 @@ block2:
     /// Loop with unconditional header terminator is not rotated.
     #[test]
     fn test_no_rotate_unconditional_header() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    jump block2
-block2:
-    branch v0, block1, block3
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    jump b2
+b2:
+    branch v0, b1, b3
+b3:
     return
 }"#;
         // header ends with jump, not branch - can't rotate
@@ -697,16 +706,17 @@ block3:
     fn test_no_rotate_missing_param_passthrough() {
         // header has param v2, but body doesn't receive it (body uses v2 directly)
         // rotation would make v2 undefined in body, so we skip
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    jump block1(v1)
-block1(v2: i32):
-    branch v0, block2, block3
-block2:
-    v3: i32 = iconst 1i32
-    v4: i32 = iadd v2, v3
-    jump block1(v4)
-block3:
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    jump b1(v1)
+b1(v2: int32):
+    branch v0, b2, b3
+b2:
+    v3: int32 = 1int32
+    v4: int32 = int.add v2, v3
+    jump b1(v4)
+b3:
     return v2
 }"#;
         // header has param v2, body doesn't receive v2 as argument, skip rotation
@@ -720,10 +730,11 @@ block3:
     /// Function without loops is unchanged.
     #[test]
     fn test_no_loops() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -737,49 +748,51 @@ block0(v0: i32):
     fn test_rotation_multiple_phis() {
         // condition is passed as a block parameter to enable rotation.
         // body block (block2) has same parameters as header (block1).
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 1i32
-    v4: bool = icmp_slt v2, v0
-    jump block1(v2, v3, v4)
-block1(v5: i32, v6: i32, v7: bool):
-    branch v7, block2(v5, v6, v7), block3(v5, v6)
-block2(v8: i32, v9: i32, v10: bool):
-    v11: i32 = iadd v8, v9
-    v12: i32 = iadd v9, v3
-    v13: bool = icmp_slt v11, v0
-    jump block1(v11, v12, v13)
-block3(v14: i32, v15: i32):
-    v16: i32 = iadd v14, v15
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    v4: boolean = int.lt.s v2, v0
+    jump b1(v2, v3, v4)
+b1(v5: int32, v6: int32, v7: boolean):
+    branch v7, b2(v5, v6, v7), b3(v5, v6)
+b2(v8: int32, v9: int32, v10: boolean):
+    v11: int32 = int.add v8, v9
+    v12: int32 = int.add v9, v3
+    v13: boolean = int.lt.s v11, v0
+    jump b1(v11, v12, v13)
+b3(v14: int32, v15: int32):
+    v16: int32 = int.add v14, v15
     return v16
 }"#;
         // after rotation:
-        // - block0: guard branch using initial condition v4
-        // - block2: latch branch using computed condition v13
-        // - block1 becomes dead and is removed
+        // - b0: guard branch using initial condition v4
+        // - b2: latch branch using computed condition v13
+        // - b1 becomes dead and is removed
         // - critical edges are split into jump blocks
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 1i32
-    v4: bool = icmp_slt v2, v0
-    branch v4, block2(v2, v3, v4), block1(v2, v3)
-block1(v5: i32, v6: i32):
-    jump block6(v5, v6)
-block2(v7: i32, v8: i32, v9: bool):
-    jump block3(v7, v8, v9)
-block3(v10: i32, v11: i32, v12: bool):
-    v13: i32 = iadd v10, v11
-    v14: i32 = iadd v11, v3
-    v15: bool = icmp_slt v13, v0
-    branch v15, block5(v13, v14, v15), block4(v13, v14)
-block4(v16: i32, v17: i32):
-    jump block6(v16, v17)
-block5(v18: i32, v19: i32, v20: bool):
-    jump block3(v18, v19, v20)
-block6(v21: i32, v22: i32):
-    v23: i32 = iadd v21, v22
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    v4: boolean = int.lt.s v2, v0
+    branch v4, b2(v2, v3, v4), b1(v2, v3)
+b1(v5: int32, v6: int32):
+    jump b6(v5, v6)
+b2(v7: int32, v8: int32, v9: boolean):
+    jump b3(v7, v8, v9)
+b3(v10: int32, v11: int32, v12: boolean):
+    v13: int32 = int.add v10, v11
+    v14: int32 = int.add v11, v3
+    v15: boolean = int.lt.s v13, v0
+    branch v15, b5(v13, v14, v15), b4(v13, v14)
+b4(v16: int32, v17: int32):
+    jump b6(v16, v17)
+b5(v18: int32, v19: int32, v20: boolean):
+    jump b3(v18, v19, v20)
+b6(v21: int32, v22: int32):
+    v23: int32 = int.add v21, v22
     return v23
 }"#;
         let mut test = TestProgram::new(input);

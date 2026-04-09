@@ -17,24 +17,24 @@ declare_pass! {
     /// enabling later constant folding and CSE.
     ///
     /// ```mir
-    /// function @before(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst 1i32
-    ///     v2 = iconst 2i32
-    ///     v3 = iadd v0, v1
-    ///     v4 = iadd v3, v2
+    /// function before(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = 1int32
+    ///     v2 = 2int32
+    ///     v3 = int.add v0, v1
+    ///     v4 = int.add v3, v2
     ///     return v4
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst 1i32
-    ///     v2 = iconst 2i32
-    ///     v3 = iadd v0, v1
-    ///     v5 = iconst 3i32
-    ///     v4 = iadd v0, v5
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = 1int32
+    ///     v2 = 2int32
+    ///     v3 = int.add v0, v1
+    ///     v5 = 3int32
+    ///     v4 = int.add v0, v5
     ///     return v4
     /// }
     /// ```
@@ -576,21 +576,23 @@ mod tests {
     /// Constant reassociation combines adjacent constants.
     #[test]
     fn test_reassociate_add_constants() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v3, v2
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v3, v2
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = iadd v0, v1
-    v4: i32 = iconst 3i32
-    v5: i32 = iadd v0, v4
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = int.add v0, v1
+    v4: int32 = 3int32
+    v5: int32 = int.add v0, v4
     return v5
 }"#;
 
@@ -602,12 +604,13 @@ block0(v0: i32):
     /// Float arithmetic is not reassociated.
     #[test]
     fn test_reassociate_skips_float() {
-        let input = r#"function @test(v0: f64) -> f64 {
-block0(v0: f64):
-    v1: f64 = iconst 1f64
-    v2: f64 = iconst 2f64
-    v3: f64 = fadd v0, v1
-    v4: f64 = fadd v3, v2
+        let input = r#"
+function test(v0: float64): float64 {
+b0(v0: float64):
+    v1: float64 = 1float64
+    v2: float64 = 2float64
+    v3: float64 = float.add v0, v1
+    v4: float64 = float.add v3, v2
     return v4
 }"#;
 
@@ -619,21 +622,23 @@ block0(v0: f64):
     /// Float reassociation runs with reassociate policy.
     #[test]
     fn test_reassociate_float_policy() {
-        let input = r#"function @test(v0: f64) -> f64 {
-block0(v0: f64):
-    v1: f64 = iconst 1f64
-    v2: f64 = iconst 2f64
-    v3: f64 = fadd v0, v1
-    v4: f64 = fadd v3, v2
+        let input = r#"
+function test(v0: float64): float64 {
+b0(v0: float64):
+    v1: float64 = 1float64
+    v2: float64 = 2float64
+    v3: float64 = float.add v0, v1
+    v4: float64 = float.add v3, v2
     return v4
 }"#;
-        let expected = r#"function @test(v0: f64) -> f64 {
-block0(v0: f64):
-    v1: f64 = iconst 1f64
-    v2: f64 = iconst 2f64
-    v3: f64 = fadd v0, v1
-    v4: f64 = iconst 3f64
-    v5: f64 = fadd v0, v4
+        let expected = r#"
+function test(v0: float64): float64 {
+b0(v0: float64):
+    v1: float64 = 1float64
+    v2: float64 = 2float64
+    v3: float64 = float.add v0, v1
+    v4: float64 = 3float64
+    v5: float64 = float.add v0, v4
     return v5
 }"#;
 
@@ -651,10 +656,11 @@ block0(v0: f64):
     /// Reassociation does not fire without adjacent constants.
     #[test]
     fn test_reassociate_requires_constant() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v3, v2
+        let input = r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v3, v2
     return v4
 }"#;
 
@@ -667,26 +673,28 @@ block0(v0: i32, v1: i32, v2: i32):
     #[test]
     fn test_reassociate_combines_multiple_constants() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 3i32
-    v4: i32 = iadd v0, v1
-    v5: i32 = iadd v4, v2
-    v6: i32 = iadd v5, v3
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = 3int32
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v4, v2
+    v6: int32 = int.add v5, v3
     return v6
 }"#;
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 3i32
-    v4: i32 = iadd v0, v1
-    v5: i32 = iadd v0, v3
-    v6: i32 = iconst 6i32
-    v7: i32 = iadd v0, v6
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = 3int32
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v0, v3
+    v6: int32 = 6int32
+    v7: int32 = int.add v0, v6
     return v7
 }"#;
 
@@ -700,24 +708,26 @@ block0(v0: i32):
     #[test]
     fn test_reassociate_combines_constants_with_nonconstant_subtree() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 4i32
-    v3: i32 = iconst 5i32
-    v4: i32 = iadd v0, v1
-    v5: i32 = iadd v4, v2
-    v6: i32 = iadd v5, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 4int32
+    v3: int32 = 5int32
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v4, v2
+    v6: int32 = int.add v5, v3
     return v6
 }"#;
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 4i32
-    v3: i32 = iconst 5i32
-    v4: i32 = iadd v0, v1
-    v5: i32 = iadd v4, v2
-    v6: i32 = iconst 9i32
-    v7: i32 = iadd v4, v6
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 4int32
+    v3: int32 = 5int32
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v4, v2
+    v6: int32 = 9int32
+    v7: int32 = int.add v4, v6
     return v7
 }"#;
 
@@ -731,25 +741,27 @@ block0(v0: i32, v1: i32):
     #[test]
     fn test_reassociate_rebuilds_chain_with_multiple_operands() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    v4: i32 = iadd v0, v2
-    v5: i32 = iadd v1, v3
-    v6: i32 = iadd v4, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    v4: int32 = int.add v0, v2
+    v5: int32 = int.add v1, v3
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    v4: i32 = iadd v0, v2
-    v5: i32 = iadd v1, v3
-    v6: i32 = iconst 3i32
-    v7: i32 = iadd v0, v1
-    v8: i32 = iadd v7, v6
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    v4: int32 = int.add v0, v2
+    v5: int32 = int.add v1, v3
+    v6: int32 = 3int32
+    v7: int32 = int.add v0, v1
+    v8: int32 = int.add v7, v6
     return v8
 }"#;
 
@@ -763,22 +775,24 @@ block0(v0: i32, v1: i32):
     #[test]
     fn test_reassociate_multiply_constants() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = imul v0, v1
-    v4: i32 = imul v3, v2
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.mul v0, v1
+    v4: int32 = int.mul v3, v2
     return v4
 }"#;
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = imul v0, v1
-    v4: i32 = iconst 6i32
-    v5: i32 = imul v0, v4
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.mul v0, v1
+    v4: int32 = 6int32
+    v5: int32 = int.mul v0, v4
     return v5
 }"#;
 
@@ -792,22 +806,24 @@ block0(v0: i32):
     #[test]
     fn test_reassociate_bitwise_constants() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = band v0, v1
-    v4: i32 = band v3, v2
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = int.and v0, v1
+    v4: int32 = int.and v3, v2
     return v4
 }"#;
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = band v0, v1
-    v4: i32 = iconst 0i32
-    v5: i32 = band v0, v4
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = int.and v0, v1
+    v4: int32 = 0int32
+    v5: int32 = int.and v0, v4
     return v5
 }"#;
 

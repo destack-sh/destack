@@ -116,7 +116,7 @@ impl FunctionLowerer<'_> {
                 }
                 self.state.builder.struct_(ty, values)
             }
-            mir::Type::FunctionValue { signature } => {
+            mir::Type::Closure { signature } => {
                 let environment = self.state.builder.tree().function_value_environment_type();
                 let signature_value = self.zero_value_for_type_inner(signature, node, visiting)?;
                 let environment_value =

@@ -312,7 +312,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = call @Box.size(v0) -> fn(ref<managed readonly @Box>) -> i32
+    /// v1: int32 = call Box.size(v0)
     /// ```
     pub(crate) fn lower_getter_call(
         &mut self,
@@ -429,8 +429,8 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = iconst 3
-    /// call @Box.size(v0, v1) -> fn(ref<managed readonly @Box>, i32) -> void
+    /// v1: int32 = const 3
+    /// call Box.size(v0, v1)
     /// ```
     pub(crate) fn lower_setter_call(
         &mut self,
@@ -526,8 +526,8 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = iconst 1
-    /// v2: i32 = element.get v0, v1
+    /// v1: int32 = const 1
+    /// v2: int32 = element.get v0, v1
     /// ```
     pub(crate) fn lower_index_expression(
         &mut self,

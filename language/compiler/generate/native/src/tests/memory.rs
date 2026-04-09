@@ -10,17 +10,17 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_load_from_pointer() {
     let mir = r#"
-function @read_ptr(v0: ref<raw readonly i32>) -> i32 {
-block0(v0: ref<raw readonly i32>):
-    v1: i32 = load v0
+function read_ptr(v0: ref<int32, raw, readonly>): int32 {
+bb0(v0: ref<int32, raw, readonly>):
+    v1: int32 = load v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i64) -> i32 native {
-block0(v0: i64):
-    v1 = load.i32 v0
+function u0:0(int64): int32 native {
+bb0(v0: int64):
+    v1 = load.int32 v0
     return v1
 }"#
     .trim();
@@ -32,19 +32,19 @@ block0(v0: i64):
 #[test]
 fn test_load_double_indirection() {
     let mir = r#"
-function @read_ptr_ptr(v0: ref<raw readonly ref<raw i32>>) -> i32 {
-block0(v0: ref<raw readonly ref<raw i32>>):
-    v1: ref<raw readonly i32> = load v0
-    v2: i32 = load v1
+function read_ptr_ptr(v0: ref<ref<int32, raw>, raw, readonly>): int32 {
+bb0(v0: ref<ref<int32, raw>, raw, readonly>):
+    v1: ref<int32, raw, readonly> = load v0
+    v2: int32 = load v1
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i64) -> i32 native {
-block0(v0: i64):
-    v1 = load.i64 v0
-    v2 = load.i32 v1
+function u0:0(int64): int32 native {
+bb0(v0: int64):
+    v1 = load.int64 v0
+    v2 = load.int32 v1
     return v2
 }"#
     .trim();
@@ -56,17 +56,17 @@ block0(v0: i64):
 #[test]
 fn test_load_i64() {
     let mir = r#"
-function @read_ptr64(v0: ref<raw readonly i64>) -> i64 {
-block0(v0: ref<raw readonly i64>):
-    v1: i64 = load v0
+function read_ptr64(v0: ref<int64, raw, readonly>): int64 {
+bb0(v0: ref<int64, raw, readonly>):
+    v1: int64 = load v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i64) -> i64 native {
-block0(v0: i64):
-    v1 = load.i64 v0
+function u0:0(int64): int64 native {
+bb0(v0: int64):
+    v1 = load.int64 v0
     return v1
 }"#
     .trim();
@@ -78,17 +78,17 @@ block0(v0: i64):
 #[test]
 fn test_load_bool() {
     let mir = r#"
-function @read_bool(v0: ref<raw readonly bool>) -> bool {
-block0(v0: ref<raw readonly bool>):
-    v1: bool = load v0
+function read_bool(v0: ref<boolean, raw, readonly>): boolean {
+bb0(v0: ref<boolean, raw, readonly>):
+    v1: boolean = load v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i64) -> i8 native {
-block0(v0: i64):
-    v1 = load.i8 v0
+function u0:0(int64): int8 native {
+bb0(v0: int64):
+    v1 = load.int8 v0
     return v1
 }"#
     .trim();
@@ -100,23 +100,23 @@ block0(v0: i64):
 #[test]
 fn test_local_get() {
     let mir = r#"
-function @local_test(v0: i32) -> i32 {
-    local0: i32
+function local_test(v0: int32): int32 {
+    local0: int32
 
-block0(v0: i32):
-    v1: i32 = local.get local0
-    v2: i32 = iadd v0, v1
+bb0(v0: int32):
+    v1: int32 = local.get local0
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32) -> i32 native {
+function u0:0(int32): int32 native {
     ss0 = explicit_slot 4
 
-block0(v0: i32):
-    v1 = stack_load.i32 ss0
-    v2 = iadd v0, v1
+bb0(v0: int32):
+    v1 = stack_load.int32 ss0
+    v2 = int.add v0, v1
     return v2
 }"#
     .trim();
@@ -128,29 +128,29 @@ block0(v0: i32):
 #[test]
 fn test_multiple_locals_load() {
     let mir = r#"
-function @multi_local_test(v0: i32) -> i64 {
-    local0: i32
-    local1: i64
+function multi_local_test(v0: int32): int64 {
+    local0: int32
+    local1: int64
 
-block0(v0: i32):
-    v1: i32 = local.get local0
-    v2: i64 = uextend v1 -> i64
-    v3: i64 = local.get local1
-    v4: i64 = iadd v2, v3
+bb0(v0: int32):
+    v1: int32 = local.get local0
+    v2: int64 = cast.extend.u v1 to int64
+    v3: int64 = local.get local1
+    v4: int64 = int.add v2, v3
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32) -> i64 native {
+function u0:0(int32): int64 native {
     ss0 = explicit_slot 4
     ss1 = explicit_slot 8
 
-block0(v0: i32):
-    v1 = stack_load.i32 ss0
-    v2 = uextend.i64 v1
-    v3 = stack_load.i64 ss1
-    v4 = iadd v2, v3
+bb0(v0: int32):
+    v1 = stack_load.int32 ss0
+    v2 = cast.extend.u.int64 v1
+    v3 = stack_load.int64 ss1
+    v4 = int.add v2, v3
     return v4
 }"#
     .trim();
@@ -162,17 +162,17 @@ block0(v0: i32):
 #[test]
 fn test_load_float() {
     let mir = r#"
-function @read_float(v0: ref<raw readonly f32>) -> f32 {
-block0(v0: ref<raw readonly f32>):
-    v1: f32 = load v0
+function read_float(v0: ref<float32, raw, readonly>): float32 {
+bb0(v0: ref<float32, raw, readonly>):
+    v1: float32 = load v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i64) -> f32 native {
-block0(v0: i64):
-    v1 = load.f32 v0
+function u0:0(int64): float32 native {
+bb0(v0: int64):
+    v1 = load.float32 v0
     return v1
 }"#
     .trim();

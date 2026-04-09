@@ -16,33 +16,33 @@ declare_pass! {
     /// pass the same constant, then leaves dead argument removal to later passes.
     ///
     /// ```mir
-    /// function @callee(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = iadd v0, v1
+    /// function callee(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.add v0, v1
     ///     return v2
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 40i32
-    ///     v1 = iconst 2i32
-    ///     v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 40int32
+    ///     v1 = 2int32
+    ///     v2 = call callee(v0, v1)
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @callee(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v3 = iconst 40i32
-    ///     v4 = iconst 2i32
-    ///     v2 = iadd v3, v4
+    /// function callee(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v3 = 40int32
+    ///     v4 = 2int32
+    ///     v2 = int.add v3, v4
     ///     return v2
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 40i32
-    ///     v1 = iconst 2i32
-    ///     v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 40int32
+    ///     v1 = 2int32
+    ///     v2 = call callee(v0, v1)
     ///     return v2
     /// }
     /// ```
@@ -332,31 +332,33 @@ mod tests {
     /// Constant call arguments are propagated into the callee.
     #[test]
     fn test_ip_constant_prop_inserts_constants() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 40i32
-    v1: i32 = iconst 2i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 40int32
+    v1: int32 = 2int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 40i32
-    v3: i32 = iconst 2i32
-    v4: i32 = iadd v2, v3
+        let expected = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 40int32
+    v3: int32 = 2int32
+    v4: int32 = int.add v2, v3
     return v4
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 40i32
-    v1: i32 = iconst 2i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 40int32
+    v1: int32 = 2int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -368,21 +370,22 @@ block0:
     /// Differing constants across callsites do not propagate.
     #[test]
     fn test_ip_constant_prop_skips_mismatched_constants() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }
-function @other() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function other(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -394,16 +397,16 @@ block0:
     /// Indirect call signatures prevent propagation.
     #[test]
     fn test_ip_constant_prop_skips_indirect_signature() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
-    v3: i32 = iconst 4i32
-    v4: i32 = call @callee(v3) -> fn(i32) -> i32
+function root(v0: fn(int32) -> int32, v1: int32): int32  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
+    v3: int32 = 4int32
+    v4: int32 = call callee(v3): (int32) -> int32
     return v4
 }"#;
 
@@ -415,28 +418,30 @@ block0(v0: fn(i32) -> i32, v1: i32):
     /// Globals constants can be propagated across calls.
     #[test]
     fn test_ip_constant_prop_propagates_global_const() {
-        let input = r#"global @value: i32 = 7i32 ; readonly
-function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+global value: int32, readonly = 7int32
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = global.const @value
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = global.const value
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
-        let expected = r#"global @value: i32 = 7i32 ; readonly
-function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 7i32
+        let expected = r#"
+global value: int32, readonly = 7int32
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 7int32
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = global.const @value
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = global.const value
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -448,32 +453,34 @@ block0:
     /// Exceptional direct call terminators contribute constants to the callee.
     #[test]
     fn test_ip_constant_prop_propagates_call_terminator() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 4i32
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+function root(): int32 {
+b0:
+    v0: int32 = 4int32
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 4i32
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 4int32
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 4i32
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+function root(): int32 {
+b0:
+    v0: int32 = 4int32
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
@@ -485,25 +492,27 @@ block2(v2: ref<managed readonly i32>):
     /// Tailcalls participate in constant propagation.
     #[test]
     fn test_ip_constant_prop_propagates_tailcall() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    tailcall @callee(v0)
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    tailCall callee(v0): (int32) -> int32
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 9i32
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 9int32
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    tailcall @callee(v0)
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    tailCall callee(v0): (int32) -> int32
 }"#;
 
         let mut test = TestProgram::new(input);

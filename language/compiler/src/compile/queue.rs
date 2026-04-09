@@ -323,34 +323,38 @@ impl TaskQueue {
 
     /// Increment active task count (called when a worker starts processing).
     pub(super) fn begin_work(&self) {
-        self.active_count.fetch_add(1, Ordering::SeqCst);
+        self.active_count
+            .fetch_add(1, Ordering::SequentiallyConsistent);
     }
 
     /// Reset the file-blocked state for one new compiler pass.
     pub(super) fn clear_blocked_on_files(&self) {
-        self.blocked_on_files.store(0, Ordering::SeqCst);
+        self.blocked_on_files
+            .store(0, Ordering::SequentiallyConsistent);
     }
 
     /// Mark the current compiler pass as blocked on file requirements.
     pub(super) fn mark_blocked_on_files(&self) {
-        self.blocked_on_files.store(1, Ordering::SeqCst);
+        self.blocked_on_files
+            .store(1, Ordering::SequentiallyConsistent);
     }
 
     /// Return whether the current compiler pass is blocked on file requirements.
     pub(super) fn is_blocked_on_files(&self) -> bool {
-        self.blocked_on_files.load(Ordering::SeqCst) != 0
+        self.blocked_on_files.load(Ordering::SequentiallyConsistent) != 0
     }
 
     /// Decrement active task count (called when a worker finishes processing).
     pub(super) fn end_work(&self) {
-        self.active_count.fetch_sub(1, Ordering::SeqCst);
+        self.active_count
+            .fetch_sub(1, Ordering::SequentiallyConsistent);
         // notify in case all work is done
         self.notify_workers();
     }
 
     /// Check if all work is done (no ready tasks and no active workers).
     pub(super) fn is_done(&self) -> bool {
-        self.is_ready_empty() && self.active_count.load(Ordering::SeqCst) == 0
+        self.is_ready_empty() && self.active_count.load(Ordering::SequentiallyConsistent) == 0
     }
 
     /// Return true when any tracked task is not in a final state.

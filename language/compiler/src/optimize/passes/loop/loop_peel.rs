@@ -15,40 +15,40 @@ declare_pass! {
     /// first iteration always executes.
     ///
     /// ```mir
-    /// function @before(v0: u32) -> u32 {
-    /// block0(v0: u32):
-    ///     v1 = iconst 0u32
-    ///     jump block1(v1)
-    /// block1(v2: u32):
-    ///     v3 = iadd v2, v0
-    ///     v4 = iconst 1u32
-    ///     v5 = iadd v2, v4
-    ///     v6 = icmp_ult v5, v0
-    ///     branch v6, block1(v5), block2
-    /// block2:
+    /// function before(v0: uint32): uint32 {
+    /// b0(v0: uint32):
+    ///     v1 = 0uint32
+    ///     jump b1(v1)
+    /// b1(v2: uint32):
+    ///     v3 = int.add v2, v0
+    ///     v4 = 1uint32
+    ///     v5 = int.add v2, v4
+    ///     v6 = int.lt.u v5, v0
+    ///     branch v6, b1(v5), b2
+    /// b2:
     ///     return v3
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: u32) -> u32 {
-    /// block0(v0: u32):
-    ///     v1 = iconst 0u32
-    ///     jump block3(v1)
-    /// block1(v2: u32):
-    ///     v3 = iadd v2, v0
-    ///     v4 = iconst 1u32
-    ///     v5 = iadd v2, v4
-    ///     v6 = icmp_ult v5, v0
-    ///     branch v6, block1(v5), block2
-    /// block2:
+    /// function after(v0: uint32): uint32 {
+    /// b0(v0: uint32):
+    ///     v1 = 0uint32
+    ///     jump b3(v1)
+    /// b1(v2: uint32):
+    ///     v3 = int.add v2, v0
+    ///     v4 = 1uint32
+    ///     v5 = int.add v2, v4
+    ///     v6 = int.lt.u v5, v0
+    ///     branch v6, b1(v5), b2
+    /// b2:
     ///     return v3
-    /// block3(v7: u32):
-    ///     v8 = iadd v7, v0
-    ///     v9 = iconst 1u32
-    ///     v10 = iadd v7, v9
-    ///     v11 = icmp_ult v10, v0
-    ///     branch v11, block1(v10), block2
+    /// b3(v7: uint32):
+    ///     v8 = int.add v7, v0
+    ///     v9 = 1uint32
+    ///     v10 = int.add v7, v9
+    ///     v11 = int.lt.u v10, v0
+    ///     branch v11, b1(v10), b2
     /// }
     /// ```
     #[pass(id = "loop-peel")]
@@ -288,38 +288,40 @@ mod tests {
     /// Latch guarded loops are peeled once.
     #[test]
     fn test_loop_peel_single_iteration() {
-        let input = r#"function @test(v0: u32) -> u32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    jump block1(v1)
-block1(v2: u32):
-    v3: u32 = iadd v2, v0
-    v4: u32 = iconst 1u32
-    v5: u32 = iadd v2, v4
-    v6: bool = icmp_ult v5, v0
-    branch v6, block1(v5), block2
-block2:
+        let input = r#"
+function test(v0: uint32): uint32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    jump b1(v1)
+b1(v2: uint32):
+    v3: uint32 = int.add v2, v0
+    v4: uint32 = 1uint32
+    v5: uint32 = int.add v2, v4
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b1(v5), b2
+b2:
     return v3
 }"#;
 
-        let expected = r#"function @test(v0: u32) -> u32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    jump block3(v1)
-block1(v2: u32):
-    v3: u32 = iadd v2, v0
-    v4: u32 = iconst 1u32
-    v5: u32 = iadd v2, v4
-    v6: bool = icmp_ult v5, v0
-    branch v6, block1(v5), block2
-block2:
+        let expected = r#"
+function test(v0: uint32): uint32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    jump b3(v1)
+b1(v2: uint32):
+    v3: uint32 = int.add v2, v0
+    v4: uint32 = 1uint32
+    v5: uint32 = int.add v2, v4
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b1(v5), b2
+b2:
     return v3
-block3(v7: u32):
-    v8: u32 = iadd v7, v0
-    v9: u32 = iconst 1u32
-    v10: u32 = iadd v7, v9
-    v11: bool = icmp_ult v10, v0
-    branch v11, block1(v10), block2
+b3(v7: uint32):
+    v8: uint32 = int.add v7, v0
+    v9: uint32 = 1uint32
+    v10: uint32 = int.add v7, v9
+    v11: boolean = int.lt.u v10, v0
+    branch v11, b1(v10), b2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -330,18 +332,19 @@ block3(v7: u32):
     /// Header guarded loops are not peeled.
     #[test]
     fn test_loop_peel_skips_header_guard() {
-        let input = r#"function @test(v0: u32) -> u32 {
-block0(v0: u32):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    jump block1(v1)
-block1(v3: u32):
-    v4: bool = icmp_ult v3, v0
-    branch v4, block2(v3), block3
-block2(v5: u32):
-    v6: u32 = iadd v5, v2
-    jump block1(v6)
-block3:
+        let input = r#"
+function test(v0: uint32): uint32 {
+b0(v0: uint32):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    jump b1(v1)
+b1(v3: uint32):
+    v4: boolean = int.lt.u v3, v0
+    branch v4, b2(v3), b3
+b2(v5: uint32):
+    v6: uint32 = int.add v5, v2
+    jump b1(v6)
+b3:
     return v3
 }"#;
 
@@ -353,22 +356,23 @@ block3:
     /// Multiple exits prevent peeling.
     #[test]
     fn test_loop_peel_skips_multiple_exits() {
-        let input = r#"function @test(v0: u32, v1: bool) -> u32 {
-block0(v0: u32, v1: bool):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 1u32
-    jump block1(v2)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v0
-    branch v5, block2(v4), block4
-block2(v6: u32):
-    branch v1, block3(v6), block5
-block3(v7: u32):
-    v8: u32 = iadd v7, v3
-    jump block1(v8)
-block4:
+        let input = r#"
+function test(v0: uint32, v1: boolean): uint32 {
+b0(v0: uint32, v1: boolean):
+    v2: uint32 = 0uint32
+    v3: uint32 = 1uint32
+    jump b1(v2)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b4
+b2(v6: uint32):
+    branch v1, b3(v6), b5
+b3(v7: uint32):
+    v8: uint32 = int.add v7, v3
+    jump b1(v8)
+b4:
     return v4
-block5:
+b5:
     return v6
 }"#;
 

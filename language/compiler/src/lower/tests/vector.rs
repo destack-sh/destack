@@ -21,13 +21,12 @@ function toneMap(color: Vector<float32, 4>): Vector<float32, 4> {
         module_id,
         "native",
         r#"
-function @toneMap(v0: vector<f32, 4>) -> vector<f32, 4> {
-block0(v0: vector<f32, 4>):
-    v1: f32 = vector.reduce add, v0
-    v2: vector<f32, 4> = vector.splat v1
+function toneMap(v0: vector<float32, 4>): vector<float32, 4> {
+b0(v0: vector<float32, 4>):
+    v1: float32 = vector.reduce add, v0
+    v2: vector<float32, 4> = vector.splat v1
     return v2
-}
-        "#,
+}"#,
     );
 }
 
@@ -54,14 +53,14 @@ function readVelocity(value: Particle): Vector<float32, 3> {
         module_id,
         "native",
         r#"
-type @Particle = { velocity: vector<f32, 3> }
-
-function @readVelocity(v0: @Particle) -> vector<f32, 3> {
-block0(v0: @Particle):
-    v1: vector<f32, 3> = field.get v0, 0
-    return v1
+type Particle {
+    velocity: vector<float32, 3>;
 }
-        "#,
+function readVelocity(v0: Particle): vector<float32, 3> {
+b0(v0: Particle):
+    v1: vector<float32, 3> = field.get v0, 0
+    return v1
+}"#,
     );
 }
 
@@ -86,11 +85,10 @@ function passStereoFrame(value: (Vector<int16, 8>, Vector<int16, 8>)): (Vector<i
         module_id,
         "native",
         r#"
-function @passStereoFrame(v0: (vector<i16, 8>, vector<i16, 8>)) -> (vector<i16, 8>, vector<i16, 8>) {
-block0(v0: (vector<i16, 8>, vector<i16, 8>)):
+function passStereoFrame(v0: (vector<int16, 8>, vector<int16, 8>)): (vector<int16, 8>, vector<int16, 8>) {
+b0(v0: (vector<int16, 8>, vector<int16, 8>)):
     return v0
-}
-        "#,
+}"#,
     );
 }
 
@@ -117,11 +115,10 @@ function applyTint(color: Rgba): Rgba {
         module_id,
         "native",
         r#"
-function @applyTint(v0: vector<f32, 4>) -> vector<f32, 4> {
-block0(v0: vector<f32, 4>):
+function applyTint(v0: vector<float32, 4>): vector<float32, 4> {
+b0(v0: vector<float32, 4>):
     return v0
-}
-        "#,
+}"#,
     );
 }
 
@@ -147,13 +144,12 @@ function sumSplat(value: float32): float32 {
         module_id,
         "native",
         r#"
-function @sumSplat(v0: f32) -> f32 {
-block0(v0: f32):
-    v1: vector<f32, 4> = vector.splat v0
-    v2: f32 = vector.reduce add, v1
+function sumSplat(v0: float32): float32 {
+b0(v0: float32):
+    v1: vector<float32, 4> = vector.splat v0
+    v2: float32 = vector.reduce add, v1
     return v2
-}
-        "#,
+}"#,
     );
 }
 
@@ -183,13 +179,12 @@ function sumSelected(
         module_id,
         "native",
         r#"
-function @sumSelected(v0: vector<bool, 4>, v1: vector<f32, 4>, v2: vector<f32, 4>) -> f32 {
-block0(v0: vector<bool, 4>, v1: vector<f32, 4>, v2: vector<f32, 4>):
-    v3: vector<f32, 4> = vector.select v0, v1, v2
-    v4: f32 = vector.reduce add, v3
+function sumSelected(v0: vector<boolean, 4>, v1: vector<float32, 4>, v2: vector<float32, 4>): float32 {
+b0(v0: vector<boolean, 4>, v1: vector<float32, 4>, v2: vector<float32, 4>):
+    v3: vector<float32, 4> = vector.select v0, v1, v2
+    v4: float32 = vector.reduce add, v3
     return v4
-}
-        "#,
+}"#,
     );
 }
 
@@ -217,14 +212,13 @@ function sumLanes(value: Vector<float32, 4>, bias: float32): float32 {
         module_id,
         "native",
         r#"
-function @sumLanes(v0: vector<f32, 4>, v1: f32) -> f32 {
-block0(v0: vector<f32, 4>, v1: f32):
-    v2: vector<f32, 4> = vector.splat v1
-    v3: f32 = vector.reduce add, v0
-    v4: f32 = vector.reduce add, v2
-    v5: f32 = fadd v3, v4
+function sumLanes(v0: vector<float32, 4>, v1: float32): float32 {
+b0(v0: vector<float32, 4>, v1: float32):
+    v2: vector<float32, 4> = vector.splat v1
+    v3: float32 = vector.reduce add, v0
+    v4: float32 = vector.reduce add, v2
+    v5: float32 = float.add v3, v4
     return v5
-}
-        "#,
+}"#,
     );
 }

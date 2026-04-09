@@ -856,7 +856,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::GlobalConst { .. }
             | mir::Instruction::FunctionAddr { .. }
-            | mir::Instruction::FunctionValue { .. }
+            | mir::Instruction::Closure { .. }
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldGet { .. }
@@ -1526,9 +1526,9 @@ impl<'a> MemoryAccessCollector<'a> {
             }
 
             // bit manipulation
-            mir::Intrinsic::Clz
-            | mir::Intrinsic::Ctz
-            | mir::Intrinsic::Popcnt
+            mir::Intrinsic::LeadingZeroCount
+            | mir::Intrinsic::TrailingZeroCount
+            | mir::Intrinsic::PopulationCount
             | mir::Intrinsic::ByteSwap
             | mir::Intrinsic::BitReverse
             | mir::Intrinsic::RotateLeft
@@ -1729,12 +1729,12 @@ impl<'a> MemoryAccessCollector<'a> {
 
             // type punning and pointer ops
             mir::Intrinsic::Transmute
-            | mir::Intrinsic::AddrSpaceCast
-            | mir::Intrinsic::PtrOffsetFrom
+            | mir::Intrinsic::AddressSpaceCast
+            | mir::Intrinsic::PointerOffsetFrom
             | mir::Intrinsic::RawEq => SmallVec::new(),
 
             // garbage collection
-            mir::Intrinsic::GcWriteBarrier => Self::single_effect(MemoryAccessEffect::read_write(
+            mir::Intrinsic::WriteBarrier => Self::single_effect(MemoryAccessEffect::read_write(
                 MemoryAccessLocation::Unknown,
                 false,
             )),
@@ -1745,7 +1745,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Sqrt
             | mir::Intrinsic::Abs
             | mir::Intrinsic::Fma
-            | mir::Intrinsic::Copysign
+            | mir::Intrinsic::CopySign
             | mir::Intrinsic::Min
             | mir::Intrinsic::Max
             | mir::Intrinsic::Sin
@@ -2212,11 +2212,12 @@ mod tests {
     #[test]
     fn test_memory_ssa_linear_def_use() {
         let test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#,
         );
@@ -2253,19 +2254,20 @@ block0(v0: ref<raw i32>):
     #[test]
     fn test_memory_ssa_phi_at_join() {
         let test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
-block0(v0: ref<raw i32>, v1: bool):
-    branch v1, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: boolean): int32 {
+b0(v0: ref<int32, raw>, v1: boolean):
+    branch v1, b1, b2
+b1:
+    v2: int32 = 1int32
     store v0, v2
-    jump block3
-block2:
-    v3: i32 = iconst 2i32
+    jump b3
+b2:
+    v3: int32 = 2int32
     store v0, v3
-    jump block3
-block3:
-    v4: i32 = load v0
+    jump b3
+b3:
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2301,15 +2303,16 @@ block3:
     #[test]
     fn test_memory_ssa_clobber_skips_noalias_def() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2341,10 +2344,11 @@ block0:
     #[test]
     fn test_memory_ssa_semantics_marks_effects() {
         let mut test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
     return v1
 }"#,
         );
@@ -2390,13 +2394,14 @@ block0:
     #[test]
     fn test_memory_ssa_clobber_skips_alias_scope() {
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2456,13 +2461,14 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_memory_ssa_clobber_skips_tbaa() {
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2526,13 +2532,14 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     fn test_memory_ssa_clobber_alias_scope_symmetry() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2593,13 +2600,14 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     fn test_memory_ssa_clobber_tbaa_disjoint_offsets() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2662,13 +2670,14 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     fn test_memory_ssa_clobber_tbaa_overlap_offsets() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2729,11 +2738,12 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_memory_ssa_alias_scopes_disambiguate() {
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#,
         );
@@ -2782,11 +2792,12 @@ block0(v0: ref<raw i32>):
     #[test]
     fn test_memory_ssa_address_space_disambiguate() {
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#,
         );
@@ -2852,15 +2863,16 @@ block0(v0: ref<raw i32>):
     fn test_memory_ssa_metadata_overrides_instruction() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#,
         );
@@ -2905,12 +2917,13 @@ block0:
     #[test]
     fn test_memory_ssa_local_access() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-    local0: i32
-block0:
-    v0: i32 = iconst 7i32
+            r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 7int32
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#,
         );
@@ -2940,10 +2953,11 @@ block0:
     #[test]
     fn test_memory_ssa_drop_effect_unknown() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
     raw.drop v0
-    v1: i32 = iconst 0i32
+    v1: int32 = 0int32
     return v1
 }"#,
         );
@@ -2971,10 +2985,13 @@ block0(v0: i32):
     #[test]
     fn test_memory_ssa_alloc_effect_unknown() {
         let test = TestProgram::new(
-            r#"type @Point = { i32 }
-function @test() -> ref<managed @Point> {
-block0:
-    v0: ref<managed @Point> = managed.alloc @Point
+            r#"
+type Point {
+    int32;
+}
+function test(): ref<Point, managed> {
+b0:
+    v0: ref<Point, managed> = managed.alloc Point
     return v0
 }"#,
         );
@@ -3002,13 +3019,14 @@ block0:
     #[test]
     fn test_memory_ssa_memcpy_read_write_effects() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#,
         );
@@ -3056,12 +3074,13 @@ block0:
     #[test]
     fn test_memory_ssa_memcmp_read_effects() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
-    v3: i32 = intrinsic.memcmp(v0, v1, v2)
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
+    v3: int32 = intrinsic.memcmp(v0, v1, v2)
     return v3
 }"#,
         );
@@ -3089,10 +3108,11 @@ block0:
     #[test]
     fn test_memory_ssa_volatile_marks_effects() {
         let mut test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
     store v0, v1
     return v1
 }"#,
@@ -3154,11 +3174,12 @@ block0:
     #[test]
     fn test_memory_ssa_atomic_marks_effects() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = atomic.load v0, ordering=acquire, scope=device, memory_scope=device, semantics=any
-    atomic.store v0, v1, ordering=release, scope=device, memory_scope=device, semantics=any
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = atomic.load v0, acquire, device, device, any
+    atomic.store v0, v1, release, device, device, any
     return v1
 }"#,
         );
@@ -3191,10 +3212,11 @@ block0:
     #[test]
     fn test_memory_ssa_atomic_fence_barrier() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
-    v0: i32 = iconst 0i32
+            r#"
+function test(): int32 {
+b0:
+    atomic.fence seq_cst, device, device, any
+    v0: int32 = 0int32
     return v0
 }"#,
         );
@@ -3224,11 +3246,12 @@ block0:
     #[test]
     fn test_memory_ssa_call_is_unknown_def() {
         let test = TestProgram::new(
-            r#"extern function @external(ref<raw i32>) -> void
-function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v1: i32 = iconst 0i32
+            r#"
+extern function external(ref<int32, raw>): void
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    call external(v0): (ref<int32, raw>) -> void
+    v1: int32 = 0int32
     return v1
 }"#,
         );
@@ -3265,11 +3288,12 @@ block0(v0: ref<raw i32>):
     #[test]
     fn test_memory_ssa_call_readnone_metadata() {
         let mut test = TestProgram::new(
-            r#"extern function @external(ref<raw i32>) -> void
-function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v1: i32 = iconst 0i32
+            r#"
+extern function external(ref<int32, raw>): void
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    call external(v0): (ref<int32, raw>) -> void
+    v1: int32 = 0int32
     return v1
 }"#,
         );
@@ -3301,11 +3325,12 @@ block0(v0: ref<raw i32>):
     #[test]
     fn test_memory_ssa_call_argmemonly_reads() {
         let mut test = TestProgram::new(
-            r#"extern function @external(ref<raw i32>, i32) -> void
-function @test(v0: ref<raw i32>, v1: i32) -> i32 {
-block0(v0: ref<raw i32>, v1: i32):
-    call @external(v0, v1) -> fn(ref<raw i32>, i32) -> void
-    v2: i32 = iconst 0i32
+            r#"
+extern function external(ref<int32, raw>, int32): void
+function test(v0: ref<int32, raw>, v1: int32): int32 {
+b0(v0: ref<int32, raw>, v1: int32):
+    call external(v0, v1): (ref<int32, raw>, int32) -> void
+    v2: int32 = 0int32
     return v2
 }"#,
         );
@@ -3358,11 +3383,12 @@ block0(v0: ref<raw i32>, v1: i32):
     fn test_memory_ssa_access_metadata_override() {
         // build the test test
         let mut test = TestProgram::new(
-            r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
-function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    call @external(v0, v1) -> fn(ref<raw i32>, ref<raw i32>) -> void
-    v2: i32 = iconst 0i32
+            r#"
+extern function external(ref<int32, raw>, ref<int32, raw>): void
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    call external(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
+    v2: int32 = 0int32
     return v2
 }"#,
         );
@@ -3454,21 +3480,22 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_memory_ssa_loop_phi_in_header() {
         let test = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: i32) -> i32 {
-block0(v0: ref<raw i32>, v1: i32):
-    v2: i32 = iconst 0i32
+            r#"
+function test(v0: ref<int32, raw>, v1: int32): int32 {
+b0(v0: ref<int32, raw>, v1: int32):
+    v2: int32 = 0int32
     store v0, v2
-    jump block1(v2)
-block1(v3: i32):
-    v4: bool = icmp_slt v3, v1
-    branch v4, block2, block3
-block2:
-    v5: i32 = iconst 1i32
+    jump b1(v2)
+b1(v3: int32):
+    v4: boolean = int.lt.s v3, v1
+    branch v4, b2, b3
+b2:
+    v5: int32 = 1int32
     store v0, v5
-    v6: i32 = iadd v3, v5
-    jump block1(v6)
-block3:
-    v7: i32 = load v0
+    v6: int32 = int.add v3, v5
+    jump b1(v6)
+b3:
+    v7: int32 = load v0
     return v7
 }"#,
         );
@@ -3500,13 +3527,14 @@ block3:
     #[test]
     fn test_memory_ssa_ignores_unreachable_blocks() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
+            r#"
+function test(): int32 {
+b0:
+    v0: int32 = 0int32
     return v0
-block1:
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+b1:
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
     return v2
 }"#,

@@ -17,25 +17,25 @@ declare_pass! {
     /// treated conservatively and block changes for matching signatures.
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
+    /// function before(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
     ///     return v0
     /// }
-    /// function @root(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = call @before(v0, v1) -> fn(i32, i32) -> i32
+    /// function root(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = call before(v0, v1)
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
     ///     return v0
     /// }
-    /// function @root(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = call @after(v0) -> fn(i32) -> i32
+    /// function root(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = call after(v0)
     ///     return v2
     /// }
     /// ```
@@ -459,23 +459,25 @@ mod tests {
     /// Unused parameters are removed from direct callsites.
     #[test]
     fn test_dead_arg_eliminate_removes_unused_param() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -487,22 +489,24 @@ block0(v0: i32):
     /// Tailcall arguments are trimmed for unused parameters.
     #[test]
     fn test_dead_arg_eliminate_updates_tailcall() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    tailcall @callee(v0, v1)
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    tailCall callee(v0, v1): (int32, int32) -> int32
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    tailcall @callee(v0)
+function root(v0: int32): int32 {
+b0(v0: int32):
+    tailCall callee(v0): (int32) -> int32
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -513,29 +517,31 @@ block0(v0: i32):
     /// Exceptional direct call terminators are trimmed for unused parameters.
     #[test]
     fn test_dead_arg_eliminate_updates_call_terminator() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    call @callee(v0, v1) normal block1 unwind block2
-block1(v2: i32):
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    invoke callee(v0, v1): (int32, int32) -> int32 -> b1, catch b2
+b1(v2: int32):
     return v2
-block2(v3: ref<managed readonly i32>):
+b2(v3: ref<int32, managed, readonly>):
     throw v3
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+function root(v0: int32): int32 {
+b0(v0: int32):
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
@@ -547,13 +553,14 @@ block2(v2: ref<managed readonly i32>):
     /// Exported functions are not rewritten.
     #[test]
     fn test_dead_arg_eliminate_skips_exports() {
-        let input = r#"export function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+export function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -565,14 +572,14 @@ block0(v0: i32, v1: i32):
     /// Indirect signatures block argument removal.
     #[test]
     fn test_dead_arg_eliminate_skips_indirect_signature() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: fn(i32, i32) -> i32, v1: i32, v2: i32) -> i32 {
-block0(v0: fn(i32, i32) -> i32, v1: i32, v2: i32):
-    v3: i32 = call.indirect v0(v1, v2) -> fn(i32, i32) -> i32
-    v4: i32 = call @callee(v1, v2) -> fn(i32, i32) -> i32
+function root(v0: fn(int32, int32) -> int32, v1: int32, v2: int32): int32  {
+b0(v0: fn(int32, int32) -> int32, v1: int32, v2: int32) -> v3: int32 = call.indirect v0(v1, v2): (int32, int32) -> int32
+    v4: int32 = call callee(v1, v2): (int32, int32) -> int32
     return v4
 }"#;
 
@@ -584,23 +591,25 @@ block0(v0: fn(i32, i32) -> i32, v1: i32, v2: i32):
     /// Call metadata argument lists are trimmed alongside arguments.
     #[test]
     fn test_dead_arg_eliminate_updates_call_metadata() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -641,23 +650,25 @@ block0(v0: i32):
     /// Metadata parameter indices are remapped after removal.
     #[test]
     fn test_dead_arg_eliminate_remaps_metadata_indices() {
-        let input = r#"function @callee(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
     return v0
 }
-function @root(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    v3: i32 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
+function root(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    v3: int32 = call callee(v0, v1, v2): (int32, int32, int32) -> int32
     return v3
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let expected = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -678,8 +689,9 @@ block0(v0: i32, v1: i32):
     /// Allocation metadata prevents removing its parameters.
     #[test]
     fn test_dead_arg_eliminate_preserves_alloc_size_param() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }"#;
 
@@ -699,23 +711,25 @@ block0(v0: i32, v1: i32):
     /// Allocation metadata is remapped at callsites.
     #[test]
     fn test_dead_arg_eliminate_remaps_call_alloc_size() {
-        let input = r#"function @callee(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
     return v0
 }
-function @root(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    v3: i32 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
+function root(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    v3: int32 = call callee(v0, v1, v2): (int32, int32, int32) -> int32
     return v3
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -753,8 +767,9 @@ block0(v0: i32):
     /// Return lifetime metadata preserves parameters.
     #[test]
     fn test_dead_arg_eliminate_preserves_return_lifetime_param() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }"#;
 
@@ -774,23 +789,25 @@ block0(v0: i32, v1: i32):
     /// Debug parameter locations are cleared for removed parameters.
     #[test]
     fn test_dead_arg_eliminate_clears_debug_parameter_location() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
     return v0
 }
-function @root(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 

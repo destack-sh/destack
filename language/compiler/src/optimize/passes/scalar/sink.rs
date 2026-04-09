@@ -19,27 +19,27 @@ declare_pass! {
     /// executing instructions on code paths that don't need their results.
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: bool) -> i32 {
-    /// block0(v0: i32, v1: bool):
-    ///     v2 = iconst 1i32
-    ///     v3 = iadd v0, v2
-    ///     branch v1, block1, block2
-    /// block1:
+    /// function before(v0: int32, v1: boolean): int32 {
+    /// b0(v0: int32, v1: boolean):
+    ///     v2 = 1int32
+    ///     v3 = int.add v0, v2
+    ///     branch v1, b1, b2
+    /// b1:
     ///     return v3
-    /// block2:
+    /// b2:
     ///     return v0
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32, v1: bool) -> i32 {
-    /// block0(v0: i32, v1: bool):
-    ///     v2 = iconst 1i32
-    ///     branch v1, block1, block2
-    /// block1:
-    ///     v3 = iadd v0, v2
+    /// function after(v0: int32, v1: boolean): int32 {
+    /// b0(v0: int32, v1: boolean):
+    ///     v2 = 1int32
+    ///     branch v1, b1, b2
+    /// b1:
+    ///     v3 = int.add v0, v2
     ///     return v3
-    /// block2:
+    /// b2:
     ///     return v0
     /// }
     /// ```
@@ -365,24 +365,26 @@ mod tests {
     /// Instruction used only in one successor is sunk.
     #[test]
     fn test_sink_to_single_user() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    branch v1, block1, block2
-block1:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    branch v1, b1, b2
+b1:
     return v3
-block2:
+b2:
     return v0
 }"#;
-        let expected = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    branch v1, block1, block2
-block1:
-    v3: i32 = iadd v0, v2
+        let expected = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    branch v1, b1, b2
+b1:
+    v3: int32 = int.add v0, v2
     return v3
-block2:
+b2:
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -393,16 +395,17 @@ block2:
     /// Instruction used in terminator is not sunk.
     #[test]
     fn test_preserve_terminator_use() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
-    v3: i32 = iconst 10i32
-    v4: bool = icmp_slt v2, v3
-    branch v4, block1, block2
-block1:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
+    v3: int32 = 10int32
+    v4: boolean = int.lt.s v2, v3
+    branch v4, b1, b2
+b1:
     return v2
-block2:
+b2:
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -417,30 +420,32 @@ block2:
     /// Instruction with side effects is preserved.
     #[test]
     fn test_preserve_side_effects() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
     raw.drop v0
-    branch v1, block1, block2
-block1:
+    branch v1, b1, b2
+b1:
     return v2
-block2:
-    v3: i32 = iconst 0i32
+b2:
+    v3: int32 = 0int32
     return v3
 }"#;
         // v2 is used only in block1, so it could sink if not for drop ordering
         // however, drop has side effects and cannot be reordered
         // v2 is computed before drop, so sinking v2 past drop would reorder them
         // actually, v2 has no dependency on drop, so v2 CAN sink to block1
-        let expected = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
+        let expected = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
     raw.drop v0
-    branch v1, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+    branch v1, b1, b2
+b1:
+    v2: int32 = 1int32
     return v2
-block2:
-    v3: i32 = iconst 0i32
+b2:
+    v3: int32 = 0int32
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -451,14 +456,15 @@ block2:
     /// Instruction used in multiple successors is preserved.
     #[test]
     fn test_preserve_multiple_users() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    branch v1, block1, block2
-block1:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    branch v1, b1, b2
+b1:
     return v3
-block2:
+b2:
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -470,28 +476,30 @@ block2:
     /// Only the final instruction sinks when intermediate values have same-block uses.
     #[test]
     fn test_sink_chain_unconditional() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
-    v3: i32 = iconst 2i32
-    v4: i32 = iadd v2, v3
-    jump block1
-block1:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
+    v3: int32 = 2int32
+    v4: int32 = int.add v2, v3
+    jump b1
+b1:
     return v4
 }"#;
         // v1 used by v2 (same block) → can't sink
         // v2 used by v4 (same block) → can't sink
         // v3 used by v4 (same block) → can't sink
         // v4 used only in block1 → sinks
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
-    v3: i32 = iconst 2i32
-    jump block1
-block1:
-    v4: i32 = iadd v2, v3
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
+    v3: int32 = 2int32
+    jump b1
+b1:
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -502,15 +510,16 @@ block1:
     /// Volatile loads are not sunk across control flow.
     #[test]
     fn test_preserve_volatile_load() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = load v1
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = load v1
+    branch v0, b1, b2
+b1:
     return v2
-block2:
-    v3: i32 = iconst 0i32
+b2:
+    v3: int32 = 0int32
     return v3
 }"#;
 
@@ -546,16 +555,17 @@ block2:
     /// Instruction is not sunk into block with multiple predecessors.
     #[test]
     fn test_preserve_multiple_predecessors() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    branch v1, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    branch v1, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -567,17 +577,18 @@ block3:
     /// Instruction is not sunk from outside a loop to inside a loop.
     #[test]
     fn test_preserve_no_sink_into_loop() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    jump block1
-block1:
-    branch v1, block2, block3
-block2:
-    v4: i32 = iadd v3, v3
-    jump block1
-block3:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    jump b1
+b1:
+    branch v1, b2, b3
+b2:
+    v4: int32 = int.add v3, v3
+    jump b1
+b3:
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -585,7 +596,7 @@ block3:
         let before = test.format();
         test.run_pass(&Sink);
 
-        // v3 is used in block2 (inside loop) but defined in block0 (outside loop)
+        // v3 is used in b2 (inside loop) but defined in b0 (outside loop)
         // sinking would increase execution frequency
         test.assert_output(&before);
     }
@@ -593,8 +604,9 @@ block3:
     /// Empty function is unchanged.
     #[test]
     fn test_preserve_empty_function() {
-        let input = r#"function @test() -> void {
-block0:
+        let input = r#"
+function test(): void {
+b0:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -605,29 +617,31 @@ block0:
     /// Instruction used in same block is not sunk.
     #[test]
     fn test_preserve_same_block_use() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    v4: i32 = iadd v3, v2
-    branch v1, block1, block2
-block1:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    v4: int32 = int.add v3, v2
+    branch v1, b1, b2
+b1:
     return v4
-block2:
+b2:
     return v0
 }"#;
         // v2 is used by v3 and v4 in the same block, so cannot sink
         // v3 is used by v4 in the same block, so cannot sink
         // v4 could sink to block1, but v3 and v2 cannot
-        let expected = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    branch v1, block1, block2
-block1:
-    v4: i32 = iadd v3, v2
+        let expected = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    branch v1, b1, b2
+b1:
+    v4: int32 = int.add v3, v2
     return v4
-block2:
+b2:
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -638,10 +652,11 @@ block2:
     /// Function with no sinkable instructions is unchanged.
     #[test]
     fn test_preserve_nothing_to_sink() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -653,17 +668,18 @@ block0(v0: i32):
     /// Sinking within a loop is allowed (same execution frequency).
     #[test]
     fn test_sink_within_loop() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    jump block1
-block1:
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    branch v1, block2, block3
-block2:
-    v4: i32 = iadd v3, v2
-    jump block1
-block3:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    jump b1
+b1:
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    branch v1, b2, b3
+b2:
+    v4: int32 = int.add v3, v2
+    jump b1
+b3:
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -680,16 +696,17 @@ block3:
     /// Sinking from loop block to single-predecessor successor within loop.
     #[test]
     fn test_sink_loop_internal() {
-        let input = r#"function @test(v0: i32, v1: bool) -> i32 {
-block0(v0: i32, v1: bool):
-    jump block1
-block1:
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v0, v2
-    jump block2
-block2:
-    branch v1, block1, block3
-block3:
+        let input = r#"
+function test(v0: int32, v1: boolean): int32 {
+b0(v0: int32, v1: boolean):
+    jump b1
+b1:
+    v2: int32 = 1int32
+    v3: int32 = int.add v0, v2
+    jump b2
+b2:
+    branch v1, b1, b3
+b3:
     return v3
 }"#;
         // v3 is computed in block1 (inside loop) but only used in block3 (exit)
@@ -708,14 +725,15 @@ block3:
     /// Loads are not sunk when there's an intervening store.
     #[test]
     fn test_preserve_load_with_intervening_store() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: bool, v2: i32) -> i32 {
-block0(v0: ref<raw i32>, v1: bool, v2: i32):
-    v3: i32 = load v0
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: boolean, v2: int32): int32 {
+b0(v0: ref<int32, raw>, v1: boolean, v2: int32):
+    v3: int32 = load v0
     store v0, v2
-    branch v1, block1, block2
-block1:
+    branch v1, b1, b2
+b1:
     return v3
-block2:
+b2:
     return v2
 }"#;
         // v3 is only used in block1, but there's a store after the load
@@ -729,27 +747,29 @@ block2:
     /// Loads CAN be sunk when there are no intervening memory operations.
     #[test]
     fn test_sink_load_no_intervening_ops() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
-block0(v0: ref<raw i32>, v1: bool):
-    v2: i32 = load v0
-    v3: i32 = iconst 0i32
-    branch v1, block1, block2
-block1:
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: boolean): int32 {
+b0(v0: ref<int32, raw>, v1: boolean):
+    v2: int32 = load v0
+    v3: int32 = 0int32
+    branch v1, b1, b2
+b1:
     return v2
-block2:
+b2:
     return v3
 }"#;
-        // v2 (load) is only used in block1, no intervening memory ops
-        // v3 (iconst) is only used in block2
+        // v2 (load) is only used in b1, no intervening memory ops
+        // v3 (const) is only used in b2
         // both are sunk to their respective successors
-        let expected = r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
-block0(v0: ref<raw i32>, v1: bool):
-    branch v1, block1, block2
-block1:
-    v2: i32 = load v0
+        let expected = r#"
+function test(v0: ref<int32, raw>, v1: boolean): int32 {
+b0(v0: ref<int32, raw>, v1: boolean):
+    branch v1, b1, b2
+b1:
+    v2: int32 = load v0
     return v2
-block2:
-    v3: i32 = iconst 0i32
+b2:
+    v3: int32 = 0int32
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -760,28 +780,30 @@ block2:
     /// Pure instructions can still be sunk past side-effectful instructions.
     #[test]
     fn test_sink_pure_past_store() {
-        let input = r#"function @test(v0: i32, v1: ref<raw i32>, v2: bool) -> i32 {
-block0(v0: i32, v1: ref<raw i32>, v2: bool):
-    v3: i32 = iconst 1i32
-    v4: i32 = iadd v0, v3
+        let input = r#"
+function test(v0: int32, v1: ref<int32, raw>, v2: boolean): int32 {
+b0(v0: int32, v1: ref<int32, raw>, v2: boolean):
+    v3: int32 = 1int32
+    v4: int32 = int.add v0, v3
     store v1, v0
-    branch v2, block1, block2
-block1:
+    branch v2, b1, b2
+b1:
     return v4
-block2:
+b2:
     return v0
 }"#;
-        // v4 is a pure computation (iadd) used only in block1
+        // v4 is a pure computation (int.add) used only in b1
         // it can be sunk past the store since it doesn't read memory
-        let expected = r#"function @test(v0: i32, v1: ref<raw i32>, v2: bool) -> i32 {
-block0(v0: i32, v1: ref<raw i32>, v2: bool):
-    v3: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: int32, v1: ref<int32, raw>, v2: boolean): int32 {
+b0(v0: int32, v1: ref<int32, raw>, v2: boolean):
+    v3: int32 = 1int32
     store v1, v0
-    branch v2, block1, block2
-block1:
-    v4: i32 = iadd v0, v3
+    branch v2, b1, b2
+b1:
+    v4: int32 = int.add v0, v3
     return v4
-block2:
+b2:
     return v0
 }"#;
         let mut test = TestProgram::new(input);

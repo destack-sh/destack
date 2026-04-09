@@ -380,19 +380,19 @@ mod tests {
         assert_eq!(a.meet(&c), Some(42));
         assert_eq!(a.meet(&d), None); // Conflict
     }
-
     /// Forward dataflow should not skip blocks when the first predecessor is unreachable.
     #[test]
     fn test_forward_dataflow_unreachable_predecessor_order() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    jump block2
-block1:
-    v2: i32 = iconst 2i32
-    jump block2
-block2:
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    jump b2
+b1:
+    v2: int32 = 2int32
+    jump b2
+b2:
     return v0
 }"#,
         );
@@ -435,13 +435,14 @@ block2:
     #[test]
     fn test_backward_dataflow_tailcall_exit() {
         let program = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    tailcall @callee(v0)
+function test(v0: int32): int32 {
+b0(v0: int32):
+    tailCall callee(v0): (int32) -> int32
 }"#,
         );
 
@@ -470,8 +471,9 @@ block0(v0: i32):
     #[test]
     fn test_backward_dataflow_throw_exit() {
         let program = TestProgram::new(
-            r#"function @test(v0: ref<managed readonly void>) -> void {
-block0(v0: ref<managed readonly void>):
+            r#"
+function test(v0: ref<void, managed, readonly>): void {
+b0(v0: ref<void, managed, readonly>):
     throw v0
 }"#,
         );

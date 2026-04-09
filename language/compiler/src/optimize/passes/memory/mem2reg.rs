@@ -22,22 +22,22 @@ declare_pass! {
     /// operations in favor of direct value flow through block parameters.
     ///
     /// ```mir
-    /// function @before(v0: i32) -> i32 {
-    ///     local0: i32 ; owned
-    /// block0(v0: i32):
+    /// function before(v0: int32): int32 {
+    ///     local local0: int32, owned
+    /// b0(v0: int32):
     ///     local.set local0, v0
-    ///     jump block1
-    /// block1:
+    ///     jump b1
+    /// b1:
     ///     v1 = local.get local0
     ///     return v1
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     jump block1(v0)
-    /// block1(v1: i32):
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     jump b1(v0)
+    /// b1(v1: int32):
     ///     return v1
     /// }
     /// ```
@@ -1033,15 +1033,17 @@ mod tests {
     /// Simple case: single local with set then get.
     #[test]
     fn test_promote_simple_local() {
-        let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }"#;
 
@@ -1053,19 +1055,21 @@ block0(v0: i32):
     /// Local accessed across blocks via jump.
     #[test]
     fn test_promote_across_blocks() {
-        let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    jump block1
-block1:
-    v1: i32 = local.get local0
+    jump b1
+b1:
+    v1: int32 = local.get local0
     return v1
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1
-block1:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    jump b1
+b1:
     return v0
 }"#;
 
@@ -1077,35 +1081,37 @@ block1:
     /// Diamond CFG with block parameter needed at join point.
     #[test]
     fn test_promote_in_diamond_cfg() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool, v1: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+    local local0: int32, owned
+b0(v0: boolean, v1: int32):
     local.set local0, v1
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     local.set local0, v2
-    jump block3
-block2:
-    v3: i32 = iconst 2i32
+    jump b3
+b2:
+    v3: int32 = 2int32
     local.set local0, v3
-    jump block3
-block3:
-    v4: i32 = local.get local0
+    jump b3
+b3:
+    v4: int32 = local.get local0
     return v4
 }"#;
         // block3 needs a block parameter for the different values from block1/block2
         // v4 is the new block parameter value allocated by the pass
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
-    jump block3(v2)
-block2:
-    v3: i32 = iconst 2i32
-    jump block3(v3)
-block3(v4: i32):
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
+    jump b3(v2)
+b2:
+    v3: int32 = 2int32
+    jump b3(v3)
+b3(v4: int32):
     return v4
 }"#;
 
@@ -1117,20 +1123,22 @@ block3(v4: i32):
     /// Multiple locals, all promotable.
     #[test]
     fn test_promote_multiple_locals() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-    local0: i32 ; owned
-    local1: i32 ; owned
-block0(v0: i32, v1: i32):
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+    local local0: int32, owned
+    local local1: int32, owned
+b0(v0: int32, v1: int32):
     local.set local0, v0
     local.set local1, v1
-    v2: i32 = local.get local0
-    v3: i32 = local.get local1
-    v4: i32 = iadd v2, v3
+    v2: int32 = local.get local0
+    v3: int32 = local.get local1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -1142,8 +1150,9 @@ block0(v0: i32, v1: i32):
     /// No locals to promote.
     #[test]
     fn test_preserve_without_locals() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }"#;
 
@@ -1156,10 +1165,11 @@ block0(v0: i32):
     #[test]
     #[should_panic(expected = "use of undefined local")]
     fn test_panic_on_undefined_read() {
-        let input = r#"function @test() -> i32 {
-    local0: i32 ; owned
-block0:
-    v0: i32 = local.get local0
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = local.get local0
     return v0
 }"#;
         // reading a local before writing is a bug in the MIR
@@ -1170,39 +1180,41 @@ block0:
     /// Loop with local - block parameter needed at loop header.
     #[test]
     fn test_promote_in_loop() {
-        let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
-    v1: i32 = iconst 0i32
+        let input = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = 0int32
     local.set local0, v1
-    jump block1
-block1:
-    v2: i32 = local.get local0
-    v3: bool = icmp_slt v2, v0
-    branch v3, block2, block3
-block2:
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v2, v4
+    jump b1
+b1:
+    v2: int32 = local.get local0
+    v3: boolean = int.lt.s v2, v0
+    branch v3, b2, b3
+b2:
+    v4: int32 = 1int32
+    v5: int32 = int.add v2, v4
     local.set local0, v5
-    jump block1
-block3:
-    v6: i32 = local.get local0
+    jump b1
+b3:
+    v6: int32 = local.get local0
     return v6
 }"#;
-        // block1 is at dominance frontier (join point from block0 and block2)
+        // b1 is at dominance frontier (join point from b0 and b2)
         // v0-v6 exist in input -> next_value_id = 7
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: bool = icmp_slt v2, v0
-    branch v3, block2, block3
-block2:
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v2, v4
-    jump block1(v5)
-block3:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: boolean = int.lt.s v2, v0
+    branch v3, b2, b3
+b2:
+    v4: int32 = 1int32
+    v5: int32 = int.add v2, v4
+    jump b1(v5)
+b3:
     return v2
 }"#;
 
@@ -1214,18 +1226,20 @@ block3:
     /// Multiple definitions in the same block.
     #[test]
     fn test_promote_with_multiple_defs() {
-        let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    v1: i32 = iconst 42i32
+    v1: int32 = 42int32
     local.set local0, v1
-    v2: i32 = local.get local0
+    v2: int32 = local.get local0
     return v2
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 42int32
     return v1
 }"#;
 
@@ -1237,22 +1251,24 @@ block0(v0: i32):
     /// Existing block parameters should be preserved.
     #[test]
     fn test_preserve_existing_block_params() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32, v1: i32):
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32, v1: int32):
     local.set local0, v0
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = local.get local0
-    v4: i32 = iadd v2, v3
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = local.get local0
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
         // block1 keeps its existing parameter, local0 value is dominated by entry
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iadd v2, v0
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = int.add v2, v0
     return v3
 }"#;
 
@@ -1264,38 +1280,40 @@ block1(v2: i32):
     /// Switch terminator with local.
     #[test]
     fn test_promote_with_switch() {
-        let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
-    v1: i32 = iconst 10i32
+        let input = r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = 10int32
     local.set local0, v1
-    switch v0, block3, 0 => block1, 1 => block2
-block1:
-    v2: i32 = iconst 100i32
+    switch v0, b3, 0 => b1, 1 => b2
+b1:
+    v2: int32 = 100int32
     local.set local0, v2
-    jump block3
-block2:
-    v3: i32 = iconst 200i32
+    jump b3
+b2:
+    v3: int32 = 200int32
     local.set local0, v3
-    jump block3
-block3:
-    v4: i32 = local.get local0
+    jump b3
+b3:
+    v4: int32 = local.get local0
     return v4
 }"#;
-        // block3 is join point with 3 predecessors (block0, block1, block2)
+        // b3 is join point with 3 predecessors (b0, b1, b2)
         // v0-v4 exist in input -> next_value_id = 5
         // new block parameter is v5
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 10i32
-    switch v0, block3(v1), 0 => block1, 1 => block2
-block1:
-    v2: i32 = iconst 100i32
-    jump block3(v2)
-block2:
-    v3: i32 = iconst 200i32
-    jump block3(v3)
-block3(v4: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    switch v0, b3(v1), 0 => b1, 1 => b2
+b1:
+    v2: int32 = 100int32
+    jump b3(v2)
+b2:
+    v3: int32 = 200int32
+    jump b3(v3)
+b3(v4: int32):
     return v4
 }"#;
 
@@ -1307,21 +1325,23 @@ block3(v4: i32):
     /// Call arguments are rewritten after local promotion.
     #[test]
     fn test_promote_call_arguments() {
-        let input = r#"extern function @sink(i32) -> void
-function @test() -> void {
-    local0: i32 ; owned
-block0:
-    v0: i32 = iconst 7i32
+        let input = r#"
+extern function sink(int32): void
+function test(): void {
+    local local0: int32, owned
+b0:
+    v0: int32 = 7int32
     local.set local0, v0
-    v1: i32 = local.get local0
-    call @sink(v1) -> fn(i32) -> void
+    v1: int32 = local.get local0
+    call sink(v1): (int32) -> void
     return
 }"#;
-        let expected = r#"extern function @sink(i32) -> void
-function @test() -> void {
-block0:
-    v0: i32 = iconst 7i32
-    call @sink(v0) -> fn(i32) -> void
+        let expected = r#"
+extern function sink(int32): void
+function test(): void {
+b0:
+    v0: int32 = 7int32
+    call sink(v0): (int32) -> void
     return
 }"#;
 

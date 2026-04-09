@@ -19,27 +19,27 @@ declare_pass! {
     /// Hot paths are laid out contiguously and cold blocks are placed last.
     ///
     /// ```mir
-    /// function @before(v0: bool) -> i32 {
-    /// block0(v0: bool):
-    ///     branch v0, block1, block2
-    /// block2:
-    ///     v1 = iconst 2i32
+    /// function before(v0: boolean): int32 {
+    /// b0(v0: boolean):
+    ///     branch v0, b1, b2
+    /// b2:
+    ///     v1 = 2int32
     ///     return v1
-    /// block1:
-    ///     v2 = iconst 1i32
+    /// b1:
+    ///     v2 = 1int32
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool) -> i32 {
-    /// block0(v0: bool):
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     v2 = iconst 1i32
+    /// function after(v0: boolean): int32 {
+    /// b0(v0: boolean):
+    ///     branch v0, b1, b2
+    /// b1:
+    ///     v2 = 1int32
     ///     return v2
-    /// block2:
-    ///     v1 = iconst 2i32
+    /// b2:
+    ///     v1 = 2int32
     ///     return v1
     /// }
     /// ```
@@ -812,25 +812,27 @@ mod tests {
     /// Layout moves hot successors earlier.
     #[test]
     fn test_cfg_layout_orders_hot_path() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block2:
-    v1: i32 = iconst 2i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    v1: int32 = 2int32
     return v1
-block1:
-    v2: i32 = iconst 1i32
+b2:
+    v2: int32 = 1int32
     return v2
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -853,14 +855,15 @@ block2:
     /// Layout preserves order without profile data.
     #[test]
     fn test_cfg_layout_skips_without_profile() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block2:
-    v1: i32 = iconst 2i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    v1: int32 = 2int32
     return v1
-block1:
-    v2: i32 = iconst 1i32
+b2:
+    v2: int32 = 1int32
     return v2
 }"#;
 
@@ -874,28 +877,30 @@ block1:
     /// Cold blocks are split to the end of the layout.
     #[test]
     fn test_cfg_layout_splits_cold_blocks() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block2:
-    v1: i32 = iconst 2i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    v1: int32 = 2int32
     return v1
-block1:
-    v2: i32 = iconst 1i32
+b2:
+    v2: int32 = 1int32
     return v2
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block3
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b3
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
-block3:
-    jump block2
+b3:
+    jump b2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -917,28 +922,30 @@ block3:
     /// Switch blocks are ordered by hotness.
     #[test]
     fn test_cfg_layout_switch_orders_hot_blocks() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    switch v0, block2, 0 => block1
-block2:
-    v1: i32 = iconst 2i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    switch v0, b1, 0 => b2
+b1:
+    v1: int32 = 2int32
     return v1
-block1:
-    v2: i32 = iconst 1i32
+b2:
+    v2: int32 = 1int32
     return v2
 }"#;
 
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    switch v0, block3, 0 => block1
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    switch v0, b3, 0 => b1
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
-block3:
-    jump block2
+b3:
+    jump b2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -960,32 +967,34 @@ block3:
     /// Check terminators reorder blocks by hotness.
     #[test]
     fn test_cfg_layout_check_orders_hot_blocks() {
-        let input = r#"function @test(v0: u32, v1: [u32; 8]) -> i32 {
-block0(v0: u32, v1: [u32; 8]):
-    v2: u32 = iconst 1u32
-    v3: bool = icmp_ult v0, v2
-    check v3, bounds.unsigned v0, v2, v1, block1, block2
-block2:
-    v4: i32 = iconst 2i32
+        let input = r#"
+function test(v0: uint32, v1: uint32[8]): int32 {
+b0(v0: uint32, v1: uint32[8]):
+    v2: uint32 = 1uint32
+    v3: boolean = int.lt.u v0, v2
+    check bounds.u v0, v2, v1 -> b2, b1
+b1:
+    v4: int32 = 2int32
     return v4
-block1:
-    v5: i32 = iconst 1i32
+b2:
+    v5: int32 = 1int32
     return v5
 }"#;
 
-        let expected = r#"function @test(v0: u32, v1: [u32; 8]) -> i32 {
-block0(v0: u32, v1: [u32; 8]):
-    v2: u32 = iconst 1u32
-    v3: bool = icmp_ult v0, v2
-    check v3, bounds.unsigned v0, v2, v1, block1, block3
-block1:
-    v4: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: uint32, v1: uint32[8]): int32 {
+b0(v0: uint32, v1: uint32[8]):
+    v2: uint32 = 1uint32
+    v3: boolean = int.lt.u v0, v2
+    check bounds.u v0, v2, v1 -> b1, b3
+b1:
+    v4: int32 = 1int32
     return v4
-block2:
-    v5: i32 = iconst 2i32
+b2:
+    v5: int32 = 2int32
     return v5
-block3:
-    jump block2
+b3:
+    jump b2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1007,25 +1016,27 @@ block3:
     /// Edge profiles override block counts for trace selection.
     #[test]
     fn test_cfg_layout_prefers_edge_profiles() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block2, block1
-block1:
-    v1: i32 = iconst 2i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    v1: int32 = 2int32
     return v1
-block2:
-    v2: i32 = iconst 1i32
+b2:
+    v2: int32 = 1int32
     return v2
 }"#;
 
@@ -1051,27 +1062,29 @@ block2:
     /// Hot branch edges duplicate small targets.
     #[test]
     fn test_cfg_layout_duplicates_hot_edge() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block2, block1
-block1:
-    jump block2
-block2:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b2, b1
+b1:
+    jump b2
+b2:
+    v1: int32 = 1int32
     return v1
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block3
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b3
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 1i32
+b2:
+    v2: int32 = 1int32
     return v2
-block3:
-    jump block2
+b3:
+    jump b2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1096,31 +1109,33 @@ block3:
     /// Unreachable blocks are kept last.
     #[test]
     fn test_cfg_layout_preserves_unreachable_order() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b3
+b1:
+    v1: int32 = 1int32
     return v1
-block3:
-    v2: i32 = iconst 3i32
+b2:
+    v2: int32 = 3int32
     return v2
-block2:
-    v3: i32 = iconst 2i32
+b3:
+    v3: int32 = 2int32
     return v3
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
-block3:
-    v3: i32 = iconst 3i32
+b3:
+    v3: int32 = 3int32
     return v3
 }"#;
 

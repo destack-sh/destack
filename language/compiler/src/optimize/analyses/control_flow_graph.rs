@@ -58,12 +58,13 @@ mod tests {
     #[test]
     fn test_compute_cfg_through_function_analyses() {
         let test = TestProgram::new(
-            r#"function @linear() -> void {
-block0:
-    jump block1
-block1:
-    jump block2
-block2:
+            r#"
+function linear(): void {
+b0:
+    jump b1
+b1:
+    jump b2
+b2:
     return
 }"#,
         );

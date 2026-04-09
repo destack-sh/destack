@@ -25,12 +25,12 @@ declare_pass! {
     ///
     /// ```mir
     /// // before DSE
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32
-    ///     v1 = iconst 1i32
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32
+    ///     v1 = 1int32
     ///     store v0, v1        // dead: overwritten below
-    ///     v2 = iconst 2i32
+    ///     v2 = 2int32
     ///     store v0, v2
     ///     v3 = load v0
     ///     return v3
@@ -39,12 +39,12 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// // after DSE
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32
-    ///     v1 = iconst 1i32
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32
+    ///     v1 = 1int32
     ///     // store removed
-    ///     v2 = iconst 2i32
+    ///     v2 = 2int32
     ///     store v0, v2
     ///     v3 = load v0
     ///     return v3
@@ -737,23 +737,25 @@ mod tests {
     /// location without an intervening load, the first store is dead.
     #[test]
     fn test_remove_overwritten_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = iconst 2i32
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -767,15 +769,16 @@ block0:
     /// Both stores are read before being overwritten, so both are preserved.
     #[test]
     fn test_preserve_read_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = load v0
-    v3: i32 = iconst 2i32
+    v2: int32 = load v0
+    v3: int32 = 2int32
     store v0, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
 
@@ -789,19 +792,21 @@ block0:
     /// The stack allocation is never loaded from, so the store is dead.
     #[test]
     fn test_remove_store_to_unused_alloc() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = iconst 0i32
+    v2: int32 = 0int32
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
+    v2: int32 = 0int32
     return v2
 }"#;
 
@@ -813,14 +818,15 @@ block0:
     /// Volatile store is never removed even when overwritten.
     #[test]
     fn test_preserve_volatile_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = iconst 2i32
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -844,13 +850,14 @@ block0:
     /// the store cannot be eliminated because the external function may read it.
     #[test]
     fn test_preserve_escaping_store() {
-        let input = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+extern function external(ref<int32, raw>): void
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    call @external(v0) -> fn(ref<raw i32>) -> void
+    call external(v0): (ref<int32, raw>) -> void
     return
 }"#;
 
@@ -862,23 +869,25 @@ block0:
     /// Store before a nocapture readnone call is removed.
     #[test]
     fn test_remove_store_before_nocapture_readnone_call() {
-        let input = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v2: i32 = iconst 0i32
+    call external(v0): (ref<int32, raw>) -> void
+    v2: int32 = 0int32
     return v2
 }"#;
-        let expected = r#"extern function @external(ref<raw i32>) -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
-    call @external(v0) -> fn(ref<raw i32>) -> void
-    v2: i32 = iconst 0i32
+        let expected = r#"
+extern function external(ref<int32, raw>): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
+    call external(v0): (ref<int32, raw>) -> void
+    v2: int32 = 0int32
     return v2
 }"#;
 
@@ -919,26 +928,28 @@ block0:
     /// only the final store is preserved.
     #[test]
     fn test_multiple_overwrites() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = iconst 2i32
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = iconst 3i32
+    v3: int32 = 3int32
     store v0, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 3i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = 3int32
     store v0, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
 
@@ -952,9 +963,10 @@ block0:
     /// Function without stores is unchanged.
     #[test]
     fn test_no_changes() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -968,17 +980,18 @@ block0:
     /// Stores to different memory locations don't interfere with each other.
     #[test]
     fn test_different_locations() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
-    v4: i32 = load v0
-    v5: i32 = load v1
-    v6: i32 = iadd v4, v5
+    v4: int32 = load v0
+    v5: int32 = load v1
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
 
@@ -993,13 +1006,14 @@ block0:
     /// must be preserved if the location may be read by the callee.
     #[test]
     fn test_preserve_store_before_call() {
-        let input = r#"extern function @read_value(ref<raw i32>) -> i32
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+extern function readValue(ref<int32, raw>): int32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = call @read_value(v0) -> fn(ref<raw i32>) -> i32
+    v2: int32 = call readValue(v0): (ref<int32, raw>) -> int32
     return v2
 }"#;
 
@@ -1014,27 +1028,29 @@ block0:
     /// that are overwritten before being read.
     #[test]
     fn test_remove_after_call_overwritten() {
-        let input = r#"extern function @side_effect() -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    call @side_effect() -> fn() -> void
-    v1: i32 = iconst 1i32
+        let input = r#"
+extern function sideEffect(): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    call sideEffect(): () -> void
+    v1: int32 = 1int32
     store v0, v1
-    v2: i32 = iconst 2i32
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"extern function @side_effect() -> void
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    call @side_effect() -> fn() -> void
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let expected = r#"
+extern function sideEffect(): void
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    call sideEffect(): () -> void
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -1048,10 +1064,11 @@ block0:
     /// If the allocation is returned, the store is visible to the caller.
     #[test]
     fn test_preserve_store_to_returned() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
     return v0
 }"#;
@@ -1064,13 +1081,14 @@ block0:
     /// Store to allocation used in returned aggregate is preserved.
     #[test]
     fn test_preserve_store_returned_aggregate() {
-        let input = r#"function @test() -> (ref<raw i32>, i32) {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): (ref<int32, raw>, int32) {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = iconst 0i32
-    v3: (ref<raw i32>, i32) = tuple (ref<raw i32>, i32) (v0, v2)
+    v2: int32 = 0int32
+    v3: (ref<int32, raw>, int32) = tuple (ref<int32, raw>, int32) (v0, v2)
     return v3
 }"#;
 
@@ -1082,13 +1100,17 @@ block0:
     /// Stores to disjoint fields are not treated as clobbers.
     #[test]
     fn test_preserve_disjoint_field_stores() {
-        let input = r#"type @Pair = { i32, i32 }
-function @test(v0: ref<raw @Pair>) -> void {
-block0(v0: ref<raw @Pair>):
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 1
-    v3: i32 = iconst 1i32
-    v4: i32 = iconst 2i32
+        let input = r#"
+type Pair {
+    int32;
+    int32;
+}
+function test(v0: ref<Pair, raw>): void {
+b0(v0: ref<Pair, raw>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 1
+    v3: int32 = 1int32
+    v4: int32 = 2int32
     store v1, v3
     store v2, v4
     return
@@ -1102,12 +1124,13 @@ block0(v0: ref<raw @Pair>):
     /// Partial overwrite does not kill earlier bytes.
     #[test]
     fn test_preserve_partial_overwrite() {
-        let input = r#"function @test() -> ref<raw i64> {
-block0:
-    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
-    v1: i64 = iconst 0i64
+        let input = r#"
+function test(): ref<int64, raw> {
+b0:
+    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v1: int64 = 0int64
     store v0, v1
-    v2: i32 = iconst 1i32
+    v2: int32 = 1int32
     store v0, v2
     return v0
 }"#;
@@ -1129,19 +1152,21 @@ block0:
     /// Dead memset to non escaping stack memory is removed.
     #[test]
     fn test_remove_dead_memset() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i8 = iconst 0i8
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int8 = 0int8
+    v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i8 = iconst 0i8
-    v2: i64 = iconst 4i64
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int8 = 0int8
+    v2: int64 = 4int64
     return
 }"#;
 
@@ -1153,13 +1178,14 @@ block0:
     /// Memset to a live location is preserved.
     #[test]
     fn test_preserve_memset_with_read() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i8 = iconst 0i8
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int8 = 0int8
+    v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
         let expected = input;
@@ -1173,19 +1199,21 @@ block0:
     #[test]
     fn test_remove_dead_memcpy() {
         // input test
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     return
 }"#;
 
@@ -1199,13 +1227,14 @@ block0:
     #[test]
     fn test_preserve_memcpy_with_read() {
         // input test
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
         let expected = input;
@@ -1220,19 +1249,21 @@ block0:
     #[test]
     fn test_remove_dead_memmove() {
         // input test
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memmove(v0, v1, v2)
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let expected = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     return
 }"#;
 
@@ -1246,13 +1277,14 @@ block0:
     #[test]
     fn test_preserve_memmove_with_read() {
         // input test
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i64 = iconst 4i64
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int64 = 4int64
     intrinsic.memmove(v0, v1, v2)
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
         let expected = input;
@@ -1267,16 +1299,20 @@ block0:
     #[test]
     fn test_preserve_unknown_size_overwrite() {
         // input test
-        let input = r#"type @Point = { i32, i32 }
-function @test(v0: ref<raw @Point>) -> void {
-block0(v0: ref<raw @Point>):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: @Point = struct @Point (v1, v2)
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(v0: ref<Point, raw>): void {
+b0(v0: ref<Point, raw>):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: Point = struct Point (v1, v2)
     store v0, v3
-    v4: i32 = iconst 3i32
-    v5: i32 = iconst 4i32
-    v6: @Point = struct @Point (v4, v5)
+    v4: int32 = 3int32
+    v5: int32 = 4int32
+    v6: Point = struct Point (v4, v5)
     store v0, v6
     return
 }"#;
@@ -1318,11 +1354,12 @@ block0(v0: ref<raw @Point>):
     #[test]
     fn test_preserve_store_with_alias_scope_disjoint() {
         // input test
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
     return
 }"#;
@@ -1371,11 +1408,12 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_preserve_store_with_tbaa_disjoint_offsets() {
         // input test
-        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = iconst 2i32
+    v3: int32 = 2int32
     store v1, v3
     return
 }"#;
@@ -1429,27 +1467,29 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// overwrites the same location before any read, the first store is dead.
     #[test]
     fn test_cross_block_overwritten() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    jump block1
-block1:
-    v2: i32 = iconst 2i32
+    jump b1
+b1:
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    jump block1
-block1:
-    v2: i32 = iconst 2i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    jump b1
+b1:
+    v2: int32 = 2int32
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -1463,19 +1503,20 @@ block1:
     /// If a store might be read on some control flow path, it must be preserved.
     #[test]
     fn test_preserve_cross_block_read_on_path() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
-    branch v0, block1, block2
-block1:
-    v3: i32 = load v1
+    branch v0, b1, b2
+b1:
+    v3: int32 = load v1
     return v3
-block2:
-    v4: i32 = iconst 2i32
+b2:
+    v4: int32 = 2int32
     store v1, v4
-    v5: i32 = load v1
+    v5: int32 = load v1
     return v5
 }"#;
 
@@ -1490,15 +1531,16 @@ block2:
     /// it escapes and stores to it must be preserved.
     #[test]
     fn test_preserve_switch_escape() {
-        let input = r#"function @test(v0: i32) -> void {
-block0(v0: i32):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(v0: int32): void {
+b0(v0: int32):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    switch v0, block1(v1), 0 => block2
-block1(v3: ref<raw i32>):
+    switch v0, b1(v1), 0 => b2
+b1(v3: ref<int32, raw>):
     return
-block2:
+b2:
     return
 }"#;
 

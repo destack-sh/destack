@@ -30,19 +30,18 @@ function sum(a: int32, b: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${integer_overflow}: ref<managed readonly @String> = "integer overflow" ; readonly
-
-function @sum(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
-    v3: i32 = field.get v2, 0
-    v4: bool = field.get v2, 1
-    v5: bool = bnot v4
-    check v5, overflow.signed.iadd v0, v1, block2, block1
-block1:
-    v6: ref<managed readonly @String> = global.const @${integer_overflow}
-    trap panic v6
-block2:
+global ${integer_overflow}: ref<String, managed, readonly>, readonly = "integer overflow"
+function sum(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: (int32, boolean) = intrinsic.add.overflow(v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    v5: boolean = int.not v4
+    check int.add.overflow.s v0, v1 -> b2, b1
+b1:
+    v6: ref<String, managed, readonly> = global.const ${integer_overflow}
+    trap.panic v6
+b2:
     return v3
 }
         "#;
@@ -75,19 +74,18 @@ function sum(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function @sum(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
-    v3: i32 = field.get v2, 0
-    v4: bool = field.get v2, 1
-    v5: bool = bnot v4
-    check v5, overflow.signed.iadd v0, v1, block2, block1
-block1:
-    trap abort
-block2:
+function sum(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: (int32, boolean) = intrinsic.add.overflow(v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    v5: boolean = int.not v4
+    check int.add.overflow.s v0, v1 -> b2, b1
+b1:
+    trap.abort
+b2:
     return v3
-}
-        "#,
+}"#,
     );
 }
 
@@ -115,19 +113,18 @@ function sum(a: uint32, b: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${integer_overflow}: ref<managed readonly @String> = "integer overflow" ; readonly
-
-function @sum(v0: u32, v1: u32) -> u32 {
-block0(v0: u32, v1: u32):
-    v2: (u32, bool) = intrinsic.add.overflow(v0, v1)
-    v3: u32 = field.get v2, 0
-    v4: bool = field.get v2, 1
-    v5: bool = bnot v4
-    check v5, overflow.unsigned.iadd v0, v1, block2, block1
-block1:
-    v6: ref<managed readonly @String> = global.const @${integer_overflow}
-    trap panic v6
-block2:
+global ${integer_overflow}: ref<String, managed, readonly>, readonly = "integer overflow"
+function sum(v0: uint32, v1: uint32): uint32 {
+b0(v0: uint32, v1: uint32):
+    v2: (uint32, boolean) = intrinsic.add.overflow(v0, v1)
+    v3: uint32 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    v5: boolean = int.not v4
+    check int.add.overflow.u v0, v1 -> b2, b1
+b1:
+    v6: ref<String, managed, readonly> = global.const ${integer_overflow}
+    trap.panic v6
+b2:
     return v3
 }
         "#;
@@ -160,12 +157,11 @@ function sum(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function @sum(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+function sum(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
-}
-        "#,
+}"#,
     );
 }
 
@@ -194,30 +190,29 @@ function quotient(a: int32, b: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${division_by_zero}: ref<managed readonly @String> = "division by zero" ; readonly
-global @${division_overflow}: ref<managed readonly @String> = "division overflow" ; readonly
-
-function @quotient(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: bool = icmp_ne v1, v2
-    check v3, div_zero v1, block2, block1
-block1:
-    v4: ref<managed readonly @String> = global.const @${division_by_zero}
-    trap panic v4
-block2:
-    v5: i32 = iconst -2147483648i32
-    v6: i32 = iconst -1i32
-    v7: bool = icmp_eq v0, v5
-    v8: bool = icmp_eq v1, v6
-    v9: bool = band v7, v8
-    v10: bool = bnot v9
-    check v10, overflow.signed.sdiv v0, v1, block4, block3
-block3:
-    v11: ref<managed readonly @String> = global.const @${division_overflow}
-    trap panic v11
-block4:
-    v12: i32 = sdiv v0, v1
+global ${division_by_zero}: ref<String, managed, readonly>, readonly = "division by zero"
+global ${division_overflow}: ref<String, managed, readonly>, readonly = "division overflow"
+function quotient(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: boolean = int.ne v1, v2
+    check zeroDivisor v1 -> b2, b1
+b1:
+    v4: ref<String, managed, readonly> = global.const ${division_by_zero}
+    trap.panic v4
+b2:
+    v5: int32 = -2147483648int32
+    v6: int32 = -1int32
+    v7: boolean = int.eq v0, v5
+    v8: boolean = int.eq v1, v6
+    v9: boolean = int.and v7, v8
+    v10: boolean = int.not v9
+    check int.div.overflow.s v0, v1 -> b4, b3
+b3:
+    v11: ref<String, managed, readonly> = global.const ${division_overflow}
+    trap.panic v11
+b4:
+    v12: int32 = int.div.s v0, v1
     return v12
 }
         "#;
@@ -252,28 +247,27 @@ function quotient(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function @quotient(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: bool = icmp_ne v1, v2
-    check v3, div_zero v1, block2, block1
-block1:
-    trap abort
-block2:
-    v4: i32 = iconst -2147483648i32
-    v5: i32 = iconst -1i32
-    v6: bool = icmp_eq v0, v4
-    v7: bool = icmp_eq v1, v5
-    v8: bool = band v6, v7
-    v9: bool = bnot v8
-    check v9, overflow.signed.sdiv v0, v1, block4, block3
-block3:
-    trap abort
-block4:
-    v10: i32 = sdiv v0, v1
+function quotient(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: boolean = int.ne v1, v2
+    check zeroDivisor v1 -> b2, b1
+b1:
+    trap.abort
+b2:
+    v4: int32 = -2147483648int32
+    v5: int32 = -1int32
+    v6: boolean = int.eq v0, v4
+    v7: boolean = int.eq v1, v5
+    v8: boolean = int.and v6, v7
+    v9: boolean = int.not v8
+    check int.div.overflow.s v0, v1 -> b4, b3
+b3:
+    trap.abort
+b4:
+    v10: int32 = int.div.s v0, v1
     return v10
-}
-        "#,
+}"#,
     );
 }
 
@@ -302,19 +296,18 @@ function quotient(a: uint32, b: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${division_by_zero}: ref<managed readonly @String> = "division by zero" ; readonly
-global @${division_overflow}: ref<managed readonly @String> = "division overflow" ; readonly
-
-function @quotient(v0: u32, v1: u32) -> u32 {
-block0(v0: u32, v1: u32):
-    v2: u32 = iconst 0u32
-    v3: bool = icmp_ne v1, v2
-    check v3, div_zero v1, block2, block1
-block1:
-    v4: ref<managed readonly @String> = global.const @${division_by_zero}
-    trap panic v4
-block2:
-    v5: u32 = udiv v0, v1
+global ${division_by_zero}: ref<String, managed, readonly>, readonly = "division by zero"
+global ${division_overflow}: ref<String, managed, readonly>, readonly = "division overflow"
+function quotient(v0: uint32, v1: uint32): uint32 {
+b0(v0: uint32, v1: uint32):
+    v2: uint32 = 0uint32
+    v3: boolean = int.ne v1, v2
+    check zeroDivisor v1 -> b2, b1
+b1:
+    v4: ref<String, managed, readonly> = global.const ${division_by_zero}
+    trap.panic v4
+b2:
+    v5: uint32 = int.div.u v0, v1
     return v5
 }
         "#;
@@ -349,21 +342,20 @@ function shift(value: int32, amount: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${shift_out_of_range}: ref<managed readonly @String> = "shift out of range" ; readonly
-
-function @shift(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 32i32
-    v3: i32 = iconst 0i32
-    v4: bool = icmp_sge v1, v3
-    v5: bool = icmp_slt v1, v2
-    v6: bool = band v4, v5
-    check v6, shift.signed v1, 32, block2, block1
-block1:
-    v7: ref<managed readonly @String> = global.const @${shift_out_of_range}
-    trap panic v7
-block2:
-    v8: i32 = ishl v0, v1
+global ${shift_out_of_range}: ref<String, managed, readonly>, readonly = "shift out of range"
+function shift(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 32int32
+    v3: int32 = 0int32
+    v4: boolean = int.ge.s v1, v3
+    v5: boolean = int.lt.s v1, v2
+    v6: boolean = int.and v4, v5
+    check shiftRange.s v1, 32 -> b2, b1
+b1:
+    v7: ref<String, managed, readonly> = global.const ${shift_out_of_range}
+    trap.panic v7
+b2:
+    v8: int32 = int.shiftLeft v0, v1
     return v8
 }
         "#;
@@ -396,21 +388,20 @@ function shift(value: int32, amount: int32): int32 {
         module_id,
         "native",
         r#"
-function @shift(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 32i32
-    v3: i32 = iconst 0i32
-    v4: bool = icmp_sge v1, v3
-    v5: bool = icmp_slt v1, v2
-    v6: bool = band v4, v5
-    check v6, shift.signed v1, 32, block2, block1
-block1:
-    trap abort
-block2:
-    v7: i32 = ishl v0, v1
+function shift(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 32int32
+    v3: int32 = 0int32
+    v4: boolean = int.ge.s v1, v3
+    v5: boolean = int.lt.s v1, v2
+    v6: boolean = int.and v4, v5
+    check shiftRange.s v1, 32 -> b2, b1
+b1:
+    trap.abort
+b2:
+    v7: int32 = int.shiftLeft v0, v1
     return v7
-}
-        "#,
+}"#,
     );
 }
 
@@ -438,18 +429,17 @@ function shift(value: uint32, amount: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${shift_out_of_range}: ref<managed readonly @String> = "shift out of range" ; readonly
-
-function @shift(v0: u32, v1: u32) -> u32 {
-block0(v0: u32, v1: u32):
-    v2: u32 = iconst 32u32
-    v3: bool = icmp_ult v1, v2
-    check v3, shift.unsigned v1, 32, block2, block1
-block1:
-    v4: ref<managed readonly @String> = global.const @${shift_out_of_range}
-    trap panic v4
-block2:
-    v5: u32 = ishl v0, v1
+global ${shift_out_of_range}: ref<String, managed, readonly>, readonly = "shift out of range"
+function shift(v0: uint32, v1: uint32): uint32 {
+b0(v0: uint32, v1: uint32):
+    v2: uint32 = 32uint32
+    v3: boolean = int.lt.u v1, v2
+    check shiftRange.u v1, 32 -> b2, b1
+b1:
+    v4: ref<String, managed, readonly> = global.const ${shift_out_of_range}
+    trap.panic v4
+b2:
+    v5: uint32 = int.shiftLeft v0, v1
     return v5
 }
         "#;
@@ -482,21 +472,20 @@ function element(values: int32[4], index: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
-
-function @element(v0: [i32; 4], v1: i32) -> i32 {
-block0(v0: [i32; 4], v1: i32):
-    v2: i32 = iconst 4i32
-    v3: i32 = iconst 0i32
-    v4: bool = icmp_sge v1, v3
-    v5: bool = icmp_slt v1, v2
-    v6: bool = band v4, v5
-    check v6, bounds.signed v1, v2, v0, block2, block1
-block1:
-    v7: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    trap panic v7
-block2:
-    v8: i32 = element.get v0, v1
+global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
+function element(v0: int32[4], v1: int32): int32 {
+b0(v0: int32[4], v1: int32):
+    v2: int32 = 4int32
+    v3: int32 = 0int32
+    v4: boolean = int.ge.s v1, v3
+    v5: boolean = int.lt.s v1, v2
+    v6: boolean = int.and v4, v5
+    check bounds.s v1, v2, v0 -> b2, b1
+b1:
+    v7: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    trap.panic v7
+b2:
+    v8: int32 = element.get v0, v1
     return v8
 }
         "#;
@@ -529,21 +518,20 @@ function element(values: int32[4], index: int32): int32 {
         module_id,
         "native",
         r#"
-function @element(v0: [i32; 4], v1: i32) -> i32 {
-block0(v0: [i32; 4], v1: i32):
-    v2: i32 = iconst 4i32
-    v3: i32 = iconst 0i32
-    v4: bool = icmp_sge v1, v3
-    v5: bool = icmp_slt v1, v2
-    v6: bool = band v4, v5
-    check v6, bounds.signed v1, v2, v0, block2, block1
-block1:
-    trap abort
-block2:
-    v7: i32 = element.get v0, v1
+function element(v0: int32[4], v1: int32): int32 {
+b0(v0: int32[4], v1: int32):
+    v2: int32 = 4int32
+    v3: int32 = 0int32
+    v4: boolean = int.ge.s v1, v3
+    v5: boolean = int.lt.s v1, v2
+    v6: boolean = int.and v4, v5
+    check bounds.s v1, v2, v0 -> b2, b1
+b1:
+    trap.abort
+b2:
+    v7: int32 = element.get v0, v1
     return v7
-}
-        "#,
+}"#,
     );
 }
 
@@ -571,18 +559,17 @@ function element(values: int32[4], index: uint32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
-
-function @element(v0: [i32; 4], v1: u32) -> i32 {
-block0(v0: [i32; 4], v1: u32):
-    v2: u32 = iconst 4u32
-    v3: bool = icmp_ult v1, v2
-    check v3, bounds.unsigned v1, v2, v0, block2, block1
-block1:
-    v4: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    trap panic v4
-block2:
-    v5: i32 = element.get v0, v1
+global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
+function element(v0: int32[4], v1: uint32): int32 {
+b0(v0: int32[4], v1: uint32):
+    v2: uint32 = 4uint32
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b2, b1
+b1:
+    v4: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    trap.panic v4
+b2:
+    v5: int32 = element.get v0, v1
     return v5
 }
         "#;

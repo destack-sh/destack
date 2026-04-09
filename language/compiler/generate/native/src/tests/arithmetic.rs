@@ -9,21 +9,21 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_integer_arithmetic_chain() {
     let mir = r#"
-function @arithmetic(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = isub v2, v0
-    v4: i32 = imul v3, v1
+function arithmetic(v0: int32, v1: int32): int32 {
+bb0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.sub v2, v0
+    v4: int32 = int.mul v3, v1
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32, i32) -> i32 native {
-block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = isub v2, v0
-    v4 = imul v3, v1
+function u0:0(int32, int32): int32 native {
+bb0(v0: int32, v1: int32):
+    v2 = int.add v0, v1
+    v3 = int.sub v2, v0
+    v4 = int.mul v3, v1
     return v4
 }
 "#
@@ -36,21 +36,21 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_signed_division() {
     let mir = r#"
-function @divide(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = sdiv v0, v1
-    v3: i32 = srem v0, v1
-    v4: i32 = iadd v2, v3
+function divide(v0: int32, v1: int32): int32 {
+bb0(v0: int32, v1: int32):
+    v2: int32 = int.div.s v0, v1
+    v3: int32 = int.rem.s v0, v1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32, i32) -> i32 native {
-block0(v0: i32, v1: i32):
-    v2 = sdiv v0, v1
-    v3 = srem v0, v1
-    v4 = iadd v2, v3
+function u0:0(int32, int32): int32 native {
+bb0(v0: int32, v1: int32):
+    v2 = int.div.s v0, v1
+    v3 = int.rem.s v0, v1
+    v4 = int.add v2, v3
     return v4
 }
 "#
@@ -63,21 +63,21 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_bitwise_operations() {
     let mir = r#"
-function @bitwise(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = band v0, v1
-    v3: i32 = bor v2, v0
-    v4: i32 = bxor v3, v1
+function bitwise(v0: int32, v1: int32): int32 {
+bb0(v0: int32, v1: int32):
+    v2: int32 = int.and v0, v1
+    v3: int32 = int.or v2, v0
+    v4: int32 = int.xor v3, v1
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32, i32) -> i32 native {
-block0(v0: i32, v1: i32):
-    v2 = band v0, v1
-    v3 = bor v2, v0
-    v4 = bxor v3, v1
+function u0:0(int32, int32): int32 native {
+bb0(v0: int32, v1: int32):
+    v2 = int.and v0, v1
+    v3 = int.or v2, v0
+    v4 = int.xor v3, v1
     return v4
 }
 "#
@@ -90,16 +90,16 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_signed_comparison() {
     let mir = r#"
-function @compare(v0: i32, v1: i32) -> bool {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_slt v0, v1
+function compare(v0: int32, v1: int32): boolean {
+bb0(v0: int32, v1: int32):
+    v2: boolean = int.lt.s v0, v1
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32, i32) -> i8 native {
-block0(v0: i32, v1: i32):
+function u0:0(int32, int32): int8 native {
+bb0(v0: int32, v1: int32):
     v2 = icmp slt v0, v1
     return v2
 }
@@ -113,17 +113,17 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_unary_negation() {
     let mir = r#"
-function @negate(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = ineg v0
+function negate(v0: int32): int32 {
+bb0(v0: int32):
+    v1: int32 = int.negate v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0(i32) -> i32 native {
-block0(v0: i32):
-    v1 = ineg v0
+function u0:0(int32): int32 native {
+bb0(v0: int32):
+    v1 = int.negate v0
     return v1
 }
 "#
@@ -132,25 +132,25 @@ block0(v0: i32):
 }
 
 /// Integer constants include type suffixes in CLIF output.
-/// The iconst instruction shows the type (iconst.i32 42).
+/// The const instruction shows the type (const.int32 42).
 #[test]
 fn test_integer_constants() {
     let mir = r#"
-function @constants() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i32 = iconst 100i32
-    v2: i32 = iadd v0, v1
+function constants(): int32 {
+bb0:
+    v0: int32 = const 42int32
+    v1: int32 = const 100int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
-function u0:0() -> i32 native {
-block0:
-    v0 = iconst.i32 42
-    v1 = iconst.i32 100
-    v2 = iadd v0, v1
+function u0:0(): int32 native {
+bb0:
+    v0 = const.int32 42
+    v1 = const.int32 100
+    v2 = int.add v0, v1
     return v2
 }
 "#
@@ -162,18 +162,18 @@ block0:
 #[test]
 fn test_char_constant() {
     let mir = r#"
-function @char_const() -> i32 {
-block0:
-    v0: u32 = iconst 'A'
+function char_const(): int32 {
+bb0:
+    v0: uint32 = const 'A'
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // 'A' = 65 in unicode
     let expected = r#"
-function u0:0() -> i32 native {
-block0:
-    v0 = iconst.i32 65
+function u0:0(): int32 native {
+bb0:
+    v0 = const.int32 65
     return v0
 }
 "#
@@ -185,18 +185,18 @@ block0:
 #[test]
 fn test_char_constant_unicode() {
     let mir = r#"
-function @emoji() -> i32 {
-block0:
-    v0: u32 = iconst '😀'
+function emoji(): int32 {
+bb0:
+    v0: uint32 = const '😀'
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // '😀' = U+1F600 = 128512
     let expected = r#"
-function u0:0() -> i32 native {
-block0:
-    v0 = iconst.i32 0x0001_f600
+function u0:0(): int32 native {
+bb0:
+    v0 = const.int32 0x0001_f600
     return v0
 }
 "#

@@ -431,9 +431,10 @@ mod tests {
     /// Simple function with no moves passes verification.
     #[test]
     fn test_verify_no_moves() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -445,10 +446,11 @@ block0:
     /// Binary operation using same value twice is valid (copy semantics).
     #[test]
     fn test_verify_use_twice_primitive() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -460,11 +462,12 @@ block0:
     /// Value used after being dropped is detected.
     #[test]
     fn test_detect_use_after_drop() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     raw.drop v0
-    v1: i32 = iadd v0, v0
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -476,11 +479,12 @@ block0:
     /// Copy types can be used after store.
     #[test]
     fn test_verify_use_after_store_copy_type() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = iadd v1, v1
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -492,12 +496,13 @@ block0(v0: ref<raw i32>):
     /// Copy types can be used after local.set.
     #[test]
     fn test_verify_use_after_local_set_copy_type() {
-        let input = r#"function @test() -> i32 {
-local0: i32
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 42int32
     local.set local0, v0
-    v1: i32 = iadd v0, v0
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -509,13 +514,13 @@ block0:
     /// Copy types can be used after call.
     #[test]
     fn test_verify_use_after_call_copy_type() {
-        let input = r#"extern function @consume(i32) -> void
-
-function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    call @consume(v0) -> fn(i32) -> void
-    v1: i32 = iadd v0, v0
+        let input = r#"
+extern function consume(int32): void
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    call consume(v0): (int32) -> void
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -527,16 +532,17 @@ block0:
     /// Value used in branch after drop is detected.
     #[test]
     fn test_detect_use_after_move_in_branch() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
     raw.drop v0
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -548,12 +554,13 @@ block2:
     /// Block parameters receive fresh ownership.
     #[test]
     fn test_verify_block_parameters_fresh() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 10i32
-    jump block1(v0, v1)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    jump b1(v0, v1)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
 
@@ -565,11 +572,12 @@ block1(v2: i32, v3: i32):
     /// Moved value passed to jump is detected.
     #[test]
     fn test_detect_use_after_move_jump_arg() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
     raw.drop v0
-    jump block1(v0)
-block1(v1: i32):
+    jump b1(v0)
+b1(v1: int32):
     return v1
 }"#;
 
@@ -581,9 +589,10 @@ block1(v1: i32):
     /// Return value used after move is detected.
     #[test]
     fn test_detect_use_after_move_return() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     raw.drop v0
     return v0
 }"#;
@@ -596,15 +605,16 @@ block0:
     /// Diamond control flow: value moved on one path, used after merge.
     #[test]
     fn test_detect_maybe_moved_diamond() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1, b2
+b1:
     raw.drop v1
-    jump block3
-block2:
-    jump block3
-block3:
+    jump b3
+b2:
+    jump b3
+b3:
     return v1
 }"#;
 
@@ -617,16 +627,17 @@ block3:
     /// Diamond control flow: value moved on both paths is definitely moved.
     #[test]
     fn test_detect_definitely_moved_diamond() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1, b2
+b1:
     raw.drop v1
-    jump block3
-block2:
+    jump b3
+b2:
     raw.drop v1
-    jump block3
-block3:
+    jump b3
+b3:
     return v1
 }"#;
 
@@ -639,15 +650,16 @@ block3:
     /// Diamond control flow: value NOT moved on either path is OK.
     #[test]
     fn test_verify_not_moved_diamond() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 42i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 42int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return v1
 }"#;
 
@@ -659,15 +671,16 @@ block3:
     /// Loop with value used in body is OK if not moved.
     #[test]
     fn test_verify_loop_no_move() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 1i32
-    v4: i32 = iadd v2, v3
-    branch v0, block1(v4), block2
-block2:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 1int32
+    v4: int32 = int.add v2, v3
+    branch v0, b1(v4), b2
+b2:
     return v4
 }"#;
 
@@ -679,11 +692,12 @@ block2:
     /// Raw pointers have copy semantics.
     #[test]
     fn test_verify_raw_pointer_copy() {
-        let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
-block0(v0: ref<raw ref<raw i32>>):
-    v1: ref<raw i32> = raw.alloc i32
+        let input = r#"
+function test(v0: ref<ref<int32, raw>, raw>): void {
+b0(v0: ref<ref<int32, raw>, raw>):
+    v1: ref<int32, raw> = raw.alloc int32
     store v0, v1
-    v2: i32 = iconst 42i32
+    v2: int32 = 42int32
     store v1, v2
     return
 }"#;
@@ -696,11 +710,12 @@ block0(v0: ref<raw ref<raw i32>>):
     /// Pointer used after raw.free is detected.
     #[test]
     fn test_detect_use_after_raw_free() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw i32> = raw.alloc i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw> = raw.alloc int32
     raw.free v0
-    v1: i32 = iconst 42i32
+    v1: int32 = 42int32
     store v0, v1
     return
 }"#;
@@ -713,13 +728,14 @@ block0:
     /// Cast doesn't move its argument.
     #[test]
     fn test_verify_cast_no_move() {
-        let input = r#"function @test() -> i64 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i64 = sextend v0 -> i64
-    v2: i32 = iadd v0, v0
-    v3: i64 = sextend v2 -> i64
-    v4: i64 = iadd v1, v3
+        let input = r#"
+function test(): int64 {
+b0:
+    v0: int32 = 42int32
+    v1: int64 = cast.extend.s v0 -> int64
+    v2: int32 = int.add v0, v0
+    v3: int64 = cast.extend.s v2 -> int64
+    v4: int64 = int.add v1, v3
     return v4
 }"#;
 
@@ -731,11 +747,12 @@ block0:
     /// Unary operation doesn't move its argument.
     #[test]
     fn test_verify_unary_no_move() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i32 = ineg v0
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    v1: int32 = int.negate v0
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -747,15 +764,16 @@ block0:
     /// Multiple sequential operations work correctly.
     #[test]
     fn test_verify_sequential_operations() {
-        let input = r#"function @test() -> i32 {
-local0: i32
-local1: i32
-block0:
-    v0: i32 = iconst 42i32
-    v1: i32 = iconst 10i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+    local local1: int32, owned
+b0:
+    v0: int32 = 42int32
+    v1: int32 = 10int32
     local.set local0, v0
     local.set local1, v1
-    v2: i32 = local.get local0
+    v2: int32 = local.get local0
     return v2
 }"#;
 
@@ -767,9 +785,10 @@ block0:
     /// Owned reference used after store is detected.
     #[test]
     fn test_detect_owned_ref_use_after_store() {
-        let input = r#"function @test(v0: ref<raw ref<owned i32>>) -> void {
-block0(v0: ref<raw ref<owned i32>>):
-    v1: ref<managed i32> = managed.alloc i32
+        let input = r#"
+function test(v0: ref<ref<int32, owned>, raw>): void {
+b0(v0: ref<ref<int32, owned>, raw>):
+    v1: ref<int32, managed> = managed.alloc int32
     store v0, v1
     raw.drop v1
     return
@@ -783,10 +802,11 @@ block0(v0: ref<raw ref<owned i32>>):
     /// Owned reference can be used before store.
     #[test]
     fn test_verify_owned_ref_use_before_store() {
-        let input = r#"function @test(v0: ref<raw ref<owned i32>>) -> void {
-block0(v0: ref<raw ref<owned i32>>):
-    v1: ref<managed i32> = managed.alloc i32
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(v0: ref<ref<int32, owned>, raw>): void {
+b0(v0: ref<ref<int32, owned>, raw>):
+    v1: ref<int32, managed> = managed.alloc int32
+    v2: int32 = 42int32
     store v1, v2
     store v0, v1
     return
@@ -800,11 +820,12 @@ block0(v0: ref<raw ref<owned i32>>):
     /// Managed reference used after store is detected.
     #[test]
     fn test_detect_managed_ref_use_after_store() {
-        let input = r#"function @test(v0: ref<raw ref<managed i32>>) -> void {
-block0(v0: ref<raw ref<managed i32>>):
-    v1: ref<managed i32> = managed.alloc i32
+        let input = r#"
+function test(v0: ref<ref<int32, managed>, raw>): void {
+b0(v0: ref<ref<int32, managed>, raw>):
+    v1: ref<int32, managed> = managed.alloc int32
     store v0, v1
-    v2: i32 = iconst 42i32
+    v2: int32 = 42int32
     store v1, v2
     return
 }"#;
@@ -817,10 +838,11 @@ block0(v0: ref<raw ref<managed i32>>):
     /// Owned reference used after local.set is detected.
     #[test]
     fn test_detect_owned_ref_use_after_local_set() {
-        let input = r#"function @test() -> void {
-local0: ref<owned i32>
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+        let input = r#"
+function test(): void {
+    local local0: ref<int32, owned>, owned
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     local.set local0, v0
     raw.drop v0
     return
@@ -834,17 +856,17 @@ block0:
     /// Use after move through a cast is detected.
     #[test]
     fn test_detect_move_through_cast_from_local() {
-        let input = r#"extern function @consume(ref<managed i32>) -> void
-
-function @test() -> void {
-local0: ref<managed i32>
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+        let input = r#"
+extern function consume(ref<int32, managed>): void
+function test(): void {
+    local local0: ref<int32, managed>, owned
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     local.set local0, v0
-    v1: ref<managed i32> = local.get local0
-    v2: ref<managed i32> = bitcast v1 -> ref<managed i32>
-    call @consume(v2) -> fn(ref<managed i32>) -> void
-    v3: ref<managed i32> = local.get local0
+    v1: ref<int32, managed> = local.get local0
+    v2: ref<int32, managed> = cast.bit v1 -> ref<int32, managed>
+    call consume(v2): (ref<int32, managed>) -> void
+    v3: ref<int32, managed> = local.get local0
     raw.drop v3
     return
 }"#;
@@ -857,18 +879,18 @@ block0:
     /// Use after move through a block parameter is detected.
     #[test]
     fn test_detect_move_through_block_param() {
-        let input = r#"extern function @consume(ref<managed i32>) -> void
-
-function @test() -> void {
-local0: ref<managed i32>
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+        let input = r#"
+extern function consume(ref<int32, managed>): void
+function test(): void {
+    local local0: ref<int32, managed>, owned
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     local.set local0, v0
-    v1: ref<managed i32> = local.get local0
-    jump block1(v1)
-block1(v2: ref<managed i32>):
-    call @consume(v2) -> fn(ref<managed i32>) -> void
-    v3: ref<managed i32> = local.get local0
+    v1: ref<int32, managed> = local.get local0
+    jump b1(v1)
+b1(v2: ref<int32, managed>):
+    call consume(v2): (ref<int32, managed>) -> void
+    v3: ref<int32, managed> = local.get local0
     raw.drop v3
     return
 }"#;
@@ -881,19 +903,19 @@ block1(v2: ref<managed i32>):
     /// Use after move through a select is detected.
     #[test]
     fn test_detect_move_through_select() {
-        let input = r#"extern function @consume(ref<managed i32>) -> void
-
-function @test() -> void {
-local0: ref<managed i32>
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+        let input = r#"
+extern function consume(ref<int32, managed>): void
+function test(): void {
+    local local0: ref<int32, managed>, owned
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     local.set local0, v0
-    v1: ref<managed i32> = local.get local0
-    v2: ref<managed i32> = local.get local0
-    v3: bool = iconst true
-    v4: ref<managed i32> = select v3, v1, v2
-    call @consume(v4) -> fn(ref<managed i32>) -> void
-    v5: ref<managed i32> = local.get local0
+    v1: ref<int32, managed> = local.get local0
+    v2: ref<int32, managed> = local.get local0
+    v3: boolean = true
+    v4: ref<int32, managed> = select v3, v1, v2
+    call consume(v4): (ref<int32, managed>) -> void
+    v5: ref<int32, managed> = local.get local0
     raw.drop v5
     return
 }"#;
@@ -906,12 +928,12 @@ block0:
     /// Owned reference used after call is detected.
     #[test]
     fn test_detect_owned_ref_use_after_call() {
-        let input = r#"extern function @consume(ref<owned i32>) -> void
-
-function @test() -> void {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    call @consume(v0) -> fn(ref<owned i32>) -> void
+        let input = r#"
+extern function consume(ref<int32, owned>): void
+function test(): void {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    call consume(v0): (ref<int32, owned>) -> void
     raw.drop v0
     return
 }"#;
@@ -924,10 +946,11 @@ block0:
     /// Borrowed reference can be used after store (copy semantics).
     #[test]
     fn test_verify_borrowed_ref_copy_after_store() {
-        let input = r#"function @test(v0: ref<raw ref<borrowed i32>>, v1: ref<borrowed i32>) -> void {
-block0(v0: ref<raw ref<borrowed i32>>, v1: ref<borrowed i32>):
+        let input = r#"
+function test(v0: ref<ref<int32, borrowed>, raw>, v1: ref<int32, borrowed>): void {
+b0(v0: ref<ref<int32, borrowed>, raw>, v1: ref<int32, borrowed>):
     store v0, v1
-    v2: i32 = iconst 42i32
+    v2: int32 = 42int32
     store v1, v2
     return
 }"#;
@@ -942,10 +965,11 @@ block0(v0: ref<raw ref<borrowed i32>>, v1: ref<borrowed i32>):
     /// Tuple construction moves owned field.
     #[test]
     fn test_detect_tuple_moves_owned_field() {
-        let input = r#"function @test() -> (ref<owned i32>,) {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: (ref<owned i32>,) = tuple (ref<owned i32>,) (v0)
+        let input = r#"
+function test(): (ref<int32, owned>) {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: (ref<int32, owned>) = tuple (ref<int32, owned>) (v0)
     raw.drop v0
     return v1
 }"#;
@@ -958,11 +982,12 @@ block0:
     /// Tuple construction with copy type doesn't move.
     #[test]
     fn test_verify_tuple_copy_field() {
-        let input = r#"function @test() -> (i32,) {
-block0:
-    v0: i32 = iconst 42i32
-    v1: (i32,) = tuple (i32,) (v0)
-    v2: i32 = iadd v0, v0
+        let input = r#"
+function test(): (int32) {
+b0:
+    v0: int32 = 42int32
+    v1: (int32) = tuple (int32) (v0)
+    v2: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -974,10 +999,11 @@ block0:
     /// Struct construction moves owned field.
     #[test]
     fn test_detect_struct_moves_owned_field() {
-        let input = r#"function @test() -> { ref<owned i32> } {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: { ref<owned i32> } = struct { ref<owned i32> } (v0)
+        let input = r#"
+function test(): { ref<int32, owned> } {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: { ref<int32, owned> } = struct { ref<int32, owned> } (v0)
     raw.drop v0
     return v1
 }"#;
@@ -990,10 +1016,11 @@ block0:
     /// Array construction moves owned elements.
     #[test]
     fn test_detect_array_moves_owned_elements() {
-        let input = r#"function @test() -> [ref<owned i32>; 1] {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: [ref<owned i32>; 1] = array [ref<owned i32>; 1] (v0)
+        let input = r#"
+function test(): ref<int32, owned>[1] {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, owned>[1] = [v0]
     raw.drop v0
     return v1
 }"#;
@@ -1008,10 +1035,11 @@ block0:
     /// field.set moves owned value.
     #[test]
     fn test_detect_field_set_moves_owned() {
-        let input = r#"function @test(v0: { ref<owned i32> }) -> { ref<owned i32> } {
-block0(v0: { ref<owned i32> }):
-    v1: ref<managed i32> = managed.alloc i32
-    v2: { ref<owned i32> } = field.set v0, 0, v1
+        let input = r#"
+function test(v0: { ref<int32, owned> }): { ref<int32, owned> } {
+b0(v0: { ref<int32, owned> }):
+    v1: ref<int32, managed> = managed.alloc int32
+    v2: { ref<int32, owned> } = field.set v0, 0, v1
     raw.drop v1
     return v2
 }"#;
@@ -1024,11 +1052,12 @@ block0(v0: { ref<owned i32> }):
     /// element.set moves owned value.
     #[test]
     fn test_detect_element_set_moves_owned() {
-        let input = r#"function @test(v0: [ref<owned i32>; 2]) -> [ref<owned i32>; 2] {
-block0(v0: [ref<owned i32>; 2]):
-    v1: ref<managed i32> = managed.alloc i32
-    v2: u64 = iconst 0u64
-    v3: [ref<owned i32>; 2] = element.set v0, v2, v1
+        let input = r#"
+function test(v0: ref<int32, owned>[2]): ref<int32, owned>[2] {
+b0(v0: ref<int32, owned>[2]):
+    v1: ref<int32, managed> = managed.alloc int32
+    v2: uint64 = 0uint64
+    v3: ref<int32, owned>[2] = element.set v0, v2, v1
     raw.drop v1
     return v3
 }"#;
@@ -1041,14 +1070,15 @@ block0(v0: [ref<owned i32>; 2]):
     /// Loop that moves value on back edge is detected.
     #[test]
     fn test_detect_loop_moves_value() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    v1: ref<managed i32> = managed.alloc i32
-    jump block1(v1)
-block1(v2: ref<owned i32>):
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    v1: ref<int32, managed> = managed.alloc int32
+    jump b1(v1)
+b1(v2: ref<int32, owned>):
     raw.drop v2
-    branch v0, block1(v2), block2
-block2:
+    branch v0, b1(v2), b2
+b2:
     return
 }"#;
 
@@ -1060,14 +1090,15 @@ block2:
     /// Loop with fresh value each iteration is OK.
     #[test]
     fn test_verify_loop_fresh_value() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    v1: ref<managed i32> = managed.alloc i32
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    v1: ref<int32, managed> = managed.alloc int32
     raw.drop v1
-    branch v0, block1, block2
-block2:
+    branch v0, b1, b2
+b2:
     return
 }"#;
 
@@ -1081,10 +1112,10 @@ block2:
     /// CallIndirect moves owned arguments.
     #[test]
     fn test_detect_call_indirect_moves_owned() {
-        let input = r#"function @test(v0: fn(ref<owned i32>) -> void) -> void {
-block0(v0: fn(ref<owned i32>) -> void):
-    v1: ref<managed i32> = managed.alloc i32
-    call.indirect v0(v1) -> fn(ref<owned i32>) -> void
+        let input = r#"
+function test(v0: fn(ref<int32, owned>) -> void): void  {
+b0(v0: fn(ref<int32, owned>) -> void) -> v1: ref<int32, managed> = managed.alloc int32
+    call.indirect v0(v1): (ref<int32, owned>) -> void
     raw.drop v1
     return
 }"#;
@@ -1097,18 +1128,19 @@ block0(v0: fn(ref<owned i32>) -> void):
     /// Switch uses value correctly.
     #[test]
     fn test_detect_switch_use_after_move() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
     raw.drop v0
-    switch v0, block3, 0 => block1, 1 => block2
-block1:
-    v1: i32 = iconst 1i32
+    switch v0, b3, 0 => b1, 1 => b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
-block3:
-    v3: i32 = iconst 0i32
+b3:
+    v3: int32 = 0int32
     return v3
 }"#;
 
@@ -1120,12 +1152,13 @@ block3:
     /// Jump with moved owned argument is detected.
     #[test]
     fn test_detect_jump_moved_owned_arg() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     raw.drop v0
-    jump block1(v0)
-block1(v1: ref<owned i32>):
+    jump b1(v0)
+b1(v1: ref<int32, owned>):
     raw.drop v1
     return
 }"#;
@@ -1138,9 +1171,10 @@ block1(v1: ref<owned i32>):
     /// Return with moved owned value is detected.
     #[test]
     fn test_detect_return_moved_owned() {
-        let input = r#"function @test() -> ref<owned i32> {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+        let input = r#"
+function test(): ref<int32, owned> {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     raw.drop v0
     return v0
 }"#;
@@ -1153,12 +1187,13 @@ block0:
     /// Multiple use-after-move errors are all reported.
     #[test]
     fn test_multiple_errors_reported() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     raw.drop v0
-    v1: i32 = iadd v0, v0
-    v2: i32 = iadd v0, v1
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -1172,11 +1207,11 @@ block0:
             .filter(|e| matches!(e, OptimizeError::UseAfterMove { .. }))
             .count();
 
-        // v0 used in iadd on v1 line (both operands), and v0 used again in iadd on v2 line
+        // v0 used in int.add on v1 line (both operands), and v0 used again in int.add on v2 line
         // the checker reports one error per use, so we expect 3 errors (v0 appears 3 times after drop)
         assert_eq!(
             use_after_move_count, 3,
-            "expected 3 UseAfterMove errors: v0 used twice in v1=iadd, once in v2=iadd"
+            "expected 3 UseAfterMove errors: v0 used twice in v1=int.add, once in v2=int.add"
         );
     }
 }

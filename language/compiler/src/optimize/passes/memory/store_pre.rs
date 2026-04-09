@@ -22,33 +22,33 @@ declare_pass! {
     /// insert stores on the missing edges and remove the redundant join store.
     ///
     /// ```mir
-    /// function @before(v0: bool, v1: i32) -> void {
-    /// block0(v0: bool, v1: i32):
-    ///     v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     branch v0, block1, block2
-    /// block1:
+    /// function before(v0: boolean, v1: int32): void {
+    /// b0(v0: boolean, v1: int32):
+    ///     v2 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     branch v0, b1, b2
+    /// b1:
     ///     store v2, v1
-    ///     jump block3
-    /// block2:
-    ///     jump block3
-    /// block3:
+    ///     jump b3
+    /// b2:
+    ///     jump b3
+    /// b3:
     ///     store v2, v1
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool, v1: i32) -> void {
-    /// block0(v0: bool, v1: i32):
-    ///     v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     branch v0, block1, block2
-    /// block1:
+    /// function after(v0: boolean, v1: int32): void {
+    /// b0(v0: boolean, v1: int32):
+    ///     v2 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     branch v0, b1, b2
+    /// b1:
     ///     store v2, v1
-    ///     jump block3
-    /// block2:
+    ///     jump b3
+    /// b2:
     ///     store v2, v1
-    ///     jump block3
-    /// block3:
+    ///     jump b3
+    /// b3:
     ///     return
     /// }
     /// ```
@@ -609,31 +609,33 @@ mod tests {
     /// Store PRE inserts edge stores for a join.
     #[test]
     fn test_store_pre_inserts_edge_store() {
-        let input = r#"function @test(v0: bool, v1: i32) -> void {
-block0(v0: bool, v1: i32):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean, v1: int32): void {
+b0(v0: boolean, v1: int32):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
     store v2, v1
-    jump block3
-block2:
-    jump block3
-block3:
+    jump b3
+b2:
+    jump b3
+b3:
     store v2, v1
     return
 }"#;
 
-        let expected = r#"function @test(v0: bool, v1: i32) -> void {
-block0(v0: bool, v1: i32):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
+        let expected = r#"
+function test(v0: boolean, v1: int32): void {
+b0(v0: boolean, v1: int32):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
     store v2, v1
-    jump block3
-block2:
+    jump b3
+b2:
     store v2, v1
-    jump block3
-block3:
+    jump b3
+b3:
     return
 }"#;
 
@@ -645,15 +647,16 @@ block3:
     /// Stores are not moved when no predecessor already stores.
     #[test]
     fn test_store_pre_requires_existing_store() {
-        let input = r#"function @test(v0: bool, v1: i32) -> void {
-block0(v0: bool, v1: i32):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+        let input = r#"
+function test(v0: boolean, v1: int32): void {
+b0(v0: boolean, v1: int32):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     store v2, v1
     return
 }"#;
@@ -666,16 +669,17 @@ block3:
     /// Stores are not moved when values are defined in the join block.
     #[test]
     fn test_store_pre_skips_unavailable_values() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v1, v2
     return
 }"#;
@@ -688,16 +692,17 @@ block3:
     /// Stores are not moved when earlier instructions are not speculatable.
     #[test]
     fn test_store_pre_skips_non_speculatable_prefix() {
-        let input = r#"function @test(v0: bool, v1: i32) -> void {
-block0(v0: bool, v1: i32):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v3: i32 = load v2
+        let input = r#"
+function test(v0: boolean, v1: int32): void {
+b0(v0: boolean, v1: int32):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v3: int32 = load v2
     store v2, v1
     return
 }"#;

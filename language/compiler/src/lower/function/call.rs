@@ -35,9 +35,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = iconst 1
-    /// v2: i32 = iconst 2
-    /// v3: i32 = call @add(v1, v2) -> fn(i32, i32) -> i32
+    /// v1: int32 = const 1
+    /// v2: int32 = const 2
+    /// v3: int32 = call add(v1, v2)
     /// ```
     pub(crate) fn lower_call_expression(
         &mut self,

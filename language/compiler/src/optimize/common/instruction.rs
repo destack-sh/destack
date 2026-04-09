@@ -61,7 +61,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionValue { .. }
+        | Instruction::Closure { .. }
         | Instruction::FunctionEnvironment { .. } => true,
 
         // borrow producing address computations are not speculatable
@@ -220,7 +220,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionValue { .. }
+        | Instruction::Closure { .. }
         | Instruction::FunctionEnvironment { .. }
         | Instruction::LocalAddr { .. }
         | Instruction::Assume { .. } => false,
@@ -1037,7 +1037,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionValue { .. }
+        | mir::Instruction::Closure { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Struct { .. }
@@ -2108,11 +2108,11 @@ pub fn instruction_map(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::FunctionValue {
+        mir::Instruction::Closure {
             destination,
             function,
             environment,
-        } => mir::Instruction::FunctionValue {
+        } => mir::Instruction::Closure {
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),
@@ -2777,11 +2777,11 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::FunctionValue {
+        mir::Instruction::Closure {
             destination,
             function,
             environment,
-        } => mir::Instruction::FunctionValue {
+        } => mir::Instruction::Closure {
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),

@@ -56,36 +56,36 @@ declare_pass! {
     /// The pass iterates to a bounded fixed point.
     ///
     /// ```mir
-    /// function @before(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst true
-    ///     branch v1, block1, block2
-    /// block1:
+    /// function before(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = true
+    ///     branch v1, b1, b2
+    /// b1:
     ///     return v0
-    /// block2:
-    ///     v2 = iconst 0i32
+    /// b2:
+    ///     v2 = 0int32
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
     ///     return v0
     /// }
     /// ```
     /// ```mir
-    /// function @before_select(v0: bool, v1: i32, v2: i32) -> i32 {
-    /// block0(v0: bool, v1: i32, v2: i32):
-    ///     branch v0, block1(v1), block1(v2)
-    /// block1(v3: i32):
+    /// function beforeSelect(v0: boolean, v1: int32, v2: int32): int32 {
+    /// b0(v0: boolean, v1: int32, v2: int32):
+    ///     branch v0, b1(v1), b1(v2)
+    /// b1(v3: int32):
     ///     return v3
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after_select(v0: bool, v1: i32, v2: i32) -> i32 {
-    /// block0(v0: bool, v1: i32, v2: i32):
+    /// function afterSelect(v0: boolean, v1: int32, v2: int32): int32 {
+    /// b0(v0: boolean, v1: int32, v2: int32):
     ///     v4 = select v0, v1, v2
     ///     return v4
     /// }
@@ -2932,20 +2932,22 @@ mod tests {
     #[test]
     fn test_eliminate_unreachable_block() {
         // block1 is empty (just returns), block2 is unreachable
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    jump block1
-block1:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    jump b1
+b1:
     return v0
-block2:
-    v1: i32 = iconst 2i32
+b2:
+    v1: int32 = 2int32
     return v1
 }"#;
-        // block0's jump threads to return, block1 and block2 become unreachable
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        // b0's jump threads to return, b1 and b2 become unreachable
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#;
 
@@ -2957,19 +2959,21 @@ block0:
     /// Chains of unreachable blocks are all eliminated.
     #[test]
     fn test_eliminate_unreachable_chain() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
-block1:
-    jump block2
-block2:
-    v1: i32 = iconst 2i32
+b1:
+    jump b2
+b2:
+    v1: int32 = 2int32
     return v1
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#;
 
@@ -2982,23 +2986,25 @@ block0:
     #[test]
     fn test_fold_constant_true_branch() {
         // branch on true folds to jump, then threads through empty return block
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
+b2:
     return v2
 }"#;
         // branch folds to jump, then threads to return
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     return v1
 }"#;
 
@@ -3011,23 +3017,25 @@ block0:
     #[test]
     fn test_fold_constant_false_branch() {
         // branch on false folds to jump, then threads through empty return block
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst false
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = false
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
+b2:
     return v2
 }"#;
         // branch folds to jump to block2, then threads to return v2
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst false
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = false
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -3039,16 +3047,18 @@ block0:
     /// Identical void return blocks are merged.
     #[test]
     fn test_merge_identical_return_blocks() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
     return
-block2:
+b2:
     return
 }"#;
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
     return
 }"#;
 
@@ -3060,17 +3070,19 @@ block0(v0: bool):
     /// Non void return blocks are routed through a canonical return block.
     #[test]
     fn test_canonicalize_non_void_return_blocks() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1), block2(v2)
-block1(v3: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1), b2(v2)
+b1(v3: int32):
     return v3
-block2(v4: i32):
+b2(v4: int32):
     return v4
 }"#;
-        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    v3: i32 = select v0, v1, v2
+        let expected = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
 
@@ -3082,21 +3094,23 @@ block0(v0: bool, v1: i32, v2: i32):
     /// Return values from parent blocks are forwarded through the canonical return block.
     #[test]
     fn test_canonicalize_return_with_outer_value() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
+b2:
     return v2
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = select v0, v1, v2
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
 
@@ -3108,24 +3122,26 @@ block0(v0: bool):
     /// Branch on a global const folds to the selected target.
     #[test]
     fn test_fold_global_const_branch() {
-        let input = r#"global @flag: bool = true ; readonly
-function @test() -> i32 {
-block0:
-    v0: bool = global.const @flag
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+global flag: boolean, readonly = true
+function test(): int32 {
+b0:
+    v0: boolean = global.const flag
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
+b2:
     return v2
 }"#;
-        let expected = r#"global @flag: bool = true ; readonly
-function @test() -> i32 {
-block0:
-    v0: bool = global.const @flag
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let expected = r#"
+global flag: boolean, readonly = true
+function test(): int32 {
+b0:
+    v0: boolean = global.const flag
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     return v1
 }"#;
 
@@ -3138,16 +3154,17 @@ block0:
     #[test]
     fn test_preserve_non_constant_branch() {
         // v0 is a parameter, not a constant
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = int.add v1, v2
     return v3
-block2:
-    v4: i32 = isub v2, v1
+b2:
+    v4: int32 = int.sub v2, v1
     return v4
 }"#;
 
@@ -3159,27 +3176,29 @@ block2:
     /// Branch on a block parameter constant folds to the selected target.
     #[test]
     fn test_fold_block_param_constant_branch() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: bool = iconst true
-    branch v0, block1(v1), block2(v1)
-block1(v2: bool):
-    jump block3(v2)
-block2(v3: bool):
-    jump block3(v3)
-block3(v4: bool):
-    branch v4, block4, block5
-block4:
-    v5: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: boolean = true
+    branch v0, b1(v1), b2(v1)
+b1(v2: boolean):
+    jump b3(v2)
+b2(v3: boolean):
+    jump b3(v3)
+b3(v4: boolean):
+    branch v4, b4, b5
+b4:
+    v5: int32 = 1int32
     return v5
-block5:
-    v6: i32 = iconst 2i32
+b5:
+    v6: int32 = 2int32
     return v6
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: bool = iconst true
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: boolean = true
+    v2: int32 = 1int32
     return v2
 }"#;
 
@@ -3192,22 +3211,24 @@ block0(v0: bool):
     #[test]
     fn test_fold_and_eliminate_combined() {
         // branch on true folds to jump to block1, then threads to return
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 42i32
-    branch v0, block1, block2
-block1:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 42int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
-    v2: i32 = iconst 0i32
+b2:
+    v2: int32 = 0int32
     return v2
 }"#;
         // branch folds, jump threads through empty block1, block2 eliminated
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 42int32
     return v1
 }"#;
 
@@ -3219,19 +3240,20 @@ block0:
     /// Loop back edges keep loop blocks reachable.
     #[test]
     fn test_preserve_loop_structure() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iconst 10i32
-    v3: bool = icmp_slt v1, v2
-    branch v3, block2, block3
-block2:
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v1, v4
-    jump block1(v5)
-block3:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 0int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = 10int32
+    v3: boolean = int.lt.s v1, v2
+    branch v3, b2, b3
+b2:
+    v4: int32 = 1int32
+    v5: int32 = int.add v1, v4
+    jump b1(v5)
+b3:
     return v1
 }"#;
 
@@ -3243,9 +3265,10 @@ block3:
     /// Single block functions with no branches are unchanged.
     #[test]
     fn test_preserve_single_block() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -3258,28 +3281,30 @@ block0:
     #[test]
     fn test_fold_nested_constant_branches() {
         // v0=true to block1, v1=false to block4, block2 and block3 become unreachable
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: bool = iconst false
-    branch v0, block1, block2
-block1:
-    branch v1, block3, block4
-block2:
-    v2: i32 = iconst 2i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: boolean = false
+    branch v0, b1, b2
+b1:
+    branch v1, b3, b4
+b2:
+    v2: int32 = 2int32
     return v2
-block3:
-    v3: i32 = iconst 3i32
+b3:
+    v3: int32 = 3int32
     return v3
-block4:
-    v4: i32 = iconst 4i32
+b4:
+    v4: int32 = 4int32
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: bool = iconst false
-    v2: i32 = iconst 4i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: boolean = false
+    v2: int32 = 4int32
     return v2
 }"#;
 
@@ -3291,16 +3316,17 @@ block0:
     /// Diamond CFG with non constant condition is preserved.
     #[test]
     fn test_preserve_diamond_cfg() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
-    jump block3(v1)
-block2:
-    jump block3(v2)
-block3(v3: i32):
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
+    jump b3(v1)
+b2:
+    jump b3(v2)
+b3(v3: int32):
     return v3
 }"#;
 
@@ -3312,24 +3338,26 @@ block3(v3: i32):
     /// Multiple disconnected unreachable regions are all eliminated.
     #[test]
     fn test_eliminate_multiple_unreachable_regions() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
-block1:
-    v1: i32 = iconst 2i32
-    jump block2
-block2:
+b1:
+    v1: int32 = 2int32
+    jump b2
+b2:
     return v1
-block3:
-    v2: i32 = iconst 3i32
-    jump block4
-block4:
+b3:
+    v2: int32 = 3int32
+    jump b4
+b4:
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }"#;
 
@@ -3341,21 +3369,23 @@ block0:
     /// Constant branch with block arguments preserves arguments on folded jump.
     #[test]
     fn test_fold_branch_with_block_arguments() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
-    branch v0, block1(v1), block1(v2)
-block1(v3: i32):
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 42int32
+    v2: int32 = 0int32
+    branch v0, b1(v1), b1(v2)
+b1(v3: int32):
     return v3
 }"#;
-        // after folding branch to jump, block merging merges block1 into block0
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
+        // after folding branch to jump, block merging merges b1 into b0
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 42int32
+    v2: int32 = 0int32
     return v1
 }"#;
 
@@ -3367,21 +3397,23 @@ block0:
     /// Assume conditions fold branches to the assumed target.
     #[test]
     fn test_fold_assume_branch() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     assume v0
-    branch v0, block1, block2
-block1:
+    branch v0, b1, b2
+b1:
     return v1
-block2:
+b2:
     return v2
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
     assume v0
     return v1
 }"#;
@@ -3394,19 +3426,21 @@ block0(v0: bool):
     /// Assume conditions fold checks to the success edge.
     #[test]
     fn test_fold_assume_check() {
-        let input = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> u32 {
-block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
-    v4: bool = icmp_ult v1, v2
+        let input = r#"
+function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): uint32 {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+    v4: boolean = int.lt.u v1, v2
     assume v4
-    check v4, bounds.unsigned v1, v2, v3, block1, block2
-block1:
+    check bounds.u v1, v2, v3 -> b1, b2
+b1:
     return v1
-block2:
+b2:
     unreachable
 }"#;
-        let expected = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> u32 {
-block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
-    v4: bool = icmp_ult v1, v2
+        let expected = r#"
+function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): uint32 {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+    v4: boolean = int.lt.u v1, v2
     assume v4
     return v1
 }"#;
@@ -3419,20 +3453,22 @@ block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
     /// Check constraints fold even when condition ranges are unknown.
     #[test]
     fn test_fold_check_constraint_truth() {
-        let input = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
-block0(v0: bool, v1: [u32; 4]):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 4u32
-    check v0, bounds.unsigned v2, v3, v1, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean, v1: uint32[4]): uint32 {
+b0(v0: boolean, v1: uint32[4]):
+    v2: uint32 = 0uint32
+    v3: uint32 = 4uint32
+    check bounds.u v2, v3, v1 -> b1, b2
+b1:
     return v2
-block2:
+b2:
     unreachable
 }"#;
-        let expected = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
-block0(v0: bool, v1: [u32; 4]):
-    v2: u32 = iconst 0u32
-    v3: u32 = iconst 4u32
+        let expected = r#"
+function test(v0: boolean, v1: uint32[4]): uint32 {
+b0(v0: boolean, v1: uint32[4]):
+    v2: uint32 = 0uint32
+    v3: uint32 = 4uint32
     return v2
 }"#;
 
@@ -3445,19 +3481,21 @@ block0(v0: bool, v1: [u32; 4]):
     #[test]
     fn test_thread_simple_jump() {
         // block1 and block2 are both empty threadable blocks
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    jump block1
-block1:
-    jump block2
-block2:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    jump b1
+b1:
+    jump b2
+b2:
     return v0
 }"#;
-        // block0's jump threads all the way to return, both intermediates become unreachable
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        // b0's jump threads all the way to return, both intermediates become unreachable
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -3470,21 +3508,23 @@ block0:
     #[test]
     fn test_thread_jump_chain() {
         // all intermediate blocks are empty and threadable
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    jump block1
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    jump b1
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
     return v0
 }"#;
-        // block0's jump threads through entire chain to return
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        // b0's jump threads through entire chain to return
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -3496,23 +3536,25 @@ block0:
     /// Block with instructions is not threaded through, but its successor can be.
     #[test]
     fn test_preserve_block_with_instructions() {
-        // block1 has instructions so can't be threaded through
-        // but after threading block1's jump to return, block0 and block1 merge
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    jump block1
-block1:
-    v1: i32 = iadd v0, v0
-    jump block2
-block2:
+        // b1 has instructions so can't be threaded through
+        // but after threading b1's jump to return, b0 and b1 merge
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    jump b1
+b1:
+    v1: int32 = int.add v0, v0
+    jump b2
+b2:
     return v1
 }"#;
-        // block1's jump threads to return, then block0 and block1 merge
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iadd v0, v0
+        // b1's jump threads to return, then b0 and b1 merge
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -3524,25 +3566,27 @@ block0:
     /// Branch targets through empty blocks are threaded.
     #[test]
     fn test_thread_branch_targets() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block4
-block3:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b4
+b3:
     return v1
-block4:
+b4:
     return v2
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = select v0, v1, v2
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
 
@@ -3554,20 +3598,22 @@ block0(v0: bool):
     /// Check targets thread through empty jump blocks.
     #[test]
     fn test_thread_check_targets() {
-        let input = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> void {
-block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
-    check v0, bounds.unsigned v1, v2, v3, block1, block2
-block1:
-    jump block3
-block2:
-    jump block4
-block3:
+        let input = r#"
+function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): void {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+    check bounds.u v1, v2, v3 -> b1, b2
+b1:
+    jump b3
+b2:
+    jump b4
+b3:
     return
-block4:
+b4:
     return
 }"#;
-        let expected = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> void {
-block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
+        let expected = r#"
+function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): void {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
     return
 }"#;
 
@@ -3579,28 +3625,30 @@ block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
     /// Switch edges thread through empty jump blocks.
     #[test]
     fn test_thread_switch_edges() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    switch v0, block1, 0 => block2
-block1:
-    jump block3
-block2:
-    jump block4
-block3:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    switch v0, b1, 0 => b2
+b1:
+    jump b3
+b2:
+    jump b4
+b3:
+    v1: int32 = 1int32
     return v1
-block4:
-    v2: i32 = iconst 2i32
+b4:
+    v2: int32 = 2int32
     return v2
 }"#;
-        let expected = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    switch v0, block1, 0 => block2
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    switch v0, b1, 0 => b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -3612,42 +3660,44 @@ block2:
     /// Edge specific ranges thread through a condition only block.
     #[test]
     fn test_thread_edge_condition_with_ranges() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 20u32
-    v3: u32 = select v0, v1, v2
-    v4: u32 = iconst 10u32
-    v5: u32 = iconst 15u32
-    v6: bool = icmp_ult v3, v4
-    branch v6, block1, block2
-block1:
-    v7: bool = icmp_ult v3, v5
-    branch v7, block3, block4
-block2:
-    v8: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 20uint32
+    v3: uint32 = select v0, v1, v2
+    v4: uint32 = 10uint32
+    v5: uint32 = 15uint32
+    v6: boolean = int.lt.u v3, v4
+    branch v6, b1, b2
+b1:
+    v7: boolean = int.lt.u v3, v5
+    branch v7, b3, b4
+b2:
+    v8: int32 = 1int32
     return v8
-block3:
-    v9: i32 = iconst 2i32
+b3:
+    v9: int32 = 2int32
     return v9
-block4:
-    v10: i32 = iconst 3i32
+b4:
+    v10: int32 = 3int32
     return v10
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 20u32
-    v3: u32 = select v0, v1, v2
-    v4: u32 = iconst 10u32
-    v5: u32 = iconst 15u32
-    v6: bool = icmp_ult v3, v4
-    branch v6, block2, block1
-block1:
-    v7: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 20uint32
+    v3: uint32 = select v0, v1, v2
+    v4: uint32 = 10uint32
+    v5: uint32 = 15uint32
+    v6: boolean = int.lt.u v3, v4
+    branch v6, b2, b1
+b1:
+    v7: int32 = 1int32
     return v7
-block2:
-    v8: i32 = iconst 2i32
+b2:
+    v8: int32 = 2int32
     return v8
 }"#;
 
@@ -3660,22 +3710,24 @@ block2:
     #[test]
     fn test_thread_parameterized_block_successor() {
         // block1 has params so can't be threaded through, but block2 is empty and threadable
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1(v1), block1(v2)
-block1(v3: i32):
-    jump block2
-block2:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1(v1), b1(v2)
+b1(v3: int32):
+    jump b2
+b2:
     return v3
 }"#;
         // block1's jump is threaded directly to the return, block2 becomes unreachable
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: i32 = select v0, v1, v2
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
 
@@ -3687,25 +3739,27 @@ block0(v0: bool):
     /// Jump predecessors duplicate a small tail block into the jump edge.
     #[test]
     fn test_tail_duplicate_jump_predecessor() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 1i32
-    branch v0, block1, block2(v1)
-block1:
-    jump block2(v1)
-block2(v3: i32):
-    v4: i32 = iadd v3, v2
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 1int32
+    branch v0, b1, b2(v1)
+b1:
+    jump b2(v1)
+b2(v3: int32):
+    v4: int32 = int.add v3, v2
     return v4
 }"#;
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 1i32
-    branch v0, block1, block2(v1)
-block1:
-    v3: i32 = iadd v1, v2
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 1int32
+    branch v0, b1, b2(v1)
+b1:
+    v3: int32 = int.add v1, v2
     return v3
-block2(v4: i32):
-    v5: i32 = iadd v4, v2
+b2(v4: int32):
+    v5: int32 = int.add v4, v2
     return v5
 }"#;
 
@@ -3718,34 +3772,36 @@ block2(v4: i32):
     #[test]
     fn test_tail_duplicate_profile_hot_edge() {
         // base cfg with two jump predecessors into a shared tail block
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1(v1), block2(v2)
-block1(v3: i32):
-    jump block3(v3)
-block2(v4: i32):
-    jump block3(v4)
-block3(v5: i32):
-    v6: i32 = imul v5, v5
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1(v1), b2(v2)
+b1(v3: int32):
+    jump b3(v3)
+b2(v4: int32):
+    jump b3(v4)
+b3(v5: int32):
+    v6: int32 = int.mul v5, v5
     return v6
 }"#;
         // expected cfg after duplicating the hot predecessor only
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1(v1), block3(v2)
-block1(v3: i32):
-    jump block2
-block2:
-    v4: i32 = imul v3, v3
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1(v1), b3(v2)
+b1(v3: int32):
+    jump b2
+b2:
+    v4: int32 = int.mul v3, v3
     return v4
-block3(v5: i32):
-    jump block4(v5)
-block4(v6: i32):
-    v7: i32 = imul v6, v6
+b3(v5: int32):
+    jump b4(v5)
+b4(v6: int32):
+    v7: int32 = int.mul v6, v6
     return v7
 }"#;
 
@@ -3787,27 +3843,29 @@ block4(v6: i32):
     /// Critical edges are split with a dedicated block.
     #[test]
     fn test_split_critical_edge() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 1i32
-    branch v0, block1(v2), block2(v1)
-block1(v3: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 1int32
+    branch v0, b1(v2), b2(v1)
+b1(v3: int32):
     return v3
-block2(v4: i32):
-    v5: i32 = iadd v4, v2
-    jump block1(v5)
+b2(v4: int32):
+    v5: int32 = int.add v4, v2
+    jump b1(v5)
 }"#;
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 1i32
-    branch v0, block1(v2), block3(v1)
-block1(v3: i32):
-    jump block2(v3)
-block2(v4: i32):
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 1int32
+    branch v0, b1(v2), b3(v1)
+b1(v3: int32):
+    jump b2(v3)
+b2(v4: int32):
     return v4
-block3(v5: i32):
-    v6: i32 = iadd v5, v2
-    jump block2(v6)
+b3(v5: int32):
+    v6: int32 = int.add v5, v2
+    jump b2(v6)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3818,30 +3876,32 @@ block3(v5: i32):
     /// Range based branch folding collapses branches on bounded conditions.
     #[test]
     fn test_fold_range_branch_select() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = select v0, v1, v2
-    v4: u32 = iconst 2u32
-    v5: bool = icmp_ult v3, v4
-    v6: i32 = iconst 10i32
-    v7: i32 = iconst 20i32
-    branch v5, block1, block2
-block1:
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = select v0, v1, v2
+    v4: uint32 = 2uint32
+    v5: boolean = int.lt.u v3, v4
+    v6: int32 = 10int32
+    v7: int32 = 20int32
+    branch v5, b1, b2
+b1:
     return v6
-block2:
+b2:
     return v7
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = select v0, v1, v2
-    v4: u32 = iconst 2u32
-    v5: bool = icmp_ult v3, v4
-    v6: i32 = iconst 10i32
-    v7: i32 = iconst 20i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = select v0, v1, v2
+    v4: uint32 = 2uint32
+    v5: boolean = int.lt.u v3, v4
+    v6: int32 = 10int32
+    v7: int32 = 20int32
     return v6
 }"#;
 
@@ -3853,39 +3913,41 @@ block0(v0: bool):
     /// Range based switch folding prunes impossible cases.
     #[test]
     fn test_prune_switch_cases_by_range() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = select v0, v1, v2
-    switch v3, block3, 0 => block1, 1 => block2, 2 => block4
-block1:
-    v4: i32 = iconst 10i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = select v0, v1, v2
+    switch v3, b3, 0 => b1, 1 => b2, 2 => b4
+b1:
+    v4: int32 = 10int32
     return v4
-block2:
-    v5: i32 = iconst 11i32
+b2:
+    v5: int32 = 11int32
     return v5
-block3:
-    v6: i32 = iconst 12i32
+b3:
+    v6: int32 = 12int32
     return v6
-block4:
-    v7: i32 = iconst 13i32
+b4:
+    v7: int32 = 13int32
     return v7
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = select v0, v1, v2
-    switch v3, block3, 0 => block1, 1 => block2
-block1:
-    v4: i32 = iconst 10i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = select v0, v1, v2
+    switch v3, b3, 0 => b1, 1 => b2
+b1:
+    v4: int32 = 10int32
     return v4
-block2:
-    v5: i32 = iconst 11i32
+b2:
+    v5: int32 = 11int32
     return v5
-block3:
-    v6: i32 = iconst 12i32
+b3:
+    v6: int32 = 12int32
     return v6
 }"#;
 
@@ -3897,16 +3959,18 @@ block3:
     /// Switches with identical targets fold into a jump.
     #[test]
     fn test_fold_switch_with_identical_targets() {
-        let input = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    switch v0, block1, 0 => block1, 1 => block1
-block1:
-    v1: i32 = iconst 10i32
+        let input = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    switch v0, b1, 0 => b1, 1 => b1
+b1:
+    v1: int32 = 10int32
     return v1
 }"#;
-        let expected = r#"function @test(v0: u32) -> i32 {
-block0(v0: u32):
-    v1: i32 = iconst 10i32
+        let expected = r#"
+function test(v0: uint32): int32 {
+b0(v0: uint32):
+    v1: int32 = 10int32
     return v1
 }"#;
 
@@ -3918,32 +3982,34 @@ block0(v0: u32):
     /// Single case switches lower to conditional branches.
     #[test]
     fn test_lower_single_case_switch_to_branch() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = select v0, v1, v2
-    switch v3, block1, 1 => block2
-block1:
-    v4: i32 = iconst 10i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = select v0, v1, v2
+    switch v3, b1, 1 => b2
+b1:
+    v4: int32 = 10int32
     return v4
-block2:
-    v5: i32 = iconst 20i32
+b2:
+    v5: int32 = 20int32
     return v5
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = select v0, v1, v2
-    v4: u32 = iconst 1u32
-    v5: bool = icmp_eq v3, v4
-    branch v5, block2, block1
-block1:
-    v6: i32 = iconst 10i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = select v0, v1, v2
+    v4: uint32 = 1uint32
+    v5: boolean = int.eq v3, v4
+    branch v5, b2, b1
+b1:
+    v6: int32 = 10int32
     return v6
-block2:
-    v7: i32 = iconst 20i32
+b2:
+    v7: int32 = 20int32
     return v7
 }"#;
 
@@ -3955,28 +4021,30 @@ block2:
     /// Boolean switches lower to branches without new compares.
     #[test]
     fn test_lower_boolean_switch_to_branch() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: bool = icmp_eq v0, v1
-    switch v2, block1, 1 => block2
-block1:
-    v3: i32 = iconst 1i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: boolean = int.eq v0, v1
+    switch v2, b1, 1 => b2
+b1:
+    v3: int32 = 1int32
     return v3
-block2:
-    v4: i32 = iconst 2i32
+b2:
+    v4: int32 = 2int32
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: bool = icmp_eq v0, v1
-    branch v2, block2, block1
-block1:
-    v3: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: boolean = int.eq v0, v1
+    branch v2, b2, b1
+b1:
+    v3: int32 = 1int32
     return v3
-block2:
-    v4: i32 = iconst 2i32
+b2:
+    v4: int32 = 2int32
     return v4
 }"#;
 
@@ -3988,30 +4056,32 @@ block2:
     /// Boolean switches preserve argument passing on lowering.
     #[test]
     fn test_lower_boolean_switch_with_arguments() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    v3: i32 = iconst 7i32
-    v4: i32 = iconst 9i32
-    switch v2, block1(v3), 1 => block2(v4)
-block1(v5: i32):
-    v6: i32 = iadd v5, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    v3: int32 = 7int32
+    v4: int32 = 9int32
+    switch v2, b1(v3), 1 => b2(v4)
+b1(v5: int32):
+    v6: int32 = int.add v5, v5
     return v6
-block2(v7: i32):
-    v8: i32 = iadd v7, v7
+b2(v7: int32):
+    v8: int32 = int.add v7, v7
     return v8
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    v3: i32 = iconst 7i32
-    v4: i32 = iconst 9i32
-    branch v2, block2(v4), block1(v3)
-block1(v5: i32):
-    v6: i32 = iadd v5, v5
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    v3: int32 = 7int32
+    v4: int32 = 9int32
+    branch v2, b2(v4), b1(v3)
+b1(v5: int32):
+    v6: int32 = int.add v5, v5
     return v6
-block2(v7: i32):
-    v8: i32 = iadd v7, v7
+b2(v7: int32):
+    v8: int32 = int.add v7, v7
     return v8
 }"#;
 
@@ -4023,31 +4093,33 @@ block2(v7: i32):
     /// Boolean switches with two cases lower to a branch.
     #[test]
     fn test_lower_boolean_switch_two_cases() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: bool = icmp_eq v0, v1
-    switch v2, block1, 0 => block2, 1 => block3
-block1:
-    v3: i32 = iconst 10i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: boolean = int.eq v0, v1
+    switch v2, b1, 0 => b2, 1 => b3
+b1:
+    v3: int32 = 10int32
     return v3
-block2:
-    v4: i32 = iconst 20i32
+b2:
+    v4: int32 = 20int32
     return v4
-block3:
-    v5: i32 = iconst 30i32
+b3:
+    v5: int32 = 30int32
     return v5
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: bool = icmp_eq v0, v1
-    branch v2, block2, block1
-block1:
-    v3: i32 = iconst 20i32
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: boolean = int.eq v0, v1
+    branch v2, b2, b1
+b1:
+    v3: int32 = 20int32
     return v3
-block2:
-    v4: i32 = iconst 30i32
+b2:
+    v4: int32 = 30int32
     return v4
 }"#;
 
@@ -4059,36 +4131,38 @@ block2:
     /// Single case switches preserve argument passing on lowering.
     #[test]
     fn test_lower_single_case_switch_with_arguments() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = select v0, v1, v2
-    v4: i32 = iconst 4i32
-    v5: i32 = iconst 8i32
-    switch v3, block1(v4), 1 => block2(v5)
-block1(v6: i32):
-    v7: i32 = imul v6, v6
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = select v0, v1, v2
+    v4: int32 = 4int32
+    v5: int32 = 8int32
+    switch v3, b1(v4), 1 => b2(v5)
+b1(v6: int32):
+    v7: int32 = int.mul v6, v6
     return v7
-block2(v8: i32):
-    v9: i32 = imul v8, v8
+b2(v8: int32):
+    v9: int32 = int.mul v8, v8
     return v9
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = select v0, v1, v2
-    v4: i32 = iconst 4i32
-    v5: i32 = iconst 8i32
-    v6: i32 = iconst 1i32
-    v7: bool = icmp_eq v3, v6
-    branch v7, block2(v5), block1(v4)
-block1(v8: i32):
-    v9: i32 = imul v8, v8
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = select v0, v1, v2
+    v4: int32 = 4int32
+    v5: int32 = 8int32
+    v6: int32 = 1int32
+    v7: boolean = int.eq v3, v6
+    branch v7, b2(v5), b1(v4)
+b1(v8: int32):
+    v9: int32 = int.mul v8, v8
     return v9
-block2(v10: i32):
-    v11: i32 = imul v10, v10
+b2(v10: int32):
+    v11: int32 = int.mul v10, v10
     return v11
 }"#;
 
@@ -4100,24 +4174,26 @@ block2(v10: i32):
     /// Switch cases that mirror the default edge are dropped.
     #[test]
     fn test_prune_default_switch_case() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    switch v0, block1, 0 => block1, 1 => block2
-block1:
-    v1: i32 = iconst 10i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    switch v0, b1, 0 => b1, 1 => b2
+b1:
+    v1: int32 = 10int32
     return v1
-block2:
-    v2: i32 = iconst 20i32
+b2:
+    v2: int32 = 20int32
     return v2
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    switch v0, block1, 1 => block2
-block1:
-    v1: i32 = iconst 10i32
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    switch v0, b1, 1 => b2
+b1:
+    v1: int32 = 10int32
     return v1
-block2:
-    v2: i32 = iconst 20i32
+b2:
+    v2: int32 = 20int32
     return v2
 }"#;
 
@@ -4129,18 +4205,20 @@ block2:
     /// Passthrough blocks forward parameters directly to their successor.
     #[test]
     fn test_thread_passthrough_block_parameters() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
-    jump block1(v0)
-block1(v1: i32):
-    jump block2(v1)
-block2(v2: i32):
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 5int32
+    jump b1(v0)
+b1(v1: int32):
+    jump b2(v1)
+b2(v2: int32):
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 5int32
     return v0
 }"#;
 
@@ -4486,20 +4564,21 @@ block0:
     /// SimplifyCfg preserves argument counts and definitions.
     #[test]
     fn test_simplify_cfg_preserves_argument_counts() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1), block2(v2)
-block1(v3: i32):
-    v4: i32 = iadd v3, v2
-    jump block3(v4)
-block2(v5: i32):
-    v6: i32 = iadd v5, v1
-    jump block3(v6)
-block3(v7: i32):
-    branch v0, block4(v7), block5(v7)
-block4(v8: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1), b2(v2)
+b1(v3: int32):
+    v4: int32 = int.add v3, v2
+    jump b3(v4)
+b2(v5: int32):
+    v6: int32 = int.add v5, v1
+    jump b3(v6)
+b3(v7: int32):
+    branch v0, b4(v7), b5(v7)
+b4(v8: int32):
     return v8
-block5(v9: i32):
+b5(v9: int32):
     return v9
 }"#;
 

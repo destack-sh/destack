@@ -25,24 +25,24 @@ function fibonacci(n: number): number {
         module_id,
         "native",
         r#"
-function @fibonacci(v0: f64) -> f64 {
-block0(v0: f64):
-    v1: i32 = iconst 2i32
-    v2: f64 = scvt_to_float v1 -> f64
-    v3: bool = fcmp_lt v0, v2
-    branch v3, block1, block2
-block1:
+function fibonacci(v0: float64): float64 {
+b0(v0: float64):
+    v1: int32 = 2int32
+    v2: float64 = cast.intToFloat.s v1 -> float64
+    v3: boolean = float.lt v0, v2
+    branch v3, b1, b2
+b1:
     return v0
-block2:
-    jump block3
-block3:
-    v4: f64 = iconst 1f64
-    v5: f64 = fsub v0, v4
-    v6: f64 = call @fibonacci(v5) -> fn(f64) -> f64
-    v7: f64 = iconst 2f64
-    v8: f64 = fsub v0, v7
-    v9: f64 = call @fibonacci(v8) -> fn(f64) -> f64
-    v10: f64 = fadd v6, v9
+b2:
+    jump b3
+b3:
+    v4: float64 = 1float64
+    v5: float64 = float.sub v0, v4
+    v6: float64 = call fibonacci(v5): (float64) -> float64
+    v7: float64 = 2float64
+    v8: float64 = float.sub v0, v7
+    v9: float64 = call fibonacci(v8): (float64) -> float64
+    v10: float64 = float.add v6, v9
     return v10
 }"#,
     );

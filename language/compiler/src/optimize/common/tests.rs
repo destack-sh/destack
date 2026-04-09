@@ -919,8 +919,9 @@ mod tests {
     #[test]
     fn test_compute_analysis_on_demand() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -966,8 +967,9 @@ block0:
     #[test]
     fn test_analysis_compute_dependencies() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -987,8 +989,9 @@ block0:
     #[test]
     fn test_analysis_transitive_dependencies() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -1010,8 +1013,9 @@ block0:
     #[test]
     fn test_analysis_invalidate_single() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -1032,8 +1036,9 @@ block0:
     #[test]
     fn test_analysis_invalidate_all() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -1058,8 +1063,9 @@ block0:
     #[test]
     fn test_analysis_preservation_all() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -1083,8 +1089,9 @@ block0:
     #[test]
     fn test_analysis_preservation_none() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -1108,8 +1115,9 @@ block0:
     #[test]
     fn test_analysis_preservation_some() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -1194,14 +1202,15 @@ block0:
     /// Emits an error when call effects metadata is missing.
     #[test]
     fn test_requirements_call_effects() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -1218,9 +1227,10 @@ block0:
     /// Emits an error when memory access metadata is missing.
     #[test]
     fn test_requirements_memory_access_metadata() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
     return v1
 }"#;
 
@@ -1237,8 +1247,9 @@ block0(v0: ref<raw i32>):
     /// Emits an error when profile data is required but missing.
     #[test]
     fn test_requirements_profile_data() {
-        let input = r#"function @test() -> void {
-block0:
+        let input = r#"
+function test(): void {
+b0:
     return
 }"#;
 
@@ -1255,10 +1266,14 @@ block0:
     /// Emits an error when type layout metadata is missing.
     #[test]
     fn test_requirements_type_layouts() {
-        let input = r#"type @Point = { i32, i32 }
-function @make_point(v0: i32, v1: i32) -> @Point {
-block0(v0: i32, v1: i32):
-    v2: @Point = struct @Point (v0, v1)
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function makePoint(v0: int32, v1: int32): Point {
+b0(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
     return v2
 }"#;
 

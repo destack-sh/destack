@@ -29,12 +29,11 @@ function statusValue(): int32 {
         module_id,
         "native",
         r#"
-function @statusValue() -> i32 {
-block0:
-    v0: i32 = iconst 4i32
+function statusValue(): int32 {
+b0:
+    v0: int32 = 4int32
     return v0
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "statusValue", &[], Value::int32(4));
@@ -131,20 +130,18 @@ function checkStatic(): boolean {
         module_id,
         "native",
         r#"
-function @checkStatic() -> bool {
-block0:
-    v0: i32 = iconst 1i32
-    v1: bool = call @Status.isActive(v0) -> fn(i32) -> bool
+function checkStatic(): boolean {
+b0:
+    v0: int32 = 1int32
+    v1: boolean = call Status.isActive(v0): (int32) -> boolean
     return v1
 }
-
-function @Status.isActive(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: bool = icmp_eq v0, v1
+function Status.isActive(v0: int32): boolean {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: boolean = int.eq v0, v1
     return v2
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "checkStatic", &[], Value::bool(true));
@@ -180,20 +177,18 @@ function checkInstance(): boolean {
         module_id,
         "native",
         r#"
-function @checkInstance() -> bool {
-block0:
-    v0: i32 = iconst 1i32
-    v1: bool = call @Status.isActive(v0) -> fn(i32) -> bool
+function checkInstance(): boolean {
+b0:
+    v0: int32 = 1int32
+    v1: boolean = call Status.isActive(v0): (int32) -> boolean
     return v1
 }
-
-function @Status.isActive(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: bool = icmp_eq v0, v1
+function Status.isActive(v0: int32): boolean {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: boolean = int.eq v0, v1
     return v2
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "checkInstance", &[], Value::bool(true));
@@ -227,14 +222,12 @@ function defaultValue(): int32 {
         module_id,
         "native",
         r#"
-global @Status.Default: i32 = 1i32 ; readonly
-
-function @defaultValue() -> i32 {
-block0:
-    v0: i32 = global.const @Status.Default
+global Status.Default: int32, readonly = 1int32
+function defaultValue(): int32 {
+b0:
+    v0: int32 = global.const Status.Default
     return v0
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "defaultValue", &[], Value::int32(1));

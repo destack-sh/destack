@@ -19,14 +19,14 @@ declare_pass! {
     ///
     /// ```mir
     /// // before SROA
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc { i32, i32 }
-    ///     v1 = field.addr v0, 0
-    ///     v2 = iconst 1i32
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc { int32, int32 }
+    ///     v1 = field.address v0, 0
+    ///     v2 = 1int32
     ///     store v1, v2
-    ///     v3 = field.addr v0, 1
-    ///     v4 = iconst 2i32
+    ///     v3 = field.address v0, 1
+    ///     v4 = 2int32
     ///     store v3, v4
     ///     v5 = load v1
     ///     return v5
@@ -35,13 +35,13 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// // after SROA
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = stack.alloc i32  // field 0
-    ///     v1 = stack.alloc i32  // field 1
-    ///     v2 = iconst 1i32
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = stack.alloc int32  // field 0
+    ///     v1 = stack.alloc int32  // field 1
+    ///     v2 = 1int32
     ///     store v0, v2
-    ///     v3 = iconst 2i32
+    ///     v3 = 2int32
     ///     store v1, v3
     ///     v4 = load v0
     ///     return v4
@@ -822,27 +822,35 @@ mod tests {
     /// Simple struct splitting.
     ///
     /// The struct allocation is split into separate allocations for each field.
-    /// field.addr instructions are replaced with direct references to the new allocations.
+    /// field.address instructions are replaced with direct references to the new allocations.
     #[test]
     fn test_split_struct() {
-        let input = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 42i32
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 42int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
-        let expected = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let expected = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -856,22 +864,24 @@ block0:
     /// Tuples are split like structs - each element gets its own allocation.
     #[test]
     fn test_split_tuple() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) (i32, i64)> = stack.alloc (i32, i64)
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<(int32, int64), raw, addressSpace(stack)> = stack.alloc (int32, int64)
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 42int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -885,26 +895,28 @@ block0:
     /// Arrays with constant indices are split into separate allocations per element.
     #[test]
     fn test_split_small_array() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
-    v1: i64 = iconst 0i64
-    v2: ref<borrowed i32> = element.addr v0, v1
-    v3: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
+    v1: int64 = 0int64
+    v2: ref<int32, borrowed> = element.address v0, v1
+    v3: int32 = 42int32
     store v2, v3
-    v4: i32 = load v2
+    v4: int32 = load v2
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v4: i64 = iconst 0i64
-    v5: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v4: int64 = 0int64
+    v5: int32 = 42int32
     store v3, v5
-    v6: i32 = load v3
+    v6: int32 = load v3
     return v6
 }"#;
 
@@ -918,14 +930,15 @@ block0:
     /// Arrays exceeding the max element threshold are not split.
     #[test]
     fn test_preserve_large_array() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) [i32; 100]> = stack.alloc [i32; 100]
-    v1: i64 = iconst 0i64
-    v2: ref<borrowed i32> = element.addr v0, v1
-    v3: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32[100], raw, addressSpace(stack)> = stack.alloc int32[100]
+    v1: int64 = 0int64
+    v2: ref<int32, borrowed> = element.address v0, v1
+    v3: int32 = 42int32
     store v2, v3
-    v4: i32 = load v2
+    v4: int32 = load v2
     return v4
 }"#;
 
@@ -940,12 +953,16 @@ block0:
     /// and cannot be split.
     #[test]
     fn test_preserve_escaping() {
-        let input = r#"type @Point = { i32, i32 }
-extern function @external(ref<raw @Point>) -> void
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    call @external(v0) -> fn(ref<raw @Point>) -> void
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+extern function external(ref<Point, raw>): void
+function test(): void {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    call external(v0): (ref<Point, raw>) -> void
     return
 }"#;
 
@@ -960,13 +977,14 @@ block0:
     /// we cannot split because we don't know which element is accessed.
     #[test]
     fn test_preserve_dynamic_index() {
-        let input = r#"function @test(v0: i64) -> i32 {
-block0(v0: i64):
-    v1: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
-    v2: ref<borrowed i32> = element.addr v1, v0
-    v3: i32 = iconst 42i32
+        let input = r#"
+function test(v0: int64): int32 {
+b0(v0: int64):
+    v1: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
+    v2: ref<int32, borrowed> = element.address v1, v0
+    v3: int32 = 42int32
     store v2, v3
-    v4: i32 = load v2
+    v4: int32 = load v2
     return v4
 }"#;
 
@@ -977,37 +995,45 @@ block0(v0: i64):
 
     /// Multiple fields accessed.
     ///
-    /// When multiple fields of a struct are accessed, all field.addr
+    /// When multiple fields of a struct are accessed, all field.address
     /// instructions are replaced with the corresponding new allocations.
     #[test]
     fn test_multiple_fields() {
-        let input = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 10i32
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 10int32
     store v1, v2
-    v3: ref<borrowed i32> = field.addr v0, 1
-    v4: i32 = iconst 20i32
+    v3: ref<int32, borrowed> = field.address v0, 1
+    v4: int32 = 20int32
     store v3, v4
-    v5: i32 = load v1
-    v6: i32 = load v3
-    v7: i32 = iadd v5, v6
+    v5: int32 = load v1
+    v6: int32 = load v3
+    v7: int32 = int.add v5, v6
     return v7
 }"#;
-        let expected = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 10i32
+        let expected = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 10int32
     store v1, v2
-    v3: i32 = iconst 20i32
+    v3: int32 = 20int32
     store v0, v3
-    v4: i32 = load v1
-    v5: i32 = load v0
-    v6: i32 = iadd v4, v5
+    v4: int32 = load v1
+    v5: int32 = load v0
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
 
@@ -1022,26 +1048,40 @@ block0:
     /// intact and can be split in subsequent passes.
     #[test]
     fn test_nested_struct() {
-        let input = r#"type @Inner = { i32, i32 }
-type @Outer = { @Inner, i64 }
-function @test() -> i64 {
-block0:
-    v0: ref<raw addrspace(stack) @Outer> = stack.alloc @Outer
-    v1: ref<borrowed i64> = field.addr v0, 1
-    v2: i64 = iconst 42i64
+        let input = r#"
+type Inner {
+    int32;
+    int32;
+}
+type Outer {
+    Inner;
+    int64;
+}
+function test(): int64 {
+b0:
+    v0: ref<Outer, raw, addressSpace(stack)> = stack.alloc Outer
+    v1: ref<int64, borrowed> = field.address v0, 1
+    v2: int64 = 42int64
     store v1, v2
-    v3: i64 = load v1
+    v3: int64 = load v1
     return v3
 }"#;
-        let expected = r#"type @Inner = { i32, i32 }
-type @Outer = { @Inner, i64 }
-function @test() -> i64 {
-block0:
-    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
-    v1: ref<raw addrspace(stack) @Inner> = stack.alloc @Inner
-    v2: i64 = iconst 42i64
+        let expected = r#"
+type Inner {
+    int32;
+    int32;
+}
+type Outer {
+    Inner;
+    int64;
+}
+function test(): int64 {
+b0:
+    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v1: ref<Inner, raw, addressSpace(stack)> = stack.alloc Inner
+    v2: int64 = 42int64
     store v0, v2
-    v3: i64 = load v0
+    v3: int64 = load v0
     return v3
 }"#;
 
@@ -1055,12 +1095,13 @@ block0:
     /// Scalar allocations are not affected by SROA.
     #[test]
     fn test_no_aggregates() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -1075,10 +1116,14 @@ block0:
     /// and cannot be safely split.
     #[test]
     fn test_preserve_escaping_via_store() {
-        let input = r#"type @Point = { i32, i32 }
-function @test(v0: ref<raw ref<raw @Point>>) -> void {
-block0(v0: ref<raw ref<raw @Point>>):
-    v1: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(v0: ref<ref<Point, raw>, raw>): void {
+b0(v0: ref<ref<Point, raw>, raw>):
+    v1: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
     store v0, v1
     return
 }"#;
@@ -1094,23 +1139,29 @@ block0(v0: ref<raw ref<raw @Point>>):
     /// mem2reg to promote the value to SSA.
     #[test]
     fn test_split_single_field() {
-        let input = r#"type @Wrapper = { i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Wrapper> = stack.alloc @Wrapper
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 42i32
+        let input = r#"
+type Wrapper {
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Wrapper, raw, addressSpace(stack)> = stack.alloc Wrapper
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 42int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
-        let expected = r#"type @Wrapper = { i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let expected = r#"
+type Wrapper {
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -1124,14 +1175,18 @@ block0:
     /// If the allocation is passed as a block argument, it escapes.
     #[test]
     fn test_preserve_block_argument_escape() {
-        let input = r#"type @Point = { i32, i32 }
-function @test(v0: bool) -> void {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    branch v0, block1(v1), block2
-block1(v2: ref<raw @Point>):
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(v0: boolean): void {
+b0(v0: boolean):
+    v1: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    branch v0, b1(v1), b2
+b1(v2: ref<Point, raw>):
     return
-block2:
+b2:
     return
 }"#;
 
@@ -1143,28 +1198,30 @@ block2:
     /// Constant propagation resolves array indices across block parameters.
     #[test]
     fn test_split_array_constant_param_index() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i64 = iconst 0i64
-    branch v0, block1(v1), block1(v1)
-block1(v2: i64):
-    v3: ref<raw addrspace(stack) [i32; 2]> = stack.alloc [i32; 2]
-    v4: ref<borrowed i32> = element.addr v3, v2
-    v5: i32 = iconst 42i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int64 = 0int64
+    branch v0, b1(v1), b1(v1)
+b1(v2: int64):
+    v3: ref<int32[2], raw, addressSpace(stack)> = stack.alloc int32[2]
+    v4: ref<int32, borrowed> = element.address v3, v2
+    v5: int32 = 42int32
     store v4, v5
-    v6: i32 = load v4
+    v6: int32 = load v4
     return v6
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i64 = iconst 0i64
-    branch v0, block1(v3), block1(v3)
-block1(v4: i64):
-    v5: i32 = iconst 42i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int64 = 0int64
+    branch v0, b1(v3), b1(v3)
+b1(v4: int64):
+    v5: int32 = 42int32
     store v2, v5
-    v6: i32 = load v2
+    v6: int32 = load v2
     return v6
 }"#;
 
@@ -1176,34 +1233,42 @@ block1(v4: i64):
     /// Base pointer loads and stores are rebuilt from scalar slots.
     #[test]
     fn test_preserve_base_pointer_load_store() {
-        let input = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    v3: @Point = struct @Point (v1, v2)
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    v3: Point = struct Point (v1, v2)
     store v0, v3
-    v4: @Point = load v0
-    v5: i32 = field.get v4, 0
+    v4: Point = load v0
+    v5: int32 = field.get v4, 0
     return v5
 }"#;
-        let expected = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    v4: @Point = struct @Point (v2, v3)
-    v5: i32 = field.get v4, 0
+        let expected = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    v4: Point = struct Point (v2, v3)
+    v5: int32 = field.get v4, 0
     store v1, v5
-    v6: i32 = field.get v4, 1
+    v6: int32 = field.get v4, 1
     store v0, v6
-    v7: i32 = load v1
-    v8: i32 = load v0
-    v9: @Point = struct @Point (v7, v8)
-    v10: i32 = field.get v9, 0
+    v7: int32 = load v1
+    v8: int32 = load v0
+    v9: Point = struct Point (v7, v8)
+    v10: int32 = field.get v9, 0
     return v10
 }"#;
 
@@ -1215,36 +1280,38 @@ block0:
     /// Base pointer array loads and stores are rebuilt from scalar slots.
     #[test]
     fn test_rewrite_base_pointer_array_load_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) [i32; 2]> = stack.alloc [i32; 2]
-    v1: i32 = iconst 10i32
-    v2: i32 = iconst 20i32
-    v3: [i32; 2] = array [i32; 2] (v1, v2)
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32[2], raw, addressSpace(stack)> = stack.alloc int32[2]
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    v3: int32[2] = [v1, v2]
     store v0, v3
-    v4: [i32; 2] = load v0
-    v5: i64 = iconst 1i64
-    v6: i32 = element.get v4, v5
+    v4: int32[2] = load v0
+    v5: int64 = 1int64
+    v6: int32 = element.get v4, v5
     return v6
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 10i32
-    v3: i32 = iconst 20i32
-    v4: [i32; 2] = array [i32; 2] (v2, v3)
-    v5: i64 = iconst 0i64
-    v6: i32 = element.get v4, v5
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 10int32
+    v3: int32 = 20int32
+    v4: int32[2] = [v2, v3]
+    v5: int64 = 0int64
+    v6: int32 = element.get v4, v5
     store v1, v6
-    v7: i64 = iconst 1i64
-    v8: i32 = element.get v4, v7
+    v7: int64 = 1int64
+    v8: int32 = element.get v4, v7
     store v0, v8
-    v9: i32 = load v1
-    v10: i32 = load v0
-    v11: [i32; 2] = array [i32; 2] (v9, v10)
-    v12: i64 = iconst 1i64
-    v13: i32 = element.get v11, v12
+    v9: int32 = load v1
+    v10: int32 = load v0
+    v11: int32[2] = [v9, v10]
+    v12: int64 = 1int64
+    v13: int32 = element.get v11, v12
     return v13
 }"#;
 
@@ -1256,12 +1323,16 @@ block0:
     /// Volatile loads prevent splitting.
     #[test]
     fn test_skip_volatile_load() {
-        let input = r#"type @Point = { i32, i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = load v1
+        let input = r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Point, raw, addressSpace(stack)> = stack.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }"#;
 

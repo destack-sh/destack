@@ -44,7 +44,7 @@ const REGEX_METADATA_PREFIX: &str = "regex:";
 /// Prefix for string literal metadata names.
 const STRING_METADATA_PREFIX: &str = "string:";
 /// Prefix for string literal global names.
-const STRING_LITERAL_GLOBAL_PREFIX: &str = "literal:string:";
+const STRING_LITERAL_GLOBAL_PREFIX: &str = "stringLiteral";
 /// Maximum length of string literal slugs.
 const STRING_LITERAL_SLUG_MAX: usize = 32;
 
@@ -1301,7 +1301,29 @@ pub(crate) fn string_literal_global_name_for_content(value: &str) -> String {
     value.hash(&mut hasher);
     let hash = hasher.finish() as u32;
     let slug = string_literal_slug(value);
-    format!("{STRING_LITERAL_GLOBAL_PREFIX}{slug}:h{hash:08x}")
+    let suffix = string_literal_name_suffix(&slug);
+    format!("{STRING_LITERAL_GLOBAL_PREFIX}{suffix}H{hash:08x}")
+}
+
+/// Convert a slug into an upper camel case name suffix.
+fn string_literal_name_suffix(slug: &str) -> String {
+    let mut suffix = String::new();
+
+    for segment in slug.split('_').filter(|segment| !segment.is_empty()) {
+        let mut chars = segment.chars();
+        let Some(first) = chars.next() else {
+            continue;
+        };
+
+        suffix.push(first.to_ascii_uppercase());
+        suffix.extend(chars);
+    }
+
+    if suffix.is_empty() {
+        "String".to_string()
+    } else {
+        suffix
+    }
 }
 
 /// Convert a static key to a field name.

@@ -522,7 +522,7 @@ mod tests {
 
     impl PackagePipeline for CountingPackagePipeline {
         fn run(&self, _workset: &mut PackageWorkset, _ctx: &mut PackagePipelineContext) -> bool {
-            self.counter.fetch_add(1, Ordering::SeqCst);
+            self.counter.fetch_add(1, Ordering::SequentiallyConsistent);
 
             self.changed
         }
@@ -553,7 +553,7 @@ mod tests {
 
     impl ProgramPipeline for CountingProgramPipeline {
         fn run(&self, _workset: &mut ProgramWorkset, _ctx: &mut ProgramPipelineContext) -> bool {
-            self.counter.fetch_add(1, Ordering::SeqCst);
+            self.counter.fetch_add(1, Ordering::SequentiallyConsistent);
 
             self.changed
         }
@@ -587,7 +587,7 @@ mod tests {
 
     impl ProgramPipeline for ToggleProgramPipeline {
         fn run(&self, _workset: &mut ProgramWorkset, _ctx: &mut ProgramPipelineContext) -> bool {
-            let iteration = self.counter.fetch_add(1, Ordering::SeqCst);
+            let iteration = self.counter.fetch_add(1, Ordering::SequentiallyConsistent);
 
             iteration < self.stop_after
         }
@@ -654,11 +654,11 @@ mod tests {
         let changed = pipeline.run(&mut workset, &mut ctx);
 
         assert!(changed);
-        assert_eq!(o0.load(Ordering::SeqCst), 0);
-        assert_eq!(o1.load(Ordering::SeqCst), 1);
-        assert_eq!(o2.load(Ordering::SeqCst), 0);
-        assert_eq!(o3.load(Ordering::SeqCst), 1);
-        assert_eq!(o4.load(Ordering::SeqCst), 0);
+        assert_eq!(o0.load(Ordering::SequentiallyConsistent), 0);
+        assert_eq!(o1.load(Ordering::SequentiallyConsistent), 1);
+        assert_eq!(o2.load(Ordering::SequentiallyConsistent), 0);
+        assert_eq!(o3.load(Ordering::SequentiallyConsistent), 1);
+        assert_eq!(o4.load(Ordering::SequentiallyConsistent), 0);
     }
 
     /// Runs all program pipelines in order and reports changes.
@@ -679,8 +679,8 @@ mod tests {
         let changed = pipeline.run(&mut workset, &mut ctx);
 
         assert!(changed);
-        assert_eq!(p0.load(Ordering::SeqCst), 1);
-        assert_eq!(p1.load(Ordering::SeqCst), 1);
+        assert_eq!(p0.load(Ordering::SequentiallyConsistent), 1);
+        assert_eq!(p1.load(Ordering::SequentiallyConsistent), 1);
     }
 
     /// Stops repeating when the inner pipeline reports no changes.
@@ -698,6 +698,6 @@ mod tests {
         let changed = pipeline.run(&mut workset, &mut ctx);
 
         assert!(changed);
-        assert_eq!(counter.load(Ordering::SeqCst), 3);
+        assert_eq!(counter.load(Ordering::SequentiallyConsistent), 3);
     }
 }

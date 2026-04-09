@@ -389,9 +389,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: u8 = field.get v0, 0
-    /// v2: u8 = iconst 0u8
-    /// v3: bool = icmp_eq v1, v2
+    /// v1: uint8 = field.get v0, 0
+    /// v2: uint8 = const 0uint8
+    /// v3: bool = int.eq v1, v2
     /// ```
     pub(crate) fn lower_union_discriminant_comparison(
         &mut self,
@@ -429,9 +429,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: u8 = field.get v0, 0
-    /// v2: u8 = iconst 0u8
-    /// v3: bool = icmp_eq v1, v2
+    /// v1: uint8 = field.get v0, 0
+    /// v2: uint8 = const 0uint8
+    /// v3: bool = int.eq v1, v2
     /// ```
     pub(crate) fn lower_union_literal_comparison(
         &mut self,
@@ -593,9 +593,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: u8 = field.get v0, 0
-    /// v2: u8 = iconst 0u8
-    /// check v1 == v2, union(tag=0) ? block1 : block2
+    /// v1: uint8 = field.get v0, 0
+    /// v2: uint8 = const 0uint8
+    /// check v1 == v2, union(tag=0) ? bb1 : bb2
     /// ```
     pub(crate) fn lower_union_tag_check(
         &mut self,
@@ -622,12 +622,6 @@ impl FunctionLowerer<'_> {
             return Ok(false);
         };
 
-        // build an equality condition for the union tag
-        let condition_value = self.state.builder.binary_op(
-            mir::BinaryOperator::Equal,
-            comparison.tag_value,
-            comparison.tag_const,
-        );
         let constraint = mir::CheckConstraint::Union {
             value: comparison.tag_value,
             expected: comparison.tag_index as u64,
@@ -641,7 +635,7 @@ impl FunctionLowerer<'_> {
         };
         self.state
             .builder
-            .check(condition_value, constraint, success_block, failure_block);
+            .check(constraint, success_block, failure_block);
 
         Ok(true)
     }
