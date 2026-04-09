@@ -1,5 +1,5 @@
 use super::*;
-use crate::{AnalyzeError, ResolveError, TaskPhase};
+use crate::{AnalyzeError, CompilePhase, ResolveError, run_to_completion};
 use destack_dir::{FloatType, SymbolSpace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -161,7 +161,7 @@ let x = bar;
     // run the pipeline and preserve later phases as no-op clean
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 
     // the valid sibling import still binds and infers through the malformed clause
     let view = test.view(module_id);
@@ -197,7 +197,7 @@ value.y;
     // run the pipeline and preserve later phases as no-op clean
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 
     // the struct still keeps its error slot and valid sibling member
     let view = test.view(module_id);
@@ -369,9 +369,10 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     let dir = test.artifact_dir(main_id, profile);
     let thing_name = test.program.strings.intern("thing");
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
-    let global_group = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let global_group = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<_, ResolveError>(compiler.get_global_symbol_group(
                 _context.revision(),
                 main_id,
@@ -379,8 +380,9 @@ const thing: GlobalThing = { value: 1, label: "ok" };
                 global_key,
                 SymbolSpace::Type,
             ))
-        })
-        .expect("failed to read global symbol group");
+        },
+    )
+    .expect("failed to read global symbol group");
     let global_group = global_group.expect("missing global group for GlobalThing");
     assert_eq!(global_group.len(), 2);
 
@@ -512,9 +514,10 @@ const thing: GlobalThing = { left: 1, right: "ok", local: true };
     let view = test.view(main_id);
     let profile = view.profile_id();
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
-    let global_group = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let global_group = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<_, ResolveError>(compiler.get_global_symbol_group(
                 _context.revision(),
                 main_id,
@@ -522,8 +525,9 @@ const thing: GlobalThing = { left: 1, right: "ok", local: true };
                 global_key,
                 SymbolSpace::Type,
             ))
-        })
-        .expect("failed to read global symbol group");
+        },
+    )
+    .expect("failed to read global symbol group");
     let global_group = global_group.expect("missing global group for GlobalThing");
     assert_eq!(global_group.len(), 3);
     let global_thing = global_group
@@ -629,9 +633,10 @@ values.first() satisfies number | undefined;
 
     // resolve the local Array symbol from global groups
     let key = StaticKey::Name(test.program.strings.intern("Array"));
-    let type_group = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let type_group = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<_, ResolveError>(compiler.get_global_symbol_group(
                 _context.revision(),
                 main_id,
@@ -639,8 +644,9 @@ values.first() satisfies number | undefined;
                 key,
                 SymbolSpace::Type,
             ))
-        })
-        .expect("failed to read Array group");
+        },
+    )
+    .expect("failed to read Array group");
     let type_group = type_group.expect("missing Array group");
     let ambient_merge_group = test
         .compiler
@@ -911,8 +917,10 @@ type Alias = import("./mod.ds").User;
 
     let profile = test.default_profile_id(module_id);
     let module = test.program.module_descriptor(module_id);
-    test.compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             let dir = compiler
                 .require_artifact_dir_resolved(_context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
@@ -922,8 +930,9 @@ type Alias = import("./mod.ds").User;
                 profile,
                 &dir.tree,
             )
-        })
-        .unwrap_or_else(|error| panic!("failed to require type import dependencies: {error:?}"));
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to require type import dependencies: {error:?}"));
 
     let module = test.program.module_descriptor(module_id);
     let dir = test.dir_resolved(module_id);
@@ -945,18 +954,20 @@ type Alias = import("./mod.ds").User;
         panic!("expected string target");
     };
 
-    let resolved_symbol =
-        test.compiler
-            .run_to_completion(test.program.current_revision(), |compiler, _context| {
-                compiler.resolve_import_type_symbol(
-                    test.program.current_revision(),
-                    module.as_ref(),
-                    profile,
-                    type_import.0.into_any(),
-                    *target,
-                    type_import.2.as_ref(),
-                )
-            });
+    let resolved_symbol = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
+            compiler.resolve_import_type_symbol(
+                test.program.current_revision(),
+                module.as_ref(),
+                profile,
+                type_import.0.into_any(),
+                *target,
+                type_import.2.as_ref(),
+            )
+        },
+    );
     let resolved_symbol = resolved_symbol
         .unwrap_or_else(|error| panic!("failed to resolve import type symbol: {error:?}"));
 

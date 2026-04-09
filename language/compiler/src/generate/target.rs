@@ -13,15 +13,20 @@ impl Compiler {
         context: &CompilerContext<'_>,
     ) -> GenerateResult<()> {
         // look up target from the module package
-        let target = {
-            let module = context.module(module_id);
-            let package = context.package(module.package_id);
-            package.targets.get(target_id).cloned()
-        };
+        let target = self
+            .repository
+            .effective_target(context.revision(), *target_id)
+            .map_err(|error| GenerateError::Internal {
+                module: module_id,
+                message: format!("failed to load target '{target_id:?}': {error}"),
+            })?;
 
         let target = target.ok_or_else(|| GenerateError::Internal {
             module: module_id,
-            message: format!("target '{}' not found", self.target_name(target_id)),
+            message: format!(
+                "target '{}' not found",
+                self.target_name_for_revision(context.revision(), target_id)
+            ),
         })?;
 
         let resolved_profile = context
@@ -30,7 +35,7 @@ impl Compiler {
                 module: module_id,
                 message: format!(
                     "profile not found for target '{}'",
-                    self.target_name(target_id)
+                    self.target_name_for_revision(context.revision(), target_id)
                 ),
             })?;
         if resolved_profile != profile {

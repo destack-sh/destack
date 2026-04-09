@@ -241,7 +241,7 @@ impl TestProgram {
             .expect("failed to initialize linter test session"),
         );
         session
-            .materialize_filesystem(true)
+            .scan_filesystem(true)
             .expect("failed to materialize linter test workspace");
         let runner = LintRunner::new(rules);
 

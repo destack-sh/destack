@@ -5,7 +5,7 @@ use destack_artifact::{
     PackageOutput,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::{Revision, Target, TargetDiscovery, TargetDiscoveryIssue};
+use destack_workspace::{Revision, Target, TargetDiscovery, TargetDiscoveryError};
 
 use super::CacheHasher;
 
@@ -61,12 +61,13 @@ impl Compiler {
     fn target_config_for_package_output(
         &self,
         revision: Revision,
-        package_id: PackageId,
+        _package_id: PackageId,
         target_id: &TargetId,
     ) -> Option<Target> {
-        let package = self.cache_package_snapshot(revision, package_id).ok()?;
-
-        package.targets.get(target_id).cloned()
+        self.repository
+            .effective_target(revision, *target_id)
+            .ok()
+            .flatten()
     }
 
     /// Discover the current module set for one package target.
@@ -76,10 +77,10 @@ impl Compiler {
         package_id: PackageId,
         target_id: &TargetId,
         target: &Target,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         let package = self
             .cache_package_snapshot(revision, package_id)
-            .map_err(|_| TargetDiscoveryIssue::MissingPackagePath {
+            .map_err(|_| TargetDiscoveryError::MissingPackagePath {
                 package: package_id,
                 target: *target_id,
             })?;

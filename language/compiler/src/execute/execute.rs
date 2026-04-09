@@ -4,9 +4,9 @@ use crate::{Compiler, CompilerContext, ExecuteError, ExecuteResult, RequirementC
 
 use destack_artifact::DirPatched;
 use destack_source::ModuleId;
-use destack_workspace::{ComptimeOutput, ProfileId, TrustPolicy};
+use destack_workspace::{ProfileId, TrustPolicy};
 
-use super::{ComptimePatch, collect_comptime_dependencies};
+use super::{ComptimeOutput, ComptimePatch, collect_comptime_dependencies};
 use vm::{Heap, MemoryContext, SharedSpace};
 use {destack_dir as dir, destack_vm as vm};
 

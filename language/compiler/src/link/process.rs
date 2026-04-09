@@ -5,7 +5,7 @@ use crate::{Compiler, CompilerContext, LinkError, LinkResult, RequirementError};
 
 use destack_artifact::{ArtifactKey, EmitFormat};
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::{Target, TargetDiscovery, TargetDiscoveryIssue};
+use destack_workspace::{Target, TargetDiscovery, TargetDiscoveryError};
 
 use crate::link::ScriptLinker;
 use crate::link::binary::BinaryLinker;
@@ -148,9 +148,9 @@ impl Compiler {
     }
 
     /// Map one target discovery issue into a link error.
-    fn link_target_discovery_issue(&self, issue: TargetDiscoveryIssue) -> LinkError {
+    fn link_target_discovery_issue(&self, issue: TargetDiscoveryError) -> LinkError {
         match issue {
-            TargetDiscoveryIssue::Repository {
+            TargetDiscoveryError::Repository {
                 package,
                 target,
                 message,
@@ -161,7 +161,7 @@ impl Compiler {
                 message,
             },
             // entry discovery needs package path context
-            TargetDiscoveryIssue::MissingPackagePath { package, target } => {
+            TargetDiscoveryError::MissingPackagePath { package, target } => {
                 LinkError::InvalidTarget {
                     anchor: package.into(),
                     package,
@@ -171,7 +171,7 @@ impl Compiler {
             }
 
             // missing entry paths are invalid target configuration
-            TargetDiscoveryIssue::MissingEntry {
+            TargetDiscoveryError::MissingEntry {
                 package,
                 target,
                 path,
@@ -186,6 +186,6 @@ impl Compiler {
 
     /// Return the package directory used for linked output resolution.
     fn package_directory(&self, package_path: Option<PathBuf>) -> PathBuf {
-        package_path.unwrap_or_else(|| self.repository.cwd.clone())
+        package_path.unwrap_or_else(|| self.repository.workspace_root().to_path_buf())
     }
 }

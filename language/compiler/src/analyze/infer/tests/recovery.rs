@@ -1,5 +1,5 @@
 use super::*;
-use crate::TaskPhase;
+use crate::CompilePhase;
 use destack_artifact::ArtifactKey;
 use std::time::Duration;
 
@@ -13,7 +13,7 @@ fn assert_stays_parse_local(source: &str, file_name: &str) {
     test.compile_with_timeout(Duration::from_secs(2));
 
     // malformed syntax should not leak into late compiler phases
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 }
 
 /// Check that malformed syntax does not wedge one specific artifact stage.

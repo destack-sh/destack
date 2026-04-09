@@ -486,9 +486,9 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
     // conditionally generate From impl
     if !is_standalone {
         output.extend(quote! {
-            impl From<#enum_name> for TaskWarning {
+            impl From<#enum_name> for CompileWarning {
                 fn from(warning: #enum_name) -> Self {
-                    TaskWarning::#phase(warning)
+                    CompileWarning::#phase(warning)
                 }
             }
         });

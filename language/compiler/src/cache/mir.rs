@@ -92,15 +92,13 @@ impl Compiler {
     fn target_config_for_module_image(
         &self,
         revision: Revision,
-        module_id: ModuleId,
+        _module_id: ModuleId,
         target_id: &TargetId,
     ) -> Option<Target> {
-        let module = self.cache_module_snapshot(revision, module_id).ok()?;
-        let package = self
-            .cache_package_snapshot(revision, module.package_id)
-            .ok()?;
-
-        package.targets.get(target_id).cloned()
+        self.repository
+            .effective_target(revision, *target_id)
+            .ok()
+            .flatten()
     }
 
     /// Build one persistent image context for one MIR artifact.

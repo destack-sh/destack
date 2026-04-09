@@ -153,7 +153,7 @@ fn collect_eligible_modules(ctx: &LintWorkspaceDirContext) -> HashSet<ModuleId> 
             continue;
         };
         let module = module.as_ref();
-        if module.id == ctx.repository.root_module_id() {
+        if ctx.repository.is_synthetic_root_module(module.id) {
             continue;
         }
         if !module.is_user() {

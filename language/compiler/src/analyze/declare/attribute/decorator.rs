@@ -248,14 +248,11 @@ impl Compiler {
         // index expression wrappers for declaration nodes
         let mut wrappers = HashMap::new();
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            match expression {
-                Expression::Declaration { declaration } => {
-                    wrappers
-                        .entry(declaration.into_any())
-                        .or_insert_with(Vec::new)
-                        .push(expression_id);
-                }
-                _ => {}
+            if let Expression::Declaration { declaration } = expression {
+                wrappers
+                    .entry(declaration.into_any())
+                    .or_insert_with(Vec::new)
+                    .push(expression_id);
             }
         }
 

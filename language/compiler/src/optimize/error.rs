@@ -3,7 +3,9 @@ use destack_mir as mir;
 use destack_source::{PackageId, TargetId};
 use destack_workspace::Repository;
 
-use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
+use crate::{
+    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
+};
 
 /// Errors during the optimize phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]

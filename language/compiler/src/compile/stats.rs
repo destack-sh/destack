@@ -5,8 +5,6 @@ use dashmap::DashMap;
 use destack_source::PackageId;
 use parking_lot::Mutex;
 
-use crate::TaskPhase;
-
 /// Per-package statistics.
 #[derive(Debug, Default)]
 pub struct PackageStats {
@@ -18,24 +16,6 @@ pub struct PackageStats {
     pub duration_ns: AtomicU64,
 }
 
-/// Per-phase timing statistics.
-#[derive(Debug, Default)]
-pub struct PhaseStats {
-    /// Total time spent in this phase (nanoseconds).
-    pub duration_ns: AtomicU64,
-    /// Number of tasks processed in this phase.
-    pub task_count: AtomicUsize,
-}
-
-/// Per-task timing statistics keyed by task name.
-#[derive(Debug, Default)]
-pub struct TaskNameStats {
-    /// Total time spent in this task (nanoseconds).
-    pub duration_ns: AtomicU64,
-    /// Number of tasks processed for this name.
-    pub task_count: AtomicUsize,
-}
-
 /// Per timing tag statistics.
 #[derive(Debug, Default)]
 pub struct TimingStats {
@@ -43,21 +23,6 @@ pub struct TimingStats {
     pub duration_ns: AtomicU64,
     /// Number of times this timing tag was recorded.
     pub sample_count: AtomicUsize,
-}
-
-/// Task statistics.
-#[derive(Debug, Default)]
-pub struct TaskStats {
-    /// Total tasks enqueued.
-    pub enqueued: AtomicUsize,
-    /// Tasks completed successfully.
-    pub completed: AtomicUsize,
-    /// Tasks that failed.
-    pub failed: AtomicUsize,
-    /// Tasks that yielded (waiting on dependencies).
-    pub yielded: AtomicUsize,
-    /// Tasks that were skipped.
-    pub skipped: AtomicUsize,
 }
 
 /// Module statistics.
@@ -132,8 +97,6 @@ pub struct CacheStats {
 pub struct CompilerStats {
     /// When compilation started.
     started_at: Mutex<Option<Instant>>,
-    /// Task statistics.
-    pub tasks: TaskStats,
     /// Module statistics.
     pub modules: ModuleStats,
     /// MIR optimization statistics.
@@ -142,16 +105,10 @@ pub struct CompilerStats {
     pub cache: CacheStats,
     /// Per-package statistics.
     package_stats: DashMap<PackageId, PackageStats>,
-    /// Per-phase timing statistics.
-    phase_stats: DashMap<TaskPhase, PhaseStats>,
-    /// Per-task timing statistics.
-    task_name_stats: DashMap<String, TaskNameStats>,
     /// Per timing tag statistics.
     timing_stats: DashMap<&'static str, TimingStats>,
     /// Whether timing tags are enabled.
     timings_enabled: bool,
-    /// Number of slow tasks detected.
-    pub slow_tasks: AtomicUsize,
 }
 
 impl Default for CompilerStats {
@@ -170,16 +127,12 @@ impl CompilerStats {
     pub fn new_with_timings(timings_enabled: bool) -> Self {
         Self {
             started_at: Mutex::new(None),
-            tasks: TaskStats::default(),
             modules: ModuleStats::default(),
             mir: MirOptimizationStats::default(),
             cache: CacheStats::default(),
             package_stats: DashMap::new(),
-            phase_stats: DashMap::new(),
-            task_name_stats: DashMap::new(),
             timing_stats: DashMap::new(),
             timings_enabled: timings_enabled || timings_enabled_from_env(),
-            slow_tasks: AtomicUsize::new(0),
         }
     }
 
@@ -194,36 +147,6 @@ impl CompilerStats {
             .lock()
             .map(|start| start.elapsed())
             .unwrap_or_default()
-    }
-
-    /// Record a task being enqueued.
-    #[inline]
-    pub fn record_enqueue(&self) {
-        self.tasks.enqueued.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a task completing successfully.
-    #[inline]
-    pub fn record_complete(&self) {
-        self.tasks.completed.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a task failing.
-    #[inline]
-    pub fn record_fail(&self) {
-        self.tasks.failed.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a task being skipped.
-    #[inline]
-    pub fn record_skip(&self) {
-        self.tasks.skipped.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a task yielding.
-    #[inline]
-    pub fn record_yield(&self) {
-        self.tasks.yielded.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being parsed.
@@ -348,12 +271,6 @@ impl CompilerStats {
             .fetch_add(blocks_after, Ordering::Relaxed);
     }
 
-    /// Record a slow task.
-    #[inline]
-    pub fn record_slow_task(&self) {
-        self.slow_tasks.fetch_add(1, Ordering::Relaxed);
-    }
-
     /// Record an AST cache hit from memory.
     #[inline]
     pub fn record_cache_ast_hit_memory(&self) {
@@ -412,26 +329,6 @@ impl CompilerStats {
     #[inline]
     pub fn record_cache_error(&self) {
         self.cache.errors.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record time spent in a phase.
-    #[inline]
-    pub fn record_phase_time(&self, phase: TaskPhase, duration: Duration) {
-        let entry = self.phase_stats.entry(phase).or_default();
-        entry
-            .duration_ns
-            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
-        entry.task_count.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record time spent in a named task.
-    #[inline]
-    pub fn record_task_name_time(&self, name: &str, duration: Duration) {
-        let entry = self.task_name_stats.entry(name.to_string()).or_default();
-        entry
-            .duration_ns
-            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
-        entry.task_count.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record time spent in a timing tag.
@@ -502,37 +399,6 @@ impl CompilerStats {
             })
             .collect();
 
-        // collect per-phase stats, sorted by phase code
-        let mut phases: Vec<PhaseStatsSnapshot> = self
-            .phase_stats
-            .iter()
-            .map(|entry| {
-                let phase = *entry.key();
-                let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
-                PhaseStatsSnapshot {
-                    phase,
-                    duration: Duration::from_nanos(duration_ns),
-                    task_count: entry.value().task_count.load(Ordering::Relaxed),
-                }
-            })
-            .collect();
-        phases.sort_by_key(|p| p.phase.code());
-
-        // collect per-task stats, sorted by duration descending
-        let mut task_names: Vec<TaskNameStatsSnapshot> = self
-            .task_name_stats
-            .iter()
-            .map(|entry| {
-                let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
-                TaskNameStatsSnapshot {
-                    name: entry.key().clone(),
-                    duration: Duration::from_nanos(duration_ns),
-                    task_count: entry.value().task_count.load(Ordering::Relaxed),
-                }
-            })
-            .collect();
-        task_names.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
-
         // collect per-timing stats, sorted by duration descending
         let mut timings: Vec<TimingStatsSnapshot> = self
             .timing_stats
@@ -550,13 +416,6 @@ impl CompilerStats {
 
         StatsSnapshot {
             elapsed: self.elapsed(),
-            tasks: TaskStatsSnapshot {
-                enqueued: self.tasks.enqueued.load(Ordering::Relaxed),
-                completed: self.tasks.completed.load(Ordering::Relaxed),
-                failed: self.tasks.failed.load(Ordering::Relaxed),
-                yielded: self.tasks.yielded.load(Ordering::Relaxed),
-                skipped: self.tasks.skipped.load(Ordering::Relaxed),
-            },
             modules: ModuleStatsSnapshot {
                 parsed: self.modules.parsed.load(Ordering::Relaxed),
                 bound: self.modules.bound.load(Ordering::Relaxed),
@@ -591,10 +450,7 @@ impl CompilerStats {
             },
             module_count,
             packages,
-            phases,
-            task_names,
             timings,
-            slow_tasks: self.slow_tasks.load(Ordering::Relaxed),
         }
     }
 }
@@ -614,28 +470,6 @@ pub struct PackageStatsSnapshot {
     pub duration: Duration,
 }
 
-/// Snapshot of per-phase timing statistics.
-#[derive(Debug, Clone)]
-pub struct PhaseStatsSnapshot {
-    /// The phase.
-    pub phase: TaskPhase,
-    /// Total time spent in this phase.
-    pub duration: Duration,
-    /// Number of tasks completed in this phase.
-    pub task_count: usize,
-}
-
-/// Snapshot of per-task timing statistics.
-#[derive(Debug, Clone)]
-pub struct TaskNameStatsSnapshot {
-    /// The task name.
-    pub name: String,
-    /// Total time spent in this task.
-    pub duration: Duration,
-    /// Number of tasks processed for this name.
-    pub task_count: usize,
-}
-
 /// Snapshot of timing tag statistics.
 #[derive(Debug, Clone)]
 pub struct TimingStatsSnapshot {
@@ -645,21 +479,6 @@ pub struct TimingStatsSnapshot {
     pub duration: Duration,
     /// Number of samples recorded for this timing tag.
     pub sample_count: usize,
-}
-
-/// Snapshot of task statistics.
-#[derive(Debug, Clone)]
-pub struct TaskStatsSnapshot {
-    /// Total tasks enqueued.
-    pub enqueued: usize,
-    /// Tasks completed successfully.
-    pub completed: usize,
-    /// Tasks that failed.
-    pub failed: usize,
-    /// Tasks that yielded.
-    pub yielded: usize,
-    /// Tasks that were skipped.
-    pub skipped: usize,
 }
 
 /// Snapshot of module statistics.
@@ -734,8 +553,6 @@ pub struct MirOptimizationStatsSnapshot {
 pub struct StatsSnapshot {
     /// Time elapsed since compilation started.
     pub elapsed: Duration,
-    /// Task statistics.
-    pub tasks: TaskStatsSnapshot,
     /// Module statistics.
     pub modules: ModuleStatsSnapshot,
     /// Cache statistics.
@@ -746,22 +563,11 @@ pub struct StatsSnapshot {
     pub module_count: usize,
     /// Per-package statistics.
     pub packages: Vec<PackageStatsSnapshot>,
-    /// Per-phase timing statistics.
-    pub phases: Vec<PhaseStatsSnapshot>,
-    /// Per-task timing statistics.
-    pub task_names: Vec<TaskNameStatsSnapshot>,
     /// Per timing tag statistics.
     pub timings: Vec<TimingStatsSnapshot>,
-    /// Slow tasks detected.
-    pub slow_tasks: usize,
 }
 
 impl StatsSnapshot {
-    /// Whether compilation had any failures.
-    pub fn has_failures(&self) -> bool {
-        self.tasks.failed > 0
-    }
-
     /// Total modules processed.
     pub fn modules_processed(&self) -> usize {
         // Use module_count if available, otherwise fall back to tracked counts

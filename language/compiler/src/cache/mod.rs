@@ -79,19 +79,9 @@ impl Compiler {
         let module = self.cache_module_snapshot(revision, module_id).ok()?;
         let file = self.cache_file_snapshot(revision, module.file_id).ok()?;
 
-        match &file.content {
+        match file.content.payload() {
             FileContent::Text { content } => Some(hash_bytes(content.as_bytes())),
-            FileContent::Json { content, .. } => Some(hash_bytes(content.as_bytes())),
             FileContent::Binary { content } => Some(hash_bytes(content)),
-            FileContent::Missing => None,
-
-            // unloaded files are not in the revision cache yet, so read them directly
-            FileContent::Unloaded => {
-                let path = module.path.as_ref()?;
-                let bytes = self.repository.file_system().read(path).ok()?;
-
-                Some(hash_bytes(&bytes))
-            }
         }
     }
 }

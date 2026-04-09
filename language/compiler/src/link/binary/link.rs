@@ -53,7 +53,8 @@ impl<'a> BinaryLinker<'a> {
                     package: self.package_id,
                     message: format!(
                         "profile not found for target '{}'",
-                        self.compiler.target_name(self.target_id)
+                        self.compiler
+                            .target_name_for_revision(self.context.revision(), self.target_id)
                     ),
                 })?;
             let result = self.compiler.require_module_output(
@@ -91,7 +92,8 @@ impl<'a> BinaryLinker<'a> {
                     message: format!(
                         "missing module artifact for module {:?} target '{}'",
                         module_id,
-                        self.compiler.target_name(self.target_id)
+                        self.compiler
+                            .target_name_for_revision(self.context.revision(), self.target_id)
                     ),
                 })?;
 
@@ -101,7 +103,8 @@ impl<'a> BinaryLinker<'a> {
                     message: format!(
                         "expected binary artifact for module {:?} target '{}'",
                         module_id,
-                        self.compiler.target_name(self.target_id)
+                        self.compiler
+                            .target_name_for_revision(self.context.revision(), self.target_id)
                     ),
                 });
             };

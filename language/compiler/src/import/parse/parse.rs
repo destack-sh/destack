@@ -50,17 +50,6 @@ impl Compiler {
 
         // load the current source file view
         let file = self.load_module_file(context, file_id, path.clone(), uri.clone(), loader)?;
-        if file.is_missing() {
-            let target = path
-                .as_ref()
-                .map(|path| path.to_string_lossy())
-                .unwrap_or_else(|| uri.as_ref().into());
-            let target = self.repository.strings.intern(target.as_ref());
-            return Err(ImportError::ModuleNotFound {
-                target,
-                error: None,
-            });
-        }
 
         // reuse one persisted AST image when available
         let language_type = match loader {
@@ -175,17 +164,9 @@ impl Compiler {
     ) -> ImportResult<Arc<File>> {
         let file = context.import_file(file_id)?;
 
-        // keep known-missing files as-is
-        if file.is_missing() {
-            return Ok(file);
-        }
-
         let wants_binary = matches!(loader, Loader::Binary | Loader::Base64 | Loader::File);
-        let is_binary = matches!(file.content, FileContent::Binary { .. });
-        let is_text = matches!(
-            file.content,
-            FileContent::Text { .. } | FileContent::Json { .. }
-        );
+        let is_binary = matches!(file.content.payload(), FileContent::Binary { .. });
+        let is_text = matches!(file.content.payload(), FileContent::Text { .. });
 
         // reuse an already loaded representation when it matches
         if (wants_binary && is_binary) || (!wants_binary && is_text) {
@@ -378,6 +359,7 @@ impl Compiler {
             && let Some(entries) = parser.timing_snapshot()
         {
             for entry in entries {
+                self.emit_parser_timing_entry(entry);
                 self.stats
                     .record_timing_samples(entry.name, entry.duration, entry.count);
             }
@@ -550,7 +532,7 @@ impl Compiler {
         context: &CompilerContext<'_>,
     ) -> ImportResult<()> {
         // touch the loaded binary content
-        let _bytes = match &file.content {
+        let _bytes = match file.content.payload() {
             FileContent::Binary { content } => content,
             _ => unreachable!("binary loader should see binary file content"),
         };
@@ -576,7 +558,7 @@ impl Compiler {
         use base64::engine::general_purpose::STANDARD;
 
         // use the loaded binary content
-        let bytes = match &file.content {
+        let bytes = match file.content.payload() {
             FileContent::Binary { content } => content,
             _ => unreachable!("base64 loader should see binary file content"),
         };

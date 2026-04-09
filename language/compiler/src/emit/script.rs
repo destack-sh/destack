@@ -217,7 +217,7 @@ impl Compiler {
             .ok_or_else(|| {
                 format!(
                     "profile not found for target '{}'",
-                    self.target_name(target_id)
+                    self.target_name_for_revision(context.revision(), target_id)
                 )
             })?;
 
@@ -225,7 +225,7 @@ impl Compiler {
         let dir = self.dir_patched(module_id, profile_id).ok_or_else(|| {
             format!(
                 "missing patched DIR artifact for module {module_id:?} target '{}'",
-                self.target_name(target_id)
+                self.target_name_for_revision(context.revision(), target_id)
             )
         })?;
 

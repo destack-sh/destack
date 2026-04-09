@@ -11,7 +11,7 @@ pub(super) use crate::analyze::common::{
 };
 pub(super) use crate::{
     AnalyzeError, AnalyzeOptions, Compiler, InferState, TestProgram, assert_string, assert_type,
-    expect_let_declarator_by_name, root_expression_id,
+    expect_let_declarator_by_name, root_expression_id, run_to_completion,
 };
 pub(super) use destack_core::StringId;
 pub(super) use destack_dir::{
@@ -57,15 +57,14 @@ pub(super) fn canonical_symbol_id(
         .current(&reference)
         .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
 
-    compiler
-        .run_to_completion(revision, |compiler, context| {
-            Ok::<_, AnalyzeError>(compiler.canonical_symbol_id(
-                ModuleSymbolView::new(context, module, profile, symbols),
-                symbol,
-                mode,
-            ))
-        })
-        .unwrap_or_else(|error| panic!("failed to canonicalize symbol in test harness: {error:?}"))
+    run_to_completion(compiler, revision, |compiler, context| {
+        Ok::<_, AnalyzeError>(compiler.canonical_symbol_id(
+            ModuleSymbolView::new(context, module, profile, symbols),
+            symbol,
+            mode,
+        ))
+    })
+    .unwrap_or_else(|error| panic!("failed to canonicalize symbol in test harness: {error:?}"))
 }
 
 /// Check assignability in tests through a type context.
@@ -104,11 +103,10 @@ pub(super) fn is_type_assignable(
         .current(&reference)
         .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
 
-    compiler
-        .run_to_completion(revision, |compiler, _context| {
-            Ok::<_, AnalyzeError>(compiler.is_type_assignable(&mut ctx, target_id, source_id))
-        })
-        .unwrap_or_else(|error| panic!("failed to compute test assignability: {error:?}"))
+    run_to_completion(compiler, revision, |compiler, _context| {
+        Ok::<_, AnalyzeError>(compiler.is_type_assignable(&mut ctx, target_id, source_id))
+    })
+    .unwrap_or_else(|error| panic!("failed to compute test assignability: {error:?}"))
 }
 
 impl TestProgram {
@@ -434,7 +432,8 @@ pub(crate) fn extension_kinds_for_target(
     let module = module.as_ref();
 
     // collect visible extensions for the target symbol
-    let extension_symbols = view.test.compiler.run_to_completion(
+    let extension_symbols = run_to_completion(
+        &view.test.compiler,
         view.test.program.current_revision(),
         |compiler, context| {
             compiler.visible_extension_symbols_for_target(
@@ -449,16 +448,18 @@ pub(crate) fn extension_kinds_for_target(
     extension_symbols
         .into_iter()
         .filter_map(|symbol| {
-            view.test
-                .compiler
-                .run_to_completion(view.test.program.current_revision(), |compiler, context| {
+            run_to_completion(
+                &view.test.compiler,
+                view.test.program.current_revision(),
+                |compiler, context| {
                     compiler.extension_for_symbol_in_module(
                         ModuleTypeView::new(context, module, profile, view.types()),
                         symbol,
                     )
-                })
-                .ok()
-                .flatten()
+                },
+            )
+            .ok()
+            .flatten()
         })
         .map(|extension| extension.kind)
         .collect()

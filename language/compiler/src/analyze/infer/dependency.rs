@@ -158,7 +158,7 @@ impl Compiler {
 
         // collect module ids from exact artifact requirements
         requirement.for_each_artifact(|requirement| {
-            let key = &requirement.key;
+            let key = &requirement.version.key;
             let Some(module_id) = key.module_id() else {
                 return;
             };

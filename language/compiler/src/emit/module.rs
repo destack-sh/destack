@@ -61,7 +61,7 @@ impl Compiler {
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.repository.cwd.clone());
+            .unwrap_or_else(|| self.repository.workspace_root().to_path_buf());
         let root_dir = package_options
             .as_ref()
             .and_then(|config| config.compiler.root_dir.clone());

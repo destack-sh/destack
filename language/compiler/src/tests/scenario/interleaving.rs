@@ -132,12 +132,11 @@ fn test_source_edit_drops_stale_ast_publish_before_commit() {
     let artifact_key = main.ast_key();
     gate.set_target(artifact_key);
 
-    // enqueue the target artifact and start the compile loop
-    run.enqueue(artifact_key);
+    // provide the target artifact and pause it before commit
     thread::scope(|scope| {
         let compile_run = run.clone();
         let compile_task = scope.spawn(move || {
-            compile_run.compiler().compile();
+            compile_run.provide(artifact_key);
         });
 
         // wait until the stale publish is paused before commit
@@ -205,12 +204,11 @@ export const value: number = dep;
     let artifact_key = main.dir_resolved_key();
     gate.set_target(artifact_key);
 
-    // enqueue the dependent artifact and start the compile loop
-    run.enqueue(artifact_key);
+    // provide the dependent artifact and pause it before commit
     thread::scope(|scope| {
         let compile_run = run.clone();
         let compile_task = scope.spawn(move || {
-            compile_run.compiler().compile();
+            compile_run.provide(artifact_key);
         });
 
         // wait until the dependent publish is paused before commit

@@ -498,7 +498,7 @@ impl TypeLowerer {
 mod tests {
     use super::*;
     use destack_core::StringPool;
-    use destack_workspace::Repository;
+    use destack_workspace::{AmbientSnapshot, Repository};
     use std::sync::Arc;
 
     /// Create a type lowerer for layout tests.
@@ -506,6 +506,7 @@ mod tests {
         let mut builder = mir::ModuleBuilder::unchecked();
         let repository = Arc::new(Repository::open_root(
             std::env::current_dir().unwrap_or_default(),
+            AmbientSnapshot::default(),
         ));
         TypeLowerer::new(&mut builder, 8, repository, None)
     }

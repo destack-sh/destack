@@ -1,5 +1,6 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, LowerError, RequirementError, RequirementSet, TaskError,
+    CompileError, DiagnosticAnchor, DiagnosticDefinition, LowerError, RequirementError,
+    RequirementSet,
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::AnchoredGlobalNodeId;

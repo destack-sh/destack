@@ -1,3 +1,5 @@
+#![allow(dead_code, unreachable_pub)]
+
 use std::sync::Arc;
 
 use destack_dir::{Dumper, NodeVisitor};

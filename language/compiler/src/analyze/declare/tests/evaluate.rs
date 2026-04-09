@@ -1,7 +1,7 @@
 use super::{ModuleId, TestProgram};
 use crate::analyze::common::{AnalyzeIndex, SymbolTypeView, TypeContext};
 use crate::analyze::declare::{StaticConstantResolutionMode, TypeMemberResolution};
-use crate::{AnalyzeError, TaskPhase};
+use crate::{AnalyzeError, CompilePhase, run_to_completion};
 use destack_dir::{
     Declarator, Expression, FloatType, LocalScopeMark, LocalSymbolId, LocalTypeId, Pattern,
     PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral,
@@ -127,16 +127,18 @@ fn resolve_declared_namespace_annotation_type(
         &mut types,
         AnalyzeIndex::default(),
     );
-    let value_type_id =
-        test.compiler
-            .run_to_completion(test.program.current_revision(), |compiler, _context| {
-                compiler.resolve_declared_type_expression(
-                    &mut type_context,
-                    value_annotation_id,
-                    true,
-                    true,
-                )
-            });
+    let value_type_id = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
+            compiler.resolve_declared_type_expression(
+                &mut type_context,
+                value_annotation_id,
+                true,
+                true,
+            )
+        },
+    );
     let value_type_id = value_type_id.expect("expected declared namespace annotation type");
 
     (types, value_type_id)
@@ -274,7 +276,7 @@ type T =
 
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 }
 
 #[test]
@@ -293,7 +295,7 @@ type T = Foo.
 
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 
     let view = test.declare_view(module_id);
     let _symbol = view.expect_namespace_symbol("T");
@@ -553,9 +555,10 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
         .expect("expected ProjectionPlan symbol");
 
     let scalar_key = StaticKey::Name(test.program.strings.intern("Scalar"));
-    let scalar_symbol = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let scalar_symbol = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<Option<_>, AnalyzeError>(compiler.query_static_member_symbol(
                 _context.revision(),
                 module,
@@ -565,14 +568,16 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
                 tree,
                 symbols,
             ))
-        })
-        .expect("failed to query Scalar member symbol");
+        },
+    )
+    .expect("failed to query Scalar member symbol");
     let scalar_symbol = scalar_symbol.expect("expected Scalar member symbol");
 
     let dependent_key = StaticKey::Name(test.program.strings.intern("Dependent"));
-    let dependent_symbol = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let dependent_symbol = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<Option<_>, AnalyzeError>(compiler.query_static_member_symbol(
                 _context.revision(),
                 module,
@@ -582,8 +587,9 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
                 tree,
                 symbols,
             ))
-        })
-        .expect("failed to query Dependent member symbol");
+        },
+    )
+    .expect("failed to query Dependent member symbol");
     let dependent_symbol = dependent_symbol.expect("expected Dependent member symbol");
 
     assert!(
@@ -871,18 +877,20 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         &mut types,
         AnalyzeIndex::default(),
     );
-    let member_selection =
-        test.compiler
-            .run_to_completion(test.program.current_revision(), |compiler, _context| {
-                compiler.resolve_type_member_symbol(
-                    &mut type_context,
-                    log_member_expression_id,
-                    *left,
-                    StaticKey::Name(name.expect("expected member name")),
-                    true,
-                    true,
-                )
-            });
+    let member_selection = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
+            compiler.resolve_type_member_symbol(
+                &mut type_context,
+                log_member_expression_id,
+                *left,
+                StaticKey::Name(name.expect("expected member name")),
+                true,
+                true,
+            )
+        },
+    );
     let member_selection = member_selection
         .expect("expected member selection query to succeed")
         .expect("expected member selection");
@@ -894,9 +902,10 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         receiver_argument_count, 1,
         "expected associated selection to preserve one receiver argument"
     );
-    let segment_bytes_symbol = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let segment_bytes_symbol = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<Option<_>, AnalyzeError>(compiler.query_static_member_symbol(
                 _context.revision(),
                 module,
@@ -906,8 +915,9 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
                 &tree,
                 &symbols,
             ))
-        })
-        .expect("failed to query SegmentBytes symbol");
+        },
+    )
+    .expect("failed to query SegmentBytes symbol");
     let segment_bytes_symbol = segment_bytes_symbol.expect("expected SegmentBytes symbol");
 
     let string_type_id = types.insert_type_from_any(
@@ -932,9 +942,10 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         &mut types,
         AnalyzeIndex::default(),
     );
-    let substitutions = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    let substitutions = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             Ok::<std::collections::HashMap<_, _>, AnalyzeError>(
                 compiler.build_type_parameter_substitutions_for_symbol(
                     &mut ctx,
@@ -943,20 +954,23 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
                     &receiver_arguments,
                 ),
             )
-        })
-        .expect("failed to build type parameter substitutions");
+        },
+    )
+    .expect("failed to build type parameter substitutions");
     let mut visited = std::collections::HashSet::new();
-    let direct_projection =
-        test.compiler
-            .run_to_completion(test.program.current_revision(), |compiler, _context| {
-                compiler.resolve_static_constant_reference_for_mode(
-                    &mut ctx.reborrow(),
-                    segment_bytes_symbol,
-                    Some(&substitutions),
-                    &mut visited,
-                    StaticConstantResolutionMode::InstantiatedInfer,
-                )
-            });
+    let direct_projection = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
+            compiler.resolve_static_constant_reference_for_mode(
+                &mut ctx.reborrow(),
+                segment_bytes_symbol,
+                Some(&substitutions),
+                &mut visited,
+                StaticConstantResolutionMode::InstantiatedInfer,
+            )
+        },
+    );
     let direct_projection = direct_projection.expect("expected static projection value");
     assert!(
         matches!(
