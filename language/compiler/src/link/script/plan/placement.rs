@@ -509,7 +509,6 @@ mod tests {
             package_id,
             LanguageType::Destack,
             Loader::Destack,
-            destack_artifact::ModuleKind::Code,
             ModuleSource::User,
         );
 

@@ -19,7 +19,8 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn script_artifact(&self, module_id: ModuleId) -> LinkResult<ScriptArtifact> {
         let artifact = self
             .compiler
-            .module_output(module_id, self.target_id)
+            .repository
+            .module_output(self.revision(), module_id, *self.target_id)
             .ok_or_else(|| LinkError::Internal {
                 package: self.package_id,
                 message: format!(

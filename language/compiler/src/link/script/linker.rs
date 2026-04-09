@@ -90,7 +90,8 @@ impl<'a> ScriptLinker<'a> {
     /// Return one generated module output for this target.
     pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
         self.compiler
-            .module_output(module_id, self.target_id)
+            .repository
+            .module_output(self.revision(), module_id, *self.target_id)
             .ok_or_else(|| LinkError::Internal {
                 package: self.package_id,
                 message: format!(

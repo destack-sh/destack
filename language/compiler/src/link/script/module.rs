@@ -5,9 +5,9 @@ use crate::{LinkError, LinkResult};
 
 use destack_artifact::{ScriptArtifact, ScriptDependencyTarget};
 use destack_codegen_js::{
-    DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId, NodeTree, NodeType,
-    NodeVisitor, NodeVisitorOptions, ScalarLiteral, ScriptModule, Statement, walk_expression,
-    walk_root,
+    DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId, LocalNodeIdAny,
+    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, ScriptModule, Statement,
+    walk_expression, walk_root,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::Target;
@@ -21,6 +21,8 @@ enum OutputStatementRewriteAction {
     Keep,
     /// Drop the statement from the emitted chunk body.
     Drop,
+    /// Replace the statement with local statement roots.
+    Replace(Vec<LocalNodeId<Statement>>),
     /// Rewrite one re-export to a local export.
     RewriteExportTargetNone,
 }
@@ -152,11 +154,13 @@ impl<'a> ScriptLinker<'a> {
         output_layout.output_reference(from_output_location, to_output_location)
     }
 
-    /// Classify one same-output import statement during linked output rewriting.
-    fn classify_same_output_import_statement(
+    /// Rewrite one same-output import statement during linked output rewriting.
+    fn rewrite_same_output_import_statement(
         &self,
         module_id: ModuleId,
-        module: &ScriptModule,
+        module: &mut ScriptModule,
+        statement_id: LocalNodeId<Statement>,
+        target_module: ModuleId,
         is_type_dependency: bool,
         items: &[LocalNodeId<DependencyItem>],
         has_arguments: bool,
@@ -166,6 +170,37 @@ impl<'a> ScriptLinker<'a> {
         // erase same-output type-only imports
         if is_type_dependency {
             return Ok(OutputStatementRewriteAction::Drop);
+        }
+
+        // plain stylesheet imports are side effect only
+        if self.is_plain_stylesheet_module(target_module) && !items.is_empty() {
+            return Err(self.invalid_output_rewrite(
+                module_id,
+                target_id,
+                package_id,
+                format!(
+                    "plain stylesheet imports are side effect only in '{}': use a bare import or an explicit file loader for a URL value",
+                    self.target_name()
+                ),
+            ));
+        }
+
+        // same-output resource imports become local value bindings
+        if !self.module(target_module).is_code() {
+            if items.is_empty() {
+                return Ok(OutputStatementRewriteAction::Drop);
+            }
+
+            let replacement = self.compiler.resource_import_replacement(
+                module,
+                statement_id,
+                module_id,
+                target_module,
+                target_id,
+                package_id,
+            )?;
+
+            return Ok(OutputStatementRewriteAction::Replace(replacement));
         }
 
         // reject unsupported import attributes for now
@@ -181,27 +216,27 @@ impl<'a> ScriptLinker<'a> {
             ));
         }
 
-        // reject import forms that need binding rewrites
-        if !self.can_strip_internal_script_import(module, items) {
-            return Err(self.invalid_output_rewrite(
-                module_id,
-                target_id,
-                package_id,
-                format!(
-                    "bundled same-output import rewriting is only implemented for plain named imports in '{}'",
-                    self.target_name()
-                ),
-            ));
-        }
+        // same-output code imports rewrite through local bindings
+        let profile_id = self.profile_id_for_module(module_id)?;
+        let replacement = self.compiler.same_output_import_replacement(
+            module,
+            statement_id,
+            module_id,
+            target_module,
+            profile_id,
+            self.target,
+            target_id,
+            package_id,
+        )?;
 
-        Ok(OutputStatementRewriteAction::Drop)
+        Ok(OutputStatementRewriteAction::Replace(replacement))
     }
 
     /// Classify one same-output export statement during linked output rewriting.
     fn classify_same_output_export_statement(
         &self,
         module_id: ModuleId,
-        module: &ScriptModule,
+        module: &mut ScriptModule,
         is_type_dependency: bool,
         items: &[LocalNodeId<DependencyItem>],
         target_id: &TargetId,
@@ -294,9 +329,11 @@ impl<'a> ScriptLinker<'a> {
         // collapse bundled same-output targets to local bindings
         if output_graph.shares_output(module_id, target_module) {
             let action = if is_import {
-                self.classify_same_output_import_statement(
+                self.rewrite_same_output_import_statement(
                     module_id,
                     module,
+                    statement_id,
+                    target_module,
                     is_type_dependency,
                     &items,
                     has_arguments,
@@ -338,9 +375,11 @@ impl<'a> ScriptLinker<'a> {
     fn apply_output_script_statement_rewrite(
         &self,
         module: &mut ScriptModule,
+        root: LocalNodeIdAny,
         statement_id: LocalNodeId<Statement>,
         action: OutputStatementRewriteAction,
         rewritten_specifier: Option<String>,
+        rewritten_roots: &mut Vec<LocalNodeIdAny>,
     ) {
         match action {
             OutputStatementRewriteAction::Keep => {
@@ -354,14 +393,21 @@ impl<'a> ScriptLinker<'a> {
                         _ => {}
                     }
                 }
+
+                rewritten_roots.push(root);
             }
             OutputStatementRewriteAction::Drop => {}
+            OutputStatementRewriteAction::Replace(replacement) => {
+                rewritten_roots.extend(replacement.into_iter().map(LocalNodeId::into_any));
+            }
             OutputStatementRewriteAction::RewriteExportTargetNone => {
                 let statement = module.tree.get_mut(statement_id);
 
                 if let Statement::Export { target, .. } = statement {
                     *target = None;
                 }
+
+                rewritten_roots.push(root);
             }
         }
     }
@@ -498,7 +544,7 @@ impl<'a> ScriptLinker<'a> {
             let statement_id = LocalNodeId::<Statement>::new(root.id);
             let (action, rewritten_specifier) = self.classify_output_script_statement(
                 module_id,
-                &module,
+                &mut module,
                 statement_id,
                 output_id,
                 output_graph,
@@ -510,14 +556,12 @@ impl<'a> ScriptLinker<'a> {
 
             self.apply_output_script_statement_rewrite(
                 &mut module,
+                *root,
                 statement_id,
-                action.clone(),
+                action,
                 rewritten_specifier,
+                &mut rewritten_roots,
             );
-
-            if !matches!(action, OutputStatementRewriteAction::Drop) {
-                rewritten_roots.push(*root);
-            }
         }
 
         let import_calls = self.collect_script_dynamic_import_calls(&module);

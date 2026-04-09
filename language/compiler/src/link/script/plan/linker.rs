@@ -232,7 +232,8 @@ impl<'a> ScriptLinker<'a> {
             // only traverse bundled dependencies after the generated artifact exists
             if self
                 .compiler
-                .module_output(module_id, self.target_id)
+                .repository
+                .module_output(self.revision(), module_id, *self.target_id)
                 .is_none()
             {
                 continue;

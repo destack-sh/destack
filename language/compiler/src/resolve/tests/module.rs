@@ -3,6 +3,7 @@ use destack_artifact::{Data, Loader, ModuleEdgeRelation, ModuleKind};
 use destack_css::{Rule, Token};
 use destack_dir::{StaticKey, SymbolSpace};
 use destack_html::Content;
+use destack_source::{FileType, ModuleId};
 
 /// Return whether one html name matches one expected local spelling.
 fn html_name_is(html: &destack_artifact::Html, name: &destack_html::Name, expected: &str) -> bool {
@@ -58,10 +59,7 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test
-        .repository
-        .module_graph(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(main_module_id);
 
     // assert dependency edges
@@ -99,11 +97,7 @@ body {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(html_module_id);
 
     // assert dependency edges
@@ -162,11 +156,7 @@ export const value = 1;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let stylesheet_specifier = test.program.strings.intern("/styles/site.css?v=1");
     let script_specifier = test.program.strings.intern("/scripts/app.ts?worker");
     let asset_specifier = test.program.strings.intern("/assets/logo.svg#icon");
@@ -236,16 +226,8 @@ export const value = 1;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
-    let data = test
-        .compiler
-        .artifacts
-        .data(html_module_id)
-        .unwrap_or_else(|| panic!("missing html data payload for module {html_module_id:?}"));
+    let graph = test.module_graph(profile);
+    let data = test.data(html_module_id);
     let html = match data.as_ref() {
         Data::Html(html) => html,
         Data::Json(_) | Data::Css(_) => panic!("expected html data payload"),
@@ -383,17 +365,9 @@ fn test_module_graph_html_link_asset_policy() {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(html_module_id);
-    let data = test
-        .compiler
-        .artifacts
-        .data(html_module_id)
-        .unwrap_or_else(|| panic!("missing html data payload for module {html_module_id:?}"));
+    let data = test.data(html_module_id);
     let html = match data.as_ref() {
         Data::Html(html) => html,
         Data::Json(_) | Data::Css(_) => panic!("expected html data payload"),
@@ -475,16 +449,8 @@ fn test_module_graph_html_records_link_imagesrcset_sites() {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
-    let data = test
-        .compiler
-        .artifacts
-        .data(html_module_id)
-        .unwrap_or_else(|| panic!("missing html data payload for module {html_module_id:?}"));
+    let graph = test.module_graph(profile);
+    let data = test.data(html_module_id);
     let html = match data.as_ref() {
         Data::Html(html) => html,
         Data::Json(_) | Data::Css(_) => panic!("expected html data payload"),
@@ -608,11 +574,7 @@ export const value = 1;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(html_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(html_module_id);
 
     // assert dependency edges
@@ -656,16 +618,8 @@ body {
     test.compile_check_clean();
 
     let profile = test.default_profile_id(stylesheet_module_id);
-    let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
-    let data = test
-        .compiler
-        .artifacts
-        .data(stylesheet_module_id)
-        .unwrap_or_else(|| panic!("missing css data payload for module {stylesheet_module_id:?}"));
+    let graph = test.module_graph(profile);
+    let data = test.data(stylesheet_module_id);
     let css = match data.as_ref() {
         Data::Css(css) => css,
         Data::Json(_) | Data::Html(_) => panic!("expected css data payload"),
@@ -769,31 +723,54 @@ fn test_resolve_path_to_module_with_loader_keeps_distinct_file_views() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ts", "export const value = 1;");
 
-    let module = test.program.modules.get(module_id);
+    let module = test.program.module_descriptor(module_id);
     let path = module
         .path
         .clone()
         .unwrap_or_else(|| panic!("missing module path for {module_id:?}"));
+    let revision = test.current_revision();
 
     let code_module_id = test
         .compiler
-        .resolve_path_to_module(&path)
+        .resolve_path_to_module(revision, &path)
         .unwrap_or_else(|error| panic!("failed to resolve code module: {error:?}"));
     let text_module_id = test
         .compiler
-        .resolve_path_to_module_with_loader(&path, Some(Loader::Text))
+        .resolve_path_to_module_with_loader(revision, &path, Some(Loader::Text))
         .unwrap_or_else(|error| panic!("failed to resolve text module: {error:?}"));
 
-    let code_module = test.program.modules.get(code_module_id);
-    let text_module = test.program.modules.get(text_module_id);
-    let code_file = test.program.files.get(code_module.file_id);
-    let text_file = test.program.files.get(text_module.file_id);
+    let package = test.program.package_descriptor(module.package_id);
+    let file_id = test
+        .program
+        .source_file_id_for_path(&path)
+        .unwrap_or_else(|| panic!("missing file id for '{}'", path.display()));
+    let file = test.program.source_file(file_id);
 
     assert_ne!(code_module_id, text_module_id);
-    assert_ne!(code_module.file_id, text_module.file_id);
-    assert_eq!(code_file.key, text_file.key);
-    assert_eq!(code_module.kind, ModuleKind::Code);
-    assert_eq!(text_module.kind, ModuleKind::Data);
+    assert_eq!(code_module_id, module_id);
+    assert_eq!(file.uri, module.uri);
+    assert_eq!(file.ty, FileType::TypeScript);
+    assert_eq!(
+        code_module_id,
+        ModuleId::from_path_with_loader(module.package_id, &path, package.path.as_deref(), None),
+    );
+    assert_eq!(
+        text_module_id,
+        ModuleId::from_path_with_loader(
+            module.package_id,
+            &path,
+            package.path.as_deref(),
+            Some("text"),
+        ),
+    );
+    assert_eq!(
+        ModuleKind::from_file_type_and_loader(file.ty, module.loader),
+        ModuleKind::Code
+    );
+    assert_eq!(
+        ModuleKind::from_file_type_and_loader(file.ty, Loader::Text),
+        ModuleKind::Data,
+    );
 }
 
 /// Resolve ts relative .js specifiers through TypeScript extension substitution.
@@ -816,10 +793,7 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test
-        .repository
-        .module_graph(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(main_module_id);
 
     // assert dependency edges
@@ -885,10 +859,7 @@ type Wrapped = TaskResultPack;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test
-        .repository
-        .module_graph(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(main_module_id);
 
     // assert dependency edges
@@ -1028,10 +999,7 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(consumer_module_id);
-    let graph = test
-        .repository
-        .module_graph(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(consumer_module_id);
 
     // assert dependency edges
@@ -1059,10 +1027,7 @@ export * from "./dep.ts";
     test.compile_check_clean();
 
     let profile = test.default_profile_id(export_module_id);
-    let graph = test
-        .repository
-        .module_graph(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(export_module_id);
 
     // assert dependency edges
@@ -1097,10 +1062,7 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let graph = test
-        .repository
-        .module_graph(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let graph = test.module_graph(profile);
     let dependencies = graph.dependencies_for(main_module_id);
 
     // assert dependency edges

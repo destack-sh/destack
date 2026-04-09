@@ -362,7 +362,9 @@ mod tests {
         let a: HashSet<i32> = [1, 2, 3].into_iter().collect();
         let b: HashSet<i32> = [2, 3, 4].into_iter().collect();
         let meet = a.meet(&b);
-        assert_eq!(meet, [1, 2, 3, 4].into_iter().collect());
+        let expected: HashSet<i32> = [1, 2, 3, 4].into_iter().collect();
+
+        assert_eq!(meet, expected);
     }
 
     /// Option lattice handles None and Some correctly.

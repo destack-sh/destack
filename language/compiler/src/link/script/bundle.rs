@@ -17,6 +17,8 @@ enum ScriptStatementAction {
     Keep,
     /// Drop the statement from the bundled module body.
     Drop,
+    /// Replace the statement with local statement roots.
+    Replace(Vec<LocalNodeId<Statement>>),
     /// Rewrite one re-export to a local export.
     RewriteExportTargetNone,
     /// Rewrite one export value into an expression statement.
@@ -40,11 +42,12 @@ impl<'a> ScriptLinker<'a> {
         }
     }
 
-    /// Classify one bundled import statement.
-    fn classify_bundled_import_statement(
+    /// Rewrite one bundled import statement.
+    fn rewrite_bundled_import_statement(
         &self,
         module_id: ModuleId,
-        module: &ScriptModule,
+        module: &mut ScriptModule,
+        statement_id: LocalNodeId<Statement>,
         kind: DependencyKind,
         specifier: &str,
         target_module: Option<ModuleId>,
@@ -73,6 +76,26 @@ impl<'a> ScriptLinker<'a> {
             return Ok(ScriptStatementAction::Drop);
         }
 
+        // bundled resource imports become local value bindings
+        if let Some(target_module) = target_module {
+            if !self.module(target_module).is_code() {
+                if items.is_empty() {
+                    return Ok(ScriptStatementAction::Drop);
+                }
+
+                let replacement = self.compiler.resource_import_replacement(
+                    module,
+                    statement_id,
+                    module_id,
+                    target_module,
+                    target_id,
+                    package_id,
+                )?;
+
+                return Ok(ScriptStatementAction::Replace(replacement));
+            }
+        }
+
         // reject unsupported import attributes for now
         if has_arguments {
             return Err(self.invalid_bundled_rewrite(
@@ -86,20 +109,25 @@ impl<'a> ScriptLinker<'a> {
             ));
         }
 
-        // reject import forms that need binding rewrites
-        if !self.can_strip_internal_script_import(module, items) {
-            return Err(self.invalid_bundled_rewrite(
-                module_id,
-                target_id,
-                package_id,
-                format!(
-                    "bundled internal import rewriting is only implemented for plain named imports in '{}'",
-                    self.target_name()
-                ),
-            ));
-        }
+        // unresolved internal imports should have been resolved to modules
+        let Some(target_module) = target_module else {
+            return Ok(ScriptStatementAction::Drop);
+        };
 
-        Ok(ScriptStatementAction::Drop)
+        // bundled code imports rewrite through local bindings
+        let profile_id = self.profile_id_for_module(module_id)?;
+        let replacement = self.compiler.same_output_import_replacement(
+            module,
+            statement_id,
+            module_id,
+            target_module,
+            profile_id,
+            target,
+            target_id,
+            package_id,
+        )?;
+
+        Ok(ScriptStatementAction::Replace(replacement))
     }
 
     /// Classify one bundled export statement.
@@ -168,7 +196,7 @@ impl<'a> ScriptLinker<'a> {
     fn classify_bundled_script_statement(
         &self,
         module_id: ModuleId,
-        module: &ScriptModule,
+        module: &mut ScriptModule,
         statement_id: LocalNodeId<Statement>,
         is_entry_module: bool,
         target_config: &Target,
@@ -184,9 +212,10 @@ impl<'a> ScriptLinker<'a> {
                 target_module,
                 items,
                 attributes,
-            } => self.classify_bundled_import_statement(
+            } => self.rewrite_bundled_import_statement(
                 module_id,
                 module,
+                statement_id,
                 *kind,
                 module.strings.get(*specifier).as_ref(),
                 *target_module,
@@ -235,6 +264,9 @@ impl<'a> ScriptLinker<'a> {
         match action {
             ScriptStatementAction::Keep => rewritten_roots.push(root),
             ScriptStatementAction::Drop => {}
+            ScriptStatementAction::Replace(replacement) => {
+                rewritten_roots.extend(replacement.into_iter().map(LocalNodeId::into_any));
+            }
             ScriptStatementAction::RewriteExportTargetNone => {
                 let statement = module.tree.get_mut(statement_id);
 
@@ -299,7 +331,7 @@ impl<'a> ScriptLinker<'a> {
             let statement_id = LocalNodeId::<Statement>::new(root.id);
             let action = self.classify_bundled_script_statement(
                 module_id,
-                &module,
+                &mut module,
                 statement_id,
                 is_entry_module,
                 target,

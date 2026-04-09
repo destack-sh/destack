@@ -18,7 +18,7 @@ impl TestProgram {
         key.runtime = runtime;
         key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
 
-        let profile_id = self.program.profile_id(key);
+        let profile_id = self.compiler.remember_profile_key(key);
         self.default_profile_override = Some(profile_id);
     }
 

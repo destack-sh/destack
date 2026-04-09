@@ -8,9 +8,9 @@ use std::thread;
 use std::time::Duration;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactStamp, CacheStore, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
+    ArtifactKey, ArtifactStamp, CacheStore, Data, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
     DirInterface, DirPatched, DirPrepared, DirResolved, DiskCacheStore, EmitFormat,
-    ExportedSymbolTable, MemoryCacheStore, ModuleOutput, PackageOutput,
+    ExportedSymbolTable, MemoryCacheStore, ModuleGraph, ModuleOutput, PackageOutput,
 };
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
@@ -26,14 +26,15 @@ use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileContent, FileId, FileSystem,
-    FileType, MemoryFileSystem, ModuleId, MultiSpan, PackageId, PhysicalFileSystem, TargetId, Uri,
-    print_diff,
+    FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
+    TargetId, Uri, print_diff,
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
     BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change, CheckFailurePolicy,
-    DivisionCheckPolicy, Edit, Module, Package, Profile, ProfileId, Ref, Repository, Revision,
-    ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery,
+    DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId, Ref, Repository,
+    Revision, ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery, TargetGeneratedCodeOptions,
+    TargetGeneratedCodePreset,
 };
 use serde_json::{Value as JsonValue, json};
 
@@ -1485,12 +1486,20 @@ impl TestProgram {
         self
     }
 
-    /// Add a file and register a blank module for it (no import/parsing yet).
+    /// Add a file and materialize one module id for it.
     pub fn add_module(&self, path: &str, content: &str) -> ModuleId {
         self.write_workspace_text_file(Path::new(path), content);
-        self.program
-            .module_id_for_path(Path::new(path))
-            .unwrap_or_else(|| panic!("failed to register module at '{path}'"))
+        let revision = self.program.current_revision();
+        let path = PathBuf::from(path);
+
+        self.compiler
+            .resolve_path_to_module(revision, &path)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to register module at '{}': {error:?}",
+                    path.display()
+                )
+            })
     }
 
     /// Get the default profile id for a module.
@@ -1549,10 +1558,43 @@ impl TestProgram {
         self.compiler.profile(profile_id)
     }
 
+    /// Return one revision-scoped module graph artifact.
+    pub fn module_graph(&self, profile_id: ProfileId) -> Arc<ModuleGraph> {
+        let context = self
+            .compiler
+            .context(self.artifact_revision())
+            .unwrap_or_else(|error| panic!("{error}"));
+
+        context
+            .module_graph(profile_id)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile_id:?}"))
+    }
+
+    /// Return one revision-scoped parsed data artifact.
+    pub fn data(&self, module_id: ModuleId) -> Arc<Data> {
+        let context = self
+            .compiler
+            .context(self.artifact_revision())
+            .unwrap_or_else(|error| panic!("{error}"));
+
+        context
+            .data(module_id)
+            .unwrap_or_else(|| panic!("missing data payload for module {module_id:?}"))
+    }
+
     /// Return one artifact dependency for the current revision.
     pub fn artifact_stamp_for_key(&self, artifact_key: &ArtifactKey) -> ArtifactStamp {
         self.compiler
             .artifact_stamp_for_revision(self.program.current_revision(), artifact_key)
+    }
+
+    /// Return the resolved module graph version for one module.
+    pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
+        let profile = self.default_profile_id(module_id);
+        let artifact_key = ArtifactKey::dir_resolved(module_id, profile);
+        let artifact_stamp = self.artifact_stamp_for_key(&artifact_key);
+
+        ModuleVersion::new(artifact_stamp.0)
     }
 
     /// Enqueue Import task for a module.
@@ -1961,196 +2003,157 @@ impl TestProgram {
         let base = Target::implicit_for_name(&target.name).unwrap_or_default();
         let mut value =
             Self::implicit_target_config_value(&target.name).unwrap_or_else(|| json!({}));
-        let JsonValue::Object(object) = &mut value else {
-            panic!("target config must be one object");
-        };
+        let mut patch = Self::target_config_patch(target, &base);
 
-        if target.entry != base.entry {
-            let entry = target
+        Self::prune_json_patch(&mut patch);
+        Self::merge_json_value(&mut value, patch);
+
+        value
+    }
+
+    /// Build one structured config patch for one target override.
+    fn target_config_patch(target: &Target, base: &Target) -> JsonValue {
+        let entry = (target.entry != base.entry).then(|| {
+            target
                 .entry
                 .iter()
                 .map(|path| path.to_string_lossy().into_owned())
-                .collect::<Vec<_>>();
-            object.insert("entry".to_string(), json!(entry));
+                .collect::<Vec<_>>()
+        });
+        let out_file = (target.out_file != base.out_file).then(|| {
+            target
+                .out_file
+                .as_ref()
+                .map(|path| path.to_string_lossy().into_owned())
+        });
+
+        json!({
+            "entry": if target.discovery == TargetDiscovery::Entry && target.entry.is_empty() {
+                Some(Vec::<String>::new())
+            } else {
+                entry
+            },
+            "emit": (target.emit != base.emit).then(|| Self::emit_format_name(target.emit)),
+            "outDir": (target.out_dir != base.out_dir)
+                .then(|| target.out_dir.to_string_lossy().into_owned()),
+            "outFile": out_file,
+            "target": (target.es_target != base.es_target)
+                .then(|| Self::es_target_name(target.es_target)),
+            "boundsChecks": (target.bounds_checks != base.bounds_checks)
+                .then(|| Self::bounds_check_policy_name(target.bounds_checks)),
+            "overflowChecks": (target.overflow_checks != base.overflow_checks)
+                .then(|| Self::overflow_check_policy_name(target.overflow_checks)),
+            "divisionChecks": (target.division_checks != base.division_checks)
+                .then(|| Self::division_check_policy_name(target.division_checks)),
+            "shiftChecks": (target.shift_checks != base.shift_checks)
+                .then(|| Self::shift_check_policy_name(target.shift_checks)),
+            "checkFailure": (target.check_failure != base.check_failure)
+                .then(|| Self::check_failure_policy_name(target.check_failure)),
+            "assembly": (target.assembly != base.assembly)
+                .then(|| Self::bundle_mode_name(target.assembly)),
+            "manualChunks": (!target.manual_chunks.is_empty()).then(|| target.manual_chunks.clone()),
+            "onlyExplicitManualChunks": (target.only_explicit_manual_chunks != base.only_explicit_manual_chunks)
+                .then_some(target.only_explicit_manual_chunks),
+            "dependencies": Self::target_dependency_config_patch(target, base),
+            "output": Self::target_output_config_patch(target, base),
+            "minify": Self::target_minify_config_patch(target, base),
+        })
+    }
+
+    /// Build one structured dependency patch for one target override.
+    fn target_dependency_config_patch(target: &Target, _base: &Target) -> Option<JsonValue> {
+        let never_bundle = (!target.bundle_dependencies.never_bundle.is_empty())
+            .then(|| target.bundle_dependencies.never_bundle.clone());
+        let only_bundle = (!target.bundle_dependencies.only_bundle.is_empty())
+            .then(|| target.bundle_dependencies.only_bundle.clone());
+
+        if never_bundle.is_none() && only_bundle.is_none() {
+            return None;
         }
 
-        if target.out_dir != base.out_dir {
-            object.insert(
-                "outDir".to_string(),
-                json!(target.out_dir.to_string_lossy().into_owned()),
-            );
+        Some(json!({
+            "neverBundle": never_bundle,
+            "onlyBundle": only_bundle,
+        }))
+    }
+
+    /// Build one structured output patch for one target override.
+    fn target_output_config_patch(target: &Target, base: &Target) -> Option<JsonValue> {
+        let generated_code = (target.bundle_output.generated_code
+            != base.bundle_output.generated_code)
+            .then(|| Self::generated_code_value(target.bundle_output.generated_code.as_ref()))
+            .flatten();
+
+        let patch = json!({
+            "format": (target.bundle_output.format != base.bundle_output.format)
+                .then(|| target.bundle_output.format.map(Self::bundle_format_name))
+                .flatten(),
+            "entryFileNames": (target.bundle_output.entry_file_names != base.bundle_output.entry_file_names)
+                .then(|| target.bundle_output.entry_file_names.clone())
+                .flatten(),
+            "chunkFileNames": (target.bundle_output.chunk_file_names != base.bundle_output.chunk_file_names)
+                .then(|| target.bundle_output.chunk_file_names.clone())
+                .flatten(),
+            "assetFileNames": (target.bundle_output.asset_file_names != base.bundle_output.asset_file_names)
+                .then(|| target.bundle_output.asset_file_names.clone())
+                .flatten(),
+            "publicPath": (target.bundle_output.public_path != base.bundle_output.public_path)
+                .then(|| target.bundle_output.public_path.clone())
+                .flatten(),
+            "manifest": (target.bundle_output.manifest != base.bundle_output.manifest)
+                .then_some(target.bundle_output.manifest),
+            "sourcemap": (target.bundle_output.sourcemap != base.bundle_output.sourcemap)
+                .then(|| target.bundle_output.sourcemap.map(Self::source_map_mode_name))
+                .flatten(),
+            "banner": (target.bundle_output.banner != base.bundle_output.banner)
+                .then(|| target.bundle_output.banner.clone())
+                .flatten(),
+            "footer": (target.bundle_output.footer != base.bundle_output.footer)
+                .then(|| target.bundle_output.footer.clone())
+                .flatten(),
+            "generatedCode": generated_code,
+        });
+
+        (!Self::json_patch_is_empty(&patch)).then_some(patch)
+    }
+
+    /// Build one structured minify patch for one target override.
+    fn target_minify_config_patch(target: &Target, base: &Target) -> Option<JsonValue> {
+        if target.minify == base.minify {
+            return None;
         }
 
-        if target.out_file != base.out_file {
-            object.insert(
-                "outFile".to_string(),
-                json!(
-                    target
-                        .out_file
-                        .as_ref()
-                        .map(|path| path.to_string_lossy().into_owned())
-                ),
-            );
-        }
+        Some(json!({
+            "enabled": target.minify.enabled,
+            "syntax": target.minify.syntax,
+            "whitespace": target.minify.whitespace,
+            "identifiers": target.minify.identifiers,
+            "keepNames": target.minify.keep_names,
+        }))
+    }
 
-        if target.bounds_checks != base.bounds_checks {
-            object.insert(
-                "boundsChecks".to_string(),
-                json!(Self::bounds_check_policy_name(target.bounds_checks)),
-            );
-        }
-
-        if target.overflow_checks != base.overflow_checks {
-            object.insert(
-                "overflowChecks".to_string(),
-                json!(Self::overflow_check_policy_name(target.overflow_checks)),
-            );
-        }
-
-        if target.division_checks != base.division_checks {
-            object.insert(
-                "divisionChecks".to_string(),
-                json!(Self::division_check_policy_name(target.division_checks)),
-            );
-        }
-
-        if target.shift_checks != base.shift_checks {
-            object.insert(
-                "shiftChecks".to_string(),
-                json!(Self::shift_check_policy_name(target.shift_checks)),
-            );
-        }
-
-        if target.check_failure != base.check_failure {
-            object.insert(
-                "checkFailure".to_string(),
-                json!(Self::check_failure_policy_name(target.check_failure)),
-            );
-        }
-
-        if target.bundle.mode != base.bundle.mode
-            || !target.bundle.manual_chunks.is_empty()
-            || !target.bundle.dependencies.never_bundle.is_empty()
-            || !target.bundle.dependencies.only_bundle.is_empty()
-            || target.bundle.output.format != base.bundle.output.format
-            || target.bundle.output.public_path != base.bundle.output.public_path
-            || target.bundle.output.manifest != base.bundle.output.manifest
-            || target.bundle.output.sourcemap != base.bundle.output.sourcemap
-            || target.bundle.output.banner != base.bundle.output.banner
-            || target.bundle.output.footer != base.bundle.output.footer
-            || target.bundle.minify.enabled != base.bundle.minify.enabled
-        {
-            let bundle = object
-                .entry("bundle".to_string())
-                .or_insert_with(|| json!({}));
-            let JsonValue::Object(bundle) = bundle else {
-                panic!("target bundle config must be one object");
-            };
-
-            if target.bundle.mode != base.bundle.mode {
-                bundle.insert(
-                    "mode".to_string(),
-                    json!(Self::bundle_mode_name(target.bundle.mode)),
-                );
+    /// Remove `null` values and empty objects from one json patch.
+    fn prune_json_patch(value: &mut JsonValue) {
+        match value {
+            JsonValue::Object(object) => {
+                object.retain(|_, value| {
+                    Self::prune_json_patch(value);
+                    !value.is_null()
+                        && !matches!(value, JsonValue::Object(object) if object.is_empty())
+                });
             }
-
-            if !target.bundle.manual_chunks.is_empty() {
-                bundle.insert(
-                    "manualChunks".to_string(),
-                    json!(target.bundle.manual_chunks),
-                );
-            }
-
-            if !target.bundle.dependencies.never_bundle.is_empty()
-                || !target.bundle.dependencies.only_bundle.is_empty()
-            {
-                let dependencies = bundle
-                    .entry("dependencies".to_string())
-                    .or_insert_with(|| json!({}));
-                let JsonValue::Object(dependencies) = dependencies else {
-                    panic!("target dependency config must be one object");
-                };
-
-                if !target.bundle.dependencies.never_bundle.is_empty() {
-                    dependencies.insert(
-                        "neverBundle".to_string(),
-                        json!(target.bundle.dependencies.never_bundle),
-                    );
-                }
-
-                if !target.bundle.dependencies.only_bundle.is_empty() {
-                    dependencies.insert(
-                        "onlyBundle".to_string(),
-                        json!(target.bundle.dependencies.only_bundle),
-                    );
-                }
-            }
-
-            if target.bundle.output.format != base.bundle.output.format
-                || target.bundle.output.public_path != base.bundle.output.public_path
-                || target.bundle.output.manifest != base.bundle.output.manifest
-                || target.bundle.output.sourcemap != base.bundle.output.sourcemap
-                || target.bundle.output.banner != base.bundle.output.banner
-                || target.bundle.output.footer != base.bundle.output.footer
-            {
-                let output = bundle
-                    .entry("output".to_string())
-                    .or_insert_with(|| json!({}));
-                let JsonValue::Object(output) = output else {
-                    panic!("target output config must be one object");
-                };
-
-                if target.bundle.output.format != base.bundle.output.format
-                    && let Some(format) = target.bundle.output.format
-                {
-                    output.insert(
-                        "format".to_string(),
-                        json!(Self::bundle_format_name(format)),
-                    );
-                }
-
-                if target.bundle.output.public_path != base.bundle.output.public_path
-                    && let Some(public_path) = target.bundle.output.public_path.as_ref()
-                {
-                    output.insert("publicPath".to_string(), json!(public_path));
-                }
-
-                if target.bundle.output.manifest != base.bundle.output.manifest {
-                    output.insert("manifest".to_string(), json!(target.bundle.output.manifest));
-                }
-
-                if target.bundle.output.sourcemap != base.bundle.output.sourcemap
-                    && let Some(source_map) = target.bundle.output.sourcemap
-                {
-                    output.insert(
-                        "sourcemap".to_string(),
-                        json!(Self::source_map_mode_name(source_map)),
-                    );
-                }
-
-                if target.bundle.output.banner != base.bundle.output.banner
-                    && let Some(banner) = target.bundle.output.banner.as_ref()
-                {
-                    output.insert("banner".to_string(), json!(banner));
-                }
-
-                if target.bundle.output.footer != base.bundle.output.footer
-                    && let Some(footer) = target.bundle.output.footer.as_ref()
-                {
-                    output.insert("footer".to_string(), json!(footer));
+            JsonValue::Array(values) => {
+                for value in values {
+                    Self::prune_json_patch(value);
                 }
             }
-
-            if target.bundle.minify.enabled != base.bundle.minify.enabled {
-                bundle.insert("minify".to_string(), json!(target.bundle.minify.enabled));
-            }
+            _ => {}
         }
+    }
 
-        if target.discovery == TargetDiscovery::Entry && target.entry.is_empty() {
-            object.insert("entry".to_string(), json!([]));
-        }
-
-        value
+    /// Return whether one json patch is empty after pruning.
+    fn json_patch_is_empty(value: &JsonValue) -> bool {
+        matches!(value, JsonValue::Object(object) if object.is_empty())
     }
 
     /// Return the JSON spelling for one bundle mode.
@@ -2162,14 +2165,63 @@ impl TestProgram {
         }
     }
 
+    /// Return the JSON spelling for one emit format.
+    fn emit_format_name(format: EmitFormat) -> &'static str {
+        match format {
+            EmitFormat::Js => "js",
+            EmitFormat::Ts => "ts",
+            EmitFormat::Html => "html",
+            EmitFormat::Wasm => "wasm",
+            EmitFormat::Native => "native",
+        }
+    }
+
     /// Return the JSON spelling for one bundle format.
     fn bundle_format_name(format: BundleFormat) -> &'static str {
         match format {
             BundleFormat::Esm => "esm",
             BundleFormat::Cjs => "cjs",
             BundleFormat::Iife => "iife",
-            BundleFormat::Umd => "umd",
         }
+    }
+
+    /// Return the JSON spelling for one ECMAScript target.
+    fn es_target_name(target: EsTarget) -> &'static str {
+        match target {
+            EsTarget::Es5 => "es5",
+            EsTarget::Es2015 => "es2015",
+            EsTarget::Es2016 => "es2016",
+            EsTarget::Es2017 => "es2017",
+            EsTarget::Es2018 => "es2018",
+            EsTarget::Es2019 => "es2019",
+            EsTarget::Es2020 => "es2020",
+            EsTarget::Es2021 => "es2021",
+            EsTarget::Es2022 => "es2022",
+            EsTarget::Es2023 => "es2023",
+            EsTarget::Es2024 => "es2024",
+            EsTarget::EsNext => "esnext",
+        }
+    }
+
+    /// Return the JSON value for one generated code configuration.
+    fn generated_code_value(
+        generated_code: Option<&TargetGeneratedCodeOptions>,
+    ) -> Option<JsonValue> {
+        let generated_code = generated_code?;
+        let mut value = json!({
+            "preset": generated_code.preset.map(|preset| match preset {
+                TargetGeneratedCodePreset::Es5 => "es5",
+                TargetGeneratedCodePreset::Es2015 => "es2015",
+            }),
+            "arrowFunctions": generated_code.arrow_functions,
+            "constBindings": generated_code.const_bindings,
+            "objectShorthand": generated_code.object_shorthand,
+            "reservedNamesAsProps": generated_code.reserved_names_as_props,
+            "symbols": generated_code.symbols,
+        });
+
+        Self::prune_json_patch(&mut value);
+        (!Self::json_patch_is_empty(&value)).then_some(value)
     }
 
     /// Return the JSON spelling for one source map mode.
@@ -2681,9 +2733,10 @@ impl TestProgram {
     /// Return the linked package output for one package target.
     pub fn package_output(&self, package_id: PackageId, target: &str) -> PackageOutput {
         let target_id = self.target_id(package_id, target);
+        let revision = self.artifact_revision();
 
-        self.compiler
-            .package_output(package_id, &target_id)
+        self.repository
+            .package_output(revision, package_id, target_id)
             .unwrap_or_else(|| panic!("missing package output for target '{target}'"))
             .as_ref()
             .clone()
@@ -2693,9 +2746,10 @@ impl TestProgram {
     pub fn module_output(&self, module_id: ModuleId, target: &str) -> ModuleOutput {
         let module = self.program.module_descriptor(module_id);
         let target_id = self.target_id(module.package_id, target);
+        let revision = self.artifact_revision();
 
-        self.compiler
-            .module_output(module_id, &target_id)
+        self.repository
+            .module_output(revision, module_id, target_id)
             .unwrap_or_else(|| panic!("missing module output for target '{target}'"))
             .as_ref()
             .clone()
@@ -3168,9 +3222,7 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("expected decorator annotation for {name}"));
 
         // resolve decorator metadata
-        let Annotation::Decorator { expression, .. } = tree.get(decorator_id) else {
-            panic!("expected decorator annotation for {name}");
-        };
+        let Annotation::Decorator { expression, .. } = tree.get(decorator_id);
 
         let call = self.compiler.decorator_call(&tree, *expression);
 

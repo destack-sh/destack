@@ -9,7 +9,7 @@ use indexmap::indexmap;
 use super::{
     LinkedScriptTarget, LinkedTextFile, TestProgram, inline_source_map_reference, js, js_output,
     linked_entry, linked_entry_with_source_map, linked_map, manifest, manifest_chunk, manifest_map,
-    source_map,
+    map_output, source_map,
 };
 use destack_workspace::EsTarget;
 
@@ -175,6 +175,120 @@ export function renderShell(page) {
     ).join("|");
     return `${page.slug}::${page.section.heading}::${page.section.cards.length}::${navigation}`;
 }
+"#,
+        )),
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
+                .input(&main_path)
+                .entry()
+                .into(),
+        ]),
+        map: None,
+    };
+
+    test.assert_linked_script_target(&linked, &expected);
+}
+
+/// Rewrite one bundled same-output default import through one local alias binding.
+#[test]
+fn test_rewrites_single_file_same_output_default_import_alias() {
+    // bridge one default import alias to the bundled local binding
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    test.add_module(
+        "dep.ts",
+        &js(r#"
+const bundledValue = 1;
+
+export default bundledValue;
+"#),
+    );
+    let main = test.add_module(
+        "app.ts",
+        &js(r#"
+import value from "./dep.ts";
+
+export const appValue = value;
+"#),
+    );
+
+    // keep the rewritten local alias exact
+    let main_path = test.module_relative_path(main);
+    let linked = test.link_single_file_js_target_with(main, "js", |target| {
+        target.source_map_mode = None;
+        target.bundle_output.sourcemap = None;
+    });
+    let expected = LinkedScriptTarget {
+        assembly: PackageAssembly::SingleFile,
+        output_groups: indexmap! {
+            TargetOutputName::Entry => vec!["dist/js.js".to_string()],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        entry: linked_entry(&js_output(
+            r#"
+const bundledValue = 1;
+
+const value = bundledValue;
+export const appValue = value;
+"#,
+        )),
+        manifest: manifest(vec![
+            manifest_chunk("js.js", "js")
+                .input(&main_path)
+                .entry()
+                .into(),
+        ]),
+        map: None,
+    };
+
+    test.assert_linked_script_target(&linked, &expected);
+}
+
+/// Rewrite one bundled same-output namespace import through one getter bridge object.
+#[test]
+fn test_rewrites_single_file_same_output_namespace_import() {
+    // bridge one namespace import to bundled local exports
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    test.add_module(
+        "dep.ts",
+        &js(r#"
+export const first = 1;
+export const second = 2;
+"#),
+    );
+    let main = test.add_module(
+        "app.ts",
+        &js(r#"
+import * as values from "./dep.ts";
+
+export const appValue = values.first + values.second;
+"#),
+    );
+
+    // keep the emitted namespace bridge exact
+    let main_path = test.module_relative_path(main);
+    let linked = test.link_single_file_js_target_with(main, "js", |target| {
+        target.source_map_mode = None;
+        target.bundle_output.sourcemap = None;
+    });
+    let expected = LinkedScriptTarget {
+        assembly: PackageAssembly::SingleFile,
+        output_groups: indexmap! {
+            TargetOutputName::Entry => vec!["dist/js.js".to_string()],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+        entry: linked_entry(&js_output(
+            r#"
+export const first = 1;
+export const second = 2;
+
+const values = { get first() {
+    return first;
+}, get second() {
+    return second;
+} };
+export const appValue = values.first + values.second;
 "#,
         )),
         manifest: manifest(vec![
@@ -1363,6 +1477,91 @@ export const appValue = commonValue;
     test.assert_linked_script_entry(&linked, &expected_entry);
     test.assert_linked_script_manifest(&linked, &expected_manifest);
     test.assert_linked_script_map(&linked, Some(&linked_map(map)));
+}
+
+/// Emit one external source map reference relative to one nested single-file output path.
+#[test]
+fn test_emits_external_source_map_reference_for_nested_single_file_output_path() {
+    // keep the map sidecar and reference relative to the final nested output path
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    let dep = test.add_module(
+        "common.ts",
+        &js(r#"
+export const commonValue = 1;
+"#),
+    );
+    let main = test.add_module(
+        "app.ts",
+        &js(r#"
+import { commonValue } from './common.ts';
+
+export const appValue = commonValue;
+"#),
+    );
+
+    // preserve both input modules relative to the nested map path
+    let dep_path = test.module_relative_path(dep);
+    let main_path = test.module_relative_path(main);
+    let dep_map_path = format!("../../{dep_path}");
+    let main_map_path = format!("../../{main_path}");
+    let map = source_map(
+        &[dep_map_path.as_str(), main_map_path.as_str()],
+        SINGLE_FILE_SOURCE_MAP_MAPPINGS,
+    );
+
+    // emit one nested entry and nested sidecar map path
+    let linked = test.link_single_file_js_target_with(main, "js", |target| {
+        target.out_file = Some(PathBuf::from("dist/entries/app-entry.js"));
+    });
+    let expected = LinkedScriptTarget {
+        assembly: PackageAssembly::SingleFile,
+        output_groups: indexmap! {
+            TargetOutputName::Entry => vec!["dist/entries/app-entry.js".to_string()],
+            TargetOutputName::Maps => vec!["dist/entries/app-entry.js.map".to_string()],
+            TargetOutputName::Manifest => vec!["dist/entries/js.manifest.json".to_string()],
+        },
+        entry: LinkedTextFile {
+            path: "dist/entries/app-entry.js".to_string(),
+            file_type: destack_source::FileType::JavaScript,
+            text: linked_entry_with_source_map(
+                &js_output(
+                    r#"
+export const commonValue = 1;
+
+export const appValue = commonValue;
+"#,
+                ),
+                "./app-entry.js.map",
+            )
+            .text,
+        },
+        manifest: {
+            let value = destack_artifact::BuildManifest {
+                index: None,
+                files: vec![
+                    manifest_chunk("entries/app-entry.js", "js")
+                        .input(&main_path)
+                        .entry()
+                        .into(),
+                    manifest_map("entries/app-entry.js.map"),
+                ],
+            };
+            let text = serde_json::to_string_pretty(&value)
+                .unwrap_or_else(|error| panic!("failed to serialize expected manifest: {error}"));
+            let text = format!("{text}\n");
+
+            super::LinkedJsonFile {
+                path: "dist/entries/js.manifest.json".to_string(),
+                file_type: destack_source::FileType::Json,
+                text,
+                value,
+            }
+        },
+        map: Some(map_output("dist/entries/app-entry.js.map", map)),
+    };
+
+    test.assert_linked_script_target(&linked, &expected);
 }
 
 /// Emit one inline source map for bundled single-file output without a sidecar map file.
