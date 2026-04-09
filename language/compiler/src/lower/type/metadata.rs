@@ -268,7 +268,7 @@ impl ModuleLowerer<'_> {
         }
         // use function value layouts for function types
         else if matches!(self.types.get_type(type_id), dir::Type::Function { .. }) {
-            mir::LayoutType::FunctionValue
+            mir::LayoutType::Closure
         }
         // mark function environments explicitly when present
         else if self

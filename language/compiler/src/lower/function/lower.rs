@@ -361,7 +361,7 @@ impl<'a> FunctionLowerer<'a> {
             .builder
             .global_addr(vtable_global.global_id, vtable_global.address_type);
 
-        // bitcast to the desired pointer type when needed
+        // cast.bit to the desired pointer type when needed
         let value = if vtable_global.address_type == result_type {
             // reuse the existing address type
             address

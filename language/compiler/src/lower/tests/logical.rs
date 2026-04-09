@@ -129,15 +129,15 @@ function logicalAnd(a: boolean, b: boolean): boolean {
         module_id,
         "native",
         r#"
-function @logicalAnd(v0: bool, v1: bool) -> bool {
-block0(v0: bool, v1: bool):
-    branch v0, block2, block1
-block1:
-    v2: bool = iconst false
-    jump block3(v2)
-block2:
-    jump block3(v1)
-block3(v3: bool):
+function logicalAnd(v0: boolean, v1: boolean): boolean {
+b0(v0: boolean, v1: boolean):
+    branch v0, b2, b1
+b1:
+    v2: boolean = false
+    jump b3(v2)
+b2:
+    jump b3(v1)
+b3(v3: boolean):
     return v3
 }"#,
     );
@@ -164,15 +164,15 @@ function logicalOr(a: boolean, b: boolean): boolean {
         module_id,
         "native",
         r#"
-function @logicalOr(v0: bool, v1: bool) -> bool {
-block0(v0: bool, v1: bool):
-    branch v0, block1, block2
-block1:
-    v2: bool = iconst true
-    jump block3(v2)
-block2:
-    jump block3(v1)
-block3(v3: bool):
+function logicalOr(v0: boolean, v1: boolean): boolean {
+b0(v0: boolean, v1: boolean):
+    branch v0, b1, b2
+b1:
+    v2: boolean = true
+    jump b3(v2)
+b2:
+    jump b3(v1)
+b3(v3: boolean):
     return v3
 }"#,
     );

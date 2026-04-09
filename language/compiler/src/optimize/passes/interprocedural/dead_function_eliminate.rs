@@ -13,32 +13,32 @@ declare_pass! {
     /// This pass keeps exported functions and anything reachable via direct calls, plus any signatures reachable from unresolved indirect calls.
     ///
     /// ```mir
-    /// export function @root() -> void {
-    /// block0:
-    ///     call @live() -> fn() -> void
+    /// export function root(): void {
+    /// b0:
+    ///     call live()
     ///     return
     /// }
-    /// function @live() -> void {
-    /// block0:
+    /// function live(): void {
+    /// b0:
     ///     return
     /// }
-    /// function @dead() -> void {
-    /// block0:
+    /// function dead(): void {
+    /// b0:
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// export function @root() -> void {
-    /// block0:
-    ///     call @live() -> fn() -> void
+    /// export function root(): void {
+    /// b0:
+    ///     call live()
     ///     return
     /// }
-    /// function @live() -> void {
-    /// block0:
+    /// function live(): void {
+    /// b0:
     ///     return
     /// }
-    /// extern function @dead() -> void
+    /// extern function dead(): void
     /// ```
     #[pass(id = "dead-function-eliminate")]
     pub DeadFunctionEliminate,
@@ -389,30 +389,32 @@ mod tests {
     /// Unreferenced local functions are removed.
     #[test]
     fn test_dead_function_eliminate_local() {
-        let input = r#"export function @root() -> void {
-block0:
-    call @live() -> fn() -> void
+        let input = r#"
+export function root(): void {
+b0:
+    call live(): () -> void
     return
 }
-function @live() -> void {
-block0:
+function live(): void {
+b0:
     return
 }
-function @dead() -> void {
-block0:
+function dead(): void {
+b0:
     return
 }"#;
 
-        let expected = r#"export function @root() -> void {
-block0:
-    call @live() -> fn() -> void
+        let expected = r#"
+export function root(): void {
+b0:
+    call live(): () -> void
     return
 }
-function @live() -> void {
-block0:
+function live(): void {
+b0:
     return
 }
-extern function @dead() -> void"#;
+extern function dead(): void"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
@@ -422,17 +424,17 @@ extern function @dead() -> void"#;
     /// Unknown indirect calls keep all functions.
     #[test]
     fn test_dead_function_eliminate_unknown_indirect() {
-        let input = r#"export function @root(v0: fn() -> void) -> void {
-block0(v0: fn() -> void):
-    call.indirect v0() -> fn() -> void
+        let input = r#"
+export function root(v0: fn() -> void): void  {
+b0(v0: fn() -> void) -> call.indirect v0(): () -> void
     return
 }
-function @live() -> void {
-block0:
+function live(): void {
+b0:
     return
 }
-function @dead() -> void {
-block0:
+function dead(): void {
+b0:
     return
 }"#;
 
@@ -444,12 +446,13 @@ block0:
     /// Modules without exports keep all definitions.
     #[test]
     fn test_dead_function_eliminate_no_exports() {
-        let input = r#"function @alpha() -> void {
-block0:
+        let input = r#"
+function alpha(): void {
+b0:
     return
 }
-function @beta() -> void {
-block0:
+function beta(): void {
+b0:
     return
 }"#;
 
@@ -461,32 +464,32 @@ block0:
     /// Signature constrained indirect calls keep matching functions only.
     #[test]
     fn test_dead_function_eliminate_signature_indirect() {
-        let input = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+        let input = r#"
+export function root(v0: fn(int32) -> int32, v1: int32): void  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return
 }
-function @keep(v0: i32) -> i32 {
-block0(v0: i32):
+function keep(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @drop(v0: i64) -> i64 {
-block0(v0: i64):
+function drop(v0: int64): int64 {
+b0(v0: int64):
     return v0
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
-        let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+        let expected = r#"
+export function root(v0: fn(int32) -> int32, v1: int32): void  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return
 }
-function @keep(v0: i32) -> i32 {
-block0(v0: i32):
+function keep(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-extern function @drop(i64) -> i64"#;
+extern function drop(int64): int64"#;
 
         test.assert_output(expected);
     }
@@ -494,38 +497,40 @@ extern function @drop(i64) -> i64"#;
     /// Signature constrained indirect call terminators keep matching functions only.
     #[test]
     fn test_dead_function_eliminate_signature_indirect_terminator() {
-        let input = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    call.indirect v0(v1) -> fn(i32) -> i32 normal block1 unwind block2
-block1(v2: i32):
+        let input = r#"
+export function root(v0: fn(int32) -> int32, v1: int32): int32 {
+b0(v0: fn(int32) -> int32, v1: int32):
+    invoke.indirect v0(v1): (int32) -> int32 -> b1, catch b2
+b1(v2: int32):
     return v2
-block2(v3: ref<managed readonly i32>):
+b2(v3: ref<int32, managed, readonly>):
     throw v3
 }
-function @keep(v0: i32) -> i32 {
-block0(v0: i32):
+function keep(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @drop(v0: i64) -> i64 {
-block0(v0: i64):
+function drop(v0: int64): int64 {
+b0(v0: int64):
     return v0
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
-        let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    call.indirect v0(v1) -> fn(i32) -> i32 normal block1 unwind block2
-block1(v2: i32):
+        let expected = r#"
+export function root(v0: fn(int32) -> int32, v1: int32): int32 {
+b0(v0: fn(int32) -> int32, v1: int32):
+    invoke.indirect v0(v1): (int32) -> int32 -> b1, catch b2
+b1(v2: int32):
     return v2
-block2(v3: ref<managed readonly i32>):
+b2(v3: ref<int32, managed, readonly>):
     throw v3
 }
-function @keep(v0: i32) -> i32 {
-block0(v0: i32):
+function keep(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-extern function @drop(i64) -> i64"#;
+extern function drop(int64): int64"#;
 
         test.assert_output(expected);
     }
@@ -533,16 +538,17 @@ extern function @drop(i64) -> i64"#;
     /// Tailcall indirect sites keep all functions.
     #[test]
     fn test_dead_function_eliminate_tailcall_indirect() {
-        let input = r#"export function @root(v0: fn() -> void) -> void {
-block0(v0: fn() -> void):
-    tailcall.indirect v0() -> fn() -> void
+        let input = r#"
+export function root(v0: fn() -> void): void {
+b0(v0: fn() -> void):
+    tailCall.indirect v0(): () -> void
 }
-function @live() -> void {
-block0:
+function live(): void {
+b0:
     return
 }
-function @dead() -> void {
-block0:
+function dead(): void {
+b0:
     return
 }"#;
 
@@ -554,31 +560,33 @@ block0:
     /// Debug metadata for stripped functions is cleared.
     #[test]
     fn test_dead_function_eliminate_clears_debug_metadata() {
-        let input = r#"export function @root() -> void {
-block0:
-    call @live() -> fn() -> void
+        let input = r#"
+export function root(): void {
+b0:
+    call live(): () -> void
     return
 }
-function @live() -> void {
-block0:
+function live(): void {
+b0:
     return
 }
-function @dead(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
+function dead(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
     return v0
 }"#;
 
-        let expected = r#"export function @root() -> void {
-block0:
-    call @live() -> fn() -> void
+        let expected = r#"
+export function root(): void {
+b0:
+    call live(): () -> void
     return
 }
-function @live() -> void {
-block0:
+function live(): void {
+b0:
     return
 }
-extern function @dead(i32) -> i32"#;
+extern function dead(int32): int32"#;
 
         let mut test = TestProgram::new(input);
         let dead_id = test.function_id_by_name("dead");

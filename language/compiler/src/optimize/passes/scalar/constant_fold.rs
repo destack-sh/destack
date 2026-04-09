@@ -21,19 +21,19 @@ declare_pass! {
     /// operations where all operands are known constants.
     ///
     /// ```mir
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = iconst 2i32
-    ///     v1 = iconst 3i32
-    ///     v2 = iadd v0, v1
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = 2int32
+    ///     v1 = 3int32
+    ///     v2 = int.add v0, v1
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = iconst 5i32
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = 5int32
     ///     return v0
     /// }
     /// ```
@@ -478,18 +478,20 @@ mod tests {
     /// Binary add of two constants folds to their sum.
     #[test]
     fn test_fold_binary_add() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
     return v2
 }"#;
 
@@ -502,22 +504,24 @@ block0:
     #[test]
     fn test_fold_chained_operations() {
         // 2 * 3 = 6, then 6 + 4 = 10
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = imul v0, v1
-    v3: i32 = iconst 4i32
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = int.mul v0, v1
+    v3: int32 = 4int32
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = iconst 6i32
-    v3: i32 = iconst 4i32
-    v4: i32 = iconst 10i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = 6int32
+    v3: int32 = 4int32
+    v4: int32 = 10int32
     return v4
 }"#;
 
@@ -529,18 +533,20 @@ block0:
     /// Comparison of constants folds to boolean result.
     #[test]
     fn test_fold_comparison() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 5i32
-    v1: i32 = iconst 3i32
-    v2: bool = icmp_sgt v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 5int32
+    v1: int32 = 3int32
+    v2: boolean = int.gt.s v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 5i32
-    v1: i32 = iconst 3i32
-    v2: bool = iconst true
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 5int32
+    v1: int32 = 3int32
+    v2: boolean = true
     return v2
 }"#;
 
@@ -553,10 +559,11 @@ block0:
     #[test]
     fn test_preserve_non_constant_operands() {
         // v0 is a parameter, not a constant
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -568,16 +575,18 @@ block0(v0: i32):
     /// Unary negation instruction folds constant to negated value.
     #[test]
     fn test_fold_unary_negation_instruction() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i32 = ineg v0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    v1: int32 = int.negate v0
     return v1
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i32 = iconst -42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    v1: int32 = -42int32
     return v1
 }"#;
 
@@ -589,16 +598,18 @@ block0:
     /// Boolean not folds true to false.
     #[test]
     fn test_fold_boolean_not() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: bool = iconst true
-    v1: bool = bnot v0
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: boolean = true
+    v1: boolean = int.not v0
     return v1
 }"#;
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: bool = iconst true
-    v1: bool = iconst false
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: boolean = true
+    v1: boolean = false
     return v1
 }"#;
 
@@ -610,18 +621,20 @@ block0:
     /// Unsigned integer division folds correctly.
     #[test]
     fn test_fold_unsigned_division() {
-        let input = r#"function @test() -> u32 {
-block0:
-    v0: u32 = iconst 10u32
-    v1: u32 = iconst 3u32
-    v2: u32 = udiv v0, v1
+        let input = r#"
+function test(): uint32 {
+b0:
+    v0: uint32 = 10uint32
+    v1: uint32 = 3uint32
+    v2: uint32 = int.div.u v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> u32 {
-block0:
-    v0: u32 = iconst 10u32
-    v1: u32 = iconst 3u32
-    v2: u32 = iconst 3u32
+        let expected = r#"
+function test(): uint32 {
+b0:
+    v0: uint32 = 10uint32
+    v1: uint32 = 3uint32
+    v2: uint32 = 3uint32
     return v2
 }"#;
 
@@ -633,11 +646,12 @@ block0:
     /// Division by zero is not folded to avoid compile-time UB.
     #[test]
     fn test_preserve_division_by_zero() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
-    v1: i32 = iconst 0i32
-    v2: i32 = sdiv v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 0int32
+    v2: int32 = int.div.s v0, v1
     return v2
 }"#;
 
@@ -649,28 +663,30 @@ block0:
     /// Constants from earlier blocks are available for folding in later blocks.
     #[test]
     fn test_fold_across_blocks() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 5i32
-    v2: i32 = iconst 3i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 5int32
+    v2: int32 = 3int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = int.add v1, v2
     return v3
-block2:
-    v4: i32 = imul v1, v2
+b2:
+    v4: int32 = int.mul v1, v2
     return v4
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 5i32
-    v2: i32 = iconst 3i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iconst 8i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 5int32
+    v2: int32 = 3int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = 8int32
     return v3
-block2:
-    v4: i32 = iconst 15i32
+b2:
+    v4: int32 = 15int32
     return v4
 }"#;
 
@@ -682,18 +698,20 @@ block2:
     /// Global constants fold through unary operations.
     #[test]
     fn test_fold_global_const_boolean() {
-        let input = r#"global @flag: bool = true ; readonly
-function @test() -> bool {
-block0:
-    v0: bool = global.const @flag
-    v1: bool = bnot v0
+        let input = r#"
+global flag: boolean, readonly = true
+function test(): boolean {
+b0:
+    v0: boolean = global.const flag
+    v1: boolean = int.not v0
     return v1
 }"#;
-        let expected = r#"global @flag: bool = true ; readonly
-function @test() -> bool {
-block0:
-    v0: bool = iconst true
-    v1: bool = iconst false
+        let expected = r#"
+global flag: boolean, readonly = true
+function test(): boolean {
+b0:
+    v0: boolean = true
+    v1: boolean = false
     return v1
 }"#;
 
@@ -705,11 +723,12 @@ block0:
     /// Mutable globals do not fold through constant operations.
     #[test]
     fn test_preserve_mutable_global_const() {
-        let input = r#"global @flag: bool = true ;
-function @test() -> bool {
-block0:
-    v0: bool = global.const @flag
-    v1: bool = bnot v0
+        let input = r#"
+global flag: boolean = true
+function test(): boolean {
+b0:
+    v0: boolean = global.const flag
+    v1: boolean = int.not v0
     return v1
 }"#;
 
@@ -721,20 +740,22 @@ block0:
     /// Block parameter constants fold within successor blocks.
     #[test]
     fn test_fold_block_param_constant() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 3i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iadd v1, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 3int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 3i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iconst 6i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 3int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = 6int32
     return v2
 }"#;
 
@@ -746,16 +767,18 @@ block1(v1: i32):
     /// Sign extend casts fold to constants.
     #[test]
     fn test_fold_cast_sign_extend() {
-        let input = r#"function @test() -> i64 {
-block0:
-    v0: i32 = iconst -1i32
-    v1: i64 = sextend v0 -> i64
+        let input = r#"
+function test(): int64 {
+b0:
+    v0: int32 = -1int32
+    v1: int64 = cast.extend.s v0 -> int64
     return v1
 }"#;
-        let expected = r#"function @test() -> i64 {
-block0:
-    v0: i32 = iconst -1i32
-    v1: i64 = iconst -1i64
+        let expected = r#"
+function test(): int64 {
+b0:
+    v0: int32 = -1int32
+    v1: int64 = -1int64
     return v1
 }"#;
 
@@ -767,16 +790,18 @@ block0:
     /// Truncate casts fold to constants.
     #[test]
     fn test_fold_cast_truncate() {
-        let input = r#"function @test() -> u8 {
-block0:
-    v0: u16 = iconst 257u16
-    v1: u8 = trunc v0 -> u8
+        let input = r#"
+function test(): uint8 {
+b0:
+    v0: uint16 = 257uint16
+    v1: uint8 = cast.truncate v0 -> uint8
     return v1
 }"#;
-        let expected = r#"function @test() -> u8 {
-block0:
-    v0: u16 = iconst 257u16
-    v1: u8 = iconst 1u8
+        let expected = r#"
+function test(): uint8 {
+b0:
+    v0: uint16 = 257uint16
+    v1: uint8 = 1uint8
     return v1
 }"#;
 
@@ -789,22 +814,24 @@ block0:
     #[test]
     fn test_fold_bitwise_operations() {
         // 10 & 12 = 8, 10 | 12 = 14, 10 ^ 12 = 6
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
-    v1: i32 = iconst 12i32
-    v2: i32 = band v0, v1
-    v3: i32 = bor v0, v1
-    v4: i32 = bxor v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 12int32
+    v2: int32 = int.and v0, v1
+    v3: int32 = int.or v0, v1
+    v4: int32 = int.xor v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
-    v1: i32 = iconst 12i32
-    v2: i32 = iconst 8i32
-    v3: i32 = iconst 14i32
-    v4: i32 = iconst 6i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 12int32
+    v2: int32 = 8int32
+    v3: int32 = 14int32
+    v4: int32 = 6int32
     return v2
 }"#;
 
@@ -817,20 +844,22 @@ block0:
     #[test]
     fn test_fold_shift_operations() {
         // 8 << 2 = 32, 8 >> 2 = 2 (signed/arithmetic)
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 8i32
-    v1: i32 = iconst 2i32
-    v2: i32 = ishl v0, v1
-    v3: i32 = sshr v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 8int32
+    v1: int32 = 2int32
+    v2: int32 = int.shiftLeft v0, v1
+    v3: int32 = int.shiftRight.s v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 8i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 32i32
-    v3: i32 = iconst 2i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 8int32
+    v1: int32 = 2int32
+    v2: int32 = 32int32
+    v3: int32 = 2int32
     return v2
 }"#;
 
@@ -843,20 +872,22 @@ block0:
     #[test]
     fn test_fold_boolean_and_or() {
         // true && false = false, true || false = true
-        let input = r#"function @test() -> bool {
-block0:
-    v0: bool = iconst true
-    v1: bool = iconst false
-    v2: bool = band v0, v1
-    v3: bool = bor v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: boolean = true
+    v1: boolean = false
+    v2: boolean = int.and v0, v1
+    v3: boolean = int.or v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: bool = iconst true
-    v1: bool = iconst false
-    v2: bool = iconst false
-    v3: bool = iconst true
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: boolean = true
+    v1: boolean = false
+    v2: boolean = false
+    v3: boolean = true
     return v2
 }"#;
 
@@ -868,20 +899,22 @@ block0:
     /// Select with constant true condition folds to then_value.
     #[test]
     fn test_fold_select_true_condition() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
-    v3: i32 = select v0, v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 42int32
+    v2: int32 = 0int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 42i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 42int32
+    v2: int32 = 0int32
+    v3: int32 = 42int32
     return v3
 }"#;
 
@@ -893,20 +926,22 @@ block0:
     /// Select with constant false condition folds to else_value.
     #[test]
     fn test_fold_select_false_condition() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst false
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
-    v3: i32 = select v0, v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = false
+    v1: int32 = 42int32
+    v2: int32 = 0int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst false
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 0i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = false
+    v1: int32 = 42int32
+    v2: int32 = 0int32
+    v3: int32 = 0int32
     return v3
 }"#;
 
@@ -918,11 +953,12 @@ block0:
     /// Select with non-constant condition is preserved.
     #[test]
     fn test_preserve_select_non_constant_condition() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 42i32
-    v2: i32 = iconst 0i32
-    v3: i32 = select v0, v1, v2
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 42int32
+    v2: int32 = 0int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
 
@@ -934,17 +970,19 @@ block0(v0: bool):
     /// Select with constant condition forwards non constant values.
     #[test]
     fn test_fold_select_constant_to_copy() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: bool = iconst true
-    v2: i32 = iadd v0, v0
-    v3: i32 = select v1, v2, v0
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: boolean = true
+    v2: int32 = int.add v0, v0
+    v3: int32 = select v1, v2, v0
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: bool = iconst true
-    v2: i32 = iadd v0, v0
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: boolean = true
+    v2: int32 = int.add v0, v0
     return v2
 }"#;
 
@@ -956,26 +994,28 @@ block0(v0: i32):
     /// Branches with constant conditions are folded to jumps.
     #[test]
     fn test_fold_constant_branch() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    jump block1
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    jump b1
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -987,16 +1027,18 @@ block2:
     /// Pure intrinsics with constant arguments fold to constants.
     #[test]
     fn test_fold_intrinsic_clz() {
-        let input = r#"function @test() -> u32 {
-block0:
-    v0: u32 = iconst 8u32
-    v1: u32 = intrinsic.clz(v0)
+        let input = r#"
+function test(): uint32 {
+b0:
+    v0: uint32 = 8uint32
+    v1: uint32 = intrinsic.leadingZeroCount(v0)
     return v1
 }"#;
-        let expected = r#"function @test() -> u32 {
-block0:
-    v0: u32 = iconst 8u32
-    v1: u32 = iconst 28u32
+        let expected = r#"
+function test(): uint32 {
+b0:
+    v0: uint32 = 8uint32
+    v1: uint32 = 28uint32
     return v1
 }"#;
 

@@ -548,8 +548,9 @@ mod tests {
     fn test_function_analysis_dependency_registry() {
         // build a minimal mir program
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );

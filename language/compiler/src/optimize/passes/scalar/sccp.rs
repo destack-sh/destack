@@ -23,32 +23,32 @@ declare_pass! {
     /// represented in the lattice.
     ///
     /// ```mir
-    /// function @before() -> i32 {
-    /// block0:
-    ///     v0 = iconst true
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     v1 = iconst 10i32
-    ///     jump block3(v1)
-    /// block2:
-    ///     v2 = iconst 20i32
-    ///     jump block3(v2)
-    /// block3(v3: i32):
-    ///     v4 = iadd v3, v3
+    /// function before(): int32 {
+    /// b0:
+    ///     v0 = true
+    ///     branch v0, b1, b2
+    /// b1:
+    ///     v1 = 10int32
+    ///     jump b3(v1)
+    /// b2:
+    ///     v2 = 20int32
+    ///     jump b3(v2)
+    /// b3(v3: int32):
+    ///     v4 = int.add v3, v3
     ///     return v4
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> i32 {
-    /// block0:
-    ///     v0 = iconst true
-    ///     jump block1
-    /// block1:
-    ///     v1 = iconst 10i32
-    ///     jump block2(v1)
-    /// block2(v3: i32):
-    ///     v4 = iconst 20i32
+    /// function after(): int32 {
+    /// b0:
+    ///     v0 = true
+    ///     jump b1
+    /// b1:
+    ///     v1 = 10int32
+    ///     jump b2(v1)
+    /// b2(v3: int32):
+    ///     v4 = 20int32
     ///     return v4
     /// }
     /// ```
@@ -1284,30 +1284,32 @@ mod tests {
     /// Constant branch collapses and propagates constants to block parameters.
     #[test]
     fn test_constant_branch_propagates_block_param() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 10i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 20i32
-    jump block3(v2)
-block3(v3: i32):
-    v4: i32 = iadd v3, v3
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    branch v0, b1, b2
+b1:
+    v1: int32 = 10int32
+    jump b3(v1)
+b2:
+    v2: int32 = 20int32
+    jump b3(v2)
+b3(v3: int32):
+    v4: int32 = int.add v3, v3
     return v4
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    jump block1
-block1:
-    v1: i32 = iconst 10i32
-    jump block2(v1)
-block2(v2: i32):
-    v3: i32 = iconst 10i32
-    v4: i32 = iconst 20i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    jump b1
+b1:
+    v1: int32 = 10int32
+    jump b2(v1)
+b2(v2: int32):
+    v3: int32 = 10int32
+    v4: int32 = 20int32
     return v4
 }"#;
 
@@ -1319,31 +1321,33 @@ block2(v2: i32):
     /// Identical constants on all edges keep block parameters constant.
     #[test]
     fn test_branch_with_same_constants_keeps_param_constant() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 3i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 3i32
-    jump block3(v2)
-block3(v3: i32):
-    v4: i32 = iadd v3, v3
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 3int32
+    jump b3(v1)
+b2:
+    v2: int32 = 3int32
+    jump b3(v2)
+b3(v3: int32):
+    v4: int32 = int.add v3, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 3i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 3i32
-    jump block3(v2)
-block3(v3: i32):
-    v4: i32 = iconst 3i32
-    v5: i32 = iconst 6i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 3int32
+    jump b3(v1)
+b2:
+    v2: int32 = 3int32
+    jump b3(v2)
+b3(v3: int32):
+    v4: int32 = 3int32
+    v5: int32 = 6int32
     return v5
 }"#;
 
@@ -1355,17 +1359,18 @@ block3(v3: i32):
     /// Conflicting constants on different edges do not fold block parameters.
     #[test]
     fn test_branch_with_conflicting_constants_keeps_param_overdefined() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 3i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 4i32
-    jump block3(v2)
-block3(v3: i32):
-    v4: i32 = iadd v3, v3
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 3int32
+    jump b3(v1)
+b2:
+    v2: int32 = 4int32
+    jump b3(v2)
+b3(v3: int32):
+    v4: int32 = int.add v3, v3
     return v4
 }"#;
 
@@ -1377,13 +1382,14 @@ block3(v3: i32):
     /// Multiple edges to the same target with different arguments are overdefined.
     #[test]
     fn test_conflicting_same_target_arguments() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 2i32
-    branch v0, block1(v1), block1(v2)
-block1(v3: i32):
-    v4: i32 = iadd v3, v3
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    v2: int32 = 2int32
+    branch v0, b1(v1), b1(v2)
+b1(v3: int32):
+    v4: int32 = int.add v3, v3
     return v4
 }"#;
 
@@ -1395,26 +1401,28 @@ block1(v3: i32):
     /// Switch on a constant value folds to the matching target.
     #[test]
     fn test_switch_on_constant_value() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    switch v0, block3, 1 => block1, 2 => block2
-block1:
-    v1: i32 = iconst 10i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 2int32
+    switch v0, b3, 1 => b1, 2 => b2
+b1:
+    v1: int32 = 10int32
     return v1
-block2:
-    v2: i32 = iconst 20i32
+b2:
+    v2: int32 = 20int32
     return v2
-block3:
-    v3: i32 = iconst 30i32
+b3:
+    v3: int32 = 30int32
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    jump block1
-block1:
-    v1: i32 = iconst 20i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 2int32
+    jump b1
+b1:
+    v1: int32 = 20int32
     return v1
 }"#;
 
@@ -1426,25 +1434,27 @@ block1:
     /// Global const values fold branch conditions and remove dead blocks.
     #[test]
     fn test_global_const_branch_folding() {
-        let input = r#"global @flag: bool = true ; readonly
-function @test() -> i32 {
-block0:
-    v0: bool = global.const @flag
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+global flag: boolean, readonly = true
+function test(): int32 {
+b0:
+    v0: boolean = global.const flag
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
-        let expected = r#"global @flag: bool = true ; readonly
-function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    jump block1
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+global flag: boolean, readonly = true
+function test(): int32 {
+b0:
+    v0: boolean = true
+    jump b1
+b1:
+    v1: int32 = 1int32
     return v1
 }"#;
 
@@ -1456,16 +1466,17 @@ block1:
     /// Mutable globals are not treated as constants.
     #[test]
     fn test_mutable_global_not_constant() {
-        let input = r#"global @flag: bool = true ;
-function @test() -> i32 {
-block0:
-    v0: bool = global.const @flag
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+global flag: boolean = true
+function test(): int32 {
+b0:
+    v0: boolean = global.const flag
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -1477,24 +1488,26 @@ block2:
     /// Block parameter constants are substituted in uses.
     #[test]
     fn test_substitute_block_param_uses() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 3i32
-    jump block1(v0)
-block1(v1: i32):
-    jump block2(v1)
-block2(v2: i32):
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 3int32
+    jump b1(v0)
+b1(v1: int32):
+    jump b2(v1)
+b2(v2: int32):
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 3i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iconst 3i32
-    jump block2(v2)
-block2(v3: i32):
-    v4: i32 = iconst 3i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 3int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = 3int32
+    jump b2(v2)
+b2(v3: int32):
+    v4: int32 = 3int32
     return v4
 }"#;
 
@@ -1506,29 +1519,31 @@ block2(v3: i32):
     /// Call arguments are substituted when constants are available.
     #[test]
     fn test_substitute_call_arguments() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = call @callee(v1) -> fn(i32) -> i32
+function test(): int32 {
+b0:
+    v0: int32 = 5int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = call callee(v1): (int32) -> int32
     return v2
 }"#;
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iconst 5i32
-    v3: i32 = call @callee(v2) -> fn(i32) -> i32
+function test(): int32 {
+b0:
+    v0: int32 = 5int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = 5int32
+    v3: int32 = call callee(v2): (int32) -> int32
     return v3
 }"#;
 
@@ -1540,23 +1555,25 @@ block1(v1: i32):
     /// Switch constants use the same i64 cast semantics as the VM.
     #[test]
     fn test_switch_u64_wraps_to_i64() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: u64 = iconst 18446744073709551615u64
-    switch v0, block2, -1 => block1
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: uint64 = 18446744073709551615uint64
+    switch v0, b2, -1 => b1
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: u64 = iconst 18446744073709551615u64
-    jump block1
-block1:
-    v1: i32 = iconst 1i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: uint64 = 18446744073709551615uint64
+    jump b1
+b1:
+    v1: int32 = 1int32
     return v1
 }"#;
 
@@ -1568,20 +1585,22 @@ block1:
     /// Field access folds when a struct has constant fields.
     #[test]
     fn test_struct_field_get_constant() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
-    v1: i32 = iconst 7i32
-    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
-    v3: i32 = field.get v2, 0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 5int32
+    v1: int32 = 7int32
+    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v3: int32 = field.get v2, 0
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
-    v1: i32 = iconst 7i32
-    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
-    v3: i32 = iconst 5i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 5int32
+    v1: int32 = 7int32
+    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v3: int32 = 5int32
     return v3
 }"#;
 
@@ -1593,18 +1612,20 @@ block0:
     /// Field access keeps constant elements even when other fields vary.
     #[test]
     fn test_struct_field_get_partial_constant() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 4i32
-    v2: { i32, i32 } = struct { i32, i32 } (v1, v0)
-    v3: i32 = field.get v2, 0
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 4int32
+    v2: { int32, int32 } = struct { int32, int32 } (v1, v0)
+    v3: int32 = field.get v2, 0
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 4i32
-    v2: { i32, i32 } = struct { i32, i32 } (v1, v0)
-    v3: i32 = iconst 4i32
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 4int32
+    v2: { int32, int32 } = struct { int32, int32 } (v1, v0)
+    v3: int32 = 4int32
     return v3
 }"#;
 
@@ -1616,24 +1637,26 @@ block0(v0: i32):
     /// Field set updates aggregate constants for later field access.
     #[test]
     fn test_struct_field_set_constant() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
-    v3: i32 = iconst 9i32
-    v4: { i32, i32 } = field.set v2, 1, v3
-    v5: i32 = field.get v4, 1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v3: int32 = 9int32
+    v4: { int32, int32 } = field.set v2, 1, v3
+    v5: int32 = field.get v4, 1
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
-    v3: i32 = iconst 9i32
-    v4: { i32, i32 } = field.set v2, 1, v3
-    v5: i32 = iconst 9i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v3: int32 = 9int32
+    v4: { int32, int32 } = field.set v2, 1, v3
+    v5: int32 = 9int32
     return v5
 }"#;
 
@@ -1645,24 +1668,26 @@ block0:
     /// Element access folds for constant array indices.
     #[test]
     fn test_array_element_get_constant_index() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
-    v1: i32 = iconst 20i32
-    v2: i32 = iconst 30i32
-    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
-    v4: i64 = iconst 1i64
-    v5: i32 = element.get v3, v4
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 20int32
+    v2: int32 = 30int32
+    v3: int32[3] = [v0, v1, v2]
+    v4: int64 = 1int64
+    v5: int32 = element.get v3, v4
     return v5
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
-    v1: i32 = iconst 20i32
-    v2: i32 = iconst 30i32
-    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
-    v4: i64 = iconst 1i64
-    v5: i32 = iconst 20i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 20int32
+    v2: int32 = 30int32
+    v3: int32[3] = [v0, v1, v2]
+    v4: int64 = 1int64
+    v5: int32 = 20int32
     return v5
 }"#;
 
@@ -1674,28 +1699,30 @@ block0:
     /// Element set updates array constants for later element access.
     #[test]
     fn test_array_element_set_constant_index() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
-    v4: i64 = iconst 1i64
-    v5: i32 = iconst 9i32
-    v6: [i32; 3] = element.set v3, v4, v5
-    v7: i32 = element.get v6, v4
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32[3] = [v0, v1, v2]
+    v4: int64 = 1int64
+    v5: int32 = 9int32
+    v6: int32[3] = element.set v3, v4, v5
+    v7: int32 = element.get v6, v4
     return v7
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
-    v4: i64 = iconst 1i64
-    v5: i32 = iconst 9i32
-    v6: [i32; 3] = element.set v3, v4, v5
-    v7: i32 = iconst 9i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32[3] = [v0, v1, v2]
+    v4: int64 = 1int64
+    v5: int32 = 9int32
+    v6: int32[3] = element.set v3, v4, v5
+    v7: int32 = 9int32
     return v7
 }"#;
 
@@ -1707,18 +1734,20 @@ block0:
     /// Global aggregate constants are used for field access folding.
     #[test]
     fn test_global_struct_field_get_constant() {
-        let input = r#"global @pair: { i32, i32 } = { 1i32, 2i32 } ; readonly
-function @test() -> i32 {
-block0:
-    v0: { i32, i32 } = global.const @pair
-    v1: i32 = field.get v0, 1
+        let input = r#"
+global pair: { int32, int32 }, readonly = {1int32, 2int32}
+function test(): int32 {
+b0:
+    v0: { int32, int32 } = global.const pair
+    v1: int32 = field.get v0, 1
     return v1
 }"#;
-        let expected = r#"global @pair: { i32, i32 } = {1i32, 2i32} ; readonly
-function @test() -> i32 {
-block0:
-    v0: { i32, i32 } = global.const @pair
-    v1: i32 = iconst 2i32
+        let expected = r#"
+global pair: { int32, int32 }, readonly = {1int32, 2int32}
+function test(): int32 {
+b0:
+    v0: { int32, int32 } = global.const pair
+    v1: int32 = 2int32
     return v1
 }"#;
 
@@ -1730,18 +1759,20 @@ block0:
     /// Zero initializers produce aggregate constants for field access.
     #[test]
     fn test_global_zero_initializer_field_get() {
-        let input = r#"global @pair: (i32, i32) = zeroinit ; readonly
-function @test() -> i32 {
-block0:
-    v0: (i32, i32) = global.const @pair
-    v1: i32 = field.get v0, 0
+        let input = r#"
+global pair: (int32, int32), readonly = zeroInit
+function test(): int32 {
+b0:
+    v0: (int32, int32) = global.const pair
+    v1: int32 = field.get v0, 0
     return v1
 }"#;
-        let expected = r#"global @pair: (i32, i32) = zeroinit ; readonly
-function @test() -> i32 {
-block0:
-    v0: (i32, i32) = global.const @pair
-    v1: i32 = iconst 0i32
+        let expected = r#"
+global pair: (int32, int32), readonly = zeroInit
+function test(): int32 {
+b0:
+    v0: (int32, int32) = global.const pair
+    v1: int32 = 0int32
     return v1
 }"#;
 
@@ -1753,20 +1784,22 @@ block0:
     /// Byte initializers on u8 arrays fold element access with constant indices.
     #[test]
     fn test_global_bytes_element_get() {
-        let input = r#"global @data: [u8; 4] = b"test" ; readonly
-function @test() -> u8 {
-block0:
-    v0: [u8; 4] = global.const @data
-    v1: i64 = iconst 2i64
-    v2: u8 = element.get v0, v1
+        let input = r#"
+global data: uint8[4], readonly = b"test"
+function test(): uint8 {
+b0:
+    v0: uint8[4] = global.const data
+    v1: int64 = 2int64
+    v2: uint8 = element.get v0, v1
     return v2
 }"#;
-        let expected = r#"global @data: [u8; 4] = b"test" ; readonly
-function @test() -> u8 {
-block0:
-    v0: [u8; 4] = global.const @data
-    v1: i64 = iconst 2i64
-    v2: u8 = iconst 115u8
+        let expected = r#"
+global data: uint8[4], readonly = b"test"
+function test(): uint8 {
+b0:
+    v0: uint8[4] = global.const data
+    v1: int64 = 2int64
+    v2: uint8 = 115uint8
     return v2
 }"#;
 
@@ -1778,20 +1811,22 @@ block0:
     /// Constant selects are folded to the chosen value.
     #[test]
     fn test_fold_select_constant_condition() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 10i32
-    v2: i32 = iconst 20i32
-    v3: i32 = select v0, v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    v3: int32 = select v0, v1, v2
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst true
-    v1: i32 = iconst 10i32
-    v2: i32 = iconst 20i32
-    v3: i32 = iconst 10i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: boolean = true
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    v3: int32 = 10int32
     return v3
 }"#;
 
@@ -1803,16 +1838,18 @@ block0:
     /// Pure intrinsics with constant operands are folded.
     #[test]
     fn test_fold_intrinsic_constant() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 8i32
-    v1: i32 = intrinsic.clz(v0)
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 8int32
+    v1: int32 = intrinsic.leadingZeroCount(v0)
     return v1
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 8i32
-    v1: i32 = iconst 28i32
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 8int32
+    v1: int32 = 28int32
     return v1
 }"#;
 

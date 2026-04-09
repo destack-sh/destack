@@ -96,7 +96,7 @@ impl TypeLowerer {
             layout_cache: HashMap::new(),
             pointer_width_bits,
             ty_void,
-            ty_bool: builder.type_bool(),
+            ty_bool: builder.type_boolean(),
             ty_i32: builder.type_i32(),
             ty_i64: builder.type_i64(),
             ty_isize: builder.type_isize(),

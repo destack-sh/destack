@@ -22,31 +22,31 @@ declare_pass! {
     /// This pass removes redundant recomputations dominated by the new values.
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: i32, v2: bool) -> i32 {
-    /// block0(v0: i32, v1: i32, v2: bool):
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     v3 = iadd v0, v1
-    ///     jump block3
-    /// block2:
-    ///     jump block3
-    /// block3:
-    ///     v4 = iadd v0, v1
+    /// function before(v0: int32, v1: int32, v2: boolean): int32 {
+    /// b0(v0: int32, v1: int32, v2: boolean):
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     v3 = int.add v0, v1
+    ///     jump b3
+    /// b2:
+    ///     jump b3
+    /// b3:
+    ///     v4 = int.add v0, v1
     ///     return v4
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32, v1: i32, v2: bool) -> i32 {
-    /// block0(v0: i32, v1: i32, v2: bool):
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     v3 = iadd v0, v1
-    ///     jump block3(v3)
-    /// block2:
-    ///     v4 = iadd v0, v1
-    ///     jump block3(v4)
-    /// block3(v5: i32):
+    /// function after(v0: int32, v1: int32, v2: boolean): int32 {
+    /// b0(v0: int32, v1: int32, v2: boolean):
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     v3 = int.add v0, v1
+    ///     jump b3(v3)
+    /// b2:
+    ///     v4 = int.add v0, v1
+    ///     jump b3(v4)
+    /// b3(v5: int32):
     ///     return v5
     /// }
     /// ```
@@ -750,29 +750,31 @@ mod tests {
     /// Partial redundancy on a diamond inserts the missing computation.
     #[test]
     fn test_pre_diamond_inserts_expression() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3
-block2:
-    jump block3
-block3:
-    v4: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3
+b2:
+    jump b3
+b3:
+    v4: int32 = int.add v0, v1
     return v4
 }"#;
 
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -784,35 +786,37 @@ block3(v5: i32):
     /// Critical edges receive a split block for inserted expressions.
     #[test]
     fn test_pre_splits_critical_edge_for_insertion() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3
-block2:
-    branch v2, block3, block4
-block3:
-    v4: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3
+b2:
+    branch v2, b3, b4
+b3:
+    v4: int32 = int.add v0, v1
     return v4
-block4:
+b4:
     return v0
 }"#;
 
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block4(v3)
-block2:
-    branch v2, block3, block5
-block3:
-    v4: i32 = iadd v0, v1
-    jump block4(v4)
-block4(v5: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b4(v3)
+b2:
+    branch v2, b3, b5
+b3:
+    v4: int32 = int.add v0, v1
+    jump b4(v4)
+b4(v5: int32):
     return v5
-block5:
+b5:
     return v0
 }"#;
 
@@ -824,27 +828,29 @@ block5:
     /// Switch default edges receive inserted expressions.
     #[test]
     fn test_pre_switch_default_inserts_expression() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    switch v2, block2, 0 => block1
-block1:
-    v3: i32 = iadd v0, v1
-    jump block2
-block2:
-    v4: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    switch v2, b2, 0 => b1
+b1:
+    v3: int32 = int.add v0, v1
+    jump b2
+b2:
+    v4: int32 = int.add v0, v1
     return v4
 }"#;
 
-        let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    switch v2, block1, 0 => block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    switch v2, b1, 0 => b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -856,35 +862,37 @@ block3(v5: i32):
     /// Switch cases keep their existing arguments when adding expressions.
     #[test]
     fn test_pre_switch_case_appends_expression() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    v3: i32 = iconst 7i32
-    switch v2, block2, 0 => block1, 1 => block3(v3)
-block1:
-    v4: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v5: i32 = iconst 0i32
+        let input = r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    v3: int32 = 7int32
+    switch v2, b2, 0 => b1, 1 => b3(v3)
+b1:
+    v4: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v5: int32 = 0int32
     return v5
-block3(v6: i32):
-    v7: i32 = iadd v0, v1
+b3(v6: int32):
+    v7: int32 = int.add v0, v1
     return v7
 }"#;
 
-        let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    v3: i32 = iconst 7i32
-    switch v2, block3, 0 => block2, 1 => block1
-block1:
-    v4: i32 = iadd v0, v1
-    jump block4(v3, v4)
-block2:
-    v5: i32 = iadd v0, v1
-    jump block4(v3, v5)
-block3:
-    v6: i32 = iconst 0i32
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    v3: int32 = 7int32
+    switch v2, b3, 0 => b2, 1 => b1
+b1:
+    v4: int32 = int.add v0, v1
+    jump b4(v3, v4)
+b2:
+    v5: int32 = int.add v0, v1
+    jump b4(v3, v5)
+b3:
+    v6: int32 = 0int32
     return v6
-block4(v7: i32, v8: i32):
+b4(v7: int32, v8: int32):
     return v8
 }"#;
 
@@ -896,37 +904,39 @@ block4(v7: i32, v8: i32):
     /// Check edges receive inserted expressions.
     #[test]
     fn test_pre_check_inserts_expression() {
-        let input = r#"function @test(v0: u32, v1: u32, v2: bool, v3: [u8; 8]) -> u32 {
-block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
-    branch v2, block1, block2
-block1:
-    v4: u32 = iadd v0, v1
-    v5: bool = icmp_ult v0, v1
-    check v5, bounds.unsigned v0, v1, v3, block3, block4
-block2:
-    jump block3
-block3:
-    v6: u32 = iadd v0, v1
+        let input = r#"
+function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+    branch v2, b1, b2
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b3, b4
+b2:
+    jump b3
+b3:
+    v6: uint32 = int.add v0, v1
     return v6
-block4:
+b4:
     unreachable
 }"#;
 
-        let expected = r#"function @test(v0: u32, v1: u32, v2: bool, v3: [u8; 8]) -> u32 {
-block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
-    branch v2, block1, block3
-block1:
-    v4: u32 = iadd v0, v1
-    v5: bool = icmp_ult v0, v1
-    check v5, bounds.unsigned v0, v1, v3, block2, block5
-block2:
-    jump block4(v4)
-block3:
-    v6: u32 = iadd v0, v1
-    jump block4(v6)
-block4(v7: u32):
+        let expected = r#"
+function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+    branch v2, b1, b3
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b2, b5
+b2:
+    jump b4(v4)
+b3:
+    v6: uint32 = int.add v0, v1
+    jump b4(v6)
+b4(v7: uint32):
     return v7
-block5:
+b5:
     unreachable
 }"#;
 
@@ -938,37 +948,39 @@ block5:
     /// Check failure edges receive inserted expressions.
     #[test]
     fn test_pre_check_failure_inserts_expression() {
-        let input = r#"function @test(v0: u32, v1: u32, v2: bool, v3: [u8; 8]) -> u32 {
-block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
-    branch v2, block1, block2
-block1:
-    v4: u32 = iadd v0, v1
-    v5: bool = icmp_ult v0, v1
-    check v5, bounds.unsigned v0, v1, v3, block3, block4
-block2:
-    jump block4
-block3:
+        let input = r#"
+function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+    branch v2, b1, b2
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b3, b4
+b2:
+    jump b4
+b3:
     return v4
-block4:
-    v6: u32 = iadd v0, v1
+b4:
+    v6: uint32 = int.add v0, v1
     return v6
 }"#;
 
-        let expected = r#"function @test(v0: u32, v1: u32, v2: bool, v3: [u8; 8]) -> u32 {
-block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
-    branch v2, block1, block3
-block1:
-    v4: u32 = iadd v0, v1
-    v5: bool = icmp_ult v0, v1
-    check v5, bounds.unsigned v0, v1, v3, block4, block2
-block2:
-    jump block5(v4)
-block3:
-    v6: u32 = iadd v0, v1
-    jump block5(v6)
-block4:
+        let expected = r#"
+function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+    branch v2, b1, b3
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b4, b2
+b2:
+    jump b5(v4)
+b3:
+    v6: uint32 = int.add v0, v1
+    jump b5(v6)
+b4:
     return v4
-block5(v7: u32):
+b5(v7: uint32):
     return v7
 }"#;
 
@@ -980,33 +992,35 @@ block5(v7: u32):
     /// Yield resume edges receive inserted expressions.
     #[test]
     fn test_pre_yield_resume_inserts_expression() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    v4: i32 = iconst 1i32
-    yield v4, block3(v0)
-block2:
-    v5: i32 = iconst 2i32
-    yield v5, block3(v0)
-block3(v6: i32, v7: i32):
-    v8: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = 1int32
+    yield v4, b3(v0)
+b2:
+    v5: int32 = 2int32
+    yield v5, b3(v0)
+b3(v6: int32, v7: int32):
+    v8: int32 = int.add v0, v1
     return v8
 }"#;
 
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    v4: i32 = iconst 1i32
-    yield v4, block3(v0, v3)
-block2:
-    v5: i32 = iconst 2i32
-    v6: i32 = iadd v0, v1
-    yield v5, block3(v0, v6)
-block3(v7: i32, v8: i32, v9: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = 1int32
+    yield v4, b3(v0, v3)
+b2:
+    v5: int32 = 2int32
+    v6: int32 = int.add v0, v1
+    yield v5, b3(v0, v6)
+b3(v7: int32, v8: int32, v9: int32):
     return v9
 }"#;
 
@@ -1018,16 +1032,17 @@ block3(v7: i32, v8: i32, v9: i32):
     /// Non speculatable expressions are not inserted on new paths.
     #[test]
     fn test_pre_skips_non_speculatable_expression() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = sdiv v0, v1
-    jump block3
-block2:
-    jump block3
-block3:
-    v4: i32 = sdiv v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.div.s v0, v1
+    jump b3
+b2:
+    jump b3
+b3:
+    v4: int32 = int.div.s v0, v1
     return v4
 }"#;
 
@@ -1039,16 +1054,17 @@ block3:
     /// Float to int casts are not speculated.
     #[test]
     fn test_pre_skips_float_to_int_cast() {
-        let input = r#"function @test(v0: f32, v1: bool) -> i32 {
-block0(v0: f32, v1: bool):
-    branch v1, block1, block2
-block1:
-    v2: i32 = fcvt_to_sint v0 -> i32
-    jump block3
-block2:
-    jump block3
-block3:
-    v3: i32 = fcvt_to_sint v0 -> i32
+        let input = r#"
+function test(v0: float32, v1: boolean): int32 {
+b0(v0: float32, v1: boolean):
+    branch v1, b1, b2
+b1:
+    v2: int32 = cast.floatToInt.s v0 -> int32
+    jump b3
+b2:
+    jump b3
+b3:
+    v3: int32 = cast.floatToInt.s v0 -> int32
     return v3
 }"#;
 
@@ -1060,21 +1076,22 @@ block3:
     /// Calls are not considered for PRE.
     #[test]
     fn test_pre_skips_calls() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = call @get_value() -> fn() -> i32
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = call @get_value() -> fn() -> i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = call getValue(): () -> int32
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = call getValue(): () -> int32
     return v2
 }
-function @get_value() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+function getValue(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -1086,17 +1103,18 @@ block0:
     /// Expressions with unavailable operands are not hoisted.
     #[test]
     fn test_pre_skips_unavailable_operands() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    jump block3
-block2:
-    v2: i32 = iconst 2i32
-    jump block3
-block3:
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
+    jump b3
+b2:
+    v2: int32 = 2int32
+    jump b3
+b3:
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
 
@@ -1108,16 +1126,17 @@ block3:
     /// Expressions already available on all paths are left to GVN.
     #[test]
     fn test_pre_skips_fully_redundant_expression() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v4: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v4: int32 = int.add v0, v1
     return v4
 }"#;
 

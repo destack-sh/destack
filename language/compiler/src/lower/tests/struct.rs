@@ -87,15 +87,14 @@ function sumPoint(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function @sumPoint(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: { x: i32, y: i32 } = struct { x: i32, y: i32 } (v0, v1)
-    v3: i32 = field.get v2, 0
-    v4: i32 = field.get v2, 1
-    v5: i32 = iadd v3, v4
+function sumPoint(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: { x: int32, y: int32 } = struct { x: int32, y: int32 } (v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: int32 = field.get v2, 1
+    v5: int32 = int.add v3, v4
     return v5
-}
-        "#,
+}"#,
     );
 
     // assert the runtime output
@@ -265,14 +264,15 @@ function readField(value: FieldMapBox): int32 {
         module_id,
         "native",
         r#"
-type @FieldMapBox = { leftFieldMap: i32, rightFieldMap: i32 }
-
-function @readField(v0: @FieldMapBox) -> i32 {
-block0(v0: @FieldMapBox):
-    v1: i32 = field.get v0, 0
-    return v1
+type FieldMapBox {
+    leftFieldMap: int32;
+    rightFieldMap: int32;
 }
-        "#,
+function readField(v0: FieldMapBox): int32 {
+b0(v0: FieldMapBox):
+    v1: int32 = field.get v0, 0
+    return v1
+}"#,
     );
 
     // inspect the lowered mir metadata
@@ -331,21 +331,20 @@ function readValue(value: int32): int32 {
         module_id,
         "native",
         r#"
-type @Box = { value: i32 }
-
-function @readValue(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: @Box = struct @Box (v0)
-    v2: i32 = call @Box.get(v1) -> fn(@Box) -> i32
+type Box {
+    value: int32;
+}
+function readValue(v0: int32): int32 {
+b0(v0: int32):
+    v1: Box = struct Box (v0)
+    v2: int32 = call Box.get(v1): (Box) -> int32
     return v2
 }
-
-function @Box.get(v0: @Box) -> i32 {
-block0(v0: @Box):
-    v1: i32 = field.get v0, 0
+function Box.get(v0: Box): int32 {
+b0(v0: Box):
+    v1: int32 = field.get v0, 0
     return v1
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(

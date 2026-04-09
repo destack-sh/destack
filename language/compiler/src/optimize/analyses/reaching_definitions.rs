@@ -266,11 +266,12 @@ mod tests {
     #[test]
     fn test_reaching_definitions_single_block() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+            r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#,
         );
@@ -311,11 +312,12 @@ block0(v0: i32):
     #[test]
     fn test_reaching_definitions_before_first_instruction() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+            r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#,
         );
@@ -343,12 +345,13 @@ block0(v0: i32):
     #[test]
     fn test_reaching_definitions_overwrite_in_block() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32, v1: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32, v1: i32):
+            r#"
+function test(v0: int32, v1: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32, v1: int32):
     local.set local0, v0
     local.set local0, v1
-    v2: i32 = local.get local0
+    v2: int32 = local.get local0
     return v2
 }"#,
         );
@@ -391,18 +394,19 @@ block0(v0: i32, v1: i32):
     #[test]
     fn test_reaching_definitions_branch_with_entry() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+            r#"
+function test(v0: boolean): int32 {
+    local local0: int32, owned
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     local.set local0, v1
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = local.get local0
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = local.get local0
     return v2
 }"#,
         );
@@ -432,21 +436,22 @@ block3:
     #[test]
     fn test_reaching_definitions_multiple_locals() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-    local0: i32 ; owned
-    local1: i32 ; owned
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1, block2
-block1:
+            r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+    local local0: int32, owned
+    local local1: int32, owned
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1, b2
+b1:
     local.set local0, v1
-    jump block3
-block2:
+    jump b3
+b2:
     local.set local1, v2
-    jump block3
-block3:
-    v3: i32 = local.get local0
-    v4: i32 = local.get local1
-    v5: i32 = iadd v3, v4
+    jump b3
+b3:
+    v3: int32 = local.get local0
+    v4: int32 = local.get local1
+    v5: int32 = int.add v3, v4
     return v5
 }"#,
         );
@@ -486,20 +491,21 @@ block3:
     #[test]
     fn test_reaching_definitions_branch_merge() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+            r#"
+function test(v0: boolean): int32 {
+    local local0: int32, owned
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     local.set local0, v1
-    jump block3
-block2:
-    v2: i32 = iconst 2i32
+    jump b3
+b2:
+    v2: int32 = 2int32
     local.set local0, v2
-    jump block3
-block3:
-    v3: i32 = local.get local0
+    jump b3
+b3:
+    v3: int32 = local.get local0
     return v3
 }"#,
         );
@@ -530,18 +536,19 @@ block3:
     #[test]
     fn test_reaching_definitions_loop_backedge() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned
-block0(v0: bool):
-    jump block1
-block1:
-    v1: i32 = local.get local0
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v1, v2
+            r#"
+function test(v0: boolean): int32 {
+    local local0: int32, owned
+b0(v0: boolean):
+    jump b1
+b1:
+    v1: int32 = local.get local0
+    v2: int32 = 1int32
+    v3: int32 = int.add v1, v2
     local.set local0, v3
-    branch v0, block1, block2
-block2:
-    v4: i32 = local.get local0
+    branch v0, b1, b2
+b2:
+    v4: int32 = local.get local0
     return v4
 }"#,
         );
@@ -571,16 +578,17 @@ block2:
     #[test]
     fn test_reaching_definitions_unreachable_block() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
+            r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
     local.set local0, v0
-    jump block1
-block1:
-    v1: i32 = local.get local0
+    jump b1
+b1:
+    v1: int32 = local.get local0
     return v1
-block2:
-    v2: i32 = local.get local0
+b2:
+    v2: int32 = local.get local0
     return v2
 }"#,
         );

@@ -12,27 +12,27 @@ declare_pass! {
     /// This pass prunes dead functions and globals.
     ///
     /// ```mir
-    /// global @dead: i32 = 1i32 ; readonly
-    /// function @dead() -> i32 {
-    /// block0:
-    ///     v0 = iconst 2i32
+    /// global dead: int32, readonly = 1int32
+    /// function dead(): int32 {
+    /// b0:
+    ///     v0 = 2int32
     ///     return v0
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 1i32
-    ///     v1 = iadd v0, v0
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 1int32
+    ///     v1 = int.add v0, v0
     ///     return v0
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// extern global @dead: i32 ; readonly
-    /// extern function @dead() -> i32
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 1i32
-    ///     v1 = iadd v0, v0
+    /// extern global dead: int32, readonly
+    /// extern function dead(): int32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 1int32
+    ///     v1 = int.add v0, v0
     ///     return v0
     /// }
     /// ```
@@ -90,25 +90,27 @@ mod tests {
     /// Dead functions and globals are removed after cleanup.
     #[test]
     fn test_ip_dce_cleanup_removes_dead_items() {
-        let input = r#"global @dead: i32 = 1i32 ; readonly
-function @dead() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
+        let input = r#"
+global dead: int32, readonly = 1int32
+function dead(): int32 {
+b0:
+    v0: int32 = 2int32
     return v0
 }
-export function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iadd v0, v0
+export function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = int.add v0, v0
     return v0
 }"#;
 
-        let expected = r#"extern global @dead: i32 ; readonly
-extern function @dead() -> i32
-export function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iadd v0, v0
+        let expected = r#"
+extern global dead: int32, readonly
+extern function dead(): int32
+export function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = int.add v0, v0
     return v0
 }"#;
 
@@ -120,19 +122,21 @@ block0:
     /// Live globals are preserved during cleanup.
     #[test]
     fn test_ip_dce_cleanup_preserves_live_globals() {
-        let input = r#"global @live: i32 = 1i32 ; readonly
-global @dead: i32 = 2i32 ; readonly
-export function @root() -> i32 {
-block0:
-    v0: i32 = global.const @live
+        let input = r#"
+global live: int32, readonly = 1int32
+global dead: int32, readonly = 2int32
+export function root(): int32 {
+b0:
+    v0: int32 = global.const live
     return v0
 }"#;
 
-        let expected = r#"global @live: i32 = 1i32 ; readonly
-extern global @dead: i32 ; readonly
-export function @root() -> i32 {
-block0:
-    v0: i32 = global.const @live
+        let expected = r#"
+global live: int32, readonly = 1int32
+extern global dead: int32, readonly
+export function root(): int32 {
+b0:
+    v0: int32 = global.const live
     return v0
 }"#;
 

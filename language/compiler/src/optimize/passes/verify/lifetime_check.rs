@@ -649,7 +649,7 @@ fn apply_instruction_effects(
         }
 
         // function values preserve the environment origin
-        Instruction::FunctionValue {
+        Instruction::Closure {
             destination,
             environment,
             ..
@@ -1172,8 +1172,9 @@ mod tests {
     /// Returning a borrowed param matches lifetime annotations.
     #[test]
     fn test_verify_return_borrowed_param() {
-        let input = r#"function @test(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function test(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }"#;
 
@@ -1188,9 +1189,10 @@ block0(v0: ref<borrowed i32>):
     /// Returning a borrowed field matches lifetime annotations.
     #[test]
     fn test_verify_return_borrowed_field() {
-        let input = r#"function @test(v0: ref<borrowed { i32 }>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed { i32 }>):
-    v1: ref<borrowed i32> = field.addr v0, 0
+        let input = r#"
+function test(v0: ref<{ int32 }, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<{ int32 }, borrowed>):
+    v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#;
 
@@ -1205,10 +1207,11 @@ block0(v0: ref<borrowed { i32 }>):
     /// Returning a local borrow is rejected by parameter lifetimes.
     #[test]
     fn test_verify_return_local_borrow_rejected() {
-        let input = r#"function @test() -> ref<borrowed i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<borrowed i32> = field.addr v0, 0
+        let input = r#"
+function test(): ref<int32, borrowed> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#;
 
@@ -1223,8 +1226,9 @@ block0:
     /// Returning a borrowed param is rejected by static lifetimes.
     #[test]
     fn test_verify_static_lifetime_rejects_param() {
-        let input = r#"function @test(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function test(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }"#;
 
@@ -1239,8 +1243,9 @@ block0(v0: ref<borrowed i32>):
     /// Mismatched lifetimes warn in lenient mode.
     #[test]
     fn test_verify_mismatch_warns_in_lenient_mode() {
-        let input = r#"function @test(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function test(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }"#;
 
@@ -1259,9 +1264,10 @@ block0(v0: ref<borrowed i32>):
     /// Annotations on non borrowed returns are warned.
     #[test]
     fn test_verify_annotation_ignored_warns() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -1275,9 +1281,9 @@ block0:
     /// Indirect calls fall back to signature borrowing rules.
     #[test]
     fn test_verify_signature_fallback_for_indirect_call() {
-        let input = r#"function @test(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>, v1: ref<borrowed i32>):
-    v2: ref<borrowed i32> = call.indirect v0(v1) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+        let input = r#"
+function test(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed>  {
+b0(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>, v1: ref<int32, borrowed>) -> v2: ref<int32, borrowed> = call.indirect v0(v1): (ref<int32, borrowed>) -> ref<int32, borrowed>
     return v2
 }"#;
 

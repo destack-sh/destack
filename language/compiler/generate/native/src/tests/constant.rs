@@ -4,11 +4,10 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_string_global() {
     let mir = r#"
-global @hello: [u8; 5] = b"hello" ; readonly
-
-function @get_hello() -> ref<raw addrspace(global) readonly [u8; 5]> {
-block0:
-    v0: ref<raw addrspace(global) readonly [u8; 5]> = global.addr @hello
+global readonly hello: uint8[5] = b"hello";
+function get_hello(): ref<uint8[5], raw, readonly, addressSpace(global)> {
+bb0:
+    v0: ref<uint8[5], raw, readonly, addressSpace(global)> = global.address hello
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -24,11 +23,10 @@ block0:
 #[test]
 fn test_empty_string_global() {
     let mir = r#"
-global @empty: [u8; 0] = b"" ; readonly
-
-function @get_empty() -> ref<raw addrspace(global) readonly [u8; 0]> {
-block0:
-    v0: ref<raw addrspace(global) readonly [u8; 0]> = global.addr @empty
+global readonly empty: uint8[0] = b"";
+function get_empty(): ref<uint8[0], raw, readonly, addressSpace(global)> {
+bb0:
+    v0: ref<uint8[0], raw, readonly, addressSpace(global)> = global.address empty
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -42,11 +40,10 @@ block0:
 #[test]
 fn test_integer_global_const() {
     let mir = r#"
-global @magic: i32 = 42i32 ; readonly
-
-function @get_magic() -> i32 {
-block0:
-    v0: i32 = global.const @magic
+global readonly magic: int32 = 42int32;
+function get_magic(): int32 {
+bb0:
+    v0: int32 = global.const magic
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -63,16 +60,16 @@ block0:
 #[test]
 fn test_mutable_global() {
     let mir = r#"
-global @counter: i32 = 0i32 ;
+global counter: int32 = 0int32 ;
 
-function @increment() -> i32 {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @counter
-    v1: i32 = load v0
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v1, v2
+function increment(): int32 {
+bb0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address counter
+    v1: int32 = load v0
+    v2: int32 = const 1int32
+    v3: int32 = int.add v1, v2
     store v0, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -90,12 +87,12 @@ block0:
 #[test]
 fn test_zeroinit_global() {
     let mir = r#"
-global @data: i64 = zeroinit ;
+global data: int64 = zeroInit ;
 
-function @get_data() -> i64 {
-block0:
-    v0: ref<raw addrspace(global) i64> = global.addr @data
-    v1: i64 = load v0
+function get_data(): int64 {
+bb0:
+    v0: ref<int64, raw, addressSpace(global)> = global.address data
+    v1: int64 = load v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);

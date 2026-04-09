@@ -9,13 +9,13 @@ impl FunctionLowerer<'_> {
     /// Lower a borrow expression to a reference value.
     ///
     /// ```ds
-    /// function borrow(value: int32): ref<borrowed readonly int32> {
+    /// function borrow(value: int32): ref<int32, borrowed, readonly> {
     ///     return &value;
     /// }
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<borrowed readonly i32> = local.addr v0 -> ref<borrowed readonly i32>
+    /// v1: ref<int32, borrowed, readonly> = local.address v0 -> ref<int32, borrowed, readonly>
     /// ```
     pub(crate) fn lower_reference_of_expression(
         &mut self,
@@ -208,7 +208,7 @@ impl FunctionLowerer<'_> {
                         message: "field not found in aggregate type".to_string(),
                     })?;
 
-                // emit field.addr
+                // emit field.address
                 let value =
                     self.state
                         .builder
@@ -240,7 +240,7 @@ impl FunctionLowerer<'_> {
                     index_expr,
                 )?;
 
-                // emit element.addr
+                // emit element.address
                 let value = self
                     .state
                     .builder
@@ -261,13 +261,13 @@ impl FunctionLowerer<'_> {
     /// Lower an ownership conversion to an owning handle.
     ///
     /// ```ds
-    /// function own(value: int32): ref<owned readonly int32> {
+    /// function own(value: int32): ref<int32, owned, readonly> {
     ///     return value;
     /// }
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<owned readonly i32> = raw.alloc i32
+    /// v1: ref<int32, owned, readonly> = raw.alloc int32
     /// store v1, v0
     /// ```
     pub(crate) fn lower_value_of_expression(

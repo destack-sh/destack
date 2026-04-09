@@ -19,28 +19,28 @@ declare_pass! {
     /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive SCCs and functions with tail calls.
     ///
     /// ```mir
-    /// function @callee(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iadd v0, v0
+    /// function callee(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = int.add v0, v0
     ///     return v1
     /// }
-    /// function @caller(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = call @callee(v0) -> fn(i32) -> i32
-    ///     v2 = iadd v1, v0
+    /// function caller(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = call callee(v0)
+    ///     v2 = int.add v1, v0
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @caller(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     jump block1(v0)
-    /// block1(v1: i32):
-    ///     v2 = iadd v1, v1
-    ///     jump block2(v2)
-    /// block2(v3: i32):
-    ///     v4 = iadd v3, v0
+    /// function caller(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     jump b1(v0)
+    /// b1(v1: int32):
+    ///     v2 = int.add v1, v1
+    ///     jump b2(v2)
+    /// b2(v3: int32):
+    ///     v4 = int.add v3, v0
     ///     return v4
     /// }
     /// ```
@@ -1317,7 +1317,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::LocalSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionValue { .. }
+        | mir::Instruction::Closure { .. }
         | mir::Instruction::FunctionEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
@@ -1427,31 +1427,33 @@ mod tests {
     /// Simple direct calls are inlined.
     #[test]
     fn test_inline_basic_call() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
-    v2: i32 = iadd v1, v0
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
+    v2: int32 = int.add v1, v0
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iadd v1, v1
-    jump block2(v2)
-block2(v3: i32):
-    v4: i32 = iadd v3, v0
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = int.add v1, v1
+    jump b2(v2)
+b2(v3: int32):
+    v4: int32 = int.add v3, v0
     return v4
 }"#;
 
@@ -1463,9 +1465,10 @@ block2(v3: i32):
     /// Recursive calls are not inlined.
     #[test]
     fn test_inline_skips_recursive_call() {
-        let input = r#"function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @caller(v0) -> fn(i32) -> i32
+        let input = r#"
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call caller(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -1477,13 +1480,14 @@ block0(v0: i32):
     /// Tail call callees are not inlined.
     #[test]
     fn test_inline_skips_tailcall_callee() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    tailcall @callee(v0)
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    tailCall callee(v0): (int32) -> int32
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -1495,35 +1499,37 @@ block0(v0: i32):
     /// Locals are cloned during inlining.
     #[test]
     fn test_inline_clones_locals() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
-    v1: i32 = local.get local0
-    v2: i32 = iadd v1, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = local.get local0
+    v2: int32 = int.add v1, v0
     return v2
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
-    v1: i32 = local.get local0
-    v2: i32 = iadd v1, v0
+        let expected = r#"
+function callee(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = local.get local0
+    v2: int32 = int.add v1, v0
     return v2
 }
-function @caller(v0: i32) -> i32 {
-    local0: i32 ; owned
-block0(v0: i32):
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = local.get local0
-    v3: i32 = iadd v2, v1
-    jump block2(v3)
-block2(v4: i32):
+function caller(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = local.get local0
+    v3: int32 = int.add v2, v1
+    jump b2(v3)
+b2(v4: int32):
     return v4
 }"#;
 
@@ -1535,16 +1541,17 @@ block2(v4: i32):
     /// Inlined memory access metadata remaps pointer targets.
     #[test]
     fn test_inline_remaps_memory_access_metadata() {
-        let input = r#"function @callee() -> i32 {
-local0: i32 ; owned
-block0:
-    v0: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v1: i32 = load v0
+        let input = r#"
+function callee(): int32 {
+    local local0: int32, owned
+b0:
+    v0: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v1: int32 = load v0
     return v1
 }
-function @caller() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+function caller(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#;
 
@@ -1619,17 +1626,20 @@ block0:
     /// Large callees are not inlined.
     #[test]
     fn test_inline_skips_large_callee() {
-        let mut input = String::from("function @callee(v0: i32) -> i32 {\n");
-        input.push_str("block0(v0: i32):\n");
-        input.push_str("    v1: i32 = iadd v0, v0\n");
+        let mut input = String::from("function callee(v0: int32): int32 {\n");
+        input.push_str("b0(v0: int32):\n");
+        input.push_str("    v1: int32 = int.add v0, v0\n");
         for index in 2..=97 {
-            input.push_str(&format!("    v{index}: i32 = iadd v{}, v0\n", index - 1));
+            input.push_str(&format!(
+                "    v{index}: int32 = int.add v{}, v0\n",
+                index - 1
+            ));
         }
         input.push_str("    return v97\n");
         input.push_str("}\n");
-        input.push_str("function @caller(v0: i32) -> i32 {\n");
-        input.push_str("block0(v0: i32):\n");
-        input.push_str("    v1: i32 = call @callee(v0) -> fn(i32) -> i32\n");
+        input.push_str("function caller(v0: int32): int32 {\n");
+        input.push_str("b0(v0: int32):\n");
+        input.push_str("    v1: int32 = call callee(v0): (int32) -> int32\n");
         input.push_str("    return v1\n");
         input.push_str("}\n");
 
@@ -1641,29 +1651,31 @@ block0:
     /// Calls with unused return values inline without continuation arguments.
     #[test]
     fn test_inline_unused_return() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> void {
-block0(v0: i32):
-    call @callee(v0) -> fn(i32) -> i32
+function caller(v0: int32): void {
+b0(v0: int32):
+    call callee(v0): (int32) -> int32
     return
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> void {
-block0(v0: i32):
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = iadd v1, v1
-    jump block2
-block2:
+function caller(v0: int32): void {
+b0(v0: int32):
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = int.add v1, v1
+    jump b2
+b2:
     return
 }"#;
 
@@ -1675,22 +1687,23 @@ block2:
     /// Cold callsites avoid inlining under profile guidance.
     #[test]
     fn test_inline_skips_cold_callsite() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
-    v2: i32 = iadd v1, v0
-    v3: i32 = iadd v2, v0
-    v4: i32 = iadd v3, v0
-    v5: i32 = iadd v4, v0
-    v6: i32 = iadd v5, v0
-    v7: i32 = iadd v6, v0
-    v8: i32 = iadd v7, v0
-    v9: i32 = iadd v8, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v1, v0
+    v3: int32 = int.add v2, v0
+    v4: int32 = int.add v3, v0
+    v5: int32 = int.add v4, v0
+    v6: int32 = int.add v5, v0
+    v7: int32 = int.add v6, v0
+    v8: int32 = int.add v7, v0
+    v9: int32 = int.add v8, v0
     return v9
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -1709,67 +1722,69 @@ block0(v0: i32):
     /// Hot callsites enable larger inlines under profile guidance.
     #[test]
     fn test_inline_uses_hot_callsite() {
-        let input = r#"function @helper(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
-    v2: i32 = iadd v1, v0
-    v3: i32 = iadd v2, v0
-    v4: i32 = iadd v3, v0
-    v5: i32 = iadd v4, v0
-    v6: i32 = iadd v5, v0
-    v7: i32 = iadd v6, v0
-    v8: i32 = iadd v7, v0
-    v9: i32 = iadd v8, v0
+        let input = r#"
+function helper(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v1, v0
+    v3: int32 = int.add v2, v0
+    v4: int32 = int.add v3, v0
+    v5: int32 = int.add v4, v0
+    v6: int32 = int.add v5, v0
+    v7: int32 = int.add v6, v0
+    v8: int32 = int.add v7, v0
+    v9: int32 = int.add v8, v0
     return v9
 }
-function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @helper(v0) -> fn(i32) -> i32
-    v2: i32 = call @helper(v1) -> fn(i32) -> i32
-    v3: i32 = call @helper(v2) -> fn(i32) -> i32
-    v4: i32 = call @helper(v3) -> fn(i32) -> i32
-    v5: i32 = call @helper(v4) -> fn(i32) -> i32
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call helper(v0): (int32) -> int32
+    v2: int32 = call helper(v1): (int32) -> int32
+    v3: int32 = call helper(v2): (int32) -> int32
+    v4: int32 = call helper(v3): (int32) -> int32
+    v5: int32 = call helper(v4): (int32) -> int32
     return v5
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
-        let expected = r#"function @helper(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
-    v2: i32 = iadd v1, v0
-    v3: i32 = iadd v2, v0
-    v4: i32 = iadd v3, v0
-    v5: i32 = iadd v4, v0
-    v6: i32 = iadd v5, v0
-    v7: i32 = iadd v6, v0
-    v8: i32 = iadd v7, v0
-    v9: i32 = iadd v8, v0
+        let expected = r#"
+function helper(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v1, v0
+    v3: int32 = int.add v2, v0
+    v4: int32 = int.add v3, v0
+    v5: int32 = int.add v4, v0
+    v6: int32 = int.add v5, v0
+    v7: int32 = int.add v6, v0
+    v8: int32 = int.add v7, v0
+    v9: int32 = int.add v8, v0
     return v9
 }
-function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @helper(v0) -> fn(i32) -> i32
-    v2: i32 = call @helper(v1) -> fn(i32) -> i32
-    v3: i32 = call @helper(v2) -> fn(i32) -> i32
-    v4: i32 = call @helper(v3) -> fn(i32) -> i32
-    v5: i32 = call @helper(v4) -> fn(i32) -> i32
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call helper(v0): (int32) -> int32
+    v2: int32 = call helper(v1): (int32) -> int32
+    v3: int32 = call helper(v2): (int32) -> int32
+    v4: int32 = call helper(v3): (int32) -> int32
+    v5: int32 = call helper(v4): (int32) -> int32
     return v5
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block1(v0)
-block1(v1: i32):
-    v2: i32 = call @helper(v1) -> fn(i32) -> i32
-    v3: i32 = call @helper(v2) -> fn(i32) -> i32
-    v4: i32 = call @helper(v3) -> fn(i32) -> i32
-    v5: i32 = call @helper(v4) -> fn(i32) -> i32
-    v6: i32 = call @helper(v5) -> fn(i32) -> i32
-    jump block2(v6)
-block2(v7: i32):
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    jump b1(v0)
+b1(v1: int32):
+    v2: int32 = call helper(v1): (int32) -> int32
+    v3: int32 = call helper(v2): (int32) -> int32
+    v4: int32 = call helper(v3): (int32) -> int32
+    v5: int32 = call helper(v4): (int32) -> int32
+    v6: int32 = call helper(v5): (int32) -> int32
+    jump b2(v6)
+b2(v7: int32):
     return v7
 }"#;
 
@@ -1824,10 +1839,11 @@ block2(v7: i32):
     #[test]
     fn test_inline_block_counts_use_edges() {
         let policy = CallsiteHotnessPolicy::inline_default();
-        let input = r#"function @test() -> void {
-block0:
-    jump block1
-block1:
+        let input = r#"
+function test(): void {
+b0:
+    jump b1
+b1:
     return
 }"#;
 
@@ -1851,44 +1867,46 @@ block1:
     /// Inline replaces multiple returns with a continuation.
     #[test]
     fn test_inline_multiple_returns() {
-        let input = r#"function @callee(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
     return v3
-block2:
-    v4: i32 = isub v0, v1
+b2:
+    v4: int32 = int.sub v0, v1
     return v4
 }
-function @caller(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = call @callee(v0, v1, v2) -> fn(i32, i32, bool) -> i32
+function caller(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = call callee(v0, v1, v2): (int32, int32, boolean) -> int32
     return v3
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
+        let expected = r#"
+function callee(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
     return v3
-block2:
-    v4: i32 = isub v0, v1
+b2:
+    v4: int32 = int.sub v0, v1
     return v4
 }
-function @caller(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    jump block1(v0, v1, v2)
-block1(v3: i32, v4: i32, v5: bool):
-    branch v5, block2, block3
-block2:
-    v6: i32 = iadd v3, v4
-    jump block4(v6)
-block3:
-    v7: i32 = isub v3, v4
-    jump block4(v7)
-block4(v8: i32):
+function caller(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    jump b1(v0, v1, v2)
+b1(v3: int32, v4: int32, v5: boolean):
+    branch v5, b2, b3
+b2:
+    v6: int32 = int.add v3, v4
+    jump b4(v6)
+b3:
+    v7: int32 = int.sub v3, v4
+    jump b4(v7)
+b4(v8: int32):
     return v8
 }"#;
 
@@ -1900,34 +1918,36 @@ block4(v8: i32):
     /// Inline forwards call results into continuation terminators.
     #[test]
     fn test_inline_continuation_argument() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
-    jump block1(v1)
-block1(v2: i32):
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call callee(v0): (int32) -> int32
+    jump b1(v1)
+b1(v2: int32):
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    jump block2(v0)
-block1(v1: i32):
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    jump b2(v0)
+b1(v1: int32):
     return v1
-block2(v2: i32):
-    v3: i32 = iadd v2, v2
-    jump block3(v3)
-block3(v4: i32):
-    jump block1(v4)
+b2(v2: int32):
+    v3: int32 = int.add v2, v2
+    jump b3(v3)
+b3(v4: int32):
+    jump b1(v4)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1938,14 +1958,14 @@ block3(v4: i32):
     /// Call indirect sites do not inline without a direct target.
     #[test]
     fn test_inline_skips_indirect_call() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+function caller(v0: fn(int32) -> int32, v1: int32): int32  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#;
 

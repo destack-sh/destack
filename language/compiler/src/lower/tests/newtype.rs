@@ -25,12 +25,11 @@ function loadUser(id: UserId): UserId {
         module_id,
         "native",
         r#"
-type @UserId = newtype<i32>
-function @loadUser(v0: @UserId) -> @UserId {
-block0(v0: @UserId):
+type UserId newtype<int32>
+function loadUser(v0: UserId): UserId {
+b0(v0: UserId):
     return v0
-}
-        "#,
+}"#,
     );
 }
 
@@ -41,7 +40,7 @@ fn test_lower_newtype_distinct_from_alias() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-type RepositoryId = int32;
+type RepositoryId int32;
 newtype UserId = int32;
 
 function lookupRepository(id: RepositoryId): RepositoryId {
@@ -62,18 +61,15 @@ function lookupUser(id: UserId): UserId {
         module_id,
         "native",
         r#"
-type @UserId = newtype<i32>
-
-function @lookupRepository(v0: i32) -> i32 {
-block0(v0: i32):
+type UserId newtype<int32>
+function lookupRepository(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-
-function @lookupUser(v0: @UserId) -> @UserId {
-block0(v0: @UserId):
+function lookupUser(v0: UserId): UserId {
+b0(v0: UserId):
     return v0
-}
-        "#,
+}"#,
     );
 }
 
@@ -100,14 +96,12 @@ function normalizeRange(value: Range): Range {
         module_id,
         "native",
         r#"
-type @Range#1 = (i32, i32)
-type @Range = newtype<@Range#1>
-
-function @normalizeRange(v0: @Range) -> @Range {
-block0(v0: @Range):
+type Range#1 (int32, int32)
+type Range newtype<Range#1>
+function normalizeRange(v0: Range): Range {
+b0(v0: Range):
     return v0
-}
-        "#,
+}"#,
     );
 }
 
@@ -135,17 +129,19 @@ function markLocation(value: Location): Location {
         module_id,
         "native",
         r#"
-type @Point = { x: i32, y: i32 }
-type @Location = newtype<@Point>
-function @markLocation(v0: @Location) -> @Location {
-block0(v0: @Location):
-    return v0
+type Point {
+    x: int32;
+    y: int32;
 }
-        "#,
+type Location newtype<Point>
+function markLocation(v0: Location): Location {
+b0(v0: Location):
+    return v0
+}"#,
     );
 }
 
-/// Lower scalar newtype constructors into a bitcast.
+/// Lower scalar newtype constructors into a cast.bit.
 #[test]
 fn test_lower_newtype_user_id_constructor() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -168,13 +164,12 @@ function makeUserId(value: int32): UserId {
         module_id,
         "native",
         r#"
-type @UserId = newtype<i32>
-function @makeUserId(v0: i32) -> @UserId {
-block0(v0: i32):
-    v1: @UserId = bitcast v0 -> @UserId
+type UserId newtype<int32>
+function makeUserId(v0: int32): UserId {
+b0(v0: int32):
+    v1: UserId = cast.bit v0 -> UserId
     return v1
-}
-        "#,
+}"#,
     );
 }
 
@@ -201,16 +196,14 @@ function makeRange(start: int32, end: int32): Range {
         module_id,
         "native",
         r#"
-type @Range#1 = (i32, i32)
-type @Range = newtype<@Range#1>
-
-function @makeRange(v0: i32, v1: i32) -> @Range {
-block0(v0: i32, v1: i32):
-    v2: @Range#1 = tuple @Range#1 (v0, v1)
-    v3: @Range = bitcast v2 -> @Range
+type Range#1 (int32, int32)
+type Range newtype<Range#1>
+function makeRange(v0: int32, v1: int32): Range {
+b0(v0: int32, v1: int32):
+    v2: Range#1 = tuple Range#1 (v0, v1)
+    v3: Range = cast.bit v2 -> Range
     return v3
-}
-        "#,
+}"#,
     );
 }
 
@@ -359,14 +352,15 @@ function readUserId(user: User): UserId {
         module_id,
         "native",
         r#"
-type @UserId = newtype<i32>
-type @User = { id: @UserId, flags: i32 }
-
-function @readUserId(v0: @User) -> @UserId {
-block0(v0: @User):
-    v1: @UserId = field.get v0, 0
-    return v1
+type UserId newtype<int32>
+type User {
+    id: UserId;
+    flags: int32;
 }
-        "#,
+function readUserId(v0: User): UserId {
+b0(v0: User):
+    v1: UserId = field.get v0, 0
+    return v1
+}"#,
     );
 }

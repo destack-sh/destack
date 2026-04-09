@@ -942,7 +942,7 @@ impl BasicAA {
             Intrinsic::Memcpy | Intrinsic::Memmove | Intrinsic::Memset => ModRefInfo::MOD_REF,
 
             // GC write barrier
-            Intrinsic::GcWriteBarrier => ModRefInfo::MOD,
+            Intrinsic::WriteBarrier => ModRefInfo::MOD,
 
             // pure intrinsics
             _ => ModRefInfo::NO_MOD_REF,
@@ -1002,12 +1002,16 @@ mod tests {
     #[test]
     fn test_different_allocations_no_alias() {
         let program = TestProgram::new(
-            r#"type @Point = { i32, i32 }
-function @test() -> void {
-block0:
-    v0: ref<managed @Point> = managed.alloc @Point
-    v1: ref<managed @Point> = managed.alloc @Point
-    v2: i32 = iconst 1i32
+            r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): void {
+b0:
+    v0: ref<Point, managed> = managed.alloc Point
+    v1: ref<Point, managed> = managed.alloc Point
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
     return
@@ -1027,12 +1031,13 @@ block0:
     #[test]
     fn test_memory_metadata_disambiguates_intrinsic() {
         let mut program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 4i64
+            r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int8 = 0int8
+    v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -1068,10 +1073,11 @@ block0:
     #[test]
     fn test_memory_metadata_respects_alias_scopes() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 4i64
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int8 = 0int8
+    v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -1113,10 +1119,11 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_memory_metadata_respects_tbaa_tags() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 4i64
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int8 = 0int8
+    v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -1161,12 +1168,13 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_memory_metadata_local_target_aliases_stack_pointer() {
         let mut program = TestProgram::new(
-            r#"function @test() -> void {
-    local0: i32 ; owned
-block0:
-    v0: ref<raw addrspace(stack) i32> = local.addr local0
-    v1: i8 = iconst 0i8
-    v2: i64 = iconst 4i64
+            r#"
+function test(): void {
+    local local0: int32, owned
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = local.address local0
+    v1: int8 = 0int8
+    v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
     return
 }"#,
@@ -1190,7 +1198,7 @@ block0:
                 mir::Instruction::LocalAddr { destination, .. } => Some(*destination),
                 _ => None,
             })
-            .expect("missing local.addr");
+            .expect("missing local.address");
 
         program.tree.memory_table.insert_memory_accesses(
             memset_inst,
@@ -1224,10 +1232,14 @@ block0:
     #[test]
     fn test_same_pointer_must_alias() {
         let program = TestProgram::new(
-            r#"type @Point = { i32, i32 }
-function @test() -> void {
-block0:
-    v0: ref<managed @Point> = managed.alloc @Point
+            r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): void {
+b0:
+    v0: ref<Point, managed> = managed.alloc Point
     return
 }"#,
         );
@@ -1244,13 +1256,17 @@ block0:
     #[test]
     fn test_different_fields_no_alias() {
         let program = TestProgram::new(
-            r#"type @Point = { i32, i32 }
-function @test() -> void {
-block0:
-    v0: ref<managed @Point> = managed.alloc @Point
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v0, 1
-    v3: i32 = iconst 1i32
+            r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): void {
+b0:
+    v0: ref<Point, managed> = managed.alloc Point
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 1
+    v3: int32 = 1int32
     store v1, v3
     store v2, v3
     return
@@ -1270,11 +1286,12 @@ block0:
     #[test]
     fn test_stack_vs_heap_no_alias() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<managed i32> = managed.alloc i32
-    v2: i32 = iconst 1i32
+            r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, managed> = managed.alloc int32
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
     return
@@ -1294,12 +1311,13 @@ block0:
     #[test]
     fn test_global_vs_local_no_alias() {
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 1i32
+            r#"
+global g: int32 = 0int32
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
     return
@@ -1319,15 +1337,16 @@ block0:
     #[test]
     fn test_different_elements_no_alias() {
         let program = TestProgram::new(
-            r#"type @Arr = [i32; 10]
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) @Arr> = stack.alloc @Arr
-    v1: i64 = iconst 0i64
-    v2: i64 = iconst 1i64
-    v3: ref<borrowed i32> = element.addr v0, v1
-    v4: ref<borrowed i32> = element.addr v0, v2
-    v5: i32 = iconst 42i32
+            r#"
+type Arr int32[10]
+function test(): void {
+b0:
+    v0: ref<Arr, raw, addressSpace(stack)> = stack.alloc Arr
+    v1: int64 = 0int64
+    v2: int64 = 1int64
+    v3: ref<int32, borrowed> = element.address v0, v1
+    v4: ref<int32, borrowed> = element.address v0, v2
+    v5: int32 = 42int32
     store v3, v5
     store v4, v5
     return
@@ -1347,9 +1366,10 @@ block0:
     #[test]
     fn test_parameters_may_alias() {
         let program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
     return
@@ -1370,9 +1390,10 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_noalias_parameters_no_alias() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i32 = iconst 1i32
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
     return
@@ -1399,9 +1420,10 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     fn test_same_pointer_different_sizes_partial_alias() {
         // same pointer but different access sizes should be PartialAlias
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
+            r#"
+function test(): void {
+b0:
+    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
     return
 }"#,
         );
@@ -1424,9 +1446,10 @@ block0:
     fn test_same_pointer_unknown_size_partial_alias() {
         // same pointer with unknown size should be PartialAlias (conservative)
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
+            r#"
+function test(): void {
+b0:
+    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
     return
 }"#,
         );
@@ -1449,10 +1472,11 @@ block0:
     fn test_raw_vs_managed_alloc_no_alias() {
         // different allocation types never alias
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw i64> = raw.alloc i64
-    v1: ref<managed i64> = managed.alloc i64
+            r#"
+function test(): void {
+b0:
+    v0: ref<int64, raw> = raw.alloc int64
+    v1: ref<int64, managed> = managed.alloc int64
     return
 }"#,
         );
@@ -1471,11 +1495,12 @@ block0:
     fn test_cast_preserves_provenance() {
         // cast should preserve pointer provenance
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw i8> = bitcast v0 -> ref<raw i8>
+            r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
     return
 }"#,
         );
@@ -1500,12 +1525,13 @@ block0:
     fn test_same_element_same_index_may_alias() {
         // same array with same variable index should may alias
         let program = TestProgram::new(
-            r#"type @Arr = [i32; 10]
-function @test(v0: i64) -> void {
-block0(v0: i64):
-    v1: ref<raw addrspace(stack) @Arr> = stack.alloc @Arr
-    v2: ref<borrowed i32> = element.addr v1, v0
-    v3: ref<borrowed i32> = element.addr v1, v0
+            r#"
+type Arr int32[10]
+function test(v0: int64): void {
+b0(v0: int64):
+    v1: ref<Arr, raw, addressSpace(stack)> = stack.alloc Arr
+    v2: ref<int32, borrowed> = element.address v1, v0
+    v3: ref<int32, borrowed> = element.address v1, v0
     return
 }"#,
         );
@@ -1525,15 +1551,22 @@ block0(v0: i64):
     fn test_nested_field_access() {
         // nested struct field access
         let program = TestProgram::new(
-            r#"type @Inner = { i32, i32 }
-type @Outer = { @Inner, @Inner }
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) @Outer> = stack.alloc @Outer
-    v1: ref<borrowed @Inner> = field.addr v0, 0
-    v2: ref<borrowed @Inner> = field.addr v0, 1
-    v3: ref<borrowed i32> = field.addr v1, 0
-    v4: ref<borrowed i32> = field.addr v2, 0
+            r#"
+type Inner {
+    int32;
+    int32;
+}
+type Outer {
+    Inner;
+    Inner;
+}
+function test(): void {
+b0:
+    v0: ref<Outer, raw, addressSpace(stack)> = stack.alloc Outer
+    v1: ref<Inner, borrowed> = field.address v0, 0
+    v2: ref<Inner, borrowed> = field.address v0, 1
+    v3: ref<int32, borrowed> = field.address v1, 0
+    v4: ref<int32, borrowed> = field.address v2, 0
     return
 }"#,
         );

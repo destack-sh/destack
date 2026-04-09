@@ -20,25 +20,25 @@ declare_pass! {
     /// to the selected exit block, passing the initial values of any exit block parameters.
     ///
     /// ```mir
-    /// function @before() -> void {
-    /// block0:
-    ///     v0 = iconst false
-    ///     jump block1
-    /// block1:
-    ///     v1 = iconst 1i32
-    ///     v2 = iadd v1, v1
-    ///     branch v0, block1, block2
-    /// block2:
+    /// function before(): void {
+    /// b0:
+    ///     v0 = false
+    ///     jump b1
+    /// b1:
+    ///     v1 = 1int32
+    ///     v2 = int.add v1, v1
+    ///     branch v0, b1, b2
+    /// b2:
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> void {
-    /// block0:
-    ///     v0 = iconst false
-    ///     jump block1
-    /// block1:
+    /// function after(): void {
+    /// b0:
+    ///     v0 = false
+    ///     jump b1
+    /// b1:
     ///     return
     /// }
     /// ```
@@ -379,20 +379,22 @@ mod tests {
     /// Empty loop with no side effects is deleted.
     #[test]
     fn test_delete_empty_loop() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: bool = iconst false
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(): void {
+b0:
+    v0: boolean = false
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return
 }"#;
-        let expected = r#"function @test() -> void {
-block0:
-    v0: bool = iconst false
-    jump block1
-block1:
+        let expected = r#"
+function test(): void {
+b0:
+    v0: boolean = false
+    jump b1
+b1:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -404,24 +406,26 @@ block1:
     /// Loop computing unused value is deleted.
     #[test]
     fn test_delete_unused_computation() {
-        let input = r#"function @test(v0: i32) -> void {
-block0(v0: i32):
-    v1: bool = iconst false
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
-    branch v1, block1(v5), block2
-block2:
+        let input = r#"
+function test(v0: int32): void {
+b0(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
+    branch v1, b1(v5), b2
+b2:
     return
 }"#;
-        let expected = r#"function @test(v0: i32) -> void {
-block0(v0: i32):
-    v1: bool = iconst false
-    v2: i32 = iconst 0i32
-    jump block1
-block1:
+        let expected = r#"
+function test(v0: int32): void {
+b0(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0int32
+    jump b1
+b1:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -433,20 +437,20 @@ block1:
     /// Loop with call is preserved (calls have side effects).
     #[test]
     fn test_preserve_call_side_effects() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: bool = iconst false
-    jump block1
-block1:
-    call @side_effect() -> fn() -> i32
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(): void {
+b0:
+    v0: boolean = false
+    jump b1
+b1:
+    call sideEffect(): () -> int32
+    branch v0, b1, b2
+b2:
     return
 }
-
-function @side_effect() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+function sideEffect(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -459,14 +463,15 @@ block0:
     /// Loop with store is preserved (stores have side effects).
     #[test]
     fn test_preserve_store_side_effects() {
-        let input = r#"function @test(v0: ref<raw i32>, v1: i32) -> void {
-block0(v0: ref<raw i32>, v1: i32):
-    v2: bool = iconst false
-    jump block1
-block1:
+        let input = r#"
+function test(v0: ref<int32, raw>, v1: int32): void {
+b0(v0: ref<int32, raw>, v1: int32):
+    v2: boolean = false
+    jump b1
+b1:
     store v0, v1
-    branch v2, block1, block2
-block2:
+    branch v2, b1, b2
+b2:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -479,14 +484,15 @@ block2:
     /// Loop with live-out value is preserved.
     #[test]
     fn test_preserve_live_out() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst false
-    jump block1
-block1:
-    v1: i32 = iconst 1i32
-    branch v0, block1, block2(v1)
-block2(v2: i32):
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = false
+    jump b1
+b1:
+    v1: int32 = 1int32
+    branch v0, b1, b2(v1)
+b2(v2: int32):
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -499,15 +505,16 @@ block2(v2: i32):
     /// Loop with live-out value used in an exit block is preserved.
     #[test]
     fn test_preserve_live_out_via_direct_use() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: bool = iconst false
-    jump block1
-block1:
-    v1: i32 = iconst 1i32
-    branch v0, block1, block2
-block2:
-    v2: i32 = iadd v1, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: boolean = false
+    jump b1
+b1:
+    v1: int32 = 1int32
+    branch v0, b1, b2
+b2:
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -520,26 +527,28 @@ block2:
     /// Loop with multiple parameterless exits is deleted.
     #[test]
     fn test_delete_multiple_parameterless_exits() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    v1: bool = iconst false
-    jump block1
-block1:
-    branch v1, block2, block3
-block2:
-    branch v0, block1, block4
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    v1: boolean = false
+    jump b1
+b1:
+    branch v1, b2, b3
+b2:
+    branch v0, b1, b4
+b3:
     return
-block4:
+b4:
     return
 }"#;
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    v1: bool = iconst false
-    jump block1
-block1:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    v1: boolean = false
+    jump b1
+b1:
     return
-block2:
+b2:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -551,13 +560,14 @@ block2:
     /// Constant backedge loop is preserved.
     #[test]
     fn test_preserve_constant_backedge() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: bool = iconst true
-    jump block1
-block1:
-    branch v0, block1, block2
-block2:
+        let input = r#"
+function test(): void {
+b0:
+    v0: boolean = true
+    jump b1
+b1:
+    branch v0, b1, b2
+b2:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -570,10 +580,11 @@ block2:
     /// Function without loops is unchanged.
     #[test]
     fn test_preserve_no_loops() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -584,34 +595,36 @@ block0(v0: i32):
     /// Inner loop is deleted when outer loop has live-out.
     #[test]
     fn test_delete_inner_loop_preserve_outer() {
-        let input = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: bool = iconst false
-    jump block2
-block2:
-    branch v4, block2, block3
-block3:
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v3, v5
-    branch v0, block1(v6), block4(v6)
-block4(v7: i32):
+        let input = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: boolean = false
+    jump b2
+b2:
+    branch v4, b2, b3
+b3:
+    v5: int32 = 1int32
+    v6: int32 = int.add v3, v5
+    branch v0, b1(v6), b4(v6)
+b4(v7: int32):
     return v7
 }"#;
-        let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: bool = iconst false
-    jump block2
-block2:
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v3, v5
-    branch v0, block1(v6), block3(v6)
-block3(v7: i32):
+        let expected = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: boolean = false
+    jump b2
+b2:
+    v5: int32 = 1int32
+    v6: int32 = int.add v3, v5
+    branch v0, b1(v6), b3(v6)
+b3(v7: int32):
     return v7
 }"#;
         let mut test = TestProgram::new(input);
@@ -623,24 +636,26 @@ block3(v7: i32):
     /// Exit block parameters receive initial values.
     #[test]
     fn test_delete_pass_initial_values_to_exit() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: bool = iconst false
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
-    branch v1, block1(v5), block2(v3)
-block2(v6: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
+    branch v1, b1(v5), b2(v3)
+b2(v6: int32):
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: bool = iconst false
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -652,14 +667,15 @@ block1(v3: i32):
     /// Loop with drop is preserved (drop has side effects).
     #[test]
     fn test_preserve_drop_side_effects() {
-        let input = r#"function @test(v0: i32) -> void {
-block0(v0: i32):
-    v1: bool = iconst false
-    jump block1
-block1:
+        let input = r#"
+function test(v0: int32): void {
+b0(v0: int32):
+    v1: boolean = false
+    jump b1
+b1:
     raw.drop v0
-    branch v1, block1, block2
-block2:
+    branch v1, b1, b2
+b2:
     return
 }"#;
         let mut test = TestProgram::new(input);

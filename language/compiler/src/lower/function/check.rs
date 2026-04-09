@@ -35,7 +35,6 @@ impl FunctionLowerer<'_> {
     /// Emit a check terminator with a configured failure block.
     pub(crate) fn emit_check(
         &mut self,
-        condition: mir::Value,
         constraint: mir::CheckConstraint,
         message: &'static str,
     ) -> LowerResult<()> {
@@ -48,7 +47,7 @@ impl FunctionLowerer<'_> {
         // insert the check terminator
         self.state
             .builder
-            .check(condition, constraint, success_block, failure_block);
+            .check(constraint, success_block, failure_block);
 
         // continue lowering in the success block
         self.state.builder.switch_to_block(success_block);
@@ -136,30 +135,6 @@ impl FunctionLowerer<'_> {
         })?;
         let length_const = self.state.builder.iconst(length_value, width, is_signed);
 
-        // build the bounds check condition
-        let condition = if is_signed {
-            let zero = self.state.builder.iconst(0, width, true);
-            let non_negative = self.state.builder.binary_op(
-                mir::BinaryOperator::SignedGreaterEqual,
-                index_value,
-                zero,
-            );
-            let in_range = self.state.builder.binary_op(
-                mir::BinaryOperator::SignedLessThan,
-                index_value,
-                length_const,
-            );
-            self.state
-                .builder
-                .binary_op(mir::BinaryOperator::And, non_negative, in_range)
-        } else {
-            self.state.builder.binary_op(
-                mir::BinaryOperator::UnsignedLessThan,
-                index_value,
-                length_const,
-            )
-        };
-
         // emit the bounds check
         let constraint = mir::CheckConstraint::Bounds {
             index: index_value,
@@ -167,7 +142,7 @@ impl FunctionLowerer<'_> {
             collection: array_value,
             is_signed,
         };
-        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.bounds_check)?;
+        self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.bounds_check)?;
 
         Ok(())
     }
@@ -193,29 +168,9 @@ impl FunctionLowerer<'_> {
             return Ok(());
         }
 
-        // convert to integer for null comparison
-        let pointer_bits = u16::from(self.context.type_lowerer.pointer_bytes()) * 8;
-        let pointer_bits =
-            u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
-                message: "pointer width exceeds null check limits".to_string(),
-            })?;
-        let pointer_value = self.state.builder.cast(
-            mir::CastOperator::PointerToInt,
-            value,
-            self.context.type_lowerer.ty_usize,
-        );
-        let zero = self.state.builder.iconst(0, pointer_bits, false);
-        let condition =
-            self.state
-                .builder
-                .binary_op(mir::BinaryOperator::NotEqual, pointer_value, zero);
-
         // emit the null check
         let constraint = mir::CheckConstraint::Null { value };
-        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.null_check)?;
+        self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.null_check)?;
 
         Ok(())
     }

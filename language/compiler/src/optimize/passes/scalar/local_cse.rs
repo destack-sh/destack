@@ -24,20 +24,20 @@ declare_pass! {
     /// For cross-block elimination, see GVN (Global Value Numbering).
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = iadd v0, v1
-    ///     v3 = iadd v0, v1
-    ///     v4 = iadd v2, v3
+    /// function before(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.add v0, v1
+    ///     v3 = int.add v0, v1
+    ///     v4 = int.add v2, v3
     ///     return v4
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = iadd v0, v1
-    ///     v4 = iadd v2, v2
+    /// function after(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.add v0, v1
+    ///     v4 = int.add v2, v2
     ///     return v4
     /// }
     /// ```
@@ -320,17 +320,19 @@ mod tests {
     /// Identical expressions in the same block are deduplicated.
     #[test]
     fn test_eliminate_simple_redundancy() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v2, v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v2, v2
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -341,17 +343,19 @@ block0(v0: i32, v1: i32):
     /// Commutative operands are recognized as equivalent (v0 + v1 == v1 + v0).
     #[test]
     fn test_eliminate_commutative() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v1, v0
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v1, v0
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v2, v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v2, v2
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -362,21 +366,23 @@ block0(v0: i32, v1: i32):
     /// Transitive chains of redundant expressions are all eliminated.
     #[test]
     fn test_eliminate_chain() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v0, v1
-    v4: i32 = imul v2, v2
-    v5: i32 = imul v3, v3
-    v6: i32 = iadd v4, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.mul v2, v2
+    v5: int32 = int.mul v3, v3
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
-        // v3 -> v2, then v5 = imul v2, v2 = v4
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = imul v2, v2
-    v4: i32 = iadd v3, v3
+        // v3 -> v2, then v5 = int.mul v2, v2 = v4
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.mul v2, v2
+    v4: int32 = int.add v3, v3
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -387,11 +393,12 @@ block0(v0: i32, v1: i32):
     /// Constants are not CSE'd by this pass (handled by constant folding).
     #[test]
     fn test_skip_constants() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i32 = iconst 42i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
+    v1: int32 = 42int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
         // should be unchanged: constant CSE is not done by this pass
@@ -403,13 +410,14 @@ block0:
     /// Expressions are not CSE'd across basic blocks (that's GVN's job).
     #[test]
     fn test_skip_cross_block_expressions() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    jump block1
-block1:
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
         // should be unchanged: v3 is in a different block
@@ -421,11 +429,12 @@ block1:
     /// Non-commutative operations with swapped operands are distinct.
     #[test]
     fn test_distinguish_non_commutative_operands() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = isub v0, v1
-    v3: i32 = isub v1, v0
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.sub v0, v1
+    v3: int32 = int.sub v1, v0
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
         // should be unchanged: v0 - v1 != v1 - v0
@@ -437,17 +446,19 @@ block0(v0: i32, v1: i32):
     /// Unary operations are properly CSE'd.
     #[test]
     fn test_eliminate_unary() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = ineg v0
-    v2: i32 = ineg v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.negate v0
+    v2: int32 = int.negate v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = ineg v0
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.negate v0
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -458,20 +469,22 @@ block0(v0: i32):
     /// Multiple redundant expressions in sequence are all eliminated.
     #[test]
     fn test_eliminate_multiple() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v0, v1
-    v5: i32 = iadd v0, v1
-    v6: i32 = iadd v2, v5
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v0, v1
+    v6: int32 = int.add v2, v5
     return v6
 }"#;
-        // all iadd v0, v1 collapse to v2
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = iadd v2, v2
+        // all int.add v0, v1 collapse to v2
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v2, v2
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -482,17 +495,19 @@ block0(v0: i32, v1: i32):
     /// Field accesses with same base and index are CSE'd.
     #[test]
     fn test_eliminate_field_get() {
-        let input = r#"function @test(v0: (i32, i32)) -> i32 {
-block0(v0: (i32, i32)):
-    v1: i32 = field.get v0, 0
-    v2: i32 = field.get v0, 0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: (int32, int32)): int32 {
+b0(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    v2: int32 = field.get v0, 0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: (i32, i32)) -> i32 {
-block0(v0: (i32, i32)):
-    v1: i32 = field.get v0, 0
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(v0: (int32, int32)): int32 {
+b0(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -503,19 +518,21 @@ block0(v0: (i32, i32)):
     /// Redundant loads in a block are eliminated when not clobbered.
     #[test]
     fn test_eliminate_redundant_loads() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    v2: i32 = load v0
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    v2: i32 = iadd v1, v1
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    v2: int32 = int.add v1, v1
     return v2
 }"#;
 
@@ -527,14 +544,15 @@ block0:
     /// Loads are not CSE'd across clobbering stores.
     #[test]
     fn test_preserve_loads_after_store() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    v2: int32 = 1int32
     store v0, v2
-    v3: i32 = load v0
-    v4: i32 = iadd v1, v3
+    v3: int32 = load v0
+    v4: int32 = int.add v1, v3
     return v4
 }"#;
 
@@ -546,11 +564,12 @@ block0:
     /// Different field indices are not CSE'd.
     #[test]
     fn test_distinguish_different_field_indices() {
-        let input = r#"function @test(v0: (i32, i32)) -> i32 {
-block0(v0: (i32, i32)):
-    v1: i32 = field.get v0, 0
-    v2: i32 = field.get v0, 1
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: (int32, int32)): int32 {
+b0(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    v2: int32 = field.get v0, 1
+    v3: int32 = int.add v1, v2
     return v3
 }"#;
         // should be unchanged: different field indices
@@ -562,17 +581,19 @@ block0(v0: (i32, i32)):
     /// Element accesses with same base and index are CSE'd.
     #[test]
     fn test_eliminate_element_get() {
-        let input = r#"function @test(v0: [i32; 10], v1: i64) -> i32 {
-block0(v0: [i32; 10], v1: i64):
-    v2: i32 = element.get v0, v1
-    v3: i32 = element.get v0, v1
-    v4: i32 = iadd v2, v3
+        let input = r#"
+function test(v0: int32[10], v1: int64): int32 {
+b0(v0: int32[10], v1: int64):
+    v2: int32 = element.get v0, v1
+    v3: int32 = element.get v0, v1
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
-        let expected = r#"function @test(v0: [i32; 10], v1: i64) -> i32 {
-block0(v0: [i32; 10], v1: i64):
-    v2: i32 = element.get v0, v1
-    v3: i32 = iadd v2, v2
+        let expected = r#"
+function test(v0: int32[10], v1: int64): int32 {
+b0(v0: int32[10], v1: int64):
+    v2: int32 = element.get v0, v1
+    v3: int32 = int.add v2, v2
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -583,17 +604,19 @@ block0(v0: [i32; 10], v1: i64):
     /// Casts to identical types are CSE'd.
     #[test]
     fn test_eliminate_casts() {
-        let input = r#"function @test(v0: i32) -> i64 {
-block0(v0: i32):
-    v1: i64 = sextend v0 -> i64
-    v2: i64 = sextend v0 -> i64
-    v3: i64 = iadd v1, v2
+        let input = r#"
+function test(v0: int32): int64 {
+b0(v0: int32):
+    v1: int64 = cast.extend.s v0 -> int64
+    v2: int64 = cast.extend.s v0 -> int64
+    v3: int64 = int.add v1, v2
     return v3
 }"#;
-        let expected = r#"function @test(v0: i32) -> i64 {
-block0(v0: i32):
-    v1: i64 = sextend v0 -> i64
-    v2: i64 = iadd v1, v1
+        let expected = r#"
+function test(v0: int32): int64 {
+b0(v0: int32):
+    v1: int64 = cast.extend.s v0 -> int64
+    v2: int64 = int.add v1, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -604,11 +627,12 @@ block0(v0: i32):
     /// Unique expressions are preserved unchanged.
     #[test]
     fn test_preserve_unique_expressions() {
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = isub v0, v1
-    v4: i32 = imul v2, v3
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.sub v0, v1
+    v4: int32 = int.mul v2, v3
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -619,24 +643,26 @@ block0(v0: i32, v1: i32):
     /// Substitutions propagate to terminator.
     #[test]
     fn test_propagate_substitutions_to_terminator() {
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v0, v1
-    branch v2, block1(v4), block2(v4)
-block1(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v0, v1
+    branch v2, b1(v4), b2(v4)
+b1(v5: int32):
     return v5
-block2(v6: i32):
+b2(v6: int32):
     return v6
 }"#;
         // v4 -> v3, and the branch should use v3
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1(v3), block2(v3)
-block1(v4: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1(v3), b2(v3)
+b1(v4: int32):
     return v4
-block2(v5: i32):
+b2(v5: int32):
     return v5
 }"#;
         let mut test = TestProgram::new(input);
@@ -647,12 +673,13 @@ block2(v5: i32):
     /// Exact access only blocks forwarding for the accessed location.
     #[test]
     fn test_load_forwarding_respects_exact_access() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    v2: i32 = load v0
-    v3: i32 = load v0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -674,11 +701,12 @@ block0:
             None,
         );
 
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = load v0
-    v2: i32 = load v0
+        let expected = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 

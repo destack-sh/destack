@@ -30,38 +30,38 @@ declare_pass! {
     /// substitutes constant parameters and drops removable parameters.
     ///
     /// ```mir
-    /// function @callee(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = iadd v0, v1
+    /// function callee(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.add v0, v1
     ///     return v2
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 2i32
-    ///     v1 = iconst 3i32
-    ///     v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 2int32
+    ///     v1 = 3int32
+    ///     v2 = call callee(v0, v1)
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @callee(v0: i32, v1: i32) -> i32 {
-    /// block0(v0: i32, v1: i32):
-    ///     v2 = iadd v0, v1
+    /// function callee(v0: int32, v1: int32): int32 {
+    /// b0(v0: int32, v1: int32):
+    ///     v2 = int.add v0, v1
     ///     return v2
     /// }
-    /// function @callee$spec0() -> i32 {
-    /// block0:
-    ///     v0 = iconst 2i32
-    ///     v1 = iconst 3i32
-    ///     v2 = iadd v0, v1
+    /// function callee$spec0(): int32 {
+    /// b0:
+    ///     v0 = 2int32
+    ///     v1 = 3int32
+    ///     v2 = int.add v0, v1
     ///     return v2
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 2i32
-    ///     v1 = iconst 3i32
-    ///     v2 = call @callee$spec0() -> fn() -> i32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 2int32
+    ///     v1 = 3int32
+    ///     v2 = call callee$spec0()
     ///     return v2
     /// }
     /// ```
@@ -639,34 +639,36 @@ mod tests {
     /// Constant callsites are specialized into clones.
     #[test]
     fn test_argument_specialize_clones_constant_call() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let expected = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee$spec0() -> fn() -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee$spec0(): () -> int32
     return v2
 }
-function @callee$spec0() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
+function callee$spec0(): int32 {
+b0:
+    v0: int32 = 5int32
     return v0
 }"#;
 
@@ -678,34 +680,36 @@ block0:
     /// Call metadata is remapped after specialization.
     #[test]
     fn test_argument_specialize_updates_call_metadata() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let expected = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee$spec0() -> fn() -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee$spec0(): () -> int32
     return v2
 }
-function @callee$spec0() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
+function callee$spec0(): int32 {
+b0:
+    v0: int32 = 5int32
     return v0
 }"#;
 
@@ -748,17 +752,18 @@ block0:
     /// Specialization remaps memory access metadata for cloned functions.
     #[test]
     fn test_argument_specialize_remaps_memory_access_metadata() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-local0: i32 ; owned
-block0(v0: i32):
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v2: i32 = load v1
+        let input = r#"
+function callee(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v2: int32 = load v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -841,16 +846,17 @@ block0:
     /// Cold callsites do not trigger specialization with profile data.
     #[test]
     fn test_argument_specialize_skips_cold_callsite() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -869,16 +875,17 @@ block0:
     /// Missing callsite profiles prevent specialization.
     #[test]
     fn test_argument_specialize_skips_missing_callsite_profile() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -895,16 +902,17 @@ block0:
     /// Missing function profiles prevent specialization below the hot threshold.
     #[test]
     fn test_argument_specialize_skips_missing_function_profile() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -922,34 +930,36 @@ block0:
     /// Hot callsites specialize when profile data is present.
     #[test]
     fn test_argument_specialize_uses_hot_callsite() {
-        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+        let expected = r#"
+function callee(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = iconst 3i32
-    v2: i32 = call @callee$spec0() -> fn() -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = 3int32
+    v2: int32 = call callee$spec0(): () -> int32
     return v2
 }
-function @callee$spec0() -> i32 {
-block0:
-    v0: i32 = iconst 5i32
+function callee$spec0(): int32 {
+b0:
+    v0: int32 = 5int32
     return v0
 }"#;
 
@@ -968,30 +978,32 @@ block0:
     /// Required alloc size parameters are not removed.
     #[test]
     fn test_argument_specialize_keeps_alloc_size_param() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 7i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 7int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 7i32
-    v1: i32 = call @callee$spec0(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 7int32
+    v1: int32 = call callee$spec0(v0): (int32) -> int32
     return v1
 }
-function @callee$spec0(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 7i32
+function callee$spec0(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 7int32
     return v1
 }"#;
 
@@ -1006,23 +1018,24 @@ block0(v0: i32):
     /// Recursive callees are not specialized.
     #[test]
     fn test_argument_specialize_skips_recursive() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: bool = icmp_slt v0, v1
-    branch v2, block1, block2
-block1:
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b1, b2
+b1:
     return v0
-block2:
-    v3: i32 = iconst 1i32
-    v4: i32 = isub v0, v3
-    v5: i32 = call @callee(v4) -> fn(i32) -> i32
+b2:
+    v3: int32 = 1int32
+    v4: int32 = int.sub v0, v3
+    v5: int32 = call callee(v4): (int32) -> int32
     return v5
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -1034,11 +1047,12 @@ block0:
     /// Extern callees are not specialized.
     #[test]
     fn test_argument_specialize_skips_extern() {
-        let input = r#"extern function @callee(i32) -> i32
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+        let input = r#"
+extern function callee(int32): int32
+function root(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -1050,61 +1064,63 @@ block0:
     /// Specialization stops at the per function limit.
     #[test]
     fn test_argument_specialize_respects_function_limit() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iconst 4i32
-    v4: i32 = iconst 5i32
-    v5: i32 = call @callee(v0) -> fn(i32) -> i32
-    v6: i32 = call @callee(v1) -> fn(i32) -> i32
-    v7: i32 = call @callee(v2) -> fn(i32) -> i32
-    v8: i32 = call @callee(v3) -> fn(i32) -> i32
-    v9: i32 = call @callee(v4) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = 4int32
+    v4: int32 = 5int32
+    v5: int32 = call callee(v0): (int32) -> int32
+    v6: int32 = call callee(v1): (int32) -> int32
+    v7: int32 = call callee(v2): (int32) -> int32
+    v8: int32 = call callee(v3): (int32) -> int32
+    v9: int32 = call callee(v4): (int32) -> int32
     return v9
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iconst 4i32
-    v4: i32 = iconst 5i32
-    v5: i32 = call @callee$spec0() -> fn() -> i32
-    v6: i32 = call @callee$spec1() -> fn() -> i32
-    v7: i32 = call @callee$spec2() -> fn() -> i32
-    v8: i32 = call @callee$spec3() -> fn() -> i32
-    v9: i32 = call @callee(v4) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = 4int32
+    v4: int32 = 5int32
+    v5: int32 = call callee$spec0(): () -> int32
+    v6: int32 = call callee$spec1(): () -> int32
+    v7: int32 = call callee$spec2(): () -> int32
+    v8: int32 = call callee$spec3(): () -> int32
+    v9: int32 = call callee(v4): (int32) -> int32
     return v9
 }
-function @callee$spec0() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+function callee$spec0(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }
-function @callee$spec1() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
+function callee$spec1(): int32 {
+b0:
+    v0: int32 = 2int32
     return v0
 }
-function @callee$spec2() -> i32 {
-block0:
-    v0: i32 = iconst 3i32
+function callee$spec2(): int32 {
+b0:
+    v0: int32 = 3int32
     return v0
 }
-function @callee$spec3() -> i32 {
-block0:
-    v0: i32 = iconst 4i32
+function callee$spec3(): int32 {
+b0:
+    v0: int32 = 4int32
     return v0
 }"#;
 

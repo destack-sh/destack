@@ -17,47 +17,47 @@ declare_pass! {
     /// loop bodies when the guard implies the bounds check is satisfied.
     ///
     /// ```mir
-    /// function @before(v0: [i32; 4]) -> void {
-    /// block0(v0: [i32; 4]):
-    ///     v1 = iconst 0u32
-    ///     v2 = iconst 1u32
-    ///     v3 = iconst 4u32
-    ///     jump block1(v1)
-    /// block1(v4: u32):
-    ///     v5 = icmp_ult v4, v3
-    ///     branch v5, block2, block3
-    /// block2:
-    ///     v6 = icmp_ult v4, v3
-    ///     check v6, bounds.unsigned v4, v3, v0, block4, block5
-    /// block4:
-    ///     v7 = iadd v4, v2
-    ///     jump block1(v7)
-    /// block5:
+    /// function before(v0: int32[4]): void {
+    /// b0(v0: int32[4]):
+    ///     v1 = 0uint32
+    ///     v2 = 1uint32
+    ///     v3 = 4uint32
+    ///     jump b1(v1)
+    /// b1(v4: uint32):
+    ///     v5 = int.lt.u v4, v3
+    ///     branch v5, b2, b3
+    /// b2:
+    ///     v6 = int.lt.u v4, v3
+    ///     check bounds.u v4, v3, v0 -> b4, b5
+    /// b4:
+    ///     v7 = int.add v4, v2
+    ///     jump b1(v7)
+    /// b5:
     ///     unreachable
-    /// block3:
+    /// b3:
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: [i32; 4]) -> void {
-    /// block0(v0: [i32; 4]):
-    ///     v1 = iconst 0u32
-    ///     v2 = iconst 1u32
-    ///     v3 = iconst 4u32
-    ///     jump block1(v1)
-    /// block1(v4: u32):
-    ///     v5 = icmp_ult v4, v3
-    ///     branch v5, block2, block3
-    /// block2:
-    ///     v6 = icmp_ult v4, v3
-    ///     jump block4
-    /// block4:
-    ///     v7 = iadd v4, v2
-    ///     jump block1(v7)
-    /// block5:
+    /// function after(v0: int32[4]): void {
+    /// b0(v0: int32[4]):
+    ///     v1 = 0uint32
+    ///     v2 = 1uint32
+    ///     v3 = 4uint32
+    ///     jump b1(v1)
+    /// b1(v4: uint32):
+    ///     v5 = int.lt.u v4, v3
+    ///     branch v5, b2, b3
+    /// b2:
+    ///     v6 = int.lt.u v4, v3
+    ///     jump b4
+    /// b4:
+    ///     v7 = int.add v4, v2
+    ///     jump b1(v7)
+    /// b5:
     ///     unreachable
-    /// block3:
+    /// b3:
     ///     return
     /// }
     /// ```
@@ -913,46 +913,48 @@ mod tests {
     #[test]
     fn test_eliminate_loop_bounds_check() {
         // source test
-        let input = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block3
-block2:
-    v6: bool = icmp_ult v4, v3
-    check v6, bounds.unsigned v4, v3, v0, block4, block5
-block4:
-    v7: u32 = iadd v4, v2
-    jump block1(v7)
-block5:
+        let input = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b5
+b2:
+    v6: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v7: uint32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block5
-block2:
-    v6: bool = icmp_ult v4, v3
-    jump block3
-block3:
-    v7: u32 = iadd v4, v2
-    jump block1(v7)
-block4:
+        let expected = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b5
+b2:
+    v6: boolean = int.lt.u v4, v3
+    jump b3
+b3:
+    v7: uint32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -966,42 +968,44 @@ block5:
     #[test]
     fn test_preserve_pre_guard_checks() {
         // source test
-        let input = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    check v5, bounds.unsigned v4, v3, v0, block2, block5
-block2:
-    v6: u32 = iadd v4, v2
-    v7: bool = icmp_ult v6, v3
-    branch v7, block1(v6), block3
-block5:
+        let input = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b2, b3
+b2:
+    v6: uint32 = int.add v4, v2
+    v7: boolean = int.lt.u v6, v3
+    branch v7, b1(v6), b4
+b3:
     unreachable
-block3:
+b4:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    check v5, bounds.unsigned v4, v3, v0, block2, block3
-block2:
-    v6: u32 = iadd v4, v2
-    v7: bool = icmp_ult v6, v3
-    branch v7, block1(v6), block4
-block3:
+        let expected = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b2, b3
+b2:
+    v6: uint32 = int.add v4, v2
+    v7: boolean = int.lt.u v6, v3
+    branch v7, b1(v6), b4
+b3:
     unreachable
-block4:
+b4:
     return
 }"#;
 
@@ -1015,46 +1019,48 @@ block4:
     #[test]
     fn test_eliminate_ge_guard_checks() {
         // source test
-        let input = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_uge v4, v3
-    branch v5, block3, block2
-block2:
-    v6: bool = icmp_ult v4, v3
-    check v6, bounds.unsigned v4, v3, v0, block4, block5
-block4:
-    v7: u32 = iadd v4, v2
-    jump block1(v7)
-block5:
+        let input = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.ge.u v4, v3
+    branch v5, b5, b2
+b2:
+    v6: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v7: uint32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_uge v4, v3
-    branch v5, block5, block2
-block2:
-    v6: bool = icmp_ult v4, v3
-    jump block3
-block3:
-    v7: u32 = iadd v4, v2
-    jump block1(v7)
-block4:
+        let expected = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.ge.u v4, v3
+    branch v5, b5, b2
+b2:
+    v6: boolean = int.lt.u v4, v3
+    jump b3
+b3:
+    v7: uint32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1068,44 +1074,46 @@ block5:
     #[test]
     fn test_preserve_signed_negative_indices() {
         // source test
-        let input = r#"function @test(v0: [i32; 4], v1: i32) -> void {
-block0(v0: [i32; 4], v1: i32):
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_slt v4, v3
-    branch v5, block2, block3
-block2:
-    v6: bool = icmp_slt v4, v3
-    check v6, bounds.signed v4, v3, v0, block4, block5
-block4:
-    v7: i32 = iadd v4, v2
-    jump block1(v7)
-block5:
+        let input = r#"
+function test(v0: int32[4], v1: int32): void {
+b0(v0: int32[4], v1: int32):
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.lt.s v4, v3
+    branch v5, b2, b5
+b2:
+    v6: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b3, b4
+b3:
+    v7: int32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4], v1: i32) -> void {
-block0(v0: [i32; 4], v1: i32):
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_slt v4, v3
-    branch v5, block2, block5
-block2:
-    v6: bool = icmp_slt v4, v3
-    check v6, bounds.signed v4, v3, v0, block3, block4
-block3:
-    v7: i32 = iadd v4, v2
-    jump block1(v7)
-block4:
+        let expected = r#"
+function test(v0: int32[4], v1: int32): void {
+b0(v0: int32[4], v1: int32):
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.lt.s v4, v3
+    branch v5, b2, b5
+b2:
+    v6: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b3, b4
+b3:
+    v7: int32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1119,46 +1127,48 @@ block5:
     #[test]
     fn test_eliminate_forwarded_param_checks() {
         // source test
-        let input = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2(v4), block3
-block2(v6: u32):
-    v7: bool = icmp_ult v6, v3
-    check v7, bounds.unsigned v6, v3, v0, block4, block5
-block4:
-    v8: u32 = iadd v6, v2
-    jump block1(v8)
-block5:
+        let input = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2(v4), b5
+b2(v6: uint32):
+    v7: boolean = int.lt.u v6, v3
+    check bounds.u v6, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v6, v2
+    jump b1(v8)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2(v4), block5
-block2(v6: u32):
-    v7: bool = icmp_ult v6, v3
-    jump block3
-block3:
-    v8: u32 = iadd v6, v2
-    jump block1(v8)
-block4:
+        let expected = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2(v4), b5
+b2(v6: uint32):
+    v7: boolean = int.lt.u v6, v3
+    jump b3
+b3:
+    v8: uint32 = int.add v6, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1172,52 +1182,54 @@ block5:
     #[test]
     fn test_eliminate_signed_bounds_with_non_negative_guard() {
         // source test
-        let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
-block0(v0: [i32; 8], v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 8i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_sge v4, v2
-    branch v5, block2, block3
-block2:
-    v6: bool = icmp_slt v4, v3
-    branch v6, block4, block3
-block4:
-    v7: bool = icmp_slt v4, v3
-    check v7, bounds.signed v4, v3, v0, block5, block6
-block5:
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v4, v8
-    jump block1(v9)
-block6:
+        let input = r#"
+function test(v0: int32[8], v1: int32): void {
+b0(v0: int32[8], v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 8int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.ge.s v4, v2
+    branch v5, b2, b6
+b2:
+    v6: boolean = int.lt.s v4, v3
+    branch v6, b3, b6
+b3:
+    v7: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b4, b5
+b4:
+    v8: int32 = 1int32
+    v9: int32 = int.add v4, v8
+    jump b1(v9)
+b5:
     unreachable
-block3:
+b6:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8], v1: i32) -> void {
-block0(v0: [i32; 8], v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 8i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_sge v4, v2
-    branch v5, block2, block6
-block2:
-    v6: bool = icmp_slt v4, v3
-    branch v6, block3, block6
-block3:
-    v7: bool = icmp_slt v4, v3
-    jump block4
-block4:
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v4, v8
-    jump block1(v9)
-block5:
+        let expected = r#"
+function test(v0: int32[8], v1: int32): void {
+b0(v0: int32[8], v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 8int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.ge.s v4, v2
+    branch v5, b2, b6
+b2:
+    v6: boolean = int.lt.s v4, v3
+    branch v6, b3, b6
+b3:
+    v7: boolean = int.lt.s v4, v3
+    jump b4
+b4:
+    v8: int32 = 1int32
+    v9: int32 = int.add v4, v8
+    jump b1(v9)
+b5:
     unreachable
-block6:
+b6:
     return
 }"#;
 
@@ -1231,52 +1243,54 @@ block6:
     #[test]
     fn test_eliminate_signed_bounds_with_positive_guard() {
         // source test
-        let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
-block0(v0: [i32; 8], v1: i32):
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 8i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_sge v4, v2
-    branch v5, block2, block3
-block2:
-    v6: bool = icmp_slt v4, v3
-    branch v6, block4, block3
-block4:
-    v7: bool = icmp_slt v4, v3
-    check v7, bounds.signed v4, v3, v0, block5, block6
-block5:
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v4, v8
-    jump block1(v9)
-block6:
+        let input = r#"
+function test(v0: int32[8], v1: int32): void {
+b0(v0: int32[8], v1: int32):
+    v2: int32 = 2int32
+    v3: int32 = 8int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.ge.s v4, v2
+    branch v5, b2, b6
+b2:
+    v6: boolean = int.lt.s v4, v3
+    branch v6, b3, b6
+b3:
+    v7: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b4, b5
+b4:
+    v8: int32 = 1int32
+    v9: int32 = int.add v4, v8
+    jump b1(v9)
+b5:
     unreachable
-block3:
+b6:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8], v1: i32) -> void {
-block0(v0: [i32; 8], v1: i32):
-    v2: i32 = iconst 2i32
-    v3: i32 = iconst 8i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_sge v4, v2
-    branch v5, block2, block6
-block2:
-    v6: bool = icmp_slt v4, v3
-    branch v6, block3, block6
-block3:
-    v7: bool = icmp_slt v4, v3
-    jump block4
-block4:
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v4, v8
-    jump block1(v9)
-block5:
+        let expected = r#"
+function test(v0: int32[8], v1: int32): void {
+b0(v0: int32[8], v1: int32):
+    v2: int32 = 2int32
+    v3: int32 = 8int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.ge.s v4, v2
+    branch v5, b2, b6
+b2:
+    v6: boolean = int.lt.s v4, v3
+    branch v6, b3, b6
+b3:
+    v7: boolean = int.lt.s v4, v3
+    jump b4
+b4:
+    v8: int32 = 1int32
+    v9: int32 = int.add v4, v8
+    jump b1(v9)
+b5:
     unreachable
-block6:
+b6:
     return
 }"#;
 
@@ -1290,52 +1304,54 @@ block6:
     #[test]
     fn test_eliminate_signed_bounds_with_flipped_guard() {
         // source test
-        let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
-block0(v0: [i32; 8], v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 8i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_sle v2, v4
-    branch v5, block2, block3
-block2:
-    v6: bool = icmp_slt v4, v3
-    branch v6, block4, block3
-block4:
-    v7: bool = icmp_slt v4, v3
-    check v7, bounds.signed v4, v3, v0, block5, block6
-block5:
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v4, v8
-    jump block1(v9)
-block6:
+        let input = r#"
+function test(v0: int32[8], v1: int32): void {
+b0(v0: int32[8], v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 8int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.le.s v2, v4
+    branch v5, b2, b6
+b2:
+    v6: boolean = int.lt.s v4, v3
+    branch v6, b3, b6
+b3:
+    v7: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b4, b5
+b4:
+    v8: int32 = 1int32
+    v9: int32 = int.add v4, v8
+    jump b1(v9)
+b5:
     unreachable
-block3:
+b6:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8], v1: i32) -> void {
-block0(v0: [i32; 8], v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 8i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_sle v2, v4
-    branch v5, block2, block6
-block2:
-    v6: bool = icmp_slt v4, v3
-    branch v6, block3, block6
-block3:
-    v7: bool = icmp_slt v4, v3
-    jump block4
-block4:
-    v8: i32 = iconst 1i32
-    v9: i32 = iadd v4, v8
-    jump block1(v9)
-block5:
+        let expected = r#"
+function test(v0: int32[8], v1: int32): void {
+b0(v0: int32[8], v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 8int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.le.s v2, v4
+    branch v5, b2, b6
+b2:
+    v6: boolean = int.lt.s v4, v3
+    branch v6, b3, b6
+b3:
+    v7: boolean = int.lt.s v4, v3
+    jump b4
+b4:
+    v8: int32 = 1int32
+    v9: int32 = int.add v4, v8
+    jump b1(v9)
+b5:
     unreachable
-block6:
+b6:
     return
 }"#;
 
@@ -1349,47 +1365,49 @@ block6:
     #[test]
     fn test_eliminate_bounds_with_negated_guard() {
         // source test
-        let input = r#"function @test(v0: [u32; 4]) -> void {
-block0(v0: [u32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    v6: bool = bnot v5
-    branch v6, block2, block3
-block2:
+        let input = r#"
+function test(v0: uint32[4]): void {
+b0(v0: uint32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    v6: boolean = int.not v5
+    branch v6, b2, b3
+b2:
     return
-block3:
-    v7: bool = icmp_ult v4, v3
-    check v7, bounds.unsigned v4, v3, v0, block4, block5
-block4:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block5:
+b3:
+    v7: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b4, b5
+b4:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b5:
     unreachable
 }"#;
         // expected output
-        let expected = r#"function @test(v0: [u32; 4]) -> void {
-block0(v0: [u32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    v6: bool = bnot v5
-    branch v6, block2, block3
-block2:
+        let expected = r#"
+function test(v0: uint32[4]): void {
+b0(v0: uint32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    v6: boolean = int.not v5
+    branch v6, b2, b3
+b2:
     return
-block3:
-    v7: bool = icmp_ult v4, v3
-    jump block4
-block4:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block5:
+b3:
+    v7: boolean = int.lt.u v4, v3
+    jump b4
+b4:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b5:
     unreachable
 }"#;
 
@@ -1403,46 +1421,48 @@ block5:
     #[test]
     fn test_eliminate_bounds_guard_check() {
         // source test
-        let input = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    check v5, bounds.unsigned v4, v3, v0, block2, block3
-block2:
-    v6: bool = icmp_ult v4, v3
-    check v6, bounds.unsigned v4, v3, v0, block4, block5
-block4:
-    v7: u32 = iadd v4, v2
-    jump block1(v7)
-block5:
+        let input = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b2, b5
+b2:
+    v6: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v7: uint32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> void {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 4u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    check v5, bounds.unsigned v4, v3, v0, block2, block5
-block2:
-    v6: bool = icmp_ult v4, v3
-    jump block3
-block3:
-    v7: u32 = iadd v4, v2
-    jump block1(v7)
-block4:
+        let expected = r#"
+function test(v0: int32[4]): void {
+b0(v0: int32[4]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 4uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b2, b5
+b2:
+    v6: boolean = int.lt.u v4, v3
+    jump b3
+b3:
+    v7: uint32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1456,44 +1476,46 @@ block5:
     #[test]
     fn test_preserve_mismatched_signed_guard() {
         // source test
-        let input = r#"function @test(v0: [i32; 4], v1: i32) -> void {
-block0(v0: [i32; 4], v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block3
-block2:
-    v6: bool = icmp_slt v4, v3
-    check v6, bounds.signed v4, v3, v0, block4, block5
-block4:
-    v7: i32 = iadd v4, v2
-    jump block1(v7)
-block5:
+        let input = r#"
+function test(v0: int32[4], v1: int32): void {
+b0(v0: int32[4], v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b5
+b2:
+    v6: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b3, b4
+b3:
+    v7: int32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block3:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 4], v1: i32) -> void {
-block0(v0: [i32; 4], v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block5
-block2:
-    v6: bool = icmp_slt v4, v3
-    check v6, bounds.signed v4, v3, v0, block3, block4
-block3:
-    v7: i32 = iadd v4, v2
-    jump block1(v7)
-block4:
+        let expected = r#"
+function test(v0: int32[4], v1: int32): void {
+b0(v0: int32[4], v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b5
+b2:
+    v6: boolean = int.lt.s v4, v3
+    check bounds.s v4, v3, v0 -> b3, b4
+b3:
+    v7: int32 = int.add v4, v2
+    jump b1(v7)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1507,48 +1529,50 @@ block5:
     #[test]
     fn test_eliminate_guard_with_positive_offset() {
         // source test
-        let input = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = iadd v4, v2
-    v6: bool = icmp_ult v5, v3
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v4, v3
-    check v7, bounds.unsigned v4, v3, v0, block3, block4
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let input = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.add v4, v2
+    v6: boolean = int.lt.u v5, v3
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = iadd v4, v2
-    v6: bool = icmp_ult v5, v3
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v4, v3
-    jump block3
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let expected = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.add v4, v2
+    v6: boolean = int.lt.u v5, v3
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v4, v3
+    jump b3
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1562,48 +1586,50 @@ block5:
     #[test]
     fn test_preserve_check_with_positive_offset() {
         // source test
-        let input = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block5
-block2:
-    v6: u32 = iadd v4, v2
-    v7: bool = icmp_ult v6, v3
-    check v7, bounds.unsigned v6, v3, v0, block3, block4
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let input = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b5
+b2:
+    v6: uint32 = int.add v4, v2
+    v7: boolean = int.lt.u v6, v3
+    check bounds.u v6, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block5
-block2:
-    v6: u32 = iadd v4, v2
-    v7: bool = icmp_ult v6, v3
-    check v7, bounds.unsigned v6, v3, v0, block3, block4
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let expected = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b5
+b2:
+    v6: uint32 = int.add v4, v2
+    v7: boolean = int.lt.u v6, v3
+    check bounds.u v6, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1617,48 +1643,50 @@ block5:
     #[test]
     fn test_eliminate_guard_with_length_offset() {
         // source test
-        let input = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = isub v3, v2
-    v6: bool = icmp_ult v4, v5
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v4, v3
-    check v7, bounds.unsigned v4, v3, v0, block3, block4
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let input = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.sub v3, v2
+    v6: boolean = int.lt.u v4, v5
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = isub v3, v2
-    v6: bool = icmp_ult v4, v5
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v4, v3
-    jump block3
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let expected = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.sub v3, v2
+    v6: boolean = int.lt.u v4, v5
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v4, v3
+    jump b3
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
@@ -1672,48 +1700,50 @@ block5:
     #[test]
     fn test_preserve_guard_with_larger_length_offset() {
         // source test
-        let input = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = iadd v3, v2
-    v6: bool = icmp_ult v4, v5
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v4, v3
-    check v7, bounds.unsigned v4, v3, v0, block3, block4
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let input = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.add v3, v2
+    v6: boolean = int.lt.u v4, v5
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: u32 = iadd v3, v2
-    v6: bool = icmp_ult v4, v5
-    branch v6, block2, block5
-block2:
-    v7: bool = icmp_ult v4, v3
-    check v7, bounds.unsigned v4, v3, v0, block3, block4
-block3:
-    v8: u32 = iadd v4, v2
-    jump block1(v8)
-block4:
+        let expected = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: uint32 = int.add v3, v2
+    v6: boolean = int.lt.u v4, v5
+    branch v6, b2, b5
+b2:
+    v7: boolean = int.lt.u v4, v3
+    check bounds.u v4, v3, v0 -> b3, b4
+b3:
+    v8: uint32 = int.add v4, v2
+    jump b1(v8)
+b4:
     unreachable
-block5:
+b5:
     return
 }"#;
 

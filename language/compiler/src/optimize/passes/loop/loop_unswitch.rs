@@ -21,31 +21,31 @@ declare_pass! {
     /// and enabling further optimizations on each specialized copy.
     ///
     /// ```mir
-    /// function @before(v0: bool) -> void {
-    /// block0(v0: bool):
-    ///     jump block1
-    /// block1:
-    ///     branch v0, block2, block3
-    /// block2:
-    ///     jump block1
-    /// block3:
+    /// function before(v0: boolean): void {
+    /// b0(v0: boolean):
+    ///     jump b1
+    /// b1:
+    ///     branch v0, b2, b3
+    /// b2:
+    ///     jump b1
+    /// b3:
     ///     return
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool) -> void {
-    /// block0(v0: bool):
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     jump block3
-    /// block2:
+    /// function after(v0: boolean): void {
+    /// b0(v0: boolean):
+    ///     branch v0, b1, b2
+    /// b1:
+    ///     jump b3
+    /// b2:
     ///     return
-    /// block3:
-    ///     jump block1
-    /// block4:
-    ///     jump block5
-    /// block5:
+    /// b3:
+    ///     jump b1
+    /// b4:
+    ///     jump b5
+    /// b5:
     ///     return
     /// }
     /// ```
@@ -819,43 +819,45 @@ mod tests {
     /// Loop with invariant condition in header is unswitched.
     #[test]
     fn test_unswitch_invariant_branch() {
-        let input = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
-    jump block1
-block3:
-    branch v1, block1, block4
-block4:
+        let input = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
+    jump b1
+b3:
+    branch v1, b1, b4
+b4:
     return
 }"#;
         // after unswitching on v0:
         // preheader branches on v0
-        // then branch is the original loop with header jumping to block2 path
-        // else branch is the cloned loop with header jumping to block3 path
-        let expected = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    branch v0, block1, block6
-block1:
-    jump block2
-block2:
-    jump block5
-block3:
-    branch v1, block5, block4
-block4:
+        // then branch is the original loop with header jumping to b2 path
+        // else branch is the cloned loop with header jumping to b3 path
+        let expected = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    branch v0, b1, b6
+b1:
+    jump b2
+b2:
+    jump b5
+b3:
+    branch v1, b5, b4
+b4:
     return
-block5:
-    jump block1
-block6:
-    jump block8
-block7:
-    jump block9
-block8:
-    branch v1, block9, block4
-block9:
-    jump block6
+b5:
+    jump b1
+b6:
+    jump b8
+b7:
+    jump b9
+b8:
+    branch v1, b9, b4
+b9:
+    jump b6
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -867,40 +869,42 @@ block9:
     #[test]
     fn test_unswitch_creates_two_loops() {
         // loop where both branches stay in loop, with different bodies
-        let input = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
-    branch v1, block1, block4
-block3:
-    branch v1, block1, block4
-block4:
+        let input = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
+    branch v1, b1, b4
+b3:
+    branch v1, b1, b4
+b4:
     return
 }"#;
         // after unswitching: two loops, one always taking block2 path, one always taking block3 path
-        let expected = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    branch v0, block1, block6
-block1:
-    jump block2
-block2:
-    branch v1, block5, block4
-block3:
-    branch v1, block5, block4
-block4:
+        let expected = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    branch v0, b1, b6
+b1:
+    jump b2
+b2:
+    branch v1, b5, b4
+b3:
+    branch v1, b5, b4
+b4:
     return
-block5:
-    jump block1
-block6:
-    jump block8
-block7:
-    branch v1, block9, block4
-block8:
-    branch v1, block9, block4
-block9:
-    jump block6
+b5:
+    jump b1
+b6:
+    jump b8
+b7:
+    branch v1, b9, b4
+b8:
+    branch v1, b9, b4
+b9:
+    jump b6
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -911,19 +915,20 @@ block9:
     /// Loop with variant condition is preserved.
     #[test]
     fn test_preserve_variant_condition() {
-        let input = r#"function @test(v0: i32, v1: bool) -> void {
-block0(v0: i32, v1: bool):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    v4: i32 = iconst 10i32
-    v5: bool = icmp_slt v3, v4
-    branch v5, block2, block4
-block2:
-    v6: i32 = iconst 1i32
-    v7: i32 = iadd v3, v6
-    jump block1(v7)
-block4:
+        let input = r#"
+function test(v0: int32, v1: boolean): void {
+b0(v0: int32, v1: boolean):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    v4: int32 = 10int32
+    v5: boolean = int.lt.s v3, v4
+    branch v5, b2, b3
+b2:
+    v6: int32 = 1int32
+    v7: int32 = int.add v3, v6
+    jump b1(v7)
+b3:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -936,31 +941,33 @@ block4:
     /// Loop with invariant branch NOT in header is still unswitched.
     #[test]
     fn test_unswitch_non_header_branch() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    jump block2
-block2:
-    branch v0, block1, block3
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    jump b2
+b2:
+    branch v0, b1, b3
+b3:
     return
 }"#;
         // branch is in block2 (not header), but v0 is invariant
         // unswitch on the non header branch
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block4
-block1:
-    jump block2
-block2:
-    jump block1
-block3:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b4
+b1:
+    jump b2
+b2:
+    jump b1
+b3:
     return
-block4:
-    jump block5
-block5:
-    jump block3
+b4:
+    jump b5
+b5:
+    jump b3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -971,14 +978,15 @@ block5:
     /// Loop where both branch targets exit is preserved.
     #[test]
     fn test_preserve_both_targets_exit() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
     return
-block3:
+b3:
     return
 }"#;
         let mut test = TestProgram::new(input);
@@ -992,14 +1000,15 @@ block3:
     #[test]
     fn test_preserve_same_branch_targets() {
         // all branches in the loop have identical targets (effectively jumps)
-        let input = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1
-block1:
-    branch v0, block2, block2
-block2:
-    branch v1, block1, block1
-block3:
+        let input = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1
+b1:
+    branch v0, b2, b2
+b2:
+    branch v1, b1, b1
+b3:
     return
 }"#;
         // no unswitchable branch: both have same targets
@@ -1013,31 +1022,33 @@ block3:
     /// Non header branch is unswitched when header branch has same targets.
     #[test]
     fn test_unswitch_skips_same_targets_finds_other() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block2, block2
-block2:
-    branch v0, block1, block3
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b2, b2
+b2:
+    branch v0, b1, b3
+b3:
     return
 }"#;
         // block1's branch has same targets (skipped)
         // block2's branch has different targets and invariant condition (unswitched)
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block4
-block1:
-    branch v0, block2, block2
-block2:
-    jump block1
-block3:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b4
+b1:
+    branch v0, b2, b2
+b2:
+    jump b1
+b3:
     return
-block4:
-    branch v0, block5, block5
-block5:
-    jump block3
+b4:
+    branch v0, b5, b5
+b5:
+    jump b3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -1048,10 +1059,11 @@ block5:
     /// Function without loops is unchanged.
     #[test]
     fn test_preserve_no_loops() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -1062,57 +1074,59 @@ block0(v0: i32):
     /// Loop with block parameters is unswitched correctly.
     #[test]
     fn test_unswitch_with_parameters() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 0i32
-    jump block1(v2)
-block1(v3: i32):
-    branch v0, block2(v3), block3(v3)
-block2(v4: i32):
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v4, v5
-    jump block1(v6)
-block3(v7: i32):
-    v8: i32 = iconst 2i32
-    v9: i32 = iadd v7, v8
-    v10: bool = icmp_slt v9, v1
-    branch v10, block1(v9), block4(v9)
-block4(v11: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 0int32
+    jump b1(v2)
+b1(v3: int32):
+    branch v0, b2(v3), b3(v3)
+b2(v4: int32):
+    v5: int32 = 1int32
+    v6: int32 = int.add v4, v5
+    jump b1(v6)
+b3(v7: int32):
+    v8: int32 = 2int32
+    v9: int32 = int.add v7, v8
+    v10: boolean = int.lt.s v9, v1
+    branch v10, b1(v9), b4(v9)
+b4(v11: int32):
     return v11
 }"#;
         // block parameters are correctly remapped in cloned loop
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iconst 0i32
-    branch v0, block1(v2), block6(v2)
-block1(v3: i32):
-    jump block2(v3)
-block2(v4: i32):
-    v5: i32 = iconst 1i32
-    v6: i32 = iadd v4, v5
-    jump block5(v6)
-block3(v7: i32):
-    v8: i32 = iconst 2i32
-    v9: i32 = iadd v7, v8
-    v10: bool = icmp_slt v9, v1
-    branch v10, block5(v9), block4(v9)
-block4(v11: i32):
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = 0int32
+    branch v0, b1(v2), b6(v2)
+b1(v3: int32):
+    jump b2(v3)
+b2(v4: int32):
+    v5: int32 = 1int32
+    v6: int32 = int.add v4, v5
+    jump b5(v6)
+b3(v7: int32):
+    v8: int32 = 2int32
+    v9: int32 = int.add v7, v8
+    v10: boolean = int.lt.s v9, v1
+    branch v10, b5(v9), b4(v9)
+b4(v11: int32):
     return v11
-block5(v12: i32):
-    jump block1(v12)
-block6(v13: i32):
-    jump block8(v13)
-block7(v14: i32):
-    v15: i32 = iconst 1i32
-    v16: i32 = iadd v14, v15
-    jump block9(v16)
-block8(v17: i32):
-    v18: i32 = iconst 2i32
-    v19: i32 = iadd v17, v18
-    v20: bool = icmp_slt v19, v1
-    branch v20, block9(v19), block4(v19)
-block9(v21: i32):
-    jump block6(v21)
+b5(v12: int32):
+    jump b1(v12)
+b6(v13: int32):
+    jump b8(v13)
+b7(v14: int32):
+    v15: int32 = 1int32
+    v16: int32 = int.add v14, v15
+    jump b9(v16)
+b8(v17: int32):
+    v18: int32 = 2int32
+    v19: int32 = int.add v17, v18
+    v20: boolean = int.lt.s v19, v1
+    branch v20, b9(v19), b4(v19)
+b9(v21: int32):
+    jump b6(v21)
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -1123,29 +1137,31 @@ block9(v21: i32):
     /// Loop header parameters can be rewritten to preheader arguments.
     #[test]
     fn test_unswitch_header_param_condition() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block2, block3
-block2:
-    jump block1(v1)
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1(v0)
+b1(v1: boolean):
+    branch v1, b2, b3
+b2:
+    jump b1(v1)
+b3:
     return
 }"#;
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1(v0), block4(v0)
-block1(v1: bool):
-    jump block2
-block2:
-    jump block1(v1)
-block3:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1(v0), b4(v0)
+b1(v1: boolean):
+    jump b2
+b2:
+    jump b1(v1)
+b3:
     return
-block4(v2: bool):
-    jump block3
-block5:
-    jump block4(v2)
+b4(v2: boolean):
+    jump b3
+b5:
+    jump b4(v2)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1157,30 +1173,32 @@ block5:
     /// Loop checks with invariant condition are unswitched.
     #[test]
     fn test_unswitch_check_terminator() {
-        let input = r#"function @test(v0: bool, v1: u32, v2: [u8; 8]) -> void {
-block0(v0: bool, v1: u32, v2: [u8; 8]):
-    jump block1(v1)
-block1(v3: u32):
-    check v0, bounds.unsigned v3, v1, v2, block2, block3
-block2:
-    jump block1(v3)
-block3:
+        let input = r#"
+function test(v0: boolean, v1: uint32, v2: uint8[8]): void {
+b0(v0: boolean, v1: uint32, v2: uint8[8]):
+    jump b1(v1)
+b1(v3: uint32):
+    check bounds.u v3, v1, v2 -> b2, b3
+b2:
+    jump b1(v3)
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: bool, v1: u32, v2: [u8; 8]) -> void {
-block0(v0: bool, v1: u32, v2: [u8; 8]):
-    check v0, bounds.unsigned v1, v1, v2, block1(v1), block4(v1)
-block1(v3: u32):
-    jump block2
-block2:
-    jump block1(v3)
-block3:
+        let expected = r#"
+function test(v0: boolean, v1: uint32, v2: uint8[8]): void {
+b0(v0: boolean, v1: uint32, v2: uint8[8]):
+    check bounds.u v1, v1, v2 -> b1(v1), b4(v1)
+b1(v3: uint32):
+    jump b2
+b2:
+    jump b1(v3)
+b3:
     return
-block4(v4: u32):
-    jump block3
-block5:
-    jump block4(v4)
+b4(v4: uint32):
+    jump b3
+b5:
+    jump b4(v4)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1192,34 +1210,36 @@ block5:
     /// Loop conditions computed in the header can be hoisted to the preheader.
     #[test]
     fn test_unswitch_hoists_header_condition() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    v1: bool = select v0, v0, v0
-    branch v1, block2, block3
-block2:
-    jump block1
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    v1: boolean = select v0, v0, v0
+    branch v1, b2, b3
+b2:
+    jump b1
+b3:
     return
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    v1: bool = select v0, v0, v0
-    branch v1, block1, block4
-block1:
-    v2: bool = select v0, v0, v0
-    jump block2
-block2:
-    jump block1
-block3:
+        let expected = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    v1: boolean = select v0, v0, v0
+    branch v1, b1, b4
+b1:
+    v2: boolean = select v0, v0, v0
+    jump b2
+b2:
+    jump b1
+b3:
     return
-block4:
-    v3: bool = select v0, v0, v0
-    jump block3
-block5:
-    jump block4
+b4:
+    v3: boolean = select v0, v0, v0
+    jump b3
+b5:
+    jump b4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1234,20 +1254,21 @@ block5:
         // create a loop with > MAX_LOOP_SIZE (50) instructions
         let mut instructions = String::new();
         for i in 0..60 {
-            instructions.push_str(&format!("    v{}: i32 = iconst {}i32\n", i + 2, i));
+            instructions.push_str(&format!("    v{}: int32 = {}int32\n", i + 2, i));
         }
 
         let input = format!(
-            r#"function @test(v0: bool, v1: bool) -> void {{
-block0(v0: bool, v1: bool):
-    jump block1
-block1:
-{instructions}    branch v0, block2, block3
-block2:
-    branch v1, block1, block4
-block3:
+            r#"
+function test(v0: boolean, v1: boolean): void {{
+b0(v0: boolean, v1: boolean):
+    jump b1
+b1:
+{instructions}    branch v0, b2, b3
+b2:
+    branch v1, b1, b4
+b3:
     return
-block4:
+b4:
     return
 }}"#
         );
@@ -1261,45 +1282,47 @@ block4:
     /// Inner loop is unswitched first, then an outer loop may also unswitch.
     #[test]
     fn test_unswitch_inner_loop_first() {
-        let input = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    jump block1
-block1:
-    jump block2
-block2:
-    branch v0, block3, block4
-block3:
-    jump block2
-block4:
-    branch v1, block1, block5
-block5:
+        let input = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    jump b1
+b1:
+    jump b2
+b2:
+    branch v0, b3, b4
+b3:
+    jump b2
+b4:
+    branch v1, b1, b5
+b5:
     return
 }"#;
         // inner loop block2 to block3 is unswitched on v0
         // the outer loop may also unswitch in a subsequent iteration
-        let expected = r#"function @test(v0: bool, v1: bool) -> void {
-block0(v0: bool, v1: bool):
-    branch v0, block1, block8
-block1:
-    jump block2
-block2:
-    jump block3
-block3:
-    jump block2
-block4:
-    branch v1, block1, block5
-block5:
+        let expected = r#"
+function test(v0: boolean, v1: boolean): void {
+b0(v0: boolean, v1: boolean):
+    branch v0, b1, b8
+b1:
+    jump b2
+b2:
+    jump b3
+b3:
+    jump b2
+b4:
+    branch v1, b1, b5
+b5:
     return
-block6:
-    jump block4
-block7:
-    jump block6
-block8:
-    jump block10
-block9:
-    branch v1, block8, block5
-block10:
-    jump block9
+b6:
+    jump b4
+b7:
+    jump b6
+b8:
+    jump b10
+b9:
+    branch v1, b8, b5
+b10:
+    jump b9
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -1310,15 +1333,16 @@ block10:
     /// Constant conditions are not unswitched.
     #[test]
     fn test_unswitch_skips_constant_condition() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: bool = iconst true
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
-    jump block1
-block3:
+        let input = r#"
+function test(): void {
+b0:
+    v0: boolean = true
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
+    jump b1
+b3:
     return
 }"#;
 
@@ -1331,14 +1355,15 @@ block3:
     /// Cold branches are not unswitched when profile data is available.
     #[test]
     fn test_unswitch_skips_cold_branch_with_profile() {
-        let input = r#"function @test(v0: bool) -> void {
-block0(v0: bool):
-    jump block1
-block1:
-    branch v0, block2, block3
-block2:
-    jump block1
-block3:
+        let input = r#"
+function test(v0: boolean): void {
+b0(v0: boolean):
+    jump b1
+b1:
+    branch v0, b2, b3
+b2:
+    jump b1
+b3:
     return
 }"#;
 

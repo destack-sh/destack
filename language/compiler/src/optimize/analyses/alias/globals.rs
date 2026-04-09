@@ -250,13 +250,14 @@ mod tests {
     #[test]
     fn test_different_globals_no_alias() {
         let program = TestProgram::new(
-            r#"global @g1: i32 = 0i32
-global @g2: i32 = 0i32
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g1
-    v1: ref<raw addrspace(global) i32> = global.addr @g2
-    v2: i32 = iconst 1i32
+            r#"
+global g1: int32 = 0int32
+global g2: int32 = 0int32
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g1
+    v1: ref<int32, raw, addressSpace(global)> = global.address g2
+    v2: int32 = 1int32
     store v0, v2
     store v1, v2
     return
@@ -276,11 +277,12 @@ block0:
     #[test]
     fn test_same_global_may_alias() {
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g
-    v1: ref<raw addrspace(global) i32> = global.addr @g
+            r#"
+global g: int32 = 0int32
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v1: ref<int32, raw, addressSpace(global)> = global.address g
     return
 }"#,
         );
@@ -298,11 +300,12 @@ block0:
     #[test]
     fn test_global_read_tracking() {
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g
-    v1: i32 = load v0
+            r#"
+global g: int32 = 0int32
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v1: int32 = load v0
     return v1
 }"#,
         );
@@ -320,11 +323,12 @@ block0:
     #[test]
     fn test_global_write_tracking() {
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g
-    v1: i32 = iconst 42i32
+            r#"
+global g: int32 = 0int32
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v1: int32 = 42int32
     store v0, v1
     return
 }"#,
@@ -343,12 +347,13 @@ block0:
     fn test_global_address_taken_via_call() {
         // global address passed to call makes it escape
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-extern function @external(ref<raw i32>) -> void
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g
-    call @external(v0) -> fn(ref<raw i32>) -> void
+            r#"
+global g: int32 = 0int32
+extern function external(ref<int32, raw>): void
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    call external(v0): (ref<int32, raw>) -> void
     return
 }"#,
         );
@@ -372,10 +377,11 @@ block0:
     fn test_global_address_taken_via_store() {
         // global address stored to memory makes it escape
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-function @test(v0: ref<raw ref<raw i32>>) -> void {
-block0(v0: ref<raw ref<raw i32>>):
-    v1: ref<raw addrspace(global) i32> = global.addr @g
+            r#"
+global g: int32 = 0int32
+function test(v0: ref<ref<int32, raw>, raw>): void {
+b0(v0: ref<ref<int32, raw>, raw>):
+    v1: ref<int32, raw, addressSpace(global)> = global.address g
     store v0, v1
     return
 }"#,
@@ -395,11 +401,12 @@ block0(v0: ref<raw ref<raw i32>>):
     fn test_global_address_taken_may_alias_non_global() {
         // when global's address is taken, non-global pointer may alias it
         let program = TestProgram::new(
-            r#"global @g: i32 = 0i32
-function @test(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
-    v1: ref<raw addrspace(global) i32> = global.addr @g
-    v2: i32 = iconst 42i32
+            r#"
+global g: int32 = 0int32
+function test(v0: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>):
+    v1: ref<int32, raw, addressSpace(global)> = global.address g
+    v2: int32 = 42int32
     store v1, v2
     return
 }"#,
@@ -412,7 +419,7 @@ block0(v0: ref<raw i32>):
         let loc_param = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc_global = MemoryLocation::from_ptr(mir::Value::new(1));
 
-        // global address is taken (via global.addr), so param may alias it
+        // global address is taken (via global.address), so param may alias it
         assert_eq!(
             aa.alias(&loc_param, &loc_global, &program.tree),
             AliasResult::MayAlias
@@ -423,13 +430,14 @@ block0(v0: ref<raw i32>):
     fn test_global_field_access() {
         // accessing field of global should still track it
         let program = TestProgram::new(
-            r#"type @Point = { i32, i32 }
-global @g: @Point = { 0i32, 0i32 }
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) @Point> = global.addr @g
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: i32 = iconst 42i32
+            r#"
+type Point { int32, int32 }
+global g: Point = { 0int32, 0int32 }
+function test(): void {
+b0:
+    v0: ref<Point, raw, addressSpace(global)> = global.address g
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: int32 = 42int32
     store v1, v2
     return
 }"#,
@@ -441,7 +449,7 @@ block0:
 
         let global_id = program.tree.iter_nodes::<mir::Global>().next().unwrap().0;
 
-        // writing through field.addr of global.addr counts as write
+        // writing through field.address of global.address counts as write
         assert!(aa.writes_global(global_id));
     }
 }

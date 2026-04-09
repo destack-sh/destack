@@ -213,7 +213,7 @@ We use a human-readable scheme (inspired by Rust and Zig):
 
 **Examples:**
 ```mir
-@std.collections.Map.get__string__i32__h7f9a3e1     // Map<string, i32>.get()
+@std.collections.Map.get__string__i32__h7f9a3e1     // Map<string, int32>.get()
 @myapp.models.User.getName__h1b2c3d4                // User.getName()
 @myapp.utils.identity__Point__h2c3d4e5              // identity<Point>()
 @core.ops.Add.add__Vec2__Vec2__h3d4e5f6             // Vec2's Add<Vec2>.add()
@@ -252,7 +252,7 @@ a + b  // builtin resolution -> int32 + int32
 
 Lowers to:
 ```mir
-v2 = iadd v0, v1
+v2 = int.add v0, v1
 ```
 
 #### Static Resolution
@@ -267,7 +267,7 @@ user.getName()  // static resolution, non-virtual
 
 Lowers to:
 ```mir
-v1 = call @User.getName(v0)
+v1 = call User.getName(v0) : fn(User) -> String
 ```
 
 **Virtual dispatch** (virtual method on class or interface):
@@ -277,7 +277,7 @@ node.update(delta)  // static resolution { target: Node::update }, but virtual
 
 Lowers to explicit virtual dispatch:
 ```mir
-call.virtual v0, @Node, 2(delta) -> fn(i32) -> void
+call.virtual v0, Node, 2(delta) : fn(ref<Node, managed, readonly>, int32) -> void
 ```
 
 Lower keeps dispatch as `call.virtual` so optimizer and devirtualization passes can reason about it directly.
@@ -365,7 +365,7 @@ TypeScript has both `null` and `undefined`, and native lowering preserves the di
 A union of a single reference type and `null` lowers to a nullable reference:
 ```ds
 type MaybeRef<T> = T | null  // T is a reference type
-// layout: ref?<managed readonly T>
+// layout: ref?<T, managed, readonly>
 ```
 
 All other unions that include `null` or `undefined` lower to tagged union layouts:
@@ -500,14 +500,14 @@ String equality (`===`) is always value comparison, never reference comparison.
 
 Lowers to string concatenation:
 ```mir
-type @string = ref<struct readonly { u32, u32, u64, u32, u32, *u8 }>
+type string = ref<struct readonly { uint32, uint32, uint64, uint32, uint32, *uint8 }>
 
-function @template_example(v0: @string) -> @string {
-block0(v0: @string):
-    v1 = global.const @str_Hello
-    v2 = call @string.concat(v1, v0)
-    v3 = global.const @str_Bang
-    v4 = call @string.concat(v2, v3)
+function template_example(v0: string): string {
+bb0(v0: string):
+    v1 = global.const str_Hello
+    v2 = call string.concat(v1, v0) : fn(string, string) -> string
+    v3 = global.const str_Bang
+    v4 = call string.concat(v2, v3) : fn(string, string) -> string
     return v4
 }
 ```
@@ -527,7 +527,7 @@ We also support fixed-size arrays which are more like Rust arrays / slices:
 | Pattern | MIR Type | Notes |
 |---------|----------|-------|
 | `T[N]` | `Type::Array { element, length: N }` | Inline, value semantics |
-| `T[]` | `ref<managed readonly @Array<T>>` | Heap, reference semantics |
+| `T[]` | `ref<Array<T>, managed, readonly>` | Heap, reference semantics |
 | `TypedArray` | `Type::Reference(kind: Raw)` to buffer | Direct memory access |
 
 **Important:** `T[]` is NOT `Array<unknown>`. After monomorphization, we know T.
@@ -540,7 +540,7 @@ v2 = field.get v0, 2        ; get data pointer
 v3 = element.get v2, v1     ; load element at index
 
 ; a.push(x) where x is v4
-call @Array.push(v0, v4)
+call Array.push(v0, v4) : fn(ref<Array, managed>, Element) -> void
 
 ; a.length
 v5 = field.get v0, 1        ; load length field
@@ -851,7 +851,7 @@ When contextual typing assigns the union type to a concrete expression, Lower us
 
    ```ds
    type MaybeString = string | null
-   // layout: ref?<managed readonly string>
+   // layout: ref?<string, managed, readonly>
    ```
 
 2. **Inline tagged** - Total size ≤ 2×pointer_size (16 bytes on 64-bit).
@@ -1062,7 +1062,7 @@ This inheritance-preserving order ensures:
 **Virtual call lowering:**
 ```mir
 ; node.update(delta) where node could be Node or Sprite
-call.virtual v0, @Node, 2(delta) -> fn(i32) -> void
+call.virtual v0, Node, 2(delta) : fn(ref<Node, managed, readonly>, float32) -> void
 ```
 
 Lower preserves this as virtual dispatch in MIR.
@@ -1082,12 +1082,12 @@ class Sprite extends Node {
 
 Lowers to:
 ```mir
-type @Sprite = struct { ref<raw readonly void>, ref<string>, ref<Texture> }
+type Sprite = struct { ref<void, raw, readonly>, ref<string>, ref<Texture> }
 
-function @Sprite.update(v0: ref<@Sprite>, delta: f32) -> void {
-block0(v0: ref<@Sprite>, delta: f32):
-    call @Node.update(v0, delta)   ; direct call, no vtable lookup
-    call @Sprite.animate(v0, delta)
+function Sprite.update(v0: ref<Sprite>, delta: float32): void {
+bb0(v0: ref<Sprite>, delta: float32):
+    call Node.update(v0, delta) : fn(ref<Sprite>, float32) -> void   ; direct call, no vtable lookup
+    call Sprite.animate(v0, delta) : fn(ref<Sprite>, float32) -> void
     return
 }
 ```
@@ -1160,11 +1160,11 @@ function render(d: Drawable) { d.draw(); }
 
 Lowers to:
 ```mir
-type @Drawable = struct { ref<raw readonly void>, usize }
+type Drawable = struct { ref<void, raw, readonly>, usize }
 
-function @render(v0: ref<raw readonly @Drawable>) -> void {
-block0(v0: ref<raw readonly @Drawable>):
-    call.interface v0, @Drawable, 1() -> fn() -> void
+function render(v0: ref<Drawable, raw, readonly>): void {
+bb0(v0: ref<Drawable, raw, readonly>):
+    call.interface v0, Drawable, 1() : fn(Drawable) -> void
     return
 }
 ```
@@ -1257,19 +1257,19 @@ v.magnitude();  // direct call
 
 Lowers to:
 ```mir
-function @Vector2_ext.magnitude(v0: ref<@Vector2>) -> f64 {
-block0(v0: ref<@Vector2>):
+function Vector2_ext.magnitude(v0: ref<Vector2>): float64 {
+bb0(v0: ref<Vector2>):
     v1 = field.get v0, 0       ; load x
     v2 = field.get v0, 1       ; load y
-    v3 = fmul v1, v1
-    v4 = fmul v2, v2
-    v5 = fadd v3, v4
+    v3 = float.mul v1, v1
+    v4 = float.mul v2, v2
+    v5 = float.add v3, v4
     v6 = intrinsic.sqrt(v5)
     return v6
 }
 
 ; call site: v.magnitude()
-v1 = call @Vector2_ext.magnitude(v0)
+v1 = call Vector2_ext.magnitude(v0) : fn(ref<Vector2>) -> float64
 ```
 
 Extension methods are resolved statically at compile time based on the receiver type.
@@ -1342,18 +1342,18 @@ The current native or VM managed heap is one backend for that contract, not the 
 WasmGC is another valid lowering target for the same MIR `managed` semantics.
 
 ```mir
-type @Point = struct { f32, f32 }
+type Point = struct { float32, float32 }
 
-function @alloc_example() -> ref<managed readonly @Point> {
-block0:
-    v0 = managed.alloc @Point -> ref<managed readonly @Point>
+function alloc_example(): ref<Point, managed, readonly> {
+bb0:
+    v0 = managed.alloc Point -> ref<Point, managed, readonly>
     return v0
 }
 ```
 
-**Write barriers:** Lower automatically inserts `Intrinsic::GcWriteBarrier` for managed heap edge updates when the target collector requires it.
+**Write barriers:** Lower automatically inserts `Intrinsic::WriteBarrier` for managed heap edge updates when the target collector requires it.
 The runtime uses this for concurrent marking.
-See [INTRINSICS.md](INTRINSICS.md#garbage-collection) for details.
+See [the MIR intrinsic reference](../../mir/README.md#intrinsics) for details.
 
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
@@ -1383,9 +1383,9 @@ Managed reference representation is a target and runtime policy, not a separate 
 By default, managed references use pointer width (`usize`) in native layouts.
 That machine word may be a direct pointer, compressed handle, object table index, page directory locator, or another equivalent runtime managed representation.
 Pointer compression can be enabled for managed references, typically as 32-bit handles into a bounded managed heap window.
-The MIR type remains `ref<managed ...>` either way.
-Both `ref<managed T>` and `ref<managed readonly T>` are first-class and Lower preserves mutability information from DIR.
-Owned handles follow the same rule: both `ref<owned T>` and `ref<owned readonly T>` are representable.
+The MIR type remains `ref<T, managed, ...>` either way.
+Both `ref<T, managed>` and `ref<T, managed, readonly>` are first-class and Lower preserves mutability information from DIR.
+Owned handles follow the same rule: both `ref<T, owned>` and `ref<T, owned, readonly>` are representable.
 Raw, borrowed, and owned references stay pointer-width because they participate in unsafe operations and FFI ABIs.
 
 #### Raw Allocation
@@ -1394,9 +1394,9 @@ Raw, borrowed, and owned references stay pointer-width because they participate 
 Cleanup uses `raw.drop` (ownership end + deallocate) or `raw.free` (manual deallocate).
 
 ```mir
-type @SomeType = struct { i64 }
+type SomeType = struct { int64 }
 
-v0 = raw.alloc @SomeType -> ref<raw readonly @SomeType>
+v0 = raw.alloc SomeType -> ref<SomeType, raw, readonly>
 ; ... use v0 ...
 raw.drop v0    ; ownership end + deallocate
 ```
@@ -1404,7 +1404,7 @@ raw.drop v0    ; ownership end + deallocate
 For manual deallocation without ownership drop semantics (FFI, low-level code):
 
 ```mir
-v0 = raw.alloc @SomeType -> ref<raw readonly @SomeType>
+v0 = raw.alloc SomeType -> ref<SomeType, raw, readonly>
 ; ... use v0 ...
 raw.free v0    ; just deallocate
 ```
@@ -1419,9 +1419,9 @@ In debug builds, a tracing allocator (like Zig's) can detect leaks, double-frees
 Cleanup uses `stack.drop` for ownership end; deallocation happens automatically when the frame exits.
 
 ```mir
-type @SomeType = struct { i64 }
+type SomeType = struct { int64 }
 
-v0 = stack.alloc @SomeType -> ref<raw addrspace(stack) readonly @SomeType>
+v0 = stack.alloc SomeType -> ref<SomeType, raw, readonly, addressSpace(stack)>
 ; ... use v0 ...
 stack.drop v0    ; ownership end only, frame handles memory
 ```
@@ -1530,20 +1530,20 @@ function mutate(data: &Point) { ... } // mutable reference
 
 Lowers to (conceptual):
 ```mir
-type @Point = struct { f32, f32 }
+type Point = struct { float32, float32 }
 
-function @process(v0: ref<borrowed readonly @Point>) -> void { ... }
-function @mutate(v0: ref<borrowed @Point>) -> void { ... }
+function process(v0: ref<Point, borrowed, readonly>): void { ... }
+function mutate(v0: ref<Point, borrowed>): void { ... }
 ```
 
 Lower treats locals, `this`, globals, and member or index access as addressable places for `&expr`.
-Non addressable expressions are materialized into a temporary local before `local.addr` is emitted.
+Non addressable expressions are materialized into a temporary local before `local.address` is emitted.
 If the borrow target is a member or index on a reference-like base, Lower uses the base value directly and avoids a spill.
-Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
+Borrowing subfields lowers to explicit address projections (`field.address`, `element.address`).
 For movable managed storage, borrowed addresses are only required to remain valid within the proven borrow lifetime.
 Backends may rematerialize those addresses across safepoints or require pinning when code needs stable raw exposure.
 Borrowed references are verified by the borrow check pass in Optimize.
-Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
+Borrows are created by `field.address`, `element.address`, and by calls that return borrowed references with lifetimes.
 A borrow ends when the reference value is no longer live.
 Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
 Dropping or freeing a value while it is borrowed is always an error.
@@ -1553,7 +1553,7 @@ In lenient mode, the same situations produce warnings.
 #### Raw pointers
 
 `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
-They lower directly to `ref<raw T>` and `ref<raw readonly T>`.
+They lower directly to `ref<T, raw>` and `ref<T, raw, readonly>`.
 Deref and mutation use explicit `load`/`store` and pointer operations.
 Conversions between borrowed references and raw pointers are explicit.
 Address sensitive APIs, FFI boundaries, and layout critical code should use raw pointers directly or request pinned managed storage.
@@ -1564,7 +1564,7 @@ Lower preserves address space annotations on references for native and accelerat
 The default address space is `generic`.
 Non generic address spaces are only valid for borrowed and raw references.
 `constant` references are always immutable.
-Address space changes are explicit and use the `addrspace.cast` intrinsic.
+Address space changes are explicit and use the `addressSpace.cast` intrinsic.
 
 #### Borrow Modes
 
@@ -1594,7 +1594,7 @@ The MIR function value pairs the function pointer with the environment:
 - `fnPtr: FunctionPointer`
 - `env: ManagedReference<FunctionEnvironment>`
 
-In MIR text this uses `fnvalue<fn(...) -> ..., env_type>` for the callable value type.
+In MIR text this uses `closure(...) -> ...` for the callable value type.
 
 **Capture semantics:**
 - `const` bindings are captured by value (copied into closure struct)
@@ -1608,7 +1608,7 @@ The struct is alignment-packed to minimize size.
 Interior pointers are used for reference captures.
 
 The closure body reads its environment via `function.environment`.
-Closure calls use a `fnvalue<fn(...) -> ..., env_type>` callable value with `call.indirect`.
+Closure calls use a `closure(...) -> ...` callable value with `call.indirect`.
 Direct calls to the original function do not carry an environment.
 
 ### Copy Elision and Move Semantics
@@ -1687,7 +1687,7 @@ Lowers to early return on error.
 `throw` is represented explicitly in MIR as exceptional control flow.
 Destack remains `Result` first, and panic paths are still expected to be rare.
 The architectural target for native code is real exceptional control flow with explicit normal and unwind successors in MIR, even when a particular backend or runtime path still rejects or simplifies parts of that model during bring-up.
-`trap abort` and `trap panic` remain the fatal control-flow forms for unrecoverable runtime termination.
+`trap.abort` and `trap.panic` remain the fatal control-flow forms for unrecoverable runtime termination.
 
 ### Coroutines: Async & Generators
 

@@ -2,7 +2,7 @@ use destack_vm::Value;
 
 use crate::TestProgram;
 
-/// Verify non-capturing closures lower to function.addr + empty env.
+/// Verify non-capturing closures lower to function.address plus an empty environment.
 #[test]
 fn test_lower_closure_without_captures() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -28,28 +28,24 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32>
-
-function @makeIdentity() -> @fn#param.int32#return.int32 {
-block0:
-    v0: ref?<managed {  }> = iconst null
-    v1: fnvalue<fn(i32) -> i32> = function.value @makeIdentity.lambda#7, v0
+type fn#param.int32#return.int32 closure(int32) -> int32
+function makeIdentity(): fn#param.int32#return.int32 {
+b0:
+    v0: ref?<{  }, managed> = null
+    v1: closure(int32) -> int32 = function.bind makeIdentity.lambda#7, v0
     return v1
 }
-
-#[environment(ref?<managed {  }>)]
-function @makeIdentity.lambda#7(v0: i32) -> i32 {
-block0(v0: i32):
+@environment(ref?<{  }, managed>)
+function makeIdentity.lambda#7(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-
-function @applyIdentity(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: @fn#param.int32#return.int32 = call @makeIdentity() -> fn() -> @fn#param.int32#return.int32
-    v2: i32 = call.indirect v1(v0) -> @fn#param.int32#return.int32
+function applyIdentity(v0: int32): int32 {
+b0(v0: int32):
+    v1: fn#param.int32#return.int32 = call makeIdentity(): () -> fn#param.int32#return.int32
+    v2: int32 = call.indirect v1(v0): (int32) -> int32
     return v2
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(
@@ -88,37 +84,35 @@ function applyAdder(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32>
-type @environment#9 = { base: i32 }
-
-function @makeAdder() -> @fn#param.int32#return.int32 {
-block0:
-    v0: i32 = iconst 5i32
-    v1: ref<managed @environment#9> = managed.alloc @environment#9
-    v2: ref<managed i32> = field.addr v1, 0
+type fn#param.int32#return.int32 closure(int32) -> int32
+type environment#9 {
+    base: int32;
+}
+function makeAdder(): fn#param.int32#return.int32 {
+b0:
+    v0: int32 = 5int32
+    v1: ref<environment#9, managed> = managed.alloc environment#9
+    v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
-    v3: fnvalue<fn(i32) -> i32> = function.value @makeAdder.lambda#9, v1
+    v3: closure(int32) -> int32 = function.bind makeAdder.lambda#9, v1
     return v3
 }
-
-#[environment(ref<managed @environment#9>)]
-function @makeAdder.lambda#9(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<managed @environment#9> = function.environment
-    v2: ref<managed i32> = field.addr v1, 0
-    v3: i32 = load v2
-    v4: i32 = trunc v3 -> i32
-    v5: i32 = iadd v4, v0
+@environment(ref<environment#9, managed>)
+function makeAdder.lambda#9(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<environment#9, managed> = function.environment
+    v2: ref<int32, managed> = field.address v1, 0
+    v3: int32 = load v2
+    v4: int32 = cast.truncate v3 -> int32
+    v5: int32 = int.add v4, v0
     return v5
 }
-
-function @applyAdder(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: @fn#param.int32#return.int32 = call @makeAdder() -> fn() -> @fn#param.int32#return.int32
-    v2: i32 = call.indirect v1(v0) -> @fn#param.int32#return.int32
+function applyAdder(v0: int32): int32 {
+b0(v0: int32):
+    v1: fn#param.int32#return.int32 = call makeAdder(): () -> fn#param.int32#return.int32
+    v2: int32 = call.indirect v1(v0): (int32) -> int32
     return v2
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(
@@ -160,47 +154,45 @@ function runCounter(): int32 {
         module_id,
         "native",
         r#"
-type @fn#return.int32 = fnvalue<fn() -> i32>
-type @environment#8 = { count: ref<managed i32> }
-
-function @makeCounter() -> @fn#return.int32 {
-block0:
-    v0: i32 = iconst 0i32
-    v1: ref<managed i32> = managed.alloc i32
+type fn#return.int32 closure() -> int32
+type environment#8 {
+    count: ref<int32, managed>;
+}
+function makeCounter(): fn#return.int32 {
+b0:
+    v0: int32 = 0int32
+    v1: ref<int32, managed> = managed.alloc int32
     store v1, v0
-    v2: ref<managed @environment#8> = managed.alloc @environment#8
-    v3: ref<managed ref<managed i32>> = field.addr v2, 0
-    v4: ref<managed i32> = bitcast v1 -> ref<managed i32>
+    v2: ref<environment#8, managed> = managed.alloc environment#8
+    v3: ref<ref<int32, managed>, managed> = field.address v2, 0
+    v4: ref<int32, managed> = cast.bit v1 -> ref<int32, managed>
     store v3, v4
-    v5: fnvalue<fn() -> i32> = function.value @makeCounter.lambda#8, v2
+    v5: closure() -> int32 = function.bind makeCounter.lambda#8, v2
     return v5
 }
-
-#[environment(ref<managed @environment#8>)]
-function @makeCounter.lambda#8() -> i32 {
-block0:
-    v0: ref<managed @environment#8> = function.environment
-    v1: ref<managed ref<managed i32>> = field.addr v0, 0
-    v2: ref<managed i32> = load v1
-    v3: i32 = load v2
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
-    v6: ref<managed ref<managed i32>> = field.addr v0, 0
-    v7: ref<managed i32> = load v6
+@environment(ref<environment#8, managed>)
+function makeCounter.lambda#8(): int32 {
+b0:
+    v0: ref<environment#8, managed> = function.environment
+    v1: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v2: ref<int32, managed> = load v1
+    v3: int32 = load v2
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
+    v6: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v7: ref<int32, managed> = load v6
     store v7, v5
-    v8: ref<managed ref<managed i32>> = field.addr v0, 0
-    v9: ref<managed i32> = load v8
-    v10: i32 = load v9
+    v8: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v9: ref<int32, managed> = load v8
+    v10: int32 = load v9
     return v10
 }
-
-function @runCounter() -> i32 {
-block0:
-    v0: @fn#return.int32 = call @makeCounter() -> fn() -> @fn#return.int32
-    v1: i32 = call.indirect v0() -> @fn#return.int32
+function runCounter(): int32 {
+b0:
+    v0: fn#return.int32 = call makeCounter(): () -> fn#return.int32
+    v1: int32 = call.indirect v0(): () -> int32
     return v1
-}
-        "#,
+}"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "runCounter", &[], Value::int32(1));

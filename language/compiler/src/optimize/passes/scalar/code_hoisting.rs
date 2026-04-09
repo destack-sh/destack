@@ -18,30 +18,30 @@ declare_pass! {
     /// branch and hoists them into the branching block.
     ///
     /// ```mir
-    /// function @before(v0: i32, v1: i32, v2: bool) -> i32 {
-    /// block0(v0: i32, v1: i32, v2: bool):
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     v3 = iadd v0, v1
-    ///     jump block3(v3)
-    /// block2:
-    ///     v4 = iadd v0, v1
-    ///     jump block3(v4)
-    /// block3(v5: i32):
+    /// function before(v0: int32, v1: int32, v2: boolean): int32 {
+    /// b0(v0: int32, v1: int32, v2: boolean):
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     v3 = int.add v0, v1
+    ///     jump b3(v3)
+    /// b2:
+    ///     v4 = int.add v0, v1
+    ///     jump b3(v4)
+    /// b3(v5: int32):
     ///     return v5
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32, v1: i32, v2: bool) -> i32 {
-    /// block0(v0: i32, v1: i32, v2: bool):
-    ///     v6 = iadd v0, v1
-    ///     branch v2, block1, block2
-    /// block1:
-    ///     jump block3(v6)
-    /// block2:
-    ///     jump block3(v6)
-    /// block3(v5: i32):
+    /// function after(v0: int32, v1: int32, v2: boolean): int32 {
+    /// b0(v0: int32, v1: int32, v2: boolean):
+    ///     v6 = int.add v0, v1
+    ///     branch v2, b1, b2
+    /// b1:
+    ///     jump b3(v6)
+    /// b2:
+    ///     jump b3(v6)
+    /// b3(v5: int32):
     ///     return v5
     /// }
     /// ```
@@ -481,29 +481,31 @@ mod tests {
     #[test]
     fn test_hoist_simple_diamond() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    jump block3(v3)
-block2:
-    jump block3(v3)
-block3(v4: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    jump b3(v3)
+b2:
+    jump b3(v3)
+b3(v4: int32):
     return v4
 }"#;
 
@@ -517,16 +519,17 @@ block3(v4: i32):
     #[test]
     fn test_hoist_skips_division() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = sdiv v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = sdiv v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.div.s v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.div.s v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -540,16 +543,17 @@ block3(v5: i32):
     #[test]
     fn test_hoist_requires_equivalence() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = isub v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.sub v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -563,32 +567,34 @@ block3(v5: i32):
     #[test]
     fn test_hoist_common_prefix_chain() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v3, v1
-    jump block3(v4)
-block2:
-    v5: i32 = iadd v0, v1
-    v6: i32 = iadd v5, v1
-    jump block3(v6)
-block3(v7: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v3, v1
+    jump b3(v4)
+b2:
+    v5: int32 = int.add v0, v1
+    v6: int32 = int.add v5, v1
+    jump b3(v6)
+b3(v7: int32):
     return v7
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    v4: i32 = iadd v3, v1
-    branch v2, block1, block2
-block1:
-    jump block3(v4)
-block2:
-    jump block3(v4)
-block3(v5: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v3, v1
+    branch v2, b1, b2
+b1:
+    jump b3(v4)
+b2:
+    jump b3(v4)
+b3(v5: int32):
     return v5
 }"#;
 
@@ -602,29 +608,31 @@ block3(v5: i32):
     #[test]
     fn test_hoist_rewrites_branch_params() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1(v0, v1), block2(v0, v1)
-block1(v3: i32, v4: i32):
-    v5: i32 = iadd v3, v4
-    jump block3(v5)
-block2(v6: i32, v7: i32):
-    v8: i32 = iadd v6, v7
-    jump block3(v8)
-block3(v9: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1(v0, v1), b2(v0, v1)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.add v6, v7
+    jump b3(v8)
+b3(v9: int32):
     return v9
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1(v0, v1), block2(v0, v1)
-block1(v4: i32, v5: i32):
-    jump block3(v3)
-block2(v6: i32, v7: i32):
-    jump block3(v3)
-block3(v8: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1(v0, v1), b2(v0, v1)
+b1(v4: int32, v5: int32):
+    jump b3(v3)
+b2(v6: int32, v7: int32):
+    jump b3(v3)
+b3(v8: int32):
     return v8
 }"#;
 
@@ -638,33 +646,35 @@ block3(v8: i32):
     #[test]
     fn test_hoist_non_prefix_match() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = imul v0, v1
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block2:
-    v5: i32 = isub v0, v1
-    v6: i32 = iadd v0, v1
-    jump block3(v6)
-block3(v7: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.mul v0, v1
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b2:
+    v5: int32 = int.sub v0, v1
+    v6: int32 = int.add v0, v1
+    jump b3(v6)
+b3(v7: int32):
     return v7
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iadd v0, v1
-    branch v2, block1, block2
-block1:
-    v4: i32 = imul v0, v1
-    jump block3(v3)
-block2:
-    v5: i32 = isub v0, v1
-    jump block3(v3)
-block3(v6: i32):
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
+b1:
+    v4: int32 = int.mul v0, v1
+    jump b3(v3)
+b2:
+    v5: int32 = int.sub v0, v1
+    jump b3(v3)
+b3(v6: int32):
     return v6
 }"#;
 
@@ -678,19 +688,20 @@ block3(v6: i32):
     #[test]
     fn test_hoist_requires_single_predecessor() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    branch v2, block1, block2
-block1:
-    v3: i32 = iadd v0, v1
-    jump block3(v3)
-block2:
-    v4: i32 = iadd v0, v1
-    jump block3(v4)
-block3(v5: i32):
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
+b2:
+    v4: int32 = int.add v0, v1
+    jump b3(v4)
+b3(v5: int32):
     return v5
-block4:
-    jump block2
+b4:
+    jump b2
 }"#;
 
         // run the pass and verify output

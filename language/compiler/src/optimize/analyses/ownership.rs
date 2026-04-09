@@ -347,7 +347,7 @@ impl OwnershipAnalysis {
             | Type::TypeDescriptor
             | Type::TypeId => true,
             // function pointers and closure values are copy
-            Type::FunctionPointer { .. } | Type::FunctionValue { .. } => true,
+            Type::FunctionPointer { .. } | Type::Closure { .. } => true,
             // raw and borrowed references are copy
             Type::Reference {
                 kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
@@ -551,7 +551,7 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
-            Instruction::FunctionValue {
+            Instruction::Closure {
                 destination,
                 environment,
                 ..
@@ -1185,7 +1185,7 @@ fn value_is_copy(value: Value, tree: &mir::NodeTree, value_types: &ValueTypeMap)
         | Type::Float { .. }
         | Type::TypeDescriptor
         | Type::TypeId => true,
-        Type::FunctionPointer { .. } | Type::FunctionValue { .. } => true,
+        Type::FunctionPointer { .. } | Type::Closure { .. } => true,
         Type::Reference {
             kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
             ..
@@ -1361,7 +1361,7 @@ fn process_instruction(
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
-        Instruction::FunctionValue {
+        Instruction::Closure {
             destination,
             environment,
             ..
@@ -1848,9 +1848,10 @@ mod tests {
     #[test]
     fn test_ownership_simple() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+            r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#,
         );
@@ -1870,11 +1871,12 @@ block0:
     #[test]
     fn test_ownership_drop() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+            r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     raw.drop v0
-    v1: i32 = iconst 0i32
+    v1: int32 = 0int32
     return v1
 }"#,
         );
@@ -1896,16 +1898,17 @@ block0:
     #[test]
     fn test_ownership_diamond_maybe_moved() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1, block2
-block1:
+            r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1, b2
+b1:
     raw.drop v1
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = iconst 0i32
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = 0int32
     return v2
 }"#,
         );
@@ -1929,13 +1932,14 @@ block3:
     #[test]
     fn test_ownership_local_get_propagates_move() {
         let test = TestProgram::new(
-            r#"function @test() -> void {
-    local0: ref<managed i32>
-block0:
-    v0: ref<managed i32> = managed.alloc i32
+            r#"
+function test(): void {
+    local local0: ref<int32, managed>, owned
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
     local.set local0, v0
-    v1: ref<managed i32> = local.get local0
-    v2: ref<managed i32> = local.get local0
+    v1: ref<int32, managed> = local.get local0
+    v2: ref<int32, managed> = local.get local0
     raw.drop v1
     return
 }"#,

@@ -15,9 +15,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = iconst 1
+    /// v1: int32 = const 1
     /// v2: bool = bconst true
-    /// v3: (i32, bool) = tuple (i32, bool) (v1, v2)
+    /// v3: (int32, bool) = tuple (int32, bool) (v1, v2)
     /// ```
     pub(crate) fn lower_tuple_expression(
         &mut self,
@@ -61,9 +61,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = iconst 1
-    /// v2: i32 = iconst 2
-    /// v3: [i32; 2] = array [i32; 2] (v1, v2)
+    /// v1: int32 = const 1
+    /// v2: int32 = const 2
+    /// v3: int32[2] = array int32[2] (v1, v2)
     /// ```
     pub(crate) fn lower_array_expression(
         &mut self,
@@ -109,9 +109,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = iconst 1
-    /// v2: i32 = iconst 2
-    /// v3: @Vec2 = struct @Vec2 (v1, v2)
+    /// v1: int32 = const 1
+    /// v2: int32 = const 2
+    /// v3: Vec2 = struct Vec2 (v1, v2)
     /// ```
     pub(crate) fn lower_tagged_object_expression(
         &mut self,
@@ -252,8 +252,8 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v0: i32 = ...
-    /// v1: newtype<i32> = bitcast v0 -> newtype<i32>
+    /// v0: int32 = ...
+    /// v1: newtype<int32> = cast.bit v0 -> newtype<int32>
     /// ```
     pub(crate) fn lower_tagged_scalar_expression(
         &mut self,
@@ -319,10 +319,10 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v0: i32 = ...
-    /// v1: i32 = ...
-    /// v2: (i32, i32) = tuple (i32, i32) (v0, v1)
-    /// v3: newtype<(i32, i32)> = bitcast v2 -> newtype<(i32, i32)>
+    /// v0: int32 = ...
+    /// v1: int32 = ...
+    /// v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    /// v3: newtype<(int32, int32)> = cast.bit v2 -> newtype<(int32, int32)>
     /// ```
     pub(crate) fn lower_tagged_tuple_expression(
         &mut self,
@@ -411,8 +411,8 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed readonly @User> = managed.alloc @User
-    /// v2: void = call @User.constructor(v1, v0) -> fn(ref<managed readonly @User>, i32) -> void
+    /// v1: ref<User, managed, readonly> = managed.alloc User
+    /// v2: void = call User.constructor(v1, v0)
     /// ```
     pub(crate) fn lower_new_expression(
         &mut self,

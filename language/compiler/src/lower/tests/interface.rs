@@ -35,16 +35,16 @@ struct Circle implements Drawable {
         module_id,
         "native",
         r#"
-type @Circle = { color: i32, radius: i32 }
-
-extern function @Drawable.draw({ draw: fnvalue<fn() -> i32>, color: i32 }) -> i32
-
-function @Circle.draw(v0: @Circle) -> i32 {
-block0(v0: @Circle):
-    v1: i32 = field.get v0, 0
-    return v1
+type Circle {
+    color: int32;
+    radius: int32;
 }
-        "#,
+extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
+function Circle.draw(v0: Circle): int32 {
+b0(v0: Circle):
+    v1: int32 = field.get v0, 0
+    return v1
+}"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -97,16 +97,16 @@ struct Circle implements Drawable {
         module_id,
         "native",
         r#"
-type @Circle = { color: i32, radius: i32 }
-
-extern function @Drawable.draw({ draw: fnvalue<fn() -> i32>, color: i32 }) -> i32
-
-function @Circle.draw(v0: @Circle) -> i32 {
-block0(v0: @Circle):
-    v1: i32 = field.get v0, 0
-    return v1
+type Circle {
+    color: int32;
+    radius: int32;
 }
-        "#,
+extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
+function Circle.draw(v0: Circle): int32 {
+b0(v0: Circle):
+    v1: int32 = field.get v0, 0
+    return v1
+}"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -287,23 +287,22 @@ struct Widget implements Shape, Paint {
         module_id,
         "native",
         r#"
-type @Widget = { width: i32, color: i32 }
-
-extern function @Shape.area({ area: fnvalue<fn() -> i32>, width: i32 }) -> i32
-
-extern function @Paint.paint({ paint: fnvalue<fn() -> i32>, color: i32 }) -> i32
-function @Widget.area(v0: @Widget) -> i32 {
-block0(v0: @Widget):
-    v1: i32 = field.get v0, 0
+type Widget {
+    width: int32;
+    color: int32;
+}
+extern function Shape.area({ area: closure() -> int32, width: int32 }): int32
+extern function Paint.paint({ paint: closure() -> int32, color: int32 }): int32
+function Widget.area(v0: Widget): int32 {
+b0(v0: Widget):
+    v1: int32 = field.get v0, 0
     return v1
 }
-
-function @Widget.paint(v0: @Widget) -> i32 {
-block0(v0: @Widget):
-    v1: i32 = field.get v0, 1
+function Widget.paint(v0: Widget): int32 {
+b0(v0: Widget):
+    v1: int32 = field.get v0, 1
     return v1
-}
-        "#,
+}"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -406,23 +405,23 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
-type @Drawable#method:draw#function = fnvalue<fn() -> i32>
-type @Drawable = { @object: ref<managed readonly void>, @itab: usize }
-type @Circle = { color: i32, radius: i32 }
-type @Drawable#object = { draw: @Drawable#method:draw#function, color: i32 }
+type Drawable#method:draw#function closure() -> int32
+type Drawable { object: ref<void, managed, readonly>, itab: usize }
+type Circle { color: int32, radius: int32 }
+type Drawable#object { draw: Drawable#method:draw#function, color: int32 }
 
-extern function @Drawable.draw(@Drawable#object) -> i32
+extern function Drawable.draw(Drawable#object): int32
 
-function @useDrawable(v0: @Drawable) -> i32 {
-block0(v0: @Drawable):
-    v1: ref<managed readonly void> = field.get v0, 0
-    v2: i32 = call.interface v0, @Drawable#object, 2(v1) -> fn(@Drawable#object) -> i32
+function useDrawable(v0: Drawable): int32 {
+b0(v0: Drawable):
+    v1: ref<void, managed, readonly> = field.get v0, 0
+    v2: int32 = call.interface v0, Drawable#object, 2(v1): (Drawable#object) -> int32
     return v2
 }
 
-function @Circle.draw(v0: @Circle) -> i32 {
-block0(v0: @Circle):
-    v1: i32 = field.get v0, 0
+function Circle.draw(v0: Circle): int32 {
+b0(v0: Circle):
+    v1: int32 = field.get v0, 0
     return v1
 }
         "#,
@@ -471,29 +470,30 @@ function castRenderable(value: int32): Renderable {
         module_id,
         "native",
         r#"
-type @Renderable = { @object: ref<managed readonly void>, @itab: usize }
-type @Sprite = { value: i32 }
-
-extern function @Renderable.draw({ draw: fnvalue<fn() -> i32> }) -> i32
-
-function @castRenderable(v0: i32) -> @Renderable {
-block0(v0: i32):
-    v1: @Sprite = struct @Sprite (v0)
-    v2: ref<managed readonly @Sprite> = managed.alloc @Sprite
+type Renderable {
+    object: ref<void, managed, readonly>;
+    itab: usize;
+}
+type Sprite {
+    value: int32;
+}
+extern function Renderable.draw({ draw: closure() -> int32 }): int32
+function castRenderable(v0: int32): Renderable {
+b0(v0: int32):
+    v1: Sprite = struct Sprite (v0)
+    v2: ref<Sprite, managed, readonly> = managed.alloc Sprite
     store v2, v1
-    v3: ref<managed readonly void> = bitcast v2 -> ref<managed readonly void>
-    v4: u64 = iconst 0u64
-    v5: usize = bitcast v4 -> usize
-    v6: @Renderable = struct @Renderable (v3, v5)
+    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
+    v4: uint64 = 0uint64
+    v5: usize = cast.bit v4 -> usize
+    v6: Renderable = struct Renderable (v3, v5)
     return v6
 }
-
-function @Sprite.draw(v0: @Sprite) -> i32 {
-block0(v0: @Sprite):
-    v1: i32 = field.get v0, 0
+function Sprite.draw(v0: Sprite): int32 {
+b0(v0: Sprite):
+    v1: int32 = field.get v0, 0
     return v1
-}
-        "#,
+}"#,
     );
 }
 

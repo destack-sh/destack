@@ -572,7 +572,7 @@ fn apply_instruction_effects(
     tree: &mir::NodeTree,
 ) {
     match inst {
-        // field.addr creates a borrow of the aggregate
+        // field.address creates a borrow of the aggregate
         Instruction::FieldAddr {
             destination,
             aggregate,
@@ -585,7 +585,7 @@ fn apply_instruction_effects(
             state.add_borrow(*destination, *aggregate, inst_id);
         }
 
-        // element.addr creates a borrow of the array
+        // element.address creates a borrow of the array
         Instruction::ElementAddr {
             destination,
             array,
@@ -597,7 +597,7 @@ fn apply_instruction_effects(
             }
             state.add_borrow(*destination, *array, inst_id);
         }
-        // local.addr creates a borrow of the local slot
+        // local.address creates a borrow of the local slot
         Instruction::LocalAddr {
             destination,
             local,

@@ -238,11 +238,15 @@ mod tests {
     #[test]
     fn test_combined_basic_and_tbaa() {
         let program = TestProgram::new(
-            r#"type @Point = { i32, i32 }
-function @test() -> void {
-block0:
-    v0: ref<managed @Point> = managed.alloc @Point
-    v1: ref<managed @Point> = managed.alloc @Point
+            r#"
+type Point {
+    int32;
+    int32;
+}
+function test(): void {
+b0:
+    v0: ref<Point, managed> = managed.alloc Point
+    v1: ref<Point, managed> = managed.alloc Point
     return
 }"#,
         );
@@ -259,13 +263,14 @@ block0:
     #[test]
     fn test_mod_ref_for_load() {
         let program = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+            r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#,
         );
@@ -287,11 +292,12 @@ block0:
     #[test]
     fn test_mod_ref_for_store() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+            r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     return
 }"#,
@@ -318,13 +324,14 @@ block0:
     #[test]
     fn test_global_alias_analysis() {
         let program = TestProgram::new(
-            r#"global @g1: i32 = 0i32
-global @g2: i32 = 0i32
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @g1
-    v1: ref<raw addrspace(global) i32> = global.addr @g2
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+            r#"
+global g1: int32 = 0int32
+global g2: int32 = 0int32
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(global)> = global.address g1
+    v1: ref<int32, raw, addressSpace(global)> = global.address g2
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     return
 }"#,
         );
@@ -344,10 +351,11 @@ block0:
     #[test]
     fn test_tbaa_int_vs_float() {
         let program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) f64> = stack.alloc f64
+            r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<float64, raw, addressSpace(stack)> = stack.alloc float64
     return
 }"#,
         );
@@ -373,10 +381,11 @@ block0:
     #[test]
     fn test_call_metadata_readnone_mod_ref() {
         let mut program = TestProgram::new(
-            r#"extern function @external(ref<raw i32>) -> void
-function @test(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
-    call @external(v0) -> fn(ref<raw i32>) -> void
+            r#"
+extern function external(ref<int32, raw>): void
+function test(v0: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>):
+    call external(v0): (ref<int32, raw>) -> void
     return
 }"#,
         );
@@ -410,12 +419,13 @@ block0(v0: ref<raw i32>):
     #[test]
     fn test_call_metadata_argmemonly_access() {
         let mut program = TestProgram::new(
-            r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
-function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    call @external(v0, v1) -> fn(ref<raw i32>, ref<raw i32>) -> void
+            r#"
+extern function external(ref<int32, raw>, ref<int32, raw>): void
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    call external(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
     return
 }"#,
         );
@@ -464,10 +474,11 @@ block0:
     #[test]
     fn test_metadata_alias_scopes_refine_mod_ref() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 4i64
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int8 = 0int8
+    v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -502,10 +513,11 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_metadata_tbaa_refine_mod_ref() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 4i64
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int8 = 0int8
+    v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -544,10 +556,11 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_metadata_alias_scopes_reverse_direction() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 4i64
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int8 = 0int8
+    v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -582,10 +595,11 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_metadata_tbaa_disjoint_offsets() {
         let mut program = TestProgram::new(
-            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2: i8 = iconst 0i8
-    v3: i64 = iconst 16i64
+            r#"
+function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int8 = 0int8
+    v3: int64 = 16int64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,

@@ -174,9 +174,10 @@ mod tests {
     #[test]
     fn test_resolve_none_for_no_borrowed_params() {
         let program = TestProgram::new(
-            r#"function @add(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+            r#"
+function add(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }"#,
         );
@@ -193,8 +194,9 @@ block0(v0: i32, v1: i32):
     #[test]
     fn test_infer_from_single_borrowed_param() {
         let program = TestProgram::new(
-            r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+            r#"
+function identity(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }"#,
         );
@@ -213,8 +215,9 @@ block0(v0: ref<borrowed i32>):
     #[test]
     fn test_infer_conservatively_from_multiple_params() {
         let program = TestProgram::new(
-            r#"function @pick(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+            r#"
+function pick(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }"#,
         );
@@ -233,8 +236,9 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
     #[test]
     fn test_resolve_none_for_void_return() {
         let program = TestProgram::new(
-            r#"function @consume(v0: ref<borrowed i32>) -> void {
-block0(v0: ref<borrowed i32>):
+            r#"
+function consume(v0: ref<int32, borrowed>): void {
+b0(v0: ref<int32, borrowed>):
     return
 }"#,
         );
@@ -252,9 +256,10 @@ block0(v0: ref<borrowed i32>):
     #[test]
     fn test_resolve_none_for_owned_return() {
         let program = TestProgram::new(
-            r#"function @create() -> ref<raw i32> {
-block0:
-    v0: ref<raw i32> = raw.alloc i32
+            r#"
+function create(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw> = raw.alloc int32
     return v0
 }"#,
         );
@@ -272,8 +277,9 @@ block0:
     #[test]
     fn test_infer_only_from_borrowed_params() {
         let program = TestProgram::new(
-            r#"function @mixed(v0: i32, v1: ref<borrowed i32>, v2: i32) -> ref<borrowed i32> {
-block0(v0: i32, v1: ref<borrowed i32>, v2: i32):
+            r#"
+function mixed(v0: int32, v1: ref<int32, borrowed>, v2: int32): ref<int32, borrowed> {
+b0(v0: int32, v1: ref<int32, borrowed>, v2: int32):
     return v1
 }"#,
         );
@@ -287,7 +293,7 @@ block0(v0: i32, v1: ref<borrowed i32>, v2: i32):
 
         // only v1 (index 1) is borrowed
         assert!(!lifetime.includes_parameter(0)); // i32
-        assert!(lifetime.includes_parameter(1)); // ref<borrowed i32>
+        assert!(lifetime.includes_parameter(1)); // ref<int32, borrowed>
         assert!(!lifetime.includes_parameter(2)); // i32
     }
 
@@ -295,8 +301,9 @@ block0(v0: i32, v1: ref<borrowed i32>, v2: i32):
     #[test]
     fn test_resolve_explicit_static_lifetime() {
         let mut program = TestProgram::new(
-            r#"function @get_global(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+            r#"
+function getGlobal(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }"#,
         );
@@ -321,8 +328,9 @@ block0(v0: ref<borrowed i32>):
     #[test]
     fn test_resolve_explicit_param_lifetime() {
         let mut program = TestProgram::new(
-            r#"function @pick_first(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+            r#"
+function pickFirst(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }"#,
         );
@@ -352,9 +360,10 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
     #[test]
     fn test_infer_static_for_no_borrowed_params() {
         let program = TestProgram::new(
-            r#"function @get_static(v0: i32) -> ref<borrowed i32> {
-block0(v0: i32):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+            r#"
+function getStatic(v0: int32): ref<int32, borrowed> {
+b0(v0: int32):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     return v1
 }"#,
         );
@@ -374,8 +383,9 @@ block0(v0: i32):
     #[test]
     fn test_signature_lifetime_non_borrowed_return() {
         let mut program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -397,8 +407,9 @@ block0:
     #[test]
     fn test_signature_lifetime_static_without_borrowed_params() {
         let mut program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );
@@ -427,8 +438,9 @@ block0:
     #[test]
     fn test_signature_lifetime_from_borrowed_params() {
         let mut program = TestProgram::new(
-            r#"function @test() -> void {
-block0:
+            r#"
+function test(): void {
+b0:
     return
 }"#,
         );

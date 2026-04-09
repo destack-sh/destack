@@ -451,9 +451,10 @@ mod tests {
     /// Function with no droppable values is unchanged.
     #[test]
     fn test_verify_no_drops_needed() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -466,11 +467,12 @@ block0:
     /// Primitive types don't need drops.
     #[test]
     fn test_verify_primitives_no_drop() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#;
 
@@ -483,11 +485,12 @@ block0:
     /// Boolean comparison doesn't need drops.
     #[test]
     fn test_verify_booleans_no_drop() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: bool = icmp_eq v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: boolean = int.eq v0, v1
     return v2
 }"#;
 
@@ -500,11 +503,12 @@ block0:
     /// Float values don't need drops.
     #[test]
     fn test_verify_floats_no_drop() {
-        let input = r#"function @test() -> f64 {
-block0:
-    v0: f64 = iconst 1.0f64
-    v1: f64 = iconst 2.0f64
-    v2: f64 = fadd v0, v1
+        let input = r#"
+function test(): float64 {
+b0:
+    v0: float64 = 1float64
+    v1: float64 = 2float64
+    v2: float64 = float.add v0, v1
     return v2
 }"#;
 
@@ -516,8 +520,9 @@ block0:
     /// Void function is unchanged.
     #[test]
     fn test_verify_void_function() {
-        let input = r#"function @test() -> void {
-block0:
+        let input = r#"
+function test(): void {
+b0:
     return
 }"#;
 
@@ -530,12 +535,13 @@ block0:
     /// Stack allocation with primitive doesn't need drop.
     #[test]
     fn test_verify_stack_alloc_primitive() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -548,11 +554,14 @@ block0:
     /// Managed allocations are not dropped explicitly.
     #[test]
     fn test_verify_managed_alloc_no_drop() {
-        let input = r#"type @Node = { i32 }
-function @test() -> i32 {
-block0:
-    v0: ref<managed @Node> = managed.alloc @Node
-    v1: i32 = iconst 1i32
+        let input = r#"
+type Node {
+    int32;
+}
+function test(): int32 {
+b0:
+    v0: ref<Node, managed> = managed.alloc Node
+    v1: int32 = 1int32
     return v1
 }"#;
 
@@ -565,14 +574,15 @@ block0:
     /// Multiple arithmetic operations don't need drops.
     #[test]
     fn test_verify_arithmetic_chain() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: i32 = iadd v0, v1
-    v4: i32 = imul v3, v2
-    v5: i32 = isub v4, v0
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.mul v3, v2
+    v5: int32 = int.sub v4, v0
     return v5
 }"#;
 
@@ -585,14 +595,15 @@ block0:
     /// Control flow with primitives doesn't need drops.
     #[test]
     fn test_verify_control_flow_primitives() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -605,18 +616,19 @@ block2:
     /// Loop with primitives doesn't need drops.
     #[test]
     fn test_verify_loop_primitives() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: bool = icmp_slt v2, v0
-    branch v3, block2, block3
-block2:
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v2, v4
-    jump block1(v5)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: boolean = int.lt.s v2, v0
+    branch v3, b2, b3
+b2:
+    v4: int32 = 1int32
+    v5: int32 = int.add v2, v4
+    jump b1(v5)
+b3:
     return v2
 }"#;
 
@@ -629,10 +641,11 @@ block3:
     /// Cast operations don't need drops.
     #[test]
     fn test_verify_cast_no_drop() {
-        let input = r#"function @test() -> i64 {
-block0:
-    v0: i32 = iconst 42i32
-    v1: i64 = sextend v0 -> i64
+        let input = r#"
+function test(): int64 {
+b0:
+    v0: int32 = 42int32
+    v1: int64 = cast.extend.s v0 -> int64
     return v1
 }"#;
 
@@ -645,13 +658,14 @@ block0:
     /// Load/store with primitives don't need drops.
     #[test]
     fn test_verify_load_store_primitives() {
-        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1: i32 = load v0
-    v2: i32 = iconst 10i32
-    v3: i32 = iadd v1, v2
+        let input = r#"
+function test(v0: ref<int32, raw>): int32 {
+b0(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    v2: int32 = 10int32
+    v3: int32 = int.add v1, v2
     store v0, v3
-    v4: i32 = load v0
+    v4: int32 = load v0
     return v4
 }"#;
 
@@ -664,13 +678,13 @@ block0(v0: ref<raw i32>):
     /// Function calls with primitive args don't need drops.
     #[test]
     fn test_verify_call_primitives() {
-        let input = r#"extern function @add(i32, i32) -> i32
-
-function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = call @add(v0, v1) -> fn(i32, i32) -> i32
+        let input = r#"
+extern function add(int32, int32): int32
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = call add(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
 
@@ -682,12 +696,13 @@ block0:
     /// Local variables with primitives don't need drops.
     #[test]
     fn test_verify_locals_primitives() {
-        let input = r#"function @test() -> i32 {
-local0: i32
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 42int32
     local.set local0, v0
-    v1: i32 = local.get local0
+    v1: int32 = local.get local0
     return v1
 }"#;
 
@@ -699,8 +714,9 @@ block0:
     /// Unreachable terminator doesn't need special handling.
     #[test]
     fn test_verify_unreachable() {
-        let input = r#"function @test() -> i32 {
-block0:
+        let input = r#"
+function test(): int32 {
+b0:
     unreachable
 }"#;
 
@@ -713,17 +729,18 @@ block0:
     /// Switch with primitives doesn't need drops.
     #[test]
     fn test_verify_switch_primitives() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    switch v0, block3, 0 => block1, 1 => block2
-block1:
-    v1: i32 = iconst 10i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    switch v0, b3, 0 => b1, 1 => b2
+b1:
+    v1: int32 = 10int32
     return v1
-block2:
-    v2: i32 = iconst 20i32
+b2:
+    v2: int32 = 20int32
     return v2
-block3:
-    v3: i32 = iconst 30i32
+b3:
+    v3: int32 = 30int32
     return v3
 }"#;
 
@@ -736,12 +753,13 @@ block3:
     /// Managed allocation is not dropped explicitly.
     #[test]
     fn test_managed_alloc_no_drop() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -754,10 +772,11 @@ block0:
     /// Managed allocation returned is not dropped.
     #[test]
     fn test_managed_alloc_returned_no_drop() {
-        let input = r#"function @test() -> ref<managed i32> {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): ref<int32, managed> {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: int32 = 42int32
     store v0, v1
     return v0
 }"#;
@@ -771,15 +790,17 @@ block0:
     /// Owned parameter gets drop inserted before return.
     #[test]
     fn test_insert_drop_for_owned_param() {
-        let input = r#"function @test(v0: ref<owned i32>) -> i32 {
-block0(v0: ref<owned i32>):
-    v1: i32 = load v0
+        let input = r#"
+function test(v0: ref<int32, owned>): int32 {
+b0(v0: ref<int32, owned>):
+    v1: int32 = load v0
     return v1
 }"#;
 
-        let expected = r#"function @test(v0: ref<owned i32>) -> i32 {
-block0(v0: ref<owned i32>):
-    v1: i32 = load v0
+        let expected = r#"
+function test(v0: ref<int32, owned>): int32 {
+b0(v0: ref<int32, owned>):
+    v1: int32 = load v0
     raw.drop v0
     return v1
 }"#;
@@ -793,10 +814,11 @@ block0(v0: ref<owned i32>):
     /// Move into call should not get a drop inserted.
     #[test]
     fn test_no_drop_after_move_into_call() {
-        let input = r#"extern function @consume(ref<owned i32>) -> void
-function @test(v0: ref<owned i32>) -> void {
-block0(v0: ref<owned i32>):
-    call @consume(v0) -> fn(ref<owned i32>) -> void
+        let input = r#"
+extern function consume(ref<int32, owned>): void
+function test(v0: ref<int32, owned>): void {
+b0(v0: ref<int32, owned>):
+    call consume(v0): (ref<int32, owned>) -> void
     return
 }"#;
 
@@ -809,8 +831,9 @@ block0(v0: ref<owned i32>):
     /// Move into store should not get a drop inserted.
     #[test]
     fn test_no_drop_after_move_into_store() {
-        let input = r#"function @test(v0: ref<raw ref<owned i32>>, v1: ref<owned i32>) -> void {
-block0(v0: ref<raw ref<owned i32>>, v1: ref<owned i32>):
+        let input = r#"
+function test(v0: ref<ref<int32, owned>, raw>, v1: ref<int32, owned>): void {
+b0(v0: ref<ref<int32, owned>, raw>, v1: ref<int32, owned>):
     store v0, v1
     return
 }"#;
@@ -824,12 +847,13 @@ block0(v0: ref<raw ref<owned i32>>, v1: ref<owned i32>):
     /// Raw allocation does not get automatic drop.
     #[test]
     fn test_raw_alloc_no_automatic_drop() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw i32> = raw.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw> = raw.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     raw.free v0
     return v2
 }"#;

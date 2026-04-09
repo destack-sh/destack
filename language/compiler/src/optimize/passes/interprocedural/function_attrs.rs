@@ -13,15 +13,15 @@ declare_pass! {
     /// This pass fills missing metadata and rederives summaries after IR changes.
     ///
     /// ```mir
-    /// function @pure(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iadd v0, v0
+    /// function pure(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = int.add v0, v0
     ///     return v1
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @pure(v0: i32) -> i32 { ... } // memory_effects = none
+    /// function pure(v0: int32): int32 { ... } // memory_effects = none
     /// ```
     #[pass(id = "function-attrs")]
     pub FunctionAttrs,
@@ -800,7 +800,7 @@ fn memory_effect_for_intrinsic(intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
             effect.nosync = true;
             effect
         }
-        Intrinsic::GcWriteBarrier => {
+        Intrinsic::WriteBarrier => {
             let mut effect = inaccessible_write_effect();
             effect.nosync = true;
             effect
@@ -895,9 +895,10 @@ mod tests {
     /// Functions without memory effects are marked as readnone.
     #[test]
     fn test_function_attrs_pure() {
-        let input = r#"function @pure(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function pure(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }"#;
 
@@ -913,9 +914,10 @@ block0(v0: i32):
     /// Allocation and free instructions are surfaced in call behavior.
     #[test]
     fn test_function_attrs_alloc_behavior() {
-        let input = r#"function @alloc() -> void {
-block0:
-    v0: ref<raw i32> = raw.alloc i32
+        let input = r#"
+function alloc(): void {
+b0:
+    v0: ref<int32, raw> = raw.alloc int32
     raw.free v0
     return
 }"#;
@@ -934,14 +936,15 @@ block0:
     /// Call metadata is populated from callee summaries.
     #[test]
     fn test_function_attrs_updates_call_metadata() {
-        let input = r#"function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function callee(): int32 {
+b0:
+    v0: int32 = 1int32
     return v0
 }
-function @caller() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+function caller(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#;
 
@@ -964,14 +967,15 @@ block0:
     /// Tail calls to returning functions do not imply noreturn.
     #[test]
     fn test_function_attrs_tailcall_returns() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    tailcall @callee(v0)
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    tailCall callee(v0): (int32) -> int32
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -987,13 +991,14 @@ block0(v0: i32):
     /// Tail calls to noreturn callees propagate noreturn.
     #[test]
     fn test_function_attrs_tailcall_noreturn() {
-        let input = r#"function @sink() -> void {
-block0:
-    jump block0
+        let input = r#"
+function sink(): void {
+b0:
+    jump b0
 }
-function @caller() -> void {
-block0:
-    tailcall @sink()
+function caller(): void {
+b0:
+    tailCall sink(): () -> void
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1009,9 +1014,9 @@ block0:
     /// Unknown indirect calls produce unknown memory effects.
     #[test]
     fn test_function_attrs_unknown_indirect_effects() {
-        let input = r#"function @callee(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+        let input = r#"
+function callee(v0: fn(int32) -> int32, v1: int32): int32  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#;
 
@@ -1029,18 +1034,19 @@ block0(v0: fn(i32) -> i32, v1: i32):
     /// Exceptional direct call terminators contribute callee summaries.
     #[test]
     fn test_function_attrs_call_terminator_effects() {
-        let input = r#"function @callee(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
-    v1: i32 = iconst 1i32
+        let input = r#"
+function callee(v0: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>):
+    v1: int32 = 1int32
     store v0, v1
     return
 }
-function @caller(v0: ref<raw i32>, v1: ref<managed readonly void>) -> void {
-block0(v0: ref<raw i32>, v1: ref<managed readonly void>):
-    call @callee(v0) normal block1 unwind block2
-block1:
+function caller(v0: ref<int32, raw>, v1: ref<void, managed, readonly>): void {
+b0(v0: ref<int32, raw>, v1: ref<void, managed, readonly>):
+    invoke callee(v0): (ref<int32, raw>) -> void -> b1, catch b2
+b1:
     return
-block2(v2: ref<managed readonly void>):
+b2(v2: ref<void, managed, readonly>):
     throw v2
 }"#;
 

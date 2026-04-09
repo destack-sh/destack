@@ -23,32 +23,32 @@ declare_pass! {
     /// replaced by per predecessor loads and a block parameter.
     ///
     /// ```mir
-    /// function @before(v0: bool) -> i32 {
-    /// block0(v0: bool):
-    ///     v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     jump block3
-    /// block2:
-    ///     jump block3
-    /// block3:
-    ///     v2 = load v1 -> i32
+    /// function before(v0: boolean): int32 {
+    /// b0(v0: boolean):
+    ///     v1 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     branch v0, b1, b2
+    /// b1:
+    ///     jump b3
+    /// b2:
+    ///     jump b3
+    /// b3:
+    ///     v2 = load v1 -> int32
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool) -> i32 {
-    /// block0(v0: bool):
-    ///     v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     v4 = load v1 -> i32
-    ///     jump block3(v4)
-    /// block2:
-    ///     v5 = load v1 -> i32
-    ///     jump block3(v5)
-    /// block3(v3: i32):
+    /// function after(v0: boolean): int32 {
+    /// b0(v0: boolean):
+    ///     v1 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     branch v0, b1, b2
+    /// b1:
+    ///     v4 = load v1 -> int32
+    ///     jump b3(v4)
+    /// b2:
+    ///     v5 = load v1 -> int32
+    ///     jump b3(v5)
+    /// b3(v3: int32):
     ///     return v3
     /// }
     /// ```
@@ -530,38 +530,40 @@ mod tests {
     /// Load PRE inserts per edge loads for a join.
     #[test]
     fn test_load_pre_inserts_edge_loads() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    jump block3
-block2:
-    v3: i32 = iconst 2i32
+    jump b3
+b2:
+    v3: int32 = 2int32
     store v1, v3
-    jump block3
-block3:
-    v4: i32 = load v1
+    jump b3
+b3:
+    v4: int32 = load v1
     return v4
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    v3: i32 = load v1
-    jump block3(v3)
-block2:
-    v4: i32 = iconst 2i32
+    v3: int32 = load v1
+    jump b3(v3)
+b2:
+    v4: int32 = 2int32
     store v1, v4
-    v5: i32 = load v1
-    jump block3(v5)
-block3(v6: i32):
+    v5: int32 = load v1
+    jump b3(v5)
+b3(v6: int32):
     return v6
 }"#;
 
@@ -573,16 +575,17 @@ block3(v6: i32):
     /// Loads are not moved when the pointer is defined in the join block.
     #[test]
     fn test_load_pre_skips_unavailable_pointer() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = load v1
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = load v1
     return v2
 }"#;
 
@@ -594,18 +597,19 @@ block3:
     /// Loads are not moved past side effecting instructions.
     #[test]
     fn test_load_pre_skips_side_effects() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = iconst 0i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = 0int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -617,44 +621,46 @@ block3:
     /// Read only calls do not block load PRE.
     #[test]
     fn test_load_pre_allows_read_only_call() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    jump block3
-block2:
-    v3: i32 = iconst 2i32
+    jump b3
+b2:
+    v3: int32 = 2int32
     store v1, v3
-    jump block3
-block3:
-    call @read_only() -> fn() -> void
-    v4: i32 = load v1
+    jump b3
+b3:
+    call readOnly(): () -> void
+    v4: int32 = load v1
     return v4
 }
-extern function @read_only() -> void"#;
+extern function readOnly(): void"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    v3: i32 = load v1
-    jump block3(v3)
-block2:
-    v4: i32 = iconst 2i32
+    v3: int32 = load v1
+    jump b3(v3)
+b2:
+    v4: int32 = 2int32
     store v1, v4
-    v5: i32 = load v1
-    jump block3(v5)
-block3(v6: i32):
-    call @read_only() -> fn() -> void
+    v5: int32 = load v1
+    jump b3(v5)
+b3(v6: int32):
+    call readOnly(): () -> void
     return v6
 }
-extern function @read_only() -> void"#;
+extern function readOnly(): void"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
@@ -662,7 +668,7 @@ extern function @read_only() -> void"#;
         let join_block = function.blocks[3];
         let call_inst = test.instructions_in_block(join_block)[0];
         let call_effects = mir::CallEffects::default()
-            .with_memory_effects(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY))
+            .with_memory_effects(mir::MemoryEffect::readOnly(mir::MemoryRegionSet::ANY))
             .with_behavior(mir::CallBehavior::none());
         let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call { effects, .. } = instruction else {
@@ -677,16 +683,17 @@ extern function @read_only() -> void"#;
     /// Volatile loads are not moved.
     #[test]
     fn test_load_pre_skips_volatile_load() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = load v1
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = load v1
     return v2
 }"#;
 
@@ -715,16 +722,17 @@ block3:
     /// Unknown memory locations are not moved.
     #[test]
     fn test_load_pre_skips_unknown_location() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = load v1
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = load v1
     return v2
 }"#;
 
@@ -760,18 +768,19 @@ block3:
     /// Loads with non phi defining access are not moved.
     #[test]
     fn test_load_pre_skips_non_phi_defining_access() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
+    v2: int32 = 1int32
     store v1, v2
-    v3: i32 = load v1
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -783,41 +792,43 @@ block3:
     /// Reuse predecessor loads that already match the incoming memory state.
     #[test]
     fn test_load_pre_reuses_predecessor_load() {
-        let input = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = 1int32
     store v2, v3
-    v4: i32 = load v2
-    branch v1, block3, block4
-block2:
-    jump block3
-block3:
-    v5: i32 = load v2
+    v4: int32 = load v2
+    branch v1, b3, b4
+b2:
+    jump b3
+b3:
+    v5: int32 = load v2
     return v5
-block4:
-    v6: i32 = iconst 0i32
+b4:
+    v6: int32 = 0int32
     return v6
 }"#;
 
-        let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = 1int32
     store v2, v3
-    v4: i32 = load v2
-    branch v1, block3(v4), block4
-block2:
-    v5: i32 = load v2
-    jump block3(v5)
-block3(v6: i32):
+    v4: int32 = load v2
+    branch v1, b3(v4), b4
+b2:
+    v5: int32 = load v2
+    jump b3(v5)
+b3(v6: int32):
     return v6
-block4:
-    v7: i32 = iconst 0i32
+b4:
+    v7: int32 = 0int32
     return v7
 }"#;
 
@@ -829,42 +840,44 @@ block4:
     /// Read only intrinsics do not block load PRE.
     #[test]
     fn test_load_pre_allows_read_only_intrinsic() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    jump block3
-block2:
-    v3: i32 = iconst 2i32
+    jump b3
+b2:
+    v3: int32 = 2int32
     store v1, v3
-    jump block3
-block3:
-    v4: i64 = iconst 4i64
-    v5: i32 = intrinsic.memcmp(v1, v1, v4)
-    v6: i32 = load v1
+    jump b3
+b3:
+    v4: int64 = 4int64
+    v5: int32 = intrinsic.memcmp(v1, v1, v4)
+    v6: int32 = load v1
     return v6
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    v3: i32 = load v1
-    jump block3(v3)
-block2:
-    v4: i32 = iconst 2i32
+    v3: int32 = load v1
+    jump b3(v3)
+b2:
+    v4: int32 = 2int32
     store v1, v4
-    v5: i32 = load v1
-    jump block3(v5)
-block3(v6: i32):
-    v7: i64 = iconst 4i64
-    v8: i32 = intrinsic.memcmp(v1, v1, v7)
+    v5: int32 = load v1
+    jump b3(v5)
+b3(v6: int32):
+    v7: int64 = 4int64
+    v8: int32 = intrinsic.memcmp(v1, v1, v7)
     return v6
 }"#;
 
@@ -876,46 +889,48 @@ block3(v6: i32):
     /// Loads on edges with multiple successors use edge blocks.
     #[test]
     fn test_load_pre_splits_edge_blocks() {
-        let input = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v3: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v3: int32 = 1int32
     store v2, v3
-    branch v1, block3, block4
-block2:
-    v4: i32 = iconst 2i32
+    branch v1, b3, b4
+b2:
+    v4: int32 = 2int32
     store v2, v4
-    jump block3
-block3:
-    v5: i32 = load v2
+    jump b3
+b3:
+    v5: int32 = load v2
     return v5
-block4:
-    v6: i32 = iconst 0i32
+b4:
+    v6: int32 = 0int32
     return v6
 }"#;
 
-        let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
-block0(v0: bool, v1: bool):
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block3
-block1:
-    v3: i32 = iconst 1i32
+        let expected = r#"
+function test(v0: boolean, v1: boolean): int32 {
+b0(v0: boolean, v1: boolean):
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b3
+b1:
+    v3: int32 = 1int32
     store v2, v3
-    branch v1, block2, block5
-block2:
-    v4: i32 = load v2
-    jump block4(v4)
-block3:
-    v5: i32 = iconst 2i32
+    branch v1, b2, b5
+b2:
+    v4: int32 = load v2
+    jump b4(v4)
+b3:
+    v5: int32 = 2int32
     store v2, v5
-    v6: i32 = load v2
-    jump block4(v6)
-block4(v7: i32):
+    v6: int32 = load v2
+    jump b4(v6)
+b4(v7: int32):
     return v7
-block5:
-    v8: i32 = iconst 0i32
+b5:
+    v8: int32 = 0int32
     return v8
 }"#;
 

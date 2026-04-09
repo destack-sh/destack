@@ -21,42 +21,42 @@ declare_pass! {
     /// parameters updated by simple additions in the latch.
     ///
     /// ```mir
-    /// function @before(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst 0i32
-    ///     v2 = iconst 4i32
-    ///     v3 = iconst 1i32
-    ///     jump block1(v1)
-    /// block1(v4: i32):
-    ///     v5 = icmp_slt v4, v0
-    ///     branch v5, block2, block3
-    /// block2:
-    ///     v6 = imul v4, v2
-    ///     v7 = iadd v6, v3
-    ///     v8 = iadd v4, v3
-    ///     jump block1(v8)
-    /// block3:
+    /// function before(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = 0int32
+    ///     v2 = 4int32
+    ///     v3 = 1int32
+    ///     jump b1(v1)
+    /// b1(v4: int32):
+    ///     v5 = int.lt.s v4, v0
+    ///     branch v5, b2, b3
+    /// b2:
+    ///     v6 = int.mul v4, v2
+    ///     v7 = int.add v6, v3
+    ///     v8 = int.add v4, v3
+    ///     jump b1(v8)
+    /// b3:
     ///     return v4
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst 0i32
-    ///     v2 = iconst 4i32
-    ///     v3 = iconst 1i32
-    ///     jump block1(v1, v1)
-    /// block1(v4: i32, v9: i32):
-    ///     v5 = icmp_slt v4, v0
-    ///     branch v5, block2, block3
-    /// block2:
-    ///     v6 = imul v4, v2
-    ///     v7 = iadd v9, v3
-    ///     v8 = iadd v4, v3
-    ///     v10 = iadd v9, v2
-    ///     jump block1(v8, v10)
-    /// block3:
+    /// function after(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = 0int32
+    ///     v2 = 4int32
+    ///     v3 = 1int32
+    ///     jump b1(v1, v1)
+    /// b1(v4: int32, v9: int32):
+    ///     v5 = int.lt.s v4, v0
+    ///     branch v5, b2, b3
+    /// b2:
+    ///     v6 = int.mul v4, v2
+    ///     v7 = int.add v9, v3
+    ///     v8 = int.add v4, v3
+    ///     v10 = int.add v9, v2
+    ///     jump b1(v8, v10)
+    /// b3:
     ///     return v4
     /// }
     /// ```
@@ -1840,41 +1840,43 @@ mod tests {
     #[test]
     fn test_strength_reduce_multiply() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_slt v4, v0
-    branch v5, block2, block3
-block2:
-    v6: i32 = imul v4, v3
-    v7: i32 = iadd v6, v2
-    v8: i32 = iadd v4, v2
-    jump block1(v8)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.lt.s v4, v0
+    branch v5, b2, b3
+b2:
+    v6: int32 = int.mul v4, v3
+    v7: int32 = int.add v6, v2
+    v8: int32 = int.add v4, v2
+    jump b1(v8)
+b3:
     return v4
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1, v1)
-block1(v4: i32, v5: i32):
-    v6: bool = icmp_slt v4, v0
-    branch v6, block2, block3
-block2:
-    v7: i32 = imul v4, v3
-    v8: i32 = iadd v5, v2
-    v9: i32 = iadd v4, v2
-    v10: i32 = iadd v5, v3
-    jump block1(v9, v10)
-block3:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1, v1)
+b1(v4: int32, v5: int32):
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.mul v4, v3
+    v8: int32 = int.add v5, v2
+    v9: int32 = int.add v4, v2
+    v10: int32 = int.add v5, v3
+    jump b1(v9, v10)
+b3:
     return v4
 }"#;
 
@@ -1888,39 +1890,41 @@ block3:
     #[test]
     fn test_strength_reduce_invariant_multiplier() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 1i32
-    jump block1(v2)
-block1(v4: i32):
-    v5: bool = icmp_slt v4, v0
-    branch v5, block2, block3
-block2:
-    v6: i32 = imul v4, v1
-    v7: i32 = iadd v6, v3
-    v8: i32 = iadd v4, v3
-    jump block1(v8)
-block3:
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    jump b1(v2)
+b1(v4: int32):
+    v5: boolean = int.lt.s v4, v0
+    branch v5, b2, b3
+b2:
+    v6: int32 = int.mul v4, v1
+    v7: int32 = int.add v6, v3
+    v8: int32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return v4
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 1i32
-    jump block1(v2, v2)
-block1(v4: i32, v5: i32):
-    v6: bool = icmp_slt v4, v0
-    branch v6, block2, block3
-block2:
-    v7: i32 = imul v4, v1
-    v8: i32 = iadd v5, v3
-    v9: i32 = iadd v4, v3
-    v10: i32 = iadd v5, v1
-    jump block1(v9, v10)
-block3:
+        let expected = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    jump b1(v2, v2)
+b1(v4: int32, v5: int32):
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.mul v4, v1
+    v8: int32 = int.add v5, v3
+    v9: int32 = int.add v4, v3
+    v10: int32 = int.add v5, v1
+    jump b1(v9, v10)
+b3:
     return v4
 }"#;
 
@@ -1934,44 +1938,46 @@ block3:
     #[test]
     fn test_strength_reduce_invariant_select_multiplier() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iconst 0i32
-    v4: i32 = iconst 1i32
-    v5: i32 = iconst 2i32
-    jump block1(v3)
-block1(v6: i32):
-    v7: bool = icmp_slt v6, v0
-    branch v7, block2, block3
-block2:
-    v8: i32 = select v2, v1, v5
-    v9: i32 = imul v6, v8
-    v10: i32 = iadd v9, v4
-    v11: i32 = iadd v6, v4
-    jump block1(v11)
-block3:
+        let input = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = 0int32
+    v4: int32 = 1int32
+    v5: int32 = 2int32
+    jump b1(v3)
+b1(v6: int32):
+    v7: boolean = int.lt.s v6, v0
+    branch v7, b2, b3
+b2:
+    v8: int32 = select v2, v1, v5
+    v9: int32 = int.mul v6, v8
+    v10: int32 = int.add v9, v4
+    v11: int32 = int.add v6, v4
+    jump b1(v11)
+b3:
     return v6
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
-block0(v0: i32, v1: i32, v2: bool):
-    v3: i32 = iconst 0i32
-    v4: i32 = iconst 1i32
-    v5: i32 = iconst 2i32
-    v6: i32 = select v2, v1, v5
-    jump block1(v3, v3)
-block1(v7: i32, v8: i32):
-    v9: bool = icmp_slt v7, v0
-    branch v9, block2, block3
-block2:
-    v10: i32 = select v2, v1, v5
-    v11: i32 = imul v7, v10
-    v12: i32 = iadd v8, v4
-    v13: i32 = iadd v7, v4
-    v14: i32 = iadd v8, v6
-    jump block1(v13, v14)
-block3:
+        let expected = r#"
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+b0(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = 0int32
+    v4: int32 = 1int32
+    v5: int32 = 2int32
+    v6: int32 = select v2, v1, v5
+    jump b1(v3, v3)
+b1(v7: int32, v8: int32):
+    v9: boolean = int.lt.s v7, v0
+    branch v9, b2, b3
+b2:
+    v10: int32 = select v2, v1, v5
+    v11: int32 = int.mul v7, v10
+    v12: int32 = int.add v8, v4
+    v13: int32 = int.add v7, v4
+    v14: int32 = int.add v8, v6
+    jump b1(v13, v14)
+b3:
     return v7
 }"#;
 
@@ -1985,48 +1991,50 @@ block3:
     #[test]
     fn test_strength_reduce_multiple_candidates() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    v4: i32 = iconst 3i32
-    jump block1(v1)
-block1(v5: i32):
-    v6: bool = icmp_slt v5, v0
-    branch v6, block2, block3
-block2:
-    v7: i32 = imul v5, v3
-    v8: i32 = iadd v7, v4
-    v9: i32 = iadd v5, v2
-    v10: i32 = imul v5, v4
-    v11: i32 = iadd v10, v2
-    jump block1(v9)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    v4: int32 = 3int32
+    jump b1(v1)
+b1(v5: int32):
+    v6: boolean = int.lt.s v5, v0
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.mul v5, v3
+    v8: int32 = int.add v7, v4
+    v9: int32 = int.add v5, v2
+    v10: int32 = int.mul v5, v4
+    v11: int32 = int.add v10, v2
+    jump b1(v9)
+b3:
     return v5
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    v4: i32 = iconst 3i32
-    jump block1(v1, v1, v1)
-block1(v5: i32, v6: i32, v7: i32):
-    v8: bool = icmp_slt v5, v0
-    branch v8, block2, block3
-block2:
-    v9: i32 = imul v5, v3
-    v10: i32 = iadd v6, v4
-    v11: i32 = iadd v5, v2
-    v12: i32 = imul v5, v4
-    v13: i32 = iadd v7, v2
-    v14: i32 = iadd v6, v3
-    v15: i32 = iadd v7, v4
-    jump block1(v11, v14, v15)
-block3:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    v4: int32 = 3int32
+    jump b1(v1, v1, v1)
+b1(v5: int32, v6: int32, v7: int32):
+    v8: boolean = int.lt.s v5, v0
+    branch v8, b2, b3
+b2:
+    v9: int32 = int.mul v5, v3
+    v10: int32 = int.add v6, v4
+    v11: int32 = int.add v5, v2
+    v12: int32 = int.mul v5, v4
+    v13: int32 = int.add v7, v2
+    v14: int32 = int.add v6, v3
+    v15: int32 = int.add v7, v4
+    jump b1(v11, v14, v15)
+b3:
     return v5
 }"#;
 
@@ -2040,23 +2048,24 @@ block3:
     #[test]
     fn test_strength_reduce_requires_preheader() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
-block0(v0: i32, v1: i32, v2: i32):
-    v3: bool = icmp_eq v0, v0
-    branch v3, block1, block2
-block1:
-    jump block3(v1)
-block2:
-    jump block3(v2)
-block3(v4: i32):
-    v5: i32 = iconst 1i32
-    v6: bool = icmp_slt v4, v0
-    branch v6, block4, block5
-block4:
-    v7: i32 = imul v4, v5
-    v8: i32 = iadd v4, v5
-    jump block3(v8)
-block5:
+        let input = r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+b0(v0: int32, v1: int32, v2: int32):
+    v3: boolean = int.eq v0, v0
+    branch v3, b1, b2
+b1:
+    jump b3(v1)
+b2:
+    jump b3(v2)
+b3(v4: int32):
+    v5: int32 = 1int32
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b4, b5
+b4:
+    v7: int32 = int.mul v4, v5
+    v8: int32 = int.add v4, v5
+    jump b3(v8)
+b5:
     return v4
 }"#;
 
@@ -2070,47 +2079,49 @@ block5:
     #[test]
     fn test_strength_reduce_branch_preheader() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    v4: bool = icmp_eq v0, v0
-    branch v4, block1(v1), block4
-block1(v5: i32):
-    v6: bool = icmp_slt v5, v0
-    branch v6, block2, block3
-block2:
-    v7: i32 = imul v5, v3
-    v8: i32 = iadd v7, v2
-    v9: i32 = iadd v5, v2
-    jump block1(v9)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    v4: boolean = int.eq v0, v0
+    branch v4, b1(v1), b4
+b1(v5: int32):
+    v6: boolean = int.lt.s v5, v0
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.mul v5, v3
+    v8: int32 = int.add v7, v2
+    v9: int32 = int.add v5, v2
+    jump b1(v9)
+b3:
     return v5
-block4:
+b4:
     return v1
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    v4: bool = icmp_eq v0, v0
-    branch v4, block1(v1, v1), block4
-block1(v5: i32, v6: i32):
-    v7: bool = icmp_slt v5, v0
-    branch v7, block2, block3
-block2:
-    v8: i32 = imul v5, v3
-    v9: i32 = iadd v6, v2
-    v10: i32 = iadd v5, v2
-    v11: i32 = iadd v6, v3
-    jump block1(v10, v11)
-block3:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    v4: boolean = int.eq v0, v0
+    branch v4, b1(v1, v1), b4
+b1(v5: int32, v6: int32):
+    v7: boolean = int.lt.s v5, v0
+    branch v7, b2, b3
+b2:
+    v8: int32 = int.mul v5, v3
+    v9: int32 = int.add v6, v2
+    v10: int32 = int.add v5, v2
+    v11: int32 = int.add v6, v3
+    jump b1(v10, v11)
+b3:
     return v5
-block4:
+b4:
     return v1
 }"#;
 
@@ -2124,43 +2135,45 @@ block4:
     #[test]
     fn test_strength_reduce_switch_preheader() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    v4: i32 = iconst 0i32
-    switch v4, block3, 0 => block1(v1)
-block1(v5: i32):
-    v6: bool = icmp_slt v5, v0
-    branch v6, block2, block3
-block2:
-    v7: i32 = imul v5, v3
-    v8: i32 = iadd v7, v2
-    v9: i32 = iadd v5, v2
-    jump block1(v9)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    v4: int32 = 0int32
+    switch v4, b3, 0 => b1(v1)
+b1(v5: int32):
+    v6: boolean = int.lt.s v5, v0
+    branch v6, b2, b3
+b2:
+    v7: int32 = int.mul v5, v3
+    v8: int32 = int.add v7, v2
+    v9: int32 = int.add v5, v2
+    jump b1(v9)
+b3:
     return v5
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    v4: i32 = iconst 0i32
-    switch v4, block3, 0 => block1(v1, v1)
-block1(v5: i32, v6: i32):
-    v7: bool = icmp_slt v5, v0
-    branch v7, block2, block3
-block2:
-    v8: i32 = imul v5, v3
-    v9: i32 = iadd v6, v2
-    v10: i32 = iadd v5, v2
-    v11: i32 = iadd v6, v3
-    jump block1(v10, v11)
-block3:
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    v4: int32 = 0int32
+    switch v4, b3, 0 => b1(v1, v1)
+b1(v5: int32, v6: int32):
+    v7: boolean = int.lt.s v5, v0
+    branch v7, b2, b3
+b2:
+    v8: int32 = int.mul v5, v3
+    v9: int32 = int.add v6, v2
+    v10: int32 = int.add v5, v2
+    v11: int32 = int.add v6, v3
+    jump b1(v10, v11)
+b3:
     return v5
 }"#;
 
@@ -2174,39 +2187,41 @@ block3:
     #[test]
     fn test_strength_reduce_exit_use() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1)
-block1(v4: i32):
-    v5: bool = icmp_slt v4, v0
-    branch v5, block2, block3(v4)
-block2:
-    v6: i32 = imul v4, v3
-    v7: i32 = iadd v4, v2
-    branch v5, block1(v7), block3(v6)
-block3(v8: i32):
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1)
+b1(v4: int32):
+    v5: boolean = int.lt.s v4, v0
+    branch v5, b2, b3(v4)
+b2:
+    v6: int32 = int.mul v4, v3
+    v7: int32 = int.add v4, v2
+    branch v5, b1(v7), b3(v6)
+b3(v8: int32):
     return v8
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 4i32
-    jump block1(v1, v1)
-block1(v4: i32, v5: i32):
-    v6: bool = icmp_slt v4, v0
-    branch v6, block2, block3(v4)
-block2:
-    v7: i32 = imul v4, v3
-    v8: i32 = iadd v4, v2
-    v9: i32 = iadd v5, v3
-    branch v6, block1(v8, v9), block3(v5)
-block3(v10: i32):
+        let expected = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 4int32
+    jump b1(v1, v1)
+b1(v4: int32, v5: int32):
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b2, b3(v4)
+b2:
+    v7: int32 = int.mul v4, v3
+    v8: int32 = int.add v4, v2
+    v9: int32 = int.add v5, v3
+    branch v6, b1(v8, v9), b3(v5)
+b3(v10: int32):
     return v10
 }"#;
 
@@ -2220,47 +2235,49 @@ block3(v10: i32):
     #[test]
     fn test_strength_reduce_check_latch() {
         // source test
-        let input = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1)
-block1(v4: u32):
-    v5: bool = icmp_ult v4, v3
-    branch v5, block2, block3
-block2:
-    v6: u32 = imul v4, v3
-    v7: u32 = iadd v6, v2
-    v8: u32 = iadd v4, v2
-    v9: bool = icmp_ult v8, v3
-    check v9, bounds.unsigned v8, v3, v0, block1(v8), block4
-block4:
+        let input = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v3
+    branch v5, b2, b4
+b2:
+    v6: uint32 = int.mul v4, v3
+    v7: uint32 = int.add v6, v2
+    v8: uint32 = int.add v4, v2
+    v9: boolean = int.lt.u v8, v3
+    check bounds.u v8, v3, v0 -> b1(v8), b3
+b3:
     return
-block3:
+b4:
     return
 }"#;
 
         // expected output
-        let expected = r#"function @test(v0: [i32; 8]) -> void {
-block0(v0: [i32; 8]):
-    v1: u32 = iconst 0u32
-    v2: u32 = iconst 1u32
-    v3: u32 = iconst 8u32
-    jump block1(v1, v1)
-block1(v4: u32, v5: u32):
-    v6: bool = icmp_ult v4, v3
-    branch v6, block2, block4
-block2:
-    v7: u32 = imul v4, v3
-    v8: u32 = iadd v5, v2
-    v9: u32 = iadd v4, v2
-    v10: bool = icmp_ult v9, v3
-    v11: u32 = iadd v5, v3
-    check v10, bounds.unsigned v9, v3, v0, block1(v9, v11), block3
-block3:
+        let expected = r#"
+function test(v0: int32[8]): void {
+b0(v0: int32[8]):
+    v1: uint32 = 0uint32
+    v2: uint32 = 1uint32
+    v3: uint32 = 8uint32
+    jump b1(v1, v1)
+b1(v4: uint32, v5: uint32):
+    v6: boolean = int.lt.u v4, v3
+    branch v6, b2, b4
+b2:
+    v7: uint32 = int.mul v4, v3
+    v8: uint32 = int.add v5, v2
+    v9: uint32 = int.add v4, v2
+    v10: boolean = int.lt.u v9, v3
+    v11: uint32 = int.add v5, v3
+    check bounds.u v9, v3, v0 -> b1(v9, v11), b3
+b3:
     return
-block4:
+b4:
     return
 }"#;
 
@@ -2274,19 +2291,20 @@ block4:
     #[test]
     fn test_strength_reduce_skip_add() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    jump block1(v1)
-block1(v3: i32):
-    v4: bool = icmp_slt v3, v0
-    branch v4, block2, block3
-block2:
-    v5: i32 = iadd v3, v2
-    v6: i32 = iadd v5, v2
-    jump block1(v5)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    jump b1(v1)
+b1(v3: int32):
+    v4: boolean = int.lt.s v3, v0
+    branch v4, b2, b3
+b2:
+    v5: int32 = int.add v3, v2
+    v6: int32 = int.add v5, v2
+    jump b1(v5)
+b3:
     return v3
 }"#;
 
@@ -2300,20 +2318,21 @@ block3:
     #[test]
     fn test_strength_reduce_skip_unsafe_division() {
         // source test
-        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 1i32
-    jump block1(v2)
-block1(v4: i32):
-    v5: bool = icmp_slt v4, v0
-    branch v5, block2, block3
-block2:
-    v6: i32 = sdiv v0, v1
-    v7: i32 = imul v4, v6
-    v8: i32 = iadd v4, v3
-    jump block1(v8)
-block3:
+        let input = r#"
+function test(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    jump b1(v2)
+b1(v4: int32):
+    v5: boolean = int.lt.s v4, v0
+    branch v5, b2, b3
+b2:
+    v6: int32 = int.div.s v0, v1
+    v7: int32 = int.mul v4, v6
+    v8: int32 = int.add v4, v3
+    jump b1(v8)
+b3:
     return v4
 }"#;
 
@@ -2327,19 +2346,20 @@ block3:
     #[test]
     fn test_strength_reduce_skip_signed_divide_min_overflow() {
         // source test
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst -1i32
-    jump block1(v0)
-block1(v3: i32):
-    v4: bool = icmp_slt v3, v1
-    branch v4, block2, block3
-block2:
-    v5: i32 = sdiv v3, v2
-    v6: i32 = iadd v3, v1
-    jump block1(v6)
-block3:
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = -1int32
+    jump b1(v0)
+b1(v3: int32):
+    v4: boolean = int.lt.s v3, v1
+    branch v4, b2, b3
+b2:
+    v5: int32 = int.div.s v3, v2
+    v6: int32 = int.add v3, v1
+    jump b1(v6)
+b3:
     return v3
 }"#;
 

@@ -75,13 +75,13 @@ function isCircle(value: Circle | Square): boolean {
         module_id,
         "native",
         r#"
-type @isCircle#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+type isCircle#parameter:value#union { tag: uint8, payload: usize[1] }
 
-function @isCircle(v0: @isCircle#parameter:value#union) -> bool {
-block0(v0: @isCircle#parameter:value#union):
-    v1: u8 = iconst 0u8
-    v2: u8 = field.get v0, 0
-    v3: bool = icmp_eq v2, v1
+function isCircle(v0: isCircle#parameter:value#union): boolean {
+b0(v0: isCircle#parameter:value#union):
+    v1: uint8 = 0uint8
+    v2: uint8 = field.get v0, 0
+    v3: boolean = int.eq v2, v1
     return v3
 }
         "#,

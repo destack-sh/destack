@@ -18,28 +18,28 @@ declare_pass! {
     /// It then runs SCCP locally to prune dead edges and replace constant returns.
     ///
     /// ```mir
-    /// function @callee(v0: i32) -> i32 {
-    /// block0(v0: i32):
+    /// function callee(v0: int32): int32 {
+    /// b0(v0: int32):
     ///     return v0
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 7i32
-    ///     v1 = call @callee(v0) -> fn(i32) -> i32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 7int32
+    ///     v1 = call callee(v0)
     ///     return v1
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @callee(v0: i32) -> i32 {
-    /// block0(v0: i32):
-    ///     v1 = iconst 7i32
+    /// function callee(v0: int32): int32 {
+    /// b0(v0: int32):
+    ///     v1 = 7int32
     ///     return v1
     /// }
-    /// function @root() -> i32 {
-    /// block0:
-    ///     v0 = iconst 7i32
-    ///     v1 = call @callee(v0) -> fn(i32) -> i32
+    /// function root(): int32 {
+    /// b0:
+    ///     v0 = 7int32
+    ///     v1 = call callee(v0)
     ///     return v1
     /// }
     /// ```
@@ -722,26 +722,28 @@ mod tests {
     /// Constant arguments are propagated into the callee.
     #[test]
     fn test_ip_sccp_inserts_constants() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 7i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 7int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 7i32
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 7int32
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 7i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(): int32 {
+b0:
+    v0: int32 = 7int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -753,25 +755,27 @@ block0:
     /// Pure constant returns replace call results.
     #[test]
     fn test_ip_sccp_replaces_pure_call() {
-        let input = r#"function @pure() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
+        let input = r#"
+function pure(): int32 {
+b0:
+    v0: int32 = 9int32
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = call @pure() -> fn() -> i32
+function root(): int32 {
+b0:
+    v0: int32 = call pure(): () -> int32
     return v0
 }"#;
 
-        let expected = r#"function @pure() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
+        let expected = r#"
+function pure(): int32 {
+b0:
+    v0: int32 = 9int32
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
     return v0
 }"#;
 
@@ -787,20 +791,21 @@ block0:
     /// Mismatched constants do not propagate into the callee.
     #[test]
     fn test_ip_sccp_skips_mismatched_constants() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @first() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function first(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }
-function @second() -> i32 {
-block0:
-    v0: i32 = iconst 2i32
-    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+function second(): int32 {
+b0:
+    v0: int32 = 2int32
+    v1: int32 = call callee(v0): (int32) -> int32
     return v1
 }"#;
 
@@ -812,15 +817,16 @@ block0:
     /// Non constant callsites prevent parameter propagation.
     #[test]
     fn test_ip_sccp_skips_non_constant_callsite() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = call @callee(v1) -> fn(i32) -> i32
-    v3: i32 = call @callee(v0) -> fn(i32) -> i32
+function root(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = call callee(v1): (int32) -> int32
+    v3: int32 = call callee(v0): (int32) -> int32
     return v2
 }"#;
 
@@ -832,25 +838,27 @@ block0(v0: i32):
     /// Tailcalls participate in interprocedural SCCP.
     #[test]
     fn test_ip_sccp_propagates_tailcall() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    tailcall @callee(v0)
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    tailCall callee(v0): (int32) -> int32
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 9i32
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 9int32
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    tailcall @callee(v0)
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    tailCall callee(v0): (int32) -> int32
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -861,32 +869,34 @@ block0:
     /// Exceptional direct call terminators participate in interprocedural SCCP.
     #[test]
     fn test_ip_sccp_propagates_call_terminator() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 9i32
+        let expected = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 9int32
     return v1
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+function root(): int32 {
+b0:
+    v0: int32 = 9int32
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
@@ -898,14 +908,15 @@ block2(v2: ref<managed readonly i32>):
     /// Calls without effect metadata are not replaced.
     #[test]
     fn test_ip_sccp_skips_call_without_metadata() {
-        let input = r#"function @pure() -> i32 {
-block0:
-    v0: i32 = iconst 9i32
+        let input = r#"
+function pure(): int32 {
+b0:
+    v0: int32 = 9int32
     return v0
 }
-function @root() -> i32 {
-block0:
-    v0: i32 = call @pure() -> fn() -> i32
+function root(): int32 {
+b0:
+    v0: int32 = call pure(): () -> int32
     return v0
 }"#;
 
@@ -917,15 +928,15 @@ block0:
     /// Indirect signatures mark callees as exposed.
     #[test]
     fn test_ip_sccp_skips_exposed_by_indirect_signature() {
-        let input = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+        let input = r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @root(v0: fn(i32) -> i32) -> i32 {
-block0(v0: fn(i32) -> i32):
-    v1: i32 = iconst 7i32
-    v2: i32 = call @callee(v1) -> fn(i32) -> i32
-    v3: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+function root(v0: fn(int32) -> int32): int32  {
+b0(v0: fn(int32) -> int32) -> v1: int32 = 7int32
+    v2: int32 = call callee(v1): (int32) -> int32
+    v3: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#;
 

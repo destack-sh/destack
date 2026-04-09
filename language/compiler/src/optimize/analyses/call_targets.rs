@@ -114,14 +114,15 @@ mod tests {
     #[test]
     fn test_call_targets_direct_call() {
         let test = TestProgram::new(
-            r#"function @callee() -> i32 {
-block0:
-    v0: i32 = iconst 7i32
+            r#"
+function callee(): int32 {
+b0:
+    v0: int32 = 7int32
     return v0
 }
-function @test() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+function test(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#,
         );
@@ -145,13 +146,14 @@ block0:
     #[test]
     fn test_call_targets_virtual_declared() {
         let test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call.virtual v0, i32, 1(v0) -> fn(i32) -> i32
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
     return v1
 }"#,
         );
@@ -171,13 +173,13 @@ block0(v0: i32):
     #[test]
     fn test_call_targets_indirect_unknown() {
         let test = TestProgram::new(
-            r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
+            r#"
+function callee(v0: int32): int32 {
+b0(v0: int32):
     return v0
 }
-function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+function test(v0: fn(int32) -> int32, v1: int32): int32  {
+b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#,
         );

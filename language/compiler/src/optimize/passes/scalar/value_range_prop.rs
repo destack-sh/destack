@@ -13,21 +13,21 @@ declare_pass! {
     /// simplification and guard elimination.
     ///
     /// ```mir
-    /// function @before() -> bool {
-    /// block0:
-    ///     v0 = iconst 1i32
-    ///     v1 = iconst 2i32
-    ///     v2 = icmp_slt v0, v1
+    /// function before(): boolean {
+    /// b0:
+    ///     v0 = 1int32
+    ///     v1 = 2int32
+    ///     v2 = int.lt.s v0, v1
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after() -> bool {
-    /// block0:
-    ///     v0 = iconst 1i32
-    ///     v1 = iconst 2i32
-    ///     v2 = iconst true
+    /// function after(): boolean {
+    /// b0:
+    ///     v0 = 1int32
+    ///     v1 = 2int32
+    ///     v2 = true
     ///     return v2
     /// }
     /// ```
@@ -142,18 +142,20 @@ mod tests {
     /// Constant comparisons fold to constant booleans.
     #[test]
     fn test_value_range_prop_constant_comparison() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: bool = icmp_slt v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: boolean = int.lt.s v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: bool = iconst true
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: boolean = true
     return v2
 }"#;
 
@@ -165,18 +167,20 @@ block0:
     /// Constant equality folds to true.
     #[test]
     fn test_value_range_prop_constant_equals() {
-        let input = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 4i32
-    v1: i32 = iconst 4i32
-    v2: bool = icmp_eq v0, v1
+        let input = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 4int32
+    v1: int32 = 4int32
+    v2: boolean = int.eq v0, v1
     return v2
 }"#;
-        let expected = r#"function @test() -> bool {
-block0:
-    v0: i32 = iconst 4i32
-    v1: i32 = iconst 4i32
-    v2: bool = iconst true
+        let expected = r#"
+function test(): boolean {
+b0:
+    v0: int32 = 4int32
+    v1: int32 = 4int32
+    v2: boolean = true
     return v2
 }"#;
 
@@ -188,9 +192,10 @@ block0:
     /// Non-constant comparisons are preserved.
     #[test]
     fn test_value_range_prop_preserves_non_constant() {
-        let input = r#"function @test(v0: i32, v1: i32) -> bool {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_slt v0, v1
+        let input = r#"
+function test(v0: int32, v1: int32): boolean {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.lt.s v0, v1
     return v2
 }"#;
 

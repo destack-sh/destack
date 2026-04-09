@@ -16,34 +16,34 @@ declare_pass! {
     /// conditional and selecting the result with a `select`.
     ///
     /// ```mir
-    /// function @before(v0: bool, v1: i32, v2: i32) -> i32 {
-    /// block0(v0: bool, v1: i32, v2: i32):
-    ///     branch v0, block1(v1, v2), block2(v1, v2)
-    /// block1(v3: i32, v4: i32):
-    ///     v5 = iadd v3, v4
-    ///     jump block3(v5)
-    /// block2(v6: i32, v7: i32):
-    ///     v8 = isub v6, v7
-    ///     jump block3(v8)
-    /// block3(v9: i32):
+    /// function before(v0: boolean, v1: int32, v2: int32): int32 {
+    /// b0(v0: boolean, v1: int32, v2: int32):
+    ///     branch v0, b1(v1, v2), b2(v1, v2)
+    /// b1(v3: int32, v4: int32):
+    ///     v5 = int.add v3, v4
+    ///     jump b3(v5)
+    /// b2(v6: int32, v7: int32):
+    ///     v8 = int.sub v6, v7
+    ///     jump b3(v8)
+    /// b3(v9: int32):
     ///     return v9
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool, v1: i32, v2: i32) -> i32 {
-    /// block0(v0: bool, v1: i32, v2: i32):
-    ///     v10 = iadd v1, v2
-    ///     v11 = isub v1, v2
+    /// function after(v0: boolean, v1: int32, v2: int32): int32 {
+    /// b0(v0: boolean, v1: int32, v2: int32):
+    ///     v10 = int.add v1, v2
+    ///     v11 = int.sub v1, v2
     ///     v12 = select v0, v10, v11
-    ///     jump block3(v12)
-    /// block1(v3: i32, v4: i32):
-    ///     v5 = iadd v3, v4
-    ///     jump block3(v5)
-    /// block2(v6: i32, v7: i32):
-    ///     v8 = isub v6, v7
-    ///     jump block3(v8)
-    /// block3(v9: i32):
+    ///     jump b3(v12)
+    /// b1(v3: int32, v4: int32):
+    ///     v5 = int.add v3, v4
+    ///     jump b3(v5)
+    /// b2(v6: int32, v7: int32):
+    ///     v8 = int.sub v6, v7
+    ///     jump b3(v8)
+    /// b3(v9: int32):
     ///     return v9
     /// }
     /// ```
@@ -498,31 +498,33 @@ mod tests {
     /// Convert a simple diamond with speculatable ops into a select.
     #[test]
     fn test_if_convert_simple_diamond() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1, v2), block2(v1, v2)
-block1(v3: i32, v4: i32):
-    v5: i32 = iadd v3, v4
-    jump block3(v5)
-block2(v6: i32, v7: i32):
-    v8: i32 = isub v6, v7
-    jump block3(v8)
-block3(v9: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
+b3(v9: int32):
     return v9
 }"#;
-        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    v3: i32 = iadd v1, v2
-    v4: i32 = isub v1, v2
-    v5: i32 = select v0, v3, v4
-    jump block3(v5)
-block1(v6: i32, v7: i32):
-    v8: i32 = iadd v6, v7
-    jump block3(v8)
-block2(v9: i32, v10: i32):
-    v11: i32 = isub v9, v10
-    jump block3(v11)
-block3(v12: i32):
+        let expected = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    v4: int32 = int.sub v1, v2
+    v5: int32 = select v0, v3, v4
+    jump b3(v5)
+b1(v6: int32, v7: int32):
+    v8: int32 = int.add v6, v7
+    jump b3(v8)
+b2(v9: int32, v10: int32):
+    v11: int32 = int.sub v9, v10
+    jump b3(v11)
+b3(v12: int32):
     return v12
 }"#;
 
@@ -534,16 +536,17 @@ block3(v12: i32):
     /// Cloned instructions keep memory access metadata with remapped values.
     #[test]
     fn test_if_convert_clones_memory_access_metadata() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1, v2), block2(v1, v2)
-block1(v3: i32, v4: i32):
-    v5: i32 = iadd v3, v4
-    jump block3(v5)
-block2(v6: i32, v7: i32):
-    v8: i32 = isub v6, v7
-    jump block3(v8)
-block3(v9: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
+b3(v9: int32):
     return v9
 }"#;
 
@@ -636,79 +639,81 @@ block3(v9: i32):
     /// Convert larger diamonds when balanced and speculatable.
     #[test]
     fn test_if_convert_large_balanced_blocks() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1(v1), block2(v1)
-block1(v2: i32):
-    v3: i32 = iadd v2, v2
-    v4: i32 = iadd v3, v2
-    v5: i32 = iadd v4, v2
-    v6: i32 = iadd v5, v2
-    v7: i32 = iadd v6, v2
-    v8: i32 = iadd v7, v2
-    v9: i32 = iadd v8, v2
-    v10: i32 = iadd v9, v2
-    v11: i32 = iadd v10, v2
-    jump block3(v11)
-block2(v12: i32):
-    v13: i32 = isub v12, v12
-    v14: i32 = iadd v13, v12
-    v15: i32 = iadd v14, v12
-    v16: i32 = iadd v15, v12
-    v17: i32 = iadd v16, v12
-    v18: i32 = iadd v17, v12
-    v19: i32 = iadd v18, v12
-    v20: i32 = iadd v19, v12
-    v21: i32 = iadd v20, v12
-    jump block3(v21)
-block3(v22: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1(v1), b2(v1)
+b1(v2: int32):
+    v3: int32 = int.add v2, v2
+    v4: int32 = int.add v3, v2
+    v5: int32 = int.add v4, v2
+    v6: int32 = int.add v5, v2
+    v7: int32 = int.add v6, v2
+    v8: int32 = int.add v7, v2
+    v9: int32 = int.add v8, v2
+    v10: int32 = int.add v9, v2
+    v11: int32 = int.add v10, v2
+    jump b3(v11)
+b2(v12: int32):
+    v13: int32 = int.sub v12, v12
+    v14: int32 = int.add v13, v12
+    v15: int32 = int.add v14, v12
+    v16: int32 = int.add v15, v12
+    v17: int32 = int.add v16, v12
+    v18: int32 = int.add v17, v12
+    v19: int32 = int.add v18, v12
+    v20: int32 = int.add v19, v12
+    v21: int32 = int.add v20, v12
+    jump b3(v21)
+b3(v22: int32):
     return v22
 }"#;
-        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    v2: i32 = iadd v1, v1
-    v3: i32 = iadd v2, v1
-    v4: i32 = iadd v3, v1
-    v5: i32 = iadd v4, v1
-    v6: i32 = iadd v5, v1
-    v7: i32 = iadd v6, v1
-    v8: i32 = iadd v7, v1
-    v9: i32 = iadd v8, v1
-    v10: i32 = iadd v9, v1
-    v11: i32 = isub v1, v1
-    v12: i32 = iadd v11, v1
-    v13: i32 = iadd v12, v1
-    v14: i32 = iadd v13, v1
-    v15: i32 = iadd v14, v1
-    v16: i32 = iadd v15, v1
-    v17: i32 = iadd v16, v1
-    v18: i32 = iadd v17, v1
-    v19: i32 = iadd v18, v1
-    v20: i32 = select v0, v10, v19
-    jump block3(v20)
-block1(v21: i32):
-    v22: i32 = iadd v21, v21
-    v23: i32 = iadd v22, v21
-    v24: i32 = iadd v23, v21
-    v25: i32 = iadd v24, v21
-    v26: i32 = iadd v25, v21
-    v27: i32 = iadd v26, v21
-    v28: i32 = iadd v27, v21
-    v29: i32 = iadd v28, v21
-    v30: i32 = iadd v29, v21
-    jump block3(v30)
-block2(v31: i32):
-    v32: i32 = isub v31, v31
-    v33: i32 = iadd v32, v31
-    v34: i32 = iadd v33, v31
-    v35: i32 = iadd v34, v31
-    v36: i32 = iadd v35, v31
-    v37: i32 = iadd v36, v31
-    v38: i32 = iadd v37, v31
-    v39: i32 = iadd v38, v31
-    v40: i32 = iadd v39, v31
-    jump block3(v40)
-block3(v41: i32):
+        let expected = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    v2: int32 = int.add v1, v1
+    v3: int32 = int.add v2, v1
+    v4: int32 = int.add v3, v1
+    v5: int32 = int.add v4, v1
+    v6: int32 = int.add v5, v1
+    v7: int32 = int.add v6, v1
+    v8: int32 = int.add v7, v1
+    v9: int32 = int.add v8, v1
+    v10: int32 = int.add v9, v1
+    v11: int32 = int.sub v1, v1
+    v12: int32 = int.add v11, v1
+    v13: int32 = int.add v12, v1
+    v14: int32 = int.add v13, v1
+    v15: int32 = int.add v14, v1
+    v16: int32 = int.add v15, v1
+    v17: int32 = int.add v16, v1
+    v18: int32 = int.add v17, v1
+    v19: int32 = int.add v18, v1
+    v20: int32 = select v0, v10, v19
+    jump b3(v20)
+b1(v21: int32):
+    v22: int32 = int.add v21, v21
+    v23: int32 = int.add v22, v21
+    v24: int32 = int.add v23, v21
+    v25: int32 = int.add v24, v21
+    v26: int32 = int.add v25, v21
+    v27: int32 = int.add v26, v21
+    v28: int32 = int.add v27, v21
+    v29: int32 = int.add v28, v21
+    v30: int32 = int.add v29, v21
+    jump b3(v30)
+b2(v31: int32):
+    v32: int32 = int.sub v31, v31
+    v33: int32 = int.add v32, v31
+    v34: int32 = int.add v33, v31
+    v35: int32 = int.add v34, v31
+    v36: int32 = int.add v35, v31
+    v37: int32 = int.add v36, v31
+    v38: int32 = int.add v37, v31
+    v39: int32 = int.add v38, v31
+    v40: int32 = int.add v39, v31
+    jump b3(v40)
+b3(v41: int32):
     return v41
 }"#;
 
@@ -720,16 +725,17 @@ block3(v41: i32):
     /// Skip conversion when branch instructions may trap.
     #[test]
     fn test_if_convert_skips_trapping_ops() {
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1, v2), block2(v1, v2)
-block1(v3: i32, v4: i32):
-    v5: i32 = sdiv v3, v4
-    jump block3(v5)
-block2(v6: i32, v7: i32):
-    v8: i32 = isub v6, v7
-    jump block3(v8)
-block3(v9: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.div.s v3, v4
+    jump b3(v5)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
+b3(v9: int32):
     return v9
 }"#;
 
@@ -741,14 +747,15 @@ block3(v9: i32):
     /// Skip conversion when a branch target has multiple predecessors.
     #[test]
     fn test_if_convert_requires_single_pred() {
-        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1(v1), block2(v1)
-block1(v2: i32):
-    jump block3(v2)
-block2(v3: i32):
-    jump block1(v3)
-block3(v4: i32):
+        let input = r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1(v1), b2(v1)
+b1(v2: int32):
+    jump b3(v2)
+b2(v3: int32):
+    jump b1(v3)
+b3(v4: int32):
     return v4
 }"#;
 
@@ -761,20 +768,21 @@ block3(v4: i32):
     #[test]
     fn test_if_convert_requires_single_merge_pred() {
         // source test
-        let input = r#"function @test(v0: bool, v1: bool, v2: i32, v3: i32) -> i32 {
-block0(v0: bool, v1: bool, v2: i32, v3: i32):
-    branch v0, block1(v1, v2, v3), block4(v2)
-block1(v4: bool, v5: i32, v6: i32):
-    branch v4, block2(v5, v6), block3(v5, v6)
-block2(v7: i32, v8: i32):
-    v9: i32 = iadd v7, v8
-    jump block5(v9)
-block3(v10: i32, v11: i32):
-    v12: i32 = isub v10, v11
-    jump block5(v12)
-block4(v13: i32):
-    jump block5(v13)
-block5(v14: i32):
+        let input = r#"
+function test(v0: boolean, v1: boolean, v2: int32, v3: int32): int32 {
+b0(v0: boolean, v1: boolean, v2: int32, v3: int32):
+    branch v0, b1(v1, v2, v3), b4(v2)
+b1(v4: boolean, v5: int32, v6: int32):
+    branch v4, b2(v5, v6), b3(v5, v6)
+b2(v7: int32, v8: int32):
+    v9: int32 = int.add v7, v8
+    jump b5(v9)
+b3(v10: int32, v11: int32):
+    v12: int32 = int.sub v10, v11
+    jump b5(v12)
+b4(v13: int32):
+    jump b5(v13)
+b5(v14: int32):
     return v14
 }"#;
 
@@ -788,35 +796,37 @@ block5(v14: i32):
     #[test]
     fn test_if_convert_multiple_merge_args() {
         // source test
-        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1, v2), block2(v1, v2)
-block1(v3: i32, v4: i32):
-    v5: i32 = iadd v3, v4
-    jump block3(v5, v3)
-block2(v6: i32, v7: i32):
-    v8: i32 = isub v6, v7
-    jump block3(v8, v7)
-block3(v9: i32, v10: i32):
-    v11: i32 = iadd v9, v10
+        let input = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5, v3)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8, v7)
+b3(v9: int32, v10: int32):
+    v11: int32 = int.add v9, v10
     return v11
 }"#;
         // expected output
-        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-block0(v0: bool, v1: i32, v2: i32):
-    v3: i32 = iadd v1, v2
-    v4: i32 = isub v1, v2
-    v5: i32 = select v0, v3, v4
-    v6: i32 = select v0, v1, v2
-    jump block3(v5, v6)
-block1(v7: i32, v8: i32):
-    v9: i32 = iadd v7, v8
-    jump block3(v9, v7)
-block2(v10: i32, v11: i32):
-    v12: i32 = isub v10, v11
-    jump block3(v12, v11)
-block3(v13: i32, v14: i32):
-    v15: i32 = iadd v13, v14
+        let expected = r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+b0(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    v4: int32 = int.sub v1, v2
+    v5: int32 = select v0, v3, v4
+    v6: int32 = select v0, v1, v2
+    jump b3(v5, v6)
+b1(v7: int32, v8: int32):
+    v9: int32 = int.add v7, v8
+    jump b3(v9, v7)
+b2(v10: int32, v11: int32):
+    v12: int32 = int.sub v10, v11
+    jump b3(v12, v11)
+b3(v13: int32, v14: int32):
+    v15: int32 = int.add v13, v14
     return v15
 }"#;
 

@@ -23,8 +23,8 @@ declare_pass! {
     /// Uses forward dataflow analysis to correctly handle stack pointers that flow
     /// through control flow joins and block parameters.
     ///
-    /// Frame-local pointers originate from `stack.alloc` and `local.addr`, and propagate through
-    /// `field.addr`, `element.addr`, `field.set`, `element.set`, `cast`, and function
+    /// Frame-local pointers originate from `stack.alloc` and `local.address`, and propagate through
+    /// `field.address`, `element.address`, `field.set`, `element.set`, `cast`, and function
     /// calls (via lifetime analysis). Storing a stack pointer to another stack
     /// location is allowed.
     #[pass(id = "stack-check")]
@@ -108,12 +108,12 @@ impl StackPointerMap {
                 self.mark_stack(*destination);
             }
 
-            // local.addr yields a pointer to stack storage
+            // local.address yields a pointer to stack storage
             Instruction::LocalAddr { destination, .. } => {
                 self.mark_stack(*destination);
             }
 
-            // field.addr of a stack pointer is also a stack pointer
+            // field.address of a stack pointer is also a stack pointer
             Instruction::FieldAddr {
                 destination,
                 aggregate,
@@ -122,7 +122,7 @@ impl StackPointerMap {
                 self.propagate(*aggregate, *destination);
             }
 
-            // element.addr of a stack pointer is also a stack pointer
+            // element.address of a stack pointer is also a stack pointer
             Instruction::ElementAddr {
                 destination, array, ..
             } => {
@@ -636,9 +636,10 @@ mod tests {
     /// Function without stack allocations passes verification.
     #[test]
     fn test_verify_no_stack_allocs() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: int32 = 42int32
     return v0
 }"#;
 
@@ -651,12 +652,13 @@ block0:
     /// Stack allocation used locally passes verification.
     #[test]
     fn test_verify_local_stack_use() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -669,9 +671,10 @@ block0:
     /// Returning a stack pointer directly is detected.
     #[test]
     fn test_detect_return_stack_pointer() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     return v0
 }"#;
 
@@ -680,13 +683,14 @@ block0:
         test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
-    /// Returning a local.addr pointer is detected.
+    /// Returning a local.address pointer is detected.
     #[test]
     fn test_detect_return_local_addr() {
-        let input = r#"function @test() -> ref<borrowed i32> {
-local0: i32 ; owned
-block0:
-    v0: ref<borrowed addrspace(stack) i32> = local.addr local0
+        let input = r#"
+function test(): ref<int32, borrowed> {
+    local local0: int32, owned
+b0:
+    v0: ref<int32, borrowed, addressSpace(stack)> = local.address local0
     return v0
 }"#;
 
@@ -698,10 +702,11 @@ block0:
     /// Returning field address of stack allocation is detected.
     #[test]
     fn test_detect_return_stack_field_addr() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<borrowed i32> = field.addr v0, 0
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#;
 
@@ -713,11 +718,12 @@ block0:
     /// Returning element address of stack allocation is detected.
     #[test]
     fn test_detect_return_stack_element_addr() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 0i32
-    v2: ref<borrowed i32> = element.addr v0, v1
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 0int32
+    v2: ref<int32, borrowed> = element.address v0, v1
     return v2
 }"#;
 
@@ -729,10 +735,10 @@ block0:
     /// Stack pointer propagates through indirect calls with borrowed returns.
     #[test]
     fn test_detect_stack_through_call_indirect() {
-        let input = r#"function @test(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<borrowed i32> = call.indirect v0(v1) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+        let input = r#"
+function test(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>): ref<int32, borrowed>  {
+b0(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>) -> v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, borrowed> = call.indirect v0(v1): (ref<int32, borrowed>) -> ref<int32, borrowed>
     return v2
 }"#;
 
@@ -744,12 +750,13 @@ block0(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>):
     /// Loading from stack pointer and returning value is valid.
     #[test]
     fn test_verify_load_from_stack() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
 
@@ -761,9 +768,10 @@ block0:
     /// Storing stack pointer to heap location is detected.
     #[test]
     fn test_detect_store_stack_to_heap() {
-        let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
-block0(v0: ref<raw ref<raw i32>>):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+        let input = r#"
+function test(v0: ref<ref<int32, raw>, raw>): void {
+b0(v0: ref<ref<int32, raw>, raw>):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     store v0, v1
     return
 }"#;
@@ -776,15 +784,16 @@ block0(v0: ref<raw ref<raw i32>>):
     /// Storing stack pointer to another stack location is valid.
     #[test]
     fn test_verify_store_stack_to_stack() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) ref<raw addrspace(stack) i32>> = stack.alloc ref<raw addrspace(stack) i32>
-    v2: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<ref<int32, raw, addressSpace(stack)>, raw, addressSpace(stack)> = stack.alloc ref<int32, raw, addressSpace(stack)>
+    v2: int32 = 42int32
     store v0, v2
     store v1, v0
-    v3: ref<raw i32> = load v1
-    v4: i32 = load v3
+    v3: ref<int32, raw> = load v1
+    v4: int32 = load v3
     return v4
 }"#;
 
@@ -796,10 +805,11 @@ block0:
     /// Cast of stack pointer still tracks as stack pointer.
     #[test]
     fn test_detect_cast_stack_pointer_return() {
-        let input = r#"function @test() -> ref<raw i8> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw i8> = bitcast v0 -> ref<raw i8>
+        let input = r#"
+function test(): ref<int8, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
     return v1
 }"#;
 
@@ -811,9 +821,10 @@ block0:
     /// Heap pointer can be returned.
     #[test]
     fn test_verify_return_heap_pointer() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw i32> = raw.alloc i32
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw> = raw.alloc int32
     return v0
 }"#;
 
@@ -825,8 +836,9 @@ block0:
     /// Function parameter pointer can be returned.
     #[test]
     fn test_verify_return_param_pointer() {
-        let input = r#"function @test(v0: ref<raw i32>) -> ref<raw i32> {
-block0(v0: ref<raw i32>):
+        let input = r#"
+function test(v0: ref<int32, raw>): ref<int32, raw> {
+b0(v0: ref<int32, raw>):
     return v0
 }"#;
 
@@ -838,10 +850,11 @@ block0(v0: ref<raw i32>):
     /// field.set with stack pointer into non-stack aggregate is detected.
     #[test]
     fn test_detect_field_set_stack_escape() {
-        let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
-block0(v0: ref<raw ref<raw i32>>):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw ref<raw i32>> = field.set v0, 0, v1
+        let input = r#"
+function test(v0: ref<ref<int32, raw>, raw>): void {
+b0(v0: ref<ref<int32, raw>, raw>):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<ref<int32, raw>, raw> = field.set v0, 0, v1
     return
 }"#;
 
@@ -853,11 +866,12 @@ block0(v0: ref<raw ref<raw i32>>):
     /// element.set with stack pointer into non-stack array is detected.
     #[test]
     fn test_detect_element_set_stack_escape() {
-        let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
-block0(v0: ref<raw ref<raw i32>>):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 0i32
-    v3: ref<raw ref<raw i32>> = element.set v0, v2, v1
+        let input = r#"
+function test(v0: ref<ref<int32, raw>, raw>): void {
+b0(v0: ref<ref<int32, raw>, raw>):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 0int32
+    v3: ref<ref<int32, raw>, raw> = element.set v0, v2, v1
     return
 }"#;
 
@@ -869,11 +883,12 @@ block0(v0: ref<raw ref<raw i32>>):
     /// Nested field addresses of stack are tracked.
     #[test]
     fn test_detect_nested_field_addr_stack() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<borrowed i32> = field.addr v0, 0
-    v2: ref<borrowed i32> = field.addr v1, 0
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v1, 0
     return v2
 }"#;
 
@@ -885,20 +900,21 @@ block0:
     /// Control flow with stack pointer used locally is valid.
     #[test]
     fn test_verify_control_flow_stack_local() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
     store v1, v2
-    jump block3
-block2:
-    v3: i32 = iconst 2i32
+    jump b3
+b2:
+    v3: int32 = 2int32
     store v1, v3
-    jump block3
-block3:
-    v4: i32 = load v1
+    jump b3
+b3:
+    v4: int32 = load v1
     return v4
 }"#;
 
@@ -910,17 +926,18 @@ block3:
     /// Multiple stack allocations used locally are valid.
     #[test]
     fn test_verify_multiple_stack_allocs() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 10i32
-    v3: i32 = iconst 20i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 10int32
+    v3: int32 = 20int32
     store v0, v2
     store v1, v3
-    v4: i32 = load v0
-    v5: i32 = load v1
-    v6: i32 = iadd v4, v5
+    v4: int32 = load v0
+    v5: int32 = load v1
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
 
@@ -932,10 +949,11 @@ block0:
     /// Void return with stack allocation used locally is valid.
     #[test]
     fn test_verify_void_return_with_stack() {
-        let input = r#"function @test() -> void {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): void {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
     return
 }"#;
@@ -948,14 +966,15 @@ block0:
     /// Yielding while one stack allocation stays live is detected.
     #[test]
     fn test_detect_stack_allocation_live_across_yield() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    yield v1, block1
-block1(v2: i32):
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    yield v1, b1
+b1(v2: int32):
     store v0, v2
-    v3: i32 = load v0
+    v3: int32 = load v0
     return v3
 }"#;
 
@@ -967,13 +986,14 @@ block1(v2: i32):
     /// Yielding after a dead stack allocation is valid.
     #[test]
     fn test_verify_dead_stack_allocation_before_yield() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    yield v1, block1
-block1(v2: i32):
+    yield v1, b1
+b1(v2: int32):
     return v2
 }"#;
 
@@ -985,16 +1005,16 @@ block1(v2: i32):
     /// Yielding while one local address stays live is detected.
     #[test]
     fn test_detect_local_pointer_live_across_yield() {
-        let input = r#"function @test() -> i32 {
-    local0: i32 ; owned
-
-block0:
-    v0: i32 = iconst 1i32
+        let input = r#"
+function test(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    yield v0, block1
-block1(v2: i32):
-    v3: i32 = load v1
+    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    yield v0, b1
+b1(v2: int32):
+    v3: int32 = load v1
     return v3
 }"#;
 
@@ -1006,11 +1026,12 @@ block1(v2: i32):
     /// Stack pointer passed through block parameter is tracked.
     #[test]
     fn test_detect_stack_pointer_through_block_param() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    jump block1(v0)
-block1(v1: ref<raw i32>):
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    jump b1(v0)
+b1(v1: ref<int32, raw>):
     return v1
 }"#;
 
@@ -1022,13 +1043,14 @@ block1(v1: ref<raw i32>):
     /// Stack pointer through multiple jump hops is tracked.
     #[test]
     fn test_detect_stack_escape_through_multiple_jumps() {
-        let input = r#"function @test() -> ref<raw i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    jump block1(v0)
-block1(v1: ref<raw i32>):
-    jump block2(v1)
-block2(v2: ref<raw i32>):
+        let input = r#"
+function test(): ref<int32, raw> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    jump b1(v0)
+b1(v1: ref<int32, raw>):
+    jump b2(v1)
+b2(v2: ref<int32, raw>):
     return v2
 }"#;
 
@@ -1040,14 +1062,15 @@ block2(v2: ref<raw i32>):
     /// Stack pointer used locally through block params is valid.
     #[test]
     fn test_verify_stack_through_block_param_local_use() {
-        let input = r#"function @test() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+        let input = r#"
+function test(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    jump block1(v0)
-block1(v2: ref<raw i32>):
-    v3: i32 = load v2
+    jump b1(v0)
+b1(v2: ref<int32, raw>):
+    v3: int32 = load v2
     return v3
 }"#;
 
@@ -1059,25 +1082,26 @@ block1(v2: ref<raw i32>):
     /// Loop with stack pointer used locally is valid.
     #[test]
     fn test_verify_loop_with_stack_local() {
-        let input = r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 0i32
+        let input = r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 0int32
     store v1, v2
-    jump block1(v0)
-block1(v3: i32):
-    v4: i32 = iconst 0i32
-    v5: bool = icmp_sgt v3, v4
-    branch v5, block2, block3
-block2:
-    v6: i32 = load v1
-    v7: i32 = iadd v6, v3
+    jump b1(v0)
+b1(v3: int32):
+    v4: int32 = 0int32
+    v5: boolean = int.gt.s v3, v4
+    branch v5, b2, b3
+b2:
+    v6: int32 = load v1
+    v7: int32 = int.add v6, v3
     store v1, v7
-    v8: i32 = iconst 1i32
-    v9: i32 = isub v3, v8
-    jump block1(v9)
-block3:
-    v10: i32 = load v1
+    v8: int32 = 1int32
+    v9: int32 = int.sub v3, v8
+    jump b1(v9)
+b3:
+    v10: int32 = load v1
     return v10
 }"#;
 
@@ -1089,16 +1113,17 @@ block3:
     /// Diamond control flow: stack on one branch, heap on other = maybe stack at merge.
     #[test]
     fn test_detect_maybe_stack_escape_diamond() {
-        let input = r#"function @test(v0: bool) -> ref<raw i32> {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    jump block3(v1)
-block2:
-    v2: ref<raw i32> = raw.alloc i32
-    jump block3(v2)
-block3(v3: ref<raw i32>):
+        let input = r#"
+function test(v0: boolean): ref<int32, raw> {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    jump b3(v1)
+b2:
+    v2: ref<int32, raw> = raw.alloc int32
+    jump b3(v2)
+b3(v3: ref<int32, raw>):
     return v3
 }"#;
 
@@ -1111,21 +1136,22 @@ block3(v3: ref<raw i32>):
     /// Diamond control flow: stack pointers on both branches used locally is valid.
     #[test]
     fn test_verify_stack_both_branches_local_use() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v3: i32 = iconst 1i32
-    v4: i32 = iconst 2i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v3: int32 = 1int32
+    v4: int32 = 2int32
     store v1, v3
     store v2, v4
-    branch v0, block1, block2
-block1:
-    jump block3(v1)
-block2:
-    jump block3(v2)
-block3(v5: ref<raw i32>):
-    v6: i32 = load v5
+    branch v0, b1, b2
+b1:
+    jump b3(v1)
+b2:
+    jump b3(v2)
+b3(v5: ref<int32, raw>):
+    v6: int32 = load v5
     return v6
 }"#;
 
@@ -1141,24 +1167,24 @@ block3(v5: ref<raw i32>):
     /// and that argument is a stack pointer, the return value is also a stack pointer.
     #[test]
     fn test_detect_stack_escape_through_call() {
-        let input = r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function identity(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> ref<borrowed i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): ref<int32, borrowed> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<int32, borrowed> = call identity(v0): (ref<int32, borrowed>) -> ref<int32, borrowed>
     return v2
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StackCheck);
 
-        // v2 = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> where v0 is stack pointer
+        // v2 = call identity(v0) where v0 is stack pointer
         // @identity returns borrowed ref from param 0, so v2 is stack pointer
         // returning v2 is a stack escape
         test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
@@ -1170,17 +1196,17 @@ block0:
     /// arguments, so stack pointer status doesn't propagate.
     #[test]
     fn test_static_lifetime_no_stack_propagation() {
-        let input = r#"function @getStatic(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"
+function getStatic(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> ref<borrowed i32> {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 42i32
+function test(): ref<int32, borrowed> {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: ref<borrowed i32> = call @getStatic(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<int32, borrowed> = call getStatic(v0): (ref<int32, borrowed>) -> ref<int32, borrowed>
     return v2
 }"#;
 
@@ -1200,19 +1226,19 @@ block0:
     /// stack pointer status from arg 0 propagates to the return value.
     #[test]
     fn test_explicit_param_lifetime_stack_propagation() {
-        let input = r#"function @pick(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+        let input = r#"
+function pick(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }
-
-function @test() -> ref<borrowed i32> {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+function test(): ref<int32, borrowed> {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<int32, borrowed> = call pick(v0, v1): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
     return v3
 }"#;
 
@@ -1233,19 +1259,19 @@ block0:
     /// the return is also a stack pointer.
     #[test]
     fn test_explicit_second_param_lifetime_stack_propagation() {
-        let input = r#"function @pick(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+        let input = r#"
+function pick(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v1
 }
-
-function @test() -> ref<borrowed i32> {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 42i32
+function test(): ref<int32, borrowed> {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 42int32
     store v0, v2
     store v1, v2
-    v3: ref<borrowed i32> = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<int32, borrowed> = call pick(v0, v1): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
     return v3
 }"#;
 

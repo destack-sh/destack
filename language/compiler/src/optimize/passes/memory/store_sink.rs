@@ -19,31 +19,31 @@ declare_pass! {
     /// move the store to those edges and remove it from the predecessor block.
     ///
     /// ```mir
-    /// function @before(v0: bool) -> i32 {
-    /// block0(v0: bool):
-    ///     v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     v2 = iconst 7i32
+    /// function before(v0: boolean): int32 {
+    /// b0(v0: boolean):
+    ///     v1 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     v2 = 7int32
     ///     store v1, v2
-    ///     branch v0, block1, block2
-    /// block1:
-    ///     v3 = load v1 -> i32
+    ///     branch v0, b1, b2
+    /// b1:
+    ///     v3 = load v1 -> int32
     ///     return v3
-    /// block2:
+    /// b2:
     ///     return v2
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// function @after(v0: bool) -> i32 {
-    /// block0(v0: bool):
-    ///     v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    ///     v2 = iconst 7i32
-    ///     branch v0, block1, block2
-    /// block1:
+    /// function after(v0: boolean): int32 {
+    /// b0(v0: boolean):
+    ///     v1 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     v2 = 7int32
+    ///     branch v0, b1, b2
+    /// b1:
     ///     store v1, v2
-    ///     v3 = load v1 -> i32
+    ///     v3 = load v1 -> int32
     ///     return v3
-    /// block2:
+    /// b2:
     ///     return v2
     /// }
     /// ```
@@ -471,31 +471,33 @@ mod tests {
     /// Stores are sunk to the successor that reads them.
     #[test]
     fn test_store_sink_to_single_successor() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 7i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 7int32
     store v1, v2
-    branch v0, block1, block2
-block1:
-    v3: i32 = load v1
+    branch v0, b1, b2
+b1:
+    v3: int32 = load v1
     return v3
-block2:
+b2:
     return v2
 }"#;
 
-        let expected = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 7i32
-    branch v0, block1, block3
-block1:
+        let expected = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 7int32
+    branch v0, b1, b3
+b1:
     store v1, v2
-    jump block2
-block2:
-    v3: i32 = load v1
+    jump b2
+b2:
+    v3: int32 = load v1
     return v3
-block3:
+b3:
     return v2
 }"#;
 
@@ -507,17 +509,18 @@ block3:
     /// Stores needed on both edges are not sunk.
     #[test]
     fn test_store_sink_skips_all_successors() {
-        let input = r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v2: i32 = iconst 7i32
+        let input = r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = 7int32
     store v1, v2
-    branch v0, block1, block2
-block1:
-    v3: i32 = load v1
+    branch v0, b1, b2
+b1:
+    v3: int32 = load v1
     return v3
-block2:
-    v4: i32 = load v1
+b2:
+    v4: int32 = load v1
     return v4
 }"#;
 
@@ -529,14 +532,15 @@ block2:
     /// Stores to escaping memory are not sunk.
     #[test]
     fn test_store_sink_skips_escaping_store() {
-        let input = r#"function @test(v0: bool, v1: ref<raw addrspace(global) i32>) -> void {
-block0(v0: bool, v1: ref<raw addrspace(global) i32>):
-    v2: i32 = iconst 1i32
+        let input = r#"
+function test(v0: boolean, v1: ref<int32, raw, addressSpace(global)>): void {
+b0(v0: boolean, v1: ref<int32, raw, addressSpace(global)>):
+    v2: int32 = 1int32
     store v1, v2
-    branch v0, block1, block2
-block1:
+    branch v0, b1, b2
+b1:
     return
-block2:
+b2:
     return
 }"#;
 

@@ -2370,10 +2370,11 @@ mod tests {
     #[test]
     fn test_range_from_constant() {
         let test = TestProgram::new(
-            r#"function @test(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    v2: i32 = iadd v1, v0
+            r#"
+function test(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 5int32
+    v2: int32 = int.add v1, v0
     return v2
 }"#,
         );
@@ -2406,16 +2407,17 @@ block0(v0: i32):
     #[test]
     fn test_range_param_union() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 3i32
-    jump block3(v2)
-block3(v3: i32):
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
+    jump b3(v1)
+b2:
+    v2: int32 = 3int32
+    jump b3(v2)
+b3(v3: int32):
     return v3
 }"#,
         );
@@ -2447,15 +2449,16 @@ block3(v3: i32):
     #[test]
     fn test_range_param_unknown() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool, v1: i32) -> i32 {
-block0(v0: bool, v1: i32):
-    branch v0, block1, block2
-block1:
-    v2: i32 = iconst 1i32
-    jump block3(v2)
-block2:
-    jump block3(v1)
-block3(v3: i32):
+            r#"
+function test(v0: boolean, v1: int32): int32 {
+b0(v0: boolean, v1: int32):
+    branch v0, b1, b2
+b1:
+    v2: int32 = 1int32
+    jump b3(v2)
+b2:
+    jump b3(v1)
+b3(v3: int32):
     return v3
 }"#,
         );
@@ -2477,18 +2480,19 @@ block3(v3: i32):
     #[test]
     fn test_range_arithmetic_add() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 2i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 4i32
-    jump block3(v2)
-block3(v3: i32):
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 2int32
+    jump b3(v1)
+b2:
+    v2: int32 = 4int32
+    jump b3(v2)
+b3(v3: int32):
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
     return v5
 }"#,
         );
@@ -2522,18 +2526,19 @@ block3(v3: i32):
     #[test]
     fn test_range_comparison_constant() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> bool {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 3i32
-    jump block3(v2)
-block3(v3: i32):
-    v4: i32 = iconst 10i32
-    v5: bool = icmp_slt v3, v4
+            r#"
+function test(v0: boolean): boolean {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
+    jump b3(v1)
+b2:
+    v2: int32 = 3int32
+    jump b3(v2)
+b3(v3: int32):
+    v4: int32 = 10int32
+    v5: boolean = int.lt.s v3, v4
     return v5
 }"#,
         );
@@ -2565,9 +2570,10 @@ block3(v3: i32):
     #[test]
     fn test_range_float_constant() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 1.5f32
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = 1.5float32
     return v0
 }"#,
         );
@@ -2601,18 +2607,19 @@ block0:
     #[test]
     fn test_range_float_arithmetic_add() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 3.0f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: f32 = iconst 2.0f32
-    v5: f32 = fadd v3, v4
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 1float32
+    jump b3(v1)
+b2:
+    v2: float32 = 3float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: float32 = 2float32
+    v5: float32 = float.add v3, v4
     return v5
 }"#,
         );
@@ -2647,19 +2654,20 @@ block3(v3: f32):
     #[test]
     fn test_range_float_add_infinite_nan_only() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1e1000f32
-    v2: f32 = iconst -1e1000f32
-    jump block3(v1, v2)
-block2:
-    v3: f32 = iconst 1e1000f32
-    v4: f32 = iconst -1e1000f32
-    jump block3(v3, v4)
-block3(v5: f32, v6: f32):
-    v7: f32 = fadd v5, v6
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = inffloat32
+    v2: float32 = -inffloat32
+    jump b3(v1, v2)
+b2:
+    v3: float32 = inffloat32
+    v4: float32 = -inffloat32
+    jump b3(v3, v4)
+b3(v5: float32, v6: float32):
+    v7: float32 = float.add v5, v6
     return v7
 }"#,
         );
@@ -2694,11 +2702,12 @@ block3(v5: f32, v6: f32):
     #[test]
     fn test_range_float_add_infinite_and_finite() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 1e1000f32
-    v1: f32 = iconst 2.0f32
-    v2: f32 = fadd v0, v1
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = inffloat32
+    v1: float32 = 2float32
+    v2: float32 = float.add v0, v1
     return v2
 }"#,
         );
@@ -2733,19 +2742,20 @@ block0:
     #[test]
     fn test_range_float_sub_infinite_nan_only() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1e1000f32
-    v2: f32 = iconst 1e1000f32
-    jump block3(v1, v2)
-block2:
-    v3: f32 = iconst 1e1000f32
-    v4: f32 = iconst 1e1000f32
-    jump block3(v3, v4)
-block3(v5: f32, v6: f32):
-    v7: f32 = fsub v5, v6
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = inffloat32
+    v2: float32 = inffloat32
+    jump b3(v1, v2)
+b2:
+    v3: float32 = inffloat32
+    v4: float32 = inffloat32
+    jump b3(v3, v4)
+b3(v5: float32, v6: float32):
+    v7: float32 = float.sub v5, v6
     return v7
 }"#,
         );
@@ -2780,11 +2790,12 @@ block3(v5: f32, v6: f32):
     #[test]
     fn test_range_float_sub_finite_minus_infinite() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 2.0f32
-    v1: f32 = iconst 1e1000f32
-    v2: f32 = fsub v0, v1
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = 2float32
+    v1: float32 = inffloat32
+    v2: float32 = float.sub v0, v1
     return v2
 }"#,
         );
@@ -2819,18 +2830,19 @@ block0:
     #[test]
     fn test_range_float_comparison_constant() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> bool {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 2.0f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: f32 = iconst 5.0f32
-    v5: bool = fcmp_lt v3, v4
+            r#"
+function test(v0: boolean): boolean {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 1float32
+    jump b3(v1)
+b2:
+    v2: float32 = 2float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: float32 = 5float32
+    v5: boolean = float.lt v3, v4
     return v5
 }"#,
         );
@@ -2862,13 +2874,14 @@ block3(v3: f32):
     #[test]
     fn test_range_float_comparison_full_range() {
         let test = TestProgram::new(
-            r#"function @test() -> bool {
-block0:
-    v0: f32 = iconst 1.0f32
-    v1: f32 = iconst 0.0f32
-    v2: f32 = fdiv v0, v1
-    v3: f32 = iconst 5.0f32
-    v4: bool = fcmp_gt v2, v3
+            r#"
+function test(): boolean {
+b0:
+    v0: float32 = 1float32
+    v1: float32 = 0float32
+    v2: float32 = float.div v0, v1
+    v3: float32 = 5float32
+    v4: boolean = float.gt v2, v3
     return v4
 }"#,
         );
@@ -2892,25 +2905,26 @@ block0:
     #[test]
     fn test_range_float_division_by_zero() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool, v1: bool) -> f32 {
-block0(v0: bool, v1: bool):
-    branch v0, block1, block2
-block1:
-    v2: f32 = iconst 0.0f32
-    jump block3(v2, v1)
-block2:
-    v3: f32 = iconst 1.0f32
-    jump block3(v3, v1)
-block3(v4: f32, v5: bool):
-    branch v5, block4, block5
-block4:
-    v6: f32 = iconst 0.0f32
-    jump block6(v4, v6)
-block5:
-    v7: f32 = iconst 1.0f32
-    jump block6(v4, v7)
-block6(v8: f32, v9: f32):
-    v10: f32 = fdiv v9, v8
+            r#"
+function test(v0: boolean, v1: boolean): float32 {
+b0(v0: boolean, v1: boolean):
+    branch v0, b1, b2
+b1:
+    v2: float32 = 0float32
+    jump b3(v2, v1)
+b2:
+    v3: float32 = 1float32
+    jump b3(v3, v1)
+b3(v4: float32, v5: boolean):
+    branch v5, b4, b5
+b4:
+    v6: float32 = 0float32
+    jump b6(v4, v6)
+b5:
+    v7: float32 = 1float32
+    jump b6(v4, v7)
+b6(v8: float32, v9: float32):
+    v10: float32 = float.div v9, v8
     return v10
 }"#,
         );
@@ -2948,18 +2962,19 @@ block6(v8: f32, v9: f32):
     #[test]
     fn test_range_float_division_nonzero_by_zero_range() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 1.0f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: f32 = iconst 2.0f32
-    v5: f32 = fdiv v4, v3
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    jump b3(v1)
+b2:
+    v2: float32 = 1float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: float32 = 2float32
+    v5: float32 = float.div v4, v3
     return v5
 }"#,
         );
@@ -2997,18 +3012,19 @@ block3(v3: f32):
     #[test]
     fn test_range_float_division_zero_by_zero_range() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 1.0f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: f32 = iconst 0.0f32
-    v5: f32 = fdiv v4, v3
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    jump b3(v1)
+b2:
+    v2: float32 = 1float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: float32 = 0float32
+    v5: float32 = float.div v4, v3
     return v5
 }"#,
         );
@@ -3043,18 +3059,19 @@ block3(v3: f32):
     #[test]
     fn test_range_float_division_zero_by_zero_or_infinite() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 1e1000f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: f32 = iconst 0.0f32
-    v5: f32 = fdiv v4, v3
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    jump b3(v1)
+b2:
+    v2: float32 = inffloat32
+    jump b3(v2)
+b3(v3: float32):
+    v4: float32 = 0float32
+    v5: float32 = float.div v4, v3
     return v5
 }"#,
         );
@@ -3089,19 +3106,20 @@ block3(v3: f32):
     #[test]
     fn test_range_float_multiply_zero_by_infinite() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    v2: f32 = iconst 1e1000f32
-    jump block3(v1, v2)
-block2:
-    v3: f32 = iconst 0.0f32
-    v4: f32 = iconst 1e1000f32
-    jump block3(v3, v4)
-block3(v5: f32, v6: f32):
-    v7: f32 = fmul v5, v6
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    v2: float32 = inffloat32
+    jump b3(v1, v2)
+b2:
+    v3: float32 = 0float32
+    v4: float32 = inffloat32
+    jump b3(v3, v4)
+b3(v5: float32, v6: float32):
+    v7: float32 = float.mul v5, v6
     return v7
 }"#,
         );
@@ -3136,18 +3154,19 @@ block3(v5: f32, v6: f32):
     #[test]
     fn test_range_float_multiply_infinite_by_zero_range() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 2.0f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: f32 = iconst 1e1000f32
-    v5: f32 = fmul v4, v3
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    jump b3(v1)
+b2:
+    v2: float32 = 2float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: float32 = inffloat32
+    v5: float32 = float.mul v4, v3
     return v5
 }"#,
         );
@@ -3182,19 +3201,20 @@ block3(v3: f32):
     #[test]
     fn test_range_float_division_infinite_by_infinite() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1e1000f32
-    v2: f32 = iconst 1e1000f32
-    jump block3(v1, v2)
-block2:
-    v3: f32 = iconst 1e1000f32
-    v4: f32 = iconst 1e1000f32
-    jump block3(v3, v4)
-block3(v5: f32, v6: f32):
-    v7: f32 = fdiv v5, v6
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = inffloat32
+    v2: float32 = inffloat32
+    jump b3(v1, v2)
+b2:
+    v3: float32 = inffloat32
+    v4: float32 = inffloat32
+    jump b3(v3, v4)
+b3(v5: float32, v6: float32):
+    v7: float32 = float.div v5, v6
     return v7
 }"#,
         );
@@ -3229,11 +3249,12 @@ block3(v5: f32, v6: f32):
     #[test]
     fn test_range_float_division_infinite_by_zero() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 1e1000f32
-    v1: f32 = iconst 0.0f32
-    v2: f32 = fdiv v0, v1
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = inffloat32
+    v1: float32 = 0float32
+    v2: float32 = float.div v0, v1
     return v2
 }"#,
         );
@@ -3268,11 +3289,12 @@ block0:
     #[test]
     fn test_range_float_division_finite_by_infinite() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 2.0f32
-    v1: f32 = iconst 1e1000f32
-    v2: f32 = fdiv v0, v1
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = 2float32
+    v1: float32 = inffloat32
+    v2: float32 = float.div v0, v1
     return v2
 }"#,
         );
@@ -3307,11 +3329,12 @@ block0:
     #[test]
     fn test_range_float_division_infinite_by_negative() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 1e1000f32
-    v1: f32 = iconst -2.0f32
-    v2: f32 = fdiv v0, v1
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = inffloat32
+    v1: float32 = -2float32
+    v2: float32 = float.div v0, v1
     return v2
 }"#,
         );
@@ -3346,13 +3369,14 @@ block0:
     #[test]
     fn test_range_float_multiply_zero_by_full_range() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f32 = iconst 1.0f32
-    v1: f32 = iconst 0.0f32
-    v2: f32 = fdiv v0, v1
-    v3: f32 = iconst 0.0f32
-    v4: f32 = fmul v3, v2
+            r#"
+function test(): float32 {
+b0:
+    v0: float32 = 1float32
+    v1: float32 = 0float32
+    v2: float32 = float.div v0, v1
+    v3: float32 = 0float32
+    v4: float32 = float.mul v3, v2
     return v4
 }"#,
         );
@@ -3387,10 +3411,11 @@ block0:
     #[test]
     fn test_range_float_to_int_cast() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: f32 = iconst 3.9f32
-    v1: i32 = fcvt_to_sint v0 -> i32
+            r#"
+function test(): int32 {
+b0:
+    v0: float32 = 3.9float32
+    v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
 }"#,
         );
@@ -3424,17 +3449,18 @@ block0:
     #[test]
     fn test_range_float_to_int_saturating_bounds() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 1e20f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: i32 = fcvt_to_sint_sat v3 -> i32
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 1float32
+    jump b3(v1)
+b2:
+    v2: float32 = 100000000000000000000float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: int32 = cast.floatToIntSaturating.s v3 -> int32
     return v4
 }"#,
         );
@@ -3468,11 +3494,12 @@ block3(v3: f32):
     #[test]
     fn test_range_float_to_int_saturating_nan_only() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: f32 = iconst 0.0f32
-    v1: f32 = fdiv v0, v0
-    v2: i32 = fcvt_to_sint_sat v1 -> i32
+            r#"
+function test(): int32 {
+b0:
+    v0: float32 = 0float32
+    v1: float32 = float.div v0, v0
+    v2: int32 = cast.floatToIntSaturating.s v1 -> int32
     return v2
 }"#,
         );
@@ -3506,10 +3533,11 @@ block0:
     #[test]
     fn test_range_int_to_float_cast() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: i32 = iconst 4i32
-    v1: f32 = scvt_to_float v0 -> f32
+            r#"
+function test(): float32 {
+b0:
+    v0: int32 = 4int32
+    v1: float32 = cast.intToFloat.s v0 -> float32
     return v1
 }"#,
         );
@@ -3544,10 +3572,11 @@ block0:
     #[test]
     fn test_range_float_truncate_overflow() {
         let test = TestProgram::new(
-            r#"function @test() -> f32 {
-block0:
-    v0: f64 = iconst 1e300f64
-    v1: f32 = fnarrow v0 -> f32
+            r#"
+function test(): float32 {
+b0:
+    v0: float64 = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000float64
+    v1: float32 = cast.floatTruncate v0 -> float32
     return v1
 }"#,
         );
@@ -3582,17 +3611,18 @@ block0:
     #[test]
     fn test_range_float_union_nan_only() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    v2: f32 = fdiv v1, v1
-    jump block3(v2)
-block2:
-    v3: f32 = iconst 1.0f32
-    jump block3(v3)
-block3(v4: f32):
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    v2: float32 = float.div v1, v1
+    jump b3(v2)
+b2:
+    v3: float32 = 1float32
+    jump b3(v3)
+b3(v4: float32):
     return v4
 }"#,
         );
@@ -3625,12 +3655,13 @@ block3(v4: f32):
     #[test]
     fn test_range_float_comparison_nan_eq_false() {
         let test = TestProgram::new(
-            r#"function @test() -> bool {
-block0:
-    v0: f32 = iconst 0.0f32
-    v1: f32 = fdiv v0, v0
-    v2: f32 = iconst 1.0f32
-    v3: bool = fcmp_eq v1, v2
+            r#"
+function test(): boolean {
+b0:
+    v0: float32 = 0float32
+    v1: float32 = float.div v0, v0
+    v2: float32 = 1float32
+    v3: boolean = float.eq v1, v2
     return v3
 }"#,
         );
@@ -3660,11 +3691,12 @@ block0:
     #[test]
     fn test_range_float_comparison_infinite_gt_finite() {
         let test = TestProgram::new(
-            r#"function @test() -> bool {
-block0:
-    v0: f32 = iconst 1e1000f32
-    v1: f32 = iconst 1.0f32
-    v2: bool = fcmp_gt v0, v1
+            r#"
+function test(): boolean {
+b0:
+    v0: float32 = inffloat32
+    v1: float32 = 1float32
+    v2: boolean = float.gt v0, v1
     return v2
 }"#,
         );
@@ -3694,11 +3726,12 @@ block0:
     #[test]
     fn test_range_float_comparison_infinite_le_finite() {
         let test = TestProgram::new(
-            r#"function @test() -> bool {
-block0:
-    v0: f32 = iconst 1e1000f32
-    v1: f32 = iconst 1.0f32
-    v2: bool = fcmp_le v0, v1
+            r#"
+function test(): boolean {
+b0:
+    v0: float32 = inffloat32
+    v1: float32 = 1float32
+    v2: boolean = float.le v0, v1
     return v2
 }"#,
         );
@@ -3728,12 +3761,13 @@ block0:
     #[test]
     fn test_range_float_comparison_nan_ne_true() {
         let test = TestProgram::new(
-            r#"function @test() -> bool {
-block0:
-    v0: f32 = iconst 0.0f32
-    v1: f32 = fdiv v0, v0
-    v2: f32 = iconst 1.0f32
-    v3: bool = fcmp_ne v1, v2
+            r#"
+function test(): boolean {
+b0:
+    v0: float32 = 0float32
+    v1: float32 = float.div v0, v0
+    v2: float32 = 1float32
+    v3: boolean = float.ne v1, v2
     return v3
 }"#,
         );
@@ -3763,19 +3797,20 @@ block0:
     #[test]
     fn test_range_float_comparison_nan_ge_unknown() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> bool {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 0.0f32
-    v2: f32 = fdiv v1, v1
-    jump block3(v2)
-block2:
-    v3: f32 = iconst 1.0f32
-    jump block3(v3)
-block3(v4: f32):
-    v5: f32 = iconst 1.0f32
-    v6: bool = fcmp_ge v4, v5
+            r#"
+function test(v0: boolean): boolean {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 0float32
+    v2: float32 = float.div v1, v1
+    jump b3(v2)
+b2:
+    v3: float32 = 1float32
+    jump b3(v3)
+b3(v4: float32):
+    v5: float32 = 1float32
+    v6: boolean = float.ge v4, v5
     return v6
 }"#,
         );
@@ -3799,16 +3834,17 @@ block3(v4: f32):
     #[test]
     fn test_range_float_union_infinite_and_finite() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> f32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1e1000f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 2.0f32
-    jump block3(v2)
-block3(v3: f32):
+            r#"
+function test(v0: boolean): float32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = inffloat32
+    jump b3(v1)
+b2:
+    v2: float32 = 2float32
+    jump b3(v2)
+b3(v3: float32):
     return v3
 }"#,
         );
@@ -3841,17 +3877,18 @@ block3(v3: f32):
     #[test]
     fn test_range_float_to_int_cast_bounds() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst 1.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst 1e20f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: i32 = fcvt_to_sint v3 -> i32
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = 1float32
+    jump b3(v1)
+b2:
+    v2: float32 = 100000000000000000000float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: int32 = cast.floatToInt.s v3 -> int32
     return v4
 }"#,
         );
@@ -3875,10 +3912,11 @@ block3(v3: f32):
     #[test]
     fn test_range_float_to_int_cast_positive_infinite() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: f32 = iconst 1e1000f32
-    v1: i32 = fcvt_to_sint v0 -> i32
+            r#"
+function test(): int32 {
+b0:
+    v0: float32 = inffloat32
+    v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
 }"#,
         );
@@ -3902,17 +3940,18 @@ block0:
     #[test]
     fn test_range_float_to_int_cast_negative_bounds() {
         let test = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: f32 = iconst -1.0f32
-    jump block3(v1)
-block2:
-    v2: f32 = iconst -1e20f32
-    jump block3(v2)
-block3(v3: f32):
-    v4: i32 = fcvt_to_sint v3 -> i32
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: float32 = -1float32
+    jump b3(v1)
+b2:
+    v2: float32 = -100000000000000000000float32
+    jump b3(v2)
+b3(v3: float32):
+    v4: int32 = cast.floatToInt.s v3 -> int32
     return v4
 }"#,
         );
@@ -3936,10 +3975,11 @@ block3(v3: f32):
     #[test]
     fn test_range_float_to_int_cast_negative_infinite() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: f32 = iconst -1e1000f32
-    v1: i32 = fcvt_to_sint v0 -> i32
+            r#"
+function test(): int32 {
+b0:
+    v0: float32 = -inffloat32
+    v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
 }"#,
         );
@@ -3963,11 +4003,12 @@ block0:
     #[test]
     fn test_range_float_to_int_cast_nan_only() {
         let test = TestProgram::new(
-            r#"function @test() -> i32 {
-block0:
-    v0: f32 = iconst 0.0f32
-    v1: f32 = fdiv v0, v0
-    v2: i32 = fcvt_to_sint v1 -> i32
+            r#"
+function test(): int32 {
+b0:
+    v0: float32 = 0float32
+    v1: float32 = float.div v0, v0
+    v2: int32 = cast.floatToInt.s v1 -> int32
     return v2
 }"#,
         );
