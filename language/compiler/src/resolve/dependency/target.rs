@@ -103,6 +103,7 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<Vec<ModuleId>> {
         self.ambient_library_modules_from_input(profile_id)
+            .map(|modules| modules.iter().copied().collect())
     }
 
     /// Collect module ids that belong to one package.

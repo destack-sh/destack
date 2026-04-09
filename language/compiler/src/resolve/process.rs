@@ -102,7 +102,15 @@ impl Compiler {
         }
 
         let module = context.module(module_id);
-        let prepared = context.require_artifact_dir_prepared(module_id, profile)?;
+        let prepared = self
+            .dir_prepared(module_id, profile)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(
+                    revision,
+                    ArtifactKey::dir_prepared(module_id, profile),
+                ),
+            })
+            .map_err(ResolveError::from)?;
         let mut tree = prepared.tree.as_ref().clone();
         let mut symbols = prepared.symbols.as_ref().clone();
         let mut types = prepared.types.as_ref().clone();
@@ -113,15 +121,10 @@ impl Compiler {
         let mut exported_symbols = prepared.exported_symbols.as_ref().clone();
         let is_code_module = context.is_code_module(module_id);
 
-        // non-builtin code modules consume the shared library environment
-        if !module.is_builtin() {
-            self.require_library_environment(revision, profile)
-                .map_err(ResolveError::from)?;
-        }
         // builtin language and library modules bootstrap selected libs directly
-        else {
+        if module.is_builtin() {
             let mut collector = RequirementCollector::new();
-            for selected_module_id in self.selected_library_modules(profile) {
+            for selected_module_id in self.selected_library_modules(profile).iter().copied() {
                 if selected_module_id == module_id {
                     continue;
                 }

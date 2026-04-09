@@ -1,3 +1,5 @@
+#![allow(unreachable_pub)]
+
 use destack_dir::{
     Declaration, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeMark, LocalSymbolId, Node,
     Scope, StaticKey, SymbolSpace, SymbolTable,

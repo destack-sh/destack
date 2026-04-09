@@ -1,4 +1,5 @@
 use super::*;
+use crate::run_to_completion;
 use destack_builtin::{BuiltinLibrary, LANGUAGE_LIBS, LIBRARY_LIBS, LanguageSymbol};
 use destack_dir::{
     Declaration, StaticKey, SymbolSpace, SymbolType, WellKnownSymbol, WellKnownSymbolKey,
@@ -12,11 +13,11 @@ fn analyze_builtin_library_summary(library: &BuiltinLibrary) -> Option<String> {
         TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&[library.name]);
     let profile = test.default_profile_id_for_root();
 
-    let resolved = test
-        .compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
-            compiler.require_library_environment(_context.revision(), profile)
-        });
+    let resolved = run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| compiler.require_library_environment(_context.revision(), profile),
+    );
     if let Err(error) = resolved {
         return Some(format!("{}: resolve error {error:?}", library.name));
     }
@@ -228,11 +229,12 @@ function main(): int32 {
         .profile_id_for_target(module_id, &target_id)
         .unwrap_or_else(|| panic!("missing native profile"));
 
-    test.compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
-            compiler.require_library_environment(_context.revision(), profile)
-        })
-        .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
+    run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| compiler.require_library_environment(_context.revision(), profile),
+    )
+    .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
 
     let well_known = test
@@ -268,11 +270,12 @@ function main(): int32 {
         .profile_id_for_target(module_id, &target_id)
         .unwrap_or_else(|| panic!("missing native profile"));
 
-    test.compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
-            compiler.require_library_environment(_context.revision(), profile)
-        })
-        .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
+    run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| compiler.require_library_environment(_context.revision(), profile),
+    )
+    .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
 
     let string_name = test.program.strings.intern("String");
@@ -289,11 +292,14 @@ function main(): int32 {
         )
         .unwrap_or_else(|| panic!("missing native String well-known symbol"));
 
-    test.compiler
-        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, _context| {
             compiler.require_dir_declared(_context.revision(), string_symbol.module_id, profile)
-        })
-        .unwrap_or_else(|error| panic!("failed to declare native String owner module: {error:?}"));
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to declare native String owner module: {error:?}"));
 
     let declared = test
         .compiler

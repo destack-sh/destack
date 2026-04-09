@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::{
-    EntryResolutionMode, EntrySource, Target, TargetDiscoveryIssue, TargetDiscoveryOptions,
+    EntryResolutionMode, EntrySource, Target, TargetDiscoveryError, TargetDiscoveryOptions,
 };
 
 use crate::Compiler;
@@ -16,7 +16,7 @@ impl Compiler {
         package_path: &Option<PathBuf>,
         target: &Target,
         target_id: &TargetId,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         // resolve manifest entry targets for auto entry source mode
         let manifest_entry_targets = self.manifest_entry_targets(revision, package_id);
         let options = TargetDiscoveryOptions {
@@ -43,7 +43,7 @@ impl Compiler {
         package_path: &Option<PathBuf>,
         target: &Target,
         target_id: &TargetId,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         self.repository
             .include_module_ids(revision, package_id, package_path, target, target_id)
     }
@@ -61,7 +61,7 @@ impl Compiler {
             .package_declaration(revision, package.as_ref())
             .ok()
             .flatten()
-            .map(|declaration| declaration.json.entry_targets())
+            .map(|declaration| declaration.manifest.entry_targets())
             .unwrap_or_default()
     }
 }

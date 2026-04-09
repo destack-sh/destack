@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_artifact::{ArtifactKey, CanonicalStaticKey, LanguageEnvironment, WellKnownSymbols};
 use destack_builtin::{LanguageSymbol, builtin_library};
 use destack_core::StringId;
@@ -97,9 +99,9 @@ impl Compiler {
     }
 
     /// Return the selected library modules for one profile.
-    pub(crate) fn selected_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
+    pub(crate) fn selected_library_modules(&self, profile: ProfileId) -> Arc<[ModuleId]> {
         self.selected_library_modules_from_input(profile)
-            .unwrap_or_default()
+            .unwrap_or_else(|_| Arc::<[ModuleId]>::from([]))
     }
 
     /// Return the builtin library selection derived from current profile input.
@@ -121,6 +123,9 @@ impl Compiler {
     /// Return the modules that support one global environment.
     pub(crate) fn library_environment_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
         self.selected_library_modules(profile)
+            .iter()
+            .copied()
+            .collect()
     }
 
     /// Return true when one module is ambient for one profile.
@@ -213,6 +218,19 @@ impl Compiler {
         profile: ProfileId,
     ) -> Result<(), RequirementError> {
         self.require_artifact(revision, ArtifactKey::library_environment(profile))
+    }
+
+    /// Ensure the selected library environment exists when the profile uses libraries.
+    pub(crate) fn require_selected_library_environment(
+        &self,
+        revision: Revision,
+        profile: ProfileId,
+    ) -> Result<(), RequirementError> {
+        if self.selected_library_modules(profile).is_empty() {
+            return Ok(());
+        }
+
+        self.require_library_environment(revision, profile)
     }
 
     /// Get a language item from the cache, returning None if not found.

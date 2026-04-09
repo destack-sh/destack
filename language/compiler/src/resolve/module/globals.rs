@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactKey, ArtifactStamp, DirPrepared};
+use destack_artifact::DirPrepared;
 use destack_builtin::builtin_library;
 use destack_core::StringId;
 use destack_dir::{
@@ -8,7 +8,7 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::collections::VecDeque;
 use std::sync::Arc;
 
@@ -28,8 +28,6 @@ pub(crate) struct GlobalSymbolGroupKey {
 /// Track global symbols from declare global blocks reachable from a root set.
 #[derive(Debug, Clone)]
 pub(crate) struct GlobalSymbolTable {
-    /// Dependencies for modules included in the table.
-    pub module_dependencies: IndexMap<ModuleId, ArtifactStamp>,
     /// First symbol observed for each global key.
     pub symbols: IndexMap<StaticKey, GlobalSymbolId>,
     /// First symbol observed for each global key and space.
@@ -48,7 +46,7 @@ pub(crate) struct GlobalSymbolTableCacheKey {
     /// The profile that selected the global roots.
     pub profile_id: ProfileId,
     /// The selected root modules for the table.
-    pub roots: Vec<ModuleId>,
+    pub roots: Arc<[ModuleId]>,
 }
 
 impl Default for GlobalSymbolTable {
@@ -61,7 +59,6 @@ impl GlobalSymbolTable {
     /// Create an empty table.
     fn new() -> Self {
         Self {
-            module_dependencies: IndexMap::new(),
             symbols: IndexMap::new(),
             symbols_by_space: IndexMap::new(),
             sources: IndexMap::new(),
@@ -107,14 +104,21 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<Arc<GlobalSymbolTable>> {
         let roots = self.select_global_symbol_table(revision, module_id, profile_id)?;
-        let Some(module_graph) = self.module_graph(profile_id) else {
-            return Ok(Arc::new(
-                self.build_global_symbol_table(revision, &roots, profile_id)?,
-            ));
-        };
         let cache_key = GlobalSymbolTableCacheKey {
             profile_id,
-            roots: roots.clone(),
+            roots: Arc::clone(&roots),
+        };
+
+        if let Some(cached) = self.current_global_symbol_table(revision, &cache_key) {
+            return Ok(cached);
+        }
+
+        let Some(module_graph) = self.module_graph(profile_id) else {
+            let cache =
+                Arc::new(self.build_global_symbol_table(revision, roots.as_ref(), profile_id)?);
+            self.store_current_global_symbol_table(revision, cache_key, Arc::clone(&cache));
+
+            return Ok(cache);
         };
 
         if let Some(cached) = self.index.global_symbol_tables.get(&cache_key) {
@@ -122,14 +126,23 @@ impl Compiler {
             if Arc::ptr_eq(cached_graph, &module_graph)
                 || cached_graph.matches_snapshot(module_graph.as_ref())
             {
-                return Ok(Arc::clone(cached_table));
+                let cached_table = Arc::clone(cached_table);
+                self.store_current_global_symbol_table(
+                    revision,
+                    cache_key,
+                    Arc::clone(&cached_table),
+                );
+
+                return Ok(cached_table);
             }
         }
 
-        let cache = Arc::new(self.build_global_symbol_table(revision, &roots, profile_id)?);
+        let cache =
+            Arc::new(self.build_global_symbol_table(revision, roots.as_ref(), profile_id)?);
         self.index
             .global_symbol_tables
-            .insert(cache_key, (module_graph, cache.clone()));
+            .insert(cache_key.clone(), (module_graph, cache.clone()));
+        self.store_current_global_symbol_table(revision, cache_key, Arc::clone(&cache));
 
         Ok(cache)
     }
@@ -448,12 +461,13 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolTable> {
         let mut cache = GlobalSymbolTable::new();
+        let mut processed_modules = IndexSet::new();
         cache.pending.extend(modules.iter().copied());
 
         // process all lib modules
         while let Some(module_id) = cache.pending.pop_front() {
             // skip already processed modules
-            if cache.module_dependencies.contains_key(&module_id) {
+            if !processed_modules.insert(module_id) {
                 continue;
             }
 
@@ -470,10 +484,6 @@ impl Compiler {
                 .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            let artifact_key = ArtifactKey::dir_prepared(module_id, profile_id);
-            let dependency = self.artifact_stamp_for_revision(revision, &artifact_key);
-
-            cache.module_dependencies.insert(module_id, dependency);
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
@@ -496,12 +506,13 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolTable> {
         let mut cache = GlobalSymbolTable::new();
+        let mut processed_modules = IndexSet::new();
         cache.pending.extend(roots.iter().copied());
 
         // walk the module graph
         while let Some(module_id) = cache.pending.pop_front() {
             // skip already processed modules
-            if cache.module_dependencies.contains_key(&module_id) {
+            if !processed_modules.insert(module_id) {
                 continue;
             }
 
@@ -526,10 +537,6 @@ impl Compiler {
                 .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            let artifact_key = ArtifactKey::dir_prepared(module_id, profile_id);
-            let dependency = self.artifact_stamp_for_revision(revision, &artifact_key);
-
-            cache.module_dependencies.insert(module_id, dependency);
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
