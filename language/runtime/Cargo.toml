@@ -38,6 +38,8 @@ audio-opensles = []
 generator = [
     "dep:destack_builtin",
     "dep:destack_compiler",
+    "dep:destack_linter",
+    "dep:destack_session",
 ]
 
 [[bin]]
@@ -63,6 +65,8 @@ destack_fir = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_query = { workspace = true }
+destack_linter = { workspace = true, optional = true }
+destack_session = { workspace = true, optional = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
