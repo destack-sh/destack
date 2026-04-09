@@ -1,3 +1,4 @@
+mod binary;
 mod boundary;
 mod chain;
 mod control;

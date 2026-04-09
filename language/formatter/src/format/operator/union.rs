@@ -124,28 +124,6 @@ pub(crate) fn binary_like_is_type_intersection(
     ) && binary_like_has_type_semantics(context, normalized_root_id)
 }
 
-/// Flatten operands for one binary-like owner according to its semantic family.
-pub(crate) fn flatten_binary_like_operands(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    operator: BinaryOperator,
-) -> SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]> {
-    if binary_like_is_type_union(context, node_id, operator) {
-        let normalized_root_id = transparent_type_binary_root_expression(
-            context,
-            node_id,
-            BinaryOperator::ElementwiseOr,
-        );
-        return flatten_type_binary_expression(context, normalized_root_id, operator);
-    }
-
-    if binary_like_is_type_intersection(context, node_id, operator) {
-        return flatten_type_binary_expression(context, node_id, operator);
-    }
-
-    super::binary::flatten_binary_expression(context, node_id, operator)
-}
-
 /// Flattens associative type binary chains while unwrapping redundant parentheses.
 pub(crate) fn flatten_type_binary_expression(
     context: &DestackFormatContext<'_>,
