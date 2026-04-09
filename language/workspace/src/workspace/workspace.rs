@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use destack_source::{FileId, ModuleId, PackageId};
+use destack_source::{FileId, ModuleId, PackageId, TargetId};
 use im::OrdMap;
 
-use crate::{Module, Package};
+use crate::{Module, Package, Target};
 
 /// Kind of workspace based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -19,15 +19,20 @@ pub enum WorkspaceKind {
 #[derive(Debug, Clone)]
 pub struct Workspace {
     /// The workspace config declaration file id when present.
-    pub destack_file_id: Option<FileId>,
+    pub file_id: Option<FileId>,
     /// The workspace root directory.
     pub root: PathBuf,
     /// The workspace kind.
     pub kind: WorkspaceKind,
-    /// The discovered packages in this workspace.
+
+    /// The package snapshots in this workspace.
     pub(crate) packages: OrdMap<PackageId, Package>,
-    /// The discovered modules in this workspace.
+    /// The package roots ordered from most specific to least specific.
+    pub(crate) package_paths: Vec<(PathBuf, PackageId)>,
+    /// The module snapshots in this workspace.
     pub(crate) modules: OrdMap<ModuleId, Module>,
+    /// The explicit targets indexed by stable target id.
+    pub(crate) targets: OrdMap<TargetId, Target>,
 }
 
 impl Workspace {
@@ -37,7 +42,7 @@ impl Workspace {
     }
 
     /// Check if a path is within this workspace.
-    pub fn contains_path(&self, path: &std::path::Path) -> bool {
+    pub fn contains_path(&self, path: &Path) -> bool {
         path.starts_with(&self.root)
     }
 
@@ -46,17 +51,38 @@ impl Workspace {
         self.packages.keys().copied()
     }
 
-    /// Return one discovered package for one package id.
+    /// Return one package snapshot for one package id.
     pub(crate) fn package(&self, package_id: PackageId) -> Option<&Package> {
         self.packages.get(&package_id)
     }
 
-    /// Return one discovered module for one module id.
+    /// Return the package paths in this workspace.
+    pub(crate) fn package_paths(&self) -> &[(PathBuf, PackageId)] {
+        &self.package_paths
+    }
+
+    /// Return the nearest package snapshot for one path.
+    pub(crate) fn package_for_path(&self, path: &Path) -> Option<&Package> {
+        for (package_path, package_id) in &self.package_paths {
+            if path.starts_with(package_path) {
+                return self.packages.get(package_id);
+            }
+        }
+
+        None
+    }
+
+    /// Return one indexed explicit target by id.
+    pub(crate) fn target_by_id(&self, target_id: TargetId) -> Option<&Target> {
+        self.targets.get(&target_id)
+    }
+
+    /// Return one module snapshot for one module id.
     pub(crate) fn module(&self, module_id: ModuleId) -> Option<&Module> {
         self.modules.get(&module_id)
     }
 
-    /// Return all discovered modules in this workspace.
+    /// Return all module snapshots in this workspace.
     pub(crate) fn modules(&self) -> &OrdMap<ModuleId, Module> {
         &self.modules
     }

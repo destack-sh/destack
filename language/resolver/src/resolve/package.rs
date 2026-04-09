@@ -308,7 +308,7 @@ impl Resolver {
 
         let package = Package {
             id: PackageId::from_path(&package_directory),
-            kind: PackageKind::Physical,
+            kind: PackageKind::Declared,
             uri: package_declaration
                 .as_ref()
                 .map(|declaration| declaration.uri.clone())

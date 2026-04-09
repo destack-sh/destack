@@ -1,7 +1,8 @@
+use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_source::{ModuleId, PackageId};
+use destack_source::{ModuleId, PackageId, ProfileId};
 
 use crate::repository::{FileContentId, Ref, Revision};
 
@@ -12,12 +13,16 @@ pub enum RepositoryError {
     MissingRef { reference: Ref },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
+    /// The requested revision is mutable.
+    MutableRevision { revision: Revision },
     /// The requested content payload does not exist.
     MissingContent { content: FileContentId },
     /// The requested module does not exist in the given revision.
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
     MissingPackage { package: PackageId },
+    /// The requested profile does not exist in the repository.
+    MissingProfile { profile: ProfileId },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
@@ -30,8 +35,8 @@ pub enum RepositoryError {
         path: PathBuf,
         message: String,
     },
-    /// Workspace discovery or parsing failed.
-    WorkspaceDiscovery { path: PathBuf, message: String },
+    /// Workspace root discovery or parsing failed.
+    WorkspaceRootDiscovery { path: PathBuf, message: String },
 }
 
 impl fmt::Display for RepositoryError {
@@ -43,6 +48,9 @@ impl fmt::Display for RepositoryError {
             Self::MissingRevision { revision } => {
                 write!(formatter, "missing repository revision '{revision}'")
             }
+            Self::MutableRevision { revision } => {
+                write!(formatter, "repository revision '{revision}' is mutable")
+            }
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
             }
@@ -51,6 +59,9 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingPackage { package } => {
                 write!(formatter, "missing repository package '{package}'")
+            }
+            Self::MissingProfile { profile } => {
+                write!(formatter, "missing repository profile '{profile}'")
             }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")
@@ -75,10 +86,10 @@ impl fmt::Display for RepositoryError {
                     path.display()
                 )
             }
-            Self::WorkspaceDiscovery { path, message } => {
+            Self::WorkspaceRootDiscovery { path, message } => {
                 write!(
                     formatter,
-                    "workspace discovery failed for '{}': {message}",
+                    "workspace root discovery failed for '{}': {message}",
                     path.display()
                 )
             }
@@ -86,4 +97,4 @@ impl fmt::Display for RepositoryError {
     }
 }
 
-impl std::error::Error for RepositoryError {}
+impl Error for RepositoryError {}

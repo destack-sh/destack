@@ -15,21 +15,67 @@ use crate::repository::{
 };
 use crate::{
     Module, ModuleDetection, ModuleFormat, ModuleSource, Package, SourceType, TsConfigDeclaration,
+    TsConfigOptions,
 };
 
 impl Repository {
-    /// Return the synthetic root module id.
-    pub fn root_module_id(&self) -> ModuleId {
-        ModuleId::EPHEMERAL
+    /// Complete one module snapshot from one module identity.
+    fn complete_module_snapshot(
+        &self,
+        revision: Revision,
+        module: &Module,
+        packages: &OrdMap<PackageId, Package>,
+    ) -> Result<Module, RepositoryError> {
+        let mut module = module.clone();
+        let package = packages
+            .get(&module.package_id)
+            .ok_or(RepositoryError::MissingPackage {
+                package: module.package_id,
+            })?;
+        let tsconfig_file_id =
+            self.module_tsconfig_file_id_for_path(revision, module.path.as_deref())?;
+        let source_type = self.detect_module_source_type_for_package(
+            revision,
+            module.path.as_deref(),
+            package,
+            tsconfig_file_id,
+            false,
+        )?;
+        let module_format = self.detect_module_format_for_package(
+            revision,
+            module.path.as_deref(),
+            module.language_type,
+            source_type,
+            package,
+            tsconfig_file_id,
+        )?;
+
+        module.tsconfig_file_id = tsconfig_file_id;
+        module.source_type = source_type;
+        module.module_format = module_format;
+
+        Ok(module)
     }
 
-    /// Derive module views from one source map.
-    pub(crate) fn derive_modules(
+    /// Return the synthetic root module id.
+    pub fn synthetic_root_module_id(&self) -> ModuleId {
+        ModuleId::from_relative_path(PackageId::EPHEMERAL, Path::new("root"))
+    }
+
+    /// Return whether one module id is the synthetic root module.
+    pub fn is_synthetic_root_module(&self, module_id: ModuleId) -> bool {
+        module_id == self.synthetic_root_module_id()
+    }
+
+    /// Build module snapshots from one source map.
+    pub(crate) fn module_snapshots_from_source_map(
         &self,
+        revision: Revision,
         source: &SourceMap,
         packages: &OrdMap<PackageId, Package>,
-    ) -> OrdMap<ModuleId, Module> {
+    ) -> Result<OrdMap<ModuleId, Module>, RepositoryError> {
         let mut modules = OrdMap::new();
+        let package_paths = self.package_paths(packages);
 
         for (file_id, entry) in source.iter() {
             if let Some(module) = self.synthetic_module(*file_id, &entry.origin) {
@@ -50,7 +96,8 @@ impl Repository {
                 continue;
             }
 
-            let Some(package) = self.discovered_package_for_path(packages, &path) else {
+            let Some(package) = self.package_for_indexed_path(packages, &package_paths, &path)
+            else {
                 continue;
             };
 
@@ -72,7 +119,14 @@ impl Repository {
             modules.insert(module_id, module);
         }
 
-        modules
+        let mut module_snapshots = OrdMap::new();
+
+        for module in modules.values() {
+            let module = self.complete_module_snapshot(revision, module, packages)?;
+            module_snapshots.insert(module.id, module);
+        }
+
+        Ok(module_snapshots)
     }
 
     /// Return one source file snapshot for one revision and file id.
@@ -123,7 +177,7 @@ impl Repository {
         let normalized_path = path.normalize();
         let directory_paths = revision_state
             .directory_paths
-            .get_or_init(|| Arc::new(self.derive_directory_paths(&revision_state.source)));
+            .get_or_init(|| Arc::new(self.directory_paths_from_source_map(&revision_state.source)));
 
         // directory metadata
         if directory_paths.contains(&normalized_path) {
@@ -133,8 +187,8 @@ impl Repository {
         Ok(None)
     }
 
-    /// Derive the workspace directory set for one source map.
-    fn derive_directory_paths(&self, source: &SourceMap) -> FxHashSet<PathBuf> {
+    /// Build the workspace directory set for one source map.
+    fn directory_paths_from_source_map(&self, source: &SourceMap) -> FxHashSet<PathBuf> {
         let mut directories = FxHashSet::default();
         directories.insert(self.root.normalize());
 
@@ -194,45 +248,7 @@ impl Repository {
         module_id: ModuleId,
     ) -> Result<Option<Arc<Module>>, RepositoryError> {
         let workspace = self.workspace(revision)?;
-
-        // TODO #Cleanup: fold this materialization into the cached Workspace model
-        let mut module = if let Some(module) = workspace.module(module_id) {
-            Module::blank(
-                module.id,
-                module.file_id,
-                module.uri.clone(),
-                module.path.clone(),
-                module.package_id,
-                module.language_type,
-                module.loader,
-                module.source,
-            )
-        } else {
-            return Ok(None);
-        };
-
-        let tsconfig_file_id = self.module_tsconfig_file_id_at(revision, &module)?;
-        let source_type = self.detect_module_source_type_at(
-            revision,
-            module.path.as_deref(),
-            module.package_id,
-            tsconfig_file_id,
-            false,
-        )?;
-        let module_format = self.detect_module_format_at(
-            revision,
-            module.path.as_deref(),
-            module.language_type,
-            source_type,
-            module.package_id,
-            tsconfig_file_id,
-        )?;
-
-        module.tsconfig_file_id = tsconfig_file_id;
-        module.source_type = source_type;
-        module.module_format = module_format;
-
-        Ok(Some(Arc::new(module)))
+        Ok(workspace.module(module_id).cloned().map(Arc::new))
     }
 
     /// Return one tsconfig snapshot for one revision and tsconfig id.
@@ -262,6 +278,32 @@ impl Repository {
         Ok(tsconfig)
     }
 
+    /// Access tsconfig for one module via closure.
+    pub fn read_tsconfig_declaration_for_module<T>(
+        &self,
+        revision: Revision,
+        module: &Module,
+        read: impl FnOnce(&TsConfigDeclaration) -> T,
+    ) -> Result<Option<T>, RepositoryError> {
+        let Some(tsconfig_file_id) = module.tsconfig_file_id else {
+            return Ok(None);
+        };
+        let Some(tsconfig) = self.tsconfig_declaration(revision, tsconfig_file_id)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(read(&tsconfig)))
+    }
+
+    /// Return tsconfig options for one module.
+    pub fn tsconfig_options_for_module(
+        &self,
+        revision: Revision,
+        module: &Module,
+    ) -> Result<Option<TsConfigOptions>, RepositoryError> {
+        self.read_tsconfig_declaration_for_module(revision, module, |tsconfig| tsconfig.options())
+    }
+
     /// Return one file content identity from one revision.
     pub fn file_content_id(
         &self,
@@ -286,12 +328,12 @@ impl Repository {
     }
 
     /// Return the tsconfig file id that applies to one module path.
-    fn module_tsconfig_file_id_at(
+    fn module_tsconfig_file_id_for_path(
         &self,
         revision: Revision,
-        module: &Module,
+        path: Option<&Path>,
     ) -> Result<Option<FileId>, RepositoryError> {
-        let Some(path) = module.path.as_ref() else {
+        let Some(path) = path else {
             return Ok(None);
         };
 
@@ -520,7 +562,32 @@ impl Repository {
         tsconfig_file_id: Option<FileId>,
         has_import_export: bool,
     ) -> Result<SourceType, RepositoryError> {
-        let package_type = self.package_module_type_at(revision, package_id)?;
+        let workspace = self.workspace(revision)?;
+        let package = workspace
+            .package(package_id)
+            .ok_or(RepositoryError::MissingPackage {
+                package: package_id,
+            })?;
+
+        self.detect_module_source_type_for_package(
+            revision,
+            path,
+            package,
+            tsconfig_file_id,
+            has_import_export,
+        )
+    }
+
+    /// Detect source type for one module file in one revision.
+    fn detect_module_source_type_for_package(
+        &self,
+        revision: Revision,
+        path: Option<&Path>,
+        package: &Package,
+        tsconfig_file_id: Option<FileId>,
+        has_import_export: bool,
+    ) -> Result<SourceType, RepositoryError> {
+        let package_type = self.read_package_module_type(revision, package)?;
         let module_detection = self.tsconfig_module_detection_at(revision, tsconfig_file_id)?;
 
         if let Some(path) = path {
@@ -563,7 +630,34 @@ impl Repository {
         package_id: PackageId,
         tsconfig_file_id: Option<FileId>,
     ) -> Result<ModuleFormat, RepositoryError> {
-        let package_type = self.package_module_type_at(revision, package_id)?;
+        let workspace = self.workspace(revision)?;
+        let package = workspace
+            .package(package_id)
+            .ok_or(RepositoryError::MissingPackage {
+                package: package_id,
+            })?;
+
+        self.detect_module_format_for_package(
+            revision,
+            path,
+            language_type,
+            source_type,
+            package,
+            tsconfig_file_id,
+        )
+    }
+
+    /// Detect module format for one module file in one revision.
+    fn detect_module_format_for_package(
+        &self,
+        revision: Revision,
+        path: Option<&Path>,
+        language_type: LanguageType,
+        source_type: SourceType,
+        package: &Package,
+        tsconfig_file_id: Option<FileId>,
+    ) -> Result<ModuleFormat, RepositoryError> {
+        let package_type = self.read_package_module_type(revision, package)?;
         let tsconfig_format = self.tsconfig_module_format_at(revision, tsconfig_file_id)?;
 
         Ok(ModuleFormat::detect(
@@ -592,26 +686,6 @@ impl Repository {
         }
 
         file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
-    }
-
-    /// Return the nearest package entry for one path.
-    fn discovered_package_for_path<'a>(
-        &self,
-        packages: &'a OrdMap<PackageId, Package>,
-        path: &Path,
-    ) -> Option<&'a Package> {
-        packages
-            .values()
-            .filter_map(|package| {
-                let package_path = package.path.as_ref()?;
-                if !path.starts_with(package_path) {
-                    return None;
-                }
-
-                Some((package_path.as_os_str().len(), package))
-            })
-            .max_by_key(|(package_length, _)| *package_length)
-            .map(|(_, package)| package)
     }
 
     /// Return one builtin module entry for one file origin when applicable.
@@ -649,7 +723,7 @@ impl Repository {
         }
 
         Some(Module::blank(
-            self.root_module_id(),
+            self.synthetic_root_module_id(),
             file_id,
             Uri::from_string(format!("synthetic://{logical_path}")),
             None,

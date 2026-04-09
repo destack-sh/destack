@@ -1,4 +1,3 @@
-mod comptime;
 mod import;
 mod module;
 mod package;
@@ -8,7 +7,6 @@ mod specifier;
 mod target;
 mod workspace;
 
-pub use comptime::*;
 pub use import::*;
 pub use module::*;
 pub use package::*;

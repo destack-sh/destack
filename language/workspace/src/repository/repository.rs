@@ -1,22 +1,21 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use destack_artifact::{
     ArtifactCache, ArtifactCacheLayout, ArtifactStore, CacheStore, DiskCacheStore, ProfileKey,
 };
 use destack_core::StringPool;
 use destack_source::{
     DiagnosticCollection, FileContentEntry, FileSystem, ModuleId, PhysicalFileSystem, PrintOptions,
-    ProfileId,
+    ProfileId, print_diagnostics as print_source_diagnostics,
 };
 
 use crate::repository::{
-    Builtins, FileContentId, FileContentStore, Ref, RepositoryError, RepositoryOptions, Revision,
-    RevisionState, SourceMap, discover_workspace_root,
+    AmbientSnapshot, Builtins, FileContentId, FileContentStore, Ref, RepositoryError, Revision,
+    RevisionState, SourceMap,
 };
-use crate::{
-    FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind, resolve_cache_root,
-};
+use crate::{TsConfigOptions, Workspace, WorkspaceKind, resolve_cache_root};
 /// Tsconfig context for one module profile decision.
 #[derive(Debug, Clone)]
 pub(crate) struct ModuleTsConfigContext {
@@ -29,23 +28,15 @@ pub(crate) struct ModuleTsConfigContext {
 /// One repository with lineage, sources, artifacts, and shared inputs.
 #[derive(Debug)]
 pub struct Repository {
-    /// Repository defaults for downstream tools.
-    pub(crate) options: RepositoryOptions,
-    /// Default formatter options.
-    pub formatter: FormatterOptions,
-    /// Default linter options.
-    pub linter: LinterOptions,
     /// The workspace root directory.
     pub(crate) root: PathBuf,
-    /// The working directory for repository-relative operations.
-    pub cwd: PathBuf,
 
     /// The named movable refs.
-    pub(crate) refs: dashmap::DashMap<Ref, Revision>,
+    pub(crate) refs: DashMap<Ref, Revision>,
     /// The published source revision graph.
-    pub(crate) revisions: dashmap::DashMap<Revision, Arc<RevisionState>>,
+    pub(crate) revisions: DashMap<Revision, Arc<RevisionState>>,
     /// The retained anonymous revision pins.
-    pub(crate) pinned_revisions: dashmap::DashMap<Revision, usize>,
+    pub(crate) pinned_revisions: DashMap<Revision, usize>,
 
     /// Shared string pool.
     pub strings: Arc<StringPool>,
@@ -63,12 +54,12 @@ pub struct Repository {
 
 impl Repository {
     /// Open one repository at one directory with default options and disk cache.
-    pub fn open_root(root: PathBuf) -> Self {
+    pub fn open_root(root: PathBuf, ambient: AmbientSnapshot) -> Self {
         let repository = Self::new(
             root.clone(),
-            RepositoryOptions::default(),
             Arc::new(DiskCacheStore::new()),
             Arc::new(PhysicalFileSystem::new()),
+            ambient,
         );
         let reference = Ref::for_workspace_root(&root);
 
@@ -87,13 +78,9 @@ impl Repository {
     pub fn open_root_from_fs(
         root: PathBuf,
         fs: Arc<dyn FileSystem>,
+        ambient: AmbientSnapshot,
     ) -> Result<Self, RepositoryError> {
-        let repository = Self::new(
-            root.clone(),
-            RepositoryOptions::default(),
-            Arc::new(DiskCacheStore::new()),
-            fs,
-        );
+        let repository = Self::new(root.clone(), Arc::new(DiskCacheStore::new()), fs, ambient);
         let reference = Ref::for_workspace_root(&root);
         let _ = repository.seed_root_source(&reference)?;
         let _ = repository
@@ -103,42 +90,27 @@ impl Repository {
         Ok(repository)
     }
 
-    /// Open one repository after discovering workspace metadata from one path.
-    pub fn open_detected_from_fs(
-        path: PathBuf,
-        fs: Arc<dyn FileSystem>,
-    ) -> Result<Self, RepositoryError> {
-        let root = discover_workspace_root(&fs, &path)?;
-
-        Self::open_root_from_fs(root, fs)
-    }
-
     /// Create one repository from explicit parts.
     pub fn new(
         root: PathBuf,
-        options: RepositoryOptions,
         cache: Arc<dyn CacheStore>,
         fs: Arc<dyn FileSystem>,
+        ambient: AmbientSnapshot,
     ) -> Self {
         let strings = Arc::new(StringPool::new());
         let files = FileContentStore::new();
         let mut builtins = Builtins::empty();
 
-        let revisions = dashmap::DashMap::new();
-        let refs = dashmap::DashMap::new();
-        let pinned_revisions = dashmap::DashMap::new();
-        let cwd = root.clone();
+        let revisions = DashMap::new();
+        let refs = DashMap::new();
+        let pinned_revisions = DashMap::new();
         let workspace_reference = Ref::for_workspace_root(&root);
 
         // builtin metadata
         builtins.load_intrinsics();
 
         let repository = Self {
-            formatter: FormatterOptions::default(),
-            linter: LinterOptions::default(),
             root,
-            cwd,
-            options,
             fs,
             strings,
             revisions,
@@ -154,6 +126,7 @@ impl Repository {
         let initial_revision = Arc::new(RevisionState::new(
             smallvec::SmallVec::new(),
             Arc::new(SourceMap::new()),
+            Arc::new(ambient),
         ));
         let initial_revision_id = initial_revision.revision();
         repository
@@ -166,33 +139,9 @@ impl Repository {
         repository
     }
 
-    /// Override the default formatter options.
-    pub fn with_formatter(mut self, formatter: FormatterOptions) -> Self {
-        self.formatter = formatter;
-        self
-    }
-
-    /// Override the default linter options.
-    pub fn with_linter(mut self, linter: LinterOptions) -> Self {
-        self.linter = linter;
-        self
-    }
-
     /// Override the backing cache store.
     pub fn with_cache(mut self, cache: Arc<dyn CacheStore>) -> Self {
         self.cache = cache;
-        self
-    }
-
-    /// Override the retained file history depth per pinned revision.
-    pub fn with_file_history_limit(mut self, file_history_limit: usize) -> Self {
-        self.options.file_history_limit = file_history_limit;
-        self
-    }
-
-    /// Override the cache directory root.
-    pub fn with_cache_directory(mut self, cache_directory: PathBuf) -> Self {
-        self.options.cache_directory_override = Some(cache_directory);
         self
     }
 
@@ -230,15 +179,15 @@ impl Repository {
         &self.cache
     }
 
-    /// Return the repository formatter options.
-    pub fn formatter_options(&self) -> &FormatterOptions {
-        &self.formatter
-    }
-
     /// Print one diagnostic collection with revision scoped source context.
-    pub fn print_diagnostics(&self, revision: Revision, diagnostics: &DiagnosticCollection) {
+    pub fn print_diagnostics(
+        &self,
+        revision: Revision,
+        diagnostics: &DiagnosticCollection,
+        line_width: u32,
+    ) {
         let options = PrintOptions::new()
-            .with_line_width(self.formatter.line_width as u32)
+            .with_line_width(line_width)
             .with_module_count(
                 self.workspace_module_ids(revision)
                     .unwrap_or_default()
@@ -250,12 +199,7 @@ impl Repository {
             })
         };
 
-        destack_source::print_diagnostics(&file_for_id, diagnostics, options);
-    }
-
-    /// Return the repository linter options.
-    pub fn linter_options(&self) -> &LinterOptions {
-        &self.linter
+        print_source_diagnostics(&file_for_id, diagnostics, options);
     }
 
     /// Return the repository workspace root.
@@ -263,7 +207,7 @@ impl Repository {
         &self.root
     }
 
-    /// Return one cached discovered workspace view for one revision.
+    /// Return one cached workspace snapshot for one revision.
     pub fn workspace(&self, revision: Revision) -> Result<Arc<Workspace>, RepositoryError> {
         let revision_state = self.revision(revision)?;
 
@@ -271,11 +215,16 @@ impl Repository {
             return Ok(Arc::clone(workspace));
         }
 
-        // TODO #Cleanup: unify Workspace with the public Package and Module revision snapshots
-        // so this cache stops carrying the thinner discovered-only layer
         let workspace_declaration = self.workspace_destack_declaration(revision)?;
-        let packages = self.derive_packages(revision_state.source.as_ref());
-        let modules = self.derive_modules(revision_state.source.as_ref(), &packages);
+        let packages =
+            self.package_snapshots_from_source_map(revision, revision_state.source.as_ref())?;
+        let package_paths = self.package_paths(&packages);
+        let modules = self.module_snapshots_from_source_map(
+            revision,
+            revision_state.source.as_ref(),
+            &packages,
+        )?;
+        let targets_by_id = self.targets_by_id(&packages);
         let kind = if packages.len() > 1 {
             WorkspaceKind::Monorepo
         } else {
@@ -283,13 +232,15 @@ impl Repository {
         };
 
         let workspace = Arc::new(Workspace {
-            destack_file_id: workspace_declaration
+            file_id: workspace_declaration
                 .as_ref()
                 .map(|declaration| declaration.file_id),
             root: self.root.clone(),
             kind,
             packages,
             modules,
+            package_paths,
+            targets: targets_by_id,
         });
 
         let _ = revision_state.workspace.set(Arc::clone(&workspace));
@@ -299,11 +250,6 @@ impl Repository {
             .get()
             .map(Arc::clone)
             .unwrap_or(workspace))
-    }
-
-    /// Return the repository default options.
-    pub fn options(&self) -> &RepositoryOptions {
-        &self.options
     }
 
     /// Resolve the repository cache directory.
@@ -333,9 +279,7 @@ impl Repository {
 
     /// Resolve one cache root from repository runtime options.
     fn resolve_cache_root(&self) -> PathBuf {
-        let cache_directory_override = self.options.cache_directory_override.as_deref();
-
-        resolve_cache_root(self.workspace_root(), cache_directory_override)
+        resolve_cache_root(self.workspace_root(), None)
     }
 
     /// Return the stable profile id for one semantic profile key.

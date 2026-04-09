@@ -19,13 +19,7 @@ use super::{
 impl Compiler {
     /// Return the package id for one target.
     fn optimize_target_package_id(&self, target: &TargetId) -> OptimizeResult<PackageId> {
-        self.repository
-            .package_id_by_target_id(*target)
-            .ok_or_else(|| OptimizeError::InvalidTarget {
-                package: PackageId::EPHEMERAL,
-                target: *target,
-                message: "missing target package metadata".to_string(),
-            })
+        Ok(target.package_id())
     }
 
     /// Build optimized MIR for one module and target.
@@ -91,10 +85,7 @@ impl Compiler {
         target: &TargetId,
         context: &CompilerContext<'_>,
     ) -> Result<(), RequirementError> {
-        let package_id = self
-            .repository
-            .package_id_by_target_id(*target)
-            .unwrap_or(PackageId::EPHEMERAL);
+        let package_id = target.package_id();
 
         let resolved_profile = context.profile_id_for_target(module, target);
         if resolved_profile != Some(profile) {
@@ -347,35 +338,21 @@ impl Compiler {
     /// Resolve the target configuration for a module.
     fn target_for_module(
         &self,
-        module: ModuleId,
+        _module: ModuleId,
         target: &TargetId,
         context: &CompilerContext<'_>,
     ) -> OptimizeResult<Target> {
-        // resolve module package
-        let module = context.module(module);
-        let package_id = module.package_id;
-
-        // resolve target configuration
-        self.target_for_package_only(package_id, target, context)
-    }
-
-    /// Resolve the target configuration for a package.
-    fn target_for_package_only(
-        &self,
-        package: PackageId,
-        target: &TargetId,
-        context: &CompilerContext<'_>,
-    ) -> OptimizeResult<Target> {
-        // resolve target configuration
-        let package = context.package(package);
-        let Some(target_config) = package.targets.get(target).cloned() else {
-            return Err(OptimizeError::InvalidTarget {
-                package: package.id,
+        self.repository
+            .target(context.revision(), *target)
+            .map_err(|error| OptimizeError::InvalidTarget {
+                package: PackageId::EPHEMERAL,
+                target: *target,
+                message: format!("failed to load target config: {error}"),
+            })?
+            .ok_or_else(|| OptimizeError::InvalidTarget {
+                package: PackageId::EPHEMERAL,
                 target: *target,
                 message: "target not found".to_string(),
-            });
-        };
-
-        Ok(target_config)
+            })
     }
 }

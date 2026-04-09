@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
 use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{Repository, RepositoryOptions, Revision, TsConfigDeclaration};
+use destack_workspace::{AmbientSnapshot, Repository, Revision, TsConfigDeclaration};
 
 use crate::{
     CachePolicy, Resolution, ResolveContext, ResolveError, ResolveOptions, ResolveOrigin,
@@ -122,9 +122,9 @@ impl Resolver {
 fn test_repository(fs: Arc<dyn FileSystem>) -> Arc<Repository> {
     Arc::new(Repository::new(
         test_repository_root(),
-        RepositoryOptions::default(),
         Arc::new(DiskCacheStore::new()),
         fs,
+        AmbientSnapshot::capture_process(),
     ))
 }
 

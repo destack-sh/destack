@@ -1,15 +1,18 @@
-use crate::repository::normalize_logical_path_str;
-use destack_source::FileContent;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_source::{FileId, FileType};
+use destack_source::{FileContent, FileId, FileType};
 use smallvec::smallvec;
 
+use crate::RevisionMode;
 use crate::repository::{
-    FileContentId, Ref, Repository, RepositoryError, Revision, RevisionState, SourceMap,
+    FileContentId, FileEntry, FileOrigin, Ref, Repository, RepositoryError, Revision,
+    RevisionState, SourceMap, normalize_logical_path_str,
 };
+
+/// The number of recent retained revisions to preserve per retained head.
+const RETAINED_FILE_HISTORY_LIMIT: usize = 32;
 
 /// One atomic source mutation inside one repository change.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -153,10 +156,7 @@ impl Repository {
         self.compact_retained_file_history(&reachable_revisions);
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
-        self.workspaces
-            .retain(|revision, _| reachable_revisions.contains(revision));
-        self.file_contents
-            .retain_reachable(&reachable_file_contents);
+        self.files.retain_reachable(&reachable_file_contents);
     }
 
     /// Collect all file revisions reachable from refs and pinned snapshots.
@@ -206,8 +206,8 @@ impl Repository {
                 continue;
             };
 
-            for content_id in revision_data.source.values() {
-                reachable.insert(*content_id);
+            for entry in revision_data.source.values() {
+                reachable.insert(entry.content_id);
             }
         }
 
@@ -243,6 +243,7 @@ impl Repository {
                 let compacted_revision = Arc::new(RevisionState::new(
                     smallvec::SmallVec::new(),
                     Arc::clone(&revision_data.source),
+                    Arc::clone(&revision_data.ambient),
                 ));
 
                 self.revisions.insert(revision, compacted_revision);
@@ -259,7 +260,7 @@ impl Repository {
 
     /// Return the retained history depth for one pinned revision.
     fn history_depth_limit(&self) -> usize {
-        self.options.file_history_limit.max(1)
+        RETAINED_FILE_HISTORY_LIMIT
     }
 
     /// Collect all retained revisions with zero ancestry depth.
@@ -286,38 +287,13 @@ impl Repository {
 
         self.insert_seeded_source(
             &mut seeded_source,
-            "<root>",
+            FileOrigin::root(),
             FileContent::Text {
                 content: String::new(),
             },
         );
 
         self.apply_seeded_source(reference, seeded_source)
-    }
-
-    /// Import one filesystem file state into one ref.
-    pub fn import_from_fs(
-        &self,
-        reference: &Ref,
-        root: &Path,
-    ) -> Result<Revision, RepositoryError> {
-        let base_revision_id = self.current(reference)?;
-        let base_revision = self.revision(base_revision_id)?;
-        let mut source = base_revision.source.as_ref().clone();
-        let imported_source = self.collect_source_from_fs(root)?;
-
-        for (file_id, content_id) in imported_source {
-            source.insert(file_id, content_id);
-        }
-
-        let revision = Arc::new(self.build_revision_data(smallvec![base_revision_id], source));
-        let revision_id = revision.revision();
-
-        self.revisions.insert(revision_id, revision);
-        self.refs.insert(reference.clone(), revision_id);
-        self.prune_unreachable_file_state();
-
-        Ok(revision_id)
     }
 
     /// Create one new ref pointing at another ref's current revision.
@@ -336,11 +312,6 @@ impl Repository {
         self.prune_unreachable_file_state();
 
         Ok(revision)
-    }
-
-    /// Publish one new revision that reuses the current source snapshot.
-    pub fn publish(&self, reference: &Ref) -> Result<Revision, RepositoryError> {
-        self.apply(reference, Change::empty())
     }
 
     /// Apply one change set to one ref and publish one new revision.
@@ -368,7 +339,12 @@ impl Repository {
         let base_revision = self.revision(base_revision_id)?;
         let source = base_revision.source.as_ref().clone();
         let source = self.apply_change(source, change.into())?;
-        let revision = Arc::new(self.build_revision_data(smallvec![base_revision_id], source));
+        let revision = Arc::new(self.build_revision_data_with_mode(
+            base_revision.mode,
+            smallvec![base_revision_id],
+            source,
+            Arc::clone(&base_revision.ambient),
+        ));
         let revision_id = revision.revision();
 
         self.revisions
@@ -376,60 +352,6 @@ impl Repository {
             .or_insert_with(|| Arc::clone(&revision));
 
         Ok(revision_id)
-    }
-
-    /// Build one source snapshot from the attached file system.
-    fn collect_source_from_fs(&self, root: &Path) -> Result<SourceMap, RepositoryError> {
-        let mut source = SourceMap::new();
-        let mut pending_directories = vec![root.to_path_buf()];
-        let mut visited_directories = HashSet::new();
-
-        while let Some(directory) = pending_directories.pop() {
-            // skip already visited directories
-            if !visited_directories.insert(directory.clone()) {
-                continue;
-            }
-
-            let mut entries = self.fs.read_dir(&directory).map_err(|error| {
-                RepositoryError::ImportFileSystem {
-                    operation: "read_dir",
-                    path: directory.clone(),
-                    message: error.to_string(),
-                }
-            })?;
-            entries.sort_unstable();
-
-            for entry in entries {
-                let metadata = self.fs.metadata(&entry).map_err(|error| {
-                    RepositoryError::ImportFileSystem {
-                        operation: "metadata",
-                        path: entry.clone(),
-                        message: error.to_string(),
-                    }
-                })?;
-
-                // recurse into workspace directories
-                if metadata.is_directory {
-                    if self.should_seed_workspace_directory(&entry) {
-                        pending_directories.push(entry);
-                    }
-
-                    continue;
-                }
-
-                // skip non-file entries
-                if !metadata.is_file {
-                    continue;
-                }
-
-                // seed one tracked workspace file
-                if self.should_seed_workspace_file(&entry) {
-                    self.seed_workspace_file(&mut source, &entry)?;
-                }
-            }
-        }
-
-        Ok(source)
     }
 
     /// Load one workspace file payload from the attached file system.
@@ -471,11 +393,16 @@ impl Repository {
         let base_revision = self.revision(base_revision_id)?;
         let mut source = base_revision.source.as_ref().clone();
 
-        for (file_id, content_id) in seeded_source {
-            source.insert(file_id, content_id);
+        for (file_id, entry) in seeded_source {
+            source.insert(file_id, entry);
         }
 
-        let revision = Arc::new(self.build_revision_data(smallvec![base_revision_id], source));
+        let revision = Arc::new(self.build_revision_data_with_mode(
+            base_revision.mode,
+            smallvec![base_revision_id],
+            source,
+            Arc::clone(&base_revision.ambient),
+        ));
         let revision_id = revision.revision();
 
         self.revisions
@@ -492,75 +419,122 @@ impl Repository {
         &self,
         parents: smallvec::SmallVec<[Revision; 2]>,
         source: SourceMap,
+        ambient: Arc<crate::repository::AmbientSnapshot>,
     ) -> RevisionState {
-        RevisionState::new(parents, Arc::new(source))
+        RevisionState::new(parents, Arc::new(source), ambient)
     }
 
-    /// Return true when the seed walk should descend into one directory.
-    fn should_seed_workspace_directory(&self, path: &Path) -> bool {
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            return true;
-        };
-
-        !matches!(name, ".destack" | ".git" | "node_modules" | "target")
-    }
-
-    /// Return true when one path should be present in the workspace base revision.
-    fn should_seed_workspace_file(&self, path: &Path) -> bool {
-        let file_type = FileType::from_path_or_unknown(path);
-
-        file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
-    }
-
-    /// Seed one file into one workspace source snapshot.
-    fn seed_workspace_file(
+    /// Build one full mutable revision state from one source map.
+    fn build_mutable_revision_data(
         &self,
-        source: &mut SourceMap,
-        path: &Path,
-    ) -> Result<(), RepositoryError> {
-        let file_content = self.load_workspace_file_content(path)?;
-        let file_id = self.intern_workspace_file_id(path);
-        let content_id = self.file_contents.intern(file_content);
+        parents: smallvec::SmallVec<[Revision; 2]>,
+        source: SourceMap,
+        ambient: Arc<crate::repository::AmbientSnapshot>,
+    ) -> RevisionState {
+        RevisionState::new_mutable(parents, Arc::new(source), ambient)
+    }
 
-        source.insert(file_id, content_id);
+    /// Build one full revision state from one source map and mode.
+    fn build_revision_data_with_mode(
+        &self,
+        mode: RevisionMode,
+        parents: smallvec::SmallVec<[Revision; 2]>,
+        source: SourceMap,
+        ambient: Arc<crate::repository::AmbientSnapshot>,
+    ) -> RevisionState {
+        match mode {
+            RevisionMode::Mutable => self.build_mutable_revision_data(parents, source, ambient),
+            RevisionMode::Immutable => self.build_revision_data(parents, source, ambient),
+        }
+    }
 
-        Ok(())
+    /// Fork one immutable or mutable revision into a mutable working revision.
+    pub fn fork_mutable_revision(
+        &self,
+        base_revision_id: Revision,
+    ) -> Result<Revision, RepositoryError> {
+        let base_revision = self.revision(base_revision_id)?;
+
+        if base_revision.is_mutable() {
+            return Ok(base_revision_id);
+        }
+
+        let source = base_revision.source.as_ref().clone();
+        let revision = Arc::new(self.build_mutable_revision_data(
+            smallvec![base_revision_id],
+            source,
+            Arc::clone(&base_revision.ambient),
+        ));
+        let revision_id = revision.revision();
+
+        self.revisions
+            .entry(revision_id)
+            .or_insert_with(|| Arc::clone(&revision));
+
+        Ok(revision_id)
+    }
+
+    /// Freeze one mutable revision into an immutable revision.
+    pub fn freeze_revision(&self, revision_id: Revision) -> Result<Revision, RepositoryError> {
+        let revision = self.revision(revision_id)?;
+
+        if revision.is_immutable() {
+            return Ok(revision_id);
+        }
+
+        let source = revision.source.as_ref().clone();
+        let frozen = Arc::new(self.build_revision_data(
+            smallvec![revision_id],
+            source,
+            Arc::clone(&revision.ambient),
+        ));
+        let frozen_revision_id = frozen.revision();
+
+        self.revisions
+            .entry(frozen_revision_id)
+            .or_insert_with(|| Arc::clone(&frozen));
+
+        Ok(frozen_revision_id)
     }
 
     /// Insert one explicit seeded source binding.
     pub(crate) fn insert_seeded_source(
         &self,
         source: &mut SourceMap,
-        logical_path: &str,
+        origin: FileOrigin,
         content: FileContent,
     ) {
-        let file_id = if logical_path == "<root>" {
-            self.intern_root_file_id(logical_path)
-        } else if let Some((module_path, source_kind)) =
-            self.builtins.module_origin_by_logical_path(logical_path)
-        {
-            self.intern_builtin_file_id(logical_path, &module_path, source_kind)
-        } else {
-            panic!("seeded source must have an explicit origin: {logical_path}")
-        };
-        let content_id = self.file_contents.intern(content);
+        match &origin {
+            FileOrigin::Workspace { logical_path } => {
+                panic!("seeded source must not be one workspace path: {logical_path}");
+            }
+            FileOrigin::Builtin { logical_path } => {
+                if self.builtins.module_source_for_path(logical_path).is_none() {
+                    panic!("seeded builtin source must exist: {logical_path}");
+                }
+            }
+            FileOrigin::Synthetic { .. } => {}
+        }
 
-        source.insert(file_id, content_id);
+        let file_id = self.file_id_for_origin(&origin);
+        let content_id = self.files.intern(content);
+
+        source.insert(file_id, FileEntry::loaded(origin, content_id));
     }
 
     /// Validate one workspace logical path.
     fn validate_workspace_logical_path(&self, logical_path: &str) -> Result<(), RepositoryError> {
-        if logical_path == "<root>" {
-            return Err(RepositoryError::InvalidEditPath {
-                path: logical_path.to_string(),
-                message: "root source is repository seeded".to_string(),
-            });
-        }
-
         if logical_path.starts_with("builtin://") {
             return Err(RepositoryError::InvalidEditPath {
                 path: logical_path.to_string(),
                 message: "builtin source is repository seeded".to_string(),
+            });
+        }
+
+        if logical_path.starts_with("synthetic://") {
+            return Err(RepositoryError::InvalidEditPath {
+                path: logical_path.to_string(),
+                message: "synthetic source is repository seeded".to_string(),
             });
         }
 
@@ -603,9 +577,12 @@ impl Repository {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
 
-                    let file_id = self.intern_workspace_logical_file_id(&logical_path);
-                    let content = self.file_contents.intern(content);
-                    source.insert(file_id, content);
+                    let file_id = self.file_id_for_logical_path(&logical_path);
+                    let content = self.files.intern(content);
+                    source.insert(
+                        file_id,
+                        FileEntry::loaded(FileOrigin::workspace(logical_path), content),
+                    );
                 }
 
                 // set the requested file payload
@@ -613,9 +590,12 @@ impl Repository {
                     logical_path,
                     content,
                 } => {
-                    let file_id = self.intern_workspace_logical_file_id(&logical_path);
-                    let content = self.file_contents.intern(content);
-                    source.insert(file_id, content);
+                    let file_id = self.file_id_for_workspace_logical_path(&logical_path)?;
+                    let content = self.files.intern(content);
+                    source.insert(
+                        file_id,
+                        FileEntry::loaded(FileOrigin::workspace(logical_path), content),
+                    );
                 }
 
                 // remove the requested file payload
@@ -647,9 +627,11 @@ impl Repository {
                     }
 
                     source.remove(&from_file_id);
-                    let to_file_id = self.intern_workspace_logical_file_id(&to);
+                    let to_file_id = self.file_id_for_logical_path(&to);
+                    let to_file =
+                        FileEntry::loaded(FileOrigin::workspace(to), from_file.content_id);
 
-                    source.insert(to_file_id, from_file);
+                    source.insert(to_file_id, to_file);
                 }
             }
         }

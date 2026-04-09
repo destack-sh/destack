@@ -46,7 +46,7 @@ impl<'a> Default for TargetDiscoveryOptions<'a> {
 
 /// Describe a failure while discovering target modules.
 #[derive(Debug, Clone)]
-pub enum TargetDiscoveryIssue {
+pub enum TargetDiscoveryError {
     /// Repository state lookup failed during discovery.
     Repository {
         /// Package id for the discovery.

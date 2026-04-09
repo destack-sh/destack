@@ -159,8 +159,10 @@ impl Compiler {
 
         // bind builtin defining modules
         let mut collector = RequirementCollector::new();
-        for &module_id in builtins.intrinsic_module_by_path.values() {
-            if module_id == builtins.prelude_module_id {
+        let prelude_module_id = builtins.prelude_module_id();
+
+        for module_id in builtins.registered_intrinsic_module_ids() {
+            if module_id == prelude_module_id {
                 continue;
             }
             if let Err(error) = self.require_dir_base(revision, module_id)

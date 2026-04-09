@@ -13,7 +13,7 @@ doctest = false
 
 [[bin]]
 name = "generate-schema"
-path = "src/schema.rs"
+path = "src/bin/schema.rs"
 required-features = ["schema"]
 
 [features]

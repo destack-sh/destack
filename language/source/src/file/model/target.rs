@@ -9,14 +9,22 @@ use crate::PackageId;
 ///
 /// A target represents a build output with specific settings for code generation,
 /// optimization, and output paths. Each target is associated with a profile.
-#[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct TargetId(pub u64);
+pub struct TargetId {
+    /// The owning package id.
+    pub package_id: PackageId,
+    /// The stable hash of the target name within the package.
+    pub target_name_hash: u64,
+}
 
 impl std::fmt::Display for TargetId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "t{:016x}", self.0)
+        write!(
+            f,
+            "t{package_id:016x}:{target_name_hash:016x}",
+            package_id = self.package_id.raw(),
+            target_name_hash = self.target_name_hash
+        )
     }
 }
 
@@ -24,9 +32,16 @@ impl TargetId {
     /// Create a new TargetId.
     pub fn new(package_id: PackageId, name: impl AsRef<str>) -> Self {
         let mut hasher = FxHasher::default();
-        package_id.hash(&mut hasher);
         name.as_ref().hash(&mut hasher);
 
-        Self(hasher.finish())
+        Self {
+            package_id,
+            target_name_hash: hasher.finish(),
+        }
+    }
+
+    /// Return the owning package id.
+    pub fn package_id(&self) -> PackageId {
+        self.package_id
     }
 }
