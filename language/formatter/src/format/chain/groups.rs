@@ -146,6 +146,15 @@ impl TailChainGroups {
         self.groups.last()
     }
 
+    /// Remove and return the first tail group.
+    pub(crate) fn pop_first(&mut self) -> Option<TailChainGroup> {
+        if self.groups.is_empty() {
+            return None;
+        }
+
+        Some(self.groups.remove(0))
+    }
+
     /// Return an iterator over all tail groups.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &TailChainGroup> {
         self.groups.iter()
@@ -178,14 +187,13 @@ pub(crate) fn chain_head_operation_count(
         return operations
             .iter()
             .position(|operation| !chain_operation_stays_in_leading_head(context, operation))
-            .map_or(operations.len(), |index| index + 1);
+            .unwrap_or(operations.len());
     }
 
     let non_call_or_numeric_index_start = operations
         .iter()
-        .skip(1)
         .position(|operation| !chain_operation_stays_in_leading_head(context, operation))
-        .map_or(operations.len(), |index| index + 1);
+        .unwrap_or(operations.len());
 
     let rest = &operations[non_call_or_numeric_index_start..];
     let member_end = rest
@@ -197,7 +205,7 @@ pub(crate) fn chain_head_operation_count(
 }
 
 /// Return whether one chain operation owns a source comment before its leading token.
-fn chain_operation_has_leading_gap_comment(
+pub(crate) fn chain_operation_has_leading_gap_comment(
     context: &DestackFormatContext<'_>,
     operation: &ChainExpression,
 ) -> bool {
@@ -227,20 +235,28 @@ pub(crate) fn build_tail_chain_groups(
 ) -> TailChainGroups {
     let mut groups_builder = TailChainGroupsBuilder::default();
     let mut has_seen_call_like = false;
+    let mut operations = tail_operations.into_iter().peekable();
 
-    for operation in tail_operations {
+    while let Some(operation) = operations.next() {
+        let next_is_instantiation = operations
+            .peek()
+            .is_some_and(|operation| matches!(operation, ChainExpression::Instantiation { .. }));
+
         if chain_operation_is_numeric_direct_index(context, &operation) {
             groups_builder.start_or_continue_group(operation);
         } else if chain_operation_is_member_like(&operation) {
-            if has_seen_call_like {
+            if has_seen_call_like && !next_is_instantiation {
                 groups_builder.close_group();
                 groups_builder.start_group(operation);
                 has_seen_call_like = false;
             } else {
                 groups_builder.start_or_continue_group(operation);
+                if next_is_instantiation {
+                    has_seen_call_like = false;
+                }
             }
         } else if chain_operation_is_call_or_attached_tail(&operation) {
-            let is_call_like = chain_operation_is_call_like(&operation);
+            let is_call_like = matches!(operation, ChainExpression::Call { .. });
             groups_builder.start_or_continue_group(operation);
             if is_call_like {
                 has_seen_call_like = true;

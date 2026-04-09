@@ -126,18 +126,16 @@ const factory = providers["main"]<Factory>
 const factory = providers["main"]<Factory>;
 ```
 
-### member instantiation breaks cleanly
+### member instantiation stays inline at fixture width
 
-Long member chains can break before the instantiation expression while keeping the type arguments attached.
+Short member instantiation chains stay inline at this fixture width while keeping the type arguments attached.
 
 ```ts:main.ts line-width=25
 const value = api.getService().getFactory<number>
 ```
 
 ```ts expected
-const value =
-    api.getService()
-        .getFactory<number>;
+const value = api.getService().getFactory<number>;
 ```
 
 ## Non-Null Assertions

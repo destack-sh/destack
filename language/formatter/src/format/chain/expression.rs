@@ -1,3 +1,4 @@
+use super::groups::TailChainGroup;
 use super::member::{CallChainPosition, build_member_chain_parts, member_has_intervening_comment};
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, TailChainGroups,
@@ -8,26 +9,26 @@ use super::{
     transparent_inner_expression,
 };
 use crate::format::annotation::{
-    format_raw_comment, format_trailing_comment_slice, format_trailing_comments,
-    infix_or_postfix_annotations, infix_or_postfix_annotations_without_line_suffix_boundary,
-    line_suffix_boundary_annotations, postfix_annotations, prefix_annotations,
-    write_raw_leading_comments,
+    format_raw_comment, format_trailing_comments, infix_or_postfix_annotations,
+    infix_or_postfix_annotations_without_line_suffix_boundary, line_suffix_boundary_annotations,
+    postfix_annotations, prefix_annotations, write_raw_leading_comments,
 };
 use crate::format::call::{
     expression_is_long_curried_call, format_call_arguments_in_chain, format_call_expression,
 };
 use crate::format::context::ParenthesizedExpressionView;
+use crate::format::declaration::expression_is_in_statement_position;
 use crate::format::expression::{
     format_static_argument_list, format_static_argument_list_with_relational_spacing,
 };
-use crate::format::operator::write_postfix_base_expression;
+use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{AnnotationPosition, Expression, LocalNodeId, NodeType, PostfixPosition};
 use destack_fir::format::{
     BestFittingMode, Buffer, Format, FormatNodes, FormatResult, FormatState, VecBuffer,
 };
 use destack_fir::prelude::{
-    expand_parent, format_with, group, hard_line_break, indent, space, token,
+    empty_line, expand_parent, format_with, group, hard_line_break, indent, space, token,
 };
 use destack_fir::{best_fitting, write};
 use destack_source::Span;
@@ -89,7 +90,8 @@ impl MemberChain {
         context: &DestackFormatContext<'_>,
         node_id: LocalNodeId<Expression>,
     ) -> FormatResult<Self> {
-        let (chain, base, tail_groups) = build_member_chain_parts(context, node_id)?;
+        let (chain, mut base, mut tail_groups) = build_member_chain_parts(context, node_id)?;
+        maybe_merge_first_tail_group_with_head(context, node_id, &mut base, &mut tail_groups);
         let instantiation_prefix_wrap_body_ops =
             chain_instantiation_prefix_wrap_body_ops(context, &base, &tail_groups);
 
@@ -191,7 +193,7 @@ impl MemberChain {
 
             let nodes = buffer.into_vec();
             group.set_will_break(nodes.as_slice().will_break());
-            group.set_needs_empty_line(false);
+            group.set_needs_empty_line(chain_group_needs_empty_line_before(f.context(), group));
         }
 
         Ok(())
@@ -278,6 +280,163 @@ impl MemberChain {
                 member_has_intervening_comment(context, *node_id)
             })
     }
+}
+
+/// Try to merge the first tail group into the chain head.
+fn maybe_merge_first_tail_group_with_head(
+    context: &DestackFormatContext<'_>,
+    root_id: LocalNodeId<Expression>,
+    base: &mut ChainExpressionBase,
+    tail_groups: &mut TailChainGroups,
+) {
+    if !should_merge_first_tail_group_with_head(context, root_id, base, tail_groups) {
+        return;
+    }
+
+    let Some(first_group) = tail_groups.pop_first() else {
+        return;
+    };
+
+    base.body.extend(first_group.as_slice().iter().cloned());
+}
+
+/// Return whether the first tail group should merge into the head.
+fn should_merge_first_tail_group_with_head(
+    context: &DestackFormatContext<'_>,
+    root_id: LocalNodeId<Expression>,
+    base: &ChainExpressionBase,
+    tail_groups: &TailChainGroups,
+) -> bool {
+    let Some(first_group) = tail_groups.first() else {
+        return false;
+    };
+
+    if first_group_has_comment(context, first_group) {
+        return false;
+    }
+
+    let has_computed_property = first_group
+        .first()
+        .is_some_and(|operation| matches!(operation, ChainExpression::Index { .. }));
+
+    if base.body.is_empty() {
+        match &base.head {
+            ChainExpressionBaseHead::Expression(expression_id) => {
+                let expression_id = transparent_inner_expression(context, *expression_id);
+                match context.tree.get(expression_id) {
+                    Expression::Identifier { name, .. } => {
+                        has_computed_property
+                            || is_factory_name(context, *name)
+                            || (expression_is_in_statement_position(context, root_id)
+                                && has_short_name(
+                                    context.strings.get(*name),
+                                    context.options.indent_width,
+                                ))
+                    }
+                    Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
+                        has_computed_property || is_factory_name(context, path.segments[0])
+                    }
+                    Expression::This { .. } => true,
+                    _ => false,
+                }
+            }
+            ChainExpressionBaseHead::Path { segment, .. } => {
+                has_computed_property || is_factory_name(context, *segment)
+            }
+        }
+    } else if let Some(ChainExpression::Member { segment, .. }) = base.body.last() {
+        has_computed_property || is_factory_name(context, *segment)
+    } else {
+        false
+    }
+}
+
+/// Return whether the first tail group member owns a boundary comment.
+fn first_group_has_comment(
+    context: &DestackFormatContext<'_>,
+    first_group: &TailChainGroup,
+) -> bool {
+    let Some(first_operation) = first_group.first() else {
+        return false;
+    };
+
+    match first_operation {
+        ChainExpression::Member { node_id, .. } => {
+            member_has_intervening_comment(context, *node_id)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one identifier name follows the factory-style merge rule.
+fn is_factory_name(context: &DestackFormatContext<'_>, string_id: destack_core::StringId) -> bool {
+    let name = context.strings.get(string_id);
+    let mut bytes = name.bytes();
+
+    match bytes.next() {
+        Some(b'_' | b'$') => bytes.all(|byte| matches!(byte, b'_' | b'$')),
+        Some(byte) => byte.is_ascii_uppercase(),
+        None => false,
+    }
+}
+
+/// Return whether one identifier fits within the indent-width short-name rule.
+fn has_short_name(name: &str, indent_width: u8) -> bool {
+    name.len() <= usize::from(indent_width)
+}
+
+/// Return whether source preserves an empty line before one tail group.
+fn chain_group_needs_empty_line_before(
+    context: &DestackFormatContext<'_>,
+    group: &TailChainGroup,
+) -> bool {
+    let Some(first_operation) = group.first() else {
+        return false;
+    };
+
+    let node_id = chain_operation_node_id(first_operation);
+    let Some(left_id) = super::member::chain_node_left_id(context.tree, node_id) else {
+        return false;
+    };
+
+    // terminal calls that are not already part of a chain do not preserve blank lines
+    if let Expression::Call { left, .. } = context.tree.get(left_id)
+        && !is_chain_expression(context.tree.get(*left))
+    {
+        return false;
+    }
+
+    let operator_character = match first_operation {
+        ChainExpression::Member { .. } => b'.',
+        ChainExpression::Index { .. } => b'[',
+        _ => return false,
+    };
+
+    let start = expression_trivia_anchor_end(context, left_id);
+    let mut end = chain_operation_start(context, first_operation).unwrap_or(start);
+
+    if let Some(first_comment) = context
+        .comments()
+        .comments_before_character(start, operator_character)
+        .first()
+    {
+        end = first_comment.span.start;
+    }
+
+    for (index, byte) in context
+        .source_text()
+        .bytes_range(start, end)
+        .iter()
+        .enumerate()
+    {
+        if matches!(byte, b'\n' | b'\r')
+            && context.source_text().lines_after(start + index as u32) > 1
+        {
+            return true;
+        }
+    }
+
+    false
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
@@ -487,7 +646,11 @@ fn write_expanded_chain<'ast>(
                             })
                     }));
             if should_insert_break {
-                write!(f, [hard_line_break()])?;
+                if group.needs_empty_line() {
+                    write!(f, [empty_line()])?;
+                } else {
+                    write!(f, [hard_line_break()])?;
+                }
             }
 
             if group_index == 0
@@ -551,37 +714,13 @@ fn chain_operation_start(
 fn next_operation_owns_callee_gap_comments(next_operation: Option<&ChainExpression>) -> bool {
     matches!(
         next_operation,
-        Some(
-            ChainExpression::Member {
-                optional_position: Some(_),
-                ..
-            } | ChainExpression::Call {
-                optional_position: Some(_),
-                ..
-            } | ChainExpression::Index {
-                optional_position: Some(_),
-                ..
-            }
-        ) | Some(ChainExpression::Call {
+        Some(ChainExpression::Call {
             optional_position: None,
             position: PostfixPosition::Direct,
             static_arguments: None,
             ..
         })
     )
-}
-
-/// Return the left expression span that owns one optional boundary comment gap.
-fn optional_boundary_comment_anchor_id(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Option<LocalNodeId<Expression>> {
-    let left_id = super::member::chain_node_left_id(context.tree, node_id)?;
-
-    match context.tree.get(left_id) {
-        Expression::Maybe { left, .. } => Some(*left),
-        _ => Some(left_id),
-    }
 }
 
 /// Write raw trailing comments between one formatted node and its following operation.
@@ -875,26 +1014,12 @@ fn write_chain_operation_prefix<'ast>(
 /// Write one absorbed optional-chain boundary before its owning operation.
 fn write_chain_operation_optional_boundary<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
+    _node_id: LocalNodeId<Expression>,
     optional_position: Option<PostfixPosition>,
 ) -> FormatResult<()> {
     let Some(optional_position) = optional_position else {
         return Ok(());
     };
-
-    let Some(anchor_id) = optional_boundary_comment_anchor_id(f.context(), node_id) else {
-        return Ok(());
-    };
-
-    let trailing_comments = {
-        let comments = f.context().comments();
-        comments
-            .comments_before_character(f.context().span(anchor_id).end, b'?')
-            .to_vec()
-    };
-    if !trailing_comments.is_empty() {
-        write!(f, [format_trailing_comment_slice(&trailing_comments)])?;
-    }
 
     match optional_position {
         PostfixPosition::Direct => write!(f, [token("?")])?,
