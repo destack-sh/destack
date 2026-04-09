@@ -256,7 +256,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::ManagedAlloc { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
-                Instruction::FunctionValue { environment, .. } => {
+                Instruction::Closure { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
                 Instruction::FunctionEnvironment { .. } => {}
@@ -519,12 +519,10 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(else_arguments, from, to);
             }
             Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
             } => {
-                Self::replace_value_in_slot(condition, from, to);
                 Self::replace_values_in_check_kind(constraint, from, to);
                 Self::replace_values_in_slice(&mut success.arguments, from, to);
                 Self::replace_values_in_slice(&mut failure.arguments, from, to);
@@ -549,7 +547,7 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_value_in_slot(value, from, to);
                 Self::replace_values_in_slice(resume_arguments, from, to);
             }
-            Terminator::Call {
+            Terminator::Invoke {
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -559,7 +557,7 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(normal_arguments, from, to);
                 Self::replace_values_in_slice(unwind_arguments, from, to);
             }
-            Terminator::CallIndirect {
+            Terminator::InvokeIndirect {
                 callee,
                 arguments,
                 normal_arguments,
@@ -572,14 +570,14 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(normal_arguments, from, to);
                 Self::replace_values_in_slice(unwind_arguments, from, to);
             }
-            Terminator::CallVirtual {
+            Terminator::InvokeVirtual {
                 receiver,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
-            | Terminator::CallInterface {
+            | Terminator::InvokeInterface {
                 receiver,
                 arguments,
                 normal_arguments,

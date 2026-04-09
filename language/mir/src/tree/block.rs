@@ -209,8 +209,6 @@ pub enum Terminator {
 
     /// Runtime check with explicit success and failure edges.
     Check {
-        /// The boolean condition being checked.
-        condition: Value,
         /// Semantic constraint for the check.
         constraint: CheckConstraint,
         /// The block to jump to when the check succeeds.
@@ -249,57 +247,59 @@ pub enum Terminator {
         resume_arguments: Vec<Value>,
     },
 
-    /// Direct call with explicit normal and unwind continuations.
+    /// Direct call with explicit success and exception continuations.
     ///
-    /// The normal target receives the call result as its leading block parameter
+    /// The success target receives the call result as its leading block parameter
     /// when the callee returns a non-void value.
-    /// The unwind target receives the thrown managed exception object as its
+    /// The exception target receives the thrown managed exception object as its
     /// leading block parameter.
-    Call {
+    Invoke {
         /// The direct callee function.
         function: LocalNodeId<Function>,
         /// The arguments to pass to the callee.
         arguments: Vec<Value>,
-        /// The normal continuation block.
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// The success continuation block.
         normal_target: LocalNodeId<Block>,
-        /// Arguments for the normal continuation after the implicit result.
+        /// Arguments for the success continuation after the implicit result.
         normal_arguments: Vec<Value>,
-        /// The unwind continuation block.
+        /// The exception continuation block.
         unwind_target: LocalNodeId<Block>,
-        /// Arguments for the unwind continuation after the implicit exception.
+        /// Arguments for the exception continuation after the implicit exception.
         unwind_arguments: Vec<Value>,
     },
 
-    /// Indirect call with explicit normal and unwind continuations.
+    /// Indirect call with explicit success and exception continuations.
     ///
-    /// The normal target receives the call result as its leading block parameter
+    /// The success target receives the call result as its leading block parameter
     /// when the callee returns a non-void value.
-    /// The unwind target receives the thrown managed exception object as its
+    /// The exception target receives the thrown managed exception object as its
     /// leading block parameter.
-    CallIndirect {
+    InvokeIndirect {
         /// The callable value to call.
         callee: Value,
         /// The arguments to pass to the callee.
         arguments: Vec<Value>,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
-        /// The normal continuation block.
+        /// The success continuation block.
         normal_target: LocalNodeId<Block>,
-        /// Arguments for the normal continuation after the implicit result.
+        /// Arguments for the success continuation after the implicit result.
         normal_arguments: Vec<Value>,
-        /// The unwind continuation block.
+        /// The exception continuation block.
         unwind_target: LocalNodeId<Block>,
-        /// Arguments for the unwind continuation after the implicit exception.
+        /// Arguments for the exception continuation after the implicit exception.
         unwind_arguments: Vec<Value>,
     },
 
-    /// Virtual call with explicit normal and unwind continuations.
+    /// Virtual call with explicit success and exception continuations.
     ///
-    /// The normal target receives the call result as its leading block parameter
+    /// The success target receives the call result as its leading block parameter
     /// when the callee returns a non-void value.
-    /// The unwind target receives the thrown managed exception object as its
+    /// The exception target receives the thrown managed exception object as its
     /// leading block parameter.
-    CallVirtual {
+    InvokeVirtual {
         /// The receiver value for dispatch.
         receiver: Value,
         /// The arguments to pass to the callee.
@@ -310,23 +310,23 @@ pub enum Terminator {
         slot_id: VtableSlotId,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
-        /// The normal continuation block.
+        /// The success continuation block.
         normal_target: LocalNodeId<Block>,
-        /// Arguments for the normal continuation after the implicit result.
+        /// Arguments for the success continuation after the implicit result.
         normal_arguments: Vec<Value>,
-        /// The unwind continuation block.
+        /// The exception continuation block.
         unwind_target: LocalNodeId<Block>,
-        /// Arguments for the unwind continuation after the implicit exception.
+        /// Arguments for the exception continuation after the implicit exception.
         unwind_arguments: Vec<Value>,
     },
 
-    /// Interface call with explicit normal and unwind continuations.
+    /// Interface call with explicit success and exception continuations.
     ///
-    /// The normal target receives the call result as its leading block parameter
+    /// The success target receives the call result as its leading block parameter
     /// when the callee returns a non-void value.
-    /// The unwind target receives the thrown managed exception object as its
+    /// The exception target receives the thrown managed exception object as its
     /// leading block parameter.
-    CallInterface {
+    InvokeInterface {
         /// The receiver value for dispatch.
         receiver: Value,
         /// The arguments to pass to the callee.
@@ -337,13 +337,13 @@ pub enum Terminator {
         slot_id: InterfaceSlotId,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
-        /// The normal continuation block.
+        /// The success continuation block.
         normal_target: LocalNodeId<Block>,
-        /// Arguments for the normal continuation after the implicit result.
+        /// Arguments for the success continuation after the implicit result.
         normal_arguments: Vec<Value>,
-        /// The unwind continuation block.
+        /// The exception continuation block.
         unwind_target: LocalNodeId<Block>,
-        /// Arguments for the unwind continuation after the implicit exception.
+        /// Arguments for the exception continuation after the implicit exception.
         unwind_arguments: Vec<Value>,
     },
 
@@ -374,6 +374,8 @@ pub enum Terminator {
         function: LocalNodeId<Function>,
         /// The arguments to pass.
         arguments: Vec<Value>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
     },
 
     /// Tail call through a function pointer (does not return to this function).
@@ -442,22 +444,22 @@ impl Terminator {
                 successors
             }
             Terminator::Yield { resume, .. } => smallvec![*resume],
-            Terminator::Call {
+            Terminator::Invoke {
                 normal_target,
                 unwind_target,
                 ..
             }
-            | Terminator::CallIndirect {
+            | Terminator::InvokeIndirect {
                 normal_target,
                 unwind_target,
                 ..
             }
-            | Terminator::CallVirtual {
+            | Terminator::InvokeVirtual {
                 normal_target,
                 unwind_target,
                 ..
             }
-            | Terminator::CallInterface {
+            | Terminator::InvokeInterface {
                 normal_target,
                 unwind_target,
                 ..
@@ -490,13 +492,11 @@ impl Terminator {
                 uses
             }
             Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
             } => {
-                let mut uses = smallvec![*condition];
-                uses.extend(constraint.uses());
+                let mut uses = constraint.uses();
                 uses.extend(success.arguments.iter().copied());
                 uses.extend(failure.arguments.iter().copied());
                 uses
@@ -523,7 +523,7 @@ impl Terminator {
                 uses.extend(resume_arguments.iter().copied());
                 uses
             }
-            Terminator::Call {
+            Terminator::Invoke {
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -534,7 +534,7 @@ impl Terminator {
                 uses.extend(unwind_arguments.iter().copied());
                 uses
             }
-            Terminator::CallIndirect {
+            Terminator::InvokeIndirect {
                 callee,
                 arguments,
                 normal_arguments,
@@ -547,14 +547,14 @@ impl Terminator {
                 uses.extend(unwind_arguments.iter().copied());
                 uses
             }
-            Terminator::CallVirtual {
+            Terminator::InvokeVirtual {
                 receiver,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
-            | Terminator::CallInterface {
+            | Terminator::InvokeInterface {
                 receiver,
                 arguments,
                 normal_arguments,

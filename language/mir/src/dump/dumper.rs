@@ -106,7 +106,7 @@ impl<'a> Dumper<'a> {
     }
 
     fn format_block_id(&self, id: LocalNodeId<Block>) -> String {
-        format!("block{}", id.id)
+        format!("b{}", id.id)
     }
 
     fn format_local_id(&self, id: LocalNodeId<Local>) -> String {
@@ -115,17 +115,19 @@ impl<'a> Dumper<'a> {
 
     fn format_global_id(&self, id: LocalNodeId<Global>) -> String {
         let global = self.tree.get(id);
-        let name = self.strings.get(global.name).to_string();
-        format!("@{name}")
+        self.strings.get(global.name).to_string()
     }
 
     fn format_function_id(&self, id: LocalNodeId<Function>) -> String {
         let function = self.tree.get(id);
-        let name = self.strings.get(function.name).to_string();
-        format!("@{name}")
+        self.strings.get(function.name).to_string()
     }
 
     fn format_type_id(&self, id: LocalNodeId<Type>) -> String {
+        if let Some(name) = self.tree.type_display_name(id) {
+            return self.strings.get(name).to_string();
+        }
+
         let ty = self.tree.get(id);
         self.format_type(ty)
     }
@@ -133,22 +135,22 @@ impl<'a> Dumper<'a> {
     fn format_type(&self, ty: &Type) -> String {
         match ty {
             Type::Void => "void".to_string(),
-            Type::Boolean => "bool".to_string(),
+            Type::Boolean => "boolean".to_string(),
             Type::Int {
                 width,
                 is_signed: signed,
             } => {
                 if *signed {
-                    format!("i{width}")
+                    format!("int{width}")
                 } else {
-                    format!("u{width}")
+                    format!("uint{width}")
                 }
             }
             Type::Isize => "isize".to_string(),
             Type::Usize => "usize".to_string(),
-            Type::Float { width } => format!("f{width}"),
-            Type::TypeDescriptor => "type_descriptor".to_string(),
-            Type::TypeId => "type_id".to_string(),
+            Type::Float { width } => format!("float{width}"),
+            Type::TypeDescriptor => "typeDescriptor".to_string(),
+            Type::TypeId => "typeId".to_string(),
             Type::Reference {
                 kind,
                 address_space,
@@ -171,15 +173,15 @@ impl<'a> Dumper<'a> {
                     _ => address_space.keyword().map(|name| name.to_string()),
                 };
                 let address_space_label = address_space_label
-                    .map(|label| format!(" addrspace({label})"))
+                    .map(|label| format!(", addressSpace({label})"))
                     .unwrap_or_default();
                 let mutability_label = match mutability {
                     Mutability::Mutable => "",
-                    Mutability::Immutable => " readonly",
+                    Mutability::Immutable => ", readonly",
                 };
-                format!("{ref_prefix}<{kind_label}{address_space_label}{mutability_label}>")
+                format!("{ref_prefix}<_, {kind_label}{mutability_label}{address_space_label}>")
             }
-            Type::Array { length, .. } => format!("[_; {length}]"),
+            Type::Array { length, .. } => format!("_[{length}]"),
             Type::Tuple {
                 elements,
                 copyability: _,
@@ -191,9 +193,16 @@ impl<'a> Dumper<'a> {
             Type::Newtype { .. } => "newtype".to_string(),
             Type::Vector { lanes, .. } => format!("vector<{lanes}>"),
             Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
-            Type::TensorReference { shape, .. } => format!("tensor_ref<{}>", shape.len()),
-            Type::FunctionPointer { parameters, .. } => format!("fn({})", parameters.len()),
-            Type::FunctionValue { .. } => "fnvalue".to_string(),
+            Type::TensorReference { shape, .. } => format!("tensorRef<{}>", shape.len()),
+            Type::FunctionPointer { parameters, result } => {
+                let parameter_count = parameters.len();
+                let result = self.format_type_id(*result);
+                format!("fn(/* {parameter_count} */) -> {result}")
+            }
+            Type::Closure { signature } => {
+                let signature = self.format_type_id(*signature);
+                format!("closure<{signature}>")
+            }
         }
     }
 
@@ -206,10 +215,10 @@ impl<'a> Dumper<'a> {
             names.push("volatile");
         }
         if semantics.is_make_available {
-            names.push("make_available");
+            names.push("makeAvailable");
         }
         if semantics.is_make_visible {
-            names.push("make_visible");
+            names.push("makeVisible");
         }
 
         // render as a single token or list
@@ -231,9 +240,9 @@ impl<'a> Dumper<'a> {
 
         // collect ordered regions
         let ordered = [
-            ("managed_heap", MemoryRegionSet::MANAGED_HEAP),
-            ("immortal_heap", MemoryRegionSet::IMMORTAL_HEAP),
-            ("raw_heap", MemoryRegionSet::RAW_HEAP),
+            ("managedHeap", MemoryRegionSet::MANAGED_HEAP),
+            ("immortalHeap", MemoryRegionSet::IMMORTAL_HEAP),
+            ("rawHeap", MemoryRegionSet::RAW_HEAP),
             ("stack", MemoryRegionSet::STACK),
             ("global", MemoryRegionSet::GLOBAL),
             ("shared", MemoryRegionSet::SHARED),
@@ -268,9 +277,9 @@ impl<'a> Dumper<'a> {
             Constant::UInt { value, width } => format!("{value}u{width}"),
             Constant::Float { bits, width } => {
                 if *width == 32 {
-                    format!("{}f32", f32::from_bits(*bits as u32))
+                    format!("{}float32", f32::from_bits(*bits as u32))
                 } else {
-                    format!("{}f64", f64::from_bits(*bits))
+                    format!("{}float64", f64::from_bits(*bits))
                 }
             }
             Constant::Char { value } => format!("{value:?}"),
@@ -350,7 +359,7 @@ impl<'a> Dumper<'a> {
         match inst {
             Instruction::Const { destination, value } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = const ");
+                self.write(" = ");
                 self.write_colored(&self.format_constant(value), Color::Yellow);
             }
 
@@ -425,7 +434,7 @@ impl<'a> Dumper<'a> {
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = local.addr ");
+                self.write(" = local.address ");
                 self.write(&self.format_local_id(*local));
                 self.write(" -> ");
                 self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
@@ -444,7 +453,7 @@ impl<'a> Dumper<'a> {
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = global.addr ");
+                self.write(" = global.address ");
                 self.write(&self.format_global_id(*global));
                 self.write(" -> ");
                 self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
@@ -464,16 +473,16 @@ impl<'a> Dumper<'a> {
                 function,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = function.addr ");
+                self.write(" = function.address ");
                 self.write(&self.format_function_id(*function));
             }
-            Instruction::FunctionValue {
+            Instruction::Closure {
                 destination,
                 function,
                 environment,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = function.value ");
+                self.write(" = function.bind ");
                 self.write(&self.format_function_id(*function));
                 self.write(", ");
                 self.write(&self.format_value(*environment));
@@ -535,7 +544,7 @@ impl<'a> Dumper<'a> {
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = field.addr ");
+                self.write(" = field.address ");
                 self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}"));
                 self.write(" -> ");
@@ -574,7 +583,7 @@ impl<'a> Dumper<'a> {
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = element.addr ");
+                self.write(" = element.address ");
                 self.write(&self.format_value(*array));
                 self.write(", ");
                 self.write(&self.format_value(*index));
@@ -1044,14 +1053,14 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*tensor));
                 self.write(", ");
                 self.write(&self.format_value(*initial));
-                self.write(", axes=[");
+                self.write(", axes(");
                 for (i, axis) in axes.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&axis.to_string());
                 }
-                self.write("]");
+                self.write(")");
             }
 
             Instruction::TensorDot {
@@ -1065,35 +1074,35 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*left));
                 self.write(", ");
                 self.write(&self.format_value(*right));
-                self.write(", dims(lhs_batch=[");
+                self.write(", dims(lhsBatch(");
                 for (i, dim) in dimensions.lhs_batch.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], rhs_batch=[");
+                self.write("), rhsBatch(");
                 for (i, dim) in dimensions.rhs_batch.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], lhs_contract=[");
+                self.write("), lhsContract(");
                 for (i, dim) in dimensions.lhs_contracting.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], rhs_contract=[");
+                self.write("), rhsContract(");
                 for (i, dim) in dimensions.rhs_contracting.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("])");
+                self.write("))");
             }
 
             Instruction::TensorConvolution {
@@ -1110,86 +1119,87 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*input));
                 self.write(", ");
                 self.write(&self.format_value(*kernel));
-                self.write(", dims(input_batch=");
+                self.write(", dims(inputBatch(");
                 self.write(&dimensions.input_batch.to_string());
-                self.write(", input_feature=");
+                self.write("), inputFeature(");
                 self.write(&dimensions.input_feature.to_string());
-                self.write(", input_spatial=[");
+                self.write("), inputSpatial(");
                 for (i, dim) in dimensions.input_spatial.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], kernel_input_feature=");
+                self.write("), kernelInputFeature(");
                 self.write(&dimensions.kernel_input_feature.to_string());
-                self.write(", kernel_output_feature=");
+                self.write("), kernelOutputFeature(");
                 self.write(&dimensions.kernel_output_feature.to_string());
-                self.write(", kernel_spatial=[");
+                self.write("), kernelSpatial(");
                 for (i, dim) in dimensions.kernel_spatial.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], output_batch=");
+                self.write("), outputBatch(");
                 self.write(&dimensions.output_batch.to_string());
-                self.write(", output_feature=");
+                self.write("), outputFeature(");
                 self.write(&dimensions.output_feature.to_string());
-                self.write(", output_spatial=[");
+                self.write("), outputSpatial(");
                 for (i, dim) in dimensions.output_spatial.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("])");
-                self.write(", strides=[");
+                self.write("))");
+                self.write(", window(strides(");
                 for (i, stride) in window.strides.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&stride.to_string());
                 }
-                self.write("], padding_low=[");
+                self.write("), paddingLow(");
                 for (i, pad) in window.padding_low.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&pad.to_string());
                 }
-                self.write("], padding_high=[");
+                self.write("), paddingHigh(");
                 for (i, pad) in window.padding_high.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&pad.to_string());
                 }
-                self.write("], lhs_dilation=[");
+                self.write("), lhsDilation(");
                 for (i, dilation) in window.lhs_dilation.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dilation.to_string());
                 }
-                self.write("], rhs_dilation=[");
+                self.write("), rhsDilation(");
                 for (i, dilation) in window.rhs_dilation.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dilation.to_string());
                 }
-                self.write("], window_reversal=[");
+                self.write("), windowReversal(");
                 for (i, reverse) in window.window_reversal.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(if *reverse { "true" } else { "false" });
                 }
-                self.write("], feature_group=");
+                self.write(")), groups(feature(");
                 self.write(&feature_group_count.to_string());
-                self.write(", batch_group=");
+                self.write("), batch(");
                 self.write(&batch_group_count.to_string());
+                self.write("))");
             }
 
             Instruction::TensorGather {
@@ -1204,37 +1214,37 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*operand));
                 self.write(", ");
                 self.write(&self.format_value(*indices));
-                self.write(", dims(offset_dims=[");
+                self.write(", dims(offsetDims(");
                 for (i, dim) in dimensions.offset_dims.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], collapsed_slice_dims=[");
+                self.write("), collapsedSliceDims(");
                 for (i, dim) in dimensions.collapsed_slice_dims.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], start_index_map=[");
+                self.write("), startIndexMap(");
                 for (i, dim) in dimensions.start_index_map.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], index_vector_dim=");
+                self.write("), indexVectorDim(");
                 self.write(&dimensions.index_vector_dim.to_string());
-                self.write("), slice_sizes=[");
+                self.write(")), sliceSizes(");
                 for (i, size) in slice_sizes.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&size.to_string());
                 }
-                self.write("]");
+                self.write(")");
             }
 
             Instruction::TensorScatter {
@@ -1252,31 +1262,32 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*indices));
                 self.write(", ");
                 self.write(&self.format_value(*updates));
-                self.write(", dims(update_window_dims=[");
+                self.write(", dims(updateWindowDims(");
                 for (i, dim) in dimensions.update_window_dims.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], inserted_window_dims=[");
+                self.write("), insertedWindowDims(");
                 for (i, dim) in dimensions.inserted_window_dims.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], scatter_dims_to_operand_dims=[");
+                self.write("), scatterDimsToOperandDims(");
                 for (i, dim) in dimensions.scatter_dims_to_operand_dims.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
                 }
-                self.write("], index_vector_dim=");
+                self.write("), indexVectorDim(");
                 self.write(&dimensions.index_vector_dim.to_string());
-                self.write("), mode=");
+                self.write(")), mode(");
                 self.write(mode.to_str());
+                self.write(")");
             }
 
             Instruction::TensorCompare {
@@ -1341,7 +1352,7 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
@@ -1373,7 +1384,7 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
@@ -1405,7 +1416,7 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
@@ -1431,7 +1442,7 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
@@ -1454,7 +1465,7 @@ impl<'a> Dumper<'a> {
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = managed.alloc_array ");
+                self.write(" = managed.allocArray ");
                 self.write_colored(&self.format_type_id(*element), Color::Magenta);
                 self.write(", ");
                 self.write(&self.format_value(*length));
@@ -1504,13 +1515,12 @@ impl<'a> Dumper<'a> {
                 self.write(" = atomic.load ");
                 self.write(&self.format_value(*pointer));
                 self.write(", ");
-                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write_colored(ordering.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write_colored(scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write_colored(memory_scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored("semantics=", Color::Yellow);
                 self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
             }
 
@@ -1527,13 +1537,12 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&self.format_value(*value));
                 self.write(", ");
-                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write_colored(ordering.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write_colored(scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write_colored(memory_scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored("semantics=", Color::Yellow);
                 self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
             }
 
@@ -1560,13 +1569,12 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&self.format_value(*new_value));
                 self.write(", ");
-                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write_colored(ordering.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write_colored(scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write_colored(memory_scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored("semantics=", Color::Yellow);
                 self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
             }
 
@@ -1586,13 +1594,12 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&self.format_value(*value));
                 self.write(", ");
-                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write_colored(ordering.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write_colored(scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write_colored(memory_scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored("semantics=", Color::Yellow);
                 self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
             }
 
@@ -1603,13 +1610,12 @@ impl<'a> Dumper<'a> {
                 semantics,
             } => {
                 self.write("atomic.fence ");
-                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write_colored(ordering.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write_colored(scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write_colored(memory_scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored("semantics=", Color::Yellow);
                 self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
             }
 
@@ -1619,11 +1625,10 @@ impl<'a> Dumper<'a> {
                 semantics,
             } => {
                 self.write("barrier ");
-                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write_colored(scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write_colored(memory_scope.to_str(), Color::Yellow);
                 self.write(", ");
-                self.write_colored("semantics=", Color::Yellow);
                 self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
             }
 
@@ -1718,15 +1723,12 @@ impl<'a> Dumper<'a> {
             }
 
             Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
             } => {
                 self.write_colored("check", Color::Red);
                 self.write(" ");
-                self.write(&self.format_value(*condition));
-                self.write(", ");
                 match constraint {
                     CheckConstraint::Bounds {
                         index,
@@ -1734,11 +1736,7 @@ impl<'a> Dumper<'a> {
                         collection,
                         is_signed,
                     } => {
-                        let prefix = if *is_signed {
-                            "bounds.signed"
-                        } else {
-                            "bounds.unsigned"
-                        };
+                        let prefix = if *is_signed { "bounds.s" } else { "bounds.u" };
                         self.write(prefix);
                         self.write(" ");
                         self.write(&self.format_value(*index));
@@ -1752,29 +1750,29 @@ impl<'a> Dumper<'a> {
                         self.write(&self.format_value(*value));
                     }
                     CheckConstraint::DivZero { divisor } => {
-                        self.write("div_zero ");
+                        self.write("zeroDivisor ");
                         self.write(&self.format_value(*divisor));
                     }
                     CheckConstraint::Type { value, expected } => {
-                        self.write("type ");
+                        self.write("dynamicType ");
                         self.write(&self.format_value(*value));
                         self.write(", ");
                         self.write(&self.format_type_id(*expected));
                     }
                     CheckConstraint::Union { value, expected } => {
-                        self.write("union ");
+                        self.write("unionTag ");
                         self.write(&self.format_value(*value));
                         self.write(", ");
                         self.write(&expected.to_string());
                     }
                     CheckConstraint::ReceiverType { receiver, expected } => {
-                        self.write("receiver_type ");
+                        self.write("receiverType ");
                         self.write(&self.format_value(*receiver));
                         self.write(", ");
                         self.write(&self.format_type_id(*expected));
                     }
                     CheckConstraint::Implements { receiver, expected } => {
-                        self.write("implements ");
+                        self.write("interfaceConformance ");
                         self.write(&self.format_value(*receiver));
                         self.write(", ");
                         self.write(&self.format_type_id(*expected));
@@ -1785,9 +1783,9 @@ impl<'a> Dumper<'a> {
                         is_signed,
                     } => {
                         let prefix = if *is_signed {
-                            "shift.signed"
+                            "shiftRange.s"
                         } else {
-                            "shift.unsigned"
+                            "shiftRange.u"
                         };
                         self.write(prefix);
                         self.write(" ");
@@ -1801,9 +1799,9 @@ impl<'a> Dumper<'a> {
                         is_signed,
                     } => {
                         let prefix = if *is_signed {
-                            "narrow.signed"
+                            "narrowRange.s"
                         } else {
-                            "narrow.unsigned"
+                            "narrowRange.u"
                         };
                         self.write(prefix);
                         self.write(" ");
@@ -1817,19 +1815,18 @@ impl<'a> Dumper<'a> {
                         right,
                         is_signed,
                     } => {
-                        let prefix = if *is_signed {
-                            "overflow.signed"
-                        } else {
-                            "overflow.unsigned"
-                        };
-                        self.write(&format!("{prefix}.{}", operator.to_str()));
+                        let suffix = if *is_signed { "s" } else { "u" };
+                        self.write(&format!(
+                            "{}.overflow.{suffix}",
+                            overflow_check_family(*operator)
+                        ));
                         self.write(" ");
                         self.write(&self.format_value(*left));
                         self.write(", ");
                         self.write(&self.format_value(*right));
                     }
                 }
-                self.write(", ");
+                self.write(" -> ");
                 self.write(&self.format_block_id(success.target));
                 if !success.arguments.is_empty() {
                     self.write("(");
@@ -1923,15 +1920,16 @@ impl<'a> Dumper<'a> {
                 }
             }
 
-            Terminator::Call {
+            Terminator::Invoke {
                 function,
                 arguments,
+                signature,
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
             } => {
-                self.write_colored("call", Color::Red);
+                self.write_colored("invoke", Color::Red);
                 self.write(" ");
                 self.write(&self.format_function_id(*function));
                 self.write("(");
@@ -1942,7 +1940,9 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" normal ");
+                self.write(" : ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
                     self.write("(");
@@ -1954,7 +1954,7 @@ impl<'a> Dumper<'a> {
                     }
                     self.write(")");
                 }
-                self.write(" unwind ");
+                self.write(", catch ");
                 self.write(&self.format_block_id(*unwind_target));
                 if !unwind_arguments.is_empty() {
                     self.write("(");
@@ -1968,7 +1968,7 @@ impl<'a> Dumper<'a> {
                 }
             }
 
-            Terminator::CallIndirect {
+            Terminator::InvokeIndirect {
                 callee,
                 arguments,
                 signature,
@@ -1978,7 +1978,7 @@ impl<'a> Dumper<'a> {
                 unwind_arguments,
                 ..
             } => {
-                self.write_colored("call.indirect", Color::Red);
+                self.write_colored("invoke.indirect", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
@@ -1989,9 +1989,9 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
-                self.write(" normal ");
+                self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
                     self.write("(");
@@ -2003,7 +2003,7 @@ impl<'a> Dumper<'a> {
                     }
                     self.write(")");
                 }
-                self.write(" unwind ");
+                self.write(", catch ");
                 self.write(&self.format_block_id(*unwind_target));
                 if !unwind_arguments.is_empty() {
                     self.write("(");
@@ -2017,7 +2017,7 @@ impl<'a> Dumper<'a> {
                 }
             }
 
-            Terminator::CallVirtual {
+            Terminator::InvokeVirtual {
                 receiver,
                 arguments,
                 declaring_type,
@@ -2028,7 +2028,7 @@ impl<'a> Dumper<'a> {
                 unwind_target,
                 unwind_arguments,
             } => {
-                self.write_colored("call.virtual", Color::Red);
+                self.write_colored("invoke.virtual", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*receiver));
                 self.write(", ");
@@ -2043,9 +2043,9 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
-                self.write(" normal ");
+                self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
                     self.write("(");
@@ -2057,7 +2057,7 @@ impl<'a> Dumper<'a> {
                     }
                     self.write(")");
                 }
-                self.write(" unwind ");
+                self.write(", catch ");
                 self.write(&self.format_block_id(*unwind_target));
                 if !unwind_arguments.is_empty() {
                     self.write("(");
@@ -2071,7 +2071,7 @@ impl<'a> Dumper<'a> {
                 }
             }
 
-            Terminator::CallInterface {
+            Terminator::InvokeInterface {
                 receiver,
                 arguments,
                 declaring_type,
@@ -2082,7 +2082,7 @@ impl<'a> Dumper<'a> {
                 unwind_target,
                 unwind_arguments,
             } => {
-                self.write_colored("call.interface", Color::Red);
+                self.write_colored("invoke.interface", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*receiver));
                 self.write(", ");
@@ -2097,9 +2097,9 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
-                self.write(" normal ");
+                self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
                     self.write("(");
@@ -2111,7 +2111,7 @@ impl<'a> Dumper<'a> {
                     }
                     self.write(")");
                 }
-                self.write(" unwind ");
+                self.write(", catch ");
                 self.write(&self.format_block_id(*unwind_target));
                 if !unwind_arguments.is_empty() {
                     self.write("(");
@@ -2132,12 +2132,13 @@ impl<'a> Dumper<'a> {
             }
 
             Terminator::Trap { kind, payload } => {
-                self.write_colored("trap", Color::Red);
-                self.write(" ");
-                self.write(match kind {
-                    TrapKind::Abort => "abort",
-                    TrapKind::Panic => "panic",
-                });
+                self.write_colored(
+                    match kind {
+                        TrapKind::Abort => "trap.abort",
+                        TrapKind::Panic => "trap.panic",
+                    },
+                    Color::Red,
+                );
 
                 if let Some(payload) = payload {
                     self.write(" ");
@@ -2148,8 +2149,9 @@ impl<'a> Dumper<'a> {
             Terminator::TailCall {
                 function,
                 arguments,
+                signature,
             } => {
-                self.write_colored("tailcall", Color::Red);
+                self.write_colored("tailCall", Color::Red);
                 self.write(" ");
                 self.write(&self.format_function_id(*function));
                 self.write("(");
@@ -2160,6 +2162,8 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
+                self.write(" : ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
             Terminator::TailCallIndirect {
@@ -2168,7 +2172,7 @@ impl<'a> Dumper<'a> {
                 signature,
                 ..
             } => {
-                self.write_colored("tailcall.indirect", Color::Red);
+                self.write_colored("tailCall.indirect", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
@@ -2179,7 +2183,7 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
@@ -2191,7 +2195,7 @@ impl<'a> Dumper<'a> {
                 signature,
                 ..
             } => {
-                self.write_colored("tailcall.virtual", Color::Red);
+                self.write_colored("tailCall.virtual", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*receiver));
                 self.write(", ");
@@ -2206,7 +2210,7 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
@@ -2218,7 +2222,7 @@ impl<'a> Dumper<'a> {
                 signature,
                 ..
             } => {
-                self.write_colored("tailcall.interface", Color::Red);
+                self.write_colored("tailCall.interface", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*receiver));
                 self.write(", ");
@@ -2233,11 +2237,23 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
-                self.write(" -> ");
+                self.write(" : ");
                 self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
         }
         self.write("\n");
+    }
+}
+
+/// Return the canonical operator family used in overflow checks.
+fn overflow_check_family(operator: BinaryOperator) -> &'static str {
+    match operator {
+        BinaryOperator::Add => "int.add",
+        BinaryOperator::Subtract => "int.sub",
+        BinaryOperator::Multiply => "int.mul",
+        BinaryOperator::SignedDivide | BinaryOperator::UnsignedDivide => "int.div",
+        BinaryOperator::SignedRemainder | BinaryOperator::UnsignedRemainder => "int.rem",
+        _ => panic!("unsupported overflow check operator: {operator:?}"),
     }
 }
 
@@ -2268,9 +2284,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_function(&mut self, tree: &NodeTree, id: LocalNodeId<Function>, function: &Function) {
         // function header
+        if function.linkage.is_import() {
+            self.write_colored("extern ", Color::BrightBlue);
+        } else if function.linkage.is_exported() {
+            self.write_colored("export ", Color::BrightBlue);
+        }
         self.write_colored("function", Color::BrightBlue);
-        self.write(" @");
-        self.write(&format!("function{}", id.id));
+        self.write(" ");
+        self.write(&self.format_function_id(id));
         self.write("(");
 
         // parameters
@@ -2282,7 +2303,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             self.write(": ");
             self.write_colored(&self.format_type_id(param.ty), Color::Magenta);
         }
-        self.write(") -> ");
+        self.write("): ");
         self.write_colored(&self.format_type_id(function.return_type), Color::Magenta);
         self.write(" {\n");
 
@@ -2293,17 +2314,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             for local_id in &function.locals {
                 let local = tree.get(*local_id);
                 self.write_indent();
+                self.write("local ");
                 self.write(&self.format_local_id(*local_id));
                 self.write(": ");
                 self.write_colored(&self.format_type_id(local.ty), Color::Magenta);
-                match local.mutability {
-                    Mutability::Mutable => {}
-                    Mutability::Immutable => self.write(" (readonly)"),
-                }
+                self.write(", ");
                 match local.ownership {
-                    Ownership::Owned => self.write(" [owned]"),
-                    Ownership::Borrowed => self.write(" [borrowed]"),
-                    Ownership::Copy => self.write(" [copy]"),
+                    Ownership::Owned => self.write("owned"),
+                    Ownership::Borrowed => self.write("borrowed"),
+                    Ownership::Copy => self.write("copy"),
+                }
+                if local.mutability == Mutability::Immutable {
+                    self.write(", readonly");
                 }
                 self.write("\n");
             }
@@ -2378,17 +2400,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
             self.write_colored("export ", Color::BrightBlue);
         }
         self.write_colored("global", Color::BrightBlue);
-        self.write(" @");
-        self.write(&format!("global{}", id.id));
+        self.write(" ");
+        self.write(&self.format_global_id(id));
         self.write(": ");
         self.write_colored(&self.format_type_id(global.ty), Color::Magenta);
+        if global.mutability == Mutability::Immutable {
+            self.write(", readonly");
+        }
         if let Some(init) = &global.initializer {
             self.write(" = ");
             self.dump_data_init(init);
-        }
-        self.write(" ;");
-        if global.mutability == Mutability::Immutable {
-            self.write(" readonly");
         }
         self.write("\n");
     }
@@ -2398,7 +2419,7 @@ impl<'a> Dumper<'a> {
     /// Dump a data initializer.
     fn dump_data_init(&mut self, init: &GlobalInitializer) {
         match init {
-            GlobalInitializer::Zero => self.write("zeroinit"),
+            GlobalInitializer::Zero => self.write("zeroInit"),
             GlobalInitializer::Scalar(constant) => self.write(&self.format_constant(constant)),
             GlobalInitializer::String(value) => {
                 self.write("\"");

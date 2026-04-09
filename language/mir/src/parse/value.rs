@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
         let token = self.eat_token(TokenType::BlockRefence)?;
         let idx: u32 = token
             .text
-            .strip_prefix("block")
+            .strip_prefix('b')
             .and_then(|s| s.parse().ok())
             .ok_or_else(|| ParseError::invalid("block reference", token.start))?;
         Ok(LocalNodeId::new(idx))
@@ -64,26 +64,24 @@ impl<'a> Parser<'a> {
         Ok(LocalNodeId::new(idx))
     }
 
-    /// Parse a function reference (@name).
+    /// Parse a function reference.
     pub(super) fn parse_function_reference(&mut self) -> ParseResult<LocalNodeId<Function>> {
-        self.eat_token(TokenType::At)?;
         let (name, start) = self.parse_symbol_name()?;
 
         self.function_map
             .get(&name)
             .copied()
-            .ok_or_else(|| ParseError::invalid(&format!("function reference '@{name}'"), start))
+            .ok_or_else(|| ParseError::invalid(&format!("function reference '{name}'"), start))
     }
 
-    /// Parse a global reference (@name).
+    /// Parse a global reference.
     pub(super) fn parse_global_reference(&mut self) -> ParseResult<LocalNodeId<Global>> {
-        self.eat_token(TokenType::At)?;
         let (name, start) = self.parse_symbol_name()?;
 
         self.global_map
             .get(&name)
             .copied()
-            .ok_or_else(|| ParseError::invalid(&format!("global reference '@{name}'"), start))
+            .ok_or_else(|| ParseError::invalid(&format!("global reference '{name}'"), start))
     }
 
     /// Parse call arguments: (v0, v1, ...).

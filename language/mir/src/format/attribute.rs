@@ -42,7 +42,7 @@ pub fn format_attribute<'a>(
 ) -> FormatResult<()> {
     // open the attribute
     let name = f.context().strings.get(attribute.name);
-    write!(f, [token("#"), token("["), text(name)])?;
+    write!(f, [token("@"), text(name)])?;
 
     // format optional arguments
     match &attribute.args {
@@ -78,8 +78,7 @@ pub fn format_attribute<'a>(
         }
     }
 
-    // close the attribute
-    write!(f, [token("]")])
+    Ok(())
 }
 
 /// Format a single attribute value.

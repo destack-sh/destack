@@ -14,9 +14,8 @@ impl<'a> Parser<'a> {
         matches!(
             token_ty,
             TokenType::Void
-                | TokenType::Bool
+                | TokenType::Boolean
                 | TokenType::TypeName
-                | TokenType::At
                 | TokenType::Value
                 | TokenType::Ref
                 | TokenType::RefNullable
@@ -25,7 +24,6 @@ impl<'a> Parser<'a> {
                 | TokenType::Tensor
                 | TokenType::Vector
                 | TokenType::Newtype
-                | TokenType::OpenBracket
                 | TokenType::OpenParen
                 | TokenType::OpenBrace
                 | TokenType::Fn
@@ -47,7 +45,7 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Type::Void
             }
-            TokenType::Bool => {
+            TokenType::Boolean => {
                 self.bump();
                 Type::Boolean
             }
@@ -55,21 +53,29 @@ impl<'a> Parser<'a> {
                 if let Some(primitive) = self.parse_primitive_type(token_text) {
                     self.bump();
                     primitive
+                } else if let Some(alias_id) = self.type_alias_map.get(token_text).copied() {
+                    self.bump();
+
+                    // alias postfixes
+                    let mut type_id = alias_id;
+                    while self.eat_token_maybe(TokenType::OpenBracket) {
+                        let length = self.parse_int_literal()?;
+                        let length = u64::try_from(length)
+                            .map_err(|_| ParseError::invalid("array length", self.pos()))?;
+                        self.eat_token(TokenType::CloseBracket)?;
+
+                        type_id = self.intern_type(Type::Array {
+                            element: type_id,
+                            length,
+                            copyability: Copyability::default(),
+                        });
+                        self.record_layout_for_type(type_id)?;
+                    }
+
+                    return Ok(type_id);
                 } else {
                     return Err(ParseError::invalid("type", token_start));
                 }
-            }
-            TokenType::At => {
-                self.bump();
-                let (name, _name_start) = self.parse_symbol_name()?;
-                let alias_id = if let Some(existing) = self.type_alias_map.get(&name) {
-                    *existing
-                } else {
-                    let placeholder = self.tree.insert_type(Type::Void);
-                    self.type_alias_map.insert(name, placeholder);
-                    placeholder
-                };
-                return Ok(alias_id);
             }
             TokenType::Value => {
                 self.bump();
@@ -118,20 +124,6 @@ impl<'a> Parser<'a> {
                     copyability: Copyability::default(),
                 }
             }
-            TokenType::OpenBracket => {
-                self.bump();
-                let element = self.parse_type()?;
-                self.eat_token(TokenType::Semicolon)?;
-                let length = self.parse_int_literal()?;
-                let length = u64::try_from(length)
-                    .map_err(|_| ParseError::invalid("array length", self.pos()))?;
-                self.eat_token(TokenType::CloseBracket)?;
-                Type::Array {
-                    element,
-                    length,
-                    copyability: Copyability::default(),
-                }
-            }
             TokenType::OpenParen => {
                 self.bump();
                 let mut elements = Vec::new();
@@ -162,13 +154,22 @@ impl<'a> Parser<'a> {
                 let result = self.parse_type()?;
                 Type::FunctionPointer { parameters, result }
             }
-            TokenType::FnValue => {
+            TokenType::Closure => {
                 self.bump();
-                self.eat_token(TokenType::LessThan)?;
-                let signature = self.parse_type()?;
-                self.eat_token(TokenType::GreaterThan)?;
+                self.eat_token(TokenType::OpenParen)?;
+                let mut parameters = Vec::new();
+                while !self.peek_token(TokenType::CloseParen) {
+                    parameters.push(self.parse_type()?);
+                    if !self.eat_token_maybe(TokenType::Comma) {
+                        break;
+                    }
+                }
+                self.eat_token(TokenType::CloseParen)?;
+                self.eat_token(TokenType::Arrow)?;
+                let result = self.parse_type()?;
+                let signature = self.intern_type(Type::FunctionPointer { parameters, result });
                 self.tree.ensure_function_value_environment_type();
-                Type::FunctionValue { signature }
+                Type::Closure { signature }
             }
             TokenType::OpenBrace => {
                 self.bump();
@@ -210,9 +211,15 @@ impl<'a> Parser<'a> {
 
                     let field = Field { name, ty };
                     fields.push(self.intern_field(field, attributes));
-                    if !self.eat_token_maybe(TokenType::Comma) {
+                    if self.eat_token_maybe(TokenType::Semicolon)
+                        || self.eat_token_maybe(TokenType::Comma)
+                    {
+                        continue;
+                    }
+                    if self.peek_token(TokenType::CloseBrace) {
                         break;
                     }
+                    return Err(ParseError::invalid("';' or '}'", self.pos()));
                 }
                 self.eat_token(TokenType::CloseBrace)?;
                 let struct_type = Type::Struct {
@@ -227,8 +234,26 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::unexpected("type", token_ty, token_start));
             }
         };
-        let type_id = self.intern_type(ty);
+
+        // intern the base type first so postfix array syntax can wrap it
+        let mut type_id = self.intern_type(ty);
         self.record_layout_for_type(type_id)?;
+
+        // parse postfix array suffixes like `int32[4]`
+        while self.eat_token_maybe(TokenType::OpenBracket) {
+            let length = self.parse_int_literal()?;
+            let length = u64::try_from(length)
+                .map_err(|_| ParseError::invalid("array length", self.pos()))?;
+            self.eat_token(TokenType::CloseBracket)?;
+
+            type_id = self.intern_type(Type::Array {
+                element: type_id,
+                length,
+                copyability: Copyability::default(),
+            });
+            self.record_layout_for_type(type_id)?;
+        }
+
         Ok(type_id)
     }
 
@@ -287,10 +312,13 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Parse the reference header for ref and tensor_ref types.
+    /// Parse the reference header for ref and tensorRef types.
     fn parse_reference_header(
         &mut self,
     ) -> ParseResult<(ReferenceKind, AddressSpace, Mutability, LocalNodeId<Type>)> {
+        let pointee = self.parse_type()?;
+        self.eat_token(TokenType::Comma)?;
+
         let kind_token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("reference kind", self.pos()))?;
@@ -318,70 +346,78 @@ impl<'a> Parser<'a> {
         };
         self.bump();
 
-        // address space
-        let address_space = if self.eat_token_maybe(TokenType::AddrSpace) {
-            self.eat_token(TokenType::OpenParen)?;
+        let mut address_space = AddressSpace::Generic;
+        let mut mutability = Mutability::Mutable;
 
-            // address space name or id
-            let token = self
-                .peek()
-                .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
-            let token_start = token.start;
-            let text = token.text.to_string();
-            let address_space = match token.ty {
-                TokenType::Identifier | TokenType::Global | TokenType::Local => match text.as_str()
-                {
-                    "generic" => AddressSpace::Generic,
-                    "stack" => AddressSpace::Stack,
-                    "shared" => AddressSpace::Shared,
-                    "local" => AddressSpace::Local,
-                    "global" => AddressSpace::Global,
-                    "constant" => AddressSpace::Constant,
+        while self.peek_token(TokenType::Comma) {
+            if self
+                .peek_nth_token(1)
+                .is_some_and(|token| token.ty == TokenType::OpenParen)
+            {
+                break;
+            }
+
+            self.bump();
+
+            if self.eat_token_maybe(TokenType::Readonly) {
+                mutability = Mutability::Immutable;
+                continue;
+            }
+
+            if self.eat_token_maybe(TokenType::AddressSpace) {
+                self.eat_token(TokenType::OpenParen)?;
+
+                let token = self
+                    .peek()
+                    .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
+                let token_start = token.start;
+                let text = token.text.to_string();
+                address_space = match token.ty {
+                    TokenType::Identifier | TokenType::Global | TokenType::Local => {
+                        match text.as_str() {
+                            "generic" => AddressSpace::Generic,
+                            "stack" => AddressSpace::Stack,
+                            "shared" => AddressSpace::Shared,
+                            "local" => AddressSpace::Local,
+                            "global" => AddressSpace::Global,
+                            "constant" => AddressSpace::Constant,
+                            _ => {
+                                return Err(ParseError::invalid(
+                                    &format!("address space '{text}'"),
+                                    token_start,
+                                ));
+                            }
+                        }
+                    }
+                    TokenType::IntLiteral => {
+                        let id: u32 = text
+                            .parse()
+                            .map_err(|_| ParseError::invalid("address space", token_start))?;
+                        AddressSpace::Target(id)
+                    }
                     _ => {
-                        return Err(ParseError::invalid(
-                            &format!("address space '{text}'"),
-                            token_start,
+                        return Err(ParseError::unexpected(
+                            "address space",
+                            token.ty,
+                            token.start,
                         ));
                     }
-                },
-                TokenType::IntLiteral => {
-                    let id: u32 = text
-                        .parse()
-                        .map_err(|_| ParseError::invalid("address space", token_start))?;
-                    AddressSpace::Target(id)
-                }
-                _ => {
-                    return Err(ParseError::unexpected(
-                        "address space",
-                        token.ty,
-                        token.start,
-                    ));
-                }
-            };
-            self.bump();
-            self.eat_token(TokenType::CloseParen)?;
-            address_space
-        } else {
-            AddressSpace::Generic
-        };
+                };
+                self.bump();
+                self.eat_token(TokenType::CloseParen)?;
+                continue;
+            }
 
-        // mutability
-        let mutability = if self.eat_token_maybe(TokenType::Readonly)
-            || self.eat_token_maybe(TokenType::Const)
-        {
-            Mutability::Immutable
-        } else {
-            Mutability::Mutable
-        };
+            return Err(ParseError::invalid("reference qualifier", self.pos()));
+        }
 
-        let pointee = self.parse_type()?;
         Ok((kind, address_space, mutability, pointee))
     }
 
     /// Parse an optional trailing tensor layout assignment.
     fn parse_optional_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
         if self.eat_token_maybe(TokenType::Comma) {
-            self.parse_tensor_layout_assignment()
+            self.parse_tensor_layout_group()
         } else {
             Ok(TensorLayout::RowMajor)
         }
@@ -389,9 +425,9 @@ impl<'a> Parser<'a> {
 
     /// Parse a tensor shape list.
     fn parse_tensor_shape(&mut self) -> ParseResult<Vec<TensorDimension>> {
-        self.eat_token(TokenType::OpenBracket)?;
+        self.eat_token(TokenType::OpenParen)?;
         let mut shape = Vec::new();
-        while !self.peek_token(TokenType::CloseBracket) {
+        while !self.peek_token(TokenType::CloseParen) {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("tensor shape", self.pos()))?;
@@ -421,26 +457,28 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        self.eat_token(TokenType::CloseBracket)?;
+        self.eat_token(TokenType::CloseParen)?;
         Ok(shape)
     }
 
-    /// Parse a tensor layout assignment.
-    fn parse_tensor_layout_assignment(&mut self) -> ParseResult<TensorLayout> {
+    /// Parse a grouped tensor layout clause.
+    fn parse_tensor_layout_group(&mut self) -> ParseResult<TensorLayout> {
         let token = self.eat_token(TokenType::Identifier)?;
         if token.text != "layout" {
-            return Err(ParseError::invalid("layout assignment", token.start));
+            return Err(ParseError::invalid("layout group", token.start));
         }
-        self.eat_token(TokenType::Equals)?;
-        self.parse_tensor_layout()
+        self.eat_token(TokenType::OpenParen)?;
+        let layout = self.parse_tensor_layout()?;
+        self.eat_token(TokenType::CloseParen)?;
+        Ok(layout)
     }
 
     /// Parse a tensor layout specifier.
     fn parse_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
         let token = self.eat_token(TokenType::Identifier)?;
         match token.text {
-            "row_major" => Ok(TensorLayout::RowMajor),
-            "column_major" => Ok(TensorLayout::ColumnMajor),
+            "rowMajor" => Ok(TensorLayout::RowMajor),
+            "columnMajor" => Ok(TensorLayout::ColumnMajor),
             "strided" => {
                 self.eat_token(TokenType::OpenParen)?;
                 let strides = self.parse_tensor_shape()?;

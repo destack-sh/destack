@@ -291,23 +291,23 @@ fn test_resolve_command_args_keeps_existing_lsp_subcommand() {
 #[test]
 fn test_mir_highlights_core_tokens() {
     let source = r#"
-function @fib(v0: i64) -> i64 {
-block0(v0: i64):
-    v1: i64 = iconst 2i64
-    branch v1, block1, block2
+function fib(v0: int64): int64 {
+bb0(v0: int64):
+    v1: int64 = const 2int64
+    branch v1, bb1, bb2
     return v1
 }
 "#;
     let captures = collect_mir_query_captures(source, QUERY_MIR_HIGHLIGHTS);
 
     assert!(has_capture(&captures, "keyword", "function"));
-    assert!(has_capture(&captures, "function", "@fib"));
+    assert!(has_capture(&captures, "function", "fib"));
     assert!(has_capture(&captures, "variable", "v0"));
-    assert!(has_capture(&captures, "type.builtin", "i64"));
-    assert!(has_capture(&captures, "function.builtin", "iconst"));
+    assert!(has_capture(&captures, "type.builtin", "int64"));
+    assert!(has_capture(&captures, "function.builtin", "const"));
     assert!(has_capture(&captures, "keyword.control", "branch"));
     assert!(has_capture(&captures, "keyword.control", "return"));
-    assert!(has_capture(&captures, "label", "block0"));
+    assert!(has_capture(&captures, "label", "bb0"));
 }
 
 #[test]

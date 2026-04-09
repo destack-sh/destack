@@ -16,9 +16,9 @@ export enum MemoryOrdering {
     /// Release ordering for stores. Prevents reordering of prior reads and writes.
     Release,
     /// Acquire-release ordering. Combines Acquire and Release.
-    AcqRel,
+    AcquireRelease,
     /// Sequentially consistent ordering. Strongest guarantee.
-    SeqCst,
+    SequentiallyConsistent,
 }
 
 /// Execution scope for atomic operations.

@@ -33,10 +33,10 @@ impl<'a> Parser<'a> {
                 name.to_string()
             };
             match name.as_str() {
-                "execution_model" => {
+                "executionModel" => {
                     if execution_model.is_some() {
                         return Err(ParseError::new(
-                            "duplicate execution_model attribute",
+                            "duplicate executionModel attribute",
                             self.pos(),
                         ));
                     }
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
                         }
                         _ => {
                             return Err(ParseError::new(
-                                "execution_model expects an identifier",
+                                "executionModel expects an identifier",
                                 self.pos(),
                             ));
                         }
@@ -63,10 +63,10 @@ impl<'a> Parser<'a> {
                     })?;
                     execution_model = Some(model);
                 }
-                "execution_stage" => {
+                "executionStage" => {
                     if execution_stage.is_some() {
                         return Err(ParseError::new(
-                            "duplicate execution_stage attribute",
+                            "duplicate executionStage attribute",
                             self.pos(),
                         ));
                     }
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
                         }
                         _ => {
                             return Err(ParseError::new(
-                                "execution_stage expects an identifier",
+                                "executionStage expects an identifier",
                                 self.pos(),
                             ));
                         }
@@ -93,10 +93,10 @@ impl<'a> Parser<'a> {
                     })?;
                     execution_stage = Some(stage);
                 }
-                "workgroup_size" => {
+                "workgroupSize" => {
                     if workgroup_size.is_some() {
                         return Err(ParseError::new(
-                            "duplicate workgroup_size attribute",
+                            "duplicate workgroupSize attribute",
                             self.pos(),
                         ));
                     }
@@ -142,7 +142,6 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<LocalNodeId<Function>> {
         // function keyword and name
         self.eat_token(TokenType::Function)?;
-        self.eat_token(TokenType::At)?;
 
         // function name
         let (name, name_start) = self.parse_symbol_name()?;
@@ -150,7 +149,7 @@ impl<'a> Parser<'a> {
         let function_id = *self
             .function_map
             .get(&name)
-            .unwrap_or_else(|| panic!("function @{name} should be pre-registered"));
+            .unwrap_or_else(|| panic!("function {name} should be pre-registered"));
         self.current_function = Some(function_id);
 
         // function metadata
@@ -184,7 +183,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseParen)?;
 
         // return type
-        self.eat_token(TokenType::Arrow)?;
+        self.eat_token(TokenType::Colon)?;
         let return_type = self.parse_type()?;
 
         // extern function body
@@ -229,6 +228,9 @@ impl<'a> Parser<'a> {
                 self.tree.set_attributes(function_id, attributes);
             }
 
+            // optional declaration terminator
+            self.eat_token_maybe(TokenType::Semicolon);
+
             return Ok(function_id);
         }
 
@@ -261,7 +263,7 @@ impl<'a> Parser<'a> {
 
         // locals
         let mut locals = Vec::new();
-        while self.peek_token(TokenType::LocalReference) {
+        while self.peek_token(TokenType::Local) {
             let local = self.parse_local()?;
             locals.push(local);
         }
@@ -280,13 +282,13 @@ impl<'a> Parser<'a> {
             blocks.push(block);
         }
 
-        // impute references
+        // resolve body references
         for block_id in &blocks {
-            self.impute_block_terminators(*block_id, &source_index_to_block);
+            self.resolve_block_terminators(*block_id, &source_index_to_block);
         }
         let source_index_to_local: Vec<_> = locals.clone();
         for block_id in &blocks {
-            self.impute_local_references(*block_id, &source_index_to_local);
+            self.resolve_local_references(*block_id, &source_index_to_local);
         }
         self.eat_token(TokenType::CloseBrace)?;
 
@@ -312,7 +314,7 @@ impl<'a> Parser<'a> {
         Ok(id)
     }
 
-    /// Parse a workgroup_size attribute.
+    /// Parse a workgroupSize attribute.
     fn parse_workgroup_size(&mut self, args: &AttributeArgs) -> ParseResult<[u32; 3]> {
         // list or key values
         let dims = match args {
@@ -324,7 +326,7 @@ impl<'a> Parser<'a> {
             AttributeArgs::KeyValues(pairs) => self.parse_workgroup_dims_from_pairs(pairs)?,
             _ => {
                 return Err(ParseError::new(
-                    "workgroup_size expects one to three integer values",
+                    "workgroupSize expects one to three integer values",
                     self.pos(),
                 ));
             }
@@ -341,7 +343,7 @@ impl<'a> Parser<'a> {
         // require between one and three values
         if values.is_empty() || values.len() > 3 {
             return Err(ParseError::new(
-                "workgroup_size expects one to three integer values",
+                "workgroupSize expects one to three integer values",
                 self.pos(),
             ));
         }
@@ -353,7 +355,7 @@ impl<'a> Parser<'a> {
                 AttributeValue::Integer(value) => dims[index] = *value,
                 _ => {
                     return Err(ParseError::new(
-                        "workgroup_size values must be integers",
+                        "workgroupSize values must be integers",
                         self.pos(),
                     ));
                 }
@@ -378,7 +380,7 @@ impl<'a> Parser<'a> {
                 AttributeValue::Integer(value) => *value,
                 _ => {
                     return Err(ParseError::new(
-                        "workgroup_size values must be integers",
+                        "workgroupSize values must be integers",
                         self.pos(),
                     ));
                 }
@@ -388,7 +390,7 @@ impl<'a> Parser<'a> {
                 "x" => {
                     if x.is_some() {
                         return Err(ParseError::new(
-                            "duplicate workgroup_size x value",
+                            "duplicate workgroupSize x value",
                             self.pos(),
                         ));
                     }
@@ -397,7 +399,7 @@ impl<'a> Parser<'a> {
                 "y" => {
                     if y.is_some() {
                         return Err(ParseError::new(
-                            "duplicate workgroup_size y value",
+                            "duplicate workgroupSize y value",
                             self.pos(),
                         ));
                     }
@@ -406,7 +408,7 @@ impl<'a> Parser<'a> {
                 "z" => {
                     if z.is_some() {
                         return Err(ParseError::new(
-                            "duplicate workgroup_size z value",
+                            "duplicate workgroupSize z value",
                             self.pos(),
                         ));
                     }
@@ -414,7 +416,7 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     return Err(ParseError::invalid(
-                        &format!("workgroup_size key '{}'", key.as_ref()),
+                        &format!("workgroupSize key '{}'", key.as_ref()),
                         self.pos(),
                     ));
                 }
@@ -422,7 +424,7 @@ impl<'a> Parser<'a> {
         }
 
         // require x and default missing dimensions to 1
-        let x = x.ok_or_else(|| ParseError::new("workgroup_size requires x", self.pos()))?;
+        let x = x.ok_or_else(|| ParseError::new("workgroupSize requires x", self.pos()))?;
         let y = y.unwrap_or(1);
         let z = z.unwrap_or(1);
 
@@ -436,7 +438,7 @@ impl<'a> Parser<'a> {
         for (index, dim) in dims.into_iter().enumerate() {
             if dim < 0 {
                 return Err(ParseError::new(
-                    "workgroup_size values must be non-negative",
+                    "workgroupSize values must be non-negative",
                     self.pos(),
                 ));
             }
@@ -449,6 +451,8 @@ impl<'a> Parser<'a> {
 
     /// Parse a local variable declaration.
     fn parse_local(&mut self) -> ParseResult<LocalNodeId<Local>> {
+        self.eat_token(TokenType::Local)?;
+
         // local reference
         let local_token = self.eat_token(TokenType::LocalReference)?;
         let _local_idx: u32 = local_token
@@ -465,26 +469,21 @@ impl<'a> Parser<'a> {
         let mut ownership = Ownership::Owned;
         let mut mutability = Mutability::Mutable;
 
-        if self.eat_token_maybe(TokenType::Semicolon) {
-            // ownership
-            if self.peek_token(TokenType::Ownership) {
-                let text = self.span_str();
-                ownership = match text {
-                    "owned" => Ownership::Owned,
-                    "borrowed" => Ownership::Borrowed,
-                    "copy" => Ownership::Copy,
-                    _ => Ownership::Owned,
-                };
-                self.bump();
-            }
+        // ownership
+        if self.eat_token_maybe(TokenType::Comma) && self.peek_token(TokenType::Ownership) {
+            let text = self.span_str();
+            ownership = match text {
+                "owned" => Ownership::Owned,
+                "borrowed" => Ownership::Borrowed,
+                "copy" => Ownership::Copy,
+                _ => Ownership::Owned,
+            };
+            self.bump();
+        }
 
-            // mutability
-            if self.eat_token_maybe(TokenType::Comma)
-                && (self.eat_token_maybe(TokenType::Readonly)
-                    || self.eat_token_maybe(TokenType::Const))
-            {
-                mutability = Mutability::Immutable;
-            }
+        // mutability
+        if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Readonly) {
+            mutability = Mutability::Immutable;
         }
 
         // record the local
@@ -501,7 +500,7 @@ impl<'a> Parser<'a> {
             let block_length = block_token.text.len();
             let source_idx = block_token
                 .text
-                .strip_prefix("block")
+                .strip_prefix('b')
                 .and_then(|text| text.parse().ok())
                 .ok_or_else(|| ParseError::invalid("block reference", block_token.start))?;
 
@@ -547,10 +546,10 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::TailCallVirtual)
                 || self.peek_token(TokenType::TailCallInterface)
                 || (self.is_call_terminator_line()
-                    && (self.peek_token(TokenType::Call)
-                        || self.peek_token(TokenType::CallIndirect)
-                        || self.peek_token(TokenType::CallVirtual)
-                        || self.peek_token(TokenType::CallInterface)))
+                    && (self.peek_token(TokenType::Invoke)
+                        || self.peek_token(TokenType::InvokeIndirect)
+                        || self.peek_token(TokenType::InvokeVirtual)
+                        || self.peek_token(TokenType::InvokeInterface)))
             {
                 let parsed_terminator = self.parse_terminator()?;
                 terminator = Some(parsed_terminator);
@@ -578,17 +577,17 @@ impl<'a> Parser<'a> {
     /// Return whether the current line contains call continuations.
     fn is_call_terminator_line(&self) -> bool {
         let mut token_index = self.pos;
-        let mut saw_normal = false;
+        let mut saw_arrow = false;
 
         while let Some(token) = self.tokens.get(token_index) {
             if token.ty == TokenType::Newline || token.ty == TokenType::End {
                 break;
             }
 
-            if !token.ty.is_trivia() && token.ty == TokenType::Identifier {
-                if !saw_normal && token.text == "normal" {
-                    saw_normal = true;
-                } else if saw_normal && token.text == "unwind" {
+            if !token.ty.is_trivia() {
+                if token.ty == TokenType::Arrow {
+                    saw_arrow = true;
+                } else if saw_arrow && token.ty == TokenType::Catch {
                     return true;
                 }
             }
@@ -615,14 +614,15 @@ impl<'a> Parser<'a> {
                 };
                 Ok(Terminator::Return { value })
             }
-            TokenType::Call => {
+            TokenType::Invoke => {
                 self.bump();
-                let (function, arguments) = self.parse_direct_call_target()?;
+                let (function, arguments, signature) = self.parse_direct_call_target()?;
                 let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
                     self.parse_call_continuations()?;
-                Ok(Terminator::Call {
+                Ok(Terminator::Invoke {
                     function,
                     arguments,
+                    signature,
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -654,10 +654,8 @@ impl<'a> Parser<'a> {
             }
             TokenType::Check => {
                 self.bump();
-                let condition = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
                 let constraint = self.parse_check_kind()?;
-                self.eat_token(TokenType::Comma)?;
+                self.eat_token(TokenType::Arrow)?;
                 let success = CheckTarget {
                     target: self.parse_block_ref()?,
                     arguments: self.parse_optional_block_arguments()?,
@@ -668,7 +666,6 @@ impl<'a> Parser<'a> {
                     arguments: self.parse_optional_block_arguments()?,
                 };
                 Ok(Terminator::Check {
-                    condition,
                     constraint,
                     success,
                     failure,
@@ -719,11 +716,14 @@ impl<'a> Parser<'a> {
                 Ok(Terminator::Throw { value })
             }
             TokenType::Trap => {
+                let trap_kind = self
+                    .peek()
+                    .cloned()
+                    .expect("peeked trap token before consuming it");
                 self.bump();
-                let trap_kind = self.eat_token(TokenType::Identifier)?;
 
                 // abort has no payload
-                if trap_kind.text == "abort" {
+                if trap_kind.text == "trap.abort" {
                     return Ok(Terminator::Trap {
                         kind: TrapKind::Abort,
                         payload: None,
@@ -731,7 +731,7 @@ impl<'a> Parser<'a> {
                 }
 
                 // panic carries a payload
-                if trap_kind.text == "panic" {
+                if trap_kind.text == "trap.panic" {
                     let payload = self.parse_value()?;
                     return Ok(Terminator::Trap {
                         kind: TrapKind::Panic,
@@ -740,7 +740,7 @@ impl<'a> Parser<'a> {
                 }
 
                 Err(ParseError::invalid(
-                    "expected `abort` or `panic`",
+                    "expected `trap.abort` or `trap.panic`",
                     trap_kind.start,
                 ))
             }
@@ -750,10 +750,11 @@ impl<'a> Parser<'a> {
             }
             TokenType::TailCall => {
                 self.bump();
-                let (function, arguments) = self.parse_direct_call_target()?;
+                let (function, arguments, signature) = self.parse_direct_call_target()?;
                 Ok(Terminator::TailCall {
                     function,
                     arguments,
+                    signature,
                 })
             }
             TokenType::TailCallIndirect => {
@@ -765,12 +766,12 @@ impl<'a> Parser<'a> {
                     signature,
                 })
             }
-            TokenType::CallIndirect => {
+            TokenType::InvokeIndirect => {
                 self.bump();
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
                 let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
                     self.parse_call_continuations()?;
-                Ok(Terminator::CallIndirect {
+                Ok(Terminator::InvokeIndirect {
                     callee,
                     arguments,
                     signature,
@@ -792,13 +793,13 @@ impl<'a> Parser<'a> {
                     signature,
                 })
             }
-            TokenType::CallVirtual => {
+            TokenType::InvokeVirtual => {
                 self.bump();
                 let (receiver, declaring_type, slot_id, arguments, signature) =
                     self.parse_virtual_call_target()?;
                 let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
                     self.parse_call_continuations()?;
-                Ok(Terminator::CallVirtual {
+                Ok(Terminator::InvokeVirtual {
                     receiver,
                     arguments,
                     declaring_type,
@@ -822,13 +823,13 @@ impl<'a> Parser<'a> {
                     signature,
                 })
             }
-            TokenType::CallInterface => {
+            TokenType::InvokeInterface => {
                 self.bump();
                 let (receiver, declaring_type, slot_id, arguments, signature) =
                     self.parse_interface_call_target()?;
                 let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
                     self.parse_call_continuations()?;
-                Ok(Terminator::CallInterface {
+                Ok(Terminator::InvokeInterface {
                     receiver,
                     arguments,
                     declaring_type,
@@ -863,17 +864,17 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let mut parts = kind_text.split('.');
-        let head = parts.next().unwrap_or_default();
+        let kind_parts: Vec<_> = kind_text.split('.').collect();
+        let head = kind_parts.first().copied().unwrap_or_default();
 
         match head {
             "bounds" => {
-                let signedness = parts.next().ok_or_else(|| {
+                let signedness = kind_parts.get(1).copied().ok_or_else(|| {
                     ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
                 })?;
                 let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
+                    "s" => true,
+                    "u" => false,
                     _ => {
                         return Err(ParseError::invalid(
                             &format!("check kind '{kind_text}'"),
@@ -882,7 +883,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if parts.next().is_some() {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -903,7 +904,7 @@ impl<'a> Parser<'a> {
                 })
             }
             "null" => {
-                if parts.next().is_some() {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -913,8 +914,8 @@ impl<'a> Parser<'a> {
                 let value = self.parse_value()?;
                 Ok(CheckConstraint::Null { value })
             }
-            "div_zero" => {
-                if parts.next().is_some() {
+            "zeroDivisor" => {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -924,8 +925,8 @@ impl<'a> Parser<'a> {
                 let divisor = self.parse_value()?;
                 Ok(CheckConstraint::DivZero { divisor })
             }
-            "type" => {
-                if parts.next().is_some() {
+            "dynamicType" => {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -938,8 +939,8 @@ impl<'a> Parser<'a> {
 
                 Ok(CheckConstraint::Type { value, expected })
             }
-            "union" => {
-                if parts.next().is_some() {
+            "unionTag" => {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -954,8 +955,8 @@ impl<'a> Parser<'a> {
 
                 Ok(CheckConstraint::Union { value, expected })
             }
-            "receiver_type" => {
-                if parts.next().is_some() {
+            "receiverType" => {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -968,8 +969,8 @@ impl<'a> Parser<'a> {
 
                 Ok(CheckConstraint::ReceiverType { receiver, expected })
             }
-            "implements" => {
-                if parts.next().is_some() {
+            "interfaceConformance" => {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -982,13 +983,13 @@ impl<'a> Parser<'a> {
 
                 Ok(CheckConstraint::Implements { receiver, expected })
             }
-            "shift" => {
-                let signedness = parts.next().ok_or_else(|| {
+            "shiftRange" => {
+                let signedness = kind_parts.get(1).copied().ok_or_else(|| {
                     ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
                 })?;
                 let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
+                    "s" => true,
+                    "u" => false,
                     _ => {
                         return Err(ParseError::invalid(
                             &format!("check kind '{kind_text}'"),
@@ -997,7 +998,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if parts.next().is_some() {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1016,13 +1017,13 @@ impl<'a> Parser<'a> {
                     is_signed,
                 })
             }
-            "narrow" => {
-                let signedness = parts.next().ok_or_else(|| {
+            "narrowRange" => {
+                let signedness = kind_parts.get(1).copied().ok_or_else(|| {
                     ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
                 })?;
                 let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
+                    "s" => true,
+                    "u" => false,
                     _ => {
                         return Err(ParseError::invalid(
                             &format!("check kind '{kind_text}'"),
@@ -1031,7 +1032,7 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if parts.next().is_some() {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1050,16 +1051,11 @@ impl<'a> Parser<'a> {
                     is_signed,
                 })
             }
-            "overflow" => {
-                let signedness = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
-                let operator_text = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
+            _ if kind_parts.len() >= 4 && kind_parts[kind_parts.len() - 2] == "overflow" => {
+                let signedness = kind_parts[kind_parts.len() - 1];
                 let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
+                    "s" => true,
+                    "u" => false,
                     _ => {
                         return Err(ParseError::invalid(
                             &format!("check kind '{kind_text}'"),
@@ -1067,16 +1063,10 @@ impl<'a> Parser<'a> {
                         ));
                     }
                 };
-                let operator = operator_text.parse().map_err(|_| {
+                let operator_text = kind_parts[..kind_parts.len() - 2].join(".");
+                let operator = parse_overflow_check_operator(&operator_text).ok_or_else(|| {
                     ParseError::invalid(&format!("check operator '{operator_text}'"), kind_start)
                 })?;
-
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
 
                 let left = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
@@ -1107,7 +1097,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse normal and unwind continuations for a call terminator.
+    /// Parse success and exception continuations for an invoke terminator.
     fn parse_call_continuations(
         &mut self,
     ) -> ParseResult<(
@@ -1116,19 +1106,12 @@ impl<'a> Parser<'a> {
         LocalNodeId<Block>,
         Vec<Value>,
     )> {
-        let normal_keyword = self.eat_token(TokenType::Identifier)?;
-        if normal_keyword.text != "normal" {
-            return Err(ParseError::invalid("normal", normal_keyword.start));
-        }
-
+        self.eat_token(TokenType::Arrow)?;
         let normal_target = self.parse_block_ref()?;
         let normal_arguments = self.parse_optional_block_arguments()?;
 
-        let unwind_keyword = self.eat_token(TokenType::Identifier)?;
-        if unwind_keyword.text != "unwind" {
-            return Err(ParseError::invalid("unwind", unwind_keyword.start));
-        }
-
+        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Catch)?;
         let unwind_target = self.parse_block_ref()?;
         let unwind_arguments = self.parse_optional_block_arguments()?;
 
@@ -1140,8 +1123,8 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    /// Fix block references in terminators after parsing blocks.
-    fn impute_block_terminators(
+    /// Resolve block references in terminators after parsing blocks.
+    fn resolve_block_terminators(
         &mut self,
         block_id: LocalNodeId<Block>,
         source_to_actual: &[Option<LocalNodeId<Block>>],
@@ -1158,22 +1141,22 @@ impl<'a> Parser<'a> {
             | Terminator::TailCallIndirect { .. }
             | Terminator::TailCallVirtual { .. }
             | Terminator::TailCallInterface { .. } => {}
-            Terminator::Call {
+            Terminator::Invoke {
                 normal_target,
                 unwind_target,
                 ..
             }
-            | Terminator::CallIndirect {
+            | Terminator::InvokeIndirect {
                 normal_target,
                 unwind_target,
                 ..
             }
-            | Terminator::CallVirtual {
+            | Terminator::InvokeVirtual {
                 normal_target,
                 unwind_target,
                 ..
             }
-            | Terminator::CallInterface {
+            | Terminator::InvokeInterface {
                 normal_target,
                 unwind_target,
                 ..
@@ -1250,8 +1233,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Fix local references in instructions after parsing locals.
-    fn impute_local_references(
+    /// Resolve local references in instructions after parsing locals.
+    fn resolve_local_references(
         &mut self,
         block_id: LocalNodeId<Block>,
         source_to_actual: &[LocalNodeId<Local>],
@@ -1295,4 +1278,16 @@ impl<'a> Parser<'a> {
 
         value_types
     }
+}
+
+/// Parse the canonical operator family used in overflow checks.
+fn parse_overflow_check_operator(text: &str) -> Option<crate::BinaryOperator> {
+    Some(match text {
+        "int.add" => crate::BinaryOperator::Add,
+        "int.sub" => crate::BinaryOperator::Subtract,
+        "int.mul" => crate::BinaryOperator::Multiply,
+        "int.div" => crate::BinaryOperator::SignedDivide,
+        "int.rem" => crate::BinaryOperator::SignedRemainder,
+        _ => return None,
+    })
 }

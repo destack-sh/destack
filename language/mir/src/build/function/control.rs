@@ -49,7 +49,6 @@ impl<'a> FunctionBuilder<'a> {
     /// Conditional check with explicit success and failure edges.
     pub fn check(
         &mut self,
-        condition_value: Value,
         constraint: CheckConstraint,
         success_block: LocalNodeId<Block>,
         failure_block: LocalNodeId<Block>,
@@ -59,7 +58,6 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block, failure_block);
         let block_data = self.tree.get_mut(block);
         block_data.terminator = Terminator::Check {
-            condition: condition_value,
             constraint,
             success: CheckTarget {
                 target: success_block,
@@ -99,10 +97,11 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Call a function with explicit normal and unwind continuations.
+    /// Call a function with explicit success and exception continuations.
     pub fn call_branch(
         &mut self,
         function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
         normal_block: LocalNodeId<Block>,
         normal_arguments: Vec<Value>,
@@ -114,9 +113,10 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, unwind_block);
 
         let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::Call {
+        block.terminator = Terminator::Invoke {
             function,
             arguments: argument_values,
+            signature,
             normal_target: normal_block,
             normal_arguments,
             unwind_target: unwind_block,
@@ -124,7 +124,7 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Call through a function pointer with explicit normal and unwind continuations.
+    /// Call through a function pointer with explicit success and exception continuations.
     pub fn call_indirect_branch(
         &mut self,
         callee: Value,
@@ -140,7 +140,7 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, unwind_block);
 
         let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::CallIndirect {
+        block.terminator = Terminator::InvokeIndirect {
             callee,
             arguments: argument_values,
             signature,
@@ -151,7 +151,7 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Call a virtual method with explicit normal and unwind continuations.
+    /// Call a virtual method with explicit success and exception continuations.
     pub fn call_virtual_branch(
         &mut self,
         receiver: Value,
@@ -170,7 +170,7 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, unwind_block);
 
         let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::CallVirtual {
+        block.terminator = Terminator::InvokeVirtual {
             receiver,
             arguments: argument_values,
             declaring_type,
@@ -187,7 +187,7 @@ impl<'a> FunctionBuilder<'a> {
         );
     }
 
-    /// Call an interface method with explicit normal and unwind continuations.
+    /// Call an interface method with explicit success and exception continuations.
     pub fn call_interface_branch(
         &mut self,
         receiver: Value,
@@ -206,7 +206,7 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, unwind_block);
 
         let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::CallInterface {
+        block.terminator = Terminator::InvokeInterface {
             receiver,
             arguments: argument_values,
             declaring_type,
@@ -226,12 +226,18 @@ impl<'a> FunctionBuilder<'a> {
     /// Tail call to a function (does not return to this function).
     ///
     /// The callee's return value becomes this function's return value.
-    pub fn tail_call(&mut self, function: LocalNodeId<Function>, argument_values: Vec<Value>) {
+    pub fn tail_call(
+        &mut self,
+        function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) {
         let block_id = self.current_block();
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::TailCall {
             function,
             arguments: argument_values,
+            signature,
         };
     }
 

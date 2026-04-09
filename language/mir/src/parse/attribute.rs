@@ -10,7 +10,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_attributes(&mut self) -> ParseResult<Vec<Attribute>> {
         // attribute blocks
         let mut attributes = Vec::new();
-        while self.peek_token(TokenType::Hash) {
+        while self.peek_token(TokenType::At) {
             let attribute = self.parse_attribute()?;
             attributes.push(attribute);
         }
@@ -21,8 +21,7 @@ impl<'a> Parser<'a> {
     /// Parse a single attribute.
     fn parse_attribute(&mut self) -> ParseResult<Attribute> {
         // attribute header
-        self.eat_token(TokenType::Hash)?;
-        self.eat_token(TokenType::OpenBracket)?;
+        self.eat_token(TokenType::At)?;
 
         // name and arguments
         let name_token = self.eat_token(TokenType::Identifier)?;
@@ -37,9 +36,6 @@ impl<'a> Parser<'a> {
         } else {
             AttributeArgs::None
         };
-
-        // close and return
-        self.eat_token(TokenType::CloseBracket)?;
 
         Ok(Attribute { name, args })
     }

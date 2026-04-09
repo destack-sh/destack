@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
             }
             TokenType::BoolLiteral => {
                 if !matches!(expected, Type::Boolean) {
-                    return Err(ParseError::invalid("bool constant type", token_start));
+                    return Err(ParseError::invalid("boolean constant type", token_start));
                 }
                 let value = token_text == "true";
                 self.bump();
@@ -225,60 +225,60 @@ impl<'a> Parser<'a> {
     /// Parse a primitive type from string.
     pub(super) fn parse_primitive_type(&self, text: &str) -> Option<Type> {
         Some(match text {
-            "i8" => Type::Int {
+            "int8" => Type::Int {
                 width: 8,
                 is_signed: true,
             },
-            "i16" => Type::Int {
+            "int16" => Type::Int {
                 width: 16,
                 is_signed: true,
             },
-            "i32" => Type::Int {
+            "int32" => Type::Int {
                 width: 32,
                 is_signed: true,
             },
-            "i64" => Type::Int {
+            "int64" => Type::Int {
                 width: 64,
                 is_signed: true,
             },
-            "i128" => Type::Int {
+            "int128" => Type::Int {
                 width: 128,
                 is_signed: true,
             },
-            "i256" => Type::Int {
+            "int256" => Type::Int {
                 width: 256,
                 is_signed: true,
             },
-            "u8" => Type::Int {
+            "uint8" => Type::Int {
                 width: 8,
                 is_signed: false,
             },
-            "u16" => Type::Int {
+            "uint16" => Type::Int {
                 width: 16,
                 is_signed: false,
             },
-            "u32" => Type::Int {
+            "uint32" => Type::Int {
                 width: 32,
                 is_signed: false,
             },
-            "u64" => Type::Int {
+            "uint64" => Type::Int {
                 width: 64,
                 is_signed: false,
             },
-            "u128" => Type::Int {
+            "uint128" => Type::Int {
                 width: 128,
                 is_signed: false,
             },
-            "u256" => Type::Int {
+            "uint256" => Type::Int {
                 width: 256,
                 is_signed: false,
             },
             "isize" => Type::Isize,
             "usize" => Type::Usize,
-            "f32" => Type::Float { width: 32 },
-            "f64" => Type::Float { width: 64 },
-            "type_descriptor" => Type::TypeDescriptor,
-            "type_id" => Type::TypeId,
+            "float32" => Type::Float { width: 32 },
+            "float64" => Type::Float { width: 64 },
+            "typeDescriptor" => Type::TypeDescriptor,
+            "typeId" => Type::TypeId,
             _ => return None,
         })
     }
@@ -292,9 +292,9 @@ impl<'a> Parser<'a> {
         let location = match text {
             "none" => MemoryRegionSet::NONE,
             "any" => MemoryRegionSet::ANY,
-            "managed_heap" => MemoryRegionSet::MANAGED_HEAP,
-            "immortal_heap" => MemoryRegionSet::IMMORTAL_HEAP,
-            "raw_heap" => MemoryRegionSet::RAW_HEAP,
+            "managedHeap" => MemoryRegionSet::MANAGED_HEAP,
+            "immortalHeap" => MemoryRegionSet::IMMORTAL_HEAP,
+            "rawHeap" => MemoryRegionSet::RAW_HEAP,
             "stack" => MemoryRegionSet::STACK,
             "global" => MemoryRegionSet::GLOBAL,
             "shared" => MemoryRegionSet::SHARED,
@@ -319,8 +319,18 @@ impl<'a> Parser<'a> {
         let (digits, suffix) = text.split_at(suffix_start);
 
         // parse the typed integer payload
-        let is_signed = suffix.starts_with('i');
-        let width: u8 = suffix[1..].parse().ok()?;
+        let (is_signed, width_text) = if let Some(width) = suffix.strip_prefix("int") {
+            (true, width)
+        } else if let Some(width) = suffix.strip_prefix("uint") {
+            (false, width)
+        } else if let Some(width) = suffix.strip_prefix('i') {
+            (true, width)
+        } else if let Some(width) = suffix.strip_prefix('u') {
+            (false, width)
+        } else {
+            return None;
+        };
+        let width: u8 = width_text.parse().ok()?;
 
         if is_signed {
             let value: i64 = digits.parse().ok()?;
@@ -337,9 +347,12 @@ impl<'a> Parser<'a> {
 
     /// Parse a float constant with type suffix.
     pub(super) fn parse_float_constant(&self, text: &str) -> Option<Constant> {
-        let suffix_start = text.rfind('f')?;
+        let suffix_start = text.rfind("float").or_else(|| text.rfind('f'))?;
         let (digits, suffix) = text.split_at(suffix_start);
-        let width: u8 = suffix[1..].parse().ok()?;
+        let width_text = suffix
+            .strip_prefix("float")
+            .or_else(|| suffix.strip_prefix('f'))?;
+        let width: u8 = width_text.parse().ok()?;
 
         if width == 32 {
             let value: f32 = digits.parse().ok()?;

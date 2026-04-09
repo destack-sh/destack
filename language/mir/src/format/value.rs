@@ -24,20 +24,20 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
                 is_signed,
             } => {
                 let suffix = if *is_signed {
-                    format!("i{width}")
+                    format!("int{width}")
                 } else {
-                    format!("u{width}")
+                    format!("uint{width}")
                 };
                 write!(f, [text(&format!("{value}{suffix}"))])
             }
             Constant::UInt { value, width } => {
-                write!(f, [text(&format!("{value}u{width}"))])
+                write!(f, [text(&format!("{value}uint{width}"))])
             }
             Constant::Float { bits, width } => {
                 let value_str = if *width == 32 {
-                    format!("{}f32", f32::from_bits(*bits as u32))
+                    format!("{}float32", f32::from_bits(*bits as u32))
                 } else {
-                    format!("{}f64", f64::from_bits(*bits))
+                    format!("{}float64", f64::from_bits(*bits))
                 };
                 write!(f, [text(&value_str)])
             }

@@ -28,7 +28,6 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                     space(),
                     token("function"),
                     space(),
-                    token("@"),
                     text(&name)
                 ]
             )?;
@@ -43,7 +42,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             }
             write!(f, [token(")")])?;
 
-            return write!(f, [space(), token("->"), space(), self.return_type]);
+            return write!(f, [token(":"), space(), self.return_type]);
         }
 
         // exported linkage prefix
@@ -97,7 +96,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         }
 
         // function header
-        write!(f, [token("function"), space(), token("@"), text(&name)])?;
+        write!(f, [token("function"), space(), text(&name)])?;
 
         // parameters
         write!(f, [token("(")])?;
@@ -112,8 +111,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         write!(
             f,
             [
-                space(),
-                token("->"),
+                token(":"),
                 space(),
                 self.return_type,
                 space(),
@@ -136,6 +134,8 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                             write!(
                                 f,
                                 [
+                                    token("local"),
+                                    space(),
                                     text(&format!("local{local_index}")),
                                     token(":"),
                                     space(),
@@ -144,7 +144,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                             )?;
 
                             // ownership
-                            write!(f, [space(), token(";"), space()])?;
+                            write!(f, [token(","), space()])?;
                             match local.ownership {
                                 Ownership::Owned => write!(f, [token("owned")])?,
                                 Ownership::Borrowed => write!(f, [token("borrowed")])?,
@@ -190,19 +190,17 @@ fn format_function_attributes<'a>(
     // add derived metadata when no explicit attribute was provided
     let has_execution_model = attributes.iter().any(|attr| {
         let name = f.context().strings.get(attr.name);
-        name == "execution_model"
+        name == "executionModel"
     });
     if !has_execution_model && let Some(model) = function.execution_model {
         write!(
             f,
             [
-                token("#"),
-                token("["),
-                token("execution_model"),
+                token("@"),
+                token("executionModel"),
                 token("("),
                 text(model.to_str()),
                 token(")"),
-                token("]"),
                 hard_line_break()
             ]
         )?;
@@ -210,19 +208,17 @@ fn format_function_attributes<'a>(
 
     let has_execution_stage = attributes.iter().any(|attr| {
         let name = f.context().strings.get(attr.name);
-        name == "execution_stage"
+        name == "executionStage"
     });
     if !has_execution_stage && let Some(stage) = function.execution_stage {
         write!(
             f,
             [
-                token("#"),
-                token("["),
-                token("execution_stage"),
+                token("@"),
+                token("executionStage"),
                 token("("),
                 text(stage.to_str()),
                 token(")"),
-                token("]"),
                 hard_line_break()
             ]
         )?;
@@ -231,15 +227,14 @@ fn format_function_attributes<'a>(
     // derived workgroup size
     let has_workgroup_size = attributes.iter().any(|attr| {
         let name = f.context().strings.get(attr.name);
-        name == "workgroup_size"
+        name == "workgroupSize"
     });
     if !has_workgroup_size && let Some(size) = function.workgroup_size {
         write!(
             f,
             [
-                token("#"),
-                token("["),
-                token("workgroup_size"),
+                token("@"),
+                token("workgroupSize"),
                 token("("),
                 text(&size[0].to_string()),
                 token(","),
@@ -249,7 +244,6 @@ fn format_function_attributes<'a>(
                 space(),
                 text(&size[2].to_string()),
                 token(")"),
-                token("]"),
                 hard_line_break()
             ]
         )?;
@@ -263,13 +257,11 @@ fn format_function_attributes<'a>(
         write!(
             f,
             [
-                token("#"),
-                token("["),
+                token("@"),
                 token("environment"),
                 token("("),
                 environment,
                 token(")"),
-                token("]"),
                 hard_line_break()
             ]
         )?;

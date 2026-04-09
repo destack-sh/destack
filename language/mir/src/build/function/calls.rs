@@ -219,7 +219,7 @@ impl<'a> FunctionBuilder<'a> {
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionValue {
+        self.insert_instruction(Instruction::Closure {
             destination,
             function,
             environment,

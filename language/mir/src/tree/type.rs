@@ -315,7 +315,7 @@ pub enum Type {
         result: LocalNodeId<Type>,
     },
     /// Callable closure value with code and environment.
-    FunctionValue {
+    Closure {
         /// The bare function pointer signature.
         signature: LocalNodeId<Type>,
     },
@@ -530,7 +530,7 @@ impl Type {
             }
 
             // function pointers and closure values are trivially copyable
-            Type::FunctionPointer { .. } | Type::FunctionValue { .. } => Copyability::Trivial,
+            Type::FunctionPointer { .. } | Type::Closure { .. } => Copyability::Trivial,
         }
     }
 }

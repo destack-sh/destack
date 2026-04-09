@@ -28,8 +28,8 @@ impl AllocationMode {
     pub fn to_str(self) -> &'static str {
         match self {
             AllocationMode::Any => "any",
-            AllocationMode::NoManaged => "no_managed",
-            AllocationMode::StackOnly => "stack_only",
+            AllocationMode::NoManaged => "noManaged",
+            AllocationMode::StackOnly => "stackOnly",
         }
     }
 }
@@ -57,7 +57,7 @@ impl SuspensionKind {
         match self {
             SuspensionKind::Generator => "generator",
             SuspensionKind::Async => "async",
-            SuspensionKind::AsyncGenerator => "async_generator",
+            SuspensionKind::AsyncGenerator => "asyncGenerator",
         }
     }
 
@@ -92,7 +92,7 @@ impl ExecutionModel {
         match self {
             ExecutionModel::Kernel => "kernel",
             ExecutionModel::Graphics => "graphics",
-            ExecutionModel::RayTracing => "ray_tracing",
+            ExecutionModel::RayTracing => "rayTracing",
         }
     }
 }
@@ -106,7 +106,7 @@ impl TryFrom<&str> for ExecutionModel {
             "kernel" => Ok(ExecutionModel::Kernel),
             "compute" => Ok(ExecutionModel::Kernel),
             "graphics" => Ok(ExecutionModel::Graphics),
-            "ray_tracing" => Ok(ExecutionModel::RayTracing),
+            "rayTracing" => Ok(ExecutionModel::RayTracing),
             _ => Err(()),
         }
     }
@@ -148,15 +148,15 @@ impl ExecutionStage {
     pub fn to_str(self) -> &'static str {
         match self {
             ExecutionStage::Vertex => "vertex",
-            ExecutionStage::TessellationControl => "tessellation_control",
-            ExecutionStage::TessellationEvaluation => "tessellation_evaluation",
+            ExecutionStage::TessellationControl => "tessellationControl",
+            ExecutionStage::TessellationEvaluation => "tessellationEvaluation",
             ExecutionStage::Geometry => "geometry",
             ExecutionStage::Fragment => "fragment",
             ExecutionStage::Task => "task",
             ExecutionStage::Mesh => "mesh",
             ExecutionStage::RayGen => "raygen",
-            ExecutionStage::AnyHit => "any_hit",
-            ExecutionStage::ClosestHit => "closest_hit",
+            ExecutionStage::AnyHit => "anyHit",
+            ExecutionStage::ClosestHit => "closestHit",
             ExecutionStage::Miss => "miss",
             ExecutionStage::Intersection => "intersection",
             ExecutionStage::Callable => "callable",
@@ -171,15 +171,15 @@ impl TryFrom<&str> for ExecutionStage {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             "vertex" => Ok(ExecutionStage::Vertex),
-            "tessellation_control" => Ok(ExecutionStage::TessellationControl),
-            "tessellation_evaluation" => Ok(ExecutionStage::TessellationEvaluation),
+            "tessellationControl" => Ok(ExecutionStage::TessellationControl),
+            "tessellationEvaluation" => Ok(ExecutionStage::TessellationEvaluation),
             "geometry" => Ok(ExecutionStage::Geometry),
             "fragment" => Ok(ExecutionStage::Fragment),
             "task" => Ok(ExecutionStage::Task),
             "mesh" => Ok(ExecutionStage::Mesh),
             "raygen" => Ok(ExecutionStage::RayGen),
-            "any_hit" => Ok(ExecutionStage::AnyHit),
-            "closest_hit" => Ok(ExecutionStage::ClosestHit),
+            "anyHit" => Ok(ExecutionStage::AnyHit),
+            "closestHit" => Ok(ExecutionStage::ClosestHit),
             "miss" => Ok(ExecutionStage::Miss),
             "intersection" => Ok(ExecutionStage::Intersection),
             "callable" => Ok(ExecutionStage::Callable),

@@ -154,13 +154,13 @@ impl<'a> Validator<'a> {
         // map types to short labels
         match ty {
             Type::Void => "void",
-            Type::Boolean => "bool",
+            Type::Boolean => "boolean",
             Type::Int { .. } => "int",
             Type::Isize => "isize",
             Type::Usize => "usize",
             Type::Float { .. } => "float",
-            Type::TypeDescriptor => "type_descriptor",
-            Type::TypeId => "type_id",
+            Type::TypeDescriptor => "typeDescriptor",
+            Type::TypeId => "typeId",
             Type::Reference { .. } => "ref",
             Type::Array { .. } => "array",
             Type::Tuple { .. } => "tuple",
@@ -168,9 +168,9 @@ impl<'a> Validator<'a> {
             Type::Newtype { .. } => "newtype",
             Type::Vector { .. } => "vector",
             Type::Tensor { .. } => "tensor",
-            Type::TensorReference { .. } => "tensor_ref",
+            Type::TensorReference { .. } => "tensorRef",
             Type::FunctionPointer { .. } => "fn",
-            Type::FunctionValue { .. } => "fnvalue",
+            Type::Closure { .. } => "closure",
         }
     }
 

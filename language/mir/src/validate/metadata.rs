@@ -149,7 +149,7 @@ impl<'a> Validator<'a> {
             // managed references
             if kind == ReferenceKind::Managed && !address_space.is_generic() {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "managed references must use addrspace(generic)".to_string(),
+                    message: "managed references must use addressSpace(generic)".to_string(),
                     anchor: ValidateAnchor::node(type_id),
                 });
             }
@@ -157,7 +157,7 @@ impl<'a> Validator<'a> {
             // constant address space
             if address_space == AddressSpace::Constant && mutability != Mutability::Immutable {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "addrspace(constant) references must be readonly".to_string(),
+                    message: "addressSpace(constant) references must be readonly".to_string(),
                     anchor: ValidateAnchor::node(type_id),
                 });
             }
@@ -165,7 +165,7 @@ impl<'a> Validator<'a> {
             // owned references
             if kind == ReferenceKind::Owned && address_space == AddressSpace::Constant {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "owned references cannot use addrspace(constant)".to_string(),
+                    message: "owned references cannot use addressSpace(constant)".to_string(),
                     anchor: ValidateAnchor::node(type_id),
                 });
             }
@@ -354,7 +354,7 @@ impl<'a> Validator<'a> {
                         }
                     }
                 }
-                (Type::FunctionValue { signature }, LayoutType::FunctionValue) => {
+                (Type::Closure { signature }, LayoutType::Closure) => {
                     if layout.fields.len() != 2 {
                         return Err(ValidateError::MetadataInvariantViolation {
                             message: "function value layout must have exactly two fields"

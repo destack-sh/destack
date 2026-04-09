@@ -151,6 +151,7 @@ impl<'a> Lexer<'a> {
             "function" => TokenType::Function,
             "global" => TokenType::Global,
             "type" => TokenType::Type,
+            "local" => TokenType::Local,
             "return" => TokenType::Return,
             "jump" => TokenType::Jump,
             "branch" => TokenType::Branch,
@@ -158,18 +159,24 @@ impl<'a> Lexer<'a> {
             "switch" => TokenType::Switch,
             "yield" => TokenType::Yield,
             "call" => TokenType::Call,
+            "invoke" => TokenType::Invoke,
             "throw" => TokenType::Throw,
-            "trap" => TokenType::Trap,
+            "trap.abort" => TokenType::Trap,
+            "trap.panic" => TokenType::Trap,
             "unreachable" => TokenType::Unreachable,
-            "tailcall" => TokenType::TailCall,
+            "tailCall" => TokenType::TailCall,
             "call.indirect" => TokenType::CallIndirect,
-            "tailcall.indirect" => TokenType::TailCallIndirect,
+            "invoke.indirect" => TokenType::InvokeIndirect,
+            "tailCall.indirect" => TokenType::TailCallIndirect,
             "call.virtual" => TokenType::CallVirtual,
-            "tailcall.virtual" => TokenType::TailCallVirtual,
+            "invoke.virtual" => TokenType::InvokeVirtual,
+            "tailCall.virtual" => TokenType::TailCallVirtual,
             "call.interface" => TokenType::CallInterface,
-            "tailcall.interface" => TokenType::TailCallInterface,
+            "invoke.interface" => TokenType::InvokeInterface,
+            "tailCall.interface" => TokenType::TailCallInterface,
+            "catch" => TokenType::Catch,
             "void" => TokenType::Void,
-            "bool" => TokenType::Bool,
+            "boolean" => TokenType::Boolean,
             "ref" => {
                 // check for ref? (nullable reference)
                 if self.peek() == Some('?') {
@@ -181,7 +188,7 @@ impl<'a> Lexer<'a> {
             }
             "vector" => TokenType::Vector,
             "tensor" => TokenType::Tensor,
-            "tensor_ref" => {
+            "tensorRef" => {
                 if self.peek() == Some('?') {
                     self.advance();
                     TokenType::TensorReferenceNullable
@@ -189,9 +196,9 @@ impl<'a> Lexer<'a> {
                     TokenType::TensorReference
                 }
             }
-            "addrspace" => TokenType::AddrSpace,
+            "addressSpace" => TokenType::AddressSpace,
             "fn" => TokenType::Fn,
-            "fnvalue" => TokenType::FnValue,
+            "closure" => TokenType::Closure,
             "struct" => TokenType::Struct,
             "newtype" => TokenType::Newtype,
             "true" | "false" => TokenType::BoolLiteral,
@@ -206,7 +213,7 @@ impl<'a> Lexer<'a> {
                     TokenType::Value
                 }
                 // block
-                else if let Some(rest) = text.strip_prefix("block")
+                else if let Some(rest) = text.strip_prefix('b')
                     && rest.chars().all(|c| c.is_ascii_digit())
                 {
                     TokenType::BlockRefence
@@ -290,13 +297,13 @@ impl<'a> Lexer<'a> {
         if self.peek() == Some('.') && self.peek_next().is_some_and(|c| c.is_ascii_digit()) {
             self.advance(); // consume '.'
             self.advance_while(|c| c.is_ascii_digit() || c == '_');
-            // consume optional type suffix (f32, f64)
+            // consume optional type suffix (float32, float64)
             self.advance_while(|c| c.is_ascii_alphanumeric());
             return TokenType::FloatLiteral;
         }
 
-        // consume type suffix (i32, u64, f32, etc.)
-        // type suffixes are like "i32", "u64", "f32" - letter followed by digits
+        // consume type suffix (int32, uint64, float32, etc.)
+        // type suffixes are an identifier tail after the numeric payload
         self.advance_while(|c| c.is_ascii_alphanumeric());
 
         let text = &self.source[start..self.pos];
@@ -319,26 +326,28 @@ fn is_ident_continue(c: char) -> bool {
     c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '#' | '-')
 }
 
-/// Check if string is a type name (i8, i16, i32, u8, f32, isize, usize).
+/// Check if string is a type name.
 fn is_type_name(s: &str) -> bool {
     matches!(
         s,
-        "i8" | "i16"
-            | "i32"
-            | "i64"
-            | "i128"
-            | "i256"
-            | "u8"
-            | "u16"
-            | "u32"
-            | "u64"
-            | "u128"
-            | "u256"
-            | "f32"
-            | "f64"
+        "int8"
+            | "int16"
+            | "int32"
+            | "int64"
+            | "int128"
+            | "int256"
+            | "uint8"
+            | "uint16"
+            | "uint32"
+            | "uint64"
+            | "uint128"
+            | "uint256"
+            | "float32"
+            | "float64"
             | "isize"
             | "usize"
-            | "type"
+            | "typeDescriptor"
+            | "typeId"
     )
 }
 
@@ -348,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_lex_simple_function() {
-        let source = "function @function0() -> void {";
+        let source = "function function0(): void {";
         let tokens = Lexer::lex(source);
         let types: Vec<_> = tokens.iter().map(|t| t.ty).collect();
         assert_eq!(
@@ -356,12 +365,10 @@ mod tests {
             vec![
                 TokenType::Function,
                 TokenType::Whitespace,
-                TokenType::At,
                 TokenType::Identifier, // function0
                 TokenType::OpenParen,
                 TokenType::CloseParen,
-                TokenType::Whitespace,
-                TokenType::Arrow,
+                TokenType::Colon,
                 TokenType::Whitespace,
                 TokenType::Void,
                 TokenType::Whitespace,
@@ -373,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_lex_value_and_type() {
-        let source = "v0: i32";
+        let source = "v0: int32";
         let tokens = Lexer::lex(source);
         let types: Vec<_> = tokens.iter().map(|t| t.ty).collect();
         assert_eq!(
@@ -390,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_lex_instruction() {
-        let source = "v2 = iadd v0, v1";
+        let source = "v2 = int.add v0, v1";
         let tokens = Lexer::lex(source);
         let types: Vec<_> = tokens.iter().map(|t| t.ty).collect();
         assert_eq!(
@@ -400,7 +407,7 @@ mod tests {
                 TokenType::Whitespace,
                 TokenType::Equals,
                 TokenType::Whitespace,
-                TokenType::Identifier, // iadd
+                TokenType::Identifier, // int.add
                 TokenType::Whitespace,
                 TokenType::Value,
                 TokenType::Comma,
@@ -413,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_lex_int_literal() {
-        let source = "42i32 -5i64 0u8";
+        let source = "42int32 -5int64 0uint8";
         let tokens = Lexer::lex(source);
         let types: Vec<_> = tokens
             .iter()
@@ -433,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_lex_block_ref() {
-        let source = "block0 block123";
+        let source = "b0 b123";
         let tokens = Lexer::lex(source);
         let types: Vec<_> = tokens
             .iter()

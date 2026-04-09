@@ -3,8 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AddressSpace, FormatMirNode, LocalNodeId, MirFormatter, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeAlias, format_attribute_inline,
+    AddressSpace, Attribute, Field, FormatMirNode, LocalNodeId, MirFormatter, Mutability,
+    ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias, format_attribute_inline,
     format_attribute_lines,
 };
 
@@ -22,6 +22,59 @@ pub(super) fn format_type_expanded<'a>(
     format_type_inner(f, id, ty, false)
 }
 
+pub(super) fn format_type_declaration<'a>(
+    name: &str,
+    attributes: &[Attribute],
+    type_id: LocalNodeId<Type>,
+    ty: &Type,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    if !attributes.is_empty() {
+        format_attribute_lines(attributes, f)?;
+    }
+
+    match ty {
+        Type::Struct { fields, .. } => {
+            write!(f, [token("type"), space(), text(name), space(), token("{")])?;
+
+            if fields.is_empty() {
+                return write!(f, [space(), token("}")]);
+            }
+
+            let field_ids = fields.clone();
+            write!(f, [hard_line_break()])?;
+            write!(
+                f,
+                [block_indent(&format_with(
+                    |f: &mut Formatter<'_, crate::MirFormatContext<'a>>| {
+                        for (index, field_id) in field_ids.iter().enumerate() {
+                            if index > 0 {
+                                write!(f, [hard_line_break()])?;
+                            }
+
+                            let field = f.context().tree.get(*field_id);
+                            let field_attributes = f.context().tree.attributes(*field_id);
+                            if !field_attributes.is_empty() {
+                                format_attribute_lines(field_attributes, f)?;
+                            }
+
+                            format_struct_field(field, f)?;
+                        }
+
+                        Ok(())
+                    }
+                ))]
+            )?;
+            write!(f, [hard_line_break(), token("}")])
+        }
+        _ => {
+            write!(f, [token("type"), space(), text(name), space()])?;
+            format_type_expanded(f, type_id, ty)?;
+            Ok(())
+        }
+    }
+}
+
 fn format_type_inner<'a>(
     f: &mut MirFormatter<'a, '_>,
     id: LocalNodeId<Type>,
@@ -30,26 +83,26 @@ fn format_type_inner<'a>(
 ) -> FormatResult<()> {
     if use_alias && let Some(alias_name) = f.context().type_alias_name(id) {
         let alias_name = alias_name.to_string();
-        return write!(f, [token("@"), text(&alias_name)]);
+        return write!(f, [text(&alias_name)]);
     }
 
     match ty {
         Type::Void => write!(f, [token("void")]),
-        Type::Boolean => write!(f, [token("bool")]),
+        Type::Boolean => write!(f, [token("boolean")]),
         Type::Int {
             width,
             is_signed: signed,
         } => {
-            let prefix = if *signed { "i" } else { "u" };
+            let prefix = if *signed { "int" } else { "uint" };
             write!(f, [text(&format!("{prefix}{width}"))])
         }
         Type::Isize => write!(f, [token("isize")]),
         Type::Usize => write!(f, [token("usize")]),
         Type::Float { width } => {
-            write!(f, [text(&format!("f{width}"))])
+            write!(f, [text(&format!("float{width}"))])
         }
-        Type::TypeDescriptor => write!(f, [token("type_descriptor")]),
-        Type::TypeId => write!(f, [token("type_id")]),
+        Type::TypeDescriptor => write!(f, [token("typeDescriptor")]),
+        Type::TypeId => write!(f, [token("typeId")]),
         Type::Reference {
             kind,
             address_space,
@@ -69,21 +122,30 @@ fn format_type_inner<'a>(
             // address space clause
             let address_space_token = match address_space {
                 AddressSpace::Generic => None,
-                AddressSpace::Target(id) => Some(format!("addrspace({id})")),
+                AddressSpace::Target(id) => Some(format!("addressSpace({id})")),
                 _ => address_space
                     .keyword()
-                    .map(|name| format!("addrspace({name})")),
+                    .map(|name| format!("addressSpace({name})")),
             };
 
             // render reference syntax
-            write!(f, [token(ref_token), token(kind_token)])?;
-            if let Some(addrspace) = address_space_token {
-                write!(f, [space(), text(&addrspace)])?;
-            }
+            write!(
+                f,
+                [
+                    token(ref_token),
+                    pointee,
+                    token(","),
+                    space(),
+                    token(kind_token)
+                ]
+            )?;
             if *mutability == Mutability::Immutable {
-                write!(f, [space(), token("readonly")])?;
+                write!(f, [token(","), space(), token("readonly")])?;
             }
-            write!(f, [space(), pointee, token(">")])
+            if let Some(addrspace) = address_space_token {
+                write!(f, [token(","), space(), text(&addrspace)])?;
+            }
+            write!(f, [token(">")])
         }
         Type::Array {
             element,
@@ -92,14 +154,7 @@ fn format_type_inner<'a>(
         } => {
             write!(
                 f,
-                [
-                    token("["),
-                    element,
-                    token(";"),
-                    space(),
-                    text(&length.to_string()),
-                    token("]")
-                ]
+                [element, token("["), text(&length.to_string()), token("]")]
             )
         }
         Type::Tuple {
@@ -175,8 +230,9 @@ fn format_type_inner<'a>(
             )?;
             format_shape(shape, f)?;
             if *layout != TensorLayout::RowMajor {
-                write!(f, [token(","), space(), token("layout=")])?;
+                write!(f, [token(","), space(), token("layout"), token("(")])?;
                 format_tensor_layout(layout, f)?;
+                write!(f, [token(")")])?;
             }
             write!(f, [token(">")])
         }
@@ -190,17 +246,18 @@ fn format_type_inner<'a>(
             is_nullable,
         } => {
             let view_token = if *is_nullable {
-                "tensor_ref?<"
+                "tensorRef?<"
             } else {
-                "tensor_ref<"
+                "tensorRef<"
             };
             write!(f, [token(view_token)])?;
             format_view_header(*kind, *address_space, *mutability, *element, f)?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *layout != TensorLayout::RowMajor {
-                write!(f, [token(","), space(), token("layout=")])?;
+                write!(f, [token(","), space(), token("layout"), token("(")])?;
                 format_tensor_layout(layout, f)?;
+                write!(f, [token(")")])?;
             }
             write!(f, [token(">")])
         }
@@ -214,14 +271,26 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")"), space(), token("->"), space(), result])
         }
-        Type::FunctionValue { signature, .. } => {
-            write!(f, [token("fnvalue<"), signature, token(">")])
+        Type::Closure { signature, .. } => {
+            let signature_type = f.context().tree.get(*signature);
+            if let Type::FunctionPointer { parameters, result } = signature_type {
+                write!(f, [token("closure(")])?;
+                for (i, param) in parameters.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, [token(","), space()])?;
+                    }
+                    write!(f, [param])?;
+                }
+                write!(f, [token(")"), space(), token("->"), space(), result])
+            } else {
+                write!(f, [token("closure<"), signature, token(">")])
+            }
         }
     }
 }
 
 fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    write!(f, [token("["),])?;
+    write!(f, [token("("),])?;
     for (i, dim) in shape.iter().enumerate() {
         if i > 0 {
             write!(f, [token(","), space()])?;
@@ -235,7 +304,7 @@ fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> 
             }
         }
     }
-    write!(f, [token("]")])
+    write!(f, [token(")")])
 }
 
 fn format_tensor_layout<'a>(
@@ -243,8 +312,8 @@ fn format_tensor_layout<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     match layout {
-        TensorLayout::RowMajor => write!(f, [token("row_major")]),
-        TensorLayout::ColumnMajor => write!(f, [token("column_major")]),
+        TensorLayout::RowMajor => write!(f, [token("rowMajor")]),
+        TensorLayout::ColumnMajor => write!(f, [token("columnMajor")]),
         TensorLayout::Strided { strides } => {
             write!(f, [token("strided"), token("(")])?;
             format_shape(strides, f)?;
@@ -269,20 +338,20 @@ fn format_view_header<'a>(
 
     let address_space_token = match address_space {
         AddressSpace::Generic => None,
-        AddressSpace::Target(id) => Some(format!("addrspace({id})")),
+        AddressSpace::Target(id) => Some(format!("addressSpace({id})")),
         _ => address_space
             .keyword()
-            .map(|name| format!("addrspace({name})")),
+            .map(|name| format!("addressSpace({name})")),
     };
 
-    write!(f, [token(kind_token)])?;
-    if let Some(addrspace) = address_space_token {
-        write!(f, [space(), text(&addrspace)])?;
-    }
+    write!(f, [element, token(","), space(), token(kind_token)])?;
     if mutability == Mutability::Immutable {
-        write!(f, [space(), token("readonly")])?;
+        write!(f, [token(","), space(), token("readonly")])?;
     }
-    write!(f, [space(), element])
+    if let Some(addrspace) = address_space_token {
+        write!(f, [token(","), space(), text(&addrspace)])?;
+    }
+    Ok(())
 }
 
 impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
@@ -292,28 +361,21 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
-        if !attributes.is_empty() {
-            format_attribute_lines(attributes, f)?;
-        }
-
-        // resolve the alias name with formatting options
         let name = f.context().strings.get(self.name);
         let name = f.context().format_alias_name(name);
+        let ty = f.context().tree.get(self.ty);
+        format_type_declaration(&name, attributes, self.ty, ty, f)
+    }
+}
 
+fn format_struct_field<'a>(field: &Field, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    if let Some(name) = field.name {
+        let field_name = f.context().strings.get(name);
         write!(
             f,
-            [
-                token("type"),
-                space(),
-                token("@"),
-                text(&name),
-                space(),
-                token("="),
-                space()
-            ]
-        )?;
-
-        let ty = f.context().tree.get(self.ty);
-        format_type_expanded(f, self.ty, ty)
+            [text(field_name), token(":"), space(), field.ty, token(";")]
+        )
+    } else {
+        write!(f, [field.ty, token(";")])
     }
 }

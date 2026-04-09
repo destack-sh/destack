@@ -144,10 +144,10 @@ impl TensorConvertMode {
     pub fn to_str(self) -> &'static str {
         match self {
             TensorConvertMode::Exact => "exact",
-            TensorConvertMode::RoundTiesEven => "round_ties_even",
-            TensorConvertMode::RoundTowardZero => "round_toward_zero",
-            TensorConvertMode::RoundFloor => "round_floor",
-            TensorConvertMode::RoundCeil => "round_ceil",
+            TensorConvertMode::RoundTiesEven => "roundTiesEven",
+            TensorConvertMode::RoundTowardZero => "roundTowardZero",
+            TensorConvertMode::RoundFloor => "roundFloor",
+            TensorConvertMode::RoundCeil => "roundCeil",
             TensorConvertMode::Saturate => "saturate",
         }
     }
@@ -165,10 +165,10 @@ impl std::str::FromStr for TensorConvertMode {
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let value = match text {
             "exact" => TensorConvertMode::Exact,
-            "round_ties_even" => TensorConvertMode::RoundTiesEven,
-            "round_toward_zero" => TensorConvertMode::RoundTowardZero,
-            "round_floor" => TensorConvertMode::RoundFloor,
-            "round_ceil" => TensorConvertMode::RoundCeil,
+            "roundTiesEven" => TensorConvertMode::RoundTiesEven,
+            "roundTowardZero" => TensorConvertMode::RoundTowardZero,
+            "roundFloor" => TensorConvertMode::RoundFloor,
+            "roundCeil" => TensorConvertMode::RoundCeil,
             "saturate" => TensorConvertMode::Saturate,
             _ => return Err(()),
         };

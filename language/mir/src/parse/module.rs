@@ -1,6 +1,7 @@
 use crate::{
     AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
-    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttributes, Type, TypeAlias,
+    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttributes, Type, TypeAlias, TypedValue,
+    Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -56,8 +57,9 @@ impl<'a> Parser<'a> {
     /// Pre register forward referenced item names.
     fn register_placeholders(&mut self) {
         let saved_pos = self.pos;
+        let saved_function = self.current_function;
 
-        // scan the module once for item headers
+        // first pass: item placeholders
         while !self.peek_token(TokenType::End) {
             self.skip_attribute_tokens();
 
@@ -69,41 +71,37 @@ impl<'a> Parser<'a> {
             // function placeholders
             if self.peek_token(TokenType::Function) {
                 self.bump();
-                if self.peek_token(TokenType::At) {
-                    self.bump();
-
-                    if let Some(name) = self.scan_symbol_name()
-                        && !self.function_map.contains_key(&name)
-                    {
-                        let name_id = self.strings.intern(&name);
-                        let void_type = self.intern_type(Type::Void);
-                        let placeholder = Function {
-                            name: name_id,
-                            parameters: Vec::new(),
-                            parameter_names: Vec::new(),
-                            value_types: Vec::new(),
-                            return_type: void_type,
-                            return_lifetime: Lifetime::Inferred,
-                            memory_effects: MemoryEffect::unknown(),
-                            call_behavior: CallBehavior::unknown(),
-                            alloc_size: None,
-                            parameter_attributes: Vec::new(),
-                            return_attributes: PointerAttributes::default(),
-                            linkage: Linkage::Local,
-                            allocation: AllocationMode::Any,
-                            suspension: None,
-                            execution_model: None,
-                            execution_stage: None,
-                            workgroup_size: None,
-                            environment: None,
-                            locals: Vec::new(),
-                            blocks: Vec::new(),
-                            entry: None,
-                            next_value_id: 0,
-                        };
-                        let function_id = self.tree.insert(placeholder);
-                        self.function_map.insert(name, function_id);
-                    }
+                if let Some(name) = self.scan_symbol_name()
+                    && !self.function_map.contains_key(&name)
+                {
+                    let name_id = self.strings.intern(&name);
+                    let void_type = self.intern_type(Type::Void);
+                    let placeholder = Function {
+                        name: name_id,
+                        parameters: Vec::new(),
+                        parameter_names: Vec::new(),
+                        value_types: Vec::new(),
+                        return_type: void_type,
+                        return_lifetime: Lifetime::Inferred,
+                        memory_effects: MemoryEffect::unknown(),
+                        call_behavior: CallBehavior::unknown(),
+                        alloc_size: None,
+                        parameter_attributes: Vec::new(),
+                        return_attributes: PointerAttributes::default(),
+                        linkage: Linkage::Local,
+                        allocation: AllocationMode::Any,
+                        suspension: None,
+                        execution_model: None,
+                        execution_stage: None,
+                        workgroup_size: None,
+                        environment: None,
+                        locals: Vec::new(),
+                        blocks: Vec::new(),
+                        entry: None,
+                        next_value_id: 0,
+                    };
+                    let function_id = self.tree.insert(placeholder);
+                    self.function_map.insert(name, function_id);
                 }
 
                 continue;
@@ -112,15 +110,11 @@ impl<'a> Parser<'a> {
             // type placeholders
             if self.peek_token(TokenType::Type) {
                 self.bump();
-                if self.peek_token(TokenType::At) {
-                    self.bump();
-
-                    if let Some(name) = self.scan_symbol_name()
-                        && !self.type_alias_map.contains_key(&name)
-                    {
-                        let type_id = self.tree.insert_type(Type::Void);
-                        self.type_alias_map.insert(name, type_id);
-                    }
+                if let Some(name) = self.scan_symbol_name()
+                    && !self.type_alias_map.contains_key(&name)
+                {
+                    let type_id = self.tree.insert_type(Type::Void);
+                    self.type_alias_map.insert(name, type_id);
                 }
 
                 continue;
@@ -130,30 +124,120 @@ impl<'a> Parser<'a> {
             self.bump();
         }
 
-        self.pos = saved_pos;
-    }
+        // second pass: function signatures
+        self.pos = 0;
+        while !self.peek_token(TokenType::End) {
+            self.skip_attribute_tokens();
 
-    /// Skip attributes during the placeholder pre scan.
-    fn skip_attribute_tokens(&mut self) {
-        while self.peek_token(TokenType::Hash) {
-            self.bump();
+            let linkage = if self.peek_token(TokenType::Extern) {
+                self.bump();
+                Linkage::Import
+            } else if self.peek_token(TokenType::Export) {
+                self.bump();
+                Linkage::Export
+            } else {
+                Linkage::Local
+            };
 
-            if !self.peek_token(TokenType::OpenBracket) {
+            if self.peek_token(TokenType::Function) {
+                let _ = self.scan_function_placeholder_signature(linkage);
                 continue;
             }
 
             self.bump();
-            let mut depth = 1usize;
-            while depth > 0 && !self.peek_token(TokenType::End) {
-                if self.peek_token(TokenType::OpenBracket) {
-                    depth += 1;
-                } else if self.peek_token(TokenType::CloseBracket) {
-                    depth = depth.saturating_sub(1);
-                }
+        }
 
+        self.pos = saved_pos;
+        self.current_function = saved_function;
+    }
+
+    /// Skip attributes during the placeholder pre scan.
+    fn skip_attribute_tokens(&mut self) {
+        while self.peek_token(TokenType::At) {
+            self.bump();
+            let _ = self.eat_token_maybe(TokenType::Identifier);
+
+            if self.peek_token(TokenType::OpenParen) {
                 self.bump();
+                let mut depth = 1usize;
+                while depth > 0 && !self.peek_token(TokenType::End) {
+                    if self.peek_token(TokenType::OpenParen) {
+                        depth += 1;
+                    } else if self.peek_token(TokenType::CloseParen) {
+                        depth = depth.saturating_sub(1);
+                    }
+
+                    self.bump();
+                }
             }
         }
+    }
+
+    /// Scan one function header and seed the placeholder signature.
+    fn scan_function_placeholder_signature(&mut self, linkage: Linkage) -> ParseResult<()> {
+        // function header
+        self.eat_token(TokenType::Function)?;
+        let (name, _) = self.parse_symbol_name()?;
+
+        // parameter list
+        self.eat_token(TokenType::OpenParen)?;
+        let parameters = if linkage.is_import() {
+            let mut parameter_types = Vec::new();
+            while !self.peek_token(TokenType::CloseParen) {
+                parameter_types.push(self.parse_type()?);
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
+                }
+            }
+
+            parameter_types
+                .iter()
+                .enumerate()
+                .map(|(index, &ty)| TypedValue {
+                    value: Value::new(index as u32),
+                    ty,
+                })
+                .collect::<Vec<_>>()
+        } else {
+            self.parse_typed_value_list()?
+        };
+        self.eat_token(TokenType::CloseParen)?;
+
+        // return type
+        self.eat_token(TokenType::Colon)?;
+        let return_type = self.parse_type()?;
+
+        // seed the placeholder signature now so forward calls can resolve immediately
+        let Some(function_id) = self.function_map.get(&name).copied() else {
+            panic!("function placeholder missing for {name}");
+        };
+        let function = self.tree.get_mut(function_id);
+        function.parameters = parameters;
+        function.return_type = return_type;
+
+        // imports stop at the signature
+        if linkage.is_import() {
+            self.eat_token_maybe(TokenType::Semicolon);
+            return Ok(());
+        }
+
+        // definitions: skip the body without trying to parse it yet
+        if !self.eat_token_maybe(TokenType::OpenBrace) {
+            return Ok(());
+        }
+
+        let mut depth = 1usize;
+        while depth > 0 && !self.peek_token(TokenType::End) {
+            if self.peek_token(TokenType::OpenBrace) {
+                depth += 1;
+            } else if self.peek_token(TokenType::CloseBrace) {
+                depth = depth.saturating_sub(1);
+            }
+
+            self.bump();
+        }
+
+        Ok(())
     }
 
     /// Parse a type alias definition.
@@ -163,14 +247,13 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<LocalNodeId<TypeAlias>> {
         // alias header
         self.eat_token(TokenType::Type)?;
-        self.eat_token(TokenType::At)?;
 
         // alias name
         let (name, name_start) = self.parse_symbol_name()?;
         let name_span = self.span_at(name_start, name.len());
         if self.type_alias_definitions.contains(&name) {
             return Err(ParseError::invalid(
-                &format!("duplicate type alias '@{name}'"),
+                &format!("duplicate type alias '{name}'"),
                 name_start,
             ));
         }
@@ -186,7 +269,6 @@ impl<'a> Parser<'a> {
         };
 
         // alias target type
-        self.eat_token(TokenType::Equals)?;
         let ty = self.parse_type()?;
 
         // record alias
@@ -208,6 +290,9 @@ impl<'a> Parser<'a> {
         }
         self.type_alias_definitions.insert(name);
 
+        // optional declaration terminator
+        self.eat_token_maybe(TokenType::Semicolon);
+
         // record attributes
         if !attributes.is_empty() {
             self.tree.set_attributes(id, attributes);
@@ -217,7 +302,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a global definition or declaration.
-    /// Expect `[export|extern] global @name: type [= init] ; readonly|const`.
+    /// Expect `[export|extern] global name: type[, readonly] [ = init]`.
     pub(super) fn parse_global(
         &mut self,
         linkage: Linkage,
@@ -225,7 +310,6 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<LocalNodeId<Global>> {
         // global header
         self.eat_token(TokenType::Global)?;
-        self.eat_token(TokenType::At)?;
 
         // global name
         let (name, name_start) = self.parse_symbol_name()?;
@@ -235,6 +319,12 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Colon)?;
         let ty = self.parse_type()?;
 
+        // trailing mutability
+        let mut mutability = Mutability::Mutable;
+        if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Readonly) {
+            mutability = Mutability::Immutable;
+        }
+
         // initializer
         let initializer = if linkage.is_import() {
             None
@@ -242,14 +332,6 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::Equals)?;
             Some(self.parse_data_init()?)
         };
-
-        // mutability annotation
-        let mut mutability = Mutability::Mutable;
-        if self.eat_token_maybe(TokenType::Semicolon)
-            && (self.eat_token_maybe(TokenType::Readonly) || self.eat_token_maybe(TokenType::Const))
-        {
-            mutability = Mutability::Immutable;
-        }
 
         // record global
         let name_id = self.strings.intern(&name);
@@ -263,6 +345,9 @@ impl<'a> Parser<'a> {
         let id = self.tree.insert(global);
         self.tree.set_span(id, name_span);
         self.global_map.insert(name, id);
+
+        // optional declaration terminator
+        self.eat_token_maybe(TokenType::Semicolon);
 
         // record attributes
         if !attributes.is_empty() {
@@ -280,7 +365,7 @@ impl<'a> Parser<'a> {
 
         match token.ty {
             // zero initializer
-            TokenType::Identifier if token.text == "zeroinit" => {
+            TokenType::Identifier if token.text == "zeroInit" => {
                 self.bump();
                 Ok(GlobalInitializer::Zero)
             }

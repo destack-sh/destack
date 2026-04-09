@@ -112,10 +112,10 @@ pub enum MemoryOrdering {
     /// Release semantics (writes can't be reordered after this).
     Release,
     /// Both acquire and release semantics.
-    AcqRel,
+    AcquireRelease,
     /// Sequentially consistent (strongest, default).
     #[default]
-    SeqCst,
+    SequentiallyConsistent,
 }
 
 impl MemoryOrdering {
@@ -125,8 +125,8 @@ impl MemoryOrdering {
             MemoryOrdering::Relaxed => "relaxed",
             MemoryOrdering::Acquire => "acquire",
             MemoryOrdering::Release => "release",
-            MemoryOrdering::AcqRel => "acq_rel",
-            MemoryOrdering::SeqCst => "seq_cst",
+            MemoryOrdering::AcquireRelease => "acquireRelease",
+            MemoryOrdering::SequentiallyConsistent => "sequentiallyConsistent",
         }
     }
 }
@@ -145,8 +145,8 @@ impl FromStr for MemoryOrdering {
             "relaxed" => Ok(MemoryOrdering::Relaxed),
             "acquire" => Ok(MemoryOrdering::Acquire),
             "release" => Ok(MemoryOrdering::Release),
-            "acq_rel" => Ok(MemoryOrdering::AcqRel),
-            "seq_cst" => Ok(MemoryOrdering::SeqCst),
+            "acquireRelease" => Ok(MemoryOrdering::AcquireRelease),
+            "sequentiallyConsistent" => Ok(MemoryOrdering::SequentiallyConsistent),
             _ => Err(()),
         }
     }
@@ -160,8 +160,8 @@ impl TryFrom<&str> for MemoryOrdering {
             "Relaxed" => Ok(MemoryOrdering::Relaxed),
             "Acquire" => Ok(MemoryOrdering::Acquire),
             "Release" => Ok(MemoryOrdering::Release),
-            "AcqRel" => Ok(MemoryOrdering::AcqRel),
-            "SeqCst" => Ok(MemoryOrdering::SeqCst),
+            "AcquireRelease" => Ok(MemoryOrdering::AcquireRelease),
+            "SequentiallyConsistent" => Ok(MemoryOrdering::SequentiallyConsistent),
             _ => Err(()),
         }
     }
@@ -282,9 +282,9 @@ impl AtomicScope {
             AtomicScope::Subgroup => "subgroup",
             AtomicScope::Workgroup => "workgroup",
             AtomicScope::Device => "device",
-            AtomicScope::CrossDevice => "cross_device",
-            AtomicScope::QueueFamily => "queue_family",
-            AtomicScope::ShaderCallGroup => "shader_call_group",
+            AtomicScope::CrossDevice => "crossDevice",
+            AtomicScope::QueueFamily => "queueFamily",
+            AtomicScope::ShaderCallGroup => "shaderCallGroup",
             AtomicScope::System => "system",
         }
     }
@@ -305,9 +305,9 @@ impl FromStr for AtomicScope {
             "subgroup" => Ok(AtomicScope::Subgroup),
             "workgroup" => Ok(AtomicScope::Workgroup),
             "device" => Ok(AtomicScope::Device),
-            "cross_device" => Ok(AtomicScope::CrossDevice),
-            "queue_family" => Ok(AtomicScope::QueueFamily),
-            "shader_call_group" => Ok(AtomicScope::ShaderCallGroup),
+            "crossDevice" => Ok(AtomicScope::CrossDevice),
+            "queueFamily" => Ok(AtomicScope::QueueFamily),
+            "shaderCallGroup" => Ok(AtomicScope::ShaderCallGroup),
             "system" => Ok(AtomicScope::System),
             _ => Err(()),
         }
@@ -361,9 +361,9 @@ impl MemoryScope {
             MemoryScope::Subgroup => "subgroup",
             MemoryScope::Workgroup => "workgroup",
             MemoryScope::Device => "device",
-            MemoryScope::CrossDevice => "cross_device",
-            MemoryScope::QueueFamily => "queue_family",
-            MemoryScope::ShaderCallGroup => "shader_call_group",
+            MemoryScope::CrossDevice => "crossDevice",
+            MemoryScope::QueueFamily => "queueFamily",
+            MemoryScope::ShaderCallGroup => "shaderCallGroup",
             MemoryScope::System => "system",
         }
     }
@@ -384,9 +384,9 @@ impl FromStr for MemoryScope {
             "subgroup" => Ok(MemoryScope::Subgroup),
             "workgroup" => Ok(MemoryScope::Workgroup),
             "device" => Ok(MemoryScope::Device),
-            "cross_device" => Ok(MemoryScope::CrossDevice),
-            "queue_family" => Ok(MemoryScope::QueueFamily),
-            "shader_call_group" => Ok(MemoryScope::ShaderCallGroup),
+            "crossDevice" => Ok(MemoryScope::CrossDevice),
+            "queueFamily" => Ok(MemoryScope::QueueFamily),
+            "shaderCallGroup" => Ok(MemoryScope::ShaderCallGroup),
             "system" => Ok(MemoryScope::System),
             _ => Err(()),
         }

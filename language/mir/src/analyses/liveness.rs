@@ -424,11 +424,12 @@ mod tests {
     #[test]
     fn test_build_liveness_for_simple_block() {
         let (tree, function_id) = parse_test_function(
-            r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iadd v0, v1
+            r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = int.add v0, v1
     return v2
 }"#,
         );
@@ -449,14 +450,15 @@ block0:
     #[test]
     fn test_build_liveness_across_blocks() {
         let (tree, function_id) = parse_test_function(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 42i32
-    branch v0, block1, block2
-block1:
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 42int32
+    branch v0, b1, b2
+b1:
     return v1
-block2:
-    v2: i32 = iconst 0i32
+b2:
+    v2: int32 = 0int32
     return v2
 }"#,
         );
@@ -474,15 +476,16 @@ block2:
     #[test]
     fn test_build_liveness_for_loop() {
         let (tree, function_id) = parse_test_function(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    jump block1(v1)
-block1(v2: i32):
-    v3: i32 = iconst 2i32
-    v4: i32 = iadd v2, v3
-    branch v0, block1(v4), block2
-block2:
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    jump b1(v1)
+b1(v2: int32):
+    v3: int32 = 2int32
+    v4: int32 = int.add v2, v3
+    branch v0, b1(v4), b2
+b2:
     return v4
 }"#,
         );
@@ -502,10 +505,11 @@ block2:
     #[test]
     fn test_ignore_dead_values() {
         let (tree, function_id) = parse_test_function(
-            r#"function @test() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
+            r#"
+function test(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
     return v1
 }"#,
         );

@@ -30,32 +30,42 @@ pub enum TokenType {
     Yield,
     /// `call`
     Call,
+    /// `invoke`
+    Invoke,
     /// `throw`
     Throw,
-    /// `trap`
+    /// `trap.abort`, `trap.panic`
     Trap,
     /// `unreachable`
     Unreachable,
-    /// `tailcall`
+    /// `tailCall`
     TailCall,
     /// `call.indirect`
     CallIndirect,
-    /// `tailcall.indirect`
+    /// `invoke.indirect`
+    InvokeIndirect,
+    /// `tailCall.indirect`
     TailCallIndirect,
     /// `call.virtual`
     CallVirtual,
-    /// `tailcall.virtual`
+    /// `invoke.virtual`
+    InvokeVirtual,
+    /// `tailCall.virtual`
     TailCallVirtual,
     /// `call.interface`
     CallInterface,
-    /// `tailcall.interface`
+    /// `invoke.interface`
+    InvokeInterface,
+    /// `tailCall.interface`
     TailCallInterface,
+    /// `catch`
+    Catch,
 
     // type keywords
     /// `void`
     Void,
-    /// `bool`
-    Bool,
+    /// `boolean`
+    Boolean,
     /// `ref`
     Ref,
     /// `ref?`
@@ -64,16 +74,16 @@ pub enum TokenType {
     Vector,
     /// `tensor`
     Tensor,
-    /// `tensor_ref`
+    /// `tensorRef`
     TensorReference,
-    /// `tensor_ref?`
+    /// `tensorRef?`
     TensorReferenceNullable,
-    /// `addrspace`
-    AddrSpace,
+    /// `addressSpace`
+    AddressSpace,
     /// `fn`
     Fn,
-    /// `fnvalue`
-    FnValue,
+    /// `closure`
+    Closure,
     /// `struct`
     Struct,
     /// `newtype`
@@ -118,15 +128,15 @@ pub enum TokenType {
     Identifier,
     /// Value reference: `v0`, `v1`, etc.
     Value,
-    /// Block reference: `block0`, `block1`, etc.
+    /// Block reference: `b0`, `b1`, etc.
     BlockRefence,
     /// Local reference: `local0`, `local1`, etc.
     LocalReference,
-    /// Function reference: `@function0`, etc.
+    /// Function reference: `function0`, etc.
     FunctionReference,
-    /// Integer literal with type suffix: `42i32`, `0u64`
+    /// Integer literal with type suffix: `42int32`, `0uint64`
     IntLiteral,
-    /// Float literal with type suffix: `3.14f32`
+    /// Float literal with type suffix: `3.14float32`
     FloatLiteral,
     /// Boolean literal: `true`, `false`
     BoolLiteral,
@@ -134,7 +144,7 @@ pub enum TokenType {
     StringLiteral,
     /// Character literal: `'a'`
     CharLiteral,
-    /// Type name: `i32`, `u64`, `f32`, etc.
+    /// Type name: `int32`, `uint64`, `float32`, etc.
     TypeName,
 
     // annotations
