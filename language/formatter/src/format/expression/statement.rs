@@ -7,12 +7,14 @@ use super::control::{
 };
 use super::ternary::format_ternary;
 use crate::DestackFormatter;
-use crate::format::annotation::infix_or_postfix_annotations;
+use crate::format::annotation::{
+    format_trailing_comment_slice, infix_or_postfix_annotations, write_raw_leading_comments,
+};
 use crate::format::declaration::dependency::format_dependency_statement_expression;
 use crate::format::declaration::{
     format_let_statement_expression, format_using_statement_expression,
 };
-use destack_ast::{Expression, IfKind, LocalNodeId};
+use destack_ast::{Comment, Expression, IfKind, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -60,7 +62,32 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // labelled statement
         Expression::Labelled { label, body } => {
+            let body_span = f.context().span(*body);
+            let boundary_comments = if let Some(boundary_token) =
+                f.context().previous_non_trivia_token_before_span(body_span)
+            {
+                if boundary_token.token.ty == TokenType::Colon {
+                    let comments = f.context().comments();
+                    comments
+                        .comments_in_range(boundary_token.span.end, body_span.start)
+                        .to_vec()
+                } else {
+                    Vec::<Comment>::new()
+                }
+            } else {
+                Vec::<Comment>::new()
+            };
+            let has_line_boundary_comment =
+                boundary_comments.iter().any(|comment| comment.is_line());
+
+            if has_line_boundary_comment {
+                write_raw_leading_comments(f, &boundary_comments)?;
+            }
+
             write!(f, [label, token(":")])?;
+            if !has_line_boundary_comment && !boundary_comments.is_empty() {
+                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            }
 
             let body_expression = f.context().tree.get(*body);
             let body_is_empty_statement = matches!(
