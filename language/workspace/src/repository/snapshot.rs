@@ -1,8 +1,9 @@
 use std::sync::{Arc, Weak};
 
+use destack_artifact::{ArtifactKey, ArtifactStamp, ArtifactVersion};
 use destack_source::{File, FileId, ModuleId, PackageId};
 
-use crate::repository::{Repository, RepositoryError, Revision};
+use crate::repository::{Repository, RepositoryError, Revision, RevisionState};
 use crate::{Module, Package, Workspace};
 
 impl Repository {
@@ -21,7 +22,12 @@ impl Repository {
 
         let pin = Arc::new(RevisionPin::new(revision, Arc::downgrade(self)));
 
-        Ok(RepositorySnapshot::new(revision, Arc::clone(self), pin))
+        Ok(RepositorySnapshot::new(
+            revision,
+            Arc::clone(self),
+            Arc::clone(&revision_state),
+            pin,
+        ))
     }
 
     /// Retain one anonymous revision pin.
@@ -55,6 +61,8 @@ pub struct RepositorySnapshot {
     revision: Revision,
     /// The shared repository owner.
     repository: Arc<Repository>,
+    /// The retained immutable revision state.
+    revision_state: Arc<RevisionState>,
     /// The retained revision pin.
     _pin: Arc<RevisionPin>,
 }
@@ -64,11 +72,13 @@ impl RepositorySnapshot {
     pub(crate) fn new(
         revision: Revision,
         repository: Arc<Repository>,
+        revision_state: Arc<RevisionState>,
         pin: Arc<RevisionPin>,
     ) -> Self {
         Self {
             revision,
             repository,
+            revision_state,
             _pin: pin,
         }
     }
@@ -81,6 +91,11 @@ impl RepositorySnapshot {
     /// Return the shared repository owner.
     pub fn repository(&self) -> &Repository {
         self.repository.as_ref()
+    }
+
+    /// Return the retained immutable revision state.
+    pub(crate) fn revision_state(&self) -> &RevisionState {
+        self.revision_state.as_ref()
     }
 
     /// Return one file snapshot for one file id.
@@ -101,6 +116,20 @@ impl RepositorySnapshot {
     /// Return one module snapshot for one module id.
     pub fn module(&self, module_id: ModuleId) -> Result<Option<Arc<Module>>, RepositoryError> {
         self.repository.module(self.revision, module_id)
+    }
+
+    /// Return the current artifact stamp for one artifact key in this pinned revision.
+    pub fn artifact_stamp(&self, artifact_key: &ArtifactKey) -> ArtifactStamp {
+        self.repository.artifact_stamp_for_revision_state(
+            self.revision,
+            self.revision_state(),
+            artifact_key,
+        )
+    }
+
+    /// Return the exact artifact version for one artifact key in this pinned revision.
+    pub fn artifact_version(&self, artifact_key: &ArtifactKey) -> ArtifactVersion {
+        ArtifactVersion::new(*artifact_key, self.artifact_stamp(artifact_key))
     }
 }
 

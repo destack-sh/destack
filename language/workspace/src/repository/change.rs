@@ -127,6 +127,16 @@ impl Change {
     pub fn edits(&self) -> &[Edit] {
         &self.edits
     }
+
+    /// Append one edit to this change.
+    pub fn push(&mut self, edit: Edit) {
+        self.edits.push(edit);
+    }
+
+    /// Extend this change with edits from another change.
+    pub fn extend_from(&mut self, other: &Self) {
+        self.edits.extend(other.edits.iter().cloned());
+    }
 }
 
 impl From<Edit> for Change {

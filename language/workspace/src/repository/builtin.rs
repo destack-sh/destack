@@ -101,6 +101,8 @@ impl BuiltinCatalog {
 /// Mutable builtin library cache state.
 #[derive(Debug)]
 struct BuiltinLibraryCache {
+    /// Normalized builtin library names for one profile key and input name.
+    resolved_name_by_input: DashMap<(BuiltinLibraryKey, String), String>,
     /// Library modules cache.
     module_ids_by_name: DashMap<(BuiltinLibraryKey, String), Vec<ModuleId>>,
     /// Selected builtin library modules for one profile key.
@@ -115,6 +117,7 @@ impl BuiltinLibraryCache {
     /// Create one empty builtin library cache.
     fn empty() -> Self {
         Self {
+            resolved_name_by_input: DashMap::new(),
             module_ids_by_name: DashMap::new(),
             selection_by_key: DashMap::new(),
             load_lock: Mutex::new(()),
@@ -271,11 +274,12 @@ impl Builtins {
 
     /// Load a library module set.
     pub fn load_library(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
+        let library_key = BuiltinLibraryKey::from_profile_key(profile_key);
+        let name = self.resolved_library_name(name, profile_key, &library_key);
         let _guard = self.library_cache.load_lock.lock();
-        let name = self.profile_builtin_library_name(name, profile_key);
 
         let mut loading = HashSet::new();
-        self.load_library_inner(&name, profile_key, &mut loading)
+        self.load_library_inner(&name, profile_key, &library_key, &mut loading)
     }
 
     /// Install builtin source into one repository ref.
@@ -394,11 +398,10 @@ impl Builtins {
         &self,
         name: &str,
         profile_key: &ProfileKey,
+        library_key: &BuiltinLibraryKey,
         loading: &mut HashSet<String>,
     ) -> Option<Vec<ModuleId>> {
-        let library_key = BuiltinLibraryKey::from_profile_key(profile_key);
-
-        if let Some(cached) = self.cached_library_modules(name, &library_key) {
+        if let Some(cached) = self.cached_library_modules(name, library_key) {
             return Some(cached);
         }
 
@@ -426,14 +429,14 @@ impl Builtins {
         let mut seen_dependencies = HashSet::new();
 
         for &dependency in library.dependencies {
-            let dependency = self.profile_builtin_library_name(dependency, profile_key);
+            let dependency = self.resolved_library_name(dependency, profile_key, library_key);
             if seen_dependencies.insert(dependency.clone()) {
                 dependencies.push(dependency);
             }
         }
 
         for &reference in library.reference_libs {
-            let reference = self.profile_builtin_library_name(reference, profile_key);
+            let reference = self.resolved_library_name(reference, profile_key, library_key);
             if seen_dependencies.insert(reference.clone()) {
                 dependencies.push(reference);
             }
@@ -445,7 +448,7 @@ impl Builtins {
             }
 
             if self
-                .load_library_inner(&dependency, profile_key, loading)
+                .load_library_inner(&dependency, profile_key, library_key, loading)
                 .is_none()
             {
                 loading.remove(name);
@@ -474,9 +477,26 @@ impl Builtins {
         Some(module_ids)
     }
 
-    fn profile_builtin_library_name(&self, name: &str, profile_key: &ProfileKey) -> String {
-        resolve_profile_builtin_library_name(name, &profile_key.lib)
-            .unwrap_or_else(|| name.to_string())
+    fn resolved_library_name(
+        &self,
+        name: &str,
+        profile_key: &ProfileKey,
+        library_key: &BuiltinLibraryKey,
+    ) -> String {
+        let cache_key = (library_key.clone(), name.to_string());
+
+        if let Some(cached) = self.library_cache.resolved_name_by_input.get(&cache_key) {
+            return cached.clone();
+        }
+
+        let resolved = resolve_profile_builtin_library_name(name, &profile_key.lib)
+            .unwrap_or_else(|| name.to_string());
+
+        self.library_cache
+            .resolved_name_by_input
+            .insert(cache_key, resolved.clone());
+
+        resolved
     }
 
     fn cached_library_modules(
