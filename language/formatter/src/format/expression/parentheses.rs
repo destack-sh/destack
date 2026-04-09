@@ -3,6 +3,7 @@ use super::{
     format_expression, format_inline_ternary_expression,
     postfix_continuation_requires_parenthesized_object_wrapper,
     should_hoist_parenthesized_inner_cast_prefix_comments,
+    write_expression_with_prefix_annotations_after_offset,
     write_expression_without_prefix_annotations,
 };
 use crate::format::annotation::{
@@ -24,7 +25,7 @@ use destack_ast::{
 };
 use destack_fir::format::{BestFittingMode, Buffer, FormatResult};
 use destack_fir::prelude::{
-    block_indent, format_with, group, hard_line_break, soft_block_indent, space, token,
+    block_indent, empty_line, format_with, group, hard_line_break, soft_block_indent, space, token,
 };
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::Span;
@@ -40,6 +41,7 @@ enum PreservedParenthesizedLayout {
     HoistedCastPrefix,
     DecoratorOrAssignment,
     NewlineOnly,
+    InlineLeadingComments,
     LeadingComments,
     Plain,
 }
@@ -463,6 +465,72 @@ fn format_leading_comment_parenthesized_expression<'ast>(
     )
 }
 
+/// Format one preserved wrapper with inline-leading comments before a trivial inner expression.
+fn format_inline_leading_comment_parenthesized_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let leading_inner_comments =
+        parenthesized_leading_inner_comments(f.context(), node_id, expression_id);
+
+    write!(f, [token("(")])?;
+
+    let source = f.context().source_text();
+    let mut previous_comment: Option<Comment> = None;
+
+    for comment in leading_inner_comments.iter().copied() {
+        if let Some(previous_comment) = previous_comment {
+            let lines_before = {
+                let comment_cursor = f.context().comments();
+                source.get_lines_before(comment.span, &comment_cursor)
+            };
+
+            if previous_comment.is_line() {
+                write!(f, [hard_line_break()])?;
+            } else if lines_before == 0 {
+                write!(f, [space()])?;
+            } else if lines_before == 1 {
+                write!(f, [hard_line_break()])?;
+            } else {
+                write!(f, [empty_line()])?;
+            }
+        }
+
+        format_raw_comment(f, comment)?;
+        previous_comment = Some(comment);
+    }
+
+    if let Some(last_comment) = leading_inner_comments.last().copied() {
+        let expression_span = f.context().span(expression_id);
+        let gap_span = Span::new(
+            last_comment.span.file,
+            last_comment.span.end,
+            expression_span.start,
+        );
+
+        if last_comment.is_line() || f.context().has_newline(gap_span) {
+            if f.context().has_blank_line(gap_span) {
+                write!(f, [empty_line()])?;
+            } else {
+                write!(f, [hard_line_break()])?;
+            }
+        } else {
+            write!(f, [space()])?;
+        }
+
+        write_expression_with_prefix_annotations_after_offset(
+            f,
+            expression_id,
+            last_comment.span.end,
+        )?;
+    } else {
+        write!(f, [expression_id])?;
+    }
+
+    write!(f, [token(")")])
+}
+
 /// Write comments that belong immediately after one preserved closing `)`.
 fn write_parenthesized_boundary_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -528,6 +596,9 @@ fn format_preserved_parenthesized_expression<'ast>(
         PreservedParenthesizedLayout::NewlineOnly => {
             format_newline_only_parenthesized_expression(f, node_id, expression_id)?;
         }
+        PreservedParenthesizedLayout::InlineLeadingComments => {
+            format_inline_leading_comment_parenthesized_expression(f, node_id, expression_id)?;
+        }
         PreservedParenthesizedLayout::LeadingComments => {
             format_leading_comment_parenthesized_expression(f, node_id, expression_id)?;
         }
@@ -565,6 +636,8 @@ fn preserved_parenthesized_layout(
         parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_comments);
     let has_leading_inner_newline =
         parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_newline);
+    let has_leading_inner_line_comment =
+        parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_line_comment);
     let has_inner_decorator_prefix_annotation =
         inner_expression_has_decorator_prefix_annotation(context, expression_id);
     let is_in_assignment_value_context =
@@ -573,7 +646,8 @@ fn preserved_parenthesized_layout(
         matches!(inner_expression, Expression::ScalarLiteral(_))
             && has_leading_inner_comments
             && !has_leading_inner_newline
-            && !context.node_has_newline(expression_id);
+            && !has_leading_inner_line_comment;
+
     let preserve_newline_only_wrapper = has_leading_inner_newline && !has_leading_inner_comments;
 
     // type-cast comment wrappers own their trailing inner line comments
@@ -604,7 +678,9 @@ fn preserved_parenthesized_layout(
 
     // decorators and assignment-comment wrappers force the expanded shell
     if has_inner_decorator_prefix_annotation
-        || (is_in_assignment_value_context && has_leading_inner_comments)
+        || (is_in_assignment_value_context
+            && has_leading_inner_comments
+            && !prefers_inline_scalar_comment_wrapper)
     {
         return PreservedParenthesizedLayout::DecoratorOrAssignment;
     }
@@ -614,8 +690,13 @@ fn preserved_parenthesized_layout(
         return PreservedParenthesizedLayout::NewlineOnly;
     }
 
+    // scalar comment wrappers can keep the lighter inline shell
+    if prefers_inline_scalar_comment_wrapper {
+        return PreservedParenthesizedLayout::InlineLeadingComments;
+    }
+
     // leading comments own the preserved comment shell
-    if has_leading_inner_comments && !prefers_inline_scalar_comment_wrapper {
+    if has_leading_inner_comments {
         return PreservedParenthesizedLayout::LeadingComments;
     }
 

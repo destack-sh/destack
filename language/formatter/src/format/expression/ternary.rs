@@ -4,8 +4,8 @@ use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
-    TypeLiteral,
+    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TokenSpan,
+    TokenType, TypeLiteral,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -120,6 +120,78 @@ fn expression_has_line_comment(
         .any(|comment| context.comment_is_line(comment))
 }
 
+/// Return boundary comments between two ternary parts.
+fn ternary_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    left_expression: LocalNodeId<Expression>,
+    right_expression: LocalNodeId<Expression>,
+) -> Vec<Comment> {
+    let left_span = context.span(left_expression);
+    let right_span = context.span(right_expression);
+
+    let comments = context.comments();
+
+    comments
+        .comments_in_range(left_span.end, right_span.start)
+        .to_vec()
+}
+
+/// Return the colon token between the then and alternate ternary branches.
+fn ternary_colon_token(
+    context: &DestackFormatContext<'_>,
+    then_expression: LocalNodeId<Expression>,
+    else_expression: LocalNodeId<Expression>,
+) -> Option<TokenSpan> {
+    let then_span = context.span(then_expression);
+    let else_span = context.span(else_expression);
+    let token = context.first_non_trivia_token_between(then_span.end, else_span.start)?;
+
+    (token.token.ty == TokenType::Colon).then_some(token)
+}
+
+/// Return comments that stay on the then branch side of the ternary boundary.
+fn ternary_then_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    then_expression: LocalNodeId<Expression>,
+    else_expression: LocalNodeId<Expression>,
+) -> Vec<Comment> {
+    let then_span = context.span(then_expression);
+    let else_span = context.span(else_expression);
+    let Some(colon_token) = ternary_colon_token(context, then_expression, else_expression) else {
+        return context
+            .comments()
+            .comments_in_range(then_span.end, else_span.start)
+            .to_vec();
+    };
+
+    let mut comments = context
+        .comments()
+        .comments_in_range(then_span.end, colon_token.span.start)
+        .to_vec();
+
+    comments.extend(
+        context
+            .comments()
+            .comments_in_range(colon_token.span.end, else_span.start)
+            .iter()
+            .copied()
+            .filter(|comment| comment.is_line()),
+    );
+
+    comments
+}
+
+/// Return whether the boundary between two ternary parts has a line comment.
+fn ternary_boundary_has_line_comment(
+    context: &DestackFormatContext<'_>,
+    left_expression: LocalNodeId<Expression>,
+    right_expression: LocalNodeId<Expression>,
+) -> bool {
+    ternary_boundary_comments(context, left_expression, right_expression)
+        .iter()
+        .any(|comment| comment.is_line())
+}
+
 /// Return whether one ternary chain has line slash comments on any condition or branch.
 fn ternary_chain_has_line_comment(
     context: &DestackFormatContext<'_>,
@@ -133,8 +205,11 @@ fn ternary_chain_has_line_comment(
 
     if expression_has_line_comment(context, condition_expression)
         || expression_has_line_comment(context, then_expression)
-        || else_expression
-            .is_some_and(|expression_id| expression_has_line_comment(context, expression_id))
+        || ternary_boundary_has_line_comment(context, condition_expression, then_expression)
+        || else_expression.is_some_and(|expression_id| {
+            expression_has_line_comment(context, expression_id)
+                || ternary_boundary_has_line_comment(context, then_expression, expression_id)
+        })
     {
         return true;
     }
@@ -378,8 +453,22 @@ fn write_standard_ternary_tail<'ast>(
     then_expression: LocalNodeId<Expression>,
     else_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
+    let then_boundary_comment_nodes = else_expression
+        .map(|else_expression| {
+            ternary_then_boundary_comments(f.context(), then_expression, else_expression)
+        })
+        .unwrap_or_default();
+
     let format_then_expression = format_with(|f| {
         write!(f, [then_expression])?;
+
+        if !then_boundary_comment_nodes.is_empty() {
+            write!(
+                f,
+                [format_trailing_comment_slice(&then_boundary_comment_nodes)]
+            )?;
+        }
+
         Ok(())
     });
 

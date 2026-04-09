@@ -100,18 +100,28 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
         self.context.span(self.inner_expression_id)
     }
 
+    /// Return the first inner non-trivia token start.
+    #[inline]
+    pub fn inner_token_start(self) -> u32 {
+        let inner_span = self.inner_span();
+
+        self.context
+            .first_non_trivia_token_in_span(inner_span)
+            .map_or(inner_span.start, |token| token.span.start)
+    }
+
     /// Return comments between `(` and the inner expression.
     pub fn leading_inner_comments(self) -> Vec<Comment> {
         let leading_start = self.open_parenthesis.span.end;
-        let inner_span = self.inner_span();
-        if leading_start >= inner_span.start {
+        let inner_start = self.inner_token_start();
+        if leading_start >= inner_start {
             return Vec::new();
         }
 
         {
             let comments = self.context.comments();
             comments
-                .comments_in_range(leading_start, inner_span.start)
+                .comments_in_range(leading_start, inner_start)
                 .to_vec()
         }
     }
@@ -186,12 +196,13 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
     pub fn has_leading_inner_newline(self) -> bool {
         let leading_start = self.open_parenthesis.span.end;
         let inner_span = self.inner_span();
-        if leading_start >= inner_span.start {
+        let inner_start = self.inner_token_start();
+        if leading_start >= inner_start {
             return false;
         }
 
         self.context
-            .has_newline(Span::new(inner_span.file, leading_start, inner_span.start))
+            .has_newline(Span::new(inner_span.file, leading_start, inner_start))
     }
 
     /// Return whether source contains a leading line comment between `(` and the inner expression.
@@ -205,11 +216,12 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
     fn has_leading_inner_pattern(self, include_newline: bool) -> bool {
         let leading_start = self.open_parenthesis.span.end;
         let inner_span = self.inner_span();
-        if leading_start >= inner_span.start {
+        let inner_start = self.inner_token_start();
+        if leading_start >= inner_start {
             return false;
         }
 
-        let leading_span = Span::new(inner_span.file, leading_start, inner_span.start);
+        let leading_span = Span::new(inner_span.file, leading_start, inner_start);
         if include_newline && self.context.has_newline(leading_span) {
             return true;
         }

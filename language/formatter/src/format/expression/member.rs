@@ -1,5 +1,5 @@
 use super::{format_static_argument_list, is_type_cast_comment_node};
-use crate::format::annotation::write_raw_leading_comments;
+use crate::format::annotation::{format_trailing_comment_slice, write_raw_leading_comments};
 use crate::format::chain::{member_property_start, transparent_inner_expression};
 use crate::format::context::{DestackFormatterCommentExt, ParenthesizedExpressionView};
 use crate::format::declaration::expression_is_decorated_class_declaration;
@@ -9,7 +9,9 @@ use crate::format::operator::{
     write_postfix_base_expression,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType, PostfixPosition};
+use destack_ast::{
+    BinaryOperator, Comment, Expression, LocalNodeId, NodeTree, NodeType, PostfixPosition,
+};
 use destack_core::StringId;
 use destack_fir::format::{
     Buffer, FormatNode, FormatResult, LineMode, RemoveSoftLinesBuffer, TextWidth,
@@ -234,6 +236,26 @@ fn format_member_receiver<'ast>(
     write_postfix_base_expression(f, receiver_id)
 }
 
+/// Return inline comments between one postfix receiver and its continuation.
+fn postfix_receiver_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    receiver_id: LocalNodeId<Expression>,
+) -> Vec<Comment> {
+    let receiver_span = context.span(receiver_id);
+    let Some(next_token) = context.next_non_trivia_token_after_span(receiver_span) else {
+        return Vec::new();
+    };
+    if next_token.span.file != receiver_span.file || next_token.span.start <= receiver_span.end {
+        return Vec::new();
+    }
+
+    let comments = context.comments();
+
+    comments
+        .comments_in_range(receiver_span.end, next_token.span.start)
+        .to_vec()
+}
+
 /// Normalize one member receiver by dropping an allowed parenthesized wrapper.
 fn normalized_member_receiver(
     context: &DestackFormatContext<'_>,
@@ -424,16 +446,25 @@ fn write_static_member_expression<'ast>(
     let receiver_id = normalized_member_receiver(f.context(), receiver_id);
     let wraps_static_instantiation =
         expression_has_trailing_static_instantiation(f.context().tree, receiver_id);
+    let boundary_comments = postfix_receiver_boundary_comments(f.context(), receiver_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
 
     match static_member_layout(f.context(), node_id, receiver_id) {
         StaticMemberLayout::NoBreak => {
             format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
+            if !boundary_comments.is_empty() {
+                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            }
+
             write_static_member_continuation(f, name, static_arguments)
         }
         StaticMemberLayout::BreakAfterObject => {
             format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
+            if !boundary_comments.is_empty() {
+                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            }
+
             write!(
                 f,
                 [group(&indent(&format_args![
@@ -482,17 +513,26 @@ pub(crate) fn format_static_member_with_following_suffix<'ast>(
     let receiver_id = normalized_member_receiver(f.context(), *left);
     let wraps_static_instantiation =
         expression_has_trailing_static_instantiation(f.context().tree, receiver_id);
+    let boundary_comments = postfix_receiver_boundary_comments(f.context(), receiver_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
 
     match static_member_layout(f.context(), node_id, receiver_id) {
         StaticMemberLayout::NoBreak => {
             format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
+            if !boundary_comments.is_empty() {
+                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            }
+
             write_static_member_continuation(f, *name, static_arguments)?;
             write!(f, [suffix])
         }
         StaticMemberLayout::BreakAfterObject => {
             format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
+            if !boundary_comments.is_empty() {
+                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            }
+
             write!(
                 f,
                 [group(&indent(&format_args![
@@ -532,7 +572,13 @@ fn write_private_member_expression<'ast>(
     let receiver_id = normalized_member_receiver(f.context(), receiver_id);
     let wraps_static_instantiation =
         expression_has_trailing_static_instantiation(f.context().tree, receiver_id);
+    let boundary_comments = postfix_receiver_boundary_comments(f.context(), receiver_id);
+
     format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
+    if !boundary_comments.is_empty() {
+        write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+    }
+
     write_private_member_continuation(f, name, static_arguments)
 }
 
@@ -787,7 +833,13 @@ pub(crate) fn format_index_expression<'ast>(
         index,
     } = f.context().tree.get(node_id)
     {
+        let boundary_comments = postfix_receiver_boundary_comments(f.context(), *left);
+
         write_postfix_base_expression(f, *left)?;
+        if !boundary_comments.is_empty() {
+            write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+        }
+
         if *position == PostfixPosition::Indirect {
             write!(f, [token(".")])?;
         }
