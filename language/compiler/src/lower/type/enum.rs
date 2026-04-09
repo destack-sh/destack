@@ -1,20 +1,16 @@
 use destack_dir as dir;
-use destack_dir::{
-    AnchoredGlobalNodeId, EnumBackingType, EnumFieldValue, GlobalSymbolId, NodeType,
-};
+
 use destack_workspace::{ProfileId, Revision};
 
 use crate::{Compiler, LowerError, LowerResult, RequirementError};
-
-use crate::lower::ModuleLowerer;
 
 /// Enum field value with its backing type.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct EnumFieldValueDescriptor {
     /// The enum backing type.
-    pub(crate) backing: EnumBackingType,
+    pub(crate) backing: dir::EnumBackingType,
     /// The enum field value.
-    pub(crate) value: EnumFieldValue,
+    pub(crate) value: dir::EnumFieldValue,
 }
 
 /// Resolve the backing type and value for an enum field symbol.
@@ -22,8 +18,8 @@ pub(crate) fn enum_field_value_for_symbol(
     compiler: &Compiler,
     revision: Revision,
     profile: ProfileId,
-    member_symbol: GlobalSymbolId,
-    node: AnchoredGlobalNodeId,
+    member_symbol: dir::GlobalSymbolId,
+    node: dir::AnchoredGlobalNodeId,
 ) -> LowerResult<Option<EnumFieldValueDescriptor>> {
     // load the analyzed dir artifact for this symbol
     let snapshot =
@@ -46,7 +42,7 @@ pub(crate) fn enum_field_value_for_symbol(
     let Some(primary) = primary else {
         return Ok(None);
     };
-    if primary.local_id.ty != NodeType::EnumField {
+    if primary.local_id.ty != dir::NodeType::EnumField {
         return Ok(None);
     }
 
@@ -77,41 +73,4 @@ pub(crate) fn enum_field_value_for_symbol(
     })?;
 
     Ok(Some(EnumFieldValueDescriptor { backing, value }))
-}
-
-impl ModuleLowerer<'_> {
-    /// Resolve an enum symbol for a type id when available.
-    pub(crate) fn enum_symbol_for_type(
-        &self,
-        type_id: dir::LocalTypeId,
-    ) -> Option<dir::GlobalSymbolId> {
-        // check direct enum references
-        if let dir::Type::Reference { symbol, .. } = self.types.get_type(type_id)
-            && symbol.ty() == dir::SymbolType::Enum
-        {
-            return Some(*symbol);
-        }
-
-        // check enum instance types
-        if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
-            && symbol.ty() == dir::SymbolType::Enum
-        {
-            return Some(symbol);
-        }
-
-        // require type sources that point at declarations
-        let source = self.types.get_type_source(type_id);
-        if source.ty != dir::NodeType::Declaration {
-            return None;
-        }
-
-        // resolve enum declarations from the type source
-        let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(source.id);
-        let declaration = self.dir_tree.get(declaration_id);
-        if let dir::Declaration::Enum { descriptor, .. } = declaration {
-            Some(descriptor.symbol.into_global(self.module_id))
-        } else {
-            None
-        }
-    }
 }

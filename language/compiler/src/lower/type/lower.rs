@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_ast::{StringId, StringPool};
-use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use destack_workspace::Repository;
-use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::lower_mutability;
@@ -133,7 +132,7 @@ impl TypeLowerer {
     pub(crate) fn layout_for_type_or_error(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<&StructLayout> {
         self.layout_cache
             .get(&ty)
@@ -214,7 +213,7 @@ impl TypeLowerer {
 
     /// Create a MIR struct type from a computed layout.
     ///
-    /// This creates the MIR `Type::Struct` with fields that have their offsets
+    /// This creates the MIR `dir::Type::Struct` with fields that have their offsets
     /// already computed by `compute_struct_layout`.
     pub(crate) fn create_struct_type(
         &mut self,
@@ -257,7 +256,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         if let Some(signature) = self.function_signature_types.get(&type_id) {
@@ -303,7 +302,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         if let Some(entry) = self.type_cache.get(&type_id) {
@@ -321,11 +320,11 @@ impl TypeLowerer {
 
         let dir_type = types.get_type(type_id);
 
-        // map enum instance types to their backing representation
+        // lower enum instance types as nominal wrappers over their backing representation
         if let Some(enum_symbol) = types.symbol_for_instance_type(type_id)
             && enum_symbol.ty() == dir::SymbolType::Enum
         {
-            let mir_type = self.lower_enum_backing_type(types, enum_symbol, node, builder)?;
+            let mir_type = self.lower_nominal_enum_type(types, enum_symbol, node, builder)?;
             self.type_cache
                 .insert(type_id, TypeCacheEntry::Ready(mir_type));
             return Ok(mir_type);
@@ -420,7 +419,7 @@ impl TypeLowerer {
         &mut self,
         types: &dir::TypeTable,
         enum_symbol: dir::GlobalSymbolId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // load the enum backing type
@@ -447,6 +446,23 @@ impl TypeLowerer {
         }
     }
 
+    /// Lower an enum symbol to its nominal MIR wrapper type.
+    fn lower_nominal_enum_type(
+        &mut self,
+        types: &dir::TypeTable,
+        enum_symbol: dir::GlobalSymbolId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let inner_type = self.lower_enum_backing_type(types, enum_symbol, node, builder)?;
+        let copyability = builder.tree().get(inner_type).copyability();
+
+        Ok(builder.tree_mut().insert_type(mir::Type::Newtype {
+            inner: inner_type,
+            copyability,
+        }))
+    }
+
     /// Lower a nominal reference type to its MIR representation.
     fn lower_reference_type(
         &mut self,
@@ -455,14 +471,20 @@ impl TypeLowerer {
         symbol: dir::GlobalSymbolId,
         static_arguments: Option<&[dir::StaticArgument]>,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         if symbol.ty() == dir::SymbolType::Interface {
             return self.lower_interface_reference_type(types, type_id, module_id, node, builder);
         }
         if symbol.ty() == dir::SymbolType::Enum {
-            return self.lower_enum_backing_type(types, symbol, node, builder);
+            if let Some(instance_type_id) = types.get_instance_type_id(symbol)
+                && instance_type_id != type_id
+            {
+                return self.lower_type(types, instance_type_id, module_id, node, builder);
+            }
+
+            return self.lower_nominal_enum_type(types, symbol, node, builder);
         }
 
         // handle vector type lowering
@@ -548,7 +570,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let signature =
@@ -597,7 +619,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let primary = self.select_intersection_primary_type(types, elements, module_id, node)?;

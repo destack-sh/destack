@@ -1,7 +1,4 @@
-use destack_dir::{
-    AnchoredGlobalNodeId, EnumBackingType, EnumFieldValue, Expression, GlobalSymbolId, LocalNodeId,
-};
-use destack_mir as mir;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
@@ -26,8 +23,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_enum_field_member(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        member_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        member_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         // anchor diagnostics to the current expression
         let node = expression_id
@@ -51,10 +48,10 @@ impl FunctionLowerer<'_> {
 
         // build the literal value for the backing type
         let value = match (backing, value) {
-            (EnumBackingType::Int(_), EnumFieldValue::Int(value)) => {
+            (dir::EnumBackingType::Int(_), dir::EnumFieldValue::Int(value)) => {
                 self.enum_int_constant(value, backing, node)?
             }
-            (EnumBackingType::String, EnumFieldValue::String(value)) => {
+            (dir::EnumBackingType::String, dir::EnumFieldValue::String(value)) => {
                 let (value, _) = self.string_literal_value_for_id(value, Some(node))?;
                 value
             }
@@ -66,6 +63,16 @@ impl FunctionLowerer<'_> {
             }
         };
 
+        // wrap the backing payload into the nominal enum type when needed
+        let value = if matches!(
+            self.state.builder.tree().get(result_type),
+            mir::Type::Newtype { .. }
+        ) {
+            self.state.builder.bitcast(value, result_type)
+        } else {
+            value
+        };
+
         Ok(Some((value, result_type)))
     }
 
@@ -73,8 +80,8 @@ impl FunctionLowerer<'_> {
     fn enum_int_constant(
         &mut self,
         value: i64,
-        backing: EnumBackingType,
-        node: AnchoredGlobalNodeId,
+        backing: dir::EnumBackingType,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // ensure the enum backing type is integer
         let scalar = self
