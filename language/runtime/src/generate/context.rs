@@ -95,25 +95,10 @@ impl GeneratorContext {
     /// Return one retained patched DIR artifact.
     pub(crate) fn dir_patched(
         &self,
-        compiler: &Compiler,
+        _compiler: &Compiler,
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> Arc<DirPatched> {
-        if let Some(dir) = self.current_artifact(
-            ArtifactKey::dir_patched(module_id, profile_id),
-            |artifacts, version| artifacts.dir_patched(version),
-        ) {
-            return dir;
-        }
-
-        compiler
-            .run_to_completion(self.revision(), |compiler, _context| {
-                compiler.require_dir_patched(self.revision(), module_id, profile_id)
-            })
-            .unwrap_or_else(|error| {
-                panic!("failed to build patched dir for module {module_id:?}: {error:?}")
-            });
-
         self.current_artifact(
             ArtifactKey::dir_patched(module_id, profile_id),
             |artifacts, version| artifacts.dir_patched(version),
