@@ -116,7 +116,7 @@ fn byte_to_utf16_position_clamped(source: &File, byte_index: u32) -> (u32, u32) 
 /// Return line-start offsets for one file, computing them when missing.
 fn line_start_offsets_for_file(source: &File) -> Cow<'_, [u32]> {
     // reuse precomputed offsets when present
-    if let Some(line_start_offsets) = source.line_start_offsets.as_deref() {
+    if let Some(line_start_offsets) = source.line_start_offsets() {
         return Cow::Borrowed(line_start_offsets);
     }
 

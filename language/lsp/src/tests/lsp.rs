@@ -1,15 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::UriExt;
 use destack_lsp_server::jsonrpc::{ErrorCode, Response};
 use destack_service::LanguageService as LspLanguageService;
+use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::Repository;
+use destack_workspace::AmbientSnapshot;
 use {destack_lsp_types as lsp, destack_query as query};
 
 use super::fixture::TestLsp;
@@ -39,9 +39,12 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
     )));
     let root = fs.root().to_path_buf();
     let repository = Arc::new(
-        Repository::open_detected_from_fs(root.clone(), overlay.clone())
-            .expect("failed to import repository from overlay fs")
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        open_repository_from_fs(
+            root.clone(),
+            overlay.clone(),
+            AmbientSnapshot::capture_process(),
+        )
+        .expect("failed to import repository from overlay fs"),
     );
     // keep lsp workspace-service test deterministic: use a single compiler worker
     let compiler_options = CompilerOptions {
@@ -53,6 +56,8 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
         Some(overlay),
         vec![root.clone()],
         compiler_options,
+        None,
+        None,
     )
     .expect("expected workspace service");
 
@@ -92,9 +97,12 @@ fn test_lsp_workspace_service_virtual_update_preserves_inlay_type_hints() {
     )));
     let root = fs.root().to_path_buf();
     let repository = Arc::new(
-        Repository::open_detected_from_fs(root.clone(), overlay.clone())
-            .expect("failed to import repository from overlay fs")
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        open_repository_from_fs(
+            root.clone(),
+            overlay.clone(),
+            AmbientSnapshot::capture_process(),
+        )
+        .expect("failed to import repository from overlay fs"),
     );
     // keep lsp workspace-service test deterministic: use a single compiler worker
     let compiler_options = CompilerOptions {
@@ -106,6 +114,8 @@ fn test_lsp_workspace_service_virtual_update_preserves_inlay_type_hints() {
         Some(overlay),
         vec![root.clone()],
         compiler_options,
+        None,
+        None,
     )
     .expect("expected workspace service");
 
@@ -488,13 +498,13 @@ async fn test_lsp_execute_command_keeps_definition_requests_responsive() {
     let _ = test.harness.next_diagnostics_for(&lib_uri).await;
     let _ = test.harness.next_diagnostics_for(&main_uri).await;
 
-    // enqueue a workspace rescan command
+    // enqueue a workspace reload command
     let command_response: Option<lsp::LSPAny> = test
         .harness
         .request_result(
             "workspace/executeCommand",
             lsp::ExecuteCommandParams {
-                command: "destack.rescan".to_string(),
+                command: "destack.reload".to_string(),
                 arguments: Vec::new(),
                 work_done_progress_params: lsp::WorkDoneProgressParams {
                     work_done_token: None,

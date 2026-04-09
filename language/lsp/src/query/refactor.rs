@@ -32,9 +32,8 @@ fn file_for_workspace_edit(
     revision: Revision,
     file_id: FileId,
 ) -> Option<FileForEdit> {
-    // return the file when content is loaded
     let file = repository.file(revision, file_id).ok().flatten()?;
-    if file.is_loaded() && file.line_start_offsets.is_some() {
+    if file.has_line_index() {
         return Some(FileForEdit::Borrowed(file));
     }
 

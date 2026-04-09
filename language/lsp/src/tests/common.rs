@@ -112,7 +112,7 @@ fn test_position_to_byte_recovers_without_line_start_offsets() {
         FileType::Destack,
         "alpha\nbeta".to_string(),
     );
-    file.line_start_offsets = None;
+    file.clear_line_index();
 
     // resolve one position on the second line
     let position = destack_lsp_types::Position {
@@ -157,7 +157,7 @@ fn test_byte_to_utf16_position_clamps_to_end_of_file() {
         FileType::Destack,
         "line\n".to_string(),
     );
-    file.line_start_offsets = None;
+    file.clear_line_index();
 
     // resolve one byte offset past EOF
     let position = byte_to_utf16_position(&file, u32::MAX).expect("expected position");

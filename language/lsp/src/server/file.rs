@@ -11,8 +11,7 @@ use destack_formatter::{
 use destack_parser::Parser;
 use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, LanguageType, OverlayFileSystem, Span,
-    WATCHABLE_FILE_TYPES,
+    DiagnosticSeverity, File, FileId, LanguageType, OverlayFileSystem, Span, WATCHABLE_FILE_TYPES,
 };
 use destack_workspace::{FormatterOptions, Repository, Revision};
 use {destack_lsp_types as lsp, destack_query as query};
@@ -30,36 +29,6 @@ pub(super) fn file_from_snapshot_for_diagnostics(snapshot: &FileSnapshot) -> Opt
 
 /// Build a file from a snapshot payload.
 fn file_from_snapshot(snapshot: &FileSnapshot, file_id: FileId, content: &str) -> File {
-    // parse JSON when possible
-    if matches!(snapshot.file_type, FileType::Json)
-        && is_config_json_snapshot(snapshot)
-        && let Ok(file) = File::from_text_as_jsonc(
-            file_id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
-            content.to_string(),
-        )
-    {
-        return file;
-    }
-
-    // parse non config JSON strictly
-    if matches!(snapshot.file_type, FileType::Json)
-        && let Ok(file) = File::from_text_as_json(
-            file_id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
-            content.to_string(),
-        )
-    {
-        return file;
-    }
-
-    // fall back to text files for all other types
     File::from_text(
         file_id,
         snapshot.name.clone(),
@@ -68,23 +37,6 @@ fn file_from_snapshot(snapshot: &FileSnapshot, file_id: FileId, content: &str) -
         snapshot.file_type,
         content.to_string(),
     )
-}
-
-/// Return true when the snapshot refers to a JSON config file.
-fn is_config_json_snapshot(snapshot: &FileSnapshot) -> bool {
-    // resolve the effective filename
-    let name = snapshot
-        .path
-        .as_ref()
-        .and_then(|path| path.file_name())
-        .and_then(|name| name.to_str())
-        .unwrap_or(snapshot.name.as_str());
-
-    if name == "destack.json" || name == "jsconfig.json" {
-        return true;
-    }
-
-    name.starts_with("tsconfig") && name.ends_with(".json")
 }
 
 /// Build file watcher patterns for the client.
@@ -128,7 +80,14 @@ pub(super) fn create_language_service(
     roots: Vec<PathBuf>,
     compiler_options: CompilerOptions,
 ) -> Result<LspLanguageService, LanguageServiceError> {
-    LspLanguageService::with_options(repository, Some(overlay_fs), roots, compiler_options)
+    LspLanguageService::with_options(
+        repository,
+        Some(overlay_fs),
+        roots,
+        compiler_options,
+        None,
+        None,
+    )
 }
 
 /// Convert completion kind to LSP completion item kind.
@@ -242,6 +201,27 @@ fn format_expressions<'ast>(
     }
 
     Some(result)
+}
+
+/// Resolve formatting options for one path in one revision.
+pub(super) fn formatting_options_for_path(
+    repository: &Repository,
+    revision: Revision,
+    path: &std::path::Path,
+) -> FormatterOptions {
+    let package = repository.package_for_path(revision, path).ok().flatten();
+    if let Some(package) = package
+        && let Ok(Some(package_options)) = repository.package_options(revision, package.id)
+    {
+        return package_options.formatter;
+    }
+
+    repository
+        .workspace_options(revision)
+        .ok()
+        .flatten()
+        .map(|options| options.package.formatter)
+        .unwrap_or_default()
 }
 
 /// Format a range within a file and return the formatted content with the actual range.
