@@ -1,14 +1,13 @@
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
 use destack_ast::StringId;
 use destack_core::StringPool;
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target};
 use indexmap::IndexSet;
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, CompilerContext, LowerError, LowerResult, RequirementError};
 
@@ -35,7 +34,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::NodeTree,
     /// Provide access to the root expressions for the module.
-    pub(crate) dir_roots: &'a [LocalNodeId<dir::Expression>],
+    pub(crate) dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// Stable fallback node for diagnostics and synthetic types.
     pub(crate) anchor_node: dir::LocalNodeIdAny,
     /// Provide access to symbol metadata for type resolution.
@@ -57,11 +56,12 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) function_signature_types:
         HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
     /// Map DIR symbols to MIR global bindings.
-    pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
+    pub(crate) globals_by_symbol: HashMap<dir::GlobalSymbolId, GlobalBinding>,
     /// Map string literal contents to MIR globals.
     pub(crate) string_literal_globals: HashMap<StringId, mir::LocalNodeId<mir::Global>>,
     /// Map function environment layouts by function symbol.
-    pub(crate) function_environment_layouts: HashMap<GlobalSymbolId, FunctionEnvironmentLayout>,
+    pub(crate) function_environment_layouts:
+        HashMap<dir::GlobalSymbolId, FunctionEnvironmentLayout>,
     /// Cached empty function environment type.
     pub(crate) empty_function_environment_type: Option<mir::LocalNodeId<mir::Type>>,
     /// Cached empty function environment pointer type.
@@ -76,48 +76,48 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) vtable_field_name: StringId,
 
     /// Track interface slot data for dispatch lowering.
-    pub(crate) interface_slots_by_symbol: HashMap<GlobalSymbolId, Vec<InterfaceEntry>>,
+    pub(crate) interface_slots_by_symbol: HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
     /// Track canonical interface dispatch field nodes by interface member.
     pub(crate) interface_dispatch_fields_by_member: HashMap<u32, mir::LocalNodeId<mir::Field>>,
     /// Track interface slot lowering in progress.
-    pub(crate) interface_slots_in_progress: IndexSet<GlobalSymbolId>,
+    pub(crate) interface_slots_in_progress: IndexSet<dir::GlobalSymbolId>,
 
     /// Track nominal layout lowering by symbol.
-    pub(crate) nominal_layouts_by_symbol: HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
+    pub(crate) nominal_layouts_by_symbol: HashMap<dir::GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
     /// Track nominal layout lowering in progress.
-    pub(crate) nominal_layouts_in_progress: IndexSet<GlobalSymbolId>,
+    pub(crate) nominal_layouts_in_progress: IndexSet<dir::GlobalSymbolId>,
 
     /// Track class symbols that require vtable headers.
-    pub(crate) vtable_layout_symbols: Option<HashSet<GlobalSymbolId>>,
+    pub(crate) vtable_layout_symbols: Option<HashSet<dir::GlobalSymbolId>>,
     /// Track vtables that have been lowered.
-    pub(crate) vtable_by_symbol: HashMap<GlobalSymbolId, mir::VtableId>,
+    pub(crate) vtable_by_symbol: HashMap<dir::GlobalSymbolId, mir::VtableId>,
     /// Track vtable lowering in progress.
-    pub(crate) vtable_in_progress: IndexSet<GlobalSymbolId>,
+    pub(crate) vtable_in_progress: IndexSet<dir::GlobalSymbolId>,
     /// Precomputed dispatch table ids for class vtables.
-    pub(crate) vtable_ids_by_symbol: HashMap<GlobalSymbolId, mir::VtableId>,
+    pub(crate) vtable_ids_by_symbol: HashMap<dir::GlobalSymbolId, mir::VtableId>,
 
     /// Track itabs that have been lowered.
-    pub(crate) itab_by_pair: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::ItabId>,
+    pub(crate) itab_by_pair: HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), mir::ItabId>,
     /// Track itab lowering in progress.
-    pub(crate) itab_in_progress: IndexSet<(GlobalSymbolId, GlobalSymbolId)>,
+    pub(crate) itab_in_progress: IndexSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
 
     /// Track whether dispatch declarations are initialized.
     pub(crate) dispatch_declared: bool,
     /// Virtual dispatch slot ids keyed by method symbol.
-    pub(crate) virtual_method_slots_by_key: HashMap<(GlobalSymbolId, MethodKey), u32>,
+    pub(crate) virtual_method_slots_by_key: HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
 
     /// Ordered list of class symbols that require vtables.
-    pub(crate) vtable_class_symbols: Vec<GlobalSymbolId>,
+    pub(crate) vtable_class_symbols: Vec<dir::GlobalSymbolId>,
     /// Predeclared vtable globals keyed by class symbol.
-    pub(crate) vtable_globals_by_symbol: HashMap<GlobalSymbolId, VtableGlobal>,
+    pub(crate) vtable_globals_by_symbol: HashMap<dir::GlobalSymbolId, VtableGlobal>,
 
     /// Ordered interface itab pairs for deterministic table ids.
-    pub(crate) interface_itab_pairs: Vec<(GlobalSymbolId, GlobalSymbolId)>,
+    pub(crate) interface_itab_pairs: Vec<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
     /// Precomputed itab ids keyed by concrete and interface symbols.
-    pub(crate) interface_itab_ids: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::ItabId>,
+    pub(crate) interface_itab_ids: HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), mir::ItabId>,
 
     /// Set of symbols marked as bindings.
-    pub(crate) binding_symbols: HashSet<GlobalSymbolId>,
+    pub(crate) binding_symbols: HashSet<dir::GlobalSymbolId>,
     /// Binding ABI lowering toggle.
     pub(crate) binding_abi_lowering: bool,
     /// Cached runtime status layout for ABI lowering.
@@ -125,7 +125,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Cached binding function for taking runtime errors.
     pub(crate) take_platform_error_function: Option<mir::LocalNodeId<mir::Function>>,
     /// Function declarations waiting for body lowering.
-    pub(crate) pending_function_bodies: VecDeque<LocalNodeId<dir::Declaration>>,
+    pub(crate) pending_function_bodies: VecDeque<dir::LocalNodeId<dir::Declaration>>,
     /// Function declarations already queued for body lowering.
     pub(crate) queued_function_bodies: HashSet<u32>,
 }
@@ -139,7 +139,7 @@ impl<'a> ModuleLowerer<'a> {
         module: &'a Module,
         profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
-        dir_roots: &'a [LocalNodeId<dir::Expression>],
+        dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
         anchor_node: dir::LocalNodeIdAny,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
@@ -297,7 +297,10 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Resolve allocation mode for a symbol based on decorators and profile flags.
-    pub(crate) fn allocation_mode_for_symbol(&self, symbol: GlobalSymbolId) -> mir::AllocationMode {
+    pub(crate) fn allocation_mode_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> mir::AllocationMode {
         // load symbol decorators
         let symbol = self.symbols.get_symbol(symbol.local_id);
         let decorators = &symbol.decorators;
@@ -316,7 +319,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Create a MissingType error for a node.
-    pub(crate) fn missing_type_error(&self, node_id: GlobalNodeIdAny) -> LowerError {
+    pub(crate) fn missing_type_error(&self, node_id: dir::GlobalNodeIdAny) -> LowerError {
         LowerError::MissingType {
             node: node_id.into_anchored(Some(self.profile)),
         }
@@ -325,7 +328,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Resolve a declared or inferred type id for a node or return MissingType.
     pub(crate) fn declared_or_inferred_type_id_for_node_or_error(
         &self,
-        node_id: GlobalNodeIdAny,
+        node_id: dir::GlobalNodeIdAny,
     ) -> LowerResult<dir::LocalTypeId> {
         self.types
             .get_declared_or_inferred_type_id(node_id)
@@ -335,7 +338,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Resolve a symbol type id or return MissingType.
     pub(crate) fn type_id_for_symbol_or_error(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<dir::LocalTypeId> {
         self.types
@@ -346,7 +349,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a global binding for a symbol.
     pub(crate) fn insert_global_binding(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         binding: GlobalBinding,
     ) -> LowerResult<()> {
         // record the global binding once
@@ -360,14 +363,14 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Return the canonical instance key for a symbol-backed item.
-    pub(crate) fn symbol_instance_key(&self, symbol: GlobalSymbolId) -> InstanceKey {
+    pub(crate) fn symbol_instance_key(&self, symbol: dir::GlobalSymbolId) -> InstanceKey {
         InstanceKey::symbol(symbol)
     }
 
     /// Return the lowered function id for a symbol-backed instance.
     pub(crate) fn function_for_symbol(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         let instance = self.symbol_instance_key(symbol);
         self.functions_by_instance.get(&instance).copied()
@@ -376,7 +379,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Register a function binding and signature type for a symbol.
     pub(crate) fn register_function_binding_for_symbol(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         function_id: mir::LocalNodeId<mir::Function>,
         signature_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
@@ -425,7 +428,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert interface slots for a symbol.
     pub(crate) fn insert_interface_slots(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         slots: Vec<InterfaceEntry>,
     ) -> LowerResult<()> {
         // record interface slots once
@@ -441,7 +444,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a vtable global for a class symbol.
     pub(crate) fn insert_vtable_global(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         vtable: VtableGlobal,
     ) -> LowerResult<()> {
         // record the vtable global once
@@ -457,7 +460,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a vtable id for a class symbol.
     pub(crate) fn insert_vtable_id(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         table_id: mir::VtableId,
     ) -> LowerResult<()> {
         // record the vtable id once
@@ -473,7 +476,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a vtable table id for a class symbol.
     pub(crate) fn insert_vtable_table(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         table_id: mir::VtableId,
     ) -> LowerResult<()> {
         // record the lowered vtable table once
@@ -489,10 +492,10 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a virtual method slot id for a method symbol.
     pub(crate) fn insert_virtual_method_slot(
         &mut self,
-        class_symbol: GlobalSymbolId,
+        class_symbol: dir::GlobalSymbolId,
         key: MethodKey,
         slot_id: u32,
-        member_id: LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
     ) -> LowerResult<()> {
         let slot_key = (class_symbol, key);
         if self.virtual_method_slots_by_key.contains_key(&slot_key) {
@@ -511,7 +514,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a precomputed itab id for an interface pair.
     pub(crate) fn insert_interface_itab_id(
         &mut self,
-        pair: (GlobalSymbolId, GlobalSymbolId),
+        pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
         table_id: mir::ItabId,
     ) -> LowerResult<()> {
         // record the interface itab id once
@@ -525,7 +528,10 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Require a precomputed vtable id for a class symbol.
-    pub(crate) fn require_vtable_id(&self, symbol: GlobalSymbolId) -> LowerResult<mir::VtableId> {
+    pub(crate) fn require_vtable_id(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> LowerResult<mir::VtableId> {
         self.vtable_ids_by_symbol
             .get(&symbol)
             .copied()
@@ -538,7 +544,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Require a precomputed itab id for a concrete/interface pair.
     pub(crate) fn require_itab_id(
         &self,
-        pair: (GlobalSymbolId, GlobalSymbolId),
+        pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
     ) -> LowerResult<mir::ItabId> {
         self.interface_itab_ids
             .get(&pair)
@@ -552,7 +558,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Insert a lowered itab table id for an interface pair.
     pub(crate) fn insert_itab_table(
         &mut self,
-        pair: (GlobalSymbolId, GlobalSymbolId),
+        pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
         table_id: mir::ItabId,
     ) -> LowerResult<()> {
         // record the lowered itab table once
@@ -638,7 +644,7 @@ impl<'a> ModuleLowerer<'a> {
     fn finish_lowering(&mut self) -> LowerResult<()> {
         // realize nominal types so layouts are cached
         self.lower_declared_types()?;
-        self.declare_newtype_aliases()?;
+        self.declare_nominal_aliases()?;
 
         // emit final dispatch tables and type metadata
         self.emit_dispatch()?;
@@ -849,6 +855,18 @@ impl<'a> ModuleLowerer<'a> {
             cached_types.push((*type_id, mir_type));
         }
 
+        // collect all MIR types so synthetic aggregate layouts get metadata too
+        let all_mir_types: Vec<_> = self
+            .builder
+            .tree()
+            .iter_nodes::<mir::Type>()
+            .map(|(ty, _)| ty)
+            .collect();
+        let synthetic_anchor = self
+            .anchor_node
+            .into_global(self.module_id)
+            .into_anchored(Some(self.profile));
+
         // finalize metadata for each cached type
         for (type_id, mir_type) in cached_types {
             let anchor = self.type_anchor(type_id);
@@ -858,6 +876,11 @@ impl<'a> ModuleLowerer<'a> {
             if let Some(symbol) = self.types.symbol_for_instance_type(type_id) {
                 self.lineage_metadata_for_symbol(symbol, mir_type, anchor)?;
             }
+        }
+
+        // finish raw layout metadata for MIR-only aggregate repr types
+        for mir_type in all_mir_types {
+            self.layout_metadata_for_mir_type(mir_type, synthetic_anchor)?;
         }
 
         self.validate_metadata_names_assigned()?;
@@ -954,19 +977,19 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Declare newtype aliases in the MIR tree.
-    fn declare_newtype_aliases(&mut self) -> LowerResult<()> {
+    /// Declare nominal aliases in the MIR tree.
+    fn declare_nominal_aliases(&mut self) -> LowerResult<()> {
         // collect existing aliases by name
         let mut existing_aliases = HashSet::new();
         for (_, alias) in self.builder.tree().iter_nodes::<mir::TypeAlias>() {
             existing_aliases.insert(alias.name);
         }
 
-        // emit aliases for each lowered newtype
+        // emit aliases for each lowered nominal type
         for symbol_id in 0..self.symbols.symbol_count() {
-            // skip non newtype symbols
+            // skip non nominal symbols
             let symbol = self.symbols.get_symbol_by_id(symbol_id);
-            if symbol.ty != dir::SymbolType::Newtype {
+            if !matches!(symbol.ty, dir::SymbolType::Newtype | dir::SymbolType::Enum) {
                 continue;
             }
 
@@ -985,7 +1008,7 @@ impl<'a> ModuleLowerer<'a> {
                 let anchor = self.type_anchor(instance_type_id);
                 return Err(LowerError::UnsupportedConstruct {
                     node: anchor,
-                    message: "newtype alias missing symbol name".to_string(),
+                    message: "nominal alias missing symbol name".to_string(),
                 });
             };
 

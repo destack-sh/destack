@@ -1,6 +1,3 @@
-use destack_dir::{
-    Declarator, EnumFieldValue, Expression, LocalNodeId, Mutability, Pattern, Resolution,
-};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -12,9 +9,9 @@ impl ModuleLowerer<'_> {
     /// Lower a module-level let/const binding to MIR globals.
     pub(crate) fn lower_module_let(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        mutability: Mutability,
-        declarators: &[LocalNodeId<Declarator>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        mutability: dir::Mutability,
+        declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> LowerResult<()> {
         for declarator_id in declarators {
             let declarator = self.dir_tree.get(*declarator_id);
@@ -32,7 +29,7 @@ impl ModuleLowerer<'_> {
             // get the binding pattern
             let pattern_id = declarator.pattern;
             let pattern = self.dir_tree.get(pattern_id);
-            let Pattern::Binding {
+            let dir::Pattern::Binding {
                 symbol: symbol_id,
                 pattern: nested_pattern,
                 ..
@@ -105,19 +102,21 @@ impl ModuleLowerer<'_> {
     /// Try to evaluate an expression as a constant initializer.
     pub(crate) fn lower_const_initializer(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         mir_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<Option<mir::GlobalInitializer>> {
         let expression = self.dir_tree.get(expression_id);
         let initializer = match expression {
-            Expression::ScalarLiteral { value } => self.lower_const_scalar_literal(value, mir_type),
-            Expression::Parenthesized { expression } => {
+            dir::Expression::ScalarLiteral { value } => {
+                self.lower_const_scalar_literal(value, mir_type)
+            }
+            dir::Expression::Parenthesized { expression } => {
                 return self.lower_const_initializer(*expression, mir_type);
             }
-            Expression::Cast { value, .. } => {
+            dir::Expression::Cast { value, .. } => {
                 return self.lower_const_initializer(*value, mir_type);
             }
-            Expression::Member { .. } | Expression::PrivateMember { .. } => {
+            dir::Expression::Member { .. } | dir::Expression::PrivateMember { .. } => {
                 return self.lower_const_member_initializer(expression_id, mir_type);
             }
             _ => None,
@@ -132,6 +131,8 @@ impl ModuleLowerer<'_> {
         value: &dir::ScalarLiteral,
         mir_type: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::GlobalInitializer> {
+        // peel transparent nominal wrappers before matching initializer payloads
+        let mir_type = self.global_initializer_repr_type(mir_type);
         let mir_ty = self.builder.tree().get(mir_type);
         let constant = match (value, mir_ty) {
             (dir::ScalarLiteral::Boolean(b), mir::Type::Boolean) => mir::Constant::boolean(*b),
@@ -185,10 +186,24 @@ impl ModuleLowerer<'_> {
         Some(mir::GlobalInitializer::scalar(constant))
     }
 
+    /// Resolve the physical representation type for one global initializer.
+    fn global_initializer_repr_type(
+        &self,
+        mut mir_type: mir::LocalNodeId<mir::Type>,
+    ) -> mir::LocalNodeId<mir::Type> {
+        loop {
+            let mir::Type::Newtype { inner, .. } = self.builder.tree().get(mir_type) else {
+                return mir_type;
+            };
+
+            mir_type = *inner;
+        }
+    }
+
     /// Lower static member constants into global initializers.
     fn lower_const_member_initializer(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         mir_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<Option<mir::GlobalInitializer>> {
         // resolve the static symbol target for the member expression
@@ -198,7 +213,7 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
         let resolution = self.types.get_resolution(resolution_id);
-        let Resolution::Static { candidate, .. } = resolution else {
+        let dir::Resolution::Static { candidate, .. } = resolution else {
             return Ok(None);
         };
 
@@ -216,10 +231,11 @@ impl ModuleLowerer<'_> {
         };
 
         // build the enum constant initializer
+        let mir_type = self.global_initializer_repr_type(mir_type);
         let mir_ty = self.builder.tree().get(mir_type);
         let initializer = match (value, mir_ty) {
             (
-                EnumFieldValue::Int(value),
+                dir::EnumFieldValue::Int(value),
                 mir::Type::Int {
                     width,
                     is_signed: signed,
@@ -239,7 +255,7 @@ impl ModuleLowerer<'_> {
                 };
                 Some(mir::GlobalInitializer::scalar(constant))
             }
-            (EnumFieldValue::Int(value), mir::Type::Isize) => {
+            (dir::EnumFieldValue::Int(value), mir::Type::Isize) => {
                 let width = self.type_lowerer.pointer_width_bits();
                 let constant = mir::Constant::Int {
                     value,
@@ -248,7 +264,7 @@ impl ModuleLowerer<'_> {
                 };
                 Some(mir::GlobalInitializer::scalar(constant))
             }
-            (EnumFieldValue::Int(value), mir::Type::Usize) => {
+            (dir::EnumFieldValue::Int(value), mir::Type::Usize) => {
                 let width = self.type_lowerer.pointer_width_bits();
                 let constant = mir::Constant::UInt {
                     value: value as u64,
@@ -256,7 +272,7 @@ impl ModuleLowerer<'_> {
                 };
                 Some(mir::GlobalInitializer::scalar(constant))
             }
-            (EnumFieldValue::String(value), _) => {
+            (dir::EnumFieldValue::String(value), _) => {
                 let string_type = self.type_lowerer.string_type();
                 if string_type != Some(mir_type) {
                     return Ok(None);
@@ -272,9 +288,9 @@ impl ModuleLowerer<'_> {
 }
 
 /// Convert DIR mutability to MIR mutability.
-pub(crate) fn lower_mutability(mutability: Mutability) -> mir::Mutability {
+pub(crate) fn lower_mutability(mutability: dir::Mutability) -> mir::Mutability {
     match mutability {
-        Mutability::Immutable => mir::Mutability::Immutable,
-        Mutability::Mutable => mir::Mutability::Mutable,
+        dir::Mutability::Immutable => mir::Mutability::Immutable,
+        dir::Mutability::Mutable => mir::Mutability::Mutable,
     }
 }

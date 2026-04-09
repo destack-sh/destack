@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::{StringId, StringPool};
 use destack_workspace::{Module, Package};
 use rustc_hash::FxHasher;
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
@@ -114,35 +114,14 @@ impl ModuleLowerer<'_> {
             return self.metadata_name_for_type(*value, mir_type, anchor);
         }
 
-        // enums lower to their backing types, so metadata names reuse backing primitives
-        if let Some(enum_symbol) = self.enum_symbol_for_type(type_id) {
-            let backing = self
-                .types
-                .get_enum_backing_type(enum_symbol)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "enum missing backing type".to_string(),
-                })?;
-            let backing_name = match backing {
-                dir::EnumBackingType::Int(int_type) => {
-                    self.primitive_metadata_name(dir::PrimitiveType::Int(int_type))
-                }
-                dir::EnumBackingType::String => {
-                    self.primitive_metadata_name(dir::PrimitiveType::String)
-                }
-            };
-            let name_id = self.builder.intern(&backing_name);
-            self.builder
-                .tree_mut()
-                .type_table
-                .ensure_display_name(mir_type, name_id);
-            return Ok(name_id);
-        }
         // use nominal naming when the type resolves to a symbol
         if let dir::Type::Reference { symbol, .. } = dir_type
             && matches!(
                 symbol.ty(),
-                dir::SymbolType::Struct | dir::SymbolType::Class | dir::SymbolType::Interface
+                dir::SymbolType::Struct
+                    | dir::SymbolType::Class
+                    | dir::SymbolType::Interface
+                    | dir::SymbolType::Enum
             )
         {
             let names = self.metadata_names_for_symbol(*symbol, anchor)?;
@@ -163,7 +142,10 @@ impl ModuleLowerer<'_> {
         if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
             && matches!(
                 symbol.ty(),
-                dir::SymbolType::Struct | dir::SymbolType::Class | dir::SymbolType::Interface
+                dir::SymbolType::Struct
+                    | dir::SymbolType::Class
+                    | dir::SymbolType::Interface
+                    | dir::SymbolType::Enum
             )
         {
             let names = self.metadata_names_for_symbol(symbol, anchor)?;
