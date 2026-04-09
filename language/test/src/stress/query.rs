@@ -201,7 +201,12 @@ impl StressIdeDriver for QueryStressDriver<'_> {
         &mut self,
         query_text: &str,
     ) -> Result<Vec<NormalizedWorkspaceSymbol>, String> {
-        let symbols = query::workspace_symbols(&self.workspace.repository, query_text, 64);
+        let symbols = query::workspace_symbols(
+            &self.workspace.repository,
+            self.workspace.revision,
+            query_text,
+            64,
+        );
 
         for symbol in &symbols {
             self.workspace.validate_span(symbol.range)?;

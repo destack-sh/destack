@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_workspace::Repository;
+use destack_workspace::{AmbientSnapshot, Repository};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision,
-    discover_file_cases, fixtures_dir, remember_default_profile_for_module,
+    default_profile_id_for_module, discover_file_cases, fixtures_dir, provide_workspace_artifacts,
 };
 
 /// Stress test suite for the type checker.
@@ -58,7 +58,10 @@ fn run_checker_stress(test: &Case) -> CaseResult {
 
     // set up compiler
     let cwd = test.path.parent().unwrap().to_path_buf();
-    let repository = Arc::new(Repository::open_root(cwd.clone()));
+    let repository = Arc::new(Repository::open_root(
+        cwd.clone(),
+        AmbientSnapshot::capture_process(),
+    ));
     let program = repository.clone();
     let compiler = Arc::new(Compiler::new(
         repository.clone(),
@@ -77,15 +80,13 @@ fn run_checker_stress(test: &Case) -> CaseResult {
     };
 
     // analyze schedules import + bind + resolve automatically
-    let profile = remember_default_profile_for_module(&program, &compiler, revision, module_id);
-    compiler.enqueue(
-        revision,
-        ArtifactKey::DirAnalyzed {
-            module: module_id,
-            profile,
-        },
-    );
-    compiler.compile();
+    let profile = default_profile_id_for_module(&program, revision, module_id);
+    let artifact_keys = vec![ArtifactKey::DirAnalyzed {
+        module: module_id,
+        profile,
+    }];
+    let _revision =
+        provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys);
 
     let elapsed = start.elapsed();
     eprintln!("  {file_size} bytes, {line_count} lines, checked in {elapsed:?}");

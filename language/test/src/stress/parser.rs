@@ -2,9 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use destack_parser::Parser;
-use destack_source::{
-    File, FileId, FileStore, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
-};
+use destack_source::{File, FileId, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri};
 use destack_workspace::{FormatterOptions, LinterOptions};
 
 use crate::core::{
@@ -68,7 +66,6 @@ fn run_parser_stress(test: &Case) -> CaseResult {
         FormatterOptions::default(),
         LinterOptions::default(),
     );
-    let files = FileStore::new();
 
     // load test file
     let uri = Uri::from_path(&test.path);
@@ -92,13 +89,12 @@ fn run_parser_stress(test: &Case) -> CaseResult {
         file_type,
         content,
     );
-    files.insert(file);
-    let file = files.get(file_id);
+    let file = Arc::new(file);
 
     // parse only
     let start = std::time::Instant::now();
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(file, language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
     let _ast = parser.parse();
     let elapsed = start.elapsed();
 

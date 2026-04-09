@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use destack_parser::Parser;
-use destack_source::{
-    File, FileId, FileStore, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
-};
+use destack_source::{File, FileId, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri};
 use destack_workspace::{FormatterOptions, LinterOptions};
 
 use crate::core::{
@@ -61,7 +59,6 @@ fn run_parser_case(test: &Case) -> CaseResult {
         FormatterOptions::default(),
         LinterOptions::default(),
     );
-    let files = FileStore::new();
 
     // load the file
     let uri = Uri::from_path(&test.path);
@@ -76,15 +73,22 @@ fn run_parser_case(test: &Case) -> CaseResult {
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
     let file_id = FileId::from_logical_path(&test.path);
-    let file = File::from_text(file_id, name, uri, path, file_type, content);
-    files.insert(file);
-    let file = files.get(file_id);
+    let file = Arc::new(File::from_text(
+        file_id, name, uri, path, file_type, content,
+    ));
+    let file_for_id = |current_file_id| {
+        if current_file_id == file_id {
+            Some(file.clone())
+        } else {
+            None
+        }
+    };
 
     // parse the file
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(file, language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
     let _expressions = parser.parse();
 
     // check for unexpected diagnostics
-    check_diagnostics(test, &files, &parser.diagnostics)
+    check_diagnostics(test, &file_for_id, &parser.diagnostics)
 }

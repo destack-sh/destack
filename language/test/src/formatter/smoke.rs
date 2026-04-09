@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, format_diagnostics, open_repository_with_options};
+use crate::core::{Case, CaseResult, format_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{
@@ -9,11 +9,11 @@ use destack_formatter::{
 };
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileStore, FileSystem,
-    FileType, IndentStyle, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
+    LanguageType, PrintOptions, Uri, print_diff,
 };
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, LinterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
 };
 use serde::Deserialize;
 
@@ -131,15 +131,6 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
             };
         }
     };
-    let cwd = case
-        .input_path
-        .parent()
-        .map(|path| path.to_path_buf())
-        .unwrap_or_default();
-    let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let repository =
-        open_repository_with_options(cwd, fs, formatter_options, LinterOptions::default());
-
     let original = match std::fs::read_to_string(&case.input_path) {
         Ok(content) => content,
         Err(error) => {
@@ -152,7 +143,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         }
     };
 
-    let first_pass = match format_source(&repository, &case.input_path, &original) {
+    let first_pass = match format_source(&case.input_path, &original, formatter_options) {
         Ok(formatted) => formatted,
         Err(message) => {
             return CaseResult::Failed { message };
@@ -184,7 +175,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         };
     }
 
-    let second_pass = match format_source(&repository, &case.input_path, &first_pass) {
+    let second_pass = match format_source(&case.input_path, &first_pass, formatter_options) {
         Ok(formatted) => formatted,
         Err(message) => {
             return CaseResult::Failed { message };
@@ -204,12 +195,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
 }
 
 /// Format a single source file with formatter defaults.
-fn format_source(
-    repository: &Arc<destack_workspace::Repository>,
-    path: &Path,
-    source: &str,
-) -> Result<String, String> {
-    let files = FileStore::new();
+fn format_source(path: &Path, source: &str, formatter: FormatterOptions) -> Result<String, String> {
     let file_type = FileType::from_path(path)
         .ok_or_else(|| format!("unsupported file type: {}", path.display()))?;
     let name = path
@@ -227,7 +213,13 @@ fn format_source(
         file_type,
         source.to_string(),
     ));
-    files.insert((*file).clone());
+    let file_for_id = |current_file_id| {
+        if current_file_id == file_id {
+            Some(file.clone())
+        } else {
+            None
+        }
+    };
 
     // dispatch css and html through the shared formatter path directly
     if matches!(file_type, FileType::Css | FileType::Html) {
@@ -251,7 +243,7 @@ fn format_source(
             diagnostics.insert(diagnostic);
         }
         let options = PrintOptions::new().with_colorizer(source_colorizer());
-        let rendered = format_diagnostics(&files, &diagnostics, options);
+        let rendered = format_diagnostics(&file_for_id, &diagnostics, options);
         return Err(format!(
             "parse errors in '{}':\n\n{rendered}",
             path.display()
@@ -266,7 +258,7 @@ fn format_source(
         &expressions,
         &file,
         language_type,
-        repository.formatter,
+        formatter,
     ))
 }
 

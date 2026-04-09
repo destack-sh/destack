@@ -13,7 +13,7 @@ use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
 use destack_session::Session;
 use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{Ref, Repository, Target};
+use destack_workspace::{AmbientSnapshot, Ref, Repository, Target};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
@@ -297,7 +297,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     // set up the repository with the physical filesystem
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let repository = Arc::new(
-        Repository::open_root_from_fs(test.path.clone(), fs)
+        Repository::open_root_from_fs(test.path.clone(), fs, AmbientSnapshot::capture_process())
             .expect("failed to import repository from emit runner file system")
             .with_cache(Arc::new(MemoryCacheStore::new())),
     );
@@ -317,6 +317,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let linter = Arc::new(Linter::new(repository.clone()));
     let session = Session::new(
         test.path.clone(),
+        test.path.clone(),
         repository.clone(),
         Ref::for_workspace_root(repository.workspace_root()),
         None,
@@ -327,13 +328,13 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     )
     .expect("failed to initialize emit session");
     session
-        .materialize_filesystem(true)
+        .scan_filesystem(true)
         .expect("failed to reload emit workspace");
     let revision = current_workspace_revision(&repository);
 
     // load the tracked package config through the real repository path
     let declaration = match repository
-        .destack_declaration_for_path(revision, &destack_config_path)
+        .destack_declaration_for_file_path(revision, &destack_config_path)
         .expect("failed to load tracked destack.json from revision")
         .map(|declaration| declaration.as_ref().clone())
     {

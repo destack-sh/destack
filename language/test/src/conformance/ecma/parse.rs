@@ -10,10 +10,11 @@ use destack_source::{
     DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType, LanguageType,
     MemoryFileSystem, ModuleId, Uri,
 };
-use destack_workspace::{Repository, Revision};
+use destack_workspace::{AmbientSnapshot, Repository, Revision};
 
 use crate::core::{
-    remember_default_profile_for_module, write_workspace_file, write_workspace_text_file,
+    default_profile_id_for_module, provide_workspace_artifacts, write_workspace_file,
+    write_workspace_text_file,
 };
 
 /// Outcome of checking a file for conformance testing.
@@ -153,9 +154,13 @@ impl SharedConformanceEnvironment {
         fs.create_dir_all(&cwd)
             .expect("failed to create conformance workspace root");
         let repository = Arc::new(
-            Repository::open_root_from_fs(cwd.clone(), fs.clone())
+            Repository::open_root_from_fs(
+                cwd.clone(),
+                fs.clone(),
+                AmbientSnapshot::capture_process(),
+            )
                 .expect("failed to import repository from conformance file system")
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+                .with_cache(Arc::new(MemoryCacheStore::new())),
         );
         Self {
             repository,
@@ -324,7 +329,7 @@ fn parse_file_with_compiler(
     let (revision, module_id) = apply_default_destack_config(&program, &root, &file_path);
 
     // create compiler and compile the module
-    let compiler = Compiler::new(
+    let compiler = Arc::new(Compiler::new(
         repository.clone(),
         CompilerOptions {
             workers: 1,
@@ -342,19 +347,17 @@ fn parse_file_with_compiler(
             emit_dry_run: true,
             ..Default::default()
         },
-    );
+    ));
 
     // run up to analyze
-    let profile = remember_default_profile_for_module(&program, &compiler, revision, module_id);
-    compiler.enqueue(
-        revision,
-        ArtifactKey::DirAnalyzed {
-            module: module_id,
-            profile,
-        },
-    );
+    let profile = default_profile_id_for_module(&program, revision, module_id);
+    let artifact_keys = vec![ArtifactKey::DirAnalyzed {
+        module: module_id,
+        profile,
+    }];
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        compiler.compile();
+        let _revision =
+            provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys);
     }));
 
     // panics during compilation are treated as errors
