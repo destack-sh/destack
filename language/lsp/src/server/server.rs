@@ -11,14 +11,15 @@ use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_service::{
-    LanguageService as LspLanguageService, LanguageServiceError, RescanReason, WorkspaceMessage,
-    WorkspaceMessageKind as ProtocolMessageKind,
+    LanguageService as LspLanguageService, LanguageServiceError, LanguageServiceMessage,
+    LanguageServiceMessageKind as ProtocolMessageKind, ReloadReason,
 };
+use destack_session::open_repository_from_fs;
 use destack_source::{
     BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
     PhysicalFileSystem, Uri,
 };
-use destack_workspace::{Repository, Revision, WorkspaceKind};
+use destack_workspace::{AmbientSnapshot, Repository, Revision};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 use tokio::sync::Notify;
@@ -659,7 +660,10 @@ impl DestackLanguageServer {
     }
 
     /// Publish workspace messages with an explicit client handle.
-    async fn publish_watch_messages_for_command(client: &Client, messages: Vec<WorkspaceMessage>) {
+    async fn publish_watch_messages_for_command(
+        client: &Client,
+        messages: Vec<LanguageServiceMessage>,
+    ) {
         for message in messages {
             let message_type = match message.kind {
                 ProtocolMessageKind::Info => lsp::MessageType::INFO,
@@ -844,55 +848,24 @@ impl LanguageServer for DestackLanguageServer {
         // create repository with overlay filesystem
         let physical_fs = Arc::new(PhysicalFileSystem::new());
         let overlay_fs = Arc::new(OverlayFileSystem::with_inner(physical_fs));
-        let repository = Repository::open_detected_from_fs(cwd.clone(), overlay_fs.clone())
-            .map_err(|error| {
-                tracing::error!("lsp.initialize.repository_import_failed: {error}");
-                jsonrpc::Error::internal_error()
-            })?;
+        let repository = open_repository_from_fs(
+            cwd.clone(),
+            overlay_fs.clone(),
+            AmbientSnapshot::capture_process(),
+        )
+        .map_err(|error| {
+            tracing::error!("lsp.initialize.repository_import_failed: {error}");
+            jsonrpc::Error::internal_error()
+        })?;
         #[cfg(test)]
-        let repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
-        let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
-        let revision = repository.current(&reference).map_err(|error| {
-            tracing::error!("lsp.initialize.current_revision_failed: {error}");
-            jsonrpc::Error::internal_error()
-        })?;
-        let workspace = repository.workspace(revision).map_err(|error| {
-            tracing::error!("lsp.initialize.workspace_derive_failed: {error}");
-            jsonrpc::Error::internal_error()
-        })?;
-        let workspace_kind = match workspace.kind {
-            WorkspaceKind::Monorepo => "monorepo",
-            WorkspaceKind::SinglePackage => "single-package",
-        };
-        let package_paths = repository
-            .workspace_package_paths(revision)
-            .map_err(|error| {
-                tracing::error!("lsp.initialize.workspace_package_paths_failed: {error}");
-                jsonrpc::Error::internal_error()
-            })?;
-        let package_count = package_paths.len();
-        let package_paths = package_paths
-            .iter()
-            .map(|path| path.display().to_string())
-            .collect::<Vec<_>>();
-        let root = workspace.root.clone();
+        let repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
+        let root = repository.workspace_root().to_path_buf();
         self.client
             .log_message(
                 lsp::MessageType::INFO,
-                format!(
-                    "destack.initialize.workspace root={} kind={workspace_kind} packages={package_count}",
-                    root.display()
-                ),
+                format!("destack.initialize.workspace root={}", root.display()),
             )
             .await;
-        for package_path in &package_paths {
-            self.client
-                .log_message(
-                    lsp::MessageType::INFO,
-                    format!("destack.initialize.package {package_path}"),
-                )
-                .await;
-        }
 
         // merge discovery root with initialize roots
         let mut opened_roots = vec![root.clone()];
@@ -1056,7 +1029,7 @@ impl LanguageServer for DestackLanguageServer {
             type_hierarchy_provider: Some(lsp::OneOf::Left(true)),
             execute_command_provider: Some(lsp::ExecuteCommandOptions {
                 commands: vec![
-                    "destack.rescan".to_string(),
+                    "destack.reload".to_string(),
                     "destack.reindex".to_string(),
                     "destack.clearCache".to_string(),
                 ],
@@ -1116,15 +1089,17 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
         self.refresh_configuration().await;
 
-        // rescan so config changes refresh diagnostics
+        // reload filesystem state so config changes refresh diagnostics
         let started_at = Instant::now();
         let result = self
-            .run_blocking_workspace_operation(|service| service.rescan_all(RescanReason::Manual))
+            .run_blocking_workspace_operation(|service| {
+                service.reload_all_workspaces(ReloadReason::Manual)
+            })
             .await;
         let result = match result {
             Ok(result) => result,
             Err(error) => {
-                tracing::debug!(?error, "lsp.config_rescan.failed");
+                tracing::debug!(?error, "lsp.config_reload.failed");
                 return;
             }
         };
@@ -1133,7 +1108,7 @@ impl LanguageServer for DestackLanguageServer {
 
         tracing::info!(
             elapsed_ms = started_at.elapsed().as_millis(),
-            "lsp.config_rescan.completed"
+            "lsp.config_reload.completed"
         );
     }
 
@@ -1194,9 +1169,18 @@ impl LanguageServer for DestackLanguageServer {
         let query_uri = source_uri_from_lsp(&params.text_document.uri);
         let mut recovered_desync = false;
         let content = {
-            let Some((_, _, current_text)) =
-                self.language_service().tracked_document_for_path(&path)
-            else {
+            let tracked_document = match self.language_service().tracked_document_for_path(&path) {
+                Ok(tracked_document) => tracked_document,
+                Err(error) => {
+                    tracing::debug!(
+                        ?error,
+                        path = %path.display(),
+                        "lsp.did_change.tracked_document_failed"
+                    );
+                    return;
+                }
+            };
+            let Some((_, _, current_text)) = tracked_document else {
                 return;
             };
 
@@ -1276,7 +1260,7 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_operation = path.clone();
         let result = self
             .run_blocking_workspace_operation(move |service| {
-                service.sync_document(&path_for_operation, content)
+                service.save_document(&path_for_operation, content)
             })
             .await;
         let result = match result {
@@ -1865,11 +1849,11 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::ExecuteCommandParams,
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
-            "destack.rescan" | "destack.reindex" => {
+            "destack.reload" | "destack.reindex" => {
                 let started_at = Instant::now();
                 let result = self
                     .run_blocking_workspace_operation(|service| {
-                        service.rescan_all(RescanReason::Manual)
+                        service.reload_all_workspaces(ReloadReason::Manual)
                     })
                     .await;
                 let result = match result {
@@ -1903,7 +1887,7 @@ impl LanguageServer for DestackLanguageServer {
                     .run_blocking_workspace_operation(|service| {
                         service
                             .clear_cache_all()
-                            .and_then(|()| service.rescan_all(RescanReason::Manual))
+                            .and_then(|()| service.reload_all_workspaces(ReloadReason::Manual))
                     })
                     .await;
                 let result = match result {
@@ -2975,10 +2959,14 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_query = path.clone();
         let result = self
             .run_blocking_workspace_operation(move |service| {
-                service.with_query_file_for_path(
+                service.with_file_for_path(
                     &path_for_query,
-                    |program, file_id, file, revision| {
-                        let formatter = program.formatter;
+                    |_repository, file_id, file, revision| {
+                        let formatter = super::file::formatting_options_for_path(
+                            repository.as_ref(),
+                            revision,
+                            &path,
+                        );
                         let Some(formatted) =
                             format_file(repository.as_ref(), revision, file_id, &file, formatter)
                         else {
@@ -3037,8 +3025,9 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_query = path.clone();
         let result = self
             .run_blocking_workspace_operation(move |service| {
-                service.with_query_file_for_path(&path_for_query, |program, _file_id, file, _revision| {
-                    let formatter = program.formatter;
+                service.with_file_for_path(&path_for_query, |repository, _file_id, file, revision| {
+                    let formatter =
+                        super::file::formatting_options_for_path(repository, revision, &path);
                     let Some(start_offset) = position_to_byte(&file, &params.range.start) else {
                         return Err(LanguageServiceError::Internal {
                             detail:
@@ -3094,10 +3083,11 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_query = path.clone();
         let result = self
             .run_blocking_workspace_operation(move |service| {
-                service.with_query_file_for_path(
+                service.with_file_for_path(
                     &path_for_query,
-                    |program, _file_id, file, _revision| {
-                        let formatter = program.formatter;
+                    |repository, _file_id, file, revision| {
+                        let formatter =
+                            super::file::formatting_options_for_path(repository, revision, &path);
                         let Some(end_offset) =
                             position_to_byte(&file, &params.text_document_position.position)
                         else {
@@ -3708,7 +3698,7 @@ impl LanguageServer for DestackLanguageServer {
         let query_path_for_read = query_path.clone();
         let result = self
             .run_blocking_workspace_operation(move |service| {
-                service.with_query_file_for_path(&query_path_for_read, |_, _, file, revision| {
+                service.with_file_for_path(&query_path_for_read, |_, _, file, revision| {
                     let Some(offset) =
                         position_to_byte(&file, &params.text_document_position.position)
                     else {
