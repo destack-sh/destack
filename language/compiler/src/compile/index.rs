@@ -3,7 +3,6 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_artifact::ModuleGraph;
 use destack_source::ProfileId;
-use destack_workspace::Profile;
 
 use crate::analyze::interface::graph::InterfaceComponentGraphIndex;
 use crate::resolve::module::globals::{GlobalSymbolTable, GlobalSymbolTableCacheKey};
@@ -11,8 +10,6 @@ use crate::resolve::module::globals::{GlobalSymbolTable, GlobalSymbolTableCacheK
 /// Ephemeral compiler indices derived from authoritative artifacts.
 #[derive(Debug, Default)]
 pub(crate) struct CompilerIndex {
-    /// Derived semantic profiles keyed by deterministic id.
-    pub profiles: DashMap<ProfileId, Profile>,
     /// Cached interface component graph indices keyed by the current graph snapshot.
     pub interface_component_graph_indices:
         DashMap<ProfileId, (Arc<ModuleGraph>, Arc<InterfaceComponentGraphIndex>)>,

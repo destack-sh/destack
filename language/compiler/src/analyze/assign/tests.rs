@@ -10,7 +10,9 @@ use destack_source::{FileContent, Span};
 use destack_workspace::{Module, ProfileId, Ref};
 
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
-use crate::{AnalyzeError, AnalyzeOptions, Assignability, Compiler, TestProgram};
+use crate::{
+    AnalyzeError, AnalyzeOptions, Assignability, Compiler, TestProgram, run_to_completion,
+};
 
 /// Insert a type with a shared source id.
 fn insert_test_type(types: &mut TypeTable, source_id: LocalNodeIdAny, ty: Type) -> LocalTypeId {
@@ -72,11 +74,10 @@ fn is_type_assignable(
         .current(&reference)
         .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
 
-    compiler
-        .run_to_completion(revision, |compiler, _context| {
-            Ok::<_, AnalyzeError>(compiler.is_type_assignable(&mut ctx, target_id, source_id))
-        })
-        .unwrap_or_else(|error| panic!("failed to compute test assignability: {error:?}"))
+    run_to_completion(compiler, revision, |compiler, _context| {
+        Ok::<_, AnalyzeError>(compiler.is_type_assignable(&mut ctx, target_id, source_id))
+    })
+    .unwrap_or_else(|error| panic!("failed to compute test assignability: {error:?}"))
 }
 
 /// Number is assignable to number.
@@ -1704,7 +1705,7 @@ fn test_type_check_excess_property_anchor() {
         .unwrap_or_else(|| panic!("expected diagnostic EA208"));
 
     let file = test.file(module_id);
-    let content = match &file.content {
+    let content = match file.content.payload() {
         FileContent::Text { content } => content,
         _ => panic!("expected text file content"),
     };

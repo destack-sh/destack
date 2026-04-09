@@ -2,9 +2,9 @@ use destack_artifact::ArtifactKey;
 
 use crate::tests::scenario::{CompilerScenario, ScenarioStress, assert_ast_eq};
 
-/// Deduplicate one artifact task under concurrent enqueue pressure.
+/// Provide one AST concurrently without losing the published artifact.
 #[test]
-fn test_parallel_enqueues_share_one_ast_task() {
+fn test_parallel_provides_publish_one_ast() {
     let stress = ScenarioStress::new()
         .parallelism(8)
         .workers(4)
@@ -18,15 +18,12 @@ fn test_parallel_enqueues_share_one_ast_task() {
         .root("main.ts")
         .materialize();
 
-    // enqueue the same artifact from many threads
+    // provide the same artifact from many threads
     let run = workspace.open();
     let module_id = run.module_id("main.ts");
     run.parallel(stress.parallelism, |_, run| {
-        run.enqueue(ArtifactKey::ast(module_id));
+        run.provide(ArtifactKey::ast(module_id));
     });
-
-    // build the queued work once
-    run.compiler().compile();
 
     // verify the artifact was published
     assert!(
@@ -35,20 +32,11 @@ fn test_parallel_enqueues_share_one_ast_task() {
             .ast(run.current_revision(), module_id)
             .is_some()
     );
-
-    // verify the queue only created one ast task
-    let task_count = run
-        .compiler()
-        .task_handles()
-        .into_iter()
-        .filter(|handle| handle.artifact_key == ArtifactKey::ast(module_id))
-        .count();
-    assert_eq!(task_count, 1);
 }
 
-/// Deduplicate shared prerequisites under mixed concurrent enqueue pressure.
+/// Provide shared prerequisites under mixed concurrent requests.
 #[test]
-fn test_parallel_enqueues_share_one_ast_prerequisite() {
+fn test_parallel_provides_publish_shared_prerequisites() {
     let stress = ScenarioStress::new()
         .parallelism(8)
         .workers(4)
@@ -62,19 +50,16 @@ fn test_parallel_enqueues_share_one_ast_prerequisite() {
         .root("main.ts")
         .materialize();
 
-    // enqueue a mix of direct and dependent requests
+    // provide a mix of direct and dependent requests
     let run = workspace.open();
     let module_id = run.module_id("main.ts");
     run.parallel(stress.parallelism, |worker, run| {
         if worker % 2 == 0 {
-            run.enqueue(ArtifactKey::ast(module_id));
+            run.provide(ArtifactKey::ast(module_id));
         } else {
-            run.enqueue(ArtifactKey::dir_base(module_id));
+            run.provide(ArtifactKey::dir_base(module_id));
         }
     });
-
-    // build the queued work once
-    run.compiler().compile();
 
     // verify both artifacts were published
     assert!(
@@ -89,22 +74,6 @@ fn test_parallel_enqueues_share_one_ast_prerequisite() {
             .dir_base(run.current_revision(), module_id)
             .is_some()
     );
-
-    // verify the shared ast prerequisite only exists once
-    let ast_task_count = run
-        .compiler()
-        .task_handles()
-        .into_iter()
-        .filter(|handle| handle.artifact_key == ArtifactKey::ast(module_id))
-        .count();
-    let dir_base_task_count = run
-        .compiler()
-        .task_handles()
-        .into_iter()
-        .filter(|handle| handle.artifact_key == ArtifactKey::dir_base(module_id))
-        .count();
-    assert_eq!(ast_task_count, 1);
-    assert_eq!(dir_base_task_count, 1);
 }
 
 /// Keep repeated parallel fresh AST runs semantically stable.
@@ -127,11 +96,7 @@ fn test_parallel_fresh_ast_runs_stay_equivalent() {
     // build baseline ASTs from fresh parallel sessions
     let baselines = workspace.parallel_fresh(stress.parallelism, |_, run| {
         let module_id = run.module_id("main.ts");
-        run.compiler()
-            .run_to_completion(run.current_revision(), |compiler, context| {
-                compiler.process_ast(module_id, context)
-            })
-            .unwrap_or_else(|error| panic!("failed to build baseline ast: {error:?}"));
+        run.provide(ArtifactKey::ast(module_id));
         run.repository()
             .ast(run.current_revision(), module_id)
             .unwrap_or_else(|| panic!("expected baseline ast"))
@@ -148,11 +113,7 @@ fn test_parallel_fresh_ast_runs_stay_equivalent() {
     let repeated = run.repeat(stress.repeats, |_, run| {
         let asts = run.parallel(stress.parallelism, |_, run| {
             let module_id = run.module_id("main.ts");
-            run.compiler()
-                .run_to_completion(run.current_revision(), |compiler, context| {
-                    compiler.process_ast(module_id, context)
-                })
-                .unwrap_or_else(|error| panic!("failed to build repeated ast: {error:?}"));
+            run.provide(ArtifactKey::ast(module_id));
             run.repository()
                 .ast(run.current_revision(), module_id)
                 .unwrap_or_else(|| panic!("expected repeated ast"))

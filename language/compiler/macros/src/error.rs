@@ -548,7 +548,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
 
     Ok(quote! {
         // Import the DiagnosticFormat trait for field formatting in messages.
-        use crate::{DiagnosticFormat as _, TaskSkip, TaskSkipError};
+        use crate::{DiagnosticFormat as _, ObsoleteWork, ObsoleteWorkError};
 
         impl #enum_name {
             /// Phase letter for this error type.
@@ -649,20 +649,20 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             }
         }
 
-        impl From<#enum_name> for TaskError {
+        impl From<#enum_name> for CompileError {
             #[inline]
             fn from(error: #enum_name) -> Self {
-                TaskError::#phase(error)
+                CompileError::#phase(error)
             }
         }
 
-        impl TaskSkip for #enum_name {
+        impl ObsoleteWork for #enum_name {
             fn is_skipped(&self) -> bool {
                 matches!(self, Self::Skipped)
             }
         }
 
-        impl TaskSkipError for #enum_name {
+        impl ObsoleteWorkError for #enum_name {
             fn skipped() -> Self {
                 Self::Skipped
             }

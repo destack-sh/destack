@@ -33,8 +33,8 @@ impl Compiler {
             | ArtifactKey::DirAnalyzed { module, .. } => DiagnosticAnchor::from(*module),
             _ => DiagnosticAnchor::Global,
         };
-        let dependency = self.artifact_stamp_for_revision(revision, &key);
-        let requirement = ArtifactRequirement::new(anchor, key, dependency);
+        let version = self.artifact_version_for_revision(revision, &key);
+        let requirement = ArtifactRequirement::new(anchor, version);
 
         RequirementSet::one(requirement)
     }

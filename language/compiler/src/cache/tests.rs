@@ -10,6 +10,7 @@ use destack_builtin::LanguageSymbol;
 use destack_source::TemporaryPhysicalFileSystem;
 
 use super::store::LANGUAGE_CACHE_ABI;
+use crate::run_to_completion;
 use crate::tests::scenario::{
     append_file_text, build_disk_cache_compiler, build_memory_cache_compiler,
     dump_dir_prepared_nodes, dump_dir_prepared_symbols, normalize_ast, test_profile_key,
@@ -104,11 +105,12 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
         .context(program.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_language_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_language_environment(profile_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     let expected = compiler
         .repository
         .language_environment(program.current_revision(), profile_id)
@@ -144,11 +146,12 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
     assert_eq!(loaded.symbols, expected.symbols);
 
     // validate the public compiler path too
-    let resolved = compiler
-        .run_to_completion(program.current_revision(), |compiler, _context| {
-            compiler.resolve_language_environment(_context.revision(), profile_id)
-        })
-        .unwrap_or_else(|error| panic!("failed to load language environment: {error:?}"));
+    let resolved = run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, _context| compiler.resolve_language_environment(_context.revision(), profile_id),
+    )
+    .unwrap_or_else(|error| panic!("failed to load language environment: {error:?}"));
     assert_eq!(resolved.items, expected.items);
     assert_eq!(resolved.symbols, expected.symbols);
 }
@@ -167,11 +170,12 @@ fn test_language_environment_image_tracks_builtin_source_content() {
         .context(program.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_language_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_language_environment(profile_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     assert!(
         compiler
             .load_language_environment_image(program.current_revision(), profile_id)
@@ -214,11 +218,12 @@ fn test_library_environment_image_tracks_library_source_content() {
         .context(program.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_library_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist library environment: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_library_environment(profile_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to persist library environment: {error:?}"));
     assert!(
         compiler
             .load_library_environment_image(program.current_revision(), profile_id)
@@ -265,11 +270,12 @@ fn test_intrinsic_environment_image_tracks_builtin_source_content() {
         .context(program.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_intrinsic_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist intrinsic environment: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_intrinsic_environment(profile_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to persist intrinsic environment: {error:?}"));
     assert!(
         compiler
             .load_intrinsic_environment_image(program.current_revision(), profile_id)
@@ -316,11 +322,14 @@ fn test_resolved_dir_stays_available_after_library_environment_eviction() {
         .context(program.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, _context| {
             compiler.require_dir_resolved(_context.revision(), module_id, profile_id)
-        })
-        .unwrap_or_else(|error| panic!("failed to require resolved dir: {error:?}"));
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to require resolved dir: {error:?}"));
 
     let resolved_key = ArtifactKey::dir_resolved(module_id, profile_id);
     assert!(compiler.artifact_key_is_available(program.current_revision(), &resolved_key));
@@ -334,11 +343,14 @@ fn test_resolved_dir_stays_available_after_library_environment_eviction() {
     // published artifact availability is direct, not recursive through evicted dependencies
     assert!(compiler.artifact_key_is_available(program.current_revision(), &resolved_key));
 
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, _context| {
             compiler.require_dir_resolved(_context.revision(), module_id, profile_id)
-        })
-        .unwrap_or_else(|error| panic!("failed to reuse resolved dir: {error:?}"));
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to reuse resolved dir: {error:?}"));
 }
 
 /// Persist and load one AST image through the artifact cache.
@@ -385,11 +397,12 @@ fn test_compiler_reuses_ast_image_across_sessions() {
     let module_id = compiler
         .resolve_path_to_module(program.current_revision(), &module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_ast(module_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_ast(module_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
         .repository
         .ast(program.current_revision(), module_id)
@@ -437,11 +450,12 @@ fn test_compiler_reuses_ast_image_across_sessions() {
     assert_eq!(loaded_bytes, expected_bytes);
 
     // validate the public compiler path too
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_ast(module_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to load ast: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_ast(module_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to load ast: {error:?}"));
     let resolved = compiler
         .repository
         .ast(program.current_revision(), module_id)
@@ -463,11 +477,12 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
     let module_id = compiler
         .resolve_path_to_module(program.current_revision(), &module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_ast(module_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_ast(module_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
         .repository
         .ast(program.current_revision(), module_id)
@@ -515,11 +530,12 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
     );
 
     // rebuild and confirm the ast really changed
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, context| {
-            compiler.process_ast(module_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to rebuild ast: {error:?}"));
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, context| compiler.process_ast(module_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to rebuild ast: {error:?}"));
     let rebuilt = compiler
         .repository
         .ast(program.current_revision(), module_id)
@@ -625,11 +641,14 @@ fn test_compiler_reuses_dir_prepared_images_across_sessions() {
         .context(program.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, _context| {
             compiler.require_dir_prepared(_context.revision(), module_id, profile_id)
-        })
-        .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
     let expected = compiler
         .repository
         .dir_prepared(program.current_revision(), module_id, profile_id)
@@ -637,10 +656,13 @@ fn test_compiler_reuses_dir_prepared_images_across_sessions() {
     let expected_nodes = dump_dir_prepared_nodes(&compiler.repository.strings, &expected);
     let expected_symbols = dump_dir_prepared_symbols(&compiler.repository.strings, &expected);
     let cache_layout = session.artifact_cache_layout(LANGUAGE_CACHE_ABI);
-    let artifact_cache = ArtifactCache::new(session.cache_store().as_ref(), &cache_layout);
+    let artifact_cache = ArtifactCache::new(session.cache().as_ref(), &cache_layout);
     let image_key = ArtifactImageKey::DirPrepared {
         module: module_id,
-        profile: compiler.profile(profile_id).key.clone(),
+        profile: compiler
+            .profile_for_revision(program.current_revision(), profile_id)
+            .key
+            .clone(),
     };
     let stored_header = artifact_cache
         .load_header(&image_key)
@@ -696,11 +718,14 @@ fn test_compiler_reuses_dir_prepared_images_across_sessions() {
     assert_eq!(loaded_symbols, expected_symbols);
 
     // validate the public compiler path too
-    compiler
-        .run_to_completion(program.current_revision(), |compiler, _context| {
+    run_to_completion(
+        &compiler,
+        program.current_revision(),
+        |compiler, _context| {
             compiler.require_dir_prepared(_context.revision(), module_id, profile_id)
-        })
-        .unwrap_or_else(|error| panic!("failed to load prepared dir: {error:?}"));
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to load prepared dir: {error:?}"));
     let resolved = compiler
         .repository
         .dir_prepared(program.current_revision(), module_id, profile_id)
@@ -743,15 +768,14 @@ fn test_compiler_skips_artifact_image_writes_when_disk_cache_is_disabled() {
     let artifact_key = destack_artifact::ArtifactKey::ast(module_id);
 
     // the image store closure should not run at all
-    compiler
-        .run_to_completion(program.current_revision(), |_, _context| {
-            _context.store_artifact(&artifact_key, &(), |_, _, _| {
-                panic!("artifact image store should be skipped when disk cache is disabled")
-            });
-
-            Ok::<_, crate::ResolveError>(())
-        })
-        .unwrap_or_else(|_: crate::ResolveError| {
-            panic!("artifact image store should not yield diagnostics")
+    run_to_completion(&compiler, program.current_revision(), |_, _context| {
+        _context.store_artifact(&artifact_key, &(), |_, _, _| {
+            panic!("artifact image store should be skipped when disk cache is disabled")
         });
+
+        Ok::<_, crate::ResolveError>(())
+    })
+    .unwrap_or_else(|_: crate::ResolveError| {
+        panic!("artifact image store should not yield diagnostics")
+    });
 }

@@ -392,13 +392,8 @@ impl Compiler {
         }
 
         let mut expression_id = node_id.into_typed::<Expression>();
-        loop {
-            match ctx.tree.get(expression_id) {
-                Expression::Parenthesized { expression } => {
-                    expression_id = *expression;
-                }
-                _ => break,
-            }
+        while let Expression::Parenthesized { expression } = ctx.tree.get(expression_id) {
+            expression_id = *expression;
         }
 
         let expression = ctx.tree.get(expression_id);

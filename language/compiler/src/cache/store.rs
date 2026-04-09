@@ -1,4 +1,3 @@
-use crate::ArtifactTaskKeyExt;
 use crate::compile::{Compiler, CompilerContext};
 use destack_artifact::{
     ArtifactCache, ArtifactContentId, ArtifactImage, ArtifactImageDependency, ArtifactImageError,
@@ -59,6 +58,7 @@ impl Compiler {
         let mut image_dependencies = Vec::new();
         for requirement in self.current_requirements() {
             let image_key = requirement
+                .version
                 .key
                 .image_key_with(|profile_id| self.profile(profile_id).key.clone());
             let Some(content_id) = self.load_expected_artifact_content_id(revision, &image_key)?

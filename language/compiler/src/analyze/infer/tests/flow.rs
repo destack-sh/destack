@@ -1,4 +1,5 @@
 use super::*;
+use crate::run_to_completion;
 use destack_dir::NormalizationMode;
 
 /// Preserve function body and branch value tails from declared into analyzed DIR.
@@ -16,11 +17,12 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     );
 
     // check the parsed ast shape first
-    test.compiler
-        .run_to_completion(test.program.current_revision(), |compiler, context| {
-            compiler.process_ast(module_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to parse module {module_id:?}: {error:?}"));
+    run_to_completion(
+        &test.compiler,
+        test.program.current_revision(),
+        |compiler, context| compiler.process_ast(module_id, context),
+    )
+    .unwrap_or_else(|error| panic!("failed to parse module {module_id:?}: {error:?}"));
     let ast = test
         .repository
         .ast(test.program.current_revision(), module_id)

@@ -2,7 +2,9 @@ use crate::{Compiler, ExecuteError};
 
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ComptimeOutput, ProfileId};
+use destack_workspace::ProfileId;
+
+use super::ComptimeOutput;
 
 /// Patch information for a single comptime slot.
 #[derive(Debug, Clone)]

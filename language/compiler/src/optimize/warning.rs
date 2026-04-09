@@ -2,7 +2,7 @@ use destack_compiler_macros::DefineWarning;
 use destack_mir as mir;
 use destack_workspace::Repository;
 
-use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
+use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
 
 /// Warnings during the optimize phase.
 #[derive(Debug, Clone, PartialEq, DefineWarning)]

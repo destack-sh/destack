@@ -1,5 +1,5 @@
 use super::*;
-use crate::TaskPhase;
+use crate::CompilePhase;
 use destack_dir::{Parameter, Property};
 
 /// Analyze let expression infer type.
@@ -100,7 +100,7 @@ let f = (x:) => x;
     // run the pipeline and preserve later phases as no-op clean
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 
     // the lambda shape and parameter still survive in DIR
     let view = test.view(module_id);
@@ -147,7 +147,7 @@ foo(1, , 3);
     // run the pipeline and preserve later phases as no-op clean
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 
     // the call shape and its error slot still survive in DIR
     let view = test.view(module_id);
@@ -184,7 +184,7 @@ value.y;
     // run the pipeline and preserve later phases as no-op clean
     test.analyze_module(module_id);
     test.compile();
-    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+    test.check_no_diagnostics_for_phases(&[CompilePhase::Resolve, CompilePhase::Analyze]);
 
     // the object literal still keeps its error slot and valid sibling field
     let view = test.view(module_id);

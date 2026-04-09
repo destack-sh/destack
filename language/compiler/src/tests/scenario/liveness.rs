@@ -1,3 +1,5 @@
+use destack_artifact::ArtifactKey;
+
 use crate::tests::scenario::{CompilerScenario, ScenarioStress};
 
 /// Complete a repeated parallel resolved workload without stalling.
@@ -36,11 +38,7 @@ export const value: number = dep;
                 .default_profile_id_for_module(module_id);
 
             // drive resolved work to completion
-            run.compiler()
-                .run_to_completion(run.current_revision(), |compiler, _context| {
-                    compiler.require_dir_resolved(_context.revision(), module_id, profile_id)
-                })
-                .unwrap_or_else(|error| panic!("failed to resolve stressed module: {error:?}"));
+            run.provide(ArtifactKey::dir_resolved(module_id, profile_id));
 
             // report whether the resolved artifact published
             run.repository()

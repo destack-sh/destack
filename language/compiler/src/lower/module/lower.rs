@@ -277,23 +277,21 @@ impl<'a> ModuleLowerer<'a> {
         module: &Module,
         target: &TargetId,
     ) -> LowerResult<Target> {
-        let package = context.package(module.package_id);
-
-        // use the configured target when present
-        if let Some(target_config) = package.targets.get(target) {
-            return Ok(target_config.clone());
-        }
-
-        // fall back to implicit targets for tests and synthetic builds
-        let target_name = context.compiler().target_name(target);
-
-        Target::implicit_for_name(&target_name).ok_or_else(|| LowerError::Internal {
-            module: module.id,
-            message: format!(
-                "missing target config for module {:?} with target {target:?}",
-                module.id
-            ),
-        })
+        context
+            .compiler()
+            .repository
+            .effective_target(context.revision(), *target)
+            .map_err(|error| LowerError::Internal {
+                module: module.id,
+                message: format!("failed to load target {target:?}: {error}"),
+            })?
+            .ok_or_else(|| LowerError::Internal {
+                module: module.id,
+                message: format!(
+                    "missing target config for module {:?} with target {target:?}",
+                    module.id
+                ),
+            })
     }
 
     /// Resolve allocation mode for a symbol based on decorators and profile flags.

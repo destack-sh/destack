@@ -167,7 +167,7 @@ fn build_workspace(
         .expect("failed to initialize compiler bench session"),
     );
     session
-        .materialize_filesystem(true)
+        .scan_filesystem(true)
         .expect("failed to materialize compiler bench workspace");
 
     (compiler, session, modules)

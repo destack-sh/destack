@@ -1,23 +1,11 @@
 use destack_dir::SymbolDecorators;
 use destack_source::ModuleId;
 use destack_workspace::{
-    CompilerOptions, DiagnosticPolicy, Module, Package, Repository, Revision, TsCompilerOptions,
+    CompilerOptions, DiagnosticPolicy, Module, Repository, Revision, TargetSelection,
+    TsCompilerOptions,
 };
 
 use crate::{AnalyzeError, Compiler, CompilerContext};
-
-/// Load one package from one explicit revision.
-fn package_in_revision(
-    compiler: &Compiler,
-    revision: Revision,
-    package_id: destack_source::PackageId,
-) -> std::sync::Arc<Package> {
-    compiler
-        .repository
-        .package(revision, package_id)
-        .unwrap_or_else(|error| panic!("failed to load package: {error}"))
-        .unwrap_or_else(|| panic!("missing package"))
-}
 
 /// "TS++" semantic options used during analysis.
 #[derive(Debug, Clone, Copy)]
@@ -338,31 +326,14 @@ impl CompilerContext<'_> {
         options: CompilerOptions,
     ) -> (CompilerOptions, bool) {
         // use target-specific options when a config target is present
-        let package = package_in_revision(self.compiler(), revision, module.package_id);
-        let package_options = self
+        let default_target = self
             .compiler()
             .repository
-            .package_options(revision, package.id)
-            .unwrap_or_else(|error| panic!("failed to load package options: {error}"));
-        let Some(package_options) = package_options else {
-            return (options, false);
-        };
-
-        // select a target when we have an explicit default (or a single target)
-        let target = if let Some(name) = package_options.default_target.as_ref() {
-            let target_id = self
-                .compiler()
-                .repository
-                .intern_target_id(package.id, name);
-            package.targets.get(&target_id).cloned()
-        } else if package.targets.len() == 1 {
-            package.targets.values().next().cloned()
-        } else {
-            None
-        };
+            .default_target(revision, module.package_id)
+            .unwrap_or_else(|error| panic!("failed to load target snapshot: {error}"));
 
         // skip target-derived restrictions when no default target is selected
-        let Some(target) = target else {
+        let TargetSelection::Selected { target, .. } = default_target else {
             return (options, false);
         };
 

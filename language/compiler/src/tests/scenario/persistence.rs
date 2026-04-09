@@ -1,3 +1,4 @@
+use destack_artifact::ArtifactKey;
 use destack_builtin::LanguageSymbol;
 
 use crate::tests::scenario::{
@@ -50,12 +51,7 @@ fn test_reuses_language_environment_across_fresh_scenario_sessions() {
         .context(first.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    first
-        .compiler()
-        .run_to_completion(first.current_revision(), |compiler, context| {
-            compiler.process_language_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
+    first.provide(ArtifactKey::language_environment(profile_id));
     let expected = first
         .program()
         .repository()
@@ -211,11 +207,7 @@ fn test_language_environment_image_tracks_builtin_source_content() {
         .context(run.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    run.compiler()
-        .run_to_completion(run.current_revision(), |compiler, context| {
-            compiler.process_language_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
+    run.provide(ArtifactKey::language_environment(profile_id));
     assert!(
         run.compiler()
             .load_language_environment_image(run.current_revision(), profile_id)
@@ -341,11 +333,7 @@ fn test_library_environment_image_tracks_library_source_content() {
         .context(run.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    run.compiler()
-        .run_to_completion(run.current_revision(), |compiler, context| {
-            compiler.process_library_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist library environment: {error:?}"));
+    run.provide(ArtifactKey::library_environment(profile_id));
     assert!(
         run.compiler()
             .load_library_environment_image(run.current_revision(), profile_id)
@@ -397,11 +385,7 @@ fn test_intrinsic_environment_image_tracks_builtin_source_content() {
         .context(run.current_revision())
         .unwrap_or_else(|message| panic!("{message}"))
         .default_profile_id_for_module(module_id);
-    run.compiler()
-        .run_to_completion(run.current_revision(), |compiler, context| {
-            compiler.process_intrinsic_environment(profile_id, context)
-        })
-        .unwrap_or_else(|error| panic!("failed to persist intrinsic environment: {error:?}"));
+    run.provide(ArtifactKey::intrinsic_environment(profile_id));
     assert!(
         run.compiler()
             .load_intrinsic_environment_image(run.current_revision(), profile_id)

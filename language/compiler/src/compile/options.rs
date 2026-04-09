@@ -1,9 +1,7 @@
 use super::parallel::default_workers as resolve_default_workers;
-use destack_source::DiagnosticOptions;
-
-use crate::CompilerEventHandler;
 #[cfg(test)]
 use crate::tests::scenario::CompilerScenarioEventHandler;
+use destack_source::DiagnosticOptions;
 
 /// Get the default number of worker threads.
 pub fn default_workers() -> u16 {
@@ -73,9 +71,6 @@ pub struct CompilerOptions {
     /// Dry run: report what would be written without actually writing.
     pub emit_dry_run: bool,
 
-    /// Optional event handler for progress reporting.
-    /// Called for task start/complete/fail events during compilation.
-    pub event_handler: Option<CompilerEventHandler>,
     /// Optional internal scenario event handler for deterministic interleaving tests.
     #[cfg(test)]
     pub(crate) scenario_event_handler: Option<CompilerScenarioEventHandler>,
@@ -116,8 +111,6 @@ impl Default for CompilerOptions {
             emit_overwrite: true,
             emit_create_dirs: true,
             emit_dry_run: false,
-
-            event_handler: None,
             #[cfg(test)]
             scenario_event_handler: None,
             timings: false,
@@ -165,8 +158,7 @@ impl std::fmt::Debug for CompilerOptions {
             )
             .field("emit_overwrite", &self.emit_overwrite)
             .field("emit_create_dirs", &self.emit_create_dirs)
-            .field("emit_dry_run", &self.emit_dry_run)
-            .field("event_handler", &self.event_handler.is_some());
+            .field("emit_dry_run", &self.emit_dry_run);
 
         #[cfg(test)]
         debug.field(

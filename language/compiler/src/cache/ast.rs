@@ -56,21 +56,7 @@ impl Compiler {
             _ => None,
         };
         let file = self.cache_file_snapshot(revision, module.file_id).ok()?;
-        let file = if file.is_loaded() {
-            file.as_ref().clone()
-        } else {
-            let path = module.path.as_ref()?;
-            let content = self.repository.file_system().read_to_string(path).ok()?;
-
-            File::from_text(
-                module.file_id,
-                file.name.clone(),
-                file.uri.clone(),
-                file.path.clone(),
-                file.ty,
-                content,
-            )
-        };
+        let file = file.as_ref().clone();
 
         self.ast_image_header(module_id, &file, language_type)
     }
@@ -103,11 +89,9 @@ impl Compiler {
         file: &File,
         language_type: Option<LanguageType>,
     ) -> Option<AstImageContext> {
-        let source_hash = match &file.content {
+        let source_hash = match file.content.payload() {
             FileContent::Text { content } => hash_bytes(content.as_bytes()),
-            FileContent::Json { content, .. } => hash_bytes(content.as_bytes()),
             FileContent::Binary { content } => hash_bytes(content),
-            FileContent::Missing | FileContent::Unloaded => return None,
         };
 
         // parse-shaping config

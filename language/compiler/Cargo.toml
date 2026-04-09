@@ -33,7 +33,6 @@ destack_vm = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }
 
 # general
-crossbeam-deque = { workspace = true, optional = true }
 dashmap = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true }
@@ -58,12 +57,13 @@ clap = { workspace = true }
 criterion = { workspace = true }
 destack_formatter = { workspace = true }
 destack_linter = { workspace = true }
+destack_session = { workspace = true }
 pprof = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
 default = ["full"]
-parallel = ["dep:crossbeam-deque"]
+parallel = []
 native-codegen = ["dep:destack_codegen_native"]
 deadlock-detection = ["parking_lot/deadlock_detection"]
 optimize = []
@@ -77,15 +77,9 @@ full = [
     "builtin-full",
 ]
 core = ["builtin-core"]
-bench = []
-
 [[bench]]
 name = "destack_compile"
 harness = false
-
-[[example]]
-name = "bench_stats"
-required-features = ["bench"]
 
 [lints]
 workspace = true

@@ -47,7 +47,7 @@ use proc_macro::TokenStream;
 /// - `ALL` static array of `DiagnosticDefinition` for all variants
 /// - `ALL_CODES` static array of all code strings
 /// - `is_valid_code()` checks if a code string is valid
-/// - `Display`, `From<X> for TaskError`, `TryFrom` impls
+/// - `Display`, `From<X> for CompileError`, `TryFrom` impls
 #[proc_macro_derive(DefineError, attributes(phase, error))]
 pub fn define_error(input: TokenStream) -> TokenStream {
     error::define_error_impl(input)

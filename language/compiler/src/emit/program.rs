@@ -14,20 +14,22 @@ impl Compiler {
         let mut collector = RequirementCollector::new();
 
         // collect all packages that have this target name
-        let target_name = self.target_name(target_id);
+        let target_name = self
+            .repository
+            .effective_target(context.revision(), *target_id)
+            .ok()
+            .flatten()
+            .map(|target| target.name)
+            .unwrap_or_else(|| target_id.to_string());
         let mut packages_with_target = Vec::<PackageId>::new();
 
         for package_id in context.workspace_package_ids() {
             let package = context.package(package_id);
 
-            let has_target_name = package.targets.keys().any(|package_target_id| {
-                self.repository
-                    .target_name_by_target_id(*package_target_id)
-                    .is_some_and(|name| {
-                        let name: &str = name.as_ref();
-                        name == target_name
-                    })
-            });
+            let has_target_name = package
+                .targets
+                .values()
+                .any(|target| target.name == target_name);
             if has_target_name {
                 packages_with_target.push(package_id);
             }

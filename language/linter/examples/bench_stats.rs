@@ -8,10 +8,11 @@ use clap::{Parser, ValueEnum};
 
 use destack_artifact::{ArtifactKey, CacheStore, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions};
+use destack_session::Session;
 use destack_source::{MemoryFileSystem, ModuleId};
 use destack_workspace::{LintPreset, LinterOptions, Ref, Repository, Revision};
 
-use destack_linter::{LintLevel, LintPerformanceReport, LintRunner};
+use destack_linter::{LintLevel, LintPerformanceReport, LintRunner, Linter};
 
 /// Command line arguments.
 #[derive(Parser, Debug)]
@@ -106,16 +107,18 @@ fn main() {
         std::process::exit(2);
     }
 
-    let (repository, compiler) = create_program(args.workers);
+    let (repository, session) = create_program(args.workers);
     let revision = current_revision(&repository);
     let profile = ensure_profile_for_libs(&repository, revision, &args.libs);
     let profile_id = profile.id();
     let modules = load_modules_for_libs(&repository, &profile, &args.libs);
     let line_stats = compute_line_stats(&repository, revision, &modules);
 
-    run_import_phase(&compiler, &modules);
-    run_resolve_phase(&compiler, profile_id);
-    run_analyze_phase(&compiler, &modules, profile_id);
+    run_import_phase(&session, &modules);
+    run_resolve_phase(&session, profile_id);
+    run_analyze_phase(&session, &modules, profile_id);
+
+    let revision = current_revision(&repository);
 
     let lint_options = match args.preset {
         Preset::Recommended => LinterOptions::recommended(),
@@ -168,7 +171,7 @@ fn current_revision(repository: &Repository) -> Revision {
 }
 
 /// Create an in memory compiler program for benchmarking.
-fn create_program(workers: u16) -> (Arc<Repository>, Arc<Compiler>) {
+fn create_program(workers: u16) -> (Arc<Repository>, Arc<Session>) {
     let root_directory = current_dir().unwrap_or_else(|error| {
         panic!("failed to read current directory: {error}");
     });
@@ -181,7 +184,7 @@ fn create_program(workers: u16) -> (Arc<Repository>, Arc<Compiler>) {
     let repository = Arc::new(
         Repository::open_root_from_fs(root_directory.clone(), fs)
             .expect("failed to import repository from bench file system")
-            .with_cache_store(cache_store),
+            .with_cache(cache_store),
     );
     let compiler = Arc::new(Compiler::new(
         repository.clone(),
@@ -192,8 +195,25 @@ fn create_program(workers: u16) -> (Arc<Repository>, Arc<Compiler>) {
             ..CompilerOptions::default()
         },
     ));
+    let linter = Arc::new(Linter::new(repository.clone()));
+    let session = Arc::new(
+        Session::new(
+            root_directory,
+            repository.clone(),
+            Ref::for_workspace_root(repository.workspace_root()),
+            None,
+            compiler,
+            linter,
+            None,
+            None,
+        )
+        .expect("failed to initialize bench session"),
+    );
+    session
+        .scan_filesystem(true)
+        .expect("failed to reload bench workspace");
 
-    (repository, compiler)
+    (repository, session)
 }
 
 /// Ensure a profile with the requested lib set exists.
@@ -203,7 +223,7 @@ fn ensure_profile_for_libs(
     libs: &[String],
 ) -> destack_workspace::Profile {
     let default_profile = repository
-        .default_profile_for_module(revision, repository.root_module_id())
+        .default_profile_for_module(revision, repository.synthetic_root_module_id())
         .unwrap_or_else(|error| panic!("missing default profile for root module: {error}"));
     let mut key = default_profile.key.clone();
     key.lib = libs.to_vec();
@@ -273,54 +293,42 @@ fn compute_line_stats(
 }
 
 /// Run import tasks for modules and return the duration.
-fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
-    let revision = current_revision(&compiler.repository);
+fn run_import_phase(session: &Session, modules: &[ModuleId]) -> Duration {
+    let artifact_keys = modules
+        .iter()
+        .copied()
+        .map(ArtifactKey::dir_base)
+        .collect::<Vec<_>>();
 
-    for module_id in modules {
-        compiler.enqueue(revision, ArtifactKey::DirBase { module: *module_id });
-    }
-
-    let start = Instant::now();
-    compiler.compile();
-    start.elapsed()
+    provide_roots(session, &artifact_keys)
 }
 
 /// Run builtin and lib resolve tasks and return the duration.
-fn run_resolve_phase(compiler: &Compiler, profile_id: destack_workspace::ProfileId) -> Duration {
-    let revision = current_revision(&compiler.repository);
-
-    compiler.enqueue(
-        revision,
-        ArtifactKey::LibraryEnvironment {
-            profile: profile_id,
-        },
-    );
-
-    let start = Instant::now();
-    compiler.compile();
-    start.elapsed()
+fn run_resolve_phase(session: &Session, profile_id: destack_workspace::ProfileId) -> Duration {
+    provide_roots(session, &[ArtifactKey::library_environment(profile_id)])
 }
 
 /// Run analyze tasks and return the duration.
 fn run_analyze_phase(
-    compiler: &Compiler,
+    session: &Session,
     modules: &[ModuleId],
     profile_id: destack_workspace::ProfileId,
 ) -> Duration {
-    let revision = current_revision(&compiler.repository);
+    let artifact_keys = modules
+        .iter()
+        .copied()
+        .map(|module_id| ArtifactKey::dir_analyzed(module_id, profile_id))
+        .collect::<Vec<_>>();
 
-    for module_id in modules {
-        compiler.enqueue(
-            revision,
-            ArtifactKey::DirAnalyzed {
-                module: *module_id,
-                profile: profile_id,
-            },
-        );
-    }
+    provide_roots(session, &artifact_keys)
+}
 
+/// Provide one root artifact slice and return the duration.
+fn provide_roots(session: &Session, artifact_keys: &[ArtifactKey]) -> Duration {
     let start = Instant::now();
-    compiler.compile();
+    session
+        .provide(artifact_keys)
+        .unwrap_or_else(|error| panic!("failed to provide bench artifacts: {error}"));
     start.elapsed()
 }
 

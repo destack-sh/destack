@@ -1,3 +1,5 @@
+#![allow(unreachable_pub)]
+
 use std::fmt::Write;
 use std::time::SystemTime;
 

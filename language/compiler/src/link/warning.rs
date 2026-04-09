@@ -1,4 +1,4 @@
-use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
+use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
 use destack_compiler_macros::DefineWarning;
 use destack_mir::AnchoredGlobalNodeId;
 use destack_workspace::Repository;

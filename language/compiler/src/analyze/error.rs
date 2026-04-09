@@ -1,6 +1,6 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, ResolveError,
-    TaskError,
+    CompileError, DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet,
+    ResolveError,
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;

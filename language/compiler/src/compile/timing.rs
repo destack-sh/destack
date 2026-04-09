@@ -1,6 +1,36 @@
 use std::time::{Duration, Instant};
 
+use destack_parser::ParserTimingEntry;
+
 use crate::{Compiler, CompilerStats};
+
+/// One structured observation emitted during a compiler provide attempt.
+#[derive(Debug, Clone, Copy)]
+pub enum CompilerObservation {
+    /// One compiler timing tag sample.
+    TimingTag {
+        /// The timing tag name.
+        name: &'static str,
+        /// The inclusive duration for this sample.
+        duration: Duration,
+        /// The number of aggregated samples represented here.
+        sample_count: usize,
+    },
+    /// One parser timing tag sample observed during compilation.
+    ParserTimingTag {
+        /// The timing tag name.
+        name: &'static str,
+        /// The inclusive duration for this sample.
+        duration: Duration,
+        /// The self duration for this sample.
+        self_duration: Duration,
+        /// The number of aggregated samples represented here.
+        sample_count: usize,
+    },
+}
+
+/// Compiler observation callback type.
+pub type CompilerObservationHandler = std::sync::Arc<dyn Fn(CompilerObservation) + Send + Sync>;
 
 /// Static timing tag for section level instrumentation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -21,16 +51,32 @@ impl TimingTag {
 }
 
 /// Scoped timing guard that records elapsed time on drop.
-#[derive(Debug)]
 pub struct TimingScope<'a> {
     stats: &'a CompilerStats,
+    observer: Option<CompilerObservationHandler>,
     name: &'static str,
     started_at: Option<Instant>,
 }
 
+impl std::fmt::Debug for TimingScope<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TimingScope")
+            .field("stats", &"...")
+            .field("observer", &self.observer.is_some())
+            .field("name", &self.name)
+            .field("started_at", &self.started_at)
+            .finish()
+    }
+}
+
 impl<'a> TimingScope<'a> {
     /// Start a timing scope if timings are enabled.
-    pub fn new(stats: &'a CompilerStats, tag: TimingTag) -> Self {
+    pub fn new(
+        stats: &'a CompilerStats,
+        observer: Option<CompilerObservationHandler>,
+        tag: TimingTag,
+    ) -> Self {
         let started_at = if stats.timings_enabled() {
             Some(Instant::now())
         } else {
@@ -38,6 +84,7 @@ impl<'a> TimingScope<'a> {
         };
         Self {
             stats,
+            observer,
             name: tag.name(),
             started_at,
         }
@@ -58,13 +105,40 @@ impl Drop for TimingScope<'_> {
         };
         let elapsed = started_at.elapsed();
         self.stats.record_timing(self.name, elapsed);
+
+        if let Some(observer) = &self.observer {
+            observer(CompilerObservation::TimingTag {
+                name: self.name,
+                duration: elapsed,
+                sample_count: 1,
+            });
+        }
     }
 }
 
 impl Compiler {
+    /// Emit one compiler timing observation when a handler is installed.
+    pub(crate) fn emit_observation(&self, observation: CompilerObservation) {
+        let Some(handler) = self.current_observation_handler() else {
+            return;
+        };
+
+        handler(observation);
+    }
+
+    /// Emit one parser timing observation when a handler is installed.
+    pub(crate) fn emit_parser_timing_entry(&self, entry: ParserTimingEntry) {
+        self.emit_observation(CompilerObservation::ParserTimingTag {
+            name: entry.name,
+            duration: entry.duration,
+            self_duration: entry.self_duration,
+            sample_count: entry.count,
+        });
+    }
+
     /// Start a timing scope for the compiler.
     pub fn timing_scope(&self, tag: TimingTag) -> TimingScope<'_> {
-        TimingScope::new(&self.stats, tag)
+        TimingScope::new(&self.stats, self.current_observation_handler(), tag)
     }
 }
 
