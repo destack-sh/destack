@@ -11,11 +11,6 @@ impl<'a> Printer<'a> {
     /// Print one annotation.
     pub(crate) fn print_annotation(&mut self, annotation: &Annotation) -> JsPrintResult<()> {
         match annotation {
-            Annotation::Doc { string, .. } => {
-                self.write_punct("/**");
-                self.write_string_id(*string);
-                self.write_punct("*/");
-            }
             Annotation::Comment { string, .. } => {
                 self.write_punct("//");
                 self.write_string_id(*string);

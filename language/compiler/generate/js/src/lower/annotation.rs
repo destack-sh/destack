@@ -20,13 +20,7 @@ impl ModuleLowerer<'_> {
         _scope_id: dir::LocalNodeIdAny,
         annotation_id: dir::LocalNodeId<dir::Annotation>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Annotation>> {
-        let annotation = self.dir_tree.get(annotation_id);
-        let annotation = match annotation {
-            dir::Annotation::Doc { position, string } => {
-                let position = self.lower_annotation_position(*position);
-                let string = self.strings.intern_from(self.source_strings, *string);
-                js::Annotation::Doc { position, string }
-            }
+        match self.dir_tree.get(annotation_id) {
             dir::Annotation::Decorator {
                 position: _,
                 expression: _,
@@ -38,10 +32,6 @@ impl ModuleLowerer<'_> {
                     message: None,
                 });
             }
-        };
-        let annotation_id = self
-            .tree
-            .insert_from_source(annotation, self.module.id, annotation_id);
-        Ok(annotation_id)
+        }
     }
 }
