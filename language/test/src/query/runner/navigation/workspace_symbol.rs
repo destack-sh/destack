@@ -26,7 +26,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
     let query_str = query_str.trim_matches('"');
 
-    let symbols = query::workspace_symbols(&session.repository, query_str, 1000);
+    let symbols = query::workspace_symbols(&session.repository, session.revision, query_str, 1000);
     let source_symbols = symbols.as_slice();
 
     let expected = exp.content.trim();

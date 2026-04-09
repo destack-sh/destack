@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_workspace::Repository;
+use destack_workspace::{AmbientSnapshot, Repository};
 
 use crate::core::{
-    Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision, fixtures_dir,
-    remember_default_profile_for_module,
+    Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision,
+    default_profile_id_for_module, fixtures_dir, provide_workspace_artifacts,
 };
 
 /// Stress test suite for the resolver.
@@ -77,7 +77,10 @@ fn run_resolver_stress(test: &Case) -> CaseResult {
         .unwrap_or(0);
 
     // set up compiler with physical file system access to the project
-    let repository = Arc::new(Repository::open_root(project_dir.to_path_buf()));
+    let repository = Arc::new(Repository::open_root(
+        project_dir.to_path_buf(),
+        AmbientSnapshot::capture_process(),
+    ));
     let program = repository.clone();
     let compiler = Arc::new(Compiler::new(
         repository.clone(),
@@ -97,15 +100,13 @@ fn run_resolver_stress(test: &Case) -> CaseResult {
 
     // resolve schedules import + bind automatically
     let revision = current_workspace_revision(&repository);
-    let profile = remember_default_profile_for_module(&program, &compiler, revision, module_id);
-    compiler.enqueue(
-        revision,
-        ArtifactKey::DirResolved {
-            module: module_id,
-            profile,
-        },
-    );
-    compiler.compile();
+    let profile = default_profile_id_for_module(&program, revision, module_id);
+    let artifact_keys = vec![ArtifactKey::DirResolved {
+        module: module_id,
+        profile,
+    }];
+    let _revision =
+        provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys);
 
     let elapsed = start.elapsed();
     eprintln!("  {file_count} files, resolved in {elapsed:?}");

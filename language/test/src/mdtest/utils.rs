@@ -6,8 +6,11 @@ use std::time::Duration;
 use std::{io, thread};
 
 use destack_artifact::{EmitFormat, MemoryCacheStore, Platform, Runtime};
+use destack_compiler::Compiler;
+use destack_linter::Linter;
+use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{Profile, ProfileEnv, Repository, Revision, Target};
+use destack_workspace::{AmbientSnapshot, Profile, ProfileEnv, Ref, Repository, Revision, Target};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -186,13 +189,27 @@ pub fn select_profile_for_mdtest(
 
     // recompute test flag when needed
     if recompute_test {
-        let (_, _, _, test_flag) = ProfileEnv::mode_from_snapshot(&key.env, key.debug);
+        let (_, _, _, test_flag) = ProfileEnv::mode_from_snapshot(
+            &key.env,
+            &repository
+                .revision(revision)
+                .unwrap_or_else(|error| panic!("failed to load revision state: {error}"))
+                .ambient
+                .environment,
+            key.debug,
+        );
         key.test = test_flag;
     }
 
     // return the resolved profile
     if key != base_profile.key {
-        (Profile::from_key(key), load_libraries)
+        let environment = &repository
+            .revision(revision)
+            .unwrap_or_else(|error| panic!("failed to load revision state: {error}"))
+            .ambient
+            .environment;
+
+        (Profile::from_key(key, environment), load_libraries)
     } else {
         (base_profile, load_libraries)
     }
@@ -259,8 +276,24 @@ pub fn setup_test_environment_with_repository(
 
     // choose the main file and create the repository root
     let main_path = main_path.expect("test should have at least one file");
-    let root = repository.cwd.clone();
-
+    let head = Ref::for_workspace_root(repository.workspace_root());
+    let compiler = Arc::new(Compiler::new(repository.clone(), Default::default()));
+    let linter = Arc::new(Linter::new(repository.clone()));
+    let session = Session::new(
+        repository.workspace_root().to_path_buf(),
+        root.clone(),
+        repository.clone(),
+        head,
+        None,
+        compiler,
+        linter,
+        None,
+        None,
+    )
+    .expect("failed to initialize mdtest session");
+    session
+        .scan_filesystem(true)
+        .expect("failed to materialize mdtest workspace");
     (repository, root, main_path)
 }
 
@@ -271,9 +304,9 @@ pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, P
     let cwd = PathBuf::from("/test");
     let fs: Arc<dyn FileSystem> = memory_fs.clone();
     let repository = Arc::new(
-        Repository::open_root_from_fs(cwd.clone(), fs)
+        Repository::open_root_from_fs(cwd.clone(), fs, AmbientSnapshot::capture_process())
             .expect("failed to import repository from mdtest file system")
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+            .with_cache(Arc::new(MemoryCacheStore::new())),
     );
 
     // delegate to repository based setup

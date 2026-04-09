@@ -9,7 +9,7 @@ use destack_parser::source_colorizer;
 use destack_source::{
     DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
 };
-use destack_workspace::{Repository, Revision, parse_jsonc_file};
+use destack_workspace::{AmbientSnapshot, Repository, Revision, parse_jsonc_file};
 use serde_json::json;
 
 use crate::core::print::color;
@@ -157,7 +157,7 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         let cwd = PathBuf::from("/test/spec");
         let fs = Arc::new(MemoryFileSystem::new());
         let repository = Arc::new(
-            Repository::open_root_from_fs(cwd, fs.clone())
+            Repository::open_root_from_fs(cwd, fs.clone(), AmbientSnapshot::capture_process())
                 .expect("failed to import repository from specification file system")
                 .with_cache(Arc::new(MemoryCacheStore::new())),
         );
@@ -411,7 +411,7 @@ fn apply_destack_config_for_spec(
     let revision = current_workspace_revision(repository);
     let has_targets = if has_destack_config {
         !repository
-            .destack_declaration_for_path(revision, &destack_config_path)
+            .destack_declaration_for_file_path(revision, &destack_config_path)
             .map_err(|error| format!("failed to load destack.json: {error}"))?
             .map(|declaration| declaration.as_ref().clone())
             .ok_or_else(|| "failed to load destack.json".to_string())?

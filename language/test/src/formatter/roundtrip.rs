@@ -1,30 +1,17 @@
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, check_diagnostics, open_repository_with_options};
+use crate::core::{Case, CaseResult, check_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
-use destack_source::{
-    DiffOptions, File, FileId, FileStore, FileSystem, FileType, LanguageType, MemoryFileSystem,
-    Uri, print_diff,
-};
-use destack_workspace::{FormatterOptions, LinterOptions};
+use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
+use destack_workspace::FormatterOptions;
 
 /// Run a single formatter roundtrip test.
 ///
 /// Verifies that formatting a well-formatted file produces identical output.
 pub(super) fn run(test: &Case) -> CaseResult {
-    let cwd = test.path.parent().unwrap().to_path_buf();
-    let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let repository = open_repository_with_options(
-        cwd,
-        fs,
-        FormatterOptions::default(),
-        LinterOptions::default(),
-    );
-    let files = FileStore::new();
-
     // read original
     let original = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
@@ -53,13 +40,19 @@ pub(super) fn run(test: &Case) -> CaseResult {
         file_type,
         original.clone(),
     ));
-    files.insert((*file).clone());
+    let file_for_id = |current_file_id| {
+        if current_file_id == file_id {
+            Some(file.clone())
+        } else {
+            None
+        }
+    };
 
     // parse
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    let parse_result = check_diagnostics(test, &files, &parser.diagnostics);
+    let parse_result = check_diagnostics(test, &file_for_id, &parser.diagnostics);
     if parse_result.is_failed() {
         return parse_result;
     }
@@ -73,7 +66,7 @@ pub(super) fn run(test: &Case) -> CaseResult {
         &expressions,
         &file,
         language_type,
-        repository.formatter,
+        FormatterOptions::default(),
     );
 
     if formatted == original {

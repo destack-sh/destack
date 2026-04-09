@@ -11,7 +11,8 @@ use destack_workspace::{ProfileId, Ref, Repository, Revision};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::{
-    SharedMemoryWorkspace, remember_default_profile_for_module, write_workspace_text_file,
+    SharedMemoryWorkspace, default_profile_id_for_module, provide_workspace_artifacts,
+    write_workspace_text_file,
 };
 use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
 
@@ -494,13 +495,12 @@ fn compile_and_index_query_modules(
             let (profile, load_libraries) =
                 select_profile_for_mdtest(repository, revision, main_module_id, test, false);
             compiler.options.load_libraries = load_libraries;
-            Some(compiler.remember_profile(profile))
+            Some(profile.id())
         }
     };
 
     for module_id in &module_ids {
-        let default_profile =
-            remember_default_profile_for_module(repository, &compiler, revision, *module_id);
+        let default_profile = default_profile_id_for_module(repository, revision, *module_id);
         let profiles = profiles_by_module.entry(*module_id).or_default();
         profiles.insert(default_profile);
 
@@ -514,20 +514,20 @@ fn compile_and_index_query_modules(
     // analyzed depends on declared and interface state, and declared in turn
     // depends on resolved, so enqueuing analyzed is enough to materialize both
     // artifacts for query_context consumers
+    let mut artifact_keys = Vec::new();
     for (module_id, profiles) in &profiles_by_module {
         for profile in profiles {
-            compiler.enqueue(
-                revision,
-                ArtifactKey::DirAnalyzed {
-                    module: *module_id,
-                    profile: *profile,
-                },
-            );
+            artifact_keys.push(ArtifactKey::DirAnalyzed {
+                module: *module_id,
+                profile: *profile,
+            });
         }
     }
 
+    let compiler = Arc::new(compiler);
+
     let compile_start = Instant::now();
-    compiler.compile();
+    let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
     timings.compile = compile_start.elapsed();
 
     if index_requirements.needs_module_indexes {

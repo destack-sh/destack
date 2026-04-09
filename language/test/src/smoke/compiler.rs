@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, SharedMemoryWorkspace, Suite,
-    check_repository_diagnostic_collection, current_workspace_revision, discover_file_cases,
-    fixtures_dir, remember_default_profile_for_module,
+    check_repository_diagnostic_collection, current_workspace_revision,
+    default_profile_id_for_module, discover_file_cases, fixtures_dir, provide_workspace_artifacts,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -52,13 +54,13 @@ fn run_compiler_case(test: &Case) -> CaseResult {
         .expect("failed to add test file to memory fs");
     let repository = workspace.repository();
     // compile the file
-    let compiler = Compiler::new(
+    let compiler = Arc::new(Compiler::new(
         repository.clone(),
         CompilerOptions {
             workers: 1,
             ..Default::default()
         },
-    );
+    ));
     let revision = current_workspace_revision(&repository);
     let module_id = match compiler.resolve_path_to_module(revision, &test.path) {
         Ok(id) => id,
@@ -68,16 +70,12 @@ fn run_compiler_case(test: &Case) -> CaseResult {
             };
         }
     };
-    let profile = remember_default_profile_for_module(&repository, &compiler, revision, module_id);
-    compiler.enqueue(
-        revision,
-        ArtifactKey::DirAnalyzed {
-            module: module_id,
-            profile,
-        },
-    );
-    compiler.compile();
-    drop(compiler);
+    let profile = default_profile_id_for_module(&repository, revision, module_id);
+    let artifact_keys = vec![ArtifactKey::DirAnalyzed {
+        module: module_id,
+        profile,
+    }];
+    let _revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
 
     // check for unexpected diagnostics
     let diagnostics = repository.module_artifact_diagnostics(revision, module_id, profile);

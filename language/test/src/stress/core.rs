@@ -10,7 +10,8 @@ use destack_workspace::{Ref, Repository, Revision};
 use serde::Deserialize;
 
 use crate::core::{
-    SharedMemoryWorkspace, remember_default_profile_for_module, write_workspace_text_file,
+    SharedMemoryWorkspace, default_profile_id_for_module, provide_workspace_artifacts,
+    write_workspace_text_file,
 };
 
 /// One stress recipe loaded from a checked in fixture.
@@ -313,14 +314,14 @@ fn compile_and_index_stress_project(
     root: &Path,
     project: &StressProject,
 ) -> Result<(Revision, HashMap<String, FileId>, HashMap<FileId, String>), String> {
-    let compiler = Compiler::new(
+    let compiler = Arc::new(Compiler::new(
         repository.clone(),
         CompilerOptions {
             load_libraries: false,
             workers: 1,
             ..Default::default()
         },
-    );
+    ));
 
     // materialize every generated source into the active repository revision first
     for file in &project.files {
@@ -347,26 +348,20 @@ fn compile_and_index_stress_project(
     module_ids.dedup();
 
     // enqueue the full query substrate for each module
+    let mut artifact_keys = Vec::new();
     for module_id in &module_ids {
-        let profile =
-            remember_default_profile_for_module(repository, &compiler, revision, *module_id);
-        compiler.enqueue(
-            revision,
-            ArtifactKey::DirAnalyzed {
-                module: *module_id,
-                profile,
-            },
-        );
-        compiler.enqueue(
-            revision,
-            ArtifactKey::DirResolved {
-                module: *module_id,
-                profile,
-            },
-        );
+        let profile = default_profile_id_for_module(repository, revision, *module_id);
+        artifact_keys.push(ArtifactKey::DirAnalyzed {
+            module: *module_id,
+            profile,
+        });
+        artifact_keys.push(ArtifactKey::DirResolved {
+            module: *module_id,
+            profile,
+        });
     }
 
-    compiler.compile();
+    let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
     repository.index_query_modules(revision, module_ids.iter().copied());
     repository.index_query_imports(revision);
 

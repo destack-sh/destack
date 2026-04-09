@@ -8,18 +8,18 @@ use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions, StatsSnapshot};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileStore, FileSystem,
-    FileType, LanguageType, MemoryFileSystem, ModuleId, PathExt, PhysicalFileSystem, PrintOptions,
-    Uri, glob,
+    Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem, FileType,
+    LanguageType, MemoryFileSystem, ModuleId, PathExt, PhysicalFileSystem, PrintOptions, Uri, glob,
 };
 use destack_workspace::{
-    FormatterOptions, LinterOptions, PackageJson, Repository, Revision, TsConfigDeclaration,
+    AmbientSnapshot, FormatterOptions, LinterOptions, PackageJson, Repository, Revision,
+    TsConfigDeclaration,
 };
 
 use crate::core::print::color;
 use crate::core::{
-    CaseResult, current_workspace_revision, format_diagnostics, open_repository_with_options,
-    remember_default_profile_for_module, remember_profile_for_target_or_default,
+    CaseResult, current_workspace_revision, default_profile_id_for_module, format_diagnostics,
+    open_repository_with_options, profile_id_for_target_or_default, provide_workspace_artifacts,
 };
 use crate::ecosystem::manifest::{
     CompilerOptionsConfig, EcosystemManifest, EcosystemPhase, EcosystemTscMode, EcosystemTscTool,
@@ -150,16 +150,20 @@ fn run_compiler_phase(
     // construct one compiler session for the package
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let repository = Arc::new(
-        Repository::open_root_from_fs(package_dir.to_path_buf(), file_system)
+        Repository::open_root_from_fs(
+            package_dir.to_path_buf(),
+            file_system,
+            AmbientSnapshot::capture_process(),
+        )
             .expect("failed to import repository from ecosystem file system"),
     );
-    let compiler = Compiler::new(
+    let compiler = Arc::new(Compiler::new(
         repository.clone(),
         CompilerOptions {
             workers: 1,
             ..Default::default()
         },
-    );
+    ));
 
     let revision = current_workspace_revision(&repository);
 
@@ -192,13 +196,21 @@ fn run_compiler_phase(
         };
     }
 
-    // enqueue the selected phase for each resolved module
+    // select the requested roots for each resolved module
+    let mut artifact_keys = Vec::new();
     for module_id in module_ids.iter().copied() {
-        enqueue_phase_task(&compiler, &repository, revision, module_id, phase);
+        let artifact_key = phase_root_for_module(&repository, revision, module_id, phase);
+        if let Some(artifact_key) = artifact_key {
+            artifact_keys.push(artifact_key);
+        }
     }
 
-    // run the compiler and snapshot timings
-    compiler.compile();
+    // run the selected roots and snapshot timings
+    let revision = if artifact_keys.is_empty() {
+        revision
+    } else {
+        provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys)
+    };
     let module_count = match repository.workspace_module_ids(revision) {
         Ok(module_ids) => module_ids.len(),
         Err(error) => {
@@ -462,12 +474,16 @@ fn collect_observed_phase_diagnostics(
     package_dir: &Path,
     errors: &[Diagnostic],
 ) -> Result<Vec<ObservedPhaseDiagnostic>, String> {
-    let files = collect_phase_diagnostic_files(repository, revision, errors)?;
     let mut observed = BTreeSet::new();
+    let file_for_id = |file_id| {
+        repository
+            .file(revision, file_id)
+            .map_err(|error| format!("failed to read diagnostic file snapshot: {error}"))
+    };
 
     // map diagnostics to stable code, file, and message triples
     for diagnostic in errors {
-        let file = normalize_diagnostic_file(&files, package_dir, diagnostic);
+        let file = normalize_diagnostic_file(&file_for_id, package_dir, diagnostic)?;
         observed.insert(ObservedPhaseDiagnostic {
             code: diagnostic.code.clone(),
             file,
@@ -480,20 +496,25 @@ fn collect_observed_phase_diagnostics(
 
 /// Normalize one diagnostic file path for stable exact matching.
 fn normalize_diagnostic_file(
-    files: &FileStore,
+    file_for_id: &impl Fn(FileId) -> Result<Option<Arc<File>>, String>,
     package_dir: &Path,
     diagnostic: &Diagnostic,
-) -> String {
-    let file = files.get(diagnostic.file_id);
+) -> Result<String, String> {
+    let file = file_for_id(diagnostic.file_id)?.ok_or_else(|| {
+        format!(
+            "missing diagnostic file snapshot for {:?}",
+            diagnostic.file_id
+        )
+    })?;
 
     // use package relative paths when available
     if let Some(path) = file.path.as_deref() {
         let relative = path.strip_prefix(package_dir).unwrap_or(path);
-        return normalize_path_fragment(&relative.to_string_lossy());
+        return Ok(normalize_path_fragment(&relative.to_string_lossy()));
     }
 
     // fall back to uri text when no path is attached
-    normalize_path_fragment(file.uri.as_ref())
+    Ok(normalize_path_fragment(file.uri.as_ref()))
 }
 
 /// Normalize one path-like value for cross-platform exact matching.
@@ -585,7 +606,11 @@ fn format_phase_error_diagnostics(
     module_count: usize,
 ) -> Result<String, String> {
     let mut error_diagnostics = DiagnosticCollection::new();
-    let files = collect_phase_diagnostic_files(repository, revision, errors)?;
+    let file_for_id = |file_id| {
+        repository.file(revision, file_id).unwrap_or_else(|error| {
+            panic!("failed to read diagnostic file snapshot {file_id:?}: {error}")
+        })
+    };
 
     // render only error level diagnostics for deterministic phase output
     for diagnostic in errors.iter().cloned() {
@@ -593,41 +618,12 @@ fn format_phase_error_diagnostics(
     }
 
     Ok(format_diagnostics(
-        &files,
+        &file_for_id,
         &error_diagnostics,
         PrintOptions::new()
             .with_colorizer(source_colorizer())
             .with_module_count(module_count),
     ))
-}
-
-/// Collect one file registry for the diagnostics referenced by a phase run.
-fn collect_phase_diagnostic_files(
-    repository: &Repository,
-    revision: Revision,
-    diagnostics: &[Diagnostic],
-) -> Result<FileStore, String> {
-    let files = FileStore::new();
-
-    // load each referenced file snapshot once
-    for diagnostic in diagnostics {
-        if files.get_maybe(diagnostic.file_id).is_some() {
-            continue;
-        }
-
-        let file = repository
-            .file(revision, diagnostic.file_id)
-            .map_err(|error| format!("failed to read diagnostic file snapshot: {error}"))?
-            .ok_or_else(|| {
-                format!(
-                    "missing diagnostic file snapshot for {:?}",
-                    diagnostic.file_id
-                )
-            })?;
-        files.insert((*file).clone());
-    }
-
-    Ok(files)
 }
 
 /// Append optional compiler stats context to one failure message.
@@ -643,25 +639,11 @@ fn append_compiler_stats_context_maybe(message: &mut String, stats: &StatsSnapsh
 
 /// Build one compiler stats summary for ecosystem failure triage.
 fn compiler_stats_to_failure_context(stats: &StatsSnapshot) -> String {
-    const TOP_TASKS: usize = 10;
     const TOP_TIMINGS: usize = 15;
 
     let mut lines = Vec::new();
     lines.push("compiler stats:".to_string());
     lines.push(format!("  elapsed: {}", format_duration_ms(stats.elapsed)));
-
-    // report the hottest task names first
-    if !stats.task_names.is_empty() {
-        lines.push(format!("  top task timings ({TOP_TASKS}):"));
-        for task in stats.task_names.iter().take(TOP_TASKS) {
-            lines.push(format!(
-                "   - {}: {} ({})",
-                task.name,
-                format_duration_ms(task.duration),
-                task.task_count,
-            ));
-        }
-    }
 
     // report timing tags when detailed timings are enabled
     if !stats.timings.is_empty() {
@@ -1069,53 +1051,40 @@ fn tsc_result_to_failure_context(tsc_result: &Result<TypeScriptTscRun, String>) 
     }
 }
 
-/// Enqueue one compiler task that represents a phase boundary.
-fn enqueue_phase_task(
-    compiler: &Compiler,
+/// Return the root artifact for one phase boundary.
+fn phase_root_for_module(
     repository: &Arc<Repository>,
     revision: Revision,
     module_id: ModuleId,
     phase: EcosystemPhase,
-) {
+) -> Option<ArtifactKey> {
     match phase {
-        EcosystemPhase::Parse => {}
+        EcosystemPhase::Parse => None,
         EcosystemPhase::Resolve => {
-            let profile_id =
-                remember_default_profile_for_module(repository, compiler, revision, module_id);
-            compiler.enqueue(
-                revision,
-                ArtifactKey::DirResolved {
-                    module: module_id,
-                    profile: profile_id,
-                },
-            );
+            let profile_id = default_profile_id_for_module(repository, revision, module_id);
+            Some(ArtifactKey::DirResolved {
+                module: module_id,
+                profile: profile_id,
+            })
         }
         EcosystemPhase::Analyze => {
-            let profile_id =
-                remember_default_profile_for_module(repository, compiler, revision, module_id);
-            compiler.enqueue(
-                revision,
-                ArtifactKey::DirAnalyzed {
-                    module: module_id,
-                    profile: profile_id,
-                },
-            );
+            let profile_id = default_profile_id_for_module(repository, revision, module_id);
+            Some(ArtifactKey::DirAnalyzed {
+                module: module_id,
+                profile: profile_id,
+            })
         }
         EcosystemPhase::Lower => {
             let target = repository
                 .diagnostic_target_for_module(revision, module_id)
                 .unwrap_or_else(|error| panic!("failed to resolve diagnostic target: {error}"));
-            let profile_id = remember_profile_for_target_or_default(
-                repository, compiler, revision, module_id, &target,
-            );
-            compiler.enqueue(
-                revision,
-                ArtifactKey::MirOptimized {
-                    module: module_id,
-                    profile: profile_id,
-                    target,
-                },
-            );
+            let profile_id =
+                profile_id_for_target_or_default(repository, revision, module_id, &target);
+            Some(ArtifactKey::MirOptimized {
+                module: module_id,
+                profile: profile_id,
+                target,
+            })
         }
     }
 }
@@ -1450,15 +1419,14 @@ fn load_tsconfig_entry_source(package_dir: &Path) -> Result<Option<TsConfigEntry
     // parse jsonc config into a workspace tsconfig model
     let (name, uri) = Uri::from_path_with_name(tsconfig_path.as_path());
     let file_type = FileType::from_path(tsconfig_path.as_path()).unwrap_or(FileType::Json);
-    let file = File::from_text_as_jsonc(
+    let file = File::from_text(
         FileId::new(0),
         name,
         uri,
         Some(tsconfig_path.clone()),
         file_type,
         content,
-    )
-    .map_err(|error| format!("failed to parse {}: {error}", tsconfig_path.display()))?;
+    );
     let file = Arc::new(file);
     let tsconfig = TsConfigDeclaration::parse(true, &file)
         .map_err(|error| format!("failed to parse {}: {error}", tsconfig_path.display()))?;
@@ -2074,26 +2042,29 @@ fn parse_file(path: &Path, manifest: &EcosystemManifest) -> Result<(), String> {
         FormatterOptions::default(),
         LinterOptions::default(),
     );
-    let files = FileStore::new();
-
     let name = path
         .file_name()
         .and_then(|value| value.to_str())
         .unwrap_or("input")
         .to_string();
     let file_id = FileId::from_logical_path(path);
-    let file = File::from_text(
+    let file = Arc::new(File::from_text(
         file_id,
         name,
         uri,
         Some(path.to_path_buf()),
         file_type,
         content,
-    );
-    files.insert(file);
-    let file = files.get(file_id);
+    ));
+    let file_for_id = |current_file_id| {
+        if current_file_id == file_id {
+            Some(file.clone())
+        } else {
+            None
+        }
+    };
 
-    let mut parser = Parser::lex_file(file, language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
     let _ = parser.parse();
 
     let errors = parser
@@ -2113,7 +2084,7 @@ fn parse_file(path: &Path, manifest: &EcosystemManifest) -> Result<(), String> {
     }
 
     let diagnostic_output = format_diagnostics(
-        &files,
+        &file_for_id,
         &error_diagnostics,
         PrintOptions::new()
             .with_colorizer(source_colorizer())
