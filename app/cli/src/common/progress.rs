@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use destack_compiler::{CompilerEvent, CompilerEventHandler, CompilerStats, TaskId, TaskPhase};
+use destack_artifact::ArtifactKey;
+use destack_compiler::CompilerStats;
+use destack_session::{ProvideId, SessionEvent, SessionEventHandler};
 use destack_workspace::{Ref, Repository};
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -28,8 +30,8 @@ pub enum ProgressMode {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 struct ActiveTask {
-    /// The phase of the task.
-    phase: TaskPhase,
+    /// The active artifact key.
+    artifact_key: ArtifactKey,
     /// The module path.
     module_path: String,
     /// When the task started.
@@ -49,10 +51,8 @@ pub struct ProgressState {
     pub tasks_completed: AtomicUsize,
     /// Number of tasks failed.
     pub tasks_failed: AtomicUsize,
-    /// Number of tasks skipped.
-    pub tasks_skipped: AtomicUsize,
     /// Currently active tasks by task_id.
-    active_tasks: Mutex<HashMap<TaskId, ActiveTask>>,
+    active_tasks: Mutex<HashMap<ProvideId, ActiveTask>>,
     /// Optional stats source for incremental progress.
     stats_source: Mutex<Option<StatsSource>>,
     /// Packages that have been printed (to avoid duplicates).
@@ -158,8 +158,8 @@ impl ProgressReporter {
             .unwrap()
     }
 
-    /// Get the event handler to pass to the compiler.
-    pub fn handler(&self) -> CompilerEventHandler {
+    /// Get the event handler to pass to the session.
+    pub fn handler(&self) -> SessionEventHandler {
         let state = self.state.clone();
         let status = self.status.clone();
         let detailed = self.detailed;
@@ -167,23 +167,21 @@ impl ProgressReporter {
         let started_at = self.started_at;
         let stop_ticker = self.stop_ticker.clone();
 
-        Arc::new(move |event: CompilerEvent| match &event {
-            CompilerEvent::CompilationStarted { .. } => {
+        Arc::new(move |event: SessionEvent| match &event {
+            SessionEvent::RunStarted => {
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            CompilerEvent::TaskStarted {
-                task_id,
-                phase,
-                description,
-                ..
+            SessionEvent::ArtifactStarted {
+                provide_id,
+                artifact_key,
             } => {
-                let module_path = extract_module_path(description);
+                let module_path = module_path_for_artifact(*artifact_key, &state);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
                     active.insert(
-                        *task_id,
+                        *provide_id,
                         ActiveTask {
-                            phase: *phase,
+                            artifact_key: *artifact_key,
                             module_path,
                             started_at: Instant::now(),
                         },
@@ -192,61 +190,51 @@ impl ProgressReporter {
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            CompilerEvent::TaskCompleted { task_id, .. } => {
+            SessionEvent::ArtifactCompleted { provide_id, .. } => {
                 state.tasks_completed.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
+                    active.remove(provide_id);
                 }
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            CompilerEvent::TaskFailed { task_id, .. } => {
+            SessionEvent::ArtifactFailed { provide_id, .. } => {
                 state.tasks_failed.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
+                    active.remove(provide_id);
                 }
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            CompilerEvent::TaskSkipped { task_id, .. } => {
-                state.tasks_skipped.fetch_add(1, Ordering::Relaxed);
-
+            SessionEvent::ArtifactYielded { provide_id, .. } => {
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
+                    active.remove(provide_id);
                 }
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            CompilerEvent::TaskYielded { task_id, .. } => {
-                if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
-                }
-
-                update_status(&status, &state, &label, detailed, started_at);
-            }
-            CompilerEvent::TaskSlow {
-                phase,
+            SessionEvent::ArtifactSlow {
+                artifact_key,
                 elapsed,
-                description,
                 ..
             } => {
-                // print slow task warning as permanent line
-                let path = extract_module_path(description);
+                // print slow artifact warning as permanent line
+                let path = module_path_for_artifact(*artifact_key, &state);
                 let name = path_to_display(&path);
                 let elapsed_str = console::format_duration(*elapsed);
                 let warn_label = console::yellow("slow");
-                let phase_verb = phase_to_verb(*phase).to_lowercase();
                 status.suspend(|| {
                     eprintln!(
-                        "    {warn_label} {phase_verb} {} ({})",
+                        "    {warn_label} {} {} ({})",
+                        console::dim(artifact_key.name()),
                         console::dim(&name),
                         console::dim(&elapsed_str)
                     );
                 });
             }
-            CompilerEvent::CompilationFinished { .. } => {
+            SessionEvent::RunFinished { .. } => {
                 status.disable_steady_tick();
                 stop_ticker.store(true, Ordering::Relaxed);
             }
@@ -521,19 +509,34 @@ fn format_compact(n: usize) -> String {
     }
 }
 
-/// Extract module path from trace description like "module=path/to/file.ds profile=xyz".
-fn extract_module_path(description: &str) -> String {
-    if let Some(rest) = description.strip_prefix("module=") {
-        rest.split_whitespace().next().unwrap_or(rest).to_string()
-    } else if description.contains('=') {
-        description
-            .split_whitespace()
-            .find(|s| s.contains('/') || s.ends_with(".ds") || s.ends_with(".ts"))
-            .unwrap_or(description)
-            .to_string()
-    } else {
-        description.to_string()
-    }
+/// Resolve the best display path for one artifact key.
+fn module_path_for_artifact(artifact_key: ArtifactKey, state: &ProgressState) -> String {
+    let Some(module_id) = artifact_key.module_id() else {
+        return artifact_key.name().to_string();
+    };
+
+    let Ok(source) = state.stats_source.lock() else {
+        return artifact_key.name().to_string();
+    };
+    let Some(source) = source.clone() else {
+        return artifact_key.name().to_string();
+    };
+    let Some(repository) = source.repository.as_ref() else {
+        return artifact_key.name().to_string();
+    };
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let Ok(revision) = repository.current(&reference) else {
+        return artifact_key.name().to_string();
+    };
+    let Ok(Some(module)) = repository.module(revision, module_id) else {
+        return artifact_key.name().to_string();
+    };
+
+    module
+        .path
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| artifact_key.name().to_string())
 }
 
 /// Convert a path to a display name, shortening if needed.
@@ -549,20 +552,6 @@ fn path_to_display(path: &str) -> String {
         let head = parts[..PATH_HEAD_COMPONENTS].join("/");
         let tail = parts[parts.len() - PATH_TAIL_COMPONENTS..].join("/");
         format!("{head}/.../{tail}")
-    }
-}
-
-fn phase_to_verb(phase: TaskPhase) -> &'static str {
-    match phase {
-        TaskPhase::Import => "Parsing",
-        TaskPhase::Resolve => "Resolving",
-        TaskPhase::Analyze => "Checking",
-        TaskPhase::Elaborate => "Elaborating",
-        TaskPhase::Execute => "Executing",
-        TaskPhase::Lower => "Lowering",
-        TaskPhase::Optimize => "Optimizing",
-        TaskPhase::Generate => "Generating",
-        TaskPhase::Link => "Linking",
     }
 }
 

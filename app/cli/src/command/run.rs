@@ -507,8 +507,11 @@ fn prepare_run_execution(request: &RunRequest) -> Result<RunExecutionPlan, i32> 
 
     // allow script execution before daemon setup
     if matches!(request.mode, RunMode::Program)
-        && let Some(exit_code) =
-            try_run_script(request, repository.file_system().as_ref(), &repository.cwd)
+        && let Some(exit_code) = try_run_script(
+            request,
+            repository.file_system().as_ref(),
+            &request.program.effective_cwd(),
+        )
     {
         return Ok(RunExecutionPlan::Script(exit_code));
     }
@@ -565,7 +568,7 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
     let repository = request.program.setup();
 
     if is_script_name_input(request)
-        && let Some(candidate_path) = script_name_input_path(request, &repository)
+        && let Some(candidate_path) = script_name_input_path(request)
         && repository.file_system().metadata(&candidate_path).is_err()
     {
         return Err(report_error(
@@ -728,10 +731,7 @@ fn is_script_name_input(request: &RunRequest) -> bool {
 }
 
 /// Resolve the candidate path for a potential script name.
-fn script_name_input_path(
-    request: &RunRequest,
-    repository: &Repository,
-) -> Option<std::path::PathBuf> {
+fn script_name_input_path(request: &RunRequest) -> Option<std::path::PathBuf> {
     if !is_script_name_input(request) {
         return None;
     }
@@ -740,7 +740,7 @@ fn script_name_input_path(
     let candidate_path = if candidate.is_absolute() {
         candidate.clone()
     } else {
-        repository.cwd.join(candidate)
+        request.program.effective_cwd().join(candidate)
     };
 
     Some(candidate_path)

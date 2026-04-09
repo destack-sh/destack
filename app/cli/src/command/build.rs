@@ -66,8 +66,8 @@ pub fn run(args: &BuildArgs) -> i32 {
         let declaration = match load_destack_declaration_for_program(
             &args.program,
             &context.repository,
-            &context.resolver,
-            &context.repository.cwd,
+            context.revision,
+            context.repository.workspace_root(),
         ) {
             Ok(declaration) => declaration,
             Err(error) => return report_error("build", &args.report, &error.to_string()),

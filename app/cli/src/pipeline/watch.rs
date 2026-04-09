@@ -1,13 +1,15 @@
+use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{CompilerEventHandler, CompilerOptions};
+use destack_compiler::CompilerOptions;
 use destack_daemon::{
     Daemon, DaemonMessage, DaemonMessageKind, WatchBatch, WatchCoordinator, WatchPolicy,
 };
+use destack_session::SessionEventHandler;
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, FileStore, FileType, FileWatchFilter,
+    DiagnosticCollection, DiagnosticOptions, File, FileId, FileType, FileWatchFilter,
     FileWatchOptions, FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
 };
 use destack_workspace::Repository;
@@ -125,7 +127,6 @@ impl WatchLoopAction {
 pub fn build_daemon_options(
     program: &ProgramArgs,
     diagnostic_options: DiagnosticOptions,
-    event_handler: Option<CompilerEventHandler>,
 ) -> CompilerOptions {
     // build compiler options aligned with the CLI run
     CompilerOptions {
@@ -135,7 +136,6 @@ pub fn build_daemon_options(
         inject_prelude: !program.no_prelude,
         follow_imports: !program.no_follow_imports,
         timings: program.timings,
-        event_handler,
         ..Default::default()
     }
 }
@@ -148,7 +148,7 @@ pub fn watch_roots(program: &ProgramArgs, repository: &Repository) -> Vec<PathBu
     }
 
     // fall back to the repository working directory
-    vec![repository.cwd.clone()]
+    vec![repository.workspace_root().to_path_buf()]
 }
 
 /// Watch context shared by CLI watch commands.
@@ -236,7 +236,7 @@ pub fn watch_error(message: &str) -> String {
 /// Context for emitting watch compile diagnostics.
 pub struct WatchCompileContext<'a> {
     /// Files associated with the diagnostics.
-    pub files: &'a FileStore,
+    pub files: &'a BTreeMap<FileId, Arc<File>>,
     /// Diagnostics to render.
     pub diagnostics: &'a DiagnosticCollection,
     /// The human readable formatting options.
@@ -271,8 +271,9 @@ pub fn emit_watch_compile_report(
 ) -> i32 {
     // emit json diagnostics for watch reporters
     if let Some(reporter) = reporter.as_mut() {
+        let file_for_id = |file_id| context.files.get(&file_id).cloned();
         let (output, format_result) = collect_diagnostics_json(
-            context.files,
+            &file_for_id,
             context.diagnostics,
             context.json_format_options,
         );
@@ -408,7 +409,7 @@ pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
     program: &ProgramArgs,
     report: &ReportArgs,
     diagnostic_options: DiagnosticOptions,
-    event_handler: Option<CompilerEventHandler>,
+    event_handler: Option<SessionEventHandler>,
     watch_loop_options: WatchLoopOptions,
     state: &mut State,
     on_start: StartFn,
@@ -440,21 +441,25 @@ where
     } = build_watch_context(command_name, program, report, &repository);
 
     // configure the daemon client for incremental updates
-    let daemon_options = build_daemon_options(program, diagnostic_options, event_handler);
-    let daemon =
-        match ProtocolDaemonClient::new(repository.clone(), daemon_options, roots.clone(), program)
-        {
-            Ok(daemon) => daemon,
-            Err(error) => {
-                let message = watch_error(&error.to_string());
-                if let Some(reporter) = reporter.as_mut() {
-                    reporter.emit_warning(&message);
-                    reporter.emit_stop();
-                    return 1;
-                }
-                return report_error(command_name, report, &message);
+    let daemon_options = build_daemon_options(program, diagnostic_options);
+    let daemon = match ProtocolDaemonClient::new(
+        repository.clone(),
+        daemon_options,
+        event_handler,
+        roots.clone(),
+        program,
+    ) {
+        Ok(daemon) => daemon,
+        Err(error) => {
+            let message = watch_error(&error.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                reporter.emit_stop();
+                return 1;
             }
-        };
+            return report_error(command_name, report, &message);
+        }
+    };
 
     // run the initial compile
     let mut exit_code = compile(
@@ -511,15 +516,16 @@ where
 
 /// Print diagnostics for watch mode without consuming program state.
 pub fn print_watch_diagnostics(
-    files: &FileStore,
+    files: &BTreeMap<FileId, Arc<File>>,
     diagnostics: &DiagnosticCollection,
     format_options: &FormatOptions,
     module_count: usize,
     line_writer: Option<&LineWriter>,
 ) -> FormatResult {
     // emit diagnostics using the shared formatter
+    let file_for_id = |file_id| files.get(&file_id).cloned();
     format_diagnostics_with_writer(
-        files,
+        &file_for_id,
         diagnostics,
         format_options,
         module_count,

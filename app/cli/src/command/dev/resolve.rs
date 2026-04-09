@@ -59,7 +59,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
     let directory = match args
         .directory
         .clone()
-        .unwrap_or_else(|| repository.cwd.clone())
+        .unwrap_or_else(|| args.program.effective_cwd())
         .canonicalize()
     {
         Ok(path) => path,
@@ -115,9 +115,9 @@ pub fn run(args: &ResolveArgs) -> i32 {
     };
     options = materialize_import_resolve_options(&options, context);
 
-    let resolver = Resolver::from_repository(&repository, options);
+    let resolver = Resolver::from_repository(repository.clone(), options);
 
-    match resolver.resolve_from_directory(&directory, &args.specifier) {
+    match resolver.resolve_from_directory(revision, &directory, &args.specifier) {
         Ok(resolution) => {
             console::info(&resolution.path().to_string_lossy());
             0

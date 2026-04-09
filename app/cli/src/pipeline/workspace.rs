@@ -46,7 +46,10 @@ pub fn workspace_context(
     })?;
     let resolver = Resolver::from_repository(
         repository.clone(),
-        ResolveOptions::default_for_workspace(repository.cwd.clone(), workspace_options.as_ref()),
+        ResolveOptions::default_for_workspace(
+            repository.workspace_root().to_path_buf(),
+            workspace_options.as_ref(),
+        ),
     );
     Ok(WorkspaceContext {
         repository,
@@ -63,7 +66,7 @@ pub fn find_destack_config(
     cwd: &Path,
 ) -> Option<PathBuf> {
     repository
-        .nearest_destack_path(revision, cwd)
+        .nearest_destack_file_path(revision, cwd)
         .ok()
         .flatten()
 }
@@ -75,7 +78,7 @@ pub fn load_destack_declaration(
     path: &Path,
 ) -> CliResult<DestackDeclaration> {
     repository
-        .destack_declaration_for_path(revision, path)
+        .destack_declaration_for_file_path(revision, path)
         .map_err(|error| CliError::message(format!("failed to load {}: {error}", path.display())))?
         .map(|declaration| declaration.as_ref().clone())
         .ok_or_else(|| CliError::message(format!("failed to load {}", path.display())))
@@ -171,7 +174,12 @@ pub fn default_target_for_repository(
     let revision = repository.current(&reference).map_err(|error| {
         CliError::message(format!("failed to resolve current revision: {error}"))
     })?;
-    default_target_for_program(program_args, repository, revision, &repository.cwd)
+    default_target_for_program(
+        program_args,
+        repository,
+        revision,
+        repository.workspace_root(),
+    )
 }
 
 /// Resolve a destack.json for a path and load it.

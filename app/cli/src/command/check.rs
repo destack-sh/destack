@@ -16,10 +16,10 @@ use crate::pipeline::watch::{
     run_daemon_watch_command, watch_error,
 };
 use clap::{Args, ValueEnum};
-use destack_compiler::CompilerEventHandler;
 use destack_daemon::protocol::{
     CommandCheckOptions, CommandLintOptions, CommandPayload, CommonCommandOptions,
 };
+use destack_session::SessionEventHandler;
 use destack_source::DiagnosticOptions;
 
 /// State for check watch mode.
@@ -35,7 +35,7 @@ struct CheckExecutionContext {
     /// Progress reporter for interactive output.
     progress_reporter: Option<ProgressReporter>,
     /// Compiler event handler for daemon execution.
-    event_handler: Option<CompilerEventHandler>,
+    event_handler: Option<SessionEventHandler>,
 }
 
 /// Output format for diagnostics.
@@ -224,7 +224,7 @@ fn run_watch(args: &CheckArgs, command_name: &str, context: &CheckExecutionConte
 pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     args: &CheckArgs,
     command_name: &str,
-    event_handler: Option<CompilerEventHandler>,
+    event_handler: Option<SessionEventHandler>,
     format_options: &FormatOptions,
     progress_reporter: Option<&ProgressReporter>,
     watch_loop_options: WatchLoopOptions,

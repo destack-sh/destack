@@ -22,7 +22,7 @@ fn daemon_with_single_worker(repository: Arc<Repository>) -> Daemon {
         ..CompilerOptions::default()
     };
 
-    Daemon::with_options(repository, compiler_options)
+    Daemon::with_options(repository, compiler_options, None, None)
 }
 
 /// State captured by watch loop callbacks.
@@ -182,11 +182,9 @@ fn test_apply_watch_event_deletes_file() {
     };
 
     let result = daemon.apply_watch_event(&event);
-    let file = test.file_for_path(&path);
-
-    // check that the deleted files are marked missing
+    // check that the deleted file is removed from the revision
     assert!(result.updated());
-    assert!(file.is_missing());
+    assert!(!test.has_file_for_path(&path));
 }
 
 /// Apply rename watch events to tracked files.
@@ -213,13 +211,10 @@ fn test_apply_watch_event_renames_file() {
     };
 
     let result = daemon.apply_watch_event(&event);
-    let old_file = test.file_for_path(&old_path);
-    let new_file = test.file_for_path(&new_path);
-
     // check that the rename removes the old file and updates the new one
     assert!(result.updated());
-    assert!(old_file.is_missing());
-    assert!(!new_file.is_missing());
+    assert!(!test.has_file_for_path(&old_path));
+    assert!(test.has_file_for_path(&new_path));
 }
 
 /// Apply config watch events through the daemon.

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_parser::source_colorizer;
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticSeverity, FileStore, PrintOptions,
+    Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
 };
 use serde::Serialize;
@@ -88,24 +88,30 @@ pub struct DiagnosticSummaryJson {
 }
 
 /// Print diagnostics with the given output options.
-pub fn format_diagnostics(
-    files: &FileStore,
+pub fn format_diagnostics<F>(
+    file_for_id: &F,
     diagnostics: &DiagnosticCollection,
     options: &FormatOptions,
     module_count: usize,
-) -> FormatResult {
+) -> FormatResult
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     // delegate to the writer aware formatter
-    format_diagnostics_with_writer(files, diagnostics, options, module_count, None)
+    format_diagnostics_with_writer(file_for_id, diagnostics, options, module_count, None)
 }
 
 /// Format diagnostics with an optional line writer.
-pub fn format_diagnostics_with_writer(
-    files: &FileStore,
+pub fn format_diagnostics_with_writer<F>(
+    file_for_id: &F,
     diagnostics: &DiagnosticCollection,
     options: &FormatOptions,
     module_count: usize,
     line_writer: Option<&LineWriter>,
-) -> FormatResult {
+) -> FormatResult
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     // filter diagnostics based on quiet mode
     let filtered = filter_diagnostics(diagnostics, options.quiet);
 
@@ -117,7 +123,7 @@ pub fn format_diagnostics_with_writer(
         match options.format {
             DiagnosticFormat::Text => {
                 print_text(
-                    files,
+                    file_for_id,
                     &filtered,
                     module_count,
                     options.statistics,
@@ -126,7 +132,7 @@ pub fn format_diagnostics_with_writer(
             }
             DiagnosticFormat::Json => {
                 let output = build_diagnostic_output(
-                    files,
+                    file_for_id,
                     &filtered,
                     error_count,
                     warning_count,
@@ -136,7 +142,7 @@ pub fn format_diagnostics_with_writer(
                 print_json(&output);
             }
             DiagnosticFormat::Github => {
-                print_github(files, &filtered);
+                print_github(file_for_id, &filtered);
             }
         }
     }
@@ -153,11 +159,14 @@ pub fn format_diagnostics_with_writer(
 }
 
 /// Collect diagnostics into JSON output without printing.
-pub fn collect_diagnostics_json(
-    files: &FileStore,
+pub fn collect_diagnostics_json<F>(
+    file_for_id: &F,
     diagnostics: &DiagnosticCollection,
     options: &FormatOptions,
-) -> (DiagnosticOutputJson, FormatResult) {
+) -> (DiagnosticOutputJson, FormatResult)
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     // filter diagnostics based on quiet mode
     let filtered = filter_diagnostics(diagnostics, options.quiet);
 
@@ -166,7 +175,7 @@ pub fn collect_diagnostics_json(
 
     // build the json payload
     let output = build_diagnostic_output(
-        files,
+        file_for_id,
         &filtered,
         error_count,
         warning_count,
@@ -212,13 +221,15 @@ impl FormatResult {
 }
 
 /// Print diagnostics in human-readable text format.
-fn print_text(
-    files: &FileStore,
+fn print_text<F>(
+    file_for_id: &F,
     diagnostics: &[Diagnostic],
     module_count: usize,
     show_statistics: bool,
     line_writer: Option<&LineWriter>,
-) {
+) where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     // build print options
     let print_options = PrintOptions::new()
         .with_line_width(100)
@@ -238,7 +249,7 @@ fn print_text(
     }
 
     // render the diagnostics
-    print_diagnostics_impl(files, &collection, print_options);
+    print_diagnostics_impl(file_for_id, &collection, print_options);
 
     // emit statistics when requested
     if show_statistics && !diagnostics.is_empty() {
@@ -255,10 +266,13 @@ fn print_json(output: &DiagnosticOutputJson) {
 }
 
 /// Print diagnostics in GitHub Actions annotation format.
-fn print_github(files: &FileStore, diagnostics: &[Diagnostic]) {
+fn print_github<F>(file_for_id: &F, diagnostics: &[Diagnostic])
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     // emit github annotations per diagnostic
     for d in diagnostics {
-        let file = files.get(d.file_id);
+        let file = resolve_file(file_for_id, d.file_id);
         // get_position returns 0 based line and column
         let (line, column) = file
             .get_position(d.primary_span.span.start)
@@ -359,19 +373,22 @@ fn count_severity(diagnostics: &[Diagnostic]) -> (usize, usize, usize) {
 }
 
 /// Build the json payload for diagnostics output.
-fn build_diagnostic_output(
-    files: &FileStore,
+fn build_diagnostic_output<F>(
+    file_for_id: &F,
     diagnostics: &[Diagnostic],
     error_count: usize,
     warning_count: usize,
     note_count: usize,
     options: &FormatOptions,
-) -> DiagnosticOutputJson {
+) -> DiagnosticOutputJson
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
     // map diagnostics into json entries
     let json_diagnostics: Vec<DiagnosticJson> = diagnostics
         .iter()
         .map(|d| {
-            let file = files.get(d.file_id);
+            let file = resolve_file(file_for_id, d.file_id);
 
             // get_position returns 0 based line and column
             let (line, column) = file
@@ -418,6 +435,14 @@ fn build_diagnostic_output(
         },
         statistics,
     }
+}
+
+/// Resolve one file for one diagnostic id.
+fn resolve_file<F>(file_for_id: &F, file_id: FileId) -> Arc<File>
+where
+    F: Fn(FileId) -> Option<Arc<File>>,
+{
+    file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"))
 }
 
 /// Compute statistics grouped by rule code.

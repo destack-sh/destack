@@ -9,7 +9,7 @@ use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::{Ref, Repository, Revision};
+use destack_workspace::{Change, Ref, Repository, Revision};
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -39,13 +39,17 @@ impl TestProgram {
         // initialize the file system and repository
         let fs = Arc::new(MemoryFileSystem::new());
         let repository = Arc::new(
-            Repository::open_root_from_fs(root.clone(), fs.clone())
-                .expect("failed to import repository from cli test file system")
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+            Repository::open_root_from_fs(
+                root.clone(),
+                fs.clone(),
+                destack_workspace::AmbientSnapshot::capture_process(),
+            )
+            .expect("failed to import repository from cli test file system")
+            .with_cache(Arc::new(MemoryCacheStore::new())),
         );
 
         // create a resolver for workspace lookups
-        let resolver = Resolver::from_repository(&repository, ResolveOptions::default());
+        let resolver = Resolver::from_repository(repository.clone(), ResolveOptions::default());
 
         // return the test harness
         Self {
@@ -98,6 +102,17 @@ impl TestProgram {
         // write the file contents
         write_file(self.fs.as_ref(), &path, contents);
 
+        let logical_path = self.repository.normalize_workspace_path(&path);
+        let reference = Ref::for_workspace_root(&self.root);
+        self.repository
+            .apply(&reference, Change::set_text(logical_path, contents))
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to sync repository for '{}' after write: {error}",
+                    path.display()
+                )
+            });
+
         path
     }
 
@@ -113,6 +128,21 @@ impl TestProgram {
                 )
             })
             .unwrap_or_else(|| panic!("missing file for {}", path.display()))
+    }
+
+    /// Return whether the current revision still contains a path.
+    pub(super) fn has_file_for_path(&self, path: &Path) -> bool {
+        let file_id = self.repository.file_id_for_workspace_path(path);
+
+        self.repository
+            .file(self.current_revision(), file_id)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to read file '{}' from revision: {error}",
+                    path.display()
+                )
+            })
+            .is_some()
     }
 
     /// Write a json file relative to the test root.

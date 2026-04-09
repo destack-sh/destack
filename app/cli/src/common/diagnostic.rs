@@ -1,7 +1,7 @@
 use destack_compiler::DiagnosticRegistry;
 use destack_parser::source_colorizer;
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, FileStore, PrintOptions,
+    DiagnosticCollection, DiagnosticOptions, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
 };
 use destack_workspace::{Repository, Revision};
@@ -41,7 +41,6 @@ pub fn print_diagnostics(
     revision: Revision,
     diagnostics: &DiagnosticCollection,
 ) {
-    let files = collect_diagnostic_files(repository, revision, diagnostics);
     let module_count = repository
         .workspace_module_ids(revision)
         .map(|modules| modules.len())
@@ -50,33 +49,12 @@ pub fn print_diagnostics(
         .with_line_width(100)
         .with_module_count(module_count)
         .with_colorizer(source_colorizer());
-    print_diagnostics_impl(&files, diagnostics, options);
-}
-
-/// Collect the file snapshots referenced by diagnostics.
-fn collect_diagnostic_files(
-    repository: &Repository,
-    revision: Revision,
-    diagnostics: &DiagnosticCollection,
-) -> FileStore {
-    let files = FileStore::new();
-
-    // load each referenced file snapshot once
-    for diagnostic in diagnostics.iter() {
-        if files.get_maybe(diagnostic.file_id).is_some() {
-            continue;
-        }
-
-        let Ok(file) = repository.file(revision, diagnostic.file_id) else {
-            continue;
-        };
-        let Some(file) = file else {
-            continue;
-        };
-        files.insert((*file).clone());
-    }
-
-    files
+    let file_for_id = |file_id| {
+        repository
+            .file(revision, file_id)
+            .unwrap_or_else(|error| panic!("failed to load diagnostic file {file_id:?}: {error}"))
+    };
+    print_diagnostics_impl(&file_for_id, diagnostics, options);
 }
 
 /// Validate that a warning code is known.

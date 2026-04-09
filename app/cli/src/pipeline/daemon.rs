@@ -1,9 +1,10 @@
+use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use destack_compiler::{CompilerEventHandler, CompilerOptions};
+use destack_compiler::CompilerOptions;
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandRunPayload, CommandStats, CommandTargetOverrides,
@@ -18,14 +19,20 @@ use destack_daemon::{
     connect_in_process_daemon, connect_ipc_daemon,
 };
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
+use destack_session::SessionEventHandler;
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, File, FileStore, FileType, FileWatchStatus,
+    DiagnosticCollection, DiagnosticOptions, File, FileId, FileType, FileWatchStatus,
 };
 use destack_workspace::config::{OptimizeLevel, RuntimeOptionsJson};
 use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
-use serde_json::Value;
+use serde_json::{Map, Value, json};
 
+use crate::common::program::{
+    ArrowParenthesesArg, FormatterOptionsArgs, ImportSortOrderArg, IndentStyleArg, LineEndingArg,
+    LintPresetArg, LinterOptionsArgs, OrganizeImportsArg, QuotePropertyArg, QuoteStyleArg,
+    TrailingCommaArg,
+};
 use crate::common::{
     CommandError, CommandReport, DiagnosticFormat, FormatOptions, InputSource, LineWriter,
     ProgramArgs, ReportArgs, StatsSummary, TargetArgs, TimingOutputOptions,
@@ -129,11 +136,13 @@ impl DaemonConnector {
     fn new(
         repository: Arc<Repository>,
         compiler_options: CompilerOptions,
+        session_event_handler: Option<SessionEventHandler>,
         program: &ProgramArgs,
     ) -> Self {
         // build connect options
         let options = DaemonConnectOptions {
             compiler: compiler_options,
+            session_event_handler,
             ..DaemonConnectOptions::default()
         };
 
@@ -191,8 +200,8 @@ pub struct DaemonCommandResult {
     pub response: CommandResponse,
     /// Flattened diagnostics from the response.
     pub diagnostics: DiagnosticCollection,
-    /// File registry reconstructed from snapshots.
-    pub files: FileStore,
+    /// Files reconstructed from response snapshots.
+    pub files: BTreeMap<FileId, Arc<File>>,
 }
 
 /// Builder for common daemon command options.
@@ -208,6 +217,7 @@ impl CommandOptionsBuilder {
         let options = CommonCommandOptions {
             inputs: Vec::new(),
             allow_destack_config_fallback: false,
+            cwd: Some(program.effective_cwd()),
             cache_dir: program.cache_dir.clone(),
             config_path: program.config.clone(),
             target: None,
@@ -216,7 +226,7 @@ impl CommandOptionsBuilder {
             profile: None,
             diagnostic,
             env: Vec::new(),
-            overrides: Vec::new(),
+            overrides: config_overrides_from_program(program),
             watch: false,
             dry_run: false,
         };
@@ -284,16 +294,258 @@ impl CommandOptionsBuilder {
     }
 }
 
+/// Build command config overrides from explicit CLI formatter and linter options.
+pub fn config_overrides_from_program(program: &ProgramArgs) -> Vec<ConfigOverride> {
+    let mut overrides = Vec::new();
+
+    // formatter
+    if let Some(value) = formatter_override_value(&program.formatter) {
+        overrides.push(ConfigOverride {
+            path: "formatter".to_string(),
+            value,
+        });
+    }
+
+    // linter
+    if let Some(value) = linter_override_value(&program.linter) {
+        overrides.push(ConfigOverride {
+            path: "linter".to_string(),
+            value,
+        });
+    }
+
+    overrides
+}
+
+/// Build one formatter override object from explicit CLI flags.
+fn formatter_override_value(args: &FormatterOptionsArgs) -> Option<Value> {
+    let mut object: Map<String, Value> = Map::new();
+
+    // layout
+    if let Some(indent_style) = args.indent_style {
+        object.insert(
+            "indentStyle".to_string(),
+            json!(indent_style_override_value(indent_style)),
+        );
+    }
+    if let Some(indent_width) = args.indent_width {
+        object.insert("indentWidth".to_string(), json!(indent_width));
+    }
+    if let Some(line_ending) = args.line_ending {
+        object.insert(
+            "lineEnding".to_string(),
+            json!(line_ending_override_value(line_ending)),
+        );
+    }
+    if let Some(line_width) = args.line_width {
+        object.insert("lineWidth".to_string(), json!(line_width));
+    }
+
+    // syntax
+    if let Some(quote_style) = args.quote_style {
+        object.insert(
+            "quoteStyle".to_string(),
+            json!(quote_style_override_value(quote_style)),
+        );
+    }
+    if let Some(trailing_comma) = args.trailing_comma {
+        object.insert(
+            "trailingComma".to_string(),
+            json!(trailing_comma_override_value(trailing_comma)),
+        );
+    }
+    if let Some(bracket_spacing) = args.bracket_spacing {
+        object.insert("bracketSpacing".to_string(), json!(bracket_spacing));
+    }
+    if let Some(arrow_parens) = args.arrow_parens {
+        object.insert(
+            "arrowParens".to_string(),
+            json!(arrow_parentheses_override_value(arrow_parens)),
+        );
+    }
+    if let Some(quote_props) = args.quote_props {
+        object.insert(
+            "quoteProps".to_string(),
+            json!(quote_property_override_value(quote_props)),
+        );
+    }
+
+    // trees
+    if let Some(bracket_same_line) = args.bracket_same_line {
+        object.insert("bracketSameLine".to_string(), json!(bracket_same_line));
+    }
+    if let Some(single_attribute_per_line) = args.single_attribute_per_line {
+        object.insert(
+            "singleAttributePerLine".to_string(),
+            json!(single_attribute_per_line),
+        );
+    }
+
+    // imports
+    if let Some(organize_imports) = args.organize_imports {
+        object.insert(
+            "organizeImports".to_string(),
+            json!(organize_imports_override_value(organize_imports)),
+        );
+    }
+    if let Some(import_sort_order) = args.import_sort_order {
+        object.insert(
+            "importSortOrder".to_string(),
+            json!(import_sort_order_override_value(import_sort_order)),
+        );
+    }
+
+    if object.is_empty() {
+        return None;
+    }
+
+    Some(Value::Object(object))
+}
+
+/// Build one linter override object from explicit CLI flags.
+fn linter_override_value(args: &LinterOptionsArgs) -> Option<Value> {
+    let mut object: Map<String, Value> = Map::new();
+    let mut rules: Map<String, Value> = Map::new();
+    let mut complexity: Map<String, Value> = Map::new();
+
+    // rule selection
+    if let Some(preset) = args.preset {
+        rules.insert(
+            "preset".to_string(),
+            json!(lint_preset_override_value(preset)),
+        );
+    }
+    for rule in &args.allow {
+        rules.insert(rule.clone(), json!("off"));
+    }
+    for rule in &args.warn {
+        rules.insert(rule.clone(), json!("warn"));
+    }
+    for rule in &args.deny {
+        rules.insert(rule.clone(), json!("error"));
+    }
+
+    // complexity
+    if let Some(max_complexity) = args.max_complexity {
+        complexity.insert("maxCyclomaticComplexity".to_string(), json!(max_complexity));
+    }
+    if let Some(max_params) = args.max_params {
+        complexity.insert("maxParams".to_string(), json!(max_params));
+    }
+    if let Some(max_depth) = args.max_depth {
+        complexity.insert("maxDepth".to_string(), json!(max_depth));
+    }
+    if let Some(max_lines) = args.max_lines {
+        complexity.insert("maxLines".to_string(), json!(max_lines));
+    }
+
+    if !rules.is_empty() {
+        object.insert("rules".to_string(), Value::Object(rules));
+    }
+    if !complexity.is_empty() {
+        object.insert("complexity".to_string(), Value::Object(complexity));
+    }
+
+    if object.is_empty() {
+        return None;
+    }
+
+    Some(Value::Object(object))
+}
+
+/// Convert one indent style argument to one config value.
+fn indent_style_override_value(value: IndentStyleArg) -> &'static str {
+    match value {
+        IndentStyleArg::Tab => "tab",
+        IndentStyleArg::Space => "space",
+    }
+}
+
+/// Convert one line ending argument to one config value.
+fn line_ending_override_value(value: LineEndingArg) -> &'static str {
+    match value {
+        LineEndingArg::Lf => "lf",
+        LineEndingArg::Crlf => "crlf",
+        LineEndingArg::Cr => "cr",
+    }
+}
+
+/// Convert one quote style argument to one config value.
+fn quote_style_override_value(value: QuoteStyleArg) -> &'static str {
+    match value {
+        QuoteStyleArg::Double => "double",
+        QuoteStyleArg::Single => "single",
+        QuoteStyleArg::Semantic => "semantic",
+    }
+}
+
+/// Convert one trailing comma argument to one config value.
+fn trailing_comma_override_value(value: TrailingCommaArg) -> &'static str {
+    match value {
+        TrailingCommaArg::All => "all",
+        TrailingCommaArg::Es5 => "es5",
+        TrailingCommaArg::None => "none",
+    }
+}
+
+/// Convert one arrow parentheses argument to one config value.
+fn arrow_parentheses_override_value(value: ArrowParenthesesArg) -> &'static str {
+    match value {
+        ArrowParenthesesArg::Always => "always",
+        ArrowParenthesesArg::Avoid => "avoid",
+    }
+}
+
+/// Convert one quote property argument to one config value.
+fn quote_property_override_value(value: QuotePropertyArg) -> &'static str {
+    match value {
+        QuotePropertyArg::AsNeeded => "as-needed",
+        QuotePropertyArg::Consistent => "consistent",
+        QuotePropertyArg::Preserve => "preserve",
+    }
+}
+
+/// Convert one organize imports argument to one config value.
+fn organize_imports_override_value(value: OrganizeImportsArg) -> &'static str {
+    match value {
+        OrganizeImportsArg::On => "on",
+        OrganizeImportsArg::Off => "off",
+    }
+}
+
+/// Convert one import sort order argument to one config value.
+fn import_sort_order_override_value(value: ImportSortOrderArg) -> &'static str {
+    match value {
+        ImportSortOrderArg::Natural => "natural",
+        ImportSortOrderArg::Alphabetical => "alphabetical",
+    }
+}
+
+/// Convert one lint preset argument to one config value.
+fn lint_preset_override_value(value: LintPresetArg) -> &'static str {
+    match value {
+        LintPresetArg::None => "none",
+        LintPresetArg::Recommended => "recommended",
+        LintPresetArg::All => "all",
+    }
+}
+
 impl ProtocolDaemonClient {
     /// Create a protocol daemon client for the provided roots.
     pub fn new(
         repository: Arc<Repository>,
         compiler_options: CompilerOptions,
+        session_event_handler: Option<SessionEventHandler>,
         roots: Vec<PathBuf>,
         program: &ProgramArgs,
     ) -> CliResult<Self> {
         // connect to the daemon
-        let connector = DaemonConnector::new(repository.clone(), compiler_options, program);
+        let connector = DaemonConnector::new(
+            repository.clone(),
+            compiler_options,
+            session_event_handler,
+            program,
+        );
         let connection = connector.connect()?;
         let client = connection.client.clone();
 
@@ -704,7 +956,7 @@ pub fn run_workspace_command_once(
     diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
     payload: CommandPayload,
-    event_handler: Option<CompilerEventHandler>,
+    event_handler: Option<SessionEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
     // prepare the repository for a one-shot run
     let repository = program.setup();
@@ -728,7 +980,7 @@ pub fn run_workspace_command_with_repository(
     diagnostic: DiagnosticOptions,
     common: CommonCommandOptions,
     payload: CommandPayload,
-    event_handler: Option<CompilerEventHandler>,
+    event_handler: Option<SessionEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
     // resolve workspace roots for the daemon repository
     let roots = watch_roots(program, &repository);
@@ -737,8 +989,14 @@ pub fn run_workspace_command_with_repository(
     };
 
     // build compiler options for the daemon
-    let daemon_options = build_daemon_options(program, diagnostic, event_handler);
-    let daemon = ProtocolDaemonClient::new(repository.clone(), daemon_options, roots, program)?;
+    let daemon_options = build_daemon_options(program, diagnostic);
+    let daemon = ProtocolDaemonClient::new(
+        repository.clone(),
+        daemon_options,
+        event_handler,
+        roots,
+        program,
+    )?;
 
     // execute the command and shutdown
     let result = daemon.run_workspace_command(&root, common, payload)?;
@@ -890,8 +1148,11 @@ pub fn finish_diagnostic_command(
 
     // build a structured diagnostics report when requested
     if report_args.is_json() {
-        let (output, format_result) =
-            collect_diagnostics_json(&result.files, &result.diagnostics, json_format_options);
+        let (output, format_result) = collect_diagnostics_json(
+            &|file_id| result.files.get(&file_id).cloned(),
+            &result.diagnostics,
+            json_format_options,
+        );
         let mut report = report_from_payload(command, format_result.exit_code(), data, None, None);
         if let Some(stats) = result.response.stats.as_ref() {
             report.stats = Some(command_stats_from_protocol(stats, timing_options.enabled));
@@ -903,7 +1164,7 @@ pub fn finish_diagnostic_command(
 
     // render diagnostics for text oriented output
     let format_result = format_diagnostics_with_writer(
-        &result.files,
+        &|file_id| result.files.get(&file_id).cloned(),
         &result.diagnostics,
         text_format_options,
         result.response.module_count,
@@ -953,8 +1214,11 @@ pub fn finish_run_command(
             format: DiagnosticFormat::Json,
             ..FormatOptions::default()
         };
-        let (output, format_result) =
-            collect_diagnostics_json(&result.files, &result.diagnostics, &json_options);
+        let (output, format_result) = collect_diagnostics_json(
+            &|file_id| result.files.get(&file_id).cloned(),
+            &result.diagnostics,
+            &json_options,
+        );
 
         if format_result.exit_code() != 0 {
             let mut report = CommandReport::failure(command, format_result.exit_code());
@@ -968,7 +1232,7 @@ pub fn finish_run_command(
     } else {
         let text_options = FormatOptions::default();
         let format_result = format_diagnostics_with_writer(
-            &result.files,
+            &|file_id| result.files.get(&file_id).cloned(),
             &result.diagnostics,
             &text_options,
             result.response.module_count,
@@ -1154,30 +1418,24 @@ fn diagnostics_from_batches(batches: &[DiagnosticBatch]) -> DiagnosticCollection
 }
 
 /// Convert file snapshots into a file registry.
-fn files_from_snapshots(snapshots: &[FileSnapshot]) -> FileStore {
-    // rebuild a registry from snapshot metadata
-    let registry = FileStore::new();
+fn files_from_snapshots(snapshots: &[FileSnapshot]) -> BTreeMap<FileId, Arc<File>> {
+    // rebuild explicit files from snapshot metadata
+    let mut files = BTreeMap::new();
     for snapshot in snapshots {
-        let file = match snapshot.content.as_ref() {
-            Some(content) => File::from_text(
-                snapshot.id,
-                snapshot.name.clone(),
-                snapshot.uri.clone(),
-                snapshot.path.clone(),
-                snapshot.file_type,
-                content.clone(),
-            ),
-            None => File::unloaded(
-                snapshot.id,
-                snapshot.name.clone(),
-                snapshot.uri.clone(),
-                snapshot.path.clone(),
-                snapshot.file_type,
-            ),
+        let Some(content) = snapshot.content.as_ref() else {
+            continue;
         };
-        registry.insert(file);
+        let file = File::from_text(
+            snapshot.id,
+            snapshot.name.clone(),
+            snapshot.uri.clone(),
+            snapshot.path.clone(),
+            snapshot.file_type,
+            content.clone(),
+        );
+        files.insert(snapshot.id, Arc::new(file));
     }
-    registry
+    files
 }
 
 fn filter_status_for_root(status: &FileWatchStatus, root: &Path) -> Option<FileWatchStatus> {
