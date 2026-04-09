@@ -68,9 +68,19 @@ pub(super) fn format_type_declaration<'a>(
             write!(f, [hard_line_break(), token("}")])
         }
         _ => {
-            write!(f, [token("type"), space(), text(name), space()])?;
+            write!(
+                f,
+                [
+                    token("type"),
+                    space(),
+                    text(name),
+                    space(),
+                    token("="),
+                    space()
+                ]
+            )?;
             format_type_expanded(f, type_id, ty)?;
-            Ok(())
+            write!(f, [token(";")])
         }
     }
 }

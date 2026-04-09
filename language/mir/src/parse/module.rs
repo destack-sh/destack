@@ -269,6 +269,9 @@ impl<'a> Parser<'a> {
         };
 
         // alias target type
+        if !self.peek_token(TokenType::OpenBrace) {
+            self.eat_token(TokenType::Equals)?;
+        }
         let ty = self.parse_type()?;
 
         // record alias

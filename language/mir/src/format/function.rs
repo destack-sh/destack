@@ -162,11 +162,15 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                     }
                 ))]
             )?;
-            write!(f, [hard_line_break()])?;
+            write!(f, [empty_line()])?;
         }
 
         // blocks
-        for block_id in &blocks {
+        for (block_index, block_id) in blocks.iter().enumerate() {
+            if block_index > 0 {
+                write!(f, [empty_line()])?;
+            }
+
             write!(f, [block_id, hard_line_break()])?;
         }
 

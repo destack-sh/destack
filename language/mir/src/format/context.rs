@@ -1306,7 +1306,7 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
         if has_type_aliases {
             // add a blank line between top level blocks
             if has_output {
-                write!(f, [hard_line_break(), hard_line_break()])?;
+                write!(f, [empty_line()])?;
             }
 
             let alias_order = order_alias_entries(tree, &alias_entries);
@@ -1337,7 +1337,7 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
         if !global_ids.is_empty() {
             // add a blank line between top level blocks
             if has_output {
-                write!(f, [hard_line_break(), hard_line_break()])?;
+                write!(f, [empty_line()])?;
             }
 
             for (index, global_id) in global_ids.iter().enumerate() {
@@ -1355,13 +1355,13 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
         if !function_ids.is_empty() {
             // add a blank line between top level blocks
             if has_output {
-                write!(f, [hard_line_break(), hard_line_break()])?;
+                write!(f, [empty_line()])?;
             }
 
             for (index, function_id) in function_ids.iter().enumerate() {
                 // add blank lines between functions
                 if index > 0 {
-                    write!(f, [hard_line_break(), hard_line_break()])?;
+                    write!(f, [empty_line()])?;
                 }
                 write!(f, [function_id])?;
             }
