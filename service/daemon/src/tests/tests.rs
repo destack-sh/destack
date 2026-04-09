@@ -119,9 +119,13 @@ impl TestDaemon {
             common_workspace_root(&roots)
         };
         let repository = Arc::new(
-            Repository::open_root_from_fs(workspace_root, fs.clone())
-                .expect("failed to import repository from test file system")
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+            Repository::open_root_from_fs(
+                workspace_root,
+                fs.clone(),
+                destack_workspace::AmbientSnapshot::capture_process(),
+            )
+            .expect("failed to import repository from test file system")
+            .with_cache(Arc::new(MemoryCacheStore::new())),
         );
 
         // keep daemon tests deterministic: use a single compiler worker
@@ -129,7 +133,7 @@ impl TestDaemon {
             workers: 1,
             ..CompilerOptions::default()
         };
-        let daemon = Daemon::with_options(repository.clone(), compiler_options);
+        let daemon = Daemon::with_options(repository.clone(), compiler_options, None, None);
 
         Self {
             fs,

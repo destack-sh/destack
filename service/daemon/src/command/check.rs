@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use destack_compiler::Compiler;
-use destack_linter::Linter;
+use destack_artifact::ArtifactKey;
 use destack_source::{DiagnosticCollection, ModuleId};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -41,24 +40,34 @@ impl CommandContext<'_> {
         let modules = self.resolve_modules(&inputs)?;
         let revision = self.revision()?;
 
-        // enqueue analysis tasks
+        // collect the requested roots
         let lint_enabled = should_run_lint_tasks(options.lint, &options.lint_options);
-        enqueue_check_tasks(&self.compiler, &self.repository, revision, &modules)?;
-
-        // compile and collect diagnostics
-        self.compiler.compile();
-        let mut raw_diagnostics =
-            collect_module_profile_diagnostics(&self.repository, revision, &modules)?;
-        if lint_enabled {
-            raw_diagnostics.merge_from(&run_module_lints(&self.repository, revision, &modules)?);
+        let mut artifact_keys = Vec::new();
+        for module_id in &modules {
+            artifact_keys.push(check_root_for_module(
+                &self.repository,
+                revision,
+                *module_id,
+                lint_enabled,
+            )?);
         }
+
+        // provide the requested roots
+        let run_stats = self
+            .session
+            .provide(&artifact_keys)
+            .map_err(|error| error.to_string())?;
+        let revision = self.session.revision();
+        let raw_diagnostics =
+            collect_module_profile_diagnostics(&self.repository, revision, &modules)?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
         let module_count = self.module_count(revision)?;
         let profile_count = self.default_profile_count(revision, &modules)?;
         let stats = self
-            .compiler
+            .session
+            .compiler()
             .stats
             .snapshot_with_repository(module_count, Some(&self.repository));
 
@@ -69,7 +78,8 @@ impl CommandContext<'_> {
             profile_count,
             0,
             Some(stats),
-        ))
+        )
+        .with_run_stats(run_stats))
     }
 
     /// Execute a lint command.
@@ -82,24 +92,34 @@ impl CommandContext<'_> {
         let modules = self.resolve_modules(&inputs)?;
         let revision = self.revision()?;
 
-        // enqueue analysis tasks
+        // collect the requested roots
         let lint_enabled = should_run_lint_tasks(true, options);
-        enqueue_check_tasks(&self.compiler, &self.repository, revision, &modules)?;
-
-        // compile and collect diagnostics
-        self.compiler.compile();
-        let mut raw_diagnostics =
-            collect_module_profile_diagnostics(&self.repository, revision, &modules)?;
-        if lint_enabled {
-            raw_diagnostics.merge_from(&run_module_lints(&self.repository, revision, &modules)?);
+        let mut artifact_keys = Vec::new();
+        for module_id in &modules {
+            artifact_keys.push(check_root_for_module(
+                &self.repository,
+                revision,
+                *module_id,
+                lint_enabled,
+            )?);
         }
+
+        // provide the requested roots
+        let run_stats = self
+            .session
+            .provide(&artifact_keys)
+            .map_err(|error| error.to_string())?;
+        let revision = self.session.revision();
+        let raw_diagnostics =
+            collect_module_profile_diagnostics(&self.repository, revision, &modules)?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
         let module_count = self.module_count(revision)?;
         let profile_count = self.default_profile_count(revision, &modules)?;
         let stats = self
-            .compiler
+            .session
+            .compiler()
             .stats
             .snapshot_with_repository(module_count, Some(&self.repository));
 
@@ -110,28 +130,27 @@ impl CommandContext<'_> {
             profile_count,
             0,
             Some(stats),
-        ))
+        )
+        .with_run_stats(run_stats))
     }
 }
 
-/// Enqueue analysis tasks for the provided modules.
-fn enqueue_check_tasks(
-    compiler: &Arc<Compiler>,
+/// Build the requested check root for one module.
+fn check_root_for_module(
     repository: &Arc<Repository>,
     revision: Revision,
-    modules: &[ModuleId],
-) -> Result<(), DaemonCommandError> {
-    for module_id in modules {
-        let profile = repository
-            .default_profile_id_for_module(revision, *module_id)
-            .map_err(|error| DaemonCommandError::compiler(error.to_string()))?;
-        compiler.enqueue(
-            revision,
-            destack_artifact::ArtifactKey::dir_analyzed(*module_id, profile),
-        );
+    module_id: ModuleId,
+    lint_enabled: bool,
+) -> Result<ArtifactKey, DaemonCommandError> {
+    let profile = repository
+        .default_profile_id_for_module(revision, module_id)
+        .map_err(|error| DaemonCommandError::compiler(error.to_string()))?;
+
+    if lint_enabled {
+        return Ok(ArtifactKey::module_linted(module_id, profile));
     }
 
-    Ok(())
+    Ok(ArtifactKey::dir_analyzed(module_id, profile))
 }
 
 /// Collect diagnostics across the current artifact families for the requested modules.
@@ -149,30 +168,6 @@ fn collect_module_profile_diagnostics(
             .map_err(|error| DaemonCommandError::compiler(error.to_string()))?;
         diagnostics
             .merge_from(&repository.module_artifact_diagnostics(revision, *module_id, profile_id));
-    }
-
-    Ok(diagnostics)
-}
-
-/// Run module scoped lints over already-built compiler products.
-fn run_module_lints(
-    repository: &Arc<Repository>,
-    revision: Revision,
-    modules: &[ModuleId],
-) -> Result<destack_source::DiagnosticCollection, DaemonCommandError> {
-    let linter = Linter::new(repository.clone());
-    let mut diagnostics = destack_source::DiagnosticCollection::new();
-
-    // lint each requested module against its default profile
-    for module_id in modules {
-        let profile = repository
-            .default_profile_for_module(revision, *module_id)
-            .map_err(|error| DaemonCommandError::compiler(error.to_string()))?;
-        diagnostics.merge_from(
-            &linter
-                .lint_module(revision, *module_id, profile)
-                .map_err(|error| DaemonCommandError::compiler(error.to_string()))?,
-        );
     }
 
     Ok(diagnostics)

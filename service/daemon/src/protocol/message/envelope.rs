@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 
 use super::super::handshake::{HandshakeRequest, HandshakeResponse};
 use super::{
-    AnalyzeRequest, AnalyzeResponse, CacheRequest, CacheResponse, CloseWorkspaceRequest,
-    CommandRequest, CommandResponse, DaemonNotification, DaemonQuery, DaemonQueryResponse,
-    FileUpdateRequest, FileUpdateResponse, OpenWorkspaceRequest, OutputRequest, OutputResponse,
-    ReplRequest, ReplResponse, RescanWorkspaceRequest, RuntimeRequest, RuntimeResponse,
+    CacheRequest, CacheResponse, CloseWorkspaceRequest, CommandRequest, CommandResponse,
+    DaemonNotification, DaemonQuery, DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse,
+    OpenWorkspaceRequest, OutputRequest, OutputResponse, PrepareQueryRequest, PrepareQueryResponse,
+    ReloadWorkspaceRequest, ReplRequest, ReplResponse, RuntimeRequest, RuntimeResponse,
     WatchBatchRequest, WatchBatchResponse, WorkspaceClosedResponse, WorkspaceOpenedResponse,
-    WorkspaceRescanResponse,
+    WorkspaceReloadResponse,
 };
 
 /// Unique identifier for protocol requests.
@@ -195,12 +195,12 @@ pub enum DaemonRequest {
     OpenWorkspace(OpenWorkspaceRequest),
     /// Close a workspace handle.
     CloseWorkspace(CloseWorkspaceRequest),
-    /// Rescan a workspace root.
-    RescanWorkspace(RescanWorkspaceRequest),
+    /// Reload a workspace root.
+    ReloadWorkspace(ReloadWorkspaceRequest),
     /// Apply a file update to a workspace.
     ApplyFileUpdate(FileUpdateRequest),
-    /// Ensure a workspace path is analyzed.
-    Analyze(AnalyzeRequest),
+    /// Prepare query artifacts for a workspace path.
+    PrepareQuery(PrepareQueryRequest),
     /// Apply a watch batch to a workspace.
     ApplyWatchBatch(WatchBatchRequest),
     /// Perform a command pipeline action.
@@ -233,12 +233,12 @@ pub enum DaemonResponse {
     WorkspaceOpened(WorkspaceOpenedResponse),
     /// Workspace close response.
     WorkspaceClosed(WorkspaceClosedResponse),
-    /// Workspace rescan response.
-    WorkspaceRescanned(WorkspaceRescanResponse),
+    /// Workspace reload response.
+    WorkspaceReloaded(WorkspaceReloadResponse),
     /// File update response.
     FileUpdated(FileUpdateResponse),
-    /// Analysis response.
-    Analyzed(AnalyzeResponse),
+    /// Prepare-query response.
+    QueryPrepared(PrepareQueryResponse),
     /// Watch batch response.
     WatchBatchApplied(WatchBatchResponse),
     /// Command response.

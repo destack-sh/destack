@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{DaemonMessageRecord, DaemonUpdateRecord, RescanReason, WorkspaceHandleId};
+use super::{DaemonMessageRecord, DaemonUpdateRecord, ReloadReason, WorkspaceHandleId};
 
 /// Request to apply a watch batch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,12 +70,12 @@ pub enum WatchEventKind {
 pub enum WatchStatus {
     /// Watcher is ready.
     Ready { roots: Vec<PathBuf> },
-    /// Watcher requests a rescan.
-    RescanRequested {
-        /// Watch roots for the rescan.
+    /// Watcher requests a filesystem reload.
+    ReloadRequested {
+        /// Watch roots for the reload.
         roots: Vec<PathBuf>,
-        /// Rescan reason.
-        reason: RescanReason,
+        /// Reload reason.
+        reason: ReloadReason,
     },
     /// Watcher encountered an error.
     Error { message: String },

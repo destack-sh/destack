@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::Compiler;
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::{DiagnosticCollection, ModuleId, TargetId};
@@ -69,29 +68,21 @@ impl CommandContext<'_> {
         let target_overrides = self.common.target_overrides.as_ref();
         let target = self.resolve_target_for_module(entry_module, target_overrides)?;
 
-        // enqueue lowering tasks
-        enqueue_lower_tasks(
+        // collect run roots
+        let artifact_keys = run_roots_for_target(
             &self.repository,
-            &self.compiler,
             revision,
             entry_module,
             &target.id,
+            self.should_optimize(&target.target),
         )?;
 
-        // optionally enqueue optimize tasks
-        if self.should_optimize(&target.target) {
-            let profile = self
-                .repository
-                .profile_id_for_target_or_default(revision, entry_module, &target.id)
-                .map_err(|error| error.to_string())?;
-            self.compiler.enqueue(
-                revision,
-                ArtifactKey::mir_optimized(entry_module, profile, target.id),
-            );
-        }
-
-        // compile and collect diagnostics
-        self.compiler.compile();
+        // provide the requested roots
+        let run_stats = self
+            .session
+            .provide(&artifact_keys)
+            .map_err(|error| error.to_string())?;
+        let revision = self.session.revision();
         let raw_diagnostics =
             collect_run_target_diagnostics(&self.repository, revision, entry_module, &target)?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
@@ -111,11 +102,13 @@ impl CommandContext<'_> {
                 profile_count,
                 1,
                 Some(
-                    self.compiler
+                    self.session
+                        .compiler()
                         .stats
                         .snapshot_with_repository(module_count, Some(&self.repository)),
                 ),
-            ));
+            )
+            .with_run_stats(run_stats));
         }
 
         // execute the entry module
@@ -135,7 +128,8 @@ impl CommandContext<'_> {
             Ok(result) => result,
             Err(error) => {
                 let stats = self
-                    .compiler
+                    .session
+                    .compiler()
                     .stats
                     .snapshot_with_repository(module_count, Some(&self.repository));
                 let payload = CommandRunPayload::RuntimeError {
@@ -151,12 +145,14 @@ impl CommandContext<'_> {
                     1,
                     Some(stats),
                 )
+                .with_run_stats(run_stats)
                 .with_data(data));
             }
         };
 
         let stats = self
-            .compiler
+            .session
+            .compiler()
             .stats
             .snapshot_with_repository(module_count, Some(&self.repository));
 
@@ -174,6 +170,7 @@ impl CommandContext<'_> {
             1,
             Some(stats),
         )
+        .with_run_stats(run_stats)
         .with_data(data))
     }
 }
@@ -198,23 +195,24 @@ struct RunResult {
     payload: serde_json::Value,
 }
 
-/// Enqueue lowering tasks for the entry module.
-fn enqueue_lower_tasks(
+/// Build the requested run roots for one target.
+fn run_roots_for_target(
     repository: &Arc<Repository>,
-    compiler: &Arc<Compiler>,
     revision: Revision,
     module_id: ModuleId,
     target_id: &TargetId,
-) -> Result<(), String> {
+    is_optimized: bool,
+) -> Result<Vec<ArtifactKey>, String> {
     let profile = repository
         .profile_id_for_target_or_default(revision, module_id, target_id)
         .map_err(|error| error.to_string())?;
-    compiler.enqueue(
-        revision,
-        ArtifactKey::mir_base(module_id, profile, *target_id),
-    );
+    let mut artifact_keys = vec![ArtifactKey::mir_base(module_id, profile, *target_id)];
 
-    Ok(())
+    if is_optimized {
+        artifact_keys.push(ArtifactKey::mir_optimized(module_id, profile, *target_id));
+    }
+
+    Ok(artifact_keys)
 }
 
 /// Execute the entry module in the VM.

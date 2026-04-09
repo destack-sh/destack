@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
 use destack_compiler::CompilerOptions;
+use destack_session::{SessionEventHandler, SessionObservationHandler};
 use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonInstanceError, DaemonMetadata};
@@ -14,14 +15,38 @@ use crate::protocol::{
 use crate::{Daemon, DaemonServiceOptions, DaemonShutdownOptions};
 
 /// Options for the daemon server.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct DaemonServerOptions {
     /// Compiler options for daemon work.
     pub compiler_options: CompilerOptions,
+    /// Optional session event handler for in process progress.
+    pub session_event_handler: Option<SessionEventHandler>,
+    /// Optional session observation handler for in process instrumentation.
+    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Protocol options for daemon connections.
     pub protocol: ProtocolServerOptions,
     /// Shutdown policy options.
     pub shutdown: DaemonShutdownOptions,
+}
+
+impl std::fmt::Debug for DaemonServerOptions {
+    /// Format the visible daemon server options.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DaemonServerOptions")
+            .field("compiler_options", &self.compiler_options)
+            .field(
+                "session_event_handler",
+                &self.session_event_handler.is_some(),
+            )
+            .field(
+                "session_observation_handler",
+                &self.session_observation_handler.is_some(),
+            )
+            .field("protocol", &self.protocol)
+            .field("shutdown", &self.shutdown)
+            .finish()
+    }
 }
 
 impl DaemonServerOptions {
@@ -78,6 +103,8 @@ impl DaemonServer {
         let daemon = Arc::new(Daemon::with_options(
             repository,
             options.compiler_options.clone(),
+            options.session_event_handler.clone(),
+            options.session_observation_handler.clone(),
         ));
 
         // return the server state
@@ -259,6 +286,8 @@ impl From<DaemonServiceOptions> for DaemonServerOptions {
     fn from(options: DaemonServiceOptions) -> Self {
         Self {
             compiler_options: options.compiler_options,
+            session_event_handler: options.session_event_handler,
+            session_observation_handler: options.session_observation_handler,
             protocol: options.protocol,
             shutdown: DaemonShutdownOptions::default(),
         }

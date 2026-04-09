@@ -44,7 +44,7 @@ impl CommandContext<'_> {
         let cache_directory = resolve_cache_directory(
             self.common.cache_dir.as_ref(),
             &workspace.root,
-            &self.repository.cwd,
+            self.repository.workspace_root(),
         );
         let source = cache_source_label(self.common.cache_dir.as_ref());
 

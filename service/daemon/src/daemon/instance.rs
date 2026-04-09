@@ -350,7 +350,7 @@ mod tests {
     use std::sync::Arc;
 
     use destack_source::TemporaryPhysicalFileSystem;
-    use destack_workspace::Repository;
+    use destack_workspace::{AmbientSnapshot, Repository};
 
     use super::{DaemonInstance, DaemonInstanceError};
 
@@ -359,7 +359,10 @@ mod tests {
     fn test_daemon_instance_paths_are_stable() {
         // build two instances for the same root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_paths");
-        let repository = Arc::new(Repository::open_root(root.root().to_path_buf()));
+        let repository = Arc::new(Repository::open_root(
+            root.root().to_path_buf(),
+            AmbientSnapshot::capture_process(),
+        ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root.clone());
 
@@ -375,7 +378,10 @@ mod tests {
     fn test_daemon_instance_lock_rejects_second_acquire() {
         // create a daemon instance for a temporary root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_lock");
-        let repository = Arc::new(Repository::open_root(root.root().to_path_buf()));
+        let repository = Arc::new(Repository::open_root(
+            root.root().to_path_buf(),
+            AmbientSnapshot::capture_process(),
+        ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
 

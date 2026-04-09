@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_service::{FileSnapshot as WorkspaceFileSnapshot, UpdateImpact, UpdateImpactKind};
+use destack_service::{FileChangeKind, FileSnapshot as WorkspaceFileSnapshot};
 use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
@@ -12,35 +12,27 @@ use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate, WatchBatch as Daemon
 
 use super::{
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
-    DiagnosticBatch, FileSnapshot, RescanReason, UpdateImpactKind as ProtocolUpdateImpactKind,
-    UpdateImpactSummary, WatchBatch as ProtocolWatchBatch, WatchEvent as ProtocolWatchEvent,
+    DiagnosticBatch, FileSnapshot, ReloadReason, UpdateChangeKind as ProtocolUpdateChangeKind,
+    UpdateChangeSummary, WatchBatch as ProtocolWatchBatch, WatchEvent as ProtocolWatchEvent,
     WatchEventKind as ProtocolWatchEventKind, WatchStatus as ProtocolWatchStatus,
 };
 
-impl From<UpdateImpactKind> for ProtocolUpdateImpactKind {
-    fn from(kind: UpdateImpactKind) -> Self {
+impl From<FileChangeKind> for ProtocolUpdateChangeKind {
+    fn from(kind: FileChangeKind) -> Self {
         match kind {
-            UpdateImpactKind::Destack => ProtocolUpdateImpactKind::Destack,
-            UpdateImpactKind::TsConfig => ProtocolUpdateImpactKind::TsConfig,
-            UpdateImpactKind::Unknown => ProtocolUpdateImpactKind::Unknown,
+            FileChangeKind::Package => ProtocolUpdateChangeKind::Package,
+            FileChangeKind::Destack => ProtocolUpdateChangeKind::Destack,
+            FileChangeKind::TsConfig => ProtocolUpdateChangeKind::TsConfig,
+            FileChangeKind::Unknown => ProtocolUpdateChangeKind::Unknown,
         }
     }
 }
 
-impl From<&UpdateImpact> for UpdateImpactSummary {
-    fn from(plan: &UpdateImpact) -> Self {
+impl From<&crate::DaemonUpdate> for UpdateChangeSummary {
+    fn from(update: &crate::DaemonUpdate) -> Self {
         Self {
-            file_id: plan.file_id,
-            kinds: plan
-                .kinds
-                .iter()
-                .copied()
-                .map(ProtocolUpdateImpactKind::from)
-                .collect(),
-            modules: plan.modules.clone(),
-            packages: plan.packages.clone(),
-            profiles: plan.profiles.clone(),
-            graphs_dropped: plan.graphs_dropped.clone(),
+            file_id: update.file_id,
+            kind: ProtocolUpdateChangeKind::from(update.kind),
         }
     }
 }
@@ -51,7 +43,7 @@ impl From<&DaemonUpdate> for DaemonUpdateRecord {
             module_id: update.module_id,
             file_id: update.file_id,
             file: protocol_snapshot_from_workspace(&update.file),
-            impact: UpdateImpactSummary::from(&update.impact),
+            change: UpdateChangeSummary::from(update),
             diagnostics: update.diagnostics.clone(),
         }
     }
@@ -98,13 +90,13 @@ impl From<&FileWatchEventKind> for ProtocolWatchEventKind {
     }
 }
 
-impl From<&FileWatchRescanReason> for RescanReason {
+impl From<&FileWatchRescanReason> for ReloadReason {
     fn from(reason: &FileWatchRescanReason) -> Self {
         match reason {
-            FileWatchRescanReason::Startup => RescanReason::Startup,
-            FileWatchRescanReason::Overflow => RescanReason::Overflow,
-            FileWatchRescanReason::Manual => RescanReason::Manual,
-            FileWatchRescanReason::Update => RescanReason::Update,
+            FileWatchRescanReason::Startup => ReloadReason::Startup,
+            FileWatchRescanReason::Overflow => ReloadReason::Overflow,
+            FileWatchRescanReason::Manual => ReloadReason::Manual,
+            FileWatchRescanReason::Update => ReloadReason::Update,
         }
     }
 }
@@ -126,9 +118,9 @@ impl From<&FileWatchStatus> for ProtocolWatchStatus {
                 roots: roots.clone(),
             },
             FileWatchStatus::RescanRequested { roots, reason } => {
-                ProtocolWatchStatus::RescanRequested {
+                ProtocolWatchStatus::ReloadRequested {
                     roots: roots.clone(),
-                    reason: RescanReason::from(reason),
+                    reason: ReloadReason::from(reason),
                 }
             }
             FileWatchStatus::Error { message } => ProtocolWatchStatus::Error {
@@ -188,14 +180,14 @@ impl ProtocolWatchEvent {
     }
 }
 
-impl RescanReason {
+impl ReloadReason {
     /// Convert to a daemon rescan reason.
     pub fn to_daemon(self) -> FileWatchRescanReason {
         match self {
-            RescanReason::Startup => FileWatchRescanReason::Startup,
-            RescanReason::Overflow => FileWatchRescanReason::Overflow,
-            RescanReason::Manual => FileWatchRescanReason::Manual,
-            RescanReason::Update => FileWatchRescanReason::Update,
+            ReloadReason::Startup => FileWatchRescanReason::Startup,
+            ReloadReason::Overflow => FileWatchRescanReason::Overflow,
+            ReloadReason::Manual => FileWatchRescanReason::Manual,
+            ReloadReason::Update => FileWatchRescanReason::Update,
         }
     }
 }
@@ -207,7 +199,7 @@ impl ProtocolWatchStatus {
             ProtocolWatchStatus::Ready { roots } => FileWatchStatus::Ready {
                 roots: roots.clone(),
             },
-            ProtocolWatchStatus::RescanRequested { roots, reason } => {
+            ProtocolWatchStatus::ReloadRequested { roots, reason } => {
                 FileWatchStatus::RescanRequested {
                     roots: roots.clone(),
                     reason: reason.to_daemon(),
@@ -286,9 +278,9 @@ fn snapshot_for_file(
     let file = repository.file(revision, file_id).ok()??;
 
     // resolve text content when available
-    let content = match &file.content {
-        FileContent::Text { .. } | FileContent::Json { .. } => Some(file.text().to_string()),
-        FileContent::Missing | FileContent::Unloaded | FileContent::Binary { .. } => None,
+    let content = match file.content.payload() {
+        FileContent::Text { .. } => Some(file.text().to_string()),
+        FileContent::Binary { .. } => None,
     };
 
     Some(FileSnapshot {

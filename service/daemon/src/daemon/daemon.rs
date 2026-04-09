@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_service::{FileSnapshot as WorkspaceFileSnapshot, LanguageService, UpdateImpact};
+use destack_service::{FileChangeKind, FileSnapshot as WorkspaceFileSnapshot, LanguageService};
+use destack_session::{SessionEventHandler, SessionObservationHandler};
 use destack_source::{Diagnostic, FileId, ModuleId};
 use destack_workspace::Repository;
 use parking_lot::Mutex;
@@ -13,38 +14,72 @@ use crate::DaemonError;
 
 /// Persistent daemon state for toolchain services.
 /// Basically, we wrap LanguageServices in a stateful central place.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Daemon {
     /// The active repository for this daemon.
     pub repository: Arc<Repository>,
     /// Default compiler options for daemon work.
     pub compiler_options: CompilerOptions,
+    /// Optional session event handler for in process daemon work.
+    pub session_event_handler: Option<SessionEventHandler>,
+    /// Optional session observation handler for in process daemon work.
+    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Shared workspace orchestration service.
     pub workspace_service: Arc<LanguageService>,
     /// Per-root workspace handle lease counts.
     workspace_leases: Arc<Mutex<HashMap<PathBuf, usize>>>,
 }
 
+impl std::fmt::Debug for Daemon {
+    /// Format the visible daemon state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Daemon")
+            .field("repository", &self.repository)
+            .field("compiler_options", &self.compiler_options)
+            .field(
+                "session_event_handler",
+                &self.session_event_handler.is_some(),
+            )
+            .field(
+                "session_observation_handler",
+                &self.session_observation_handler.is_some(),
+            )
+            .field("workspace_service", &self.workspace_service)
+            .field("workspace_leases", &self.workspace_leases)
+            .finish()
+    }
+}
+
 impl Daemon {
     /// Create a daemon for the given repository.
     pub fn new(repository: Arc<Repository>) -> Self {
-        Self::with_options(repository, CompilerOptions::default())
+        Self::with_options(repository, CompilerOptions::default(), None, None)
     }
 
     /// Create a daemon with explicit compiler options.
-    pub fn with_options(repository: Arc<Repository>, compiler_options: CompilerOptions) -> Self {
+    pub fn with_options(
+        repository: Arc<Repository>,
+        compiler_options: CompilerOptions,
+        session_event_handler: Option<SessionEventHandler>,
+        session_observation_handler: Option<SessionObservationHandler>,
+    ) -> Self {
         let roots = vec![repository.workspace_root().to_path_buf()];
         let workspace_service = LanguageService::with_options(
             repository.clone(),
             None,
             roots,
             compiler_options.clone(),
+            session_event_handler.clone(),
+            session_observation_handler.clone(),
         )
         .expect("workspace service initialization should not fail");
 
         Self {
             repository,
             compiler_options,
+            session_event_handler,
+            session_observation_handler,
             workspace_service: Arc::new(workspace_service),
             workspace_leases: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -102,13 +137,6 @@ impl Daemon {
             .compiler_for_workspace_root(root)
             .map_err(Into::into)
     }
-
-    /// Ensure the query artifact frontier for a path is available.
-    pub fn ensure_query_artifacts_for_path(&self, path: &Path) -> Result<(), DaemonError> {
-        self.workspace_service
-            .ensure_query_artifacts_for_path(path)
-            .map_err(Into::into)
-    }
 }
 
 /// Summary of a daemon update.
@@ -120,8 +148,8 @@ pub struct DaemonUpdate {
     pub file_id: FileId,
     /// File snapshot for the updated file.
     pub file: WorkspaceFileSnapshot,
-    /// The update impact summary.
-    pub impact: UpdateImpact,
+    /// The coarse change kind for this file.
+    pub kind: FileChangeKind,
     /// Diagnostics for the updated file.
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -174,17 +202,17 @@ impl DaemonWatchBatchResult {
     }
 }
 
-/// Summary of a rescan applied through the daemon.
+/// Summary of a filesystem reload applied through the daemon.
 #[derive(Debug, Clone, Default)]
-pub struct DaemonRescanResult {
-    /// Updates produced by the rescan.
+pub struct DaemonReloadResult {
+    /// Updates produced by the reload.
     pub updates: Vec<DaemonUpdate>,
     /// Warnings or errors to surface to the caller.
     pub messages: Vec<DaemonMessage>,
 }
 
-impl DaemonRescanResult {
-    /// Return true when the rescan produced updates.
+impl DaemonReloadResult {
+    /// Return true when the reload produced updates.
     pub fn updated(&self) -> bool {
         !self.updates.is_empty()
     }

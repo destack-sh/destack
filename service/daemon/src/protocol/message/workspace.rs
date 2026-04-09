@@ -51,9 +51,9 @@ pub struct WorkspaceClosedResponse {
     pub handle: WorkspaceHandleId,
 }
 
-/// Reason for a workspace rescan request.
+/// Reason for a workspace reload request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RescanReason {
+pub enum ReloadReason {
     /// Requested on startup.
     Startup,
     /// Requested after a watch overflow.
@@ -64,23 +64,23 @@ pub enum RescanReason {
     Update,
 }
 
-/// Request to rescan a workspace.
+/// Request to reload a workspace.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RescanWorkspaceRequest {
+pub struct ReloadWorkspaceRequest {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
-    /// Reason for the rescan.
-    pub reason: RescanReason,
+    /// Reason for the reload.
+    pub reason: ReloadReason,
 }
 
-/// Response to workspace rescans.
+/// Response to workspace reloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorkspaceRescanResponse {
+pub struct WorkspaceReloadResponse {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
-    /// Updates produced during rescan.
+    /// Updates produced during reload.
     pub updates: Vec<DaemonUpdateRecord>,
-    /// Messages produced during rescan.
+    /// Messages produced during reload.
     pub messages: Vec<DaemonMessageRecord>,
 }
 
@@ -93,12 +93,12 @@ pub struct FileUpdateRequest {
     pub update: FileUpdate,
 }
 
-/// Request to analyze a path within a workspace.
+/// Request to prepare query artifacts for a path within a workspace.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AnalyzeRequest {
+pub struct PrepareQueryRequest {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
-    /// Path to analyze.
+    /// Path to prepare.
     pub path: PathBuf,
 }
 
@@ -113,12 +113,12 @@ pub struct FileUpdateResponse {
     pub messages: Vec<DaemonMessageRecord>,
 }
 
-/// Response to an analyze request.
+/// Response to a prepare-query request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AnalyzeResponse {
+pub struct PrepareQueryResponse {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
-    /// Whether query artifacts are ready after analysis.
+    /// Whether query artifacts are ready after preparation.
     pub query_ready: bool,
     /// Optional readiness detail when query artifacts are not ready.
     pub detail: Option<String>,

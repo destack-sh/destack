@@ -87,5 +87,5 @@ fn read_config_json(
         .ok_or_else(|| format!("failed to load {}", path.display()))?;
     let content = file.text();
 
-    Ok(serde_json::from_str(&content).map_err(|error| format!("invalid destack.json: {error}"))?)
+    Ok(serde_json::from_str(content).map_err(|error| format!("invalid destack.json: {error}"))?)
 }

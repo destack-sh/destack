@@ -2,6 +2,7 @@ use std::io;
 use std::sync::Arc;
 
 use destack_compiler::CompilerOptions;
+use destack_session::{SessionEventHandler, SessionObservationHandler};
 use destack_workspace::Repository;
 
 use crate::Daemon;
@@ -11,12 +12,35 @@ use crate::protocol::{
 };
 
 /// Options for starting a daemon service.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct DaemonServiceOptions {
     /// Compiler options for daemon work.
     pub compiler_options: CompilerOptions,
+    /// Optional session event handler for in process progress.
+    pub session_event_handler: Option<SessionEventHandler>,
+    /// Optional session observation handler for in process instrumentation.
+    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Protocol server options.
     pub protocol: ProtocolServerOptions,
+}
+
+impl std::fmt::Debug for DaemonServiceOptions {
+    /// Format the visible daemon service options.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DaemonServiceOptions")
+            .field("compiler_options", &self.compiler_options)
+            .field(
+                "session_event_handler",
+                &self.session_event_handler.is_some(),
+            )
+            .field(
+                "session_observation_handler",
+                &self.session_observation_handler.is_some(),
+            )
+            .field("protocol", &self.protocol)
+            .finish()
+    }
 }
 
 /// Daemon service entrypoint for protocol connections.
@@ -41,6 +65,8 @@ impl DaemonService {
         let daemon = Arc::new(Daemon::with_options(
             repository,
             options.compiler_options.clone(),
+            options.session_event_handler.clone(),
+            options.session_observation_handler.clone(),
         ));
         let server = ProtocolServer::with_options(daemon.clone(), options.protocol.clone());
         Self {

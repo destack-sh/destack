@@ -79,7 +79,7 @@ impl CommandContext<'_> {
         let config_path = if self.common.config_path.is_some() {
             Some(self.resolve_destack_config_path(self.common.config_path.as_deref())?)
         } else {
-            self.find_destack_config(&self.repository.cwd)
+            self.find_destack_config(self.session.cwd())
         };
         let declaration = config_path
             .as_ref()
