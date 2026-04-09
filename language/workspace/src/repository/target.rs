@@ -484,7 +484,7 @@ impl Repository {
         package_id: PackageId,
         target_id: &TargetId,
         package_directory: &Path,
-    ) -> Result<Vec<PathBuf>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<PathBuf>, TargetDiscoveryError> {
         let mut candidates = Vec::new();
 
         self.collect_manifest_candidate_paths_recursive(
@@ -504,11 +504,11 @@ impl Repository {
         target_id: &TargetId,
         directory: &Path,
         candidates: &mut Vec<PathBuf>,
-    ) -> Result<(), TargetDiscoveryIssue> {
+    ) -> Result<(), TargetDiscoveryError> {
         let entries =
             self.fs
                 .read_dir(directory)
-                .map_err(|error| TargetDiscoveryIssue::Repository {
+                .map_err(|error| TargetDiscoveryError::Repository {
                     package: package_id,
                     target: *target_id,
                     message: error.to_string(),
@@ -518,7 +518,7 @@ impl Repository {
             let metadata =
                 self.fs
                     .metadata(&entry)
-                    .map_err(|error| TargetDiscoveryIssue::Repository {
+                    .map_err(|error| TargetDiscoveryError::Repository {
                         package: package_id,
                         target: *target_id,
                         message: error.to_string(),
@@ -601,13 +601,13 @@ impl Repository {
         let path_exists =
             self.fs
                 .exists(&resolved_path)
-                .map_err(|error| TargetDiscoveryIssue::Repository {
+                .map_err(|error| TargetDiscoveryError::Repository {
                     package: package_id,
                     target: *target_id,
                     message: error.to_string(),
                 })?;
         if !path_exists {
-            return Err(TargetDiscoveryIssue::MissingEntry {
+            return Err(TargetDiscoveryError::MissingEntry {
                 package: package_id,
                 target: *target_id,
                 path: resolved_path,
@@ -650,7 +650,7 @@ impl Repository {
         // return the first existing path with one repository module
         for candidate_path in &candidate_paths {
             let path_exists = self.fs.exists(candidate_path).map_err(|error| {
-                TargetDiscoveryIssue::Repository {
+                TargetDiscoveryError::Repository {
                     package: package_id,
                     target: *target_id,
                     message: error.to_string(),

@@ -292,7 +292,7 @@ pub fn setup_test_environment_with_repository(
     )
     .expect("failed to initialize mdtest session");
     session
-        .scan_filesystem(true)
+        .discover_filesystem()
         .expect("failed to materialize mdtest workspace");
     (repository, root, main_path)
 }

@@ -125,7 +125,9 @@ impl ArtifactCompileKeyExt for ArtifactKey {
     fn phase(&self) -> CompilePhase {
         match self {
             ArtifactKey::ModuleGraph { .. } => CompilePhase::Resolve,
-            ArtifactKey::Ast { .. } | ArtifactKey::DirBase { .. } => CompilePhase::Import,
+            ArtifactKey::Ast { .. } | ArtifactKey::Data { .. } | ArtifactKey::DirBase { .. } => {
+                CompilePhase::Import
+            }
             ArtifactKey::LanguageEnvironment { .. }
             | ArtifactKey::LibraryEnvironment { .. }
             | ArtifactKey::DirPrepared { .. }
@@ -151,6 +153,7 @@ impl ArtifactCompileKeyExt for ArtifactKey {
         match self {
             ArtifactKey::ModuleGraph { .. } => DiagnosticAnchor::Global,
             ArtifactKey::Ast { module }
+            | ArtifactKey::Data { module }
             | ArtifactKey::DirBase { module }
             | ArtifactKey::DirPrepared { module, .. }
             | ArtifactKey::DirResolved { module, .. }
@@ -185,7 +188,9 @@ impl ArtifactCompileKeyExt for ArtifactKey {
                 let profile = profile.diagnostic_fmt(revision, repository, artifacts);
                 format!("profile={profile}")
             }
-            ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
+            ArtifactKey::Ast { module }
+            | ArtifactKey::Data { module }
+            | ArtifactKey::DirBase { module } => {
                 let module = module.diagnostic_fmt(revision, repository, artifacts);
                 format!("module={module}")
             }

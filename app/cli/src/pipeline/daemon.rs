@@ -919,7 +919,6 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
         emit: args.emit.map(Into::into),
         runtime: args.runtime.map(Into::into),
         platform: args.platform.map(Into::into),
-        target_triple: args.target_triple.clone(),
         cpu: args.cpu.clone(),
         cpu_features: args.cpu_features.clone(),
         link_mode: args.link_mode.map(Into::into),

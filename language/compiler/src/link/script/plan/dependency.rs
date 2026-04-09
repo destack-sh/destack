@@ -33,7 +33,7 @@ impl Compiler {
                 message: format!(
                     "expected script artifact for module {:?} target '{}'",
                     module_id,
-                    self.target_name(target_id)
+                    self.target_name_for_revision(context.revision(), target_id)
                 ),
             });
         };

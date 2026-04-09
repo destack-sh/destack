@@ -44,8 +44,6 @@ pub struct CommandTargetOverrides {
     pub runtime: Option<Runtime>,
     /// Platform override.
     pub platform: Option<Platform>,
-    /// Target triple override.
-    pub target_triple: Option<String>,
     /// CPU name override.
     pub cpu: Option<String>,
     /// CPU feature overrides.
@@ -90,7 +88,6 @@ impl CommandTargetOverrides {
         self.emit.is_none()
             && self.runtime.is_none()
             && self.platform.is_none()
-            && self.target_triple.is_none()
             && self.cpu.is_none()
             && self.cpu_features.is_empty()
             && self.link_mode.is_none()
@@ -123,9 +120,6 @@ impl CommandTargetOverrides {
         if let Some(platform) = self.platform {
             target.platform = platform;
         }
-        if let Some(ref target_triple) = self.target_triple {
-            target.target_triple = Some(target_triple.clone());
-        }
         if let Some(ref cpu) = self.cpu {
             target.cpu = Some(cpu.clone());
         }
@@ -133,19 +127,19 @@ impl CommandTargetOverrides {
             target.cpu_features = self.cpu_features.clone();
         }
         if let Some(link_mode) = self.link_mode {
-            target.native.link_mode = link_mode;
+            target.link_mode = link_mode;
         }
         if let Some(lto) = self.lto {
             target.lto_mode = lto;
         }
         if let Some(ref linker) = self.linker {
-            target.native.linker = Some(linker.clone());
+            target.linker = Some(linker.clone());
         }
         if !self.link_args.is_empty() {
-            target.native.link_args = self.link_args.clone();
+            target.link_args = self.link_args.clone();
         }
         if let Some(ref sysroot) = self.sysroot {
-            target.native.sysroot = Some(sysroot.clone());
+            target.sysroot = Some(sysroot.clone());
         }
 
         if let Some(ref out_dir) = self.out_dir {

@@ -14,7 +14,7 @@ pub mod host {
         }
     }
 
-    #[cfg(any(test, target_os = "ios", target_os = "macos"))]
+    #[cfg(any(test, target_os = "ios"))]
     pub mod apple {
         pub mod abi {
             pub use destack_runtime::host::apple::abi::*;
@@ -39,7 +39,7 @@ mod android;
 #[cfg(target_os = "android")]
 pub use android::*;
 
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(any(test, target_os = "ios"))]
 mod ios;
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(any(test, target_os = "ios"))]
 pub use ios::*;

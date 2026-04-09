@@ -35,16 +35,11 @@ impl Asset {
 
         // text assets keep a textual payload for emission and inline references
         if file_type.is_text() {
-            let text = match &file.content {
-                FileContent::Text { content } | FileContent::Json { content, .. } => {
-                    content.clone()
-                }
+            let text = match file.content.payload() {
+                FileContent::Text { content } => content.clone(),
                 FileContent::Binary { content } => std::str::from_utf8(content)
                     .map_err(|_| format!("failed to read text asset '{}'", file.uri))?
                     .to_string(),
-                FileContent::Missing | FileContent::Unloaded => {
-                    return Err(format!("failed to read text asset '{}'", file.uri));
-                }
             };
 
             return Ok(OutputContent::Text {
@@ -53,12 +48,9 @@ impl Asset {
             });
         }
 
-        let bytes = match &file.content {
+        let bytes = match file.content.payload() {
             FileContent::Binary { content } => content.clone(),
-            FileContent::Text { .. }
-            | FileContent::Json { .. }
-            | FileContent::Missing
-            | FileContent::Unloaded => {
+            FileContent::Text { .. } => {
                 return Err(format!("failed to read binary asset '{}'", file.uri));
             }
         };

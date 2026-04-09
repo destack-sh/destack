@@ -155,7 +155,7 @@ fn run_compiler_phase(
             file_system,
             AmbientSnapshot::capture_process(),
         )
-            .expect("failed to import repository from ecosystem file system"),
+        .expect("failed to import repository from ecosystem file system"),
     );
     let compiler = Arc::new(Compiler::new(
         repository.clone(),

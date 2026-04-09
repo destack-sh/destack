@@ -185,18 +185,12 @@ impl<'a> ScriptLinker<'a> {
         let mut hasher = FxHasher::default();
 
         // hash the loaded content directly, regardless of file kind
-        match &file.content {
-            FileContent::Text { content } | FileContent::Json { content, .. } => {
+        match file.content.payload() {
+            FileContent::Text { content } => {
                 content.as_bytes().hash(&mut hasher);
             }
             FileContent::Binary { content } => {
                 content.hash(&mut hasher);
-            }
-            FileContent::Missing | FileContent::Unloaded => {
-                return Err(LinkError::Internal {
-                    package: self.package_id,
-                    message: format!("failed to read source content '{}'", file.uri),
-                });
             }
         }
 

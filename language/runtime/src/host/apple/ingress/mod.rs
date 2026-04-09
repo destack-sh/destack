@@ -6,6 +6,7 @@ mod background;
 #[cfg(target_os = "ios")]
 mod core;
 #[cfg(target_os = "ios")]
+#[path = "document.generated.rs"]
 mod document;
 #[cfg(target_os = "ios")]
 #[path = "intent.generated.rs"]

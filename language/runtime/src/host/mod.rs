@@ -14,6 +14,11 @@ pub(crate) use destack_artifact::Platform;
 pub(crate) use core::adapter::HostAdapter;
 pub use core::adapter::PollResult;
 
+#[cfg(any(test, target_os = "android"))]
+pub use os::android;
+#[cfg(target_os = "ios")]
+pub use os::apple;
+
 #[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) use core::event::host_intent_event_from_value;
 pub use core::event::{

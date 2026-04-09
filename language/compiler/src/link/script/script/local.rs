@@ -643,7 +643,7 @@ impl Compiler {
                     target: target_id.clone(),
                     message: format!(
                         "bundled same-output namespace imports do not support symbol-keyed exports in '{}'",
-                        self.target_name(target_id)
+                        self.target_name_for_revision(self.current_context().revision(), target_id)
                     ),
                 });
             }

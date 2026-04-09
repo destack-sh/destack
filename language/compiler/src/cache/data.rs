@@ -56,21 +56,6 @@ impl Compiler {
     ) -> Option<ArtifactImageHeader> {
         let module = self.cache_module_snapshot(revision, module_id).ok()?;
         let file = self.cache_file_snapshot(revision, module.file_id).ok()?;
-        let file = if file.is_loaded() {
-            file.as_ref().clone()
-        } else {
-            let path = module.path.as_ref()?;
-            let content = self.repository.file_system().read_to_string(path).ok()?;
-
-            File::from_text(
-                module.file_id,
-                file.name.clone(),
-                file.uri.clone(),
-                file.path.clone(),
-                file.ty,
-                content,
-            )
-        };
 
         self.data_image_header(module_id, &file, module.loader)
     }
@@ -98,11 +83,9 @@ impl Compiler {
 
     /// Build one persistent image context for one parsed data module.
     fn data_image_context(&self, file: &File, loader: Loader) -> Option<DataImageContext> {
-        let source_hash = match &file.content {
+        let source_hash = match file.content.payload() {
             FileContent::Text { content } => hash_bytes(content.as_bytes()),
-            FileContent::Json { content, .. } => hash_bytes(content.as_bytes()),
             FileContent::Binary { content } => hash_bytes(content),
-            FileContent::Missing | FileContent::Unloaded => return None,
         };
 
         Some(DataImageContext {

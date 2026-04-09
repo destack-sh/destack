@@ -431,7 +431,7 @@ impl<'a> ScriptLinker<'a> {
 
         if module.loader == Loader::Base64 {
             let file = self.file(module.file_id);
-            let FileContent::Binary { content } = &file.content else {
+            let FileContent::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     package: self.package_id,
                     message: format!(
@@ -449,7 +449,7 @@ impl<'a> ScriptLinker<'a> {
 
         if module.loader.is_text() {
             let file = self.file(module.file_id);
-            let FileContent::Text { content } = &file.content else {
+            let FileContent::Text { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     package: self.package_id,
                     message: format!(
@@ -466,7 +466,7 @@ impl<'a> ScriptLinker<'a> {
 
         if module.loader == Loader::Binary {
             let file = self.file(module.file_id);
-            let FileContent::Binary { content } = &file.content else {
+            let FileContent::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     package: self.package_id,
                     message: format!(

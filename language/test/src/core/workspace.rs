@@ -38,8 +38,8 @@ impl SharedMemoryWorkspace {
                 fs.clone(),
                 AmbientSnapshot::capture_process(),
             )
-                .expect("failed to import repository from core workspace fs")
-                .with_cache(Arc::new(MemoryCacheStore::new())),
+            .expect("failed to import repository from core workspace fs")
+            .with_cache(Arc::new(MemoryCacheStore::new())),
         );
         materialize_workspace_root(repository.clone(), &root);
 
@@ -330,6 +330,6 @@ fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
     .unwrap_or_else(|error| panic!("failed to initialize workspace session: {error}"));
 
     session
-        .scan_filesystem(true)
+        .discover_filesystem()
         .unwrap_or_else(|error| panic!("failed to materialize workspace root: {error}"));
 }
