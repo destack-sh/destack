@@ -222,10 +222,9 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::Check {
-                condition,
+                constraint,
                 success,
                 failure,
-                ..
             } => {
                 let success_index = self.block_index_by_id[&success.target];
                 let failure_index = self.block_index_by_id[&failure.target];
@@ -257,9 +256,9 @@ impl<'a> BlockLowerer<'a> {
                 );
 
                 Instruction {
-                    operation: select_branch_operation(self.value_kind_map(), *condition),
-                    data: InstructionData::Branch {
-                        condition: *condition,
+                    operation: InstructionOperation::Check,
+                    data: InstructionData::Check {
+                        constraint: constraint.clone(),
                         then_target: success_index as u32,
                         then_copies: success_copies,
                         else_target: failure_index as u32,
@@ -372,7 +371,7 @@ impl<'a> BlockLowerer<'a> {
                 },
             },
 
-            mir::Terminator::Call {
+            mir::Terminator::Invoke {
                 function,
                 arguments,
                 ..
@@ -401,11 +400,8 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::CallIndirect {
-                callee,
-                signature,
-                arguments,
-                ..
+            mir::Terminator::InvokeIndirect {
+                callee, arguments, ..
             } => {
                 let arguments = pool.argument_range(arguments);
                 let &(normal_resume_point, unwind_resume_point) = self
@@ -422,7 +418,6 @@ impl<'a> BlockLowerer<'a> {
                     operation: InstructionOperation::CallIndirectBranch,
                     data: InstructionData::CallIndirectBranch {
                         callee: *callee,
-                        signature: *signature,
                         arguments,
                         normal_resume_point,
                         unwind_resume_point,
@@ -430,7 +425,7 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::CallVirtual {
+            mir::Terminator::InvokeVirtual {
                 receiver,
                 slot_id,
                 arguments,
@@ -464,7 +459,7 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::CallInterface {
+            mir::Terminator::InvokeInterface {
                 receiver,
                 slot_id,
                 arguments,
@@ -501,6 +496,7 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::TailCall {
                 function,
                 arguments,
+                ..
             } => {
                 if *function == self.function_id {
                     let args = pool.argument_range(arguments);
@@ -528,17 +524,13 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::TailCallIndirect {
-                callee,
-                signature,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 let args = pool.argument_range(arguments);
                 Instruction {
                     operation: InstructionOperation::TailCallIndirect,
                     data: InstructionData::TailCallIndirect {
                         callee: *callee,
-                        signature: *signature,
                         arguments: args,
                     },
                 }

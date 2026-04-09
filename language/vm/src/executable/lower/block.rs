@@ -65,22 +65,22 @@ impl BlockOrder {
                 mir::Terminator::Yield { resume, .. } => {
                     queue.push(*resume);
                 }
-                mir::Terminator::Call {
+                mir::Terminator::Invoke {
                     normal_target,
                     unwind_target,
                     ..
                 }
-                | mir::Terminator::CallIndirect {
+                | mir::Terminator::InvokeIndirect {
                     normal_target,
                     unwind_target,
                     ..
                 }
-                | mir::Terminator::CallVirtual {
+                | mir::Terminator::InvokeVirtual {
                     normal_target,
                     unwind_target,
                     ..
                 }
-                | mir::Terminator::CallInterface {
+                | mir::Terminator::InvokeInterface {
                     normal_target,
                     unwind_target,
                     ..

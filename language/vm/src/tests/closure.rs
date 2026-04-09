@@ -5,57 +5,59 @@ use destack_heap::Value;
 #[test]
 fn test_environment_multiple_calls_same_isolate() {
     let mir = r#"
-type @Env = { count: ref<managed i32>, base: i32 }
+type Env {
+    count: ref<int32, managed>;
+    base: int32;
+}
 
-#[environment(ref<managed @Env>)]
-function @step() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed ref<managed i32>> = field.addr v0, 0
-    v2: ref<managed i32> = load v1
-    v3: i32 = load v2
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
+@environment(ref<Env, managed>)
+function step(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v2: ref<int32, managed> = load v1
+    v3: int32 = load v2
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
     store v2, v5
-    v6: ref<managed i32> = field.addr v0, 1
-    v7: i32 = load v6
-    v8: i32 = iadd v5, v7
+    v6: ref<int32, managed> = field.address v0, 1
+    v7: int32 = load v6
+    v8: int32 = int.add v5, v7
     return v8
 }
 
-function @make_env() -> ref<managed @Env> {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: i32 = iconst 0i32
+function makeEnv(): ref<Env, managed> {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: int32 = 0int32
     store v0, v1
-    v2: ref<managed @Env> = managed.alloc @Env
-    v3: ref<managed ref<managed i32>> = field.addr v2, 0
+    v2: ref<Env, managed> = managed.alloc Env
+    v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
-    v4: ref<managed i32> = field.addr v2, 1
-    v5: i32 = iconst 10i32
+    v4: ref<int32, managed> = field.address v2, 1
+    v5: int32 = 10int32
     store v4, v5
     return v2
 }
-
-function @call_once(v0: ref<managed @Env>) -> i32 {
-block0(v0: ref<managed @Env>):
-    v1: fnvalue<fn() -> i32> = function.value @step, v0
-    v2: i32 = call.indirect v1() -> fnvalue<fn() -> i32>
+function callOnce(v0: ref<Env, managed>): int32 {
+b0(v0: ref<Env, managed>):
+    v1: closure() -> int32 = function.bind step, v0
+    v2: int32 = call.indirect v1(): () -> int32
     return v2
 }"#;
 
     let mut isolate = create_isolate(mir);
     let env = isolate
-        .run_function_by_name("make_env", &[])
+        .run_function_by_name("makeEnv", &[])
         .expect("execution failed")
         .value;
 
     let first = isolate
-        .run_function_by_name("call_once", &[env])
+        .run_function_by_name("callOnce", &[env])
         .expect("execution failed")
         .value;
     let second = isolate
-        .run_function_by_name("call_once", &[env])
+        .run_function_by_name("callOnce", &[env])
         .expect("execution failed")
         .value;
 
@@ -67,22 +69,21 @@ block0(v0: ref<managed @Env>):
 #[test]
 fn test_call_indirect_environment() {
     let mir = r#"
-#[environment(ref<raw addrspace(stack) readonly i32>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) readonly i32> = function.environment
-    v1: i32 = load v0
+@environment(ref<int32, raw, readonly, addressSpace(stack)>)
+function readEnv(): int32 {
+b0:
+    v0: ref<int32, raw, readonly, addressSpace(stack)> = function.environment
+    v1: int32 = load v0
     return v1
 }
-
-function @caller() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
-    v1: i32 = iconst 41
+function caller(): int32 {
+b0:
+    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 41int32
     store v0, v1
-    v2: ref<raw addrspace(stack) readonly i32> = bitcast v0 -> ref<raw addrspace(stack) readonly i32>
-    v3: fnvalue<fn() -> i32> = function.value @read_env, v2
-    v4: i32 = call.indirect v3() -> fnvalue<fn() -> i32>
+    v2: ref<int32, raw, readonly, addressSpace(stack)> = cast.bit v0 -> ref<int32, raw, readonly, addressSpace(stack)>
+    v3: closure() -> int32 = function.bind readEnv, v2
+    v4: int32 = call.indirect v3(): () -> int32
     return v4
 }"#;
 
@@ -93,21 +94,21 @@ block0:
 #[test]
 fn test_tailcall_indirect_environment() {
     let mir = r#"
-#[environment(ref<managed i32>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<managed i32> = function.environment
-    v1: i32 = load v0
+@environment(ref<int32, managed>)
+function readEnv(): int32 {
+b0:
+    v0: ref<int32, managed> = function.environment
+    v1: int32 = load v0
     return v1
 }
 
-function @caller() -> i32 {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: i32 = iconst 99i32
+function caller(): int32 {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: int32 = 99int32
     store v0, v1
-    v2: fnvalue<fn() -> i32> = function.value @read_env, v0
-    tailcall.indirect v2() -> fnvalue<fn() -> i32>
+    v2: closure() -> int32 = function.bind readEnv, v0
+    tailCall.indirect v2(): () -> int32
 }"#;
 
     run_mir_expect(mir, "caller", &[], Value::int32(99));
@@ -117,32 +118,32 @@ block0:
 #[test]
 fn test_environment_managed_reference_cell() {
     let mir = r#"
-type @Env = { cell: ref<managed i32> }
+type Env { cell: ref<int32, managed> }
 
-#[environment(ref<managed @Env>)]
-function @increment() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed ref<managed i32>> = field.addr v0, 0
-    v2: ref<managed i32> = load v1
-    v3: i32 = load v2
-    v4: i32 = iconst 1i32
-    v5: i32 = iadd v3, v4
+@environment(ref<Env, managed>)
+function increment(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v2: ref<int32, managed> = load v1
+    v3: int32 = load v2
+    v4: int32 = 1int32
+    v5: int32 = int.add v3, v4
     store v2, v5
     return v5
 }
 
-function @caller() -> i32 {
-block0:
-    v0: ref<managed i32> = managed.alloc i32
-    v1: i32 = iconst 0i32
+function caller(): int32 {
+b0:
+    v0: ref<int32, managed> = managed.alloc int32
+    v1: int32 = 0int32
     store v0, v1
-    v2: ref<managed @Env> = managed.alloc @Env
-    v3: ref<managed ref<managed i32>> = field.addr v2, 0
+    v2: ref<Env, managed> = managed.alloc Env
+    v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
-    v4: fnvalue<fn() -> i32> = function.value @increment, v2
-    v5: i32 = call.indirect v4() -> fnvalue<fn() -> i32>
-    v6: i32 = call.indirect v4() -> fnvalue<fn() -> i32>
+    v4: closure() -> int32 = function.bind increment, v2
+    v5: int32 = call.indirect v4(): () -> int32
+    v6: int32 = call.indirect v4(): () -> int32
     return v6
 }"#;
 
@@ -153,27 +154,28 @@ block0:
 #[test]
 fn test_environment_by_value_field() {
     let mir = r#"
-type @Env = { value: i32 }
+type Env { value: int32 }
+type Reader closure() -> int32
 
-#[environment(ref<managed @Env>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = load v1
-    v3: i32 = iconst 2i32
-    v4: i32 = iadd v2, v3
+@environment(ref<Env, managed>)
+function readEnv(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = load v1
+    v3: int32 = 2int32
+    v4: int32 = int.add v2, v3
     return v4
 }
 
-function @caller() -> i32 {
-block0:
-    v0: ref<managed @Env> = managed.alloc @Env
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = iconst 40i32
+function caller(): int32 {
+b0:
+    v0: ref<Env, managed> = managed.alloc Env
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = 40int32
     store v1, v2
-    v3: fnvalue<fn() -> i32> = function.value @read_env, v0
-    v4: i32 = call.indirect v3() -> fnvalue<fn() -> i32>
+    v3: closure() -> int32 = function.bind readEnv, v0
+    v4: int32 = call.indirect v3(): () -> int32
     return v4
 }"#;
 
@@ -184,32 +186,32 @@ block0:
 #[test]
 fn test_environment_selects_callsite_environment() {
     let mir = r#"
-type @Env = { value: i32 }
+type Env { value: int32 }
 
-#[environment(ref<managed @Env>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = load v1
+@environment(ref<Env, managed>)
+function readEnv(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }
 
-function @caller() -> i32 {
-block0:
-    v0: ref<managed @Env> = managed.alloc @Env
-    v1: ref<managed @Env> = managed.alloc @Env
-    v2: ref<managed i32> = field.addr v0, 0
-    v3: ref<managed i32> = field.addr v1, 0
-    v4: i32 = iconst 10i32
-    v5: i32 = iconst 20i32
+function caller(): int32 {
+b0:
+    v0: ref<Env, managed> = managed.alloc Env
+    v1: ref<Env, managed> = managed.alloc Env
+    v2: ref<int32, managed> = field.address v0, 0
+    v3: ref<int32, managed> = field.address v1, 0
+    v4: int32 = 10int32
+    v5: int32 = 20int32
     store v2, v4
     store v3, v5
-    v6: fnvalue<fn() -> i32> = function.value @read_env, v0
-    v7: fnvalue<fn() -> i32> = function.value @read_env, v1
-    v8: i32 = call.indirect v6() -> fnvalue<fn() -> i32>
-    v9: i32 = call.indirect v7() -> fnvalue<fn() -> i32>
-    v10: i32 = iadd v8, v9
+    v6: closure() -> int32 = function.bind readEnv, v0
+    v7: closure() -> int32 = function.bind readEnv, v1
+    v8: int32 = call.indirect v6(): () -> int32
+    v9: int32 = call.indirect v7(): () -> int32
+    v10: int32 = int.add v8, v9
     return v10
 }"#;
 
@@ -220,52 +222,52 @@ block0:
 #[test]
 fn test_environment_switches_in_isolate() {
     let mir = r#"
-type @Env = { value: i32 }
+type Env { value: int32 }
 
-#[environment(ref<managed @Env>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = load v1
+@environment(ref<Env, managed>)
+function readEnv(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }
 
-function @make_env(v0: i32) -> ref<managed @Env> {
-block0(v0: i32):
-    v1: ref<managed @Env> = managed.alloc @Env
-    v2: ref<managed i32> = field.addr v1, 0
+function makeEnv(v0: int32): ref<Env, managed> {
+b0(v0: int32):
+    v1: ref<Env, managed> = managed.alloc Env
+    v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
 }
 
-function @call_once(v0: ref<managed @Env>) -> i32 {
-block0(v0: ref<managed @Env>):
-    v1: fnvalue<fn() -> i32> = function.value @read_env, v0
-    v2: i32 = call.indirect v1() -> fnvalue<fn() -> i32>
+function callOnce(v0: ref<Env, managed>): int32 {
+b0(v0: ref<Env, managed>):
+    v1: closure() -> int32 = function.bind readEnv, v0
+    v2: int32 = call.indirect v1(): () -> int32
     return v2
 }"#;
 
     let mut isolate = create_isolate(mir);
     let env_a = isolate
-        .run_function_by_name("make_env", &[Value::int32(7)])
+        .run_function_by_name("makeEnv", &[Value::int32(7)])
         .expect("execution failed")
         .value;
     let env_b = isolate
-        .run_function_by_name("make_env", &[Value::int32(13)])
+        .run_function_by_name("makeEnv", &[Value::int32(13)])
         .expect("execution failed")
         .value;
 
     let first = isolate
-        .run_function_by_name("call_once", &[env_a])
+        .run_function_by_name("callOnce", &[env_a])
         .expect("execution failed")
         .value;
     let second = isolate
-        .run_function_by_name("call_once", &[env_b])
+        .run_function_by_name("callOnce", &[env_b])
         .expect("execution failed")
         .value;
     let third = isolate
-        .run_function_by_name("call_once", &[env_a])
+        .run_function_by_name("callOnce", &[env_a])
         .expect("execution failed")
         .value;
 
@@ -278,35 +280,36 @@ block0(v0: ref<managed @Env>):
 #[test]
 fn test_environment_loaded_from_struct() {
     let mir = r#"
-type @Env = { value: i32 }
-type @Holder = { fun: fnvalue<fn() -> i32> }
-
-#[environment(ref<managed @Env>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = load v1
+type Env {
+    value: int32;
+}
+type Holder {
+    fun: closure() -> int32;
+}
+@environment(ref<Env, managed>)
+function readEnv(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }
-
-function @make_env(v0: i32) -> ref<managed @Env> {
-block0(v0: i32):
-    v1: ref<managed @Env> = managed.alloc @Env
-    v2: ref<managed i32> = field.addr v1, 0
+function makeEnv(v0: int32): ref<Env, managed> {
+b0(v0: int32):
+    v1: ref<Env, managed> = managed.alloc Env
+    v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
 }
-
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<managed @Env> = call @make_env(v0)
-    v2: ref<managed @Holder> = managed.alloc @Holder
-    v3: ref<managed fnvalue<fn() -> i32>> = field.addr v2, 0
-    v4: fnvalue<fn() -> i32> = function.value @read_env, v1
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
+    v2: ref<Holder, managed> = managed.alloc Holder
+    v3: ref<closure() -> int32, managed> = field.address v2, 0
+    v4: closure() -> int32 = function.bind readEnv, v1
     store v3, v4
-    v5: fnvalue<fn() -> i32> = load v3
-    v6: i32 = call.indirect v5() -> fnvalue<fn() -> i32>
+    v5: closure() -> int32 = load v3
+    v6: int32 = call.indirect v5(): () -> int32
     return v6
 }"#;
 
@@ -317,51 +320,51 @@ block0(v0: i32):
 #[test]
 fn test_environment_chain_calls_inner() {
     let mir = r#"
-type @InnerEnv = { value: i32 }
-type @OuterEnv = { fun: fnvalue<fn() -> i32> }
+type InnerEnv { value: int32 }
+type OuterEnv { fun: closure() -> int32 }
 
-#[environment(ref<managed @InnerEnv>)]
-function @inner() -> i32 {
-block0:
-    v0: ref<managed @InnerEnv> = function.environment
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = load v1
+@environment(ref<InnerEnv, managed>)
+function inner(): int32 {
+b0:
+    v0: ref<InnerEnv, managed> = function.environment
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }
 
-#[environment(ref<managed @OuterEnv>)]
-function @outer() -> i32 {
-block0:
-    v0: ref<managed @OuterEnv> = function.environment
-    v1: ref<managed fnvalue<fn() -> i32>> = field.addr v0, 0
-    v2: fnvalue<fn() -> i32> = load v1
-    v3: i32 = call.indirect v2() -> fnvalue<fn() -> i32>
+@environment(ref<OuterEnv, managed>)
+function outer(): int32 {
+b0:
+    v0: ref<OuterEnv, managed> = function.environment
+    v1: ref<closure() -> int32, managed> = field.address v0, 0
+    v2: closure() -> int32 = load v1
+    v3: int32 = call.indirect v2(): () -> int32
     return v3
 }
 
-function @make_inner(v0: i32) -> ref<managed @InnerEnv> {
-block0(v0: i32):
-    v1: ref<managed @InnerEnv> = managed.alloc @InnerEnv
-    v2: ref<managed i32> = field.addr v1, 0
+function makeInner(v0: int32): ref<InnerEnv, managed> {
+b0(v0: int32):
+    v1: ref<InnerEnv, managed> = managed.alloc InnerEnv
+    v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
 }
 
-function @make_outer(v0: i32) -> ref<managed @OuterEnv> {
-block0(v0: i32):
-    v1: ref<managed @InnerEnv> = call @make_inner(v0)
-    v2: ref<managed @OuterEnv> = managed.alloc @OuterEnv
-    v3: ref<managed fnvalue<fn() -> i32>> = field.addr v2, 0
-    v4: fnvalue<fn() -> i32> = function.value @inner, v1
+function makeOuter(v0: int32): ref<OuterEnv, managed> {
+b0(v0: int32):
+    v1: ref<InnerEnv, managed> = call makeInner(v0): (int32) -> ref<InnerEnv, managed>
+    v2: ref<OuterEnv, managed> = managed.alloc OuterEnv
+    v3: ref<closure() -> int32, managed> = field.address v2, 0
+    v4: closure() -> int32 = function.bind inner, v1
     store v3, v4
     return v2
 }
 
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<managed @OuterEnv> = call @make_outer(v0)
-    v2: fnvalue<fn() -> i32> = function.value @outer, v1
-    v3: i32 = call.indirect v2() -> fnvalue<fn() -> i32>
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<OuterEnv, managed> = call makeOuter(v0): (int32) -> ref<OuterEnv, managed>
+    v2: closure() -> int32 = function.bind outer, v1
+    v3: int32 = call.indirect v2(): () -> int32
     return v3
 }"#;
 
@@ -372,22 +375,22 @@ block0(v0: i32):
 #[test]
 fn test_function_ptr_loaded_from_struct() {
     let mir = r#"
-type @Holder = { fun: fn(i32) -> i32 }
+type Holder { fun: fn(int32) -> int32 }
 
-function @double(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
+function double(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = int.add v0, v0
     return v1
 }
 
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<managed @Holder> = managed.alloc @Holder
-    v2: ref<managed fn(i32) -> i32> = field.addr v1, 0
-    v3: fn(i32) -> i32 = function.addr @double
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<Holder, managed> = managed.alloc Holder
+    v2: ref<fn(int32) -> int32, managed> = field.address v1, 0
+    v3: fn(int32) -> int32 = function.address double
     store v2, v3
-    v4: fn(i32) -> i32 = load v2
-    v5: i32 = call.indirect v4(v0) -> fn(i32) -> i32
+    v4: fn(int32) -> int32 = load v2
+    v5: int32 = call.indirect v4(v0): (int32) -> int32
     return v5
 }"#;
 
@@ -398,32 +401,32 @@ block0(v0: i32):
 #[test]
 fn test_environment_raw_struct_on_stack() {
     let mir = r#"
-type @Env = { value: i32, extra: i32 }
+type Env { value: int32, extra: int32 }
 
-#[environment(ref<raw addrspace(stack) readonly @Env>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) readonly @Env> = function.environment
-    v1: ref<raw addrspace(stack) readonly i32> = field.addr v0, 0
-    v2: i32 = load v1
-    v3: ref<raw addrspace(stack) readonly i32> = field.addr v0, 1
-    v4: i32 = load v3
-    v5: i32 = iadd v2, v4
+@environment(ref<Env, raw, readonly, addressSpace(stack)>)
+function readEnv(): int32 {
+b0:
+    v0: ref<Env, raw, readonly, addressSpace(stack)> = function.environment
+    v1: ref<int32, raw, readonly, addressSpace(stack)> = field.address v0, 0
+    v2: int32 = load v1
+    v3: ref<int32, raw, readonly, addressSpace(stack)> = field.address v0, 1
+    v4: int32 = load v3
+    v5: int32 = int.add v2, v4
     return v5
 }
 
-function @caller() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) @Env> = stack.alloc @Env
-    v1: ref<raw addrspace(stack) readonly i32> = field.addr v0, 0
-    v2: ref<raw addrspace(stack) readonly i32> = field.addr v0, 1
-    v3: i32 = iconst 20i32
-    v4: i32 = iconst 22i32
+function caller(): int32 {
+b0:
+    v0: ref<Env, raw, addressSpace(stack)> = stack.alloc Env
+    v1: ref<int32, raw, readonly, addressSpace(stack)> = field.address v0, 0
+    v2: ref<int32, raw, readonly, addressSpace(stack)> = field.address v0, 1
+    v3: int32 = 20int32
+    v4: int32 = 22int32
     store v1, v3
     store v2, v4
-    v5: ref<raw addrspace(stack) readonly @Env> = bitcast v0 -> ref<raw addrspace(stack) readonly @Env>
-    v6: fnvalue<fn() -> i32> = function.value @read_env, v5
-    v7: i32 = call.indirect v6() -> fnvalue<fn() -> i32>
+    v5: ref<Env, raw, readonly, addressSpace(stack)> = cast.bit v0 -> ref<Env, raw, readonly, addressSpace(stack)>
+    v6: closure() -> int32 = function.bind readEnv, v5
+    v7: int32 = call.indirect v6(): () -> int32
     return v7
 }"#;
 
@@ -434,33 +437,34 @@ block0:
 #[test]
 fn test_environment_loaded_from_array() {
     let mir = r#"
-type @Env = { value: i32 }
+type Env { value: int32 }
+type Reader closure() -> int32
 
-#[environment(ref<managed @Env>)]
-function @read_env() -> i32 {
-block0:
-    v0: ref<managed @Env> = function.environment
-    v1: ref<managed i32> = field.addr v0, 0
-    v2: i32 = load v1
+@environment(ref<Env, managed>)
+function readEnv(): int32 {
+b0:
+    v0: ref<Env, managed> = function.environment
+    v1: ref<int32, managed> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }
 
-function @make_env(v0: i32) -> ref<managed @Env> {
-block0(v0: i32):
-    v1: ref<managed @Env> = managed.alloc @Env
-    v2: ref<managed i32> = field.addr v1, 0
+function makeEnv(v0: int32): ref<Env, managed> {
+b0(v0: int32):
+    v1: ref<Env, managed> = managed.alloc Env
+    v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
 }
 
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<managed @Env> = call @make_env(v0)
-    v2: fnvalue<fn() -> i32> = function.value @read_env, v1
-    v3: [fnvalue<fn() -> i32>; 1] = array [fnvalue<fn() -> i32>; 1] (v2)
-    v4: i32 = iconst 0i32
-    v5: fnvalue<fn() -> i32> = element.get v3, v4
-    v6: i32 = call.indirect v5() -> fnvalue<fn() -> i32>
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
+    v2: Reader = function.bind readEnv, v1
+    v3: Reader[1] = [v2]
+    v4: int32 = 0int32
+    v5: Reader = element.get v3, v4
+    v6: int32 = call.indirect v5(): () -> int32
     return v6
 }"#;
 

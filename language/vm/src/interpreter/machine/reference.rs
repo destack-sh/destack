@@ -8,7 +8,7 @@ pub(crate) fn reference_label(reference: ReferenceMeta) -> String {
             if matches!(address_space, ReferenceAddressSpace::Generic) {
                 format!("{kind:?}")
             } else {
-                format!("{kind:?} addrspace({})", address_space.label())
+                format!("{kind:?} addressSpace({})", address_space.label())
             }
         }
         None => "unknown".to_string(),

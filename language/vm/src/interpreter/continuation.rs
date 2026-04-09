@@ -426,7 +426,7 @@ fn capture_slot_value(value: Value) -> engine::FrameValue {
         ValueTag::GlobalPointer => {
             let pointer = value.as_global_pointer().unwrap();
             let slot_offset = u32::try_from(pointer.slot_offset)
-                .unwrap_or_else(|_| panic!("global pointer offset exceeds u32"));
+                .unwrap_or_else(|_| panic!("global pointer offset exceeds uint32"));
 
             engine::FrameValue::GlobalPointer {
                 pointer: engine::GlobalPointer {

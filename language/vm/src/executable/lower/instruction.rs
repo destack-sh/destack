@@ -522,7 +522,6 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::CallIndirect {
                 destination,
                 callee,
-                signature,
                 arguments,
                 ..
             } => {
@@ -532,7 +531,6 @@ impl<'a> BlockLowerer<'a> {
                     data: InstructionData::CallIndirect {
                         dest: pack_optional_value(*destination),
                         callee: *callee,
-                        signature: *signature,
                         arguments: args,
                     },
                 }
@@ -608,13 +606,13 @@ impl<'a> BlockLowerer<'a> {
                     function: function.id,
                 },
             },
-            mir::Instruction::FunctionValue {
+            mir::Instruction::Closure {
                 destination,
                 function,
                 environment,
             } => Instruction {
-                operation: InstructionOperation::FunctionValue,
-                data: InstructionData::FunctionValue {
+                operation: InstructionOperation::Closure,
+                data: InstructionData::Closure {
                     dest: *destination,
                     function: function.id,
                     environment: *environment,

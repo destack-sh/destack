@@ -369,28 +369,28 @@ fn propagate_block_parameter_kinds(
                 is_changed |=
                     propagate_target_kind(tree, value_kind_map, *resume, resume_arguments);
             }
-            mir::Terminator::Call {
+            mir::Terminator::Invoke {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallIndirect {
+            | mir::Terminator::InvokeIndirect {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallVirtual {
+            | mir::Terminator::InvokeVirtual {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallInterface {
+            | mir::Terminator::InvokeInterface {
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -552,7 +552,7 @@ fn infer_instruction_kind(
                 result: function.return_type,
             })
         }
-        mir::Instruction::FunctionValue { destination, .. } => {
+        mir::Instruction::Closure { destination, .. } => {
             let ty = value_type_for_value(*destination, value_types);
             Some(kind_from_type(tree, ty))
         }
@@ -655,7 +655,7 @@ fn infer_intrinsic_kind(
 
     match intrinsic.result_type() {
         mir::IntrinsicResultType::Void => None,
-        mir::IntrinsicResultType::Bool => Some(ValueKind::Bool),
+        mir::IntrinsicResultType::Boolean => Some(ValueKind::Bool),
         mir::IntrinsicResultType::I32 => Some(ValueKind::Int {
             width: 32,
             signed: true,

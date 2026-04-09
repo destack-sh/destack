@@ -52,6 +52,286 @@ fn load_switch_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<i64
     })
 }
 
+/// Load one value as a signed integer.
+#[inline(always)]
+fn load_signed_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<(i64, u8), Error> {
+    let value = state.get(value);
+
+    value
+        .as_int_with_width()
+        .ok_or_else(|| Error::TypeMismatch {
+            expected: "signed integer".to_string(),
+            actual: format!("{value:?}"),
+        })
+}
+
+/// Load one value as an unsigned integer.
+#[inline(always)]
+fn load_unsigned_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<(u64, u8), Error> {
+    let value = state.get(value);
+
+    value
+        .as_uint_with_width()
+        .ok_or_else(|| Error::TypeMismatch {
+            expected: "unsigned integer".to_string(),
+            actual: format!("{value:?}"),
+        })
+}
+
+/// Load one value as a non-negative length.
+#[inline(always)]
+fn load_length_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<u64, Error> {
+    let value = state.get(value);
+
+    if let Some((length, _)) = value.as_uint_with_width() {
+        return Ok(length);
+    }
+
+    if let Some((length, _)) = value.as_int_with_width()
+        && length >= 0
+    {
+        return Ok(length as u64);
+    }
+
+    Err(Error::TypeMismatch {
+        expected: "non negative integer".to_string(),
+        actual: format!("{value:?}"),
+    })
+}
+
+/// Return the runtime referenced type when it can be recovered.
+fn actual_reference_type(
+    state: &StepState<'_, '_>,
+    value_id: mir::Value,
+) -> Result<Option<mir::LocalNodeId<mir::Type>>, Error> {
+    let value = state.get(value_id);
+
+    if let Some(handle) = value.as_managed_reference() {
+        if handle.is_null() {
+            return Ok(None);
+        }
+
+        if let Some(type_id) = state.heap().managed_type_id(handle) {
+            return Ok(Some(mir::LocalNodeId::new(type_id)));
+        }
+    }
+
+    let static_type = state.value_type(value_id)?;
+    let pointee = match state.tree().get(static_type) {
+        mir::Type::Reference { pointee, .. } => Some(*pointee),
+        mir::Type::TensorReference { element, .. } => Some(*element),
+        _ => None,
+    };
+
+    Ok(pointee)
+}
+
+/// Evaluate one overflow guard.
+fn evaluate_overflow_check(
+    state: &StepState<'_, '_>,
+    operator: mir::BinaryOperator,
+    left: mir::Value,
+    right: mir::Value,
+    is_signed: bool,
+) -> Result<bool, Error> {
+    if is_signed {
+        let (left, width) = load_signed_value(state, left)?;
+        let (right, right_width) = load_signed_value(state, right)?;
+        if width != right_width {
+            return Err(Error::InvalidInstruction);
+        }
+
+        let min_value = -(1_i128 << (u32::from(width).saturating_sub(1)));
+        let max_value = (1_i128 << (u32::from(width).saturating_sub(1))) - 1;
+        let left = left as i128;
+        let right = right as i128;
+
+        let overflows = match operator {
+            mir::BinaryOperator::Add => {
+                let result = left + right;
+                result < min_value || result > max_value
+            }
+            mir::BinaryOperator::Subtract => {
+                let result = left - right;
+                result < min_value || result > max_value
+            }
+            mir::BinaryOperator::Multiply => {
+                let result = left * right;
+                result < min_value || result > max_value
+            }
+            mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
+                if right == 0 {
+                    return Err(Error::DivisionByZero);
+                }
+
+                left == min_value && right == -1
+            }
+            _ => return Err(Error::InvalidInstruction),
+        };
+
+        return Ok(overflows);
+    }
+
+    let (left, width) = load_unsigned_value(state, left)?;
+    let (right, right_width) = load_unsigned_value(state, right)?;
+    if width != right_width {
+        return Err(Error::InvalidInstruction);
+    }
+
+    let max_value = if width >= 64 {
+        u128::from(u64::MAX)
+    } else {
+        (1_u128 << u32::from(width)) - 1
+    };
+    let left = u128::from(left);
+    let right = u128::from(right);
+
+    let overflows = match operator {
+        mir::BinaryOperator::Add => left + right > max_value,
+        mir::BinaryOperator::Subtract => left < right,
+        mir::BinaryOperator::Multiply => left.saturating_mul(right) > max_value,
+        mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder => {
+            if right == 0 {
+                return Err(Error::DivisionByZero);
+            }
+
+            false
+        }
+        _ => return Err(Error::InvalidInstruction),
+    };
+
+    Ok(overflows)
+}
+
+/// Evaluate one semantic check guard.
+fn evaluate_check_constraint(
+    state: &StepState<'_, '_>,
+    constraint: &mir::CheckConstraint,
+) -> Result<bool, Error> {
+    match constraint {
+        mir::CheckConstraint::Bounds {
+            index,
+            length,
+            is_signed,
+            ..
+        } => {
+            let length = load_length_value(state, *length)?;
+
+            if *is_signed {
+                let (index, _) = load_signed_value(state, *index)?;
+                Ok(index >= 0 && (index as u64) < length)
+            } else {
+                let (index, _) = load_unsigned_value(state, *index)?;
+                Ok(index < length)
+            }
+        }
+        mir::CheckConstraint::Null { value } => {
+            let value = state.get(*value);
+
+            if let Some(handle) = value.as_managed_reference() {
+                return Ok(!handle.is_null());
+            }
+
+            if let Some(pointer) = value.as_raw_pointer() {
+                return Ok(!pointer.is_null());
+            }
+
+            Ok(true)
+        }
+        mir::CheckConstraint::DivZero { divisor } => {
+            if let Ok((value, _)) = load_signed_value(state, *divisor) {
+                return Ok(value != 0);
+            }
+
+            let (value, _) = load_unsigned_value(state, *divisor)?;
+            Ok(value != 0)
+        }
+        mir::CheckConstraint::ShiftRange {
+            value,
+            bit_width,
+            is_signed,
+        } => {
+            let bit_width = u64::from(*bit_width);
+
+            if *is_signed {
+                let (value, _) = load_signed_value(state, *value)?;
+                Ok(value >= 0 && (value as u64) < bit_width)
+            } else {
+                let (value, _) = load_unsigned_value(state, *value)?;
+                Ok(value < bit_width)
+            }
+        }
+        mir::CheckConstraint::Narrow {
+            value,
+            to_width,
+            is_signed,
+        } => {
+            let target_width = u32::from(*to_width);
+
+            if *is_signed {
+                let (value, _) = load_signed_value(state, *value)?;
+                let min_value = -(1_i128 << target_width.saturating_sub(1));
+                let max_value = (1_i128 << target_width.saturating_sub(1)) - 1;
+                let value = value as i128;
+                Ok(value >= min_value && value <= max_value)
+            } else {
+                let (value, _) = load_unsigned_value(state, *value)?;
+                let max_value = if target_width >= 64 {
+                    u128::from(u64::MAX)
+                } else {
+                    (1_u128 << target_width) - 1
+                };
+                Ok(u128::from(value) <= max_value)
+            }
+        }
+        mir::CheckConstraint::Overflow {
+            operator,
+            left,
+            right,
+            is_signed,
+        } => evaluate_overflow_check(state, *operator, *left, *right, *is_signed),
+        mir::CheckConstraint::Type { value, expected } => {
+            if let Some(actual) = actual_reference_type(state, *value)? {
+                return Ok(actual == *expected);
+            }
+
+            let value = state.get(*value);
+            if let Some((actual, _)) = value.as_uint_with_width() {
+                return Ok(actual == u64::from(expected.id));
+            }
+            if let Some((actual, _)) = value.as_int_with_width()
+                && actual >= 0
+            {
+                return Ok(actual as u64 == u64::from(expected.id));
+            }
+
+            Err(Error::TypeMismatch {
+                expected: "type descriptor or typed reference".to_string(),
+                actual: format!("{value:?}"),
+            })
+        }
+        mir::CheckConstraint::Union { value, expected } => {
+            if let Ok((actual, _)) = load_unsigned_value(state, *value) {
+                return Ok(actual == *expected);
+            }
+
+            let (actual, _) = load_signed_value(state, *value)?;
+            Ok(actual >= 0 && actual as u64 == *expected)
+        }
+        mir::CheckConstraint::ReceiverType { receiver, expected } => {
+            let actual = actual_reference_type(state, *receiver)?;
+            Ok(actual == Some(*expected))
+        }
+        mir::CheckConstraint::Implements { receiver, expected } => {
+            let Some(actual) = actual_reference_type(state, *receiver)? else {
+                return Ok(false);
+            };
+
+            Ok(state.tree().type_table.itab_id(actual, *expected).is_some())
+        }
+    }
+}
+
 /// Step assume (optimizer hint).
 pub(crate) fn step_assume(
     state: &mut StepState<'_, '_>,
@@ -199,6 +479,41 @@ pub(crate) fn step_branch_bool(
     // evaluate branch condition
     let cond = state.get(*condition);
     let is_truthy = cond.raw_data() != 0;
+
+    // record the branch and return the chosen jump
+    record_branch(state);
+
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
+}
+
+/// Step semantic check (exits tail-call chain).
+pub(crate) fn step_check(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::Check {
+        constraint,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // evaluate the semantic guard
+    let is_truthy = evaluate_check_constraint(state, constraint).unwrap_or(false);
 
     // record the branch and return the chosen jump
     record_branch(state);

@@ -333,7 +333,7 @@ pub(crate) fn step_atomic_load(
     let value = match state.execute_atomic_load_value(
         pointer,
         *raw_pointee,
-        mir::MemoryOrdering::SeqCst,
+        mir::MemoryOrdering::SequentiallyConsistent,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
@@ -375,7 +375,7 @@ pub(crate) fn step_atomic_store(
         pointer,
         value,
         *raw_pointee,
-        mir::MemoryOrdering::SeqCst,
+        mir::MemoryOrdering::SequentiallyConsistent,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
@@ -419,7 +419,7 @@ pub(crate) fn step_atomic_compare_exchange(
         new_value,
         *raw_pointee,
         false,
-        mir::MemoryOrdering::SeqCst,
+        mir::MemoryOrdering::SequentiallyConsistent,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
@@ -464,7 +464,7 @@ pub(crate) fn step_atomic_rmw(
         pointer,
         value,
         *raw_pointee,
-        mir::MemoryOrdering::SeqCst,
+        mir::MemoryOrdering::SequentiallyConsistent,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
@@ -493,7 +493,7 @@ pub(crate) fn step_atomic_fence(
 
     // execute the fence
     if let Err(error) = state.execute_atomic_fence(
-        mir::MemoryOrdering::SeqCst,
+        mir::MemoryOrdering::SequentiallyConsistent,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),

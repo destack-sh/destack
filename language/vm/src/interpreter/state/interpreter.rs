@@ -371,7 +371,7 @@ impl Interpreter {
             return Err(self.make_error(
                 executable,
                 Error::TypeMismatch {
-                    expected: "ref<managed String>".to_string(),
+                    expected: "ref<String, managed>".to_string(),
                     actual: format!("{:?}", executable.tree.get(ty)),
                 },
             ));
@@ -382,7 +382,7 @@ impl Interpreter {
             return Err(self.make_error(
                 executable,
                 Error::TypeMismatch {
-                    expected: "ref<managed String>".to_string(),
+                    expected: "ref<String, managed>".to_string(),
                     actual: format!("{:?}", executable.tree.get(ty)),
                 },
             ));
@@ -407,7 +407,7 @@ impl Interpreter {
             return Err(self.make_error(
                 executable,
                 Error::TypeMismatch {
-                    expected: "ref<managed String>".to_string(),
+                    expected: "ref<String, managed>".to_string(),
                     actual: format!("{:?}", executable.tree.get(ty)),
                 },
             ));

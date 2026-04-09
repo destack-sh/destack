@@ -26,7 +26,7 @@ fn function_value_payload_layout(
     tree: &mir::NodeTree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<(mir::LocalNodeId<mir::Type>, usize, usize, usize), Error> {
-    let mir::Type::FunctionValue { signature } = tree.get(ty) else {
+    let mir::Type::Closure { signature } = tree.get(ty) else {
         return Err(Error::TypeMismatch {
             expected: "function value type".to_string(),
             actual: format!("{ty:?}"),
@@ -194,7 +194,7 @@ pub(crate) fn raw_type_size(
         | mir::Type::TypeDescriptor
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
-        | mir::Type::FunctionValue { .. }
+        | mir::Type::Closure { .. }
         | mir::Type::FunctionPointer { .. }
         | mir::Type::TensorReference { .. } => tree.pointer_bytes() as usize,
         mir::Type::Float { width } => (*width as usize).div_ceil(8),
@@ -231,7 +231,7 @@ pub(crate) fn raw_type_alignment(
         | mir::Type::TypeDescriptor
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
-        | mir::Type::FunctionValue { .. }
+        | mir::Type::Closure { .. }
         | mir::Type::FunctionPointer { .. }
         | mir::Type::TensorReference { .. } => tree.pointer_bytes() as usize,
         mir::Type::Float { width } => (*width as usize).div_ceil(8).max(1),
@@ -343,7 +343,7 @@ pub(crate) fn decode_raw_value(
 
             Ok(decode_pointer_bits(raw, tree.get(ty)))
         }
-        mir::Type::FunctionValue { .. } => {
+        mir::Type::Closure { .. } => {
             let mut raw = [0u8; 8];
             raw[..bytes.len()].copy_from_slice(bytes);
             Ok(Value::managed_reference(ManagedReference::from_bits(
@@ -636,7 +636,7 @@ pub(crate) fn encode_raw_value(
             };
             raw.to_le_bytes()[..byte_len].to_vec()
         }
-        mir::Type::FunctionValue { .. } => {
+        mir::Type::Closure { .. } => {
             let raw = value
                 .as_managed_reference()
                 .map(|handle| handle.bits())
@@ -732,7 +732,7 @@ pub(crate) fn decode_function_value(
     let ty = managed_storage_type(state, handle)?;
     let ty = repr_type(state.tree(), ty);
 
-    if !matches!(state.tree().get(ty), mir::Type::FunctionValue { .. }) {
+    if !matches!(state.tree().get(ty), mir::Type::Closure { .. }) {
         return Err(Error::TypeMismatch {
             expected: "function value type".to_string(),
             actual: format!("{ty:?}"),

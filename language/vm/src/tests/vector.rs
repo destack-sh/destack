@@ -5,31 +5,31 @@ use destack_heap::Value;
 #[test]
 fn test_vector_splat_extract() {
     let mir = r#"
-function @splat_extract(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: vector<i32, 4> = vector.splat v0
-    v2: i32 = iconst 2i32
-    v3: i32 = vector.extract v1, v2
+function splatExtract(v0: int32): int32 {
+b0(v0: int32):
+    v1: vector<int32, 4> = vector.splat v0
+    v2: int32 = 2int32
+    v3: int32 = vector.extract v1, v2
     return v3
 }"#;
-    run_mir_expect(mir, "splat_extract", &[Value::int32(7)], Value::int32(7));
+    run_mir_expect(mir, "splatExtract", &[Value::int32(7)], Value::int32(7));
 }
 
 /// Vector insert replaces the specified lane.
 #[test]
 fn test_vector_insert() {
     let mir = r#"
-function @insert_lane(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: vector<i32, 4> = vector.splat v0
-    v3: i32 = iconst 1i32
-    v4: vector<i32, 4> = vector.insert v2, v3, v1
-    v5: i32 = vector.extract v4, v3
+function insertLane(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: vector<int32, 4> = vector.splat v0
+    v3: int32 = 1int32
+    v4: vector<int32, 4> = vector.insert v2, v3, v1
+    v5: int32 = vector.extract v4, v3
     return v5
 }"#;
     run_mir_expect(
         mir,
-        "insert_lane",
+        "insertLane",
         &[Value::int32(1), Value::int32(9)],
         Value::int32(9),
     );
@@ -39,17 +39,17 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_vector_shuffle_reduce() {
     let mir = r#"
-function @shuffle_reduce(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: vector<i32, 4> = vector.splat v0
-    v3: vector<i32, 4> = vector.splat v1
-    v4: vector<i32, 4> = vector.shuffle v2, v3, [0, 1, 4, 5]
-    v5: i32 = vector.reduce add, v4
+function shuffleReduce(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: vector<int32, 4> = vector.splat v0
+    v3: vector<int32, 4> = vector.splat v1
+    v4: vector<int32, 4> = vector.shuffle v2, v3, [0, 1, 4, 5]
+    v5: int32 = vector.reduce add, v4
     return v5
 }"#;
     run_mir_expect(
         mir,
-        "shuffle_reduce",
+        "shuffleReduce",
         &[Value::int32(1), Value::int32(2)],
         Value::int32(6),
     );
@@ -59,19 +59,19 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_vector_compare() {
     let mir = r#"
-function @compare_lanes(v0: i32, v1: i32) -> bool {
-block0(v0: i32, v1: i32):
-    v2: vector<i32, 4> = vector.splat v0
-    v3: vector<i32, 4> = vector.splat v1
-    v4: vector<bool, 4> = vector.compare icmp_eq, v2, v3
-    v5: i32 = iconst 0i32
-    v6: bool = vector.extract v4, v5
+function compareLanes(v0: int32, v1: int32): boolean {
+b0(v0: int32, v1: int32):
+    v2: vector<int32, 4> = vector.splat v0
+    v3: vector<int32, 4> = vector.splat v1
+    v4: vector<boolean, 4> = vector.compare int.eq, v2, v3
+    v5: int32 = 0int32
+    v6: boolean = vector.extract v4, v5
     return v6
 }"#;
     // verify the lane comparison result
     run_mir_expect(
         mir,
-        "compare_lanes",
+        "compareLanes",
         &[Value::int32(7), Value::int32(7)],
         Value::bool(true),
     );
@@ -81,19 +81,14 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_vector_convert() {
     let mir = r#"
-function @convert_lanes(v0: f64) -> i32 {
-block0(v0: f64):
-    v1: vector<f64, 2> = vector.splat v0
-    v2: vector<i32, 2> = vector.convert round_toward_zero, v1
-    v3: i32 = iconst 0i32
-    v4: i32 = vector.extract v2, v3
+function convertLanes(v0: float64): int32 {
+b0(v0: float64):
+    v1: vector<float64, 2> = vector.splat v0
+    v2: vector<int32, 2> = vector.convert roundTowardZero, v1
+    v3: int32 = 0int32
+    v4: int32 = vector.extract v2, v3
     return v4
 }"#;
     // verify the rounded conversion result
-    run_mir_expect(
-        mir,
-        "convert_lanes",
-        &[Value::float64(3.9)],
-        Value::int32(3),
-    );
+    run_mir_expect(mir, "convertLanes", &[Value::float64(3.9)], Value::int32(3));
 }

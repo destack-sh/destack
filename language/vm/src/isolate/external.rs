@@ -441,7 +441,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         &self,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<(mir::LocalNodeId<mir::Type>, usize, usize, usize), Error> {
-        let mir::Type::FunctionValue { signature } = self.executable.tree.get(ty) else {
+        let mir::Type::Closure { signature } = self.executable.tree.get(ty) else {
             return Err(Error::TypeMismatch {
                 expected: "function value type".to_string(),
                 actual: format!("{ty:?}"),
@@ -539,7 +539,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             self.executable
                 .tree
                 .get(repr_type(&self.executable.tree, ty)),
-            mir::Type::FunctionValue { .. }
+            mir::Type::Closure { .. }
         ) {
             return Ok(VmValueStorage::Function { ty });
         }
@@ -737,10 +737,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         }
 
         // write boxed callable payloads directly
-        if matches!(
-            self.executable.tree.get(repr_ty),
-            mir::Type::FunctionValue { .. }
-        ) {
+        if matches!(self.executable.tree.get(repr_ty), mir::Type::Closure { .. }) {
             let values = self.decode_component_values(value)?;
             if values.len() != 2 {
                 return Err(Error::TypeMismatch {
@@ -891,7 +888,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             self.executable
                 .tree
                 .get(repr_type(&self.executable.tree, ty)),
-            mir::Type::FunctionValue { .. }
+            mir::Type::Closure { .. }
         ) {
             VmValueStorage::Function { ty }
         } else {
@@ -1200,7 +1197,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             self.executable
                 .tree
                 .get(repr_type(&self.executable.tree, composite_type)),
-            mir::Type::FunctionValue { .. }
+            mir::Type::Closure { .. }
         ) {
             VmValueStorage::Function { ty: composite_type }
         } else {
