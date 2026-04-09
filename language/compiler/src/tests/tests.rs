@@ -31,14 +31,13 @@ use destack_source::{
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
-    BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change, CheckFailurePolicy,
-    DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId, Ref, Repository,
-    Revision, ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery, TargetGeneratedCodeOptions,
-    TargetGeneratedCodePreset,
-    AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
-    CheckFailurePolicy, DivisionCheckPolicy, Edit, Module, Package, Profile, ProfileId, Ref,
-    Repository, Revision, ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery,
-    EsTarget, TargetGeneratedCodeOptions, TargetGeneratedCodePreset,
+    AmbientSnapshot, BoundsCheckPolicy, BoundsCheckPolicy, BundleFormat, BundleFormat, BundleMode,
+    BundleMode, CacheMode, CacheMode, Change, Change, CheckFailurePolicy, CheckFailurePolicy,
+    DivisionCheckPolicy, DivisionCheckPolicy, Edit, Edit, EsTarget, EsTarget, Module, Module,
+    Package, Package, Profile, Profile, ProfileId, ProfileId, Ref, Ref, Repository, Repository,
+    Revision, Revision, ShiftCheckPolicy, ShiftCheckPolicy, SourceMapMode, SourceMapMode, Target,
+    Target, TargetDiscovery, TargetDiscovery, TargetGeneratedCodeOptions,
+    TargetGeneratedCodeOptions, TargetGeneratedCodePreset, TargetGeneratedCodePreset,
 };
 use serde_json::{Value as JsonValue, json};
 

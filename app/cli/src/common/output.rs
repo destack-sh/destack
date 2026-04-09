@@ -285,10 +285,6 @@ pub struct TargetArgs {
     #[arg(long = "link-mode", value_enum)]
     pub link_mode: Option<LinkModeArg>,
 
-    /// Target triple for native builds.
-    #[arg(long = "target-triple")]
-    pub target_triple: Option<String>,
-
     /// CPU name for native codegen.
     #[arg(long = "cpu")]
     pub cpu: Option<String>,
@@ -321,7 +317,6 @@ impl TargetArgs {
         self.emit.is_some()
             || self.runtime.is_some()
             || self.platform.is_some()
-            || self.target_triple.is_some()
             || self.cpu.is_some()
             || !self.cpu_features.is_empty()
             || self.linker.is_some()
@@ -367,9 +362,6 @@ impl TargetArgs {
         if let Some(platform) = self.platform {
             target.platform = platform.into();
         }
-        if let Some(ref target_triple) = self.target_triple {
-            target.target_triple = Some(target_triple.clone());
-        }
         if let Some(ref cpu) = self.cpu {
             target.cpu = Some(cpu.clone());
         }
@@ -377,19 +369,19 @@ impl TargetArgs {
             target.cpu_features = self.cpu_features.clone();
         }
         if let Some(link_mode) = self.link_mode {
-            target.native.link_mode = link_mode.into();
+            target.link_mode = link_mode.into();
         }
         if let Some(lto) = self.lto {
             target.lto_mode = lto.into();
         }
         if let Some(ref linker) = self.linker {
-            target.native.linker = Some(linker.clone());
+            target.linker = Some(linker.clone());
         }
         if !self.link_args.is_empty() {
-            target.native.link_args = self.link_args.clone();
+            target.link_args = self.link_args.clone();
         }
         if let Some(ref sysroot) = self.sysroot {
-            target.native.sysroot = Some(sysroot.clone());
+            target.sysroot = Some(sysroot.clone());
         }
 
         // apply output paths

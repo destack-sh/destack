@@ -102,7 +102,7 @@ impl Compiler {
                 target: target_id.clone(),
                 message: format!(
                     "bundled internal import attributes are not supported yet in '{}'",
-                    self.target_name(target_id)
+                    self.target_name_for_revision(context.revision(), target_id)
                 ),
             });
         }
@@ -180,7 +180,7 @@ impl Compiler {
                 target: target_id.clone(),
                 message: format!(
                     "bundled internal re-export rewriting is only implemented for plain named exports in '{}'",
-                    self.target_name(target_id)
+                    self.target_name_for_revision(context.revision(), target_id)
                 ),
             });
         }

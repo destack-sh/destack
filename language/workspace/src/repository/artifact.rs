@@ -182,7 +182,7 @@ impl Repository {
     }
 
     /// Return the current artifact family keys for one module/profile slice.
-    fn module_artifact_keys(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 10] {
+    fn module_artifact_keys(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 11] {
         [
             ArtifactKey::ast(module_id),
             ArtifactKey::data(module_id),

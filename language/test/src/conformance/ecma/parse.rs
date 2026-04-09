@@ -159,8 +159,8 @@ impl SharedConformanceEnvironment {
                 fs.clone(),
                 AmbientSnapshot::capture_process(),
             )
-                .expect("failed to import repository from conformance file system")
-                .with_cache(Arc::new(MemoryCacheStore::new())),
+            .expect("failed to import repository from conformance file system")
+            .with_cache(Arc::new(MemoryCacheStore::new())),
         );
         Self {
             repository,

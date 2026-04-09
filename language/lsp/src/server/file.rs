@@ -11,7 +11,8 @@ use destack_formatter::{
 use destack_parser::Parser;
 use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
 use destack_source::{
-    DiagnosticSeverity, File, FileId, LanguageType, OverlayFileSystem, Span, WATCHABLE_FILE_TYPES,
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, OverlayFileSystem, Span,
+    WATCHABLE_FILE_TYPES,
 };
 use destack_workspace::{FormatterOptions, Repository, Revision};
 use {destack_lsp_types as lsp, destack_query as query};

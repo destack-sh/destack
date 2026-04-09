@@ -302,6 +302,7 @@ impl<P> ArtifactKey<P> {
             | Self::IntrinsicEnvironment { .. }
             | Self::LibraryEnvironment { .. }
             | Self::Ast { .. }
+            | Self::Data { .. }
             | Self::DirBase { .. }
             | Self::DirPrepared { .. }
             | Self::DirResolved { .. }
@@ -325,6 +326,7 @@ impl<P> ArtifactKey<P> {
             Self::IntrinsicEnvironment { .. } => "intrinsic_environment",
             Self::LibraryEnvironment { .. } => "library_environment",
             Self::Ast { .. } => "ast",
+            Self::Data { .. } => "data",
             Self::DirBase { .. } => "dir_base",
             Self::DirPrepared { .. } => "dir_prepared",
             Self::DirResolved { .. } => "dir_resolved",

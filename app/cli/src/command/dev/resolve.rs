@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_artifact::ImportEdgeKind;
+use destack_artifact::ModuleEdgeRelation;
 use destack_compiler::{ImportResolveContext, materialize_import_resolve_options};
 use destack_dir::DependencyKind;
 use destack_resolver::{ResolveOptions, Resolver};
@@ -111,7 +111,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
         } else {
             None
         },
-        edge_kind: ImportEdgeKind::Import,
+        edge_relation: ModuleEdgeRelation::Import,
     };
     options = materialize_import_resolve_options(&options, context);
 

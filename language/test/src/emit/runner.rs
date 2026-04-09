@@ -244,26 +244,6 @@ fn print_emit_timing_summary(test: &Case, compiler: &Compiler) {
         );
     }
 
-    eprintln!("  phases:");
-    for phase in snapshot.phases.iter().take(8) {
-        eprintln!(
-            "    {}: {} across {} tasks",
-            phase.phase.code(),
-            format_duration_ms(phase.duration),
-            phase.task_count
-        );
-    }
-
-    eprintln!("  tasks:");
-    for task in snapshot.task_names.iter().take(8) {
-        eprintln!(
-            "    {}: {} across {} tasks",
-            task.name,
-            format_duration_ms(task.duration),
-            task.task_count
-        );
-    }
-
     if !snapshot.timings.is_empty() {
         eprintln!("  timings:");
         for timing in snapshot.timings.iter().take(12) {
@@ -328,7 +308,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     )
     .expect("failed to initialize emit session");
     session
-        .scan_filesystem(true)
+        .discover_filesystem()
         .expect("failed to reload emit workspace");
     let revision = current_workspace_revision(&repository);
 
@@ -364,7 +344,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // set up compiler
     let trace_timings = should_trace_emit_case(test);
-    let mut compiler = Compiler::new(
+    let mut compiler = Arc::new(Compiler::new(
         repository.clone(),
         CompilerOptions {
             workers: 1,
@@ -373,7 +353,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
             timings: trace_timings,
             ..Default::default()
         },
-    );
+    ));
     // discover source files
     let source_dir = test.path.join("src");
     let source_files = match discover_source_files(&source_dir, SOURCE_EXTENSIONS) {
@@ -413,7 +393,10 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     // load only the ambient libraries that the resolved profiles actually need
     let load_libraries =
         emit_case_load_libraries(&repository, revision, package_id, &module_ids, &targets);
-    compiler.options.load_libraries = load_libraries;
+    Arc::get_mut(&mut compiler)
+        .expect("emit compiler should not be shared before linking")
+        .options
+        .load_libraries = load_libraries;
 
     // clean
     if actual_root.exists()
@@ -430,7 +413,8 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         let target_id = repository.intern_target_id(package_id, target_name);
         artifact_keys.push(ArtifactKey::package_output(package_id, target_id));
     }
-    let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
+    let revision =
+        provide_workspace_artifacts(repository.clone(), compiler.clone(), &artifact_keys);
 
     if trace_timings {
         print_emit_timing_summary(test, &compiler);
