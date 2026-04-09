@@ -304,9 +304,12 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
     use destack_source::{
-        Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileStore, FileType,
-        LabeledSpan, Span, Uri,
+        Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileType, LabeledSpan, Span,
+        Uri,
     };
     use serde_json::Value;
 
@@ -343,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_watch_report_serializes_compile_with_diagnostics() {
-        let files = FileStore::new();
+        let mut files = BTreeMap::new();
         let uri = Uri::from_string("memory://test.ds");
         let file_id = destack_source::FileId::from_logical_str(uri.as_ref());
         let file = File::from_text(
@@ -354,7 +357,7 @@ mod tests {
             FileType::Destack,
             "export const value = ;".to_string(),
         );
-        files.insert(file);
+        files.insert(file_id, Arc::new(file));
 
         let span = Span::at(file_id, 0, 1);
         let diagnostic = Diagnostic {
@@ -371,8 +374,11 @@ mod tests {
         };
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
         let format_options = FormatOptions::default();
-        let (output, format_result) =
-            collect_diagnostics_json(&files, &diagnostics, &format_options);
+        let (output, format_result) = collect_diagnostics_json(
+            &|current_file_id| files.get(&current_file_id).cloned(),
+            &diagnostics,
+            &format_options,
+        );
 
         let report = WatchReport {
             schema: WATCH_REPORT_SCHEMA,

@@ -340,8 +340,8 @@ where
     let Some(root) = roots.first().cloned() else {
         return Err("workspace roots are empty".to_string());
     };
-    let daemon_options = build_daemon_options(&args.program, diagnostic_options, None);
-    let daemon = ProtocolDaemonClient::new(session, daemon_options, roots, &args.program)
+    let daemon_options = build_daemon_options(&args.program, diagnostic_options);
+    let daemon = ProtocolDaemonClient::new(session, daemon_options, None, roots, &args.program)
         .map_err(|error| error.to_string())?;
 
     // execute the query handler

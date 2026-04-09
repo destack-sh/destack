@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_compiler::CompilerEventHandler;
+use destack_session::SessionEventHandler;
 use destack_source::ModuleId;
 
 use crate::common::{
@@ -28,7 +28,7 @@ pub struct CompileRequest<'a> {
     /// Whether to resolve sources via destack.json fallback.
     pub allow_destack_config_fallback: bool,
     /// Optional compiler event handler.
-    pub event_handler: Option<CompilerEventHandler>,
+    pub event_handler: Option<SessionEventHandler>,
 }
 
 /// Prepared compiler state and resolved sources.
@@ -69,6 +69,7 @@ pub fn prepare_compile(request: CompileRequest<'_>) -> Result<CompileSetup, i32>
         request.diagnostics,
         request.mode,
         request.event_handler,
+        None,
     );
     let modules = context.enqueue(&sources)?;
 

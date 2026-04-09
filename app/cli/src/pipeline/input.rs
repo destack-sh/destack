@@ -55,8 +55,8 @@ pub fn collect_sources_from_destack_config(
     let declaration = load_destack_declaration_for_program(
         program_args,
         &context.repository,
-        &context.resolver,
-        &context.repository.cwd,
+        context.revision,
+        context.repository.workspace_root(),
     )?;
     let package_options = declaration.package_options();
 

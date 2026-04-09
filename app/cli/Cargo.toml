@@ -35,7 +35,7 @@ path = "src/bin/dsx.rs"
 
 [[bin]]
 name = "generate-cli-schema"
-path = "src/schema.rs"
+path = "src/bin/generate-cli-schema.rs"
 required-features = ["schema"]
 
 [dependencies]
@@ -54,6 +54,7 @@ destack_query = { workspace = true }
 destack_workspace = { workspace = true }
 destack_resolver = { workspace = true }
 destack_runtime = { workspace = true }
+destack_session = { workspace = true }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }
 

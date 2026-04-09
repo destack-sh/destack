@@ -3,10 +3,9 @@ use std::sync::Arc;
 
 use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, DiffOptions, File, FileId, FileStore, ModuleId,
-    print_diff,
+    DiagnosticCollection, DiagnosticOptions, DiffOptions, File, FileId, ModuleId, print_diff,
 };
-use destack_workspace::{Ref, Repository, Revision};
+use destack_workspace::{LinterOptions, Ref, Repository, Revision};
 
 use crate::common::LineWriter;
 use crate::common::format::{FormatOptions, format_diagnostics_with_writer};
@@ -39,8 +38,6 @@ pub fn run_with_fixes(
     format_options: &FormatOptions,
     line_writer: Option<&LineWriter>,
 ) -> FixResult {
-    let linter_options = repository.linter.clone();
-    let runner = LintRunner::from_options(&linter_options).with_fixes(true);
     let revision = current_repository_revision(repository.as_ref()).ok();
 
     // collect all lint diagnostics
@@ -55,6 +52,8 @@ pub fn run_with_fixes(
         let Some(module) = module else {
             continue;
         };
+        let linter_options = module_linter_options(repository.as_ref(), revision, &module);
+        let runner = LintRunner::from_options(&linter_options).with_fixes(true);
         let Ok(profile) = repository.default_profile_for_module(revision, *module_id) else {
             continue;
         };
@@ -99,9 +98,9 @@ pub fn run_with_fixes(
     if !unfixable.is_empty() {
         let collection = to_diagnostic_collection(&unfixable);
         let mapped = collection.map(diagnostic_options);
-        let files = collect_diagnostic_files(repository.as_ref(), revision, &mapped);
+        let file_for_id = |file_id| repository_file(repository.as_ref(), revision, file_id);
         let _ = format_diagnostics_with_writer(
-            &files,
+            &file_for_id,
             &mapped,
             format_options,
             modules.len(),
@@ -118,9 +117,9 @@ pub fn run_with_fixes(
     if !fixable_without_fix.is_empty() {
         let collection = to_diagnostic_collection(&fixable_without_fix);
         let mapped = collection.map(diagnostic_options);
-        let files = collect_diagnostic_files(repository.as_ref(), revision, &mapped);
+        let file_for_id = |file_id| repository_file(repository.as_ref(), revision, file_id);
         let _ = format_diagnostics_with_writer(
-            &files,
+            &file_for_id,
             &mapped,
             format_options,
             modules.len(),
@@ -130,6 +129,24 @@ pub fn run_with_fixes(
 
     let unfixable_count = unfixable.len() + fixable_without_fix.len();
     FixResult { unfixable_count }
+}
+
+/// Resolve effective linter options for one module.
+fn module_linter_options(
+    repository: &Repository,
+    revision: Revision,
+    module: &destack_workspace::Module,
+) -> LinterOptions {
+    if let Ok(Some(package_options)) = repository.package_options(revision, module.package_id) {
+        return package_options.linter;
+    }
+
+    repository
+        .workspace_options(revision)
+        .ok()
+        .flatten()
+        .map(|options| options.package.linter)
+        .unwrap_or_default()
 }
 
 /// Convert lint diagnostics to a standard diagnostic collection.
@@ -244,29 +261,6 @@ fn repository_file(
     let revision = revision?;
 
     repository.file(revision, file_id).ok().flatten()
-}
-
-/// Collect file snapshots referenced by diagnostics.
-fn collect_diagnostic_files(
-    repository: &Repository,
-    revision: Option<Revision>,
-    diagnostics: &DiagnosticCollection,
-) -> FileStore {
-    let files = FileStore::new();
-
-    // load each referenced file snapshot once
-    for diagnostic in diagnostics.iter() {
-        if files.get_maybe(diagnostic.file_id).is_some() {
-            continue;
-        }
-
-        let Some(file) = repository_file(repository, revision, diagnostic.file_id) else {
-            continue;
-        };
-        files.insert((*file).clone());
-    }
-
-    files
 }
 
 /// Collect edits from diagnostics, grouped by file.

@@ -73,7 +73,7 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
 
     // build a repository and compiler options
     let repository = args.program.setup();
-    let compiler_options = build_daemon_options(&args.program, diagnostic_options, None);
+    let compiler_options = build_daemon_options(&args.program, diagnostic_options);
 
     // resolve daemon instance metadata
     let mut instance = DaemonInstance::from_repository(&repository);

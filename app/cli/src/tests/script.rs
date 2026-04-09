@@ -65,10 +65,11 @@ fn test_load_tasks_resolves_relative_cwd() {
         },
     }));
     let destack_config_path = program.root.join("destack.json");
+    let revision = program.current_revision();
 
     // load tasks from the config
-    let tasks =
-        load_tasks(&program.resolver, &destack_config_path).expect("task loading should succeed");
+    let tasks = load_tasks(&program.repository, revision, &destack_config_path)
+        .expect("task loading should succeed");
     let task = tasks
         .iter()
         .find(|task| task.name == "serve")

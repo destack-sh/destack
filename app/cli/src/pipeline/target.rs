@@ -40,23 +40,24 @@ pub fn resolve_target_for_module(
         .ok_or_else(|| CliError::message(format!("missing module snapshot for {module_id:?}")))?;
     let package_id = module.package_id;
     let target_id = repository.intern_target_id(package_id, target_name);
+    let is_explicit_target = repository
+        .has_explicit_target(revision, package_id, target_id)
+        .map_err(|error| CliError::message(format!("failed to read target snapshot: {error}")))?;
 
-    // look for an existing target entry
-    let package = repository
-        .package(revision, package_id)
-        .map_err(|error| CliError::message(format!("failed to read package snapshot: {error}")))?
-        .ok_or_else(|| CliError::message(format!("missing package snapshot for {package_id:?}")))?;
-    let existing_target = package.targets.get(&target_id).cloned();
+    // resolve target truth
+    let target = repository
+        .target(revision, target_id)
+        .map_err(|error| CliError::message(format!("failed to read target snapshot: {error}")))?;
 
     // reject overrides for named targets
-    if existing_target.is_some() && target_args.has_adhoc_options() {
+    if is_explicit_target && target_args.has_adhoc_options() {
         return Err(CliError::message(
             "ad-hoc target options are not supported for named targets",
         ));
     }
 
     // synthesize one implicit target when missing
-    let target = if let Some(target) = existing_target {
+    let target = if let Some(target) = target {
         target
     } else {
         let mut target = Target::implicit_for_name(target_name)

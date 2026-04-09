@@ -5,11 +5,14 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
+use destack_session::open_repository_from_fs;
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, ImportSortOrder, LintPreset, LintSeverity, LinterOptions,
-    OrganizeImports, QuoteProperty, QuoteStyle, Ref, Repository, TrailingComma,
+    AmbientSnapshot, ArrowParentheses, FormatterOptions, ImportSortOrder, LintPreset, LintSeverity,
+    LinterOptions, OrganizeImports, QuoteProperty, QuoteStyle, Ref, Repository, TrailingComma,
 };
+
+use crate::pipeline::daemon::config_overrides_from_program;
 
 use crate::common::{ReportArgs, report_error};
 
@@ -480,6 +483,18 @@ pub struct ProgramArgs {
 }
 
 impl ProgramArgs {
+    /// Return the effective working directory for these arguments.
+    pub fn effective_cwd(&self) -> PathBuf {
+        self.cwd
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+    }
+
+    /// Build config overrides from explicit CLI options.
+    pub fn config_overrides(&self) -> Vec<destack_daemon::protocol::ConfigOverride> {
+        config_overrides_from_program(self)
+    }
+
     /// Attach a file system override for testing.
     pub fn with_fs_override(mut self, fs: Arc<dyn FileSystem>) -> Self {
         self.fs_override = Some(FileSystemOverride::new(fs));
@@ -493,13 +508,8 @@ impl ProgramArgs {
 
     /// Create a repository using an explicit file system override.
     pub fn setup_with_fs(&self, fs_override: Option<Arc<dyn FileSystem>>) -> Arc<Repository> {
-        let cwd = self
-            .cwd
-            .clone()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let cwd = self.effective_cwd();
         let workspace_root = self.workspace.clone().unwrap_or_else(|| cwd.clone());
-        let formatter_options: FormatterOptions = self.formatter.clone().into();
-        let linter_options: LinterOptions = self.linter.clone().into();
         let has_fs_override = fs_override.is_some();
         let fs: Arc<dyn FileSystem> = fs_override.unwrap_or_else(|| {
             let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
@@ -507,16 +517,19 @@ impl ProgramArgs {
         });
 
         // discover and import the repository in one step
-        let mut repository = Repository::open_detected_from_fs(workspace_root, fs.clone())
-            .expect("failed to import repository from file system")
-            .with_formatter(formatter_options)
-            .with_linter(linter_options);
+        let mut repository = open_repository_from_fs(
+            workspace_root,
+            fs.clone(),
+            AmbientSnapshot::capture_process(),
+        )
+        .expect("failed to import repository from file system");
 
         // prefer in memory cache stores for test file systems
         if has_fs_override {
-            repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
+            repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
         }
 
+        let repository = Arc::new(repository);
         let reference = Ref::for_workspace_root(repository.workspace_root());
         let revision = repository
             .current(&reference)
@@ -527,18 +540,9 @@ impl ProgramArgs {
         let root = workspace.root.clone();
         let workspace_kind = workspace.kind;
 
-        if let Some(cache_directory) = self.cache_dir.as_ref() {
-            let cache_directory = if cache_directory.is_absolute() {
-                cache_directory.clone()
-            } else {
-                cwd.join(cache_directory)
-            };
-            repository = repository.with_cache_directory(cache_directory);
-        }
-
         tracing::trace!(?cwd, ?root, workspace_kind = ?workspace_kind, workers = self.workers, "program.setup");
 
-        Arc::new(repository)
+        repository
     }
 }
 

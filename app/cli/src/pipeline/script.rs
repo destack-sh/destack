@@ -50,7 +50,7 @@ pub fn resolve_script_command(
     script_name: &str,
 ) -> CliResult<Option<ScriptCommand>> {
     let context = workspace_context(program_args, None)?;
-    let cwd = context.repository.cwd.clone();
+    let cwd = program_args.effective_cwd();
     resolve_script_command_with_resolver(
         program_args,
         script_name,
@@ -81,7 +81,7 @@ pub fn load_tasks(
     let content = file.text();
 
     // parse the config json
-    let value: Value = serde_json::from_str(&content)
+    let value: Value = serde_json::from_str(content)
         .map_err(|error| CliError::message(format!("invalid destack.json: {error}")))?;
 
     // extract the task map

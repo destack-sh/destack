@@ -597,28 +597,6 @@ pub fn print_stats_summary(
         }
     }
 
-    // show per phase timing, labels dimmed, times in cyan
-    // skip phases with zero duration
-    let visible_phases: Vec<_> = stats
-        .phases
-        .iter()
-        .filter(|p| p.duration.as_nanos() > 0)
-        .collect();
-
-    if !visible_phases.is_empty() {
-        let phase_parts: Vec<String> = visible_phases
-            .iter()
-            .map(|p| {
-                let name = console::dim(p.phase.name());
-                let duration = console::cyan(&console::format_duration(p.duration));
-                format!("{name} {duration}")
-            })
-            .collect();
-
-        let sep = console::dim(" · ");
-        write_line(line_writer, &format!("    {}", phase_parts.join(&sep)));
-    }
-
     // show timing tag summary when requested
     if timing_options.enabled {
         let timing_entries = timing_entries_from_snapshot(stats, timing_options);
