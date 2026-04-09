@@ -70,11 +70,11 @@ fn test_validate_rejects_local_not_in_function() {
 /// Reject duplicate value definitions.
 #[test]
 fn test_reject_duplicate_value_definitions() {
-    let source = r#"function @dup() -> i32 {
-block0:
-    v0: i32 = iconst 0i32
-    jump block1(v0)
-block1(v0: i32):
+    let source = r#"function dup(): int32 {
+b0:
+    v0: int32 = 0int32
+    jump b1(v0)
+b1(v0: int32):
     return v0
 }"#;
 
@@ -85,10 +85,10 @@ block1(v0: i32):
 /// Reject block argument count mismatches.
 #[test]
 fn test_reject_block_argument_mismatch() {
-    let source = r#"function @bad() -> void {
-block0:
-    jump block1
-block1(v0: i32):
+    let source = r#"function bad(): void {
+b0:
+    jump b1
+b1(v0: int32):
     return
 }"#;
 
@@ -102,12 +102,12 @@ block1(v0: i32):
 /// Reject call argument count mismatches.
 #[test]
 fn test_reject_call_argument_mismatch() {
-    let source = r#"extern function @callee(i32) -> i32
-function @caller() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = call @callee(v0, v1) -> fn(i32) -> i32
+    let source = r#"extern function callee(int32): int32
+function caller(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = call callee(v0, v1): (int32) -> int32
     return v2
 }"#;
 
@@ -121,10 +121,10 @@ block0:
 /// Reject call results for void functions.
 #[test]
 fn test_reject_call_return_value_for_void() {
-    let source = r#"extern function @noop() -> void
-function @caller() -> void {
-block0:
-    v0: void = call @noop() -> fn() -> void
+    let source = r#"extern function noop(): void
+function caller(): void {
+b0:
+    v0: void = call noop(): () -> void
     return
 }"#;
 
@@ -138,17 +138,17 @@ block0:
 /// Reject direct calls to functions that require an environment.
 #[test]
 fn test_reject_direct_call_to_environment_function() {
-    let source = r#"#[environment(ref<managed i32>)]
-function @callee() -> i32 {
-block0:
-    v0: ref<managed i32> = function.environment
-    v1: i32 = load v0
+    let source = r#"@environment(ref<int32, managed>)
+function callee(): int32 {
+b0:
+    v0: ref<int32, managed> = function.environment
+    v1: int32 = load v0
     return v1
 }
 
-function @caller() -> i32 {
-block0:
-    v0: i32 = call @callee() -> fn() -> i32
+function caller(): int32 {
+b0:
+    v0: int32 = call callee(): () -> int32
     return v0
 }"#;
 
@@ -162,17 +162,17 @@ block0:
 /// Reject tail calls to functions that require an environment.
 #[test]
 fn test_reject_tail_call_to_environment_function() {
-    let source = r#"#[environment(ref<managed i32>)]
-function @callee() -> i32 {
-block0:
-    v0: ref<managed i32> = function.environment
-    v1: i32 = load v0
+    let source = r#"@environment(ref<int32, managed>)
+function callee(): int32 {
+b0:
+    v0: ref<int32, managed> = function.environment
+    v1: int32 = load v0
     return v1
 }
 
-function @caller() -> i32 {
-block0:
-    tailcall @callee()
+function caller(): int32 {
+b0:
+    tailCall callee(): () -> int32
 }"#;
 
     let error = parse_error(source);
@@ -185,122 +185,100 @@ block0:
 /// Reject taking a plain function address for an environment function.
 #[test]
 fn test_reject_function_addr_for_environment_function() {
-    let source = r#"#[environment(ref<managed i32>)]
-function @callee() -> i32 {
-block0:
-    v0: ref<managed i32> = function.environment
-    v1: i32 = load v0
+    let source = r#"@environment(ref<int32, managed>)
+function callee(): int32 {
+b0:
+    v0: ref<int32, managed> = function.environment
+    v1: int32 = load v0
     return v1
 }
 
-function @caller(v0: ref<managed i32>) -> i32 {
-block0(v0: ref<managed i32>):
-    v1: fn() -> i32 = function.addr @callee
+function caller(v0: ref<int32, managed>): int32 {
+b0(v0: ref<int32, managed>):
+    v1: fn() -> int32 = function.address callee
     return v0
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: function.addr cannot target a function with an environment"
+        "metadata invariant violation: function.address cannot target a function with an environment"
     );
 }
 
-/// Reject function.value when the environment operand type mismatches.
+/// Reject function.bind when the environment operand type mismatches.
 #[test]
 fn test_reject_function_value_environment_type_mismatch() {
-    let source = r#"#[environment(ref<managed i32>)]
-function @callee() -> i32 {
-block0:
-    v0: ref<managed i32> = function.environment
-    v1: i32 = load v0
+    let source = r#"@environment(ref<int32, managed>)
+function callee(): int32 {
+b0:
+    v0: ref<int32, managed> = function.environment
+    v1: int32 = load v0
     return v1
 }
 
-function @caller(v0: ref<managed i64>) -> i32 {
-block0(v0: ref<managed i64>):
-    v1: fnvalue<fn() -> i32> = function.value @callee, v0
+function caller(v0: ref<int64, managed>): int32 {
+b0(v0: ref<int64, managed>):
+    v1: closure() -> int32 = function.bind callee, v0
     return v0
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: function.value environment type mismatch"
+        "metadata invariant violation: function.bind environment type mismatch"
     );
 }
 
 /// Reject field projection on opaque callable values.
 #[test]
 fn test_reject_field_get_on_function_value() {
-    let source = r#"#[environment(ref<managed i32>)]
-function @callee() -> i32 {
-block0:
-    v0: ref<managed i32> = function.environment
-    v1: i32 = load v0
+    let source = r#"@environment(ref<int32, managed>)
+function callee(): int32 {
+b0:
+    v0: ref<int32, managed> = function.environment
+    v1: int32 = load v0
     return v1
 }
 
-function @caller(v0: ref<managed i32>) -> fn() -> i32 {
-block0(v0: ref<managed i32>):
-    v1: fnvalue<fn() -> i32> = function.value @callee, v0
-    v2: fn() -> i32 = field.get v1, 0
+function caller(v0: ref<int32, managed>): fn() -> int32    {
+b0(v0: ref<int32, managed>):
+    v1: closure() -> int32 = function.bind callee, v0
+    v2: fn() -> int32 = field.get v1, 0
     return v2
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: field.get does not support fnvalue"
-    );
-}
-
-/// Reject local references that are not declared in the function.
-#[test]
-fn test_reject_local_reference_not_in_function() {
-    let source = r#"function @first() -> void {
-local0: i32
-block0:
-    return
-}
-
-function @bad() -> void {
-block0:
-    v0: i32 = local.get local0
-    return
-}"#;
-
-    let error = parse_error(source);
-    assert_eq!(
-        error.message,
-        "invalid node reference id0 expected Local got Type"
+        "metadata invariant violation: field.get does not support closure"
     );
 }
 
 /// Reject tail calls with mismatched return types.
 #[test]
 fn test_reject_tailcall_return_type_mismatch() {
-    let source = r#"extern function @noop() -> void
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    tailcall @noop()
+    let source = r#"extern function noop(): void
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    tailCall noop(): () -> void
 }"#;
 
     let error = parse_error(source);
     assert_eq!(error.message, "tail call return type mismatch");
 }
 
-/// Reject exceptional calls whose normal continuation omits the result parameter.
+/// Reject exceptional calls whose success continuation omits the result parameter.
 #[test]
 fn test_reject_call_terminator_missing_normal_result_parameter() {
-    let source = r#"extern function @callee(i32) -> i32
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    call @callee(v0) normal block1 unwind block2
-block1:
-    v1: i32 = iconst 0i32
+    let source = r#"extern function callee(int32): int32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1:
+    v1: int32 = 0int32
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
@@ -314,9 +292,9 @@ block2(v2: ref<managed readonly i32>):
 /// Reject panic traps without a managed payload.
 #[test]
 fn test_reject_trap_panic_without_payload() {
-    let source = r#"function @trapper() -> void {
-block0:
-    trap panic
+    let source = r#"function trapper(): void {
+b0:
+    trap.panic
 }"#;
 
     let error = parse_error(source);
@@ -326,44 +304,44 @@ block0:
 /// Reject panic traps with mutable managed payloads.
 #[test]
 fn test_reject_trap_panic_with_mutable_payload() {
-    let source = r#"type @PanicMessage = {}
-function @trapper(v0: ref<managed @PanicMessage>) -> void {
-block0(v0: ref<managed @PanicMessage>):
-    trap panic v0
+    let source = r#"type PanicMessage { }
+function trapper(v0: ref<PanicMessage, managed>): void {
+b0(v0: ref<PanicMessage, managed>):
+    trap.panic v0
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: trap panic requires a non null readonly managed reference payload"
+        "metadata invariant violation: trap.panic requires a non null readonly managed reference payload"
     );
 }
 
-/// Reject exceptional calls whose unwind continuation does not accept a managed exception.
+/// Reject exceptional calls whose exception continuation does not accept a managed exception.
 #[test]
 fn test_reject_call_terminator_with_non_managed_unwind_parameter() {
-    let source = r#"extern function @callee(i32) -> i32
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+    let source = r#"extern function callee(int32): int32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: i32):
+b2(v2: int32):
     return v2
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: call unwind continuation requires a managed exception parameter"
+        "metadata invariant violation: call exception continuation requires a managed exception parameter"
     );
 }
 
 /// Reject use of undefined values.
 #[test]
 fn test_reject_use_of_undefined_value() {
-    let source = r#"function @bad() -> i32 {
-block0:
+    let source = r#"function bad(): int32 {
+b0:
     return v0
 }"#;
 
@@ -374,8 +352,8 @@ block0:
 /// Reject missing return values for non void functions.
 #[test]
 fn test_reject_missing_return_value() {
-    let source = r#"function @bad() -> i32 {
-block0:
+    let source = r#"function bad(): int32 {
+b0:
     return
 }"#;
 
@@ -386,14 +364,14 @@ block0:
 /// Reject duplicate switch case values.
 #[test]
 fn test_reject_duplicate_switch_case_value() {
-    let source = r#"function @dispatch(v0: i32) -> i32 {
-block0(v0: i32):
-    switch v0, block1, 0 => block1, 0 => block2
-block1:
-    v1: i32 = iconst 1i32
+    let source = r#"function dispatch(v0: int32): int32 {
+b0(v0: int32):
+    switch v0, b1, 0 => b1, 0 => b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
-    v2: i32 = iconst 2i32
+b2:
+    v2: int32 = 2int32
     return v2
 }"#;
 
@@ -843,9 +821,9 @@ fn test_reject_empty_dispatch_callsite_metadata() {
 /// Reject pointer-producing instructions with mismatched pointee type.
 #[test]
 fn test_reject_pointer_result_pointee_mismatch() {
-    let source = r#"function @bad() -> void {
-block0:
-    v0: ref<raw i32> = stack.alloc i64
+    let source = r#"function bad(): void {
+b0:
+    v0: ref<int32, raw> = stack.alloc int64
     return
 }"#;
 
@@ -859,9 +837,9 @@ block0:
 /// Reject element projections with non integer index values.
 #[test]
 fn test_reject_element_get_with_non_integer_index() {
-    let source = r#"function @bad(v0: [i32; 4], v1: f32) -> i32 {
-block0(v0: [i32; 4], v1: f32):
-    v2: i32 = element.get v0, v1
+    let source = r#"function bad(v0: int32[4], v1: float32): int32 {
+b0(v0: int32[4], v1: float32):
+    v2: int32 = element.get v0, v1
     return v2
 }"#;
 
@@ -875,10 +853,13 @@ block0(v0: [i32; 4], v1: f32):
 /// Reject field projections with out-of-bounds static indices.
 #[test]
 fn test_reject_field_get_with_out_of_bounds_index() {
-    let source = r#"type @Pair = { i32, i32 }
-function @bad(v0: @Pair) -> i32 {
-block0(v0: @Pair):
-    v1: i32 = field.get v0, 3
+    let source = r#"type Pair {
+    int32;
+    int32;
+}
+function bad(v0: Pair): int32 {
+b0(v0: Pair):
+    v1: int32 = field.get v0, 3
     return v1
 }"#;
 
@@ -892,11 +873,13 @@ block0(v0: @Pair):
 /// Reject pointer to integer casts for non raw references.
 #[test]
 fn test_reject_ptr_to_int_for_managed_reference() {
-    let source = r#"type @Box = { x: i32 }
-function @bad() -> i64 {
-block0:
-    v0: ref<managed @Box> = managed.alloc @Box
-    v1: i64 = ptr_to_int v0 -> i64
+    let source = r#"type Box {
+    x: int32;
+}
+function bad(): int64 {
+b0:
+    v0: ref<Box, managed> = managed.alloc Box
+    v1: int64 = cast.pointerToInt v0 -> int64
     return v1
 }"#;
 
@@ -910,26 +893,27 @@ block0:
 /// Reject bitcasts that change storage size.
 #[test]
 fn test_reject_bitcast_with_size_mismatch() {
-    let source = r#"function @bad(v0: i32) -> i64 {
-block0(v0: i32):
-    v1: i64 = bitcast v0 -> i64
+    let source = r#"function bad(v0: int32): int64 {
+b0(v0: int32):
+    v1: int64 = cast.bit v0 -> int64
     return v1
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: bitcast requires equal storage size, got 4 and 8 bytes"
+        "metadata invariant violation: cast.bit requires equal storage size, got 4 and 8 bytes"
     );
 }
 
 /// Allow bitcasts through transparent newtype wrappers.
 #[test]
 fn test_allow_bitcast_with_transparent_newtype() {
-    let source = r#"type @Handle = newtype<ref<raw i32>>
-function @ok(v0: ref<raw i32>) -> @Handle {
-block0(v0: ref<raw i32>):
-    v1: @Handle = bitcast v0 -> @Handle
+    let source = r#"
+type Handle newtype<ref<int32, raw>>
+function ok(v0: ref<int32, raw>): Handle {
+b0(v0: ref<int32, raw>):
+    v1: Handle = cast.bit v0 -> Handle
     return v1
 }"#;
 
@@ -938,20 +922,25 @@ block0(v0: ref<raw i32>):
 
 /// Reject address space casts that change pointee semantics.
 #[test]
-fn test_reject_addrspace_cast_with_mismatched_pointee() {
-    let source = r#"type @A = { x: i32 }
-type @B = { y: i32 }
-function @bad() -> void {
-block0:
-    v0: ref<raw @A> = stack.alloc @A
-    v1: ref<raw addrspace(global) @B> = intrinsic.addrspace.cast(v0)
+fn test_reject_address_space_cast_with_mismatched_pointee() {
+    let source = r#"type A {
+    x: int32;
+}
+
+type B {
+    y: int32;
+}
+function bad(): void {
+b0:
+    v0: ref<A, raw> = stack.alloc A
+    v1: ref<B, raw, addressSpace(global)> = intrinsic.addressSpace.cast(v0)
     return
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: addrspace.cast requires matching reference kind, mutability, and pointee"
+        "metadata invariant violation: addressSpace.cast requires matching reference kind, mutability, and pointee"
     );
 }
 
@@ -1014,12 +1003,12 @@ fn test_dynamic_call_declared_target_is_metadata_only() {
     assert_eq!(instruction.call_declared_target(), None);
 }
 
-/// Reject managed allocation instructions when no_managed is required.
+/// Reject managed allocation instructions when noManaged is required.
 #[test]
 fn test_reject_managed_alloc_with_no_managed_mode() {
     let mut tree = NodeTree::new();
     let pool = StringPool::new();
-    let name = pool.intern("no_managed");
+    let name = pool.intern("noManaged");
 
     let void_ty = tree.insert_type(Type::Void);
     let layout_ty = tree.insert_type(Type::Int {
@@ -1059,16 +1048,16 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: allocation mode violation: 'managed.alloc' is invalid because no_managed forbids managed allocations"
+        "metadata invariant violation: allocation mode violation: 'managed.alloc' is invalid because noManaged forbids managed allocations"
     );
 }
 
-/// Reject raw heap allocations when stack_only is required.
+/// Reject raw heap allocations when stackOnly is required.
 #[test]
 fn test_reject_raw_alloc_with_stack_only_mode() {
     let mut tree = NodeTree::new();
     let pool = StringPool::new();
-    let name = pool.intern("stack_only");
+    let name = pool.intern("stackOnly");
 
     let void_ty = tree.insert_type(Type::Void);
     let layout_ty = tree.insert_type(Type::Int {
@@ -1108,6 +1097,6 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: allocation mode violation: 'raw.alloc' is invalid because stack_only forbids non-stack allocations"
+        "metadata invariant violation: allocation mode violation: 'raw.alloc' is invalid because stackOnly forbids non-stack allocations"
     );
 }

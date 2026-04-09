@@ -14,7 +14,7 @@ impl ModuleBuilder {
     }
 
     /// Create a boolean type.
-    pub fn type_bool(&mut self) -> LocalNodeId<Type> {
+    pub fn type_boolean(&mut self) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Boolean)
     }
 
@@ -337,6 +337,6 @@ impl ModuleBuilder {
     /// Create a callable function value type.
     pub fn type_function_value(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
         self.tree.ensure_function_value_environment_type();
-        self.tree.insert_type(Type::FunctionValue { signature })
+        self.tree.insert_type(Type::Closure { signature })
     }
 }

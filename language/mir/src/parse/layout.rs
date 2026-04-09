@@ -26,9 +26,7 @@ impl Parser<'_> {
             Type::Array {
                 element, length, ..
             } => self.record_array_layout(type_id, *element, *length),
-            Type::FunctionValue { signature } => {
-                self.record_function_value_layout(type_id, *signature)
-            }
+            Type::Closure { signature } => self.record_function_value_layout(type_id, *signature),
             _ => Ok(()),
         }
     }
@@ -205,7 +203,7 @@ impl Parser<'_> {
 
         let layout = compute_type_layout(&self.tree, type_id, self.tree.pointer_bytes());
         let layout_entry = Layout {
-            layout_type: LayoutType::FunctionValue,
+            layout_type: LayoutType::Closure,
             size: layout.size,
             alignment: max_alignment,
             fields: layout_fields,

@@ -212,6 +212,7 @@ impl<'a> Parser<'a> {
 
         match token.ty {
             TokenType::Identifier
+            | TokenType::Const
             | TokenType::Struct
             | TokenType::Call
             | TokenType::CallIndirect

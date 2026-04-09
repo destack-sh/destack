@@ -225,12 +225,13 @@ mod tests {
     #[test]
     fn test_build_postdominators_for_linear_flow() {
         let (tree, function_id) = parse_test_function(
-            r#"function @linear() -> void {
-block0:
-    jump block1
-block1:
-    jump block2
-block2:
+            r#"
+function linear(): void {
+b0:
+    jump b1
+b1:
+    jump b2
+b2:
     return
 }"#,
         );

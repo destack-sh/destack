@@ -129,7 +129,7 @@ pub enum Instruction {
         else_value: Value,
     },
 
-    // local variables (local.get, local.set, local.addr)
+    // local variables (local.get, local.set, local.address)
     /// Load from a local variable (stack slot).
     LocalGet {
         /// The SSA value to define with the loaded value.
@@ -154,7 +154,7 @@ pub enum Instruction {
         value: Value,
     },
 
-    // global variables (global.addr, global.const)
+    // global variables (global.address, global.const)
     /// Get the address of a mutable global variable.
     /// Returns a raw pointer that can be used with Load/Store.
     GlobalAddr {
@@ -173,15 +173,15 @@ pub enum Instruction {
         /// The global constant to load.
         global: LocalNodeId<Global>,
     },
-    /// Get a function pointer for a function (function.addr).
+    /// Get a function pointer for a function (function.address).
     FunctionAddr {
         /// The SSA value to define with the function pointer.
         destination: Value,
         /// The function to take the address of.
         function: LocalNodeId<Function>,
     },
-    /// Construct a callable value for a function and one environment (function.value).
-    FunctionValue {
+    /// Construct a callable value for a function and one environment (function.bind).
+    Closure {
         /// The SSA value to define with the callable value.
         destination: Value,
         /// The function to pair with the environment.
@@ -216,7 +216,7 @@ pub enum Instruction {
         value: Value,
     },
 
-    // aggregate operations (field.get, field.addr, field.set, element.get, element.addr, element.set)
+    // aggregate operations (field.get, field.address, field.set, element.get, element.address, element.set)
     /// Extract a field from an aggregate value (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
@@ -226,7 +226,7 @@ pub enum Instruction {
         /// The zero-based field index.
         index: u32,
     },
-    /// Get the address of a field from an aggregate value (field.addr).
+    /// Get the address of a field from an aggregate value (field.address).
     FieldAddr {
         /// The SSA value to define with the field address.
         destination: Value,
@@ -257,7 +257,7 @@ pub enum Instruction {
         /// The index of the element (runtime value).
         index: Value,
     },
-    /// Get the address of an array element from an aggregate (element.addr).
+    /// Get the address of an array element from an aggregate (element.address).
     ElementAddr {
         /// The SSA value to define with the element address.
         destination: Value,
@@ -687,9 +687,9 @@ pub enum Instruction {
         effects: Option<CallEffects>,
     },
 
-    // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
+    // allocation (managed - runtime tracks memory: managed.alloc, managed.allocArray)
     /// Allocate a managed (runtime-tracked) struct (managed.alloc).
-    /// Returns a managed reference type (`ref<managed ...>`).
+    /// Returns a managed reference type (`ref<T, managed, ...>`).
     ManagedAlloc {
         /// The SSA value to define with the allocated reference.
         destination: Value,
@@ -698,8 +698,8 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: LocalNodeId<Type>,
     },
-    /// Allocate a managed array (managed.alloc_array).
-    /// Returns a managed reference type (`ref<managed ...>`).
+    /// Allocate a managed array (managed.allocArray).
+    /// Returns a managed reference type (`ref<T, managed, ...>`).
     ManagedAllocArray {
         /// The SSA value to define with the allocated reference.
         destination: Value,
@@ -890,7 +890,7 @@ impl Instruction {
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
-            Instruction::FunctionValue { destination, .. } => Some(*destination),
+            Instruction::Closure { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
@@ -975,7 +975,7 @@ impl Instruction {
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::GlobalConst { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
-            Instruction::FunctionValue { environment, .. } => smallvec![*environment],
+            Instruction::Closure { environment, .. } => smallvec![*environment],
             Instruction::FunctionEnvironment { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
@@ -1200,20 +1200,20 @@ impl CastOperator {
     /// Text representation for formatting/parsing.
     pub fn to_str(self) -> &'static str {
         match self {
-            CastOperator::Bitcast => "bitcast",
-            CastOperator::Truncate => "trunc",
-            CastOperator::ZeroExtend => "uextend",
-            CastOperator::SignExtend => "sextend",
-            CastOperator::FloatToSignedInt => "fcvt_to_sint",
-            CastOperator::FloatToUnsignedInt => "fcvt_to_uint",
-            CastOperator::FloatToSignedIntSaturating => "fcvt_to_sint_sat",
-            CastOperator::FloatToUnsignedIntSaturating => "fcvt_to_uint_sat",
-            CastOperator::SignedIntToFloat => "scvt_to_float",
-            CastOperator::UnsignedIntToFloat => "ucvt_to_float",
-            CastOperator::FloatTruncate => "fnarrow",
-            CastOperator::FloatExtend => "fwiden",
-            CastOperator::PointerToInt => "ptr_to_int",
-            CastOperator::IntToPointer => "int_to_ptr",
+            CastOperator::Bitcast => "cast.bit",
+            CastOperator::Truncate => "cast.truncate",
+            CastOperator::ZeroExtend => "cast.extend.u",
+            CastOperator::SignExtend => "cast.extend.s",
+            CastOperator::FloatToSignedInt => "cast.floatToInt.s",
+            CastOperator::FloatToUnsignedInt => "cast.floatToInt.u",
+            CastOperator::FloatToSignedIntSaturating => "cast.floatToIntSaturating.s",
+            CastOperator::FloatToUnsignedIntSaturating => "cast.floatToIntSaturating.u",
+            CastOperator::SignedIntToFloat => "cast.intToFloat.s",
+            CastOperator::UnsignedIntToFloat => "cast.intToFloat.u",
+            CastOperator::FloatTruncate => "cast.floatTruncate",
+            CastOperator::FloatExtend => "cast.floatExtend",
+            CastOperator::PointerToInt => "cast.pointerToInt",
+            CastOperator::IntToPointer => "cast.intToPointer",
         }
     }
 }
@@ -1229,20 +1229,20 @@ impl FromStr for CastOperator {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bitcast" => Ok(CastOperator::Bitcast),
-            "trunc" => Ok(CastOperator::Truncate),
-            "uextend" => Ok(CastOperator::ZeroExtend),
-            "sextend" => Ok(CastOperator::SignExtend),
-            "fcvt_to_sint" => Ok(CastOperator::FloatToSignedInt),
-            "fcvt_to_uint" => Ok(CastOperator::FloatToUnsignedInt),
-            "fcvt_to_sint_sat" => Ok(CastOperator::FloatToSignedIntSaturating),
-            "fcvt_to_uint_sat" => Ok(CastOperator::FloatToUnsignedIntSaturating),
-            "scvt_to_float" => Ok(CastOperator::SignedIntToFloat),
-            "ucvt_to_float" => Ok(CastOperator::UnsignedIntToFloat),
-            "fnarrow" => Ok(CastOperator::FloatTruncate),
-            "fwiden" => Ok(CastOperator::FloatExtend),
-            "ptr_to_int" => Ok(CastOperator::PointerToInt),
-            "int_to_ptr" => Ok(CastOperator::IntToPointer),
+            "cast.bit" => Ok(CastOperator::Bitcast),
+            "cast.truncate" => Ok(CastOperator::Truncate),
+            "cast.extend.u" => Ok(CastOperator::ZeroExtend),
+            "cast.extend.s" => Ok(CastOperator::SignExtend),
+            "cast.floatToInt.s" => Ok(CastOperator::FloatToSignedInt),
+            "cast.floatToInt.u" => Ok(CastOperator::FloatToUnsignedInt),
+            "cast.floatToIntSaturating.s" => Ok(CastOperator::FloatToSignedIntSaturating),
+            "cast.floatToIntSaturating.u" => Ok(CastOperator::FloatToUnsignedIntSaturating),
+            "cast.intToFloat.s" => Ok(CastOperator::SignedIntToFloat),
+            "cast.intToFloat.u" => Ok(CastOperator::UnsignedIntToFloat),
+            "cast.floatTruncate" => Ok(CastOperator::FloatTruncate),
+            "cast.floatExtend" => Ok(CastOperator::FloatExtend),
+            "cast.pointerToInt" => Ok(CastOperator::PointerToInt),
+            "cast.intToPointer" => Ok(CastOperator::IntToPointer),
             _ => Err(()),
         }
     }

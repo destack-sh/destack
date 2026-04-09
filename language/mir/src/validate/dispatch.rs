@@ -62,8 +62,8 @@ impl<'a> Validator<'a> {
 
                     let block = self.tree.get(block_id);
                     let signature = match &block.terminator {
-                        Terminator::CallVirtual { signature, .. }
-                        | Terminator::CallInterface { signature, .. }
+                        Terminator::InvokeVirtual { signature, .. }
+                        | Terminator::InvokeInterface { signature, .. }
                         | Terminator::TailCallVirtual { signature, .. }
                         | Terminator::TailCallInterface { signature, .. } => *signature,
                         _ => {
@@ -118,7 +118,7 @@ impl<'a> Validator<'a> {
 
         let signature = match self.tree.get(signature) {
             Type::FunctionPointer { .. } => signature,
-            Type::FunctionValue { signature, .. } => *signature,
+            Type::Closure { signature, .. } => *signature,
             _ => {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "call signature is not a function type".to_string(),

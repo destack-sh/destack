@@ -30,6 +30,42 @@ impl<'a> Parser<'a> {
             instruction_span = Some(parsed_span);
         }
 
+        // destination driven literal sugar
+        if let Some(destination) = destination
+            && let Some(destination_type) = destination_type
+        {
+            // array literal
+            if self.peek_token(TokenType::OpenBracket) {
+                let elements = self.parse_value_bracket_list()?;
+                let elements = self.tree.add_arguments(&elements);
+                let instruction = Instruction::Array {
+                    destination,
+                    ty: destination_type,
+                    elements,
+                };
+                let id = self.tree.insert(instruction);
+                self.tree.set_span(id, instruction_span.unwrap());
+                return Ok(id);
+            }
+
+            // direct constant literal
+            if let Some(token) = self.peek()
+                && (matches!(
+                    token.ty,
+                    TokenType::BoolLiteral
+                        | TokenType::IntLiteral
+                        | TokenType::FloatLiteral
+                        | TokenType::CharLiteral
+                ) || (token.ty == TokenType::Identifier && token.text == "null"))
+            {
+                let value = self.parse_constant_for_type(destination_type)?;
+                let instruction = Instruction::Const { destination, value };
+                let id = self.tree.insert(instruction);
+                self.tree.set_span(id, instruction_span.unwrap());
+                return Ok(id);
+            }
+        }
+
         // opcode
         let opcode = self
             .peek()
@@ -92,7 +128,8 @@ impl<'a> Parser<'a> {
                 let pointer = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
-                let (ordering, scope, memory_scope, semantics) = self.parse_atomic_attributes()?;
+                let (ordering, scope, memory_scope, semantics) =
+                    self.parse_atomic_attributes(true)?;
                 Instruction::AtomicStore {
                     pointer,
                     value,
@@ -103,7 +140,8 @@ impl<'a> Parser<'a> {
                 }
             }
             "atomic.fence" => {
-                let (ordering, scope, memory_scope, semantics) = self.parse_atomic_attributes()?;
+                let (ordering, scope, memory_scope, semantics) =
+                    self.parse_atomic_attributes(false)?;
                 Instruction::AtomicFence {
                     ordering,
                     scope,
@@ -153,9 +191,8 @@ impl<'a> Parser<'a> {
 
             // calls and intrinsics
             "call" => {
-                let (function, arguments) = self.parse_direct_call_target()?;
+                let (function, arguments, signature) = self.parse_direct_call_target()?;
                 let arguments = self.tree.add_arguments(&arguments);
-                let signature = self.parse_direct_call_signature(function)?;
 
                 Instruction::Call {
                     destination,
@@ -231,21 +268,6 @@ impl<'a> Parser<'a> {
                 })?;
 
                 match opcode_text {
-                    // constant
-                    "iconst" => {
-                        if let Some(token) = self.peek()
-                            && token.ty == TokenType::StringLiteral
-                        {
-                            return Err(ParseError::invalid(
-                                "string constants must use globals",
-                                token.start,
-                            ));
-                        }
-
-                        let value = self.parse_constant_for_type(destination_type)?;
-                        Instruction::Const { destination, value }
-                    }
-
                     // binary ops
                     _ if opcode_text.parse::<BinaryOperator>().is_ok() => {
                         let operator = opcode_text.parse().unwrap();
@@ -305,7 +327,7 @@ impl<'a> Parser<'a> {
                         let local = self.parse_local_ref()?;
                         Instruction::LocalGet { destination, local }
                     }
-                    "local.addr" => {
+                    "local.address" => {
                         let local = self.parse_local_ref()?;
                         Instruction::LocalAddr {
                             destination,
@@ -315,7 +337,7 @@ impl<'a> Parser<'a> {
                     }
 
                     // global operations
-                    "global.addr" => {
+                    "global.address" => {
                         let global = self.parse_global_reference()?;
                         Instruction::GlobalAddr {
                             destination,
@@ -330,18 +352,18 @@ impl<'a> Parser<'a> {
                             global,
                         }
                     }
-                    "function.addr" => {
+                    "function.address" => {
                         let function = self.parse_function_reference()?;
                         Instruction::FunctionAddr {
                             destination,
                             function,
                         }
                     }
-                    "function.value" => {
+                    "function.bind" => {
                         let function = self.parse_function_reference()?;
                         self.eat_token(TokenType::Comma)?;
                         let environment = self.parse_value()?;
-                        Instruction::FunctionValue {
+                        Instruction::Closure {
                             destination,
                             function,
                             environment,
@@ -370,7 +392,7 @@ impl<'a> Parser<'a> {
                             index,
                         }
                     }
-                    "field.addr" => {
+                    "field.address" => {
                         let aggregate = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let index = self.parse_int_literal()? as u32;
@@ -404,7 +426,7 @@ impl<'a> Parser<'a> {
                             index,
                         }
                     }
-                    "element.addr" => {
+                    "element.address" => {
                         let array = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let index = self.parse_value()?;
@@ -448,17 +470,6 @@ impl<'a> Parser<'a> {
                             elements,
                         }
                     }
-                    "array" => {
-                        let ty = self.parse_type()?;
-                        let elements = self.parse_call_arguments()?;
-                        let elements = self.tree.add_arguments(&elements);
-                        Instruction::Array {
-                            destination,
-                            ty,
-                            elements,
-                        }
-                    }
-
                     // vector operations
                     "vector.splat" => {
                         let value = self.parse_value()?;
@@ -562,7 +573,7 @@ impl<'a> Parser<'a> {
                     "tensor.reshape" => {
                         let tensor = self.parse_value()?;
                         let shape = if self.eat_token_maybe(TokenType::Comma) {
-                            let values = self.parse_value_bracket_list()?;
+                            let values = self.parse_named_value_group("shape")?;
                             self.tree.add_arguments(&values)
                         } else {
                             ArgumentSlice::default()
@@ -576,7 +587,7 @@ impl<'a> Parser<'a> {
                     "tensor.broadcast" => {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
-                        let dimensions = self.parse_u32_bracket_list()?;
+                        let dimensions = self.parse_named_u32_group("dimensions")?;
                         Instruction::TensorBroadcast {
                             destination,
                             tensor,
@@ -586,7 +597,7 @@ impl<'a> Parser<'a> {
                     "tensor.transpose" => {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
-                        let permutation = self.parse_u32_bracket_list()?;
+                        let permutation = self.parse_named_u32_group("permutation")?;
                         Instruction::TensorTranspose {
                             destination,
                             tensor,
@@ -603,14 +614,11 @@ impl<'a> Parser<'a> {
                     "tensor.view" => {
                         let view = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("offsets")?;
-                        let offsets = self.parse_value_bracket_list()?;
+                        let offsets = self.parse_named_value_group("offsets")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("sizes")?;
-                        let sizes = self.parse_value_bracket_list()?;
+                        let sizes = self.parse_named_value_group("sizes")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("strides")?;
-                        let strides = self.parse_value_bracket_list()?;
+                        let strides = self.parse_named_value_group("strides")?;
 
                         // range payload
                         let mut arguments =
@@ -640,14 +648,11 @@ impl<'a> Parser<'a> {
                     "tensor.slice" => {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("offsets")?;
-                        let offsets = self.parse_value_bracket_list()?;
+                        let offsets = self.parse_named_value_group("offsets")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("sizes")?;
-                        let sizes = self.parse_value_bracket_list()?;
+                        let sizes = self.parse_named_value_group("sizes")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("strides")?;
-                        let strides = self.parse_value_bracket_list()?;
+                        let strides = self.parse_named_value_group("strides")?;
 
                         // range payload
                         let mut arguments =
@@ -677,17 +682,13 @@ impl<'a> Parser<'a> {
                     "tensor.pad" => {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("value")?;
-                        let value = self.parse_value()?;
+                        let value = self.parse_named_single_value_group("value")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("low")?;
-                        let low = self.parse_value_bracket_list()?;
+                        let low = self.parse_named_value_group("low")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("high")?;
-                        let high = self.parse_value_bracket_list()?;
+                        let high = self.parse_named_value_group("high")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("interior")?;
-                        let interior = self.parse_value_bracket_list()?;
+                        let interior = self.parse_named_value_group("interior")?;
 
                         // padding payload
                         let mut arguments =
@@ -717,10 +718,9 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "tensor.concat" => {
-                        let tensors = self.parse_value_bracket_list()?;
+                        let tensors = self.parse_named_value_group("tensors")?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("axis")?;
-                        let axis = self.parse_int_as_u32()?;
+                        let axis = self.parse_named_single_u32_group("axis")?;
                         let tensors = self.tree.add_arguments(&tensors);
                         Instruction::TensorConcat {
                             destination,
@@ -761,8 +761,7 @@ impl<'a> Parser<'a> {
                         self.eat_token(TokenType::Comma)?;
                         let initial = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("axes")?;
-                        let axes = self.parse_u32_bracket_list()?;
+                        let axes = self.parse_named_u32_group("axes")?;
                         Instruction::TensorReduce {
                             destination,
                             operator,
@@ -810,8 +809,7 @@ impl<'a> Parser<'a> {
                         self.eat_token(TokenType::Comma)?;
                         let dimensions = self.parse_tensor_gather_dimensions()?;
                         self.eat_token(TokenType::Comma)?;
-                        self.eat_named_key("slice_sizes")?;
-                        let slice_sizes = self.parse_u32_bracket_list()?;
+                        let slice_sizes = self.parse_named_u32_group("sliceSizes")?;
                         Instruction::TensorGather {
                             destination,
                             operand,
@@ -860,7 +858,7 @@ impl<'a> Parser<'a> {
                             result_type: destination_type,
                         }
                     }
-                    "managed.alloc_array" => {
+                    "managed.allocArray" => {
                         let element = self.parse_type()?;
                         self.eat_token(TokenType::Comma)?;
                         let length = self.parse_value()?;
@@ -892,7 +890,7 @@ impl<'a> Parser<'a> {
                     "atomic.load" => {
                         let pointer = self.parse_value()?;
                         let (ordering, scope, memory_scope, semantics) =
-                            self.parse_atomic_attributes()?;
+                            self.parse_atomic_attributes(true)?;
                         Instruction::AtomicLoad {
                             destination,
                             pointer,
@@ -910,7 +908,7 @@ impl<'a> Parser<'a> {
                         self.eat_token(TokenType::Comma)?;
                         let new_value = self.parse_value()?;
                         let (ordering, scope, memory_scope, semantics) =
-                            self.parse_atomic_attributes()?;
+                            self.parse_atomic_attributes(true)?;
                         Instruction::AtomicCompareExchange {
                             destination,
                             pointer,
@@ -929,7 +927,7 @@ impl<'a> Parser<'a> {
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value()?;
                         let (ordering, scope, memory_scope, semantics) =
-                            self.parse_atomic_attributes()?;
+                            self.parse_atomic_attributes(true)?;
                         Instruction::AtomicRmw {
                             destination,
                             operator,
@@ -976,6 +974,22 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
+    /// Parse a parenthesized list of values.
+    fn parse_value_paren_list(&mut self) -> ParseResult<Vec<Value>> {
+        self.eat_token(TokenType::OpenParen)?;
+        let mut values = Vec::new();
+
+        while !self.peek_token(TokenType::CloseParen) {
+            values.push(self.parse_value()?);
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+        Ok(values)
+    }
+
     /// Parse a bracketed list of u32 values.
     fn parse_u32_bracket_list(&mut self) -> ParseResult<Vec<u32>> {
         let values = self.parse_int_bracket_list()?;
@@ -987,9 +1001,20 @@ impl<'a> Parser<'a> {
             .collect()
     }
 
-    /// Parse a bracketed list of u64 values.
-    fn parse_u64_bracket_list(&mut self) -> ParseResult<Vec<u64>> {
-        let values = self.parse_int_bracket_list()?;
+    /// Parse a parenthesized list of u32 values.
+    fn parse_u32_paren_list(&mut self) -> ParseResult<Vec<u32>> {
+        let values = self.parse_int_paren_list()?;
+        values
+            .into_iter()
+            .map(|value| {
+                u32::try_from(value).map_err(|_| ParseError::invalid("u32 literal", self.pos()))
+            })
+            .collect()
+    }
+
+    /// Parse a parenthesized list of u64 values.
+    fn parse_u64_paren_list(&mut self) -> ParseResult<Vec<u64>> {
+        let values = self.parse_int_paren_list()?;
         values
             .into_iter()
             .map(|value| {
@@ -1018,14 +1043,29 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
-    /// Parse a bracketed list of boolean values.
-    fn parse_bool_bracket_list(&mut self) -> ParseResult<Vec<bool>> {
-        // open the list
-        self.eat_token(TokenType::OpenBracket)?;
+    /// Parse a parenthesized list of integer values.
+    fn parse_int_paren_list(&mut self) -> ParseResult<Vec<i64>> {
+        self.eat_token(TokenType::OpenParen)?;
         let mut values = Vec::new();
 
-        // read values
-        while !self.peek_token(TokenType::CloseBracket) {
+        while !self.peek_token(TokenType::CloseParen) {
+            let value = self.parse_int_literal()?;
+            values.push(value);
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+        Ok(values)
+    }
+
+    /// Parse a parenthesized list of boolean values.
+    fn parse_bool_paren_list(&mut self) -> ParseResult<Vec<bool>> {
+        self.eat_token(TokenType::OpenParen)?;
+        let mut values = Vec::new();
+
+        while !self.peek_token(TokenType::CloseParen) {
             let token = self.eat_token(TokenType::BoolLiteral)?;
             let value = token.text == "true";
             values.push(value);
@@ -1034,28 +1074,50 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // close the list
-        self.eat_token(TokenType::CloseBracket)?;
+        self.eat_token(TokenType::CloseParen)?;
         Ok(values)
     }
 
-    /// Parse one named assignment key like `name=`.
-    fn eat_named_key(&mut self, name: &str) -> ParseResult<()> {
-        let (key, key_start) = self.eat_assignment_key()?;
-        if key != name {
-            return Err(ParseError::invalid(name, key_start));
+    /// Parse one named value group like `name(v0, v1)`.
+    fn parse_named_value_group(&mut self, name: &str) -> ParseResult<Vec<Value>> {
+        self.eat_named_group(name)?;
+        self.parse_value_paren_list()
+    }
+
+    /// Parse one named single value group like `name(v0)`.
+    fn parse_named_single_value_group(&mut self, name: &str) -> ParseResult<Value> {
+        let values = self.parse_named_value_group(name)?;
+        let [value] = values.as_slice() else {
+            return Err(ParseError::invalid(name, self.pos()));
+        };
+
+        Ok(*value)
+    }
+
+    /// Parse one named u32 group like `name(0, 1)`.
+    fn parse_named_u32_group(&mut self, name: &str) -> ParseResult<Vec<u32>> {
+        self.eat_named_group(name)?;
+        self.parse_u32_paren_list()
+    }
+
+    /// Parse one named single u32 group like `name(0)`.
+    fn parse_named_single_u32_group(&mut self, name: &str) -> ParseResult<u32> {
+        let values = self.parse_named_u32_group(name)?;
+        let [value] = values.as_slice() else {
+            return Err(ParseError::invalid(name, self.pos()));
+        };
+
+        Ok(*value)
+    }
+
+    /// Parse one named group header like `name(`.
+    fn eat_named_group(&mut self, name: &str) -> ParseResult<()> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        if token.text != name {
+            return Err(ParseError::invalid(name, token.start));
         }
 
         Ok(())
-    }
-
-    /// Parse one assignment key like `name=`.
-    fn eat_assignment_key(&mut self) -> ParseResult<(&'a str, usize)> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let text = token.text;
-        let start = token.start;
-        self.eat_token(TokenType::Equals)?;
-        Ok((text, start))
     }
 
     /// Parse a vector reduction operator.
@@ -1114,10 +1176,13 @@ impl<'a> Parser<'a> {
         if token.text != "mode" {
             return Err(ParseError::invalid("mode", token.start));
         }
-        self.eat_token(TokenType::Equals)?;
+        self.eat_token(TokenType::OpenParen)?;
         let token = self.eat_token(TokenType::Identifier)?;
-        let mode = TensorScatterMode::parse(token.text)
-            .ok_or_else(|| ParseError::invalid("scatter mode", token.start))?;
+        let mode_text = token.text.to_string();
+        let mode_start = token.start;
+        self.eat_token(TokenType::CloseParen)?;
+        let mode = TensorScatterMode::parse(&mode_text)
+            .ok_or_else(|| ParseError::invalid("scatter mode", mode_start))?;
         Ok(Some(mode))
     }
 
@@ -1136,13 +1201,15 @@ impl<'a> Parser<'a> {
         let mut lhs_contracting = None;
         let mut rhs_contracting = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key, key_start) = self.eat_assignment_key()?;
-            let list = self.parse_u32_bracket_list()?;
-            match key {
-                "lhs_batch" => lhs_batch = Some(list),
-                "rhs_batch" => rhs_batch = Some(list),
-                "lhs_contract" => lhs_contracting = Some(list),
-                "rhs_contract" => rhs_contracting = Some(list),
+            let key_token = self.eat_token(TokenType::Identifier)?;
+            let key_text = key_token.text.to_string();
+            let key_start = key_token.start;
+            let list = self.parse_u32_paren_list()?;
+            match key_text.as_str() {
+                "lhsBatch" => lhs_batch = Some(list),
+                "rhsBatch" => rhs_batch = Some(list),
+                "lhsContract" => lhs_contracting = Some(list),
+                "rhsContract" => rhs_contracting = Some(list),
                 _ => return Err(ParseError::invalid("dot dimension key", key_start)),
             }
             if !self.eat_token_maybe(TokenType::Comma) {
@@ -1152,12 +1219,12 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseParen)?;
 
         // validate required keys
-        let lhs_batch = lhs_batch.ok_or_else(|| ParseError::invalid("lhs_batch", self.pos()))?;
-        let rhs_batch = rhs_batch.ok_or_else(|| ParseError::invalid("rhs_batch", self.pos()))?;
+        let lhs_batch = lhs_batch.ok_or_else(|| ParseError::invalid("lhsBatch", self.pos()))?;
+        let rhs_batch = rhs_batch.ok_or_else(|| ParseError::invalid("rhsBatch", self.pos()))?;
         let lhs_contracting =
-            lhs_contracting.ok_or_else(|| ParseError::invalid("lhs_contract", self.pos()))?;
+            lhs_contracting.ok_or_else(|| ParseError::invalid("lhsContract", self.pos()))?;
         let rhs_contracting =
-            rhs_contracting.ok_or_else(|| ParseError::invalid("rhs_contract", self.pos()))?;
+            rhs_contracting.ok_or_else(|| ParseError::invalid("rhsContract", self.pos()))?;
 
         Ok(TensorDotDimensionNumbers {
             lhs_batch,
@@ -1189,19 +1256,46 @@ impl<'a> Parser<'a> {
         let mut output_feature = None;
         let mut output_spatial = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key, key_start) = self.eat_assignment_key()?;
-            match key {
-                "input_batch" => input_batch = Some(self.parse_int_as_u32()?),
-                "input_feature" => input_feature = Some(self.parse_int_as_u32()?),
-                "input_spatial" => input_spatial = Some(self.parse_u32_bracket_list()?),
-                "kernel_input_feature" => kernel_input_feature = Some(self.parse_int_as_u32()?),
-                "kernel_output_feature" => kernel_output_feature = Some(self.parse_int_as_u32()?),
-                "kernel_spatial" => kernel_spatial = Some(self.parse_u32_bracket_list()?),
-                "output_batch" => output_batch = Some(self.parse_int_as_u32()?),
-                "output_feature" => output_feature = Some(self.parse_int_as_u32()?),
-                "output_spatial" => output_spatial = Some(self.parse_u32_bracket_list()?),
+            let key_token = self.eat_token(TokenType::Identifier)?;
+            match key_token.text {
+                "inputBatch" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    input_batch = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
+                }
+                "inputFeature" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    input_feature = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
+                }
+                "inputSpatial" => input_spatial = Some(self.parse_u32_paren_list()?),
+                "kernelInputFeature" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    kernel_input_feature = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
+                }
+                "kernelOutputFeature" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    kernel_output_feature = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
+                }
+                "kernelSpatial" => kernel_spatial = Some(self.parse_u32_paren_list()?),
+                "outputBatch" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    output_batch = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
+                }
+                "outputFeature" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    output_feature = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
+                }
+                "outputSpatial" => output_spatial = Some(self.parse_u32_paren_list()?),
                 _ => {
-                    return Err(ParseError::invalid("convolution dimension key", key_start));
+                    return Err(ParseError::invalid(
+                        "convolution dimension key",
+                        key_token.start,
+                    ));
                 }
             }
             if !self.eat_token_maybe(TokenType::Comma) {
@@ -1212,23 +1306,23 @@ impl<'a> Parser<'a> {
 
         // validate required keys
         let input_batch =
-            input_batch.ok_or_else(|| ParseError::invalid("input_batch", self.pos()))?;
+            input_batch.ok_or_else(|| ParseError::invalid("inputBatch", self.pos()))?;
         let input_feature =
-            input_feature.ok_or_else(|| ParseError::invalid("input_feature", self.pos()))?;
+            input_feature.ok_or_else(|| ParseError::invalid("inputFeature", self.pos()))?;
         let input_spatial =
-            input_spatial.ok_or_else(|| ParseError::invalid("input_spatial", self.pos()))?;
+            input_spatial.ok_or_else(|| ParseError::invalid("inputSpatial", self.pos()))?;
         let kernel_input_feature = kernel_input_feature
-            .ok_or_else(|| ParseError::invalid("kernel_input_feature", self.pos()))?;
+            .ok_or_else(|| ParseError::invalid("kernelInputFeature", self.pos()))?;
         let kernel_output_feature = kernel_output_feature
-            .ok_or_else(|| ParseError::invalid("kernel_output_feature", self.pos()))?;
+            .ok_or_else(|| ParseError::invalid("kernelOutputFeature", self.pos()))?;
         let kernel_spatial =
-            kernel_spatial.ok_or_else(|| ParseError::invalid("kernel_spatial", self.pos()))?;
+            kernel_spatial.ok_or_else(|| ParseError::invalid("kernelSpatial", self.pos()))?;
         let output_batch =
-            output_batch.ok_or_else(|| ParseError::invalid("output_batch", self.pos()))?;
+            output_batch.ok_or_else(|| ParseError::invalid("outputBatch", self.pos()))?;
         let output_feature =
-            output_feature.ok_or_else(|| ParseError::invalid("output_feature", self.pos()))?;
+            output_feature.ok_or_else(|| ParseError::invalid("outputFeature", self.pos()))?;
         let output_spatial =
-            output_spatial.ok_or_else(|| ParseError::invalid("output_spatial", self.pos()))?;
+            output_spatial.ok_or_else(|| ParseError::invalid("outputSpatial", self.pos()))?;
 
         Ok(TensorConvolutionDimensionNumbers {
             input_batch,
@@ -1248,7 +1342,7 @@ impl<'a> Parser<'a> {
         &mut self,
         dimensions: &TensorConvolutionDimensionNumbers,
     ) -> ParseResult<TensorConvolutionWindow> {
-        // infer spatial rank defaults
+        // derive omitted window defaults from the declared spatial rank
         let spatial_rank = dimensions.input_spatial.len();
         let default_stride = vec![1; spatial_rank];
         let default_padding = vec![0; spatial_rank];
@@ -1263,31 +1357,36 @@ impl<'a> Parser<'a> {
         let mut rhs_dilation = None;
         let mut window_reversal = None;
 
-        while self.peek_token(TokenType::Comma) {
-            // check if the next key belongs to group counts
-            let next_key = self
-                .peek_nth_token(1)
-                .ok_or_else(|| ParseError::unexpected_end("convolution window key", self.pos()))?;
-            if next_key.ty == TokenType::Identifier
-                && (next_key.text == "feature_group" || next_key.text == "batch_group")
-            {
-                break;
+        if self.eat_token_maybe(TokenType::Comma) {
+            let token = self.eat_token(TokenType::Identifier)?;
+            if token.text != "window" {
+                return Err(ParseError::invalid("window", token.start));
             }
+            self.eat_token(TokenType::OpenParen)?;
 
-            // consume the window key
-            self.eat_token(TokenType::Comma)?;
-            let (key, key_start) = self.eat_assignment_key()?;
-            match key {
-                "strides" => strides = Some(self.parse_u64_bracket_list()?),
-                "padding_low" => padding_low = Some(self.parse_u64_bracket_list()?),
-                "padding_high" => padding_high = Some(self.parse_u64_bracket_list()?),
-                "lhs_dilation" => lhs_dilation = Some(self.parse_u64_bracket_list()?),
-                "rhs_dilation" => rhs_dilation = Some(self.parse_u64_bracket_list()?),
-                "window_reversal" => window_reversal = Some(self.parse_bool_bracket_list()?),
-                _ => {
-                    return Err(ParseError::invalid("convolution window key", key_start));
+            while !self.peek_token(TokenType::CloseParen) {
+                let key_token = self.eat_token(TokenType::Identifier)?;
+                match key_token.text {
+                    "strides" => strides = Some(self.parse_u64_paren_list()?),
+                    "paddingLow" => padding_low = Some(self.parse_u64_paren_list()?),
+                    "paddingHigh" => padding_high = Some(self.parse_u64_paren_list()?),
+                    "lhsDilation" => lhs_dilation = Some(self.parse_u64_paren_list()?),
+                    "rhsDilation" => rhs_dilation = Some(self.parse_u64_paren_list()?),
+                    "windowReversal" => window_reversal = Some(self.parse_bool_paren_list()?),
+                    _ => {
+                        return Err(ParseError::invalid(
+                            "convolution window key",
+                            key_token.start,
+                        ));
+                    }
+                }
+
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
                 }
             }
+
+            self.eat_token(TokenType::CloseParen)?;
         }
 
         Ok(TensorConvolutionWindow {
@@ -1305,17 +1404,37 @@ impl<'a> Parser<'a> {
         // parse optional group counts
         let mut feature_group_count = None;
         let mut batch_group_count = None;
-        while self.peek_token(TokenType::Comma) {
-            self.eat_token(TokenType::Comma)?;
-            let (key, key_start) = self.eat_assignment_key()?;
-            let value = self.parse_int_as_u32()?;
-            match key {
-                "feature_group" => feature_group_count = Some(value),
-                "batch_group" => batch_group_count = Some(value),
-                _ => {
-                    return Err(ParseError::invalid("convolution group key", key_start));
+
+        if self.eat_token_maybe(TokenType::Comma) {
+            let token = self.eat_token(TokenType::Identifier)?;
+            if token.text != "groups" {
+                return Err(ParseError::invalid("groups", token.start));
+            }
+            self.eat_token(TokenType::OpenParen)?;
+
+            while !self.peek_token(TokenType::CloseParen) {
+                let key_token = self.eat_token(TokenType::Identifier)?;
+                let key_text = key_token.text.to_string();
+                let key_start = key_token.start;
+                let value = {
+                    self.eat_token(TokenType::OpenParen)?;
+                    let value = self.parse_int_as_u32()?;
+                    self.eat_token(TokenType::CloseParen)?;
+                    value
+                };
+
+                match key_text.as_str() {
+                    "feature" => feature_group_count = Some(value),
+                    "batch" => batch_group_count = Some(value),
+                    _ => return Err(ParseError::invalid("convolution group key", key_start)),
+                }
+
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
                 }
             }
+
+            self.eat_token(TokenType::CloseParen)?;
         }
 
         Ok((
@@ -1339,15 +1458,17 @@ impl<'a> Parser<'a> {
         let mut start_index_map = None;
         let mut index_vector_dim = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key, key_start) = self.eat_assignment_key()?;
-            match key {
-                "offset_dims" => offset_dims = Some(self.parse_u32_bracket_list()?),
-                "collapsed_slice_dims" => {
-                    collapsed_slice_dims = Some(self.parse_u32_bracket_list()?);
+            let key_token = self.eat_token(TokenType::Identifier)?;
+            match key_token.text {
+                "offsetDims" => offset_dims = Some(self.parse_u32_paren_list()?),
+                "collapsedSliceDims" => collapsed_slice_dims = Some(self.parse_u32_paren_list()?),
+                "startIndexMap" => start_index_map = Some(self.parse_u32_paren_list()?),
+                "indexVectorDim" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    index_vector_dim = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
                 }
-                "start_index_map" => start_index_map = Some(self.parse_u32_bracket_list()?),
-                "index_vector_dim" => index_vector_dim = Some(self.parse_int_as_u32()?),
-                _ => return Err(ParseError::invalid("gather dimension key", key_start)),
+                _ => return Err(ParseError::invalid("gather dimension key", key_token.start)),
             }
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -1357,13 +1478,13 @@ impl<'a> Parser<'a> {
 
         // validate required keys
         let offset_dims =
-            offset_dims.ok_or_else(|| ParseError::invalid("offset_dims", self.pos()))?;
+            offset_dims.ok_or_else(|| ParseError::invalid("offsetDims", self.pos()))?;
         let collapsed_slice_dims = collapsed_slice_dims
-            .ok_or_else(|| ParseError::invalid("collapsed_slice_dims", self.pos()))?;
+            .ok_or_else(|| ParseError::invalid("collapsedSliceDims", self.pos()))?;
         let start_index_map =
-            start_index_map.ok_or_else(|| ParseError::invalid("start_index_map", self.pos()))?;
+            start_index_map.ok_or_else(|| ParseError::invalid("startIndexMap", self.pos()))?;
         let index_vector_dim =
-            index_vector_dim.ok_or_else(|| ParseError::invalid("index_vector_dim", self.pos()))?;
+            index_vector_dim.ok_or_else(|| ParseError::invalid("indexVectorDim", self.pos()))?;
 
         Ok(TensorGatherDimensionNumbers {
             offset_dims,
@@ -1388,17 +1509,24 @@ impl<'a> Parser<'a> {
         let mut scatter_dims_to_operand_dims = None;
         let mut index_vector_dim = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key, key_start) = self.eat_assignment_key()?;
-            match key {
-                "update_window_dims" => update_window_dims = Some(self.parse_u32_bracket_list()?),
-                "inserted_window_dims" => {
-                    inserted_window_dims = Some(self.parse_u32_bracket_list()?);
+            let key_token = self.eat_token(TokenType::Identifier)?;
+            match key_token.text {
+                "updateWindowDims" => update_window_dims = Some(self.parse_u32_paren_list()?),
+                "insertedWindowDims" => inserted_window_dims = Some(self.parse_u32_paren_list()?),
+                "scatterDimsToOperandDims" => {
+                    scatter_dims_to_operand_dims = Some(self.parse_u32_paren_list()?);
                 }
-                "scatter_dims_to_operand_dims" => {
-                    scatter_dims_to_operand_dims = Some(self.parse_u32_bracket_list()?);
+                "indexVectorDim" => {
+                    self.eat_token(TokenType::OpenParen)?;
+                    index_vector_dim = Some(self.parse_int_as_u32()?);
+                    self.eat_token(TokenType::CloseParen)?;
                 }
-                "index_vector_dim" => index_vector_dim = Some(self.parse_int_as_u32()?),
-                _ => return Err(ParseError::invalid("scatter dimension key", key_start)),
+                _ => {
+                    return Err(ParseError::invalid(
+                        "scatter dimension key",
+                        key_token.start,
+                    ));
+                }
             }
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -1408,13 +1536,13 @@ impl<'a> Parser<'a> {
 
         // validate required keys
         let update_window_dims = update_window_dims
-            .ok_or_else(|| ParseError::invalid("update_window_dims", self.pos()))?;
+            .ok_or_else(|| ParseError::invalid("updateWindowDims", self.pos()))?;
         let inserted_window_dims = inserted_window_dims
-            .ok_or_else(|| ParseError::invalid("inserted_window_dims", self.pos()))?;
+            .ok_or_else(|| ParseError::invalid("insertedWindowDims", self.pos()))?;
         let scatter_dims_to_operand_dims = scatter_dims_to_operand_dims
-            .ok_or_else(|| ParseError::invalid("scatter_dims_to_operand_dims", self.pos()))?;
+            .ok_or_else(|| ParseError::invalid("scatterDimsToOperandDims", self.pos()))?;
         let index_vector_dim =
-            index_vector_dim.ok_or_else(|| ParseError::invalid("index_vector_dim", self.pos()))?;
+            index_vector_dim.ok_or_else(|| ParseError::invalid("indexVectorDim", self.pos()))?;
 
         Ok(TensorScatterDimensionNumbers {
             update_window_dims,
@@ -1434,32 +1562,11 @@ impl<'a> Parser<'a> {
     /// Parse one direct call target and arguments.
     pub(super) fn parse_direct_call_target(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>)> {
+    ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>, LocalNodeId<Type>)> {
         let function = self.parse_function_reference()?;
         let arguments = self.parse_call_arguments()?;
-        Ok((function, arguments))
-    }
-
-    /// Parse an optional direct call signature.
-    fn parse_direct_call_signature(
-        &mut self,
-        function: LocalNodeId<Function>,
-    ) -> ParseResult<LocalNodeId<Type>> {
-        if self.eat_token_maybe(TokenType::Arrow) {
-            return self.parse_type();
-        }
-
-        let function = self.tree.get(function);
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|parameter| parameter.ty)
-            .collect();
-
-        Ok(self.intern_type(Type::FunctionPointer {
-            parameters,
-            result: function.return_type,
-        }))
+        let signature = self.parse_required_call_signature()?;
+        Ok((function, arguments, signature))
     }
 
     /// Parse one virtual call target and signature.
@@ -1478,8 +1585,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Comma)?;
         let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
         let arguments = self.parse_call_arguments()?;
-        self.eat_token(TokenType::Arrow)?;
-        let signature = self.parse_type()?;
+        let signature = self.parse_required_call_signature()?;
 
         Ok((receiver, declaring_type, slot_id, arguments, signature))
     }
@@ -1500,8 +1606,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Comma)?;
         let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
         let arguments = self.parse_call_arguments()?;
-        self.eat_token(TokenType::Arrow)?;
-        let signature = self.parse_type()?;
+        let signature = self.parse_required_call_signature()?;
 
         Ok((receiver, declaring_type, slot_id, arguments, signature))
     }
@@ -1512,31 +1617,45 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<(Value, Vec<Value>, LocalNodeId<Type>)> {
         let callee = self.parse_value()?;
         let arguments = self.parse_call_arguments()?;
-        self.eat_token(TokenType::Arrow)?;
-        let signature = self.parse_type()?;
+        let signature = self.parse_required_call_signature()?;
 
         Ok((callee, arguments, signature))
+    }
+
+    /// Parse one required call signature.
+    fn parse_required_call_signature(&mut self) -> ParseResult<LocalNodeId<Type>> {
+        self.eat_token(TokenType::Colon)?;
+        self.eat_token(TokenType::OpenParen)?;
+
+        let mut parameters = Vec::new();
+        while !self.peek_token(TokenType::CloseParen) {
+            parameters.push(self.parse_type()?);
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::Arrow)?;
+        let result = self.parse_type()?;
+
+        Ok(self.intern_type(Type::FunctionPointer { parameters, result }))
     }
 
     /// Parse one atomic ordering, scope, memory scope, and semantics suffix.
     fn parse_atomic_attributes(
         &mut self,
+        expect_leading_comma: bool,
     ) -> ParseResult<(MemoryOrdering, AtomicScope, MemoryScope, MemorySemantics)> {
-        self.eat_token(TokenType::Comma)?;
-
-        self.eat_named_key("ordering")?;
+        if expect_leading_comma {
+            self.eat_token(TokenType::Comma)?;
+        }
         let ordering = self.parse_memory_ordering()?;
         self.eat_token(TokenType::Comma)?;
-
-        self.eat_named_key("scope")?;
         let scope = self.parse_atomic_scope()?;
         self.eat_token(TokenType::Comma)?;
-
-        self.eat_named_key("memory_scope")?;
         let memory_scope = self.parse_memory_scope()?;
         self.eat_token(TokenType::Comma)?;
-
-        self.eat_named_key("semantics")?;
         let semantics = self.parse_memory_semantics()?;
 
         Ok((ordering, scope, memory_scope, semantics))
@@ -1546,21 +1665,16 @@ impl<'a> Parser<'a> {
     fn parse_barrier_attributes(
         &mut self,
     ) -> ParseResult<(AtomicScope, MemoryScope, MemorySemantics)> {
-        self.eat_named_key("scope")?;
         let scope = self.parse_atomic_scope()?;
         self.eat_token(TokenType::Comma)?;
-
-        self.eat_named_key("memory_scope")?;
         let memory_scope = self.parse_memory_scope()?;
         self.eat_token(TokenType::Comma)?;
-
-        self.eat_named_key("semantics")?;
         let semantics = self.parse_memory_semantics()?;
 
         Ok((scope, memory_scope, semantics))
     }
 
-    /// Parse one memory ordering like `seq_cst`.
+    /// Parse one memory ordering like `sequentiallyConsistent`.
     fn parse_memory_ordering(&mut self) -> ParseResult<MemoryOrdering> {
         let token_start = self.pos();
         self.eat_token(TokenType::Identifier)?
@@ -1623,10 +1737,10 @@ impl<'a> Parser<'a> {
                 "volatile" => {
                     is_volatile = true;
                 }
-                "make_available" => {
+                "makeAvailable" => {
                     is_make_available = true;
                 }
-                "make_visible" => {
+                "makeVisible" => {
                     is_make_visible = true;
                 }
                 _ => {

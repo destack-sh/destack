@@ -217,5 +217,5 @@ pub enum LayoutType {
     /// Function environment layout.
     FunctionEnvironment,
     /// Function value layout.
-    FunctionValue,
+    Closure,
 }

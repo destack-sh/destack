@@ -78,12 +78,13 @@ mod tests {
     #[test]
     fn test_build_predecessors_for_linear_flow() {
         let (tree, function_id) = parse_test_function(
-            r#"function @linear() -> void {
-block0:
-    jump block1
-block1:
-    jump block2
-block2:
+            r#"
+function linear(): void {
+b0:
+    jump b1
+b1:
+    jump b2
+b2:
     return
 }"#,
         );
@@ -103,12 +104,13 @@ block2:
     #[test]
     fn test_build_predecessors_for_branch() {
         let (tree, function_id) = parse_test_function(
-            r#"function @test_branch(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
+            r#"
+function testBranch(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
     return
-block2:
+b2:
     return
 }"#,
         );
@@ -126,14 +128,15 @@ block2:
     #[test]
     fn test_build_predecessors_for_diamond() {
         let (tree, function_id) = parse_test_function(
-            r#"function @diamond(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+            r#"
+function diamond(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return
 }"#,
         );
@@ -149,12 +152,13 @@ block3:
     #[test]
     fn test_build_predecessors_for_loop() {
         let (tree, function_id) = parse_test_function(
-            r#"function @loop(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block1(v1), block2
-block2:
+            r#"
+function loop(v0: boolean): void {
+b0(v0: boolean):
+    jump b1(v0)
+b1(v1: boolean):
+    branch v1, b1(v1), b2
+b2:
     return
 }"#,
         );
@@ -170,16 +174,17 @@ block2:
     #[test]
     fn test_check_reachability() {
         let (tree, function_id) = parse_test_function(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
+            r#"
+function test(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
     return v1
-block2:
+b2:
     unreachable
-block3:
-    v2: i32 = iconst 2i32
+b3:
+    v2: int32 = 2int32
     return v2
 }"#,
         );

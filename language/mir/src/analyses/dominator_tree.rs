@@ -426,12 +426,13 @@ mod tests {
     #[test]
     fn test_build_dominators_for_linear_flow() {
         let (tree, function_id) = parse_test_function(
-            r#"function @linear() -> void {
-block0:
-    jump block1
-block1:
-    jump block2
-block2:
+            r#"
+function linear(): void {
+b0:
+    jump b1
+b1:
+    jump b2
+b2:
     return
 }"#,
         );
@@ -457,14 +458,15 @@ block2:
     #[test]
     fn test_build_dominators_for_diamond() {
         let (tree, function_id) = parse_test_function(
-            r#"function @diamond(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+            r#"
+function diamond(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return
 }"#,
         );
@@ -490,14 +492,15 @@ block3:
     #[test]
     fn test_build_dominators_for_unreachable_block() {
         let (tree, function_id) = parse_test_function(
-            r#"function @unreachable_block(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
+            r#"
+function unreachableBlock(v0: boolean): void {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
     return
-block2:
+b2:
     return
-block3:
+b3:
     return
 }"#,
         );
@@ -516,10 +519,11 @@ block3:
     #[test]
     fn test_check_strict_dominance() {
         let (tree, function_id) = parse_test_function(
-            r#"function @simple() -> void {
-block0:
-    jump block1
-block1:
+            r#"
+function simple(): void {
+b0:
+    jump b1
+b1:
     return
 }"#,
         );

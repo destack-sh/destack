@@ -90,10 +90,10 @@ impl VectorConvertMode {
     pub fn to_str(self) -> &'static str {
         match self {
             VectorConvertMode::Exact => "exact",
-            VectorConvertMode::RoundTiesEven => "round_ties_even",
-            VectorConvertMode::RoundTowardZero => "round_toward_zero",
-            VectorConvertMode::RoundFloor => "round_floor",
-            VectorConvertMode::RoundCeil => "round_ceil",
+            VectorConvertMode::RoundTiesEven => "roundTiesEven",
+            VectorConvertMode::RoundTowardZero => "roundTowardZero",
+            VectorConvertMode::RoundFloor => "roundFloor",
+            VectorConvertMode::RoundCeil => "roundCeil",
             VectorConvertMode::Saturate => "saturate",
         }
     }
@@ -111,10 +111,10 @@ impl std::str::FromStr for VectorConvertMode {
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let value = match text {
             "exact" => VectorConvertMode::Exact,
-            "round_ties_even" => VectorConvertMode::RoundTiesEven,
-            "round_toward_zero" => VectorConvertMode::RoundTowardZero,
-            "round_floor" => VectorConvertMode::RoundFloor,
-            "round_ceil" => VectorConvertMode::RoundCeil,
+            "roundTiesEven" => VectorConvertMode::RoundTiesEven,
+            "roundTowardZero" => VectorConvertMode::RoundTowardZero,
+            "roundFloor" => VectorConvertMode::RoundFloor,
+            "roundCeil" => VectorConvertMode::RoundCeil,
             "saturate" => VectorConvertMode::Saturate,
             _ => return Err(()),
         };

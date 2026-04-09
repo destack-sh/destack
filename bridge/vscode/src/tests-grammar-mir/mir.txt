@@ -1,32 +1,32 @@
 // SYNTAX TEST "source.dsmir"
 
-function @fib(v0: i64) -> i64 {
+function fib(v0: int64): int64 {
 // <- keyword.declaration.function.dsmir
-//       ^^^^ entity.name.function.dsmir
-//            ^^ variable.other.ssa.dsmir
-//                ^^^ support.type.dsmir
-//                        ^^^ support.type.dsmir
+//       ^^^ entity.name.function.dsmir
+//           ^^ variable.other.ssa.dsmir
+//               ^^^^^ support.type.dsmir
+//                       ^^^^^ support.type.dsmir
 
-block0(v0: i64):
+bb0(v0: int64):
 // <- entity.name.label.dsmir
-//     ^^ variable.other.ssa.dsmir
-//         ^^^ support.type.dsmir
+//   ^^ variable.other.ssa.dsmir
+//       ^^^^^ support.type.dsmir
 
-    v1: i64 = iconst 2i64
+    v1: int64 = const 2int64
 //  ^^ variable.other.ssa.dsmir
-//      ^^^ support.type.dsmir
-//            ^^^^^^ keyword.operator.instruction.dsmir
-//                   ^^^^ constant.numeric.dsmir
+//      ^^^^^ support.type.dsmir
+//              ^^^^^ keyword.operator.instruction.dsmir
+//                    ^^^^^^ constant.numeric.dsmir
 
-    v2: bool = icmp_slt v0, v1
+    v2: boolean = int.lt.s v0, v1
 //  ^^ variable.other.ssa.dsmir
-//      ^^^^ support.type.dsmir
-//             ^^^^^^^^ keyword.operator.instruction.dsmir
+//      ^^^^^^^ support.type.dsmir
+//                ^^^^^^^^ keyword.operator.instruction.dsmir
 
-    branch v2, block1, block2
+    branch v2, bb1, bb2
 //  ^^^^^^ keyword.control.flow.dsmir
-//             ^^^^^^ entity.name.label.dsmir
-//                     ^^^^^^ entity.name.label.dsmir
+//             ^^^ entity.name.label.dsmir
+//                  ^^^ entity.name.label.dsmir
 
     store v0, v1
 //  ^^^^^ keyword.operator.instruction.dsmir
@@ -34,22 +34,15 @@ block0(v0: i64):
     local.set v0, v1
 //  ^^^^^^^^^ keyword.operator.instruction.dsmir
 
-    v6: ref<managed fn(i64, i64) -> i64> = managed.alloc_array fn(i64, i64) -> i64, v5
+    v6: ref<fn(int64, int64) -> int64, managed> = managed.allocArray fn(int64, int64) -> int64, v5
 //      ^^^ support.type.dsmir
-//          ^^^^^^^ keyword.other.memory.dsmir
-//                  ^^ support.type.dsmir
-//                               ^^ keyword.operator.arrow.dsmir
-//                                         ^^^^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
-//                                                             ^^ support.type.dsmir
-//                                                                          ^^ keyword.operator.arrow.dsmir
+//                                       ^^^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
 
-    v7: i64 = iconst -1i64
-//                   ^^^^^ constant.numeric.dsmir
+    v7: int64 = const -1int64
+//                   ^^^^^^^ constant.numeric.dsmir
 
-    call @print(v0) -> void
+    call print(v0)
 //  ^^^^ keyword.operator.instruction.dsmir
-//       ^^^^^^ entity.name.symbol.dsmir
-//                  ^^ keyword.operator.arrow.dsmir
 
     intrinsic.memset(v0, v1)
 //  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir

@@ -149,7 +149,7 @@ impl<'a> Validator<'a> {
         // classify allocation instructions
         let allocation_instruction = match instruction {
             Instruction::ManagedAlloc { .. } => Some("managed.alloc"),
-            Instruction::ManagedAllocArray { .. } => Some("managed.alloc_array"),
+            Instruction::ManagedAllocArray { .. } => Some("managed.allocArray"),
             Instruction::RawAlloc { .. } => Some("raw.alloc"),
             Instruction::StackAlloc { .. } => Some("stack.alloc"),
             _ => None,
@@ -165,14 +165,14 @@ impl<'a> Validator<'a> {
                 instruction,
                 Instruction::ManagedAlloc { .. } | Instruction::ManagedAllocArray { .. }
             )
-            .then_some("no_managed forbids managed allocations"),
+            .then_some("noManaged forbids managed allocations"),
             AllocationMode::StackOnly => matches!(
                 instruction,
                 Instruction::ManagedAlloc { .. }
                     | Instruction::ManagedAllocArray { .. }
                     | Instruction::RawAlloc { .. }
             )
-            .then_some("stack_only forbids non-stack allocations"),
+            .then_some("stackOnly forbids non-stack allocations"),
         };
         let Some(violation) = violation else {
             return Ok(());
@@ -450,10 +450,10 @@ impl<'a> Validator<'a> {
             Instruction::Struct { ty, fields, .. } => {
                 let expected = match self.tree.get(*ty) {
                     Type::Struct { fields, .. } => fields.len(),
-                    Type::FunctionValue { .. } => 2,
+                    Type::Closure { .. } => 2,
                     other => {
                         return Err(ValidateError::AggregateTypeMismatch {
-                            expected: "struct or fnvalue",
+                            expected: "struct or closure",
                             found: self.type_kind(other),
                             anchor,
                         });
@@ -729,7 +729,7 @@ impl<'a> Validator<'a> {
 
                 if !matches!(self.tree.get(result_vector.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "vector.compare result element type must be bool".to_string(),
+                        message: "vector.compare result element type must be boolean".to_string(),
                         anchor,
                     });
                 }
@@ -826,7 +826,7 @@ impl<'a> Validator<'a> {
 
                 if !matches!(self.tree.get(result_tensor.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "tensor.compare result element type must be bool".to_string(),
+                        message: "tensor.compare result element type must be boolean".to_string(),
                         anchor,
                     });
                 }
@@ -870,7 +870,7 @@ impl<'a> Validator<'a> {
 
                 if !matches!(self.tree.get(mask_vector.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "vector.select mask element type must be bool".to_string(),
+                        message: "vector.select mask element type must be boolean".to_string(),
                         anchor,
                     });
                 }
@@ -926,7 +926,7 @@ impl<'a> Validator<'a> {
 
                 if !matches!(self.tree.get(mask_tensor.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "tensor.select mask element type must be bool".to_string(),
+                        message: "tensor.select mask element type must be boolean".to_string(),
                         anchor,
                     });
                 }
@@ -1130,12 +1130,12 @@ impl<'a> Validator<'a> {
                     function,
                     *destination,
                     anchor,
-                    "function.addr result",
+                    "function.address result",
                 )?;
                 let destination_type = self.tree.get(destination_type_id);
                 let Type::FunctionPointer { parameters, result } = destination_type else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.addr result must be a function pointer".to_string(),
+                        message: "function.address result must be a function pointer".to_string(),
                         anchor,
                     });
                 };
@@ -1143,7 +1143,7 @@ impl<'a> Validator<'a> {
                 let target_function = self.tree.get(*target);
                 if target_function.environment.is_some() {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.addr cannot target a function with an environment"
+                        message: "function.address cannot target a function with an environment"
                             .to_string(),
                         anchor,
                     });
@@ -1151,7 +1151,7 @@ impl<'a> Validator<'a> {
 
                 if target_function.parameters.len() != parameters.len() {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.addr result parameter count mismatch".to_string(),
+                        message: "function.address result parameter count mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -1161,7 +1161,7 @@ impl<'a> Validator<'a> {
                 {
                     if parameter.ty != *signature_type {
                         return Err(ValidateError::MetadataInvariantViolation {
-                            message: "function.addr result parameter types mismatch".to_string(),
+                            message: "function.address result parameter types mismatch".to_string(),
                             anchor,
                         });
                     }
@@ -1169,12 +1169,12 @@ impl<'a> Validator<'a> {
 
                 if target_function.return_type != *result {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.addr result return type mismatch".to_string(),
+                        message: "function.address result return type mismatch".to_string(),
                         anchor,
                     });
                 }
             }
-            Instruction::FunctionValue {
+            Instruction::Closure {
                 destination,
                 function: target,
                 environment,
@@ -1183,18 +1183,18 @@ impl<'a> Validator<'a> {
                     function,
                     *destination,
                     anchor,
-                    "function.value result",
+                    "function.bind result",
                 )?;
                 let destination_type = self.tree.get(destination_type_id);
-                let Type::FunctionValue { signature, .. } = destination_type else {
+                let Type::Closure { signature, .. } = destination_type else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.value result must be a callable value".to_string(),
+                        message: "function.bind result must be a callable value".to_string(),
                         anchor,
                     });
                 };
                 let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.value signature must be a function pointer".to_string(),
+                        message: "function.bind signature must be a function pointer".to_string(),
                         anchor,
                     });
                 };
@@ -1202,7 +1202,7 @@ impl<'a> Validator<'a> {
                 let target_function = self.tree.get(*target);
                 let target_environment = target_function.environment.ok_or_else(|| {
                     ValidateError::MetadataInvariantViolation {
-                        message: "function.value target requires an environment".to_string(),
+                        message: "function.bind target requires an environment".to_string(),
                         anchor,
                     }
                 })?;
@@ -1211,18 +1211,18 @@ impl<'a> Validator<'a> {
                     function,
                     *environment,
                     anchor,
-                    "function.value environment",
+                    "function.bind environment",
                 )?;
                 if !self.types_equivalent(actual_environment_type, target_environment) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.value environment type mismatch".to_string(),
+                        message: "function.bind environment type mismatch".to_string(),
                         anchor,
                     });
                 }
 
                 if target_function.parameters.len() != parameters.len() {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.value result parameter count mismatch".to_string(),
+                        message: "function.bind result parameter count mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -1232,7 +1232,7 @@ impl<'a> Validator<'a> {
                 {
                     if parameter.ty != *signature_type {
                         return Err(ValidateError::MetadataInvariantViolation {
-                            message: "function.value result parameter types mismatch".to_string(),
+                            message: "function.bind result parameter types mismatch".to_string(),
                             anchor,
                         });
                     }
@@ -1240,7 +1240,7 @@ impl<'a> Validator<'a> {
 
                 if target_function.return_type != *result {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.value result return type mismatch".to_string(),
+                        message: "function.bind result return type mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -1441,7 +1441,7 @@ impl<'a> Validator<'a> {
                 let Type::Tuple { elements, .. } = self.tree.get(destination_type) else {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message:
-                            "atomic.compare_exchange result must be a tuple of (old_value, bool)"
+                            "atomic.compare_exchange result must be a tuple of (old_value, boolean)"
                                 .to_string(),
                         anchor,
                     });
@@ -1453,7 +1453,7 @@ impl<'a> Validator<'a> {
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message:
-                            "atomic.compare_exchange result must be a tuple of (old_value, bool)"
+                            "atomic.compare_exchange result must be a tuple of (old_value, boolean)"
                                 .to_string(),
                         anchor,
                     });
@@ -1562,13 +1562,17 @@ impl<'a> Validator<'a> {
             } => {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
 
-                let aggregate_type =
-                    self.value_type_or_error(function, *aggregate, anchor, "field.addr aggregate")?;
+                let aggregate_type = self.value_type_or_error(
+                    function,
+                    *aggregate,
+                    anchor,
+                    "field.address aggregate",
+                )?;
                 self.field_type_for_projection_target(
                     aggregate_type,
                     *index as usize,
                     anchor,
-                    "field.addr",
+                    "field.address",
                 )?;
                 self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
             }
@@ -1654,16 +1658,16 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
 
                 let array_type =
-                    self.value_type_or_error(function, *array, anchor, "element.addr array")?;
+                    self.value_type_or_error(function, *array, anchor, "element.address array")?;
                 let index_type =
-                    self.value_type_or_error(function, *index, anchor, "element.addr index")?;
-                self.element_type_for_array(array_type, anchor, "element.addr")?;
+                    self.value_type_or_error(function, *index, anchor, "element.address index")?;
+                self.element_type_for_array(array_type, anchor, "element.address")?;
                 self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
 
                 self.expect_integer_like_type(
                     index_type,
                     anchor,
-                    "element.addr index must be an integer type",
+                    "element.address index must be an integer type",
                 )?;
             }
             Instruction::Cast {
@@ -1702,7 +1706,7 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
                 if !matches!(
                     self.tree.get(*signature),
-                    Type::FunctionPointer { .. } | Type::FunctionValue { .. }
+                    Type::FunctionPointer { .. } | Type::Closure { .. }
                 ) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
@@ -1745,10 +1749,10 @@ impl<'a> Validator<'a> {
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         match intrinsic {
-            Intrinsic::AddrSpaceCast => {
+            Intrinsic::AddressSpaceCast => {
                 self.validate_addr_space_cast_intrinsic(function, destination, arguments, anchor)?;
             }
-            Intrinsic::PtrOffsetFrom => {
+            Intrinsic::PointerOffsetFrom => {
                 self.validate_ptr_offset_from_intrinsic(function, destination, arguments, anchor)?;
             }
             _ => {}
@@ -1757,7 +1761,7 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate the `addrspace.cast` intrinsic.
+    /// Validate the `addressSpace.cast` intrinsic.
     fn validate_addr_space_cast_intrinsic(
         &self,
         function: &Function,
@@ -1768,39 +1772,43 @@ impl<'a> Validator<'a> {
         // arity and destination
         if arguments.len() != 1 {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "addrspace.cast requires one argument".to_string(),
+                message: "addressSpace.cast requires one argument".to_string(),
                 anchor,
             });
         }
 
         let destination = destination.ok_or_else(|| ValidateError::MetadataInvariantViolation {
-            message: "addrspace.cast requires a destination value".to_string(),
+            message: "addressSpace.cast requires a destination value".to_string(),
             anchor,
         })?;
 
         // source and destination types
         let source_type =
-            self.value_type_or_error(function, arguments[0], anchor, "addrspace.cast source")?;
-        let destination_type =
-            self.value_type_or_error(function, destination, anchor, "addrspace.cast destination")?;
+            self.value_type_or_error(function, arguments[0], anchor, "addressSpace.cast source")?;
+        let destination_type = self.value_type_or_error(
+            function,
+            destination,
+            anchor,
+            "addressSpace.cast destination",
+        )?;
 
         // reference forms
         if let (Ok(source), Ok(destination)) = (
             self.reference_type(
                 source_type,
                 anchor,
-                "addrspace.cast requires reference or tensor reference types",
+                "addressSpace.cast requires reference or tensor reference types",
             ),
             self.reference_type(
                 destination_type,
                 anchor,
-                "addrspace.cast requires reference or tensor reference types",
+                "addressSpace.cast requires reference or tensor reference types",
             ),
         ) {
             if source.0 != destination.0 || source.1 != destination.1 || source.2 != destination.2 {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message:
-                        "addrspace.cast requires matching reference kind, mutability, and pointee"
+                        "addressSpace.cast requires matching reference kind, mutability, and pointee"
                             .to_string(),
                     anchor,
                 });
@@ -1814,12 +1822,12 @@ impl<'a> Validator<'a> {
             self.tensor_reference_type(
                 source_type,
                 anchor,
-                "addrspace.cast requires reference or tensor reference types",
+                "addressSpace.cast requires reference or tensor reference types",
             ),
             self.tensor_reference_type(
                 destination_type,
                 anchor,
-                "addrspace.cast requires reference or tensor reference types",
+                "addressSpace.cast requires reference or tensor reference types",
             ),
         ) {
             if source.0 != destination.0
@@ -1829,7 +1837,7 @@ impl<'a> Validator<'a> {
                 || source.5 != destination.5
             {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "addrspace.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
+                    message: "addressSpace.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
                     anchor,
                 });
             }
@@ -1838,12 +1846,12 @@ impl<'a> Validator<'a> {
         }
 
         Err(ValidateError::MetadataInvariantViolation {
-            message: "addrspace.cast requires reference or tensor reference types".to_string(),
+            message: "addressSpace.cast requires reference or tensor reference types".to_string(),
             anchor,
         })
     }
 
-    /// Validate the `ptr_offset_from` intrinsic.
+    /// Validate the `ptrOffsetFrom` intrinsic.
     fn validate_ptr_offset_from_intrinsic(
         &self,
         function: &Function,
@@ -1854,30 +1862,30 @@ impl<'a> Validator<'a> {
         // arity and destination
         if arguments.len() != 2 {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "ptr_offset_from requires two pointer arguments".to_string(),
+                message: "ptrOffsetFrom requires two pointer arguments".to_string(),
                 anchor,
             });
         }
 
         let destination = destination.ok_or_else(|| ValidateError::MetadataInvariantViolation {
-            message: "ptr_offset_from requires a destination value".to_string(),
+            message: "ptrOffsetFrom requires a destination value".to_string(),
             anchor,
         })?;
 
         // operand and destination types
         let left_type =
-            self.value_type_or_error(function, arguments[0], anchor, "ptr_offset_from left")?;
+            self.value_type_or_error(function, arguments[0], anchor, "ptrOffsetFrom left")?;
         let right_type =
-            self.value_type_or_error(function, arguments[1], anchor, "ptr_offset_from right")?;
+            self.value_type_or_error(function, arguments[1], anchor, "ptrOffsetFrom right")?;
         let destination_type =
-            self.value_type_or_error(function, destination, anchor, "ptr_offset_from destination")?;
+            self.value_type_or_error(function, destination, anchor, "ptrOffsetFrom destination")?;
 
         // raw pointer inputs
         if !self.is_raw_pointer_like(self.tree.get(left_type))
             || !self.is_raw_pointer_like(self.tree.get(right_type))
         {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "ptr_offset_from requires raw pointer arguments".to_string(),
+                message: "ptrOffsetFrom requires raw pointer arguments".to_string(),
                 anchor,
             });
         }
@@ -1886,7 +1894,7 @@ impl<'a> Validator<'a> {
         self.expect_integer_like_type(
             destination_type,
             anchor,
-            "ptr_offset_from destination must be an integer type",
+            "ptrOffsetFrom destination must be an integer type",
         )?;
 
         Ok(())
@@ -1927,8 +1935,8 @@ impl<'a> Validator<'a> {
 
                 Ok(*element_type)
             }
-            Type::FunctionValue { .. } => Err(ValidateError::MetadataInvariantViolation {
-                message: format!("{operation} does not support fnvalue"),
+            Type::Closure { .. } => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} does not support closure"),
                 anchor,
             }),
             Type::Reference { pointee, .. } => {
@@ -1938,8 +1946,8 @@ impl<'a> Validator<'a> {
                 match pointee {
                     Type::Struct { .. } | Type::Tuple { .. } => self
                         .field_type_for_projection_target(pointee_type, index, anchor, operation),
-                    Type::FunctionValue { .. } => Err(ValidateError::MetadataInvariantViolation {
-                        message: format!("{operation} does not support fnvalue"),
+                    Type::Closure { .. } => Err(ValidateError::MetadataInvariantViolation {
+                        message: format!("{operation} does not support closure"),
                         anchor,
                     }),
                     _ if index == 0 => Ok(pointee_type),
@@ -2281,10 +2289,10 @@ impl<'a> Validator<'a> {
                     && self.types_equivalent_inner(*left_result, *right_result, seen_pairs)
             }
             (
-                Type::FunctionValue {
+                Type::Closure {
                     signature: left_signature,
                 },
-                Type::FunctionValue {
+                Type::Closure {
                     signature: right_signature,
                 },
             ) => self.types_equivalent_inner(*left_signature, *right_signature, seen_pairs),
@@ -2410,7 +2418,7 @@ impl<'a> Validator<'a> {
             CastOperator::Bitcast => {
                 if argument_is_pointer != result_is_pointer {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "bitcast cannot cast between pointer and non pointer categories"
+                        message: "cast.bit cannot cast between pointer and non pointer categories"
                             .to_string(),
                         anchor,
                     });
@@ -2426,7 +2434,7 @@ impl<'a> Validator<'a> {
                 if argument_layout.size != result_layout.size {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: format!(
-                            "bitcast requires equal storage size, got {} and {} bytes",
+                            "cast.bit requires equal storage size, got {} and {} bytes",
                             argument_layout.size, result_layout.size
                         ),
                         anchor,
@@ -2446,7 +2454,7 @@ impl<'a> Validator<'a> {
                     && result_width > argument_width
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "trunc requires destination integer no wider than source"
+                        message: "cast.truncate requires destination integer no wider than source"
                             .to_string(),
                         anchor,
                     });

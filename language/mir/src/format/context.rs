@@ -9,10 +9,11 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::{
     AddressSpace, Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node,
-    NodeTree, NodeTreeImpl, ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias, Value,
+    NodeTree, NodeTreeImpl, ReferenceKind, TensorDimension, TensorLayout, Terminator, Type,
+    TypeAlias, Value,
 };
 
-use super::r#type::format_type_expanded;
+use super::r#type::format_type_declaration;
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -443,7 +444,7 @@ fn should_alias_type(ty: &Type) -> bool {
     // allow aliasing for common aggregate shapes
     matches!(
         ty,
-        Type::Struct { .. } | Type::Tuple { .. } | Type::FunctionValue { .. }
+        Type::Struct { .. } | Type::Tuple { .. } | Type::Closure { .. }
     )
 }
 
@@ -520,7 +521,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Array { .. } => "Array",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Fn",
-        Type::FunctionValue { .. } => "FnValue",
+        Type::Closure { .. } => "Closure",
         _ => "Type",
     }
 }
@@ -578,17 +579,17 @@ fn type_key_for_alias(
     // format a stable structural key
     match tree.get(ty) {
         Type::Void => "void".to_string(),
-        Type::Boolean => "bool".to_string(),
+        Type::Boolean => "boolean".to_string(),
         Type::Int { width, is_signed } => {
-            // use signedness prefix plus width
-            let prefix = if *is_signed { "i" } else { "u" };
+            // use canonical integer names
+            let prefix = if *is_signed { "int" } else { "uint" };
             format!("{prefix}{width}")
         }
         Type::Isize => "isize".to_string(),
         Type::Usize => "usize".to_string(),
-        Type::Float { width } => format!("f{width}"),
-        Type::TypeDescriptor => "type_descriptor".to_string(),
-        Type::TypeId => "type_id".to_string(),
+        Type::Float { width } => format!("float{width}"),
+        Type::TypeDescriptor => "typeDescriptor".to_string(),
+        Type::TypeId => "typeId".to_string(),
         Type::Reference {
             kind,
             address_space,
@@ -607,6 +608,11 @@ fn type_key_for_alias(
             else {
                 result.push_str("ref<");
             }
+            // append the pointee key first
+            result.push_str(&type_key_for_alias(tree, strings, *pointee));
+
+            // append the reference kind
+            result.push_str(", ");
             result.push_str(match kind {
                 ReferenceKind::Managed => "managed",
                 ReferenceKind::Owned => "owned",
@@ -614,27 +620,23 @@ fn type_key_for_alias(
                 ReferenceKind::Raw => "raw",
             });
 
+            // append readonly when required
+            if *mutability == Mutability::Immutable {
+                result.push_str(", readonly");
+            }
+
             // append address space when explicit
             if !address_space.is_generic() {
                 let addrspace = match address_space.keyword() {
-                    Some(name) => format!("addrspace({name})"),
+                    Some(name) => format!("addressSpace({name})"),
                     None => match address_space {
-                        AddressSpace::Target(id) => format!("addrspace({id})"),
-                        _ => "addrspace(unknown)".to_string(),
+                        AddressSpace::Target(id) => format!("addressSpace({id})"),
+                        _ => "addressSpace(unknown)".to_string(),
                     },
                 };
-                result.push(' ');
+                result.push_str(", ");
                 result.push_str(&addrspace);
             }
-
-            // append mutability when required
-            if *mutability == Mutability::Immutable {
-                result.push_str(" readonly");
-            }
-
-            // append the pointee key
-            result.push(' ');
-            result.push_str(&type_key_for_alias(tree, strings, *pointee));
             result.push('>');
             result
         }
@@ -642,10 +644,7 @@ fn type_key_for_alias(
             element, length, ..
         } => {
             // format array keys with element and length
-            format!(
-                "[{}; {length}]",
-                type_key_for_alias(tree, strings, *element)
-            )
+            format!("{}[{length}]", type_key_for_alias(tree, strings, *element))
         }
         Type::Tuple { elements, .. } => {
             // join tuple element keys
@@ -705,35 +704,35 @@ fn type_key_for_alias(
             // format tensor reference keys with reference header, shape, and layout
             let mut result = String::new();
             if *is_nullable {
-                result.push_str("tensor_ref?<");
+                result.push_str("tensorRef?<");
             } else {
-                result.push_str("tensor_ref<");
+                result.push_str("tensorRef<");
             }
+            result.push_str(&type_key_for_alias(tree, strings, *element));
+            result.push_str(", ");
             result.push_str(match kind {
                 ReferenceKind::Managed => "managed",
                 ReferenceKind::Owned => "owned",
                 ReferenceKind::Borrowed => "borrowed",
                 ReferenceKind::Raw => "raw",
             });
+            if *mutability == Mutability::Immutable {
+                result.push_str(", readonly");
+            }
             if !address_space.is_generic() {
                 let addrspace = match address_space.keyword() {
-                    Some(name) => format!("addrspace({name})"),
+                    Some(name) => format!("addressSpace({name})"),
                     None => match address_space {
-                        AddressSpace::Target(id) => format!("addrspace({id})"),
-                        _ => "addrspace(unknown)".to_string(),
+                        AddressSpace::Target(id) => format!("addressSpace({id})"),
+                        _ => "addressSpace(unknown)".to_string(),
                     },
                 };
-                result.push(' ');
+                result.push_str(", ");
                 result.push_str(&addrspace);
             }
-            if *mutability == Mutability::Immutable {
-                result.push_str(" readonly");
-            }
-            result.push(' ');
-            result.push_str(&type_key_for_alias(tree, strings, *element));
-            result.push(' ');
+            result.push_str(", ");
             result.push_str(&format_shape_key(shape));
-            result.push(' ');
+            result.push_str(", ");
             result.push_str(&format_tensor_layout_key(layout));
             result.push('>');
             result
@@ -748,9 +747,17 @@ fn type_key_for_alias(
             let result = type_key_for_alias(tree, strings, *result);
             format!("fn({params}) -> {result}")
         }
-        Type::FunctionValue { signature, .. } => {
-            let signature = type_key_for_alias(tree, strings, *signature);
-            format!("fnvalue<{signature}>")
+        Type::Closure { signature, .. } => {
+            let Type::FunctionPointer { parameters, result } = tree.get(*signature) else {
+                panic!("closure type key expects a function pointer signature");
+            };
+            let params = parameters
+                .iter()
+                .map(|param| type_key_for_alias(tree, strings, *param))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let result = type_key_for_alias(tree, strings, *result);
+            format!("closure({params}) -> {result}")
         }
     }
 }
@@ -759,7 +766,7 @@ fn type_key_for_alias(
 fn format_shape_key(shape: &[TensorDimension]) -> String {
     // build a stable shape string
     let mut result = String::new();
-    result.push('[');
+    result.push('(');
     for (i, dim) in shape.iter().enumerate() {
         if i > 0 {
             result.push_str(", ");
@@ -773,7 +780,7 @@ fn format_shape_key(shape: &[TensorDimension]) -> String {
             }
         }
     }
-    result.push(']');
+    result.push(')');
     result
 }
 
@@ -781,11 +788,11 @@ fn format_shape_key(shape: &[TensorDimension]) -> String {
 fn format_tensor_layout_key(layout: &TensorLayout) -> String {
     // encode layout in the structural key
     match layout {
-        TensorLayout::RowMajor => "layout=row_major".to_string(),
-        TensorLayout::ColumnMajor => "layout=column_major".to_string(),
+        TensorLayout::RowMajor => "layout(rowMajor)".to_string(),
+        TensorLayout::ColumnMajor => "layout(columnMajor)".to_string(),
         TensorLayout::Strided { strides } => {
             let stride_shape = format_shape_key(strides);
-            format!("layout=strided({stride_shape})")
+            format!("layout(strided({stride_shape}))")
         }
     }
 }
@@ -817,6 +824,46 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
     for (_, block) in tree.iter_nodes::<Block>() {
         for parameter in &block.parameters {
             record_type_use(tree, parameter.ty, &mut counts);
+        }
+
+        match &block.terminator {
+            Terminator::Invoke { signature, .. }
+            | Terminator::InvokeIndirect { signature, .. }
+            | Terminator::InvokeVirtual {
+                declaring_type: _,
+                signature,
+                ..
+            }
+            | Terminator::InvokeInterface {
+                declaring_type: _,
+                signature,
+                ..
+            }
+            | Terminator::TailCall { signature, .. }
+            | Terminator::TailCallIndirect { signature, .. }
+            | Terminator::TailCallVirtual {
+                declaring_type: _,
+                signature,
+                ..
+            }
+            | Terminator::TailCallInterface {
+                declaring_type: _,
+                signature,
+                ..
+            } => {
+                record_type_use(tree, *signature, &mut counts);
+            }
+            _ => {}
+        }
+
+        match &block.terminator {
+            Terminator::InvokeVirtual { declaring_type, .. }
+            | Terminator::InvokeInterface { declaring_type, .. }
+            | Terminator::TailCallVirtual { declaring_type, .. }
+            | Terminator::TailCallInterface { declaring_type, .. } => {
+                record_type_use(tree, *declaring_type, &mut counts);
+            }
+            _ => {}
         }
     }
 
@@ -997,7 +1044,7 @@ fn record_type_use_inner(
             }
             record_type_use_inner(tree, *result, counts, visited);
         }
-        Type::FunctionValue { signature } => {
+        Type::Closure { signature } => {
             record_type_use_inner(tree, *signature, counts, visited);
         }
         Type::Void
@@ -1195,7 +1242,7 @@ fn collect_alias_dependencies(
                 }
                 record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::FunctionValue { signature } => {
+            Type::Closure { signature } => {
                 record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Void
@@ -1274,20 +1321,8 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
 
                 match &entry.kind {
                     AliasEntryKind::Synthetic { name } => {
-                        write!(
-                            f,
-                            [
-                                token("type"),
-                                space(),
-                                token("@"),
-                                text(name),
-                                space(),
-                                token("="),
-                                space()
-                            ]
-                        )?;
                         let ty = f.context().tree.get(entry.type_id);
-                        format_type_expanded(f, entry.type_id, ty)?;
+                        format_type_declaration(name, &[], entry.type_id, ty, f)?;
                     }
                     AliasEntryKind::Explicit { alias_id } => {
                         write!(f, [*alias_id])?;

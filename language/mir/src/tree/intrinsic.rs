@@ -20,13 +20,13 @@ pub enum Intrinsic {
     // bit manipulation
     /// Count leading zeros.
     /// `(T) -> T`
-    Clz,
+    LeadingZeroCount,
     /// Count trailing zeros.
     /// `(T) -> T`
-    Ctz,
+    TrailingZeroCount,
     /// Population count (count of set bits).
     /// `(T) -> T`
-    Popcnt,
+    PopulationCount,
     /// Byte swap (endianness conversion).
     /// `(T) -> T`
     ByteSwap,
@@ -108,10 +108,10 @@ pub enum Intrinsic {
     Transmute,
     /// Cast between address spaces without changing the representation.
     /// `(T) -> U`
-    AddrSpaceCast,
+    AddressSpaceCast,
     /// Compute byte offset between two pointers.
     /// `(ptr, ptr) -> isize`
-    PtrOffsetFrom,
+    PointerOffsetFrom,
     /// Byte-wise equality comparison.
     /// `(T, T) -> bool`
     RawEq,
@@ -120,7 +120,7 @@ pub enum Intrinsic {
     /// GC write barrier for concurrent marking.
     /// Called before writing a managed reference to shade the new value grey.
     /// `(ptr, val) -> ()`
-    GcWriteBarrier,
+    WriteBarrier,
 
     // float math
     /// Square root.
@@ -134,7 +134,7 @@ pub enum Intrinsic {
     Fma,
     /// Copy sign from one float to another.
     /// `(T, T) -> T`
-    Copysign,
+    CopySign,
     /// Minimum of two floats (IEEE 754 minNum).
     /// `(T, T) -> T`
     Min,
@@ -216,18 +216,18 @@ impl Intrinsic {
     pub fn to_str(self) -> &'static str {
         match self {
             // reflection
-            Intrinsic::TypeOf => "type_of",
-            Intrinsic::SizeOf => "size_of",
-            Intrinsic::AlignOf => "align_of",
+            Intrinsic::TypeOf => "typeOf",
+            Intrinsic::SizeOf => "sizeOf",
+            Intrinsic::AlignOf => "alignOf",
 
             // bit manipulation
-            Intrinsic::Clz => "clz",
-            Intrinsic::Ctz => "ctz",
-            Intrinsic::Popcnt => "popcnt",
-            Intrinsic::ByteSwap => "byte_swap",
-            Intrinsic::BitReverse => "bit_reverse",
-            Intrinsic::RotateLeft => "rotate_left",
-            Intrinsic::RotateRight => "rotate_right",
+            Intrinsic::LeadingZeroCount => "leadingZeroCount",
+            Intrinsic::TrailingZeroCount => "trailingZeroCount",
+            Intrinsic::PopulationCount => "populationCount",
+            Intrinsic::ByteSwap => "byteSwap",
+            Intrinsic::BitReverse => "bitReverse",
+            Intrinsic::RotateLeft => "rotateLeft",
+            Intrinsic::RotateRight => "rotateRight",
 
             // checked arithmetic
             Intrinsic::AddOverflow => "add.overflow",
@@ -257,18 +257,18 @@ impl Intrinsic {
 
             // type punning and pointer ops
             Intrinsic::Transmute => "transmute",
-            Intrinsic::AddrSpaceCast => "addrspace.cast",
-            Intrinsic::PtrOffsetFrom => "ptr_offset_from",
-            Intrinsic::RawEq => "raw_eq",
+            Intrinsic::AddressSpaceCast => "addressSpace.cast",
+            Intrinsic::PointerOffsetFrom => "ptrOffsetFrom",
+            Intrinsic::RawEq => "rawEq",
 
             // garbage collection
-            Intrinsic::GcWriteBarrier => "gc.write_barrier",
+            Intrinsic::WriteBarrier => "writeBarrier",
 
             // float
             Intrinsic::Sqrt => "sqrt",
             Intrinsic::Abs => "abs",
             Intrinsic::Fma => "fma",
-            Intrinsic::Copysign => "copysign",
+            Intrinsic::CopySign => "copySign",
             Intrinsic::Min => "min",
             Intrinsic::Max => "max",
             Intrinsic::Sin => "sin",
@@ -291,10 +291,10 @@ impl Intrinsic {
 
             // control flow and debugging
             Intrinsic::Breakpoint => "breakpoint",
-            Intrinsic::ReturnAddress => "return_address",
-            Intrinsic::FrameAddress => "frame_address",
+            Intrinsic::ReturnAddress => "returnAddress",
+            Intrinsic::FrameAddress => "frameAddress",
             Intrinsic::Expect => "expect",
-            Intrinsic::BlackBox => "black_box",
+            Intrinsic::BlackBox => "blackBox",
         }
     }
 
@@ -314,9 +314,9 @@ impl Intrinsic {
             Intrinsic::TypeOf
                 | Intrinsic::SizeOf
                 | Intrinsic::AlignOf
-                | Intrinsic::Clz
-                | Intrinsic::Ctz
-                | Intrinsic::Popcnt
+                | Intrinsic::LeadingZeroCount
+                | Intrinsic::TrailingZeroCount
+                | Intrinsic::PopulationCount
                 | Intrinsic::ByteSwap
                 | Intrinsic::BitReverse
                 | Intrinsic::RotateLeft
@@ -334,13 +334,13 @@ impl Intrinsic {
                 | Intrinsic::SatAdd
                 | Intrinsic::SatSub
                 | Intrinsic::Transmute
-                | Intrinsic::AddrSpaceCast
-                | Intrinsic::PtrOffsetFrom
+                | Intrinsic::AddressSpaceCast
+                | Intrinsic::PointerOffsetFrom
                 | Intrinsic::RawEq
                 | Intrinsic::Sqrt
                 | Intrinsic::Abs
                 | Intrinsic::Fma
-                | Intrinsic::Copysign
+                | Intrinsic::CopySign
                 | Intrinsic::Min
                 | Intrinsic::Max
                 | Intrinsic::Sin
@@ -375,7 +375,7 @@ impl Intrinsic {
                 | Intrinsic::Memcmp
                 | Intrinsic::PrefetchRead
                 | Intrinsic::PrefetchWrite
-                | Intrinsic::GcWriteBarrier
+                | Intrinsic::WriteBarrier
         )
     }
 }
@@ -391,16 +391,16 @@ impl FromStr for Intrinsic {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "type_of" => Ok(Intrinsic::TypeOf),
-            "size_of" => Ok(Intrinsic::SizeOf),
-            "align_of" => Ok(Intrinsic::AlignOf),
-            "clz" => Ok(Intrinsic::Clz),
-            "ctz" => Ok(Intrinsic::Ctz),
-            "popcnt" => Ok(Intrinsic::Popcnt),
-            "byte_swap" => Ok(Intrinsic::ByteSwap),
-            "bit_reverse" => Ok(Intrinsic::BitReverse),
-            "rotate_left" => Ok(Intrinsic::RotateLeft),
-            "rotate_right" => Ok(Intrinsic::RotateRight),
+            "typeOf" => Ok(Intrinsic::TypeOf),
+            "sizeOf" => Ok(Intrinsic::SizeOf),
+            "alignOf" => Ok(Intrinsic::AlignOf),
+            "leadingZeroCount" => Ok(Intrinsic::LeadingZeroCount),
+            "trailingZeroCount" => Ok(Intrinsic::TrailingZeroCount),
+            "populationCount" => Ok(Intrinsic::PopulationCount),
+            "byteSwap" => Ok(Intrinsic::ByteSwap),
+            "bitReverse" => Ok(Intrinsic::BitReverse),
+            "rotateLeft" => Ok(Intrinsic::RotateLeft),
+            "rotateRight" => Ok(Intrinsic::RotateRight),
             "add.overflow" => Ok(Intrinsic::AddOverflow),
             "sub.overflow" => Ok(Intrinsic::SubOverflow),
             "mul.overflow" => Ok(Intrinsic::MulOverflow),
@@ -420,14 +420,14 @@ impl FromStr for Intrinsic {
             "prefetch.read" => Ok(Intrinsic::PrefetchRead),
             "prefetch.write" => Ok(Intrinsic::PrefetchWrite),
             "transmute" => Ok(Intrinsic::Transmute),
-            "addrspace.cast" => Ok(Intrinsic::AddrSpaceCast),
-            "ptr_offset_from" => Ok(Intrinsic::PtrOffsetFrom),
-            "raw_eq" => Ok(Intrinsic::RawEq),
-            "gc.write_barrier" => Ok(Intrinsic::GcWriteBarrier),
+            "addressSpace.cast" => Ok(Intrinsic::AddressSpaceCast),
+            "ptrOffsetFrom" => Ok(Intrinsic::PointerOffsetFrom),
+            "rawEq" => Ok(Intrinsic::RawEq),
+            "writeBarrier" => Ok(Intrinsic::WriteBarrier),
             "sqrt" => Ok(Intrinsic::Sqrt),
             "abs" => Ok(Intrinsic::Abs),
             "fma" => Ok(Intrinsic::Fma),
-            "copysign" => Ok(Intrinsic::Copysign),
+            "copySign" => Ok(Intrinsic::CopySign),
             "min" => Ok(Intrinsic::Min),
             "max" => Ok(Intrinsic::Max),
             "sin" => Ok(Intrinsic::Sin),
@@ -448,10 +448,10 @@ impl FromStr for Intrinsic {
             "trunc" => Ok(Intrinsic::Trunc),
             "round" => Ok(Intrinsic::Round),
             "breakpoint" => Ok(Intrinsic::Breakpoint),
-            "return_address" => Ok(Intrinsic::ReturnAddress),
-            "frame_address" => Ok(Intrinsic::FrameAddress),
+            "returnAddress" => Ok(Intrinsic::ReturnAddress),
+            "frameAddress" => Ok(Intrinsic::FrameAddress),
             "expect" => Ok(Intrinsic::Expect),
-            "black_box" => Ok(Intrinsic::BlackBox),
+            "blackBox" => Ok(Intrinsic::BlackBox),
             _ => Err(()),
         }
     }
@@ -461,11 +461,11 @@ impl FromStr for Intrinsic {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicSignature {
     /// Unary operation: (T) -> T
-    /// Examples: sqrt, abs, sin, cos, floor, ceil, clz, ctz, popcnt
+    /// Examples: sqrt, abs, sin, cos, floor, ceil, leadingZeroCount, trailingZeroCount, populationCount
     Unary,
 
     /// Binary operation: (T, T) -> T
-    /// Examples: min, max, copysign, pow, atan2, rotate_left, rotate_right
+    /// Examples: min, max, copySign, pow, atan2, rotateLeft, rotateRight
     Binary,
 
     /// Ternary operation: (T, T, T) -> T
@@ -473,18 +473,18 @@ pub enum IntrinsicSignature {
     Ternary,
 
     /// Checked arithmetic: (T, T) -> (T, bool)
-    /// Examples: add_overflow, sub_overflow, mul_overflow
+    /// Examples: addOverflow, subOverflow, mulOverflow
     CheckedBinary,
 
-    /// Transmute or addrspace.cast: (T) -> U (reinterpret bits)
+    /// Transmute or addressSpace.cast: (T) -> U (reinterpret bits)
     Transmute,
 
     /// Comparison: (T, T) -> bool
-    /// Examples: raw_eq
+    /// Examples: rawEq
     Comparison,
 
     /// Pointer operation: (ptr, ptr) -> isize
-    /// Examples: ptr_offset_from
+    /// Examples: ptrOffsetFrom
     PointerDiff,
 
     /// Memory operations with byte count
@@ -523,9 +523,9 @@ impl Intrinsic {
             Intrinsic::AlignOf => IntrinsicSignature::Reflection { args: 0 },
 
             // bit manipulation (unary)
-            Intrinsic::Clz
-            | Intrinsic::Ctz
-            | Intrinsic::Popcnt
+            Intrinsic::LeadingZeroCount
+            | Intrinsic::TrailingZeroCount
+            | Intrinsic::PopulationCount
             | Intrinsic::ByteSwap
             | Intrinsic::BitReverse => IntrinsicSignature::Unary,
 
@@ -556,12 +556,12 @@ impl Intrinsic {
             Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => IntrinsicSignature::Prefetch,
 
             // type punning and pointer ops
-            Intrinsic::Transmute | Intrinsic::AddrSpaceCast => IntrinsicSignature::Transmute,
-            Intrinsic::PtrOffsetFrom => IntrinsicSignature::PointerDiff,
+            Intrinsic::Transmute | Intrinsic::AddressSpaceCast => IntrinsicSignature::Transmute,
+            Intrinsic::PointerOffsetFrom => IntrinsicSignature::PointerDiff,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
             // garbage collection
-            Intrinsic::GcWriteBarrier => IntrinsicSignature::GcBarrier { args: 2 },
+            Intrinsic::WriteBarrier => IntrinsicSignature::GcBarrier { args: 2 },
 
             // float math (unary)
             Intrinsic::Sqrt
@@ -583,7 +583,7 @@ impl Intrinsic {
             | Intrinsic::Round => IntrinsicSignature::Unary,
 
             // float math (binary)
-            Intrinsic::Copysign
+            Intrinsic::CopySign
             | Intrinsic::Min
             | Intrinsic::Max
             | Intrinsic::Atan2
@@ -668,7 +668,7 @@ impl Intrinsic {
             Intrinsic::TypeOf => IntrinsicResultType::TypeDescriptor,
 
             // comparisons: bool
-            Intrinsic::RawEq => IntrinsicResultType::Bool,
+            Intrinsic::RawEq => IntrinsicResultType::Boolean,
 
             // checked arithmetic: (T, bool) tuple
             Intrinsic::AddOverflow | Intrinsic::SubOverflow | Intrinsic::MulOverflow => {
@@ -679,13 +679,13 @@ impl Intrinsic {
             Intrinsic::Memcmp => IntrinsicResultType::I32,
 
             // pointer diff: isize
-            Intrinsic::PtrOffsetFrom => IntrinsicResultType::Isize,
+            Intrinsic::PointerOffsetFrom => IntrinsicResultType::Isize,
 
             // branch hints: bool (input and output)
-            Intrinsic::Expect => IntrinsicResultType::Bool,
+            Intrinsic::Expect => IntrinsicResultType::Boolean,
 
-            // transmute and addrspace cast: explicit target type (caller must know)
-            Intrinsic::Transmute | Intrinsic::AddrSpaceCast => IntrinsicResultType::Explicit,
+            // transmute and addressSpace cast: explicit target type
+            Intrinsic::Transmute | Intrinsic::AddressSpaceCast => IntrinsicResultType::Explicit,
 
             // everything else: result type = first argument type
             _ => IntrinsicResultType::SameAsArgument(0),
@@ -695,10 +695,10 @@ impl Intrinsic {
     /// Returns indices of arguments that are consumed (moved) by this intrinsic.
     ///
     /// Most intrinsics operate on primitives or through pointers, so nothing is consumed.
-    /// Transmute and addrspace.cast consume their input to produce a reinterpreted output.
+    /// Transmute and addressSpace.cast consume their input to produce a reinterpreted output.
     pub fn consumed_arguments(self) -> &'static [u8] {
         match self {
-            Intrinsic::Transmute | Intrinsic::AddrSpaceCast => &[0],
+            Intrinsic::Transmute | Intrinsic::AddressSpaceCast => &[0],
             _ => &[],
         }
     }
@@ -728,8 +728,8 @@ pub enum IntrinsicResultType {
     /// Used for atomic compare-and-swap.
     PointeeAndBool(u8),
 
-    /// Result type is bool.
-    Bool,
+    /// Result type is boolean.
+    Boolean,
 
     /// Result type is i32.
     I32,

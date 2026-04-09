@@ -109,9 +109,10 @@ impl<'a> Validator<'a> {
                     block_order,
                 )?;
             }
-            Terminator::Call {
+            Terminator::Invoke {
                 function: callee_id,
                 arguments,
+                signature,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -123,14 +124,16 @@ impl<'a> Validator<'a> {
                     ValidateAnchor::node(block_id),
                 )?;
                 let anchor = ValidateAnchor::node(block_id);
-                let callee = self.tree.get(*callee_id);
                 self.validate_direct_call_environment(anchor, *callee_id)?;
+                self.validate_call_signature_matches_function(anchor, *signature, *callee_id)?;
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "call signature")?;
 
                 self.validate_regular_call(
                     block_id,
                     arguments.len(),
-                    callee.parameters.len(),
-                    callee.return_type,
+                    parameters.len(),
+                    result,
                     *normal_target,
                     normal_arguments,
                     *unwind_target,
@@ -139,7 +142,7 @@ impl<'a> Validator<'a> {
                     block_order,
                 )?;
             }
-            Terminator::CallIndirect {
+            Terminator::InvokeIndirect {
                 signature,
                 callee,
                 arguments,
@@ -173,7 +176,7 @@ impl<'a> Validator<'a> {
                     block_order,
                 )?;
             }
-            Terminator::CallVirtual {
+            Terminator::InvokeVirtual {
                 declaring_type,
                 slot_id,
                 signature,
@@ -203,7 +206,7 @@ impl<'a> Validator<'a> {
                     block_order,
                 )?;
             }
-            Terminator::CallInterface {
+            Terminator::InvokeInterface {
                 declaring_type,
                 slot_id,
                 signature,
@@ -236,21 +239,25 @@ impl<'a> Validator<'a> {
             Terminator::TailCall {
                 function: callee_id,
                 arguments,
+                signature,
             } => {
                 self.ensure_node_type(
                     NodeType::Function,
                     callee_id.id,
                     ValidateAnchor::node(block_id),
                 )?;
-                let callee = self.tree.get(*callee_id);
-                self.validate_direct_call_environment(ValidateAnchor::node(block_id), *callee_id)?;
+                let anchor = ValidateAnchor::node(block_id);
+                self.validate_direct_call_environment(anchor, *callee_id)?;
+                self.validate_call_signature_matches_function(anchor, *signature, *callee_id)?;
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "tailCall signature")?;
 
                 self.validate_tail_call(
                     function,
                     block_id,
                     arguments.len(),
-                    callee.parameters.len(),
-                    callee.return_type,
+                    parameters.len(),
+                    result,
                 )?;
             }
             Terminator::TailCallIndirect {
@@ -263,14 +270,14 @@ impl<'a> Validator<'a> {
                 let (parameters, result) = self.indirect_call_signature(
                     *signature,
                     anchor,
-                    "tailcall.indirect signature",
+                    "tailCall.indirect signature",
                 )?;
                 self.validate_indirect_callee_signature(
                     function,
                     *callee,
                     *signature,
                     anchor,
-                    "tailcall.indirect callee",
+                    "tailCall.indirect callee",
                 )?;
 
                 self.validate_tail_call(
@@ -292,7 +299,7 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "tailcall signature")?;
+                    self.function_pointer_signature(*signature, anchor, "tailCall signature")?;
 
                 self.validate_tail_call(
                     function,
@@ -313,7 +320,7 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "tailcall signature")?;
+                    self.function_pointer_signature(*signature, anchor, "tailCall signature")?;
 
                 self.validate_tail_call(
                     function,
@@ -404,16 +411,16 @@ impl<'a> Validator<'a> {
         match kind {
             TrapKind::Abort => {
                 if payload.is_some() {
-                    return Err(self.metadata_error(anchor, "trap abort does not accept a payload"));
+                    return Err(self.metadata_error(anchor, "trap.abort does not accept a payload"));
                 }
             }
             TrapKind::Panic => {
                 let Some(payload) = payload else {
-                    return Err(self.metadata_error(anchor, "trap panic requires a payload"));
+                    return Err(self.metadata_error(anchor, "trap.panic requires a payload"));
                 };
 
                 let payload_type_id =
-                    self.value_type_or_error(function, payload, anchor, "trap panic")?;
+                    self.value_type_or_error(function, payload, anchor, "trap.panic")?;
                 let payload_type = self.tree.get(payload_type_id);
 
                 let Type::Reference {
@@ -425,7 +432,7 @@ impl<'a> Validator<'a> {
                 else {
                     return Err(self.metadata_error(
                         anchor,
-                        "trap panic requires a non null readonly managed reference payload",
+                        "trap.panic requires a non null readonly managed reference payload",
                     ));
                 };
             }
@@ -588,7 +595,7 @@ impl<'a> Validator<'a> {
 
         let signature = match self.tree.get(signature) {
             Type::FunctionPointer { .. } => signature,
-            Type::FunctionValue { signature, .. } => *signature,
+            Type::Closure { signature, .. } => *signature,
             _ => {
                 return Err(self.metadata_error(anchor, format!("{label} is not a function type")));
             }
@@ -615,7 +622,7 @@ impl<'a> Validator<'a> {
         anchor: ValidateAnchor,
         label: &'static str,
     ) -> ValidateResult<(&[LocalNodeId<Type>], LocalNodeId<Type>)> {
-        if matches!(self.tree.get(signature), Type::FunctionValue { .. }) {
+        if matches!(self.tree.get(signature), Type::Closure { .. }) {
             return Err(self.metadata_error(anchor, format!("{label} is not a function pointer")));
         }
 
@@ -632,7 +639,13 @@ impl<'a> Validator<'a> {
         label: &'static str,
     ) -> ValidateResult<()> {
         let actual_type = self.value_type_or_error(function, callee, anchor, label)?;
-        if !self.types_equivalent(actual_type, signature) {
+        let actual_signature = match self.tree.get(actual_type) {
+            Type::FunctionPointer { .. } => actual_type,
+            Type::Closure { signature } => *signature,
+            _ => actual_type,
+        };
+
+        if !self.types_equivalent(actual_signature, signature) {
             return Err(self.metadata_error(anchor, format!("{label} type mismatch")));
         }
 
@@ -673,7 +686,7 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate normal and unwind continuations for a call terminator.
+    /// Validate success and exception continuations for a call terminator.
     pub(super) fn validate_call_continuations(
         &self,
         source_block: LocalNodeId<Block>,
@@ -709,7 +722,7 @@ impl<'a> Validator<'a> {
         if expects_result && normal_block.parameters[0].ty != result_type {
             return Err(self.metadata_error(
                 anchor,
-                "call normal continuation result parameter type must match the callee result",
+                "call success continuation result parameter type must match the callee result",
             ));
         }
 
@@ -737,7 +750,7 @@ impl<'a> Validator<'a> {
         if unwind_block.parameters.is_empty() {
             return Err(self.metadata_error(
                 anchor,
-                "call unwind continuation requires a managed exception parameter",
+                "call exception continuation requires a managed exception parameter",
             ));
         }
 
@@ -751,7 +764,7 @@ impl<'a> Validator<'a> {
         else {
             return Err(self.metadata_error(
                 anchor,
-                "call unwind continuation requires a managed exception parameter",
+                "call exception continuation requires a managed exception parameter",
             ));
         };
 

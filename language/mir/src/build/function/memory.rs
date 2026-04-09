@@ -128,7 +128,7 @@ impl<'a> FunctionBuilder<'a> {
                 .get(index as usize)
                 .copied()
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::FunctionValue { .. } => panic!("field access does not support fnvalue"),
+            Type::Closure { .. } => panic!("field access does not support closure"),
             _ => panic!("field access expects struct or tuple"),
         }
     }
@@ -179,9 +179,9 @@ impl<'a> FunctionBuilder<'a> {
         let signature_type = self.tree.get(signature);
         match signature_type {
             Type::FunctionPointer { result, .. } => *result,
-            Type::FunctionValue { signature, .. } => {
+            Type::Closure { signature, .. } => {
                 let Type::FunctionPointer { result, .. } = self.tree.get(*signature) else {
-                    panic!("fnvalue must carry a function pointer signature");
+                    panic!("closure must carry a function pointer signature");
                 };
                 *result
             }
@@ -190,7 +190,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate a managed (runtime-tracked) struct.
-    /// Returns a managed reference type (`ref<managed ...>`).
+    /// Returns a managed reference type (`ref<T, managed, ...>`).
     pub fn managed_alloc(
         &mut self,
         layout: LocalNodeId<Type>,
@@ -207,7 +207,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate a managed array.
-    /// Returns a managed reference type (`ref<managed ...>`).
+    /// Returns a managed reference type (`ref<T, managed, ...>`).
     pub fn managed_alloc_array(
         &mut self,
         element: LocalNodeId<Type>,

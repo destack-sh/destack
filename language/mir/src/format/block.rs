@@ -15,7 +15,7 @@ impl<'a> FormatMirNode<'a, Block> for Block {
     ) -> FormatResult<()> {
         // block label
         let block_index = f.context().block_index(id);
-        write!(f, [text(&format!("block{block_index}"))])?;
+        write!(f, [text(&format!("b{block_index}"))])?;
 
         // block parameters
         if !self.parameters.is_empty() {
@@ -72,7 +72,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             let block_index = f.context().block_index(*target);
             write!(
                 f,
-                [token("jump"), space(), text(&format!("block{block_index}"))]
+                [token("jump"), space(), text(&format!("b{block_index}"))]
             )?;
             if !arguments.is_empty() {
                 format_value_list(arguments, f)?;
@@ -97,16 +97,13 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     condition,
                     token(","),
                     space(),
-                    text(&format!("block{then_index}"))
+                    text(&format!("b{then_index}"))
                 ]
             )?;
             if !then_arguments.is_empty() {
                 format_value_list(then_arguments, f)?;
             }
-            write!(
-                f,
-                [token(","), space(), text(&format!("block{else_index}"))]
-            )?;
+            write!(f, [token(","), space(), text(&format!("b{else_index}"))])?;
             if !else_arguments.is_empty() {
                 format_value_list(else_arguments, f)?;
             }
@@ -114,26 +111,27 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         }
 
         Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
         } => {
             let success_index = f.context().block_index(success.target);
             let failure_index = f.context().block_index(failure.target);
-            write!(f, [token("check"), space(), condition, token(","), space()])?;
+            write!(f, [token("check"), space()])?;
             format_check_constraint(constraint, f)?;
             write!(
                 f,
-                [token(","), space(), text(&format!("block{success_index}"))]
+                [
+                    space(),
+                    token("->"),
+                    space(),
+                    text(&format!("b{success_index}"))
+                ]
             )?;
             if !success.arguments.is_empty() {
                 format_value_list(&success.arguments, f)?;
             }
-            write!(
-                f,
-                [token(","), space(), text(&format!("block{failure_index}"))]
-            )?;
+            write!(f, [token(","), space(), text(&format!("b{failure_index}"))])?;
             if !failure.arguments.is_empty() {
                 format_value_list(&failure.arguments, f)?;
             }
@@ -155,7 +153,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     value,
                     token(","),
                     space(),
-                    text(&format!("block{default_index}"))
+                    text(&format!("b{default_index}"))
                 ]
             )?;
             if !default_arguments.is_empty() {
@@ -172,7 +170,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                         space(),
                         token("=>"),
                         space(),
-                        text(&format!("block{case_index}"))
+                        text(&format!("b{case_index}"))
                     ]
                 )?;
                 if !case.arguments.is_empty() {
@@ -200,7 +198,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     value,
                     token(","),
                     space(),
-                    text(&format!("block{resume_index}"))
+                    text(&format!("b{resume_index}"))
                 ]
             )?;
             if !resume_arguments.is_empty() {
@@ -209,9 +207,10 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
-        Terminator::Call {
+        Terminator::Invoke {
             function,
             arguments,
+            signature,
             normal_target,
             normal_arguments,
             unwind_target,
@@ -221,8 +220,9 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             let strings = f.context().strings;
             let func = tree.get(*function);
             let name = strings.get(func.name);
-            write!(f, [token("call"), space(), token("@"), text(name)])?;
+            write!(f, [token("invoke"), space(), text(name)])?;
             format_value_list(arguments, f)?;
+            format_call_signature_suffix(*signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -232,7 +232,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )
         }
 
-        Terminator::CallIndirect {
+        Terminator::InvokeIndirect {
             callee,
             arguments,
             signature,
@@ -242,9 +242,9 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             unwind_arguments,
             ..
         } => {
-            write!(f, [token("call.indirect"), space(), callee])?;
+            write!(f, [token("invoke.indirect"), space(), callee])?;
             format_value_list(arguments, f)?;
-            write!(f, [space(), token("->"), space(), signature])?;
+            format_call_signature_suffix(*signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -254,7 +254,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )
         }
 
-        Terminator::CallVirtual {
+        Terminator::InvokeVirtual {
             receiver,
             arguments,
             declaring_type,
@@ -268,7 +268,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("call.virtual"),
+                    token("invoke.virtual"),
                     space(),
                     receiver,
                     token(","),
@@ -280,7 +280,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(arguments, f)?;
-            write!(f, [space(), token("->"), space(), signature])?;
+            format_call_signature_suffix(*signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -290,7 +290,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )
         }
 
-        Terminator::CallInterface {
+        Terminator::InvokeInterface {
             receiver,
             arguments,
             declaring_type,
@@ -304,7 +304,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("call.interface"),
+                    token("invoke.interface"),
                     space(),
                     receiver,
                     token(","),
@@ -316,7 +316,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(arguments, f)?;
-            write!(f, [space(), token("->"), space(), signature])?;
+            format_call_signature_suffix(*signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -331,12 +331,12 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         }
 
         Terminator::Trap { kind, payload } => {
-            let trap_kind = match kind {
-                TrapKind::Abort => "abort",
-                TrapKind::Panic => "panic",
+            let trap_opcode = match kind {
+                TrapKind::Abort => "trap.abort",
+                TrapKind::Panic => "trap.panic",
             };
 
-            write!(f, [token("trap"), space(), text(trap_kind)])?;
+            write!(f, [token(trap_opcode)])?;
 
             if let Some(payload) = payload {
                 write!(f, [space(), payload])?;
@@ -348,13 +348,15 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::TailCall {
             function,
             arguments,
+            signature,
         } => {
             let tree = f.context().tree;
             let strings = f.context().strings;
             let func = tree.get(*function);
             let name = strings.get(func.name);
-            write!(f, [token("tailcall"), space(), token("@"), text(name)])?;
-            format_value_list(arguments, f)
+            write!(f, [token("tailCall"), space(), text(name)])?;
+            format_value_list(arguments, f)?;
+            format_call_signature_suffix(*signature, f)
         }
 
         Terminator::TailCallIndirect {
@@ -363,9 +365,9 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             signature,
             ..
         } => {
-            write!(f, [token("tailcall.indirect"), space(), callee])?;
+            write!(f, [token("tailCall.indirect"), space(), callee])?;
             format_value_list(arguments, f)?;
-            write!(f, [space(), token("->"), space(), signature])
+            format_call_signature_suffix(*signature, f)
         }
 
         Terminator::TailCallVirtual {
@@ -379,7 +381,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("tailcall.virtual"),
+                    token("tailCall.virtual"),
                     space(),
                     receiver,
                     token(","),
@@ -391,7 +393,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(arguments, f)?;
-            write!(f, [space(), token("->"), space(), signature])
+            format_call_signature_suffix(*signature, f)
         }
 
         Terminator::TailCallInterface {
@@ -405,7 +407,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("tailcall.interface"),
+                    token("tailCall.interface"),
                     space(),
                     receiver,
                     token(","),
@@ -417,7 +419,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(arguments, f)?;
-            write!(f, [space(), token("->"), space(), signature])
+            format_call_signature_suffix(*signature, f)
         }
     }
 }
@@ -436,9 +438,9 @@ fn format_call_continuations<'a>(
         f,
         [
             space(),
-            text("normal"),
+            token("->"),
             space(),
-            text(&format!("block{normal_index}"))
+            text(&format!("b{normal_index}"))
         ]
     )?;
     if !normal_arguments.is_empty() {
@@ -448,10 +450,11 @@ fn format_call_continuations<'a>(
     write!(
         f,
         [
+            token(","),
             space(),
-            text("unwind"),
+            token("catch"),
             space(),
-            text(&format!("block{unwind_index}"))
+            text(&format!("b{unwind_index}"))
         ]
     )?;
     if !unwind_arguments.is_empty() {
@@ -474,11 +477,7 @@ fn format_check_constraint<'a>(
             collection,
             is_signed,
         } => {
-            let prefix = if *is_signed {
-                "bounds.signed"
-            } else {
-                "bounds.unsigned"
-            };
+            let prefix = if *is_signed { "bounds.s" } else { "bounds.u" };
             write!(
                 f,
                 [
@@ -498,7 +497,7 @@ fn format_check_constraint<'a>(
             write!(f, [token("null"), space(), value])
         }
         CheckConstraint::DivZero { divisor } => {
-            write!(f, [token("div_zero"), space(), divisor])
+            write!(f, [token("zeroDivisor"), space(), divisor])
         }
         CheckConstraint::ShiftRange {
             value,
@@ -506,9 +505,9 @@ fn format_check_constraint<'a>(
             is_signed,
         } => {
             let prefix = if *is_signed {
-                "shift.signed"
+                "shiftRange.s"
             } else {
-                "shift.unsigned"
+                "shiftRange.u"
             };
             write!(
                 f,
@@ -528,9 +527,9 @@ fn format_check_constraint<'a>(
             is_signed,
         } => {
             let prefix = if *is_signed {
-                "narrow.signed"
+                "narrowRange.s"
             } else {
-                "narrow.unsigned"
+                "narrowRange.u"
             };
             write!(
                 f,
@@ -550,23 +549,25 @@ fn format_check_constraint<'a>(
             right,
             is_signed,
         } => {
-            let prefix = if *is_signed {
-                "overflow.signed"
-            } else {
-                "overflow.unsigned"
-            };
-            let op_name = operator.to_str();
-            let name = format!("{prefix}.{op_name}");
+            let suffix = if *is_signed { "s" } else { "u" };
+            let name = format!("{}.overflow.{suffix}", overflow_check_family(*operator));
             write!(f, [text(&name), space(), left, token(","), space(), right])
         }
         CheckConstraint::Type { value, expected } => write!(
             f,
-            [token("type"), space(), value, token(","), space(), expected]
+            [
+                token("dynamicType"),
+                space(),
+                value,
+                token(","),
+                space(),
+                expected
+            ]
         ),
         CheckConstraint::Union { value, expected } => write!(
             f,
             [
-                token("union"),
+                token("unionTag"),
                 space(),
                 value,
                 token(","),
@@ -577,7 +578,7 @@ fn format_check_constraint<'a>(
         CheckConstraint::ReceiverType { receiver, expected } => write!(
             f,
             [
-                token("receiver_type"),
+                token("receiverType"),
                 space(),
                 receiver,
                 token(","),
@@ -588,7 +589,7 @@ fn format_check_constraint<'a>(
         CheckConstraint::Implements { receiver, expected } => write!(
             f,
             [
-                token("implements"),
+                token("interfaceConformance"),
                 space(),
                 receiver,
                 token(","),
@@ -596,6 +597,20 @@ fn format_check_constraint<'a>(
                 expected
             ]
         ),
+    }
+}
+
+/// Return the canonical operator family used in overflow checks.
+fn overflow_check_family(operator: crate::BinaryOperator) -> &'static str {
+    match operator {
+        crate::BinaryOperator::Add => "int.add",
+        crate::BinaryOperator::Subtract => "int.sub",
+        crate::BinaryOperator::Multiply => "int.mul",
+        crate::BinaryOperator::SignedDivide | crate::BinaryOperator::UnsignedDivide => "int.div",
+        crate::BinaryOperator::SignedRemainder | crate::BinaryOperator::UnsignedRemainder => {
+            "int.rem"
+        }
+        _ => panic!("unsupported overflow check operator: {operator:?}"),
     }
 }
 
@@ -609,4 +624,25 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
         write!(f, [val])?;
     }
     write!(f, [token(")")])
+}
+
+fn format_call_signature_suffix<'a>(
+    signature: LocalNodeId<crate::Type>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token(":"), space()])?;
+
+    match f.context().tree.get(signature) {
+        crate::Type::FunctionPointer { parameters, result } => {
+            write!(f, [token("(")])?;
+            for (index, parameter) in parameters.iter().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), space()])?;
+                }
+                write!(f, [*parameter])?;
+            }
+            write!(f, [token(")"), space(), token("->"), space(), *result])
+        }
+        _ => write!(f, [signature]),
+    }
 }

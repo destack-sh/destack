@@ -23,8 +23,8 @@ fn test_build_empty_function() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @empty() -> void {
-block0:
+function empty(): void {
+b0:
     return
 }";
     assert_eq!(output, expected);
@@ -52,9 +52,9 @@ fn test_build_function_with_parameters() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @add(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
+function add(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
     return v2
 }";
     assert_eq!(output, expected);
@@ -68,7 +68,7 @@ fn test_build_function_with_locals() {
     let i64_type = module.type_i64();
 
     // build function with local
-    let mut builder = module.function("with_local", &[], i64_type);
+    let mut builder = module.function("withLocal", &[], i64_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -85,12 +85,12 @@ fn test_build_function_with_locals() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @with_local() -> i64 {
-    local0: i64 ; owned
-block0:
-    v0: i64 = iconst 42i64
+function withLocal(): int64 {
+    local local0: int64, owned
+b0:
+    v0: int64 = 42int64
     local.set local0, v0
-    v1: i64 = local.get local0
+    v1: int64 = local.get local0
     return v1
 }";
     assert_eq!(output, expected);
@@ -101,7 +101,7 @@ block0:
 fn test_build_function_with_branch() {
     // setup
     let mut module = ModuleBuilder::unchecked();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let i32_type = module.type_i32();
 
     // build function with branch
@@ -142,28 +142,29 @@ fn test_build_function_with_branch() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @select(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    jump block3
-block2:
-    v2: i32 = iconst 0i32
-    jump block3
-block3:
+function select(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
+    jump b3
+b2:
+    v2: int32 = 0int32
+    jump b3
+b3:
     return v1
 }";
     assert_eq!(output, expected);
 }
 
-/// Exceptional call terminators carry explicit normal and unwind continuations.
+/// Exceptional call terminators carry explicit success and exception continuations.
 #[test]
 fn test_build_function_with_exceptional_call_terminator() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let exception_type = module.type_managed_reference(i32_type);
+    let signature = module.type_function_pointer(vec![i32_type], i32_type);
     let callee = module.extern_function("callee", &[i32_type], i32_type);
 
     // build function
@@ -179,6 +180,7 @@ fn test_build_function_with_exceptional_call_terminator() {
     let exception = builder.add_block_parameter(unwind_block, exception_type);
     builder.call_branch(
         callee,
+        signature,
         vec![argument],
         normal_block,
         Vec::new(),
@@ -187,12 +189,12 @@ fn test_build_function_with_exceptional_call_terminator() {
     );
     builder.seal_block(entry_block);
 
-    // normal continuation
+    // success continuation
     builder.switch_to_block(normal_block);
     builder.return_(Some(result));
     builder.seal_block(normal_block);
 
-    // unwind continuation
+    // exception continuation
     builder.switch_to_block(unwind_block);
     builder.throw(exception);
     builder.seal_block(unwind_block);
@@ -202,13 +204,13 @@ fn test_build_function_with_exceptional_call_terminator() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-extern function @callee(i32) -> i32
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    call @callee(v0) normal block1 unwind block2
-block1(v1: i32):
+extern function callee(int32): int32
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+b1(v1: int32):
     return v1
-block2(v2: ref<managed readonly i32>):
+b2(v2: ref<int32, managed, readonly>):
     throw v2
 }";
     assert_eq!(output, expected);
@@ -236,10 +238,10 @@ fn test_build_function_with_trap_terminator() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @trapper() -> void {
-block0:
-    v0: ref<managed readonly i32> = iconst null
-    trap panic v0
+function trapper(): void {
+b0:
+    v0: ref<int32, managed, readonly> = null
+    trap.panic v0
 }";
     assert_eq!(output, expected);
 }
@@ -252,7 +254,7 @@ fn test_ssa_define_use_single_block() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("var_test", &[], i32_type);
+    let mut builder = module.function("varTest", &[], i32_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -273,9 +275,9 @@ fn test_ssa_define_use_single_block() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @var_test() -> i32 {
-block0:
-    v0: i32 = iconst 10i32
+function varTest(): int32 {
+b0:
+    v0: int32 = 10int32
     return v0
 }";
     assert_eq!(output, expected);
@@ -312,10 +314,10 @@ fn test_ssa_redefine_variable() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @redefine() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
+function redefine(): int32 {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
     return v1
 }";
     assert_eq!(output, expected);
@@ -326,11 +328,11 @@ block0:
 fn test_ssa_branch_with_phi() {
     // setup
     let mut module = ModuleBuilder::unchecked();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("phi_test", &[bool_type], i32_type);
+    let mut builder = module.function("phiTest", &[bool_type], i32_type);
 
     // create blocks
     let entry_block = builder.block();
@@ -372,16 +374,16 @@ fn test_ssa_branch_with_phi() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @phi_test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    jump block3(v1)
-block2:
-    v2: i32 = iconst 0i32
-    jump block3(v2)
-block3(v3: i32):
+function phiTest(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
+    jump b3(v1)
+b2:
+    v2: int32 = 0int32
+    jump b3(v2)
+b3(v3: int32):
     return v3
 }";
     assert_eq!(output, expected);
@@ -392,11 +394,11 @@ block3(v3: i32):
 fn test_ssa_trivial_phi_removal() {
     // setup
     let mut module = ModuleBuilder::unchecked();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("trivial_phi", &[bool_type], i32_type);
+    let mut builder = module.function("trivialPhi", &[bool_type], i32_type);
 
     // create blocks
     let entry_block = builder.block();
@@ -436,15 +438,15 @@ fn test_ssa_trivial_phi_removal() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @trivial_phi(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 42i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+function trivialPhi(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 42int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return v1
 }";
     assert_eq!(output, expected);
@@ -455,11 +457,11 @@ block3:
 fn test_ssa_trivial_phi_unsealed() {
     // setup
     let mut module = ModuleBuilder::unchecked();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("trivial_phi_unsealed", &[bool_type], i32_type);
+    let mut builder = module.function("trivialPhiUnsealed", &[bool_type], i32_type);
 
     // create blocks
     let entry_block = builder.block();
@@ -498,15 +500,15 @@ fn test_ssa_trivial_phi_unsealed() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @trivial_phi_unsealed(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 42i32
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
+function trivialPhiUnsealed(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 42int32
+    branch v0, b1, b2
+b1:
+    jump b3
+b2:
+    jump b3
+b3:
     return v1
 }";
     assert_eq!(output, expected);
@@ -540,12 +542,12 @@ fn test_build_arithmetic_operations() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @arithmetic(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: i32 = iadd v0, v1
-    v3: i32 = isub v2, v1
-    v4: i32 = imul v3, v0
-    v5: i32 = sdiv v4, v1
+function arithmetic(v0: int32, v1: int32): int32 {
+b0(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.sub v2, v1
+    v4: int32 = int.mul v3, v0
+    v5: int32 = int.div.s v4, v1
     return v5
 }";
     assert_eq!(output, expected);
@@ -557,7 +559,7 @@ fn test_build_comparison_operations() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
 
     // build function
     let mut builder = module.function("compare", &[i32_type, i32_type], bool_type);
@@ -579,11 +581,11 @@ fn test_build_comparison_operations() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @compare(v0: i32, v1: i32) -> bool {
-block0(v0: i32, v1: i32):
-    v2: bool = icmp_eq v0, v1
-    v3: bool = icmp_slt v0, v1
-    v4: bool = band v2, v3
+function compare(v0: int32, v1: int32): boolean {
+b0(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    v3: boolean = int.lt.s v0, v1
+    v4: boolean = int.and v2, v3
     return v4
 }";
     assert_eq!(output, expected);
@@ -599,7 +601,7 @@ fn test_type_construction() {
 
     // create various types
     let void_type = module.type_void();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
     let f32_type = module.type_f32();
@@ -648,7 +650,7 @@ fn test_type_construction() {
     ));
     assert!(matches!(
         tree.get(function_value_type),
-        Type::FunctionValue { .. }
+        Type::Closure { .. }
     ));
 }
 
@@ -660,17 +662,17 @@ fn test_seal_all_blocks() {
     let void_type = module.type_void();
 
     // build multi-block function
-    let mut builder = module.function("multi_block", &[], void_type);
-    let block0 = builder.block();
-    let block1 = builder.block();
-    let block2 = builder.block();
+    let mut builder = module.function("multiBlock", &[], void_type);
+    let b0 = builder.block();
+    let b1 = builder.block();
+    let b2 = builder.block();
 
     // populate blocks
-    builder.switch_to_block(block0);
-    builder.jump(block1);
-    builder.switch_to_block(block1);
-    builder.jump(block2);
-    builder.switch_to_block(block2);
+    builder.switch_to_block(b0);
+    builder.jump(b1);
+    builder.switch_to_block(b1);
+    builder.jump(b2);
+    builder.switch_to_block(b2);
     builder.return_(None);
 
     // seal all at once instead of individually
@@ -681,12 +683,12 @@ fn test_seal_all_blocks() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @multi_block() -> void {
-block0:
-    jump block1
-block1:
-    jump block2
-block2:
+function multiBlock(): void {
+b0:
+    jump b1
+b1:
+    jump b2
+b2:
     return
 }";
     assert_eq!(output, expected);
@@ -796,7 +798,7 @@ fn test_build_managed_alloc() {
     let ref_type = module.type_managed_reference(i32_type);
 
     // build function with managed.alloc
-    let mut builder = module.function("alloc_test", &[], ref_type);
+    let mut builder = module.function("allocTest", &[], ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.managed_alloc(i32_type, ref_type);
@@ -808,15 +810,15 @@ fn test_build_managed_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @alloc_test() -> ref<managed readonly i32> {
-block0:
-    v0: ref<managed readonly i32> = managed.alloc i32
+function allocTest(): ref<int32, managed, readonly> {
+b0:
+    v0: ref<int32, managed, readonly> = managed.alloc int32
     return v0
 }";
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: managed.alloc_array.
+/// Allocation instruction: managed.allocArray.
 #[test]
 fn test_build_managed_alloc_array() {
     // setup
@@ -825,8 +827,8 @@ fn test_build_managed_alloc_array() {
     let i64_type = module.type_i64();
     let array_ref_type = module.type_managed_reference(i32_type);
 
-    // build function with managed.alloc_array
-    let mut builder = module.function("alloc_array_test", &[i64_type], array_ref_type);
+    // build function with managed.allocArray
+    let mut builder = module.function("allocArrayTest", &[i64_type], array_ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
@@ -839,9 +841,9 @@ fn test_build_managed_alloc_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @alloc_array_test(v0: i64) -> ref<managed readonly i32> {
-block0(v0: i64):
-    v1: ref<managed readonly i32> = managed.alloc_array i32, v0
+function allocArrayTest(v0: int64): ref<int32, managed, readonly> {
+b0(v0: int64):
+    v1: ref<int32, managed, readonly> = managed.allocArray int32, v0
     return v1
 }";
     assert_eq!(output, expected);
@@ -857,7 +859,7 @@ fn test_build_raw_alloc_and_free() {
     let raw_ref_type = module.type_raw_pointer(i32_type);
 
     // build function with raw.alloc and raw.free
-    let mut builder = module.function("raw_alloc_test", &[], void_type);
+    let mut builder = module.function("rawAllocTest", &[], void_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.raw_alloc(i32_type, raw_ref_type);
@@ -874,10 +876,10 @@ fn test_build_raw_alloc_and_free() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @raw_alloc_test() -> void {
-block0:
-    v0: ref<raw readonly i32> = raw.alloc i32
-    v1: i32 = iconst 42i32
+function rawAllocTest(): void {
+b0:
+    v0: ref<int32, raw, readonly> = raw.alloc int32
+    v1: int32 = 42int32
     store v0, v1
     raw.free v0
     return
@@ -900,7 +902,7 @@ fn test_build_stack_alloc() {
     });
 
     // build function with stack.alloc
-    let mut builder = module.function("stack_alloc_test", &[], raw_ref_type);
+    let mut builder = module.function("stackAllocTest", &[], raw_ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.stack_alloc(i32_type, raw_ref_type);
@@ -912,9 +914,9 @@ fn test_build_stack_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @stack_alloc_test() -> ref<raw addrspace(stack) readonly i32> {
-block0:
-    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
+function stackAllocTest(): ref<int32, raw, readonly, addressSpace(stack)> {
+b0:
+    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
     return v0
 }";
     assert_eq!(output, expected);
@@ -930,7 +932,7 @@ fn test_build_intrinsics() {
     let f64_type = module.type_f64();
 
     // build function with intrinsics
-    let mut builder = module.function("intrinsic_test", &[f64_type, f64_type], f64_type);
+    let mut builder = module.function("intrinsicTest", &[f64_type, f64_type], f64_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -948,11 +950,11 @@ fn test_build_intrinsics() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @intrinsic_test(v0: f64, v1: f64) -> f64 {
-block0(v0: f64, v1: f64):
-    v2: f64 = intrinsic.sqrt(v0)
-    v3: f64 = intrinsic.min(v2, v1)
-    v4: f64 = intrinsic.abs(v3)
+function intrinsicTest(v0: float64, v1: float64): float64 {
+b0(v0: float64, v1: float64):
+    v2: float64 = intrinsic.sqrt(v0)
+    v3: float64 = intrinsic.min(v2, v1)
+    v4: float64 = intrinsic.abs(v3)
     return v4
 }";
     assert_eq!(output, expected);
@@ -966,11 +968,11 @@ fn test_build_void_intrinsic() {
     let void_type = module.type_void();
 
     // build function with void intrinsic
-    let mut builder = module.function("fence_test", &[], void_type);
+    let mut builder = module.function("fenceTest", &[], void_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.atomic_fence(
-        MemoryOrdering::SeqCst,
+        MemoryOrdering::SequentiallyConsistent,
         AtomicScope::Device,
         MemoryScope::Device,
         MemorySemantics::default(),
@@ -983,9 +985,9 @@ fn test_build_void_intrinsic() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @fence_test() -> void {
-block0:
-    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
+function fenceTest(): void {
+b0:
+    atomic.fence sequentiallyConsistent, device, device, any
     return
 }";
     assert_eq!(output, expected);
@@ -1005,7 +1007,7 @@ fn test_build_struct() {
     let struct_type = module.type_struct(vec![field0, field1], Copyability::Trivial);
 
     // build function that constructs a struct
-    let mut builder = module.function("make_point", &[i32_type, f64_type], struct_type);
+    let mut builder = module.function("makePoint", &[i32_type, f64_type], struct_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1020,9 +1022,9 @@ fn test_build_struct() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @make_point(v0: i32, v1: f64) -> { i32, f64 } {
-block0(v0: i32, v1: f64):
-    v2: { i32, f64 } = struct { i32, f64 } (v0, v1)
+function makePoint(v0: int32, v1: float64): { int32, float64 } {
+b0(v0: int32, v1: float64):
+    v2: { int32, float64 } = struct { int32, float64 } (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
@@ -1034,11 +1036,11 @@ fn test_build_tuple() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copyability::Trivial);
 
     // build function that constructs a tuple
-    let mut builder = module.function("make_pair", &[i32_type, bool_type], tuple_type);
+    let mut builder = module.function("makePair", &[i32_type, bool_type], tuple_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1053,9 +1055,9 @@ fn test_build_tuple() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @make_pair(v0: i32, v1: bool) -> (i32, bool) {
-block0(v0: i32, v1: bool):
-    v2: (i32, bool) = tuple (i32, bool) (v0, v1)
+function makePair(v0: int32, v1: boolean): (int32, boolean) {
+b0(v0: int32, v1: boolean):
+    v2: (int32, boolean) = tuple (int32, boolean) (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
@@ -1070,7 +1072,7 @@ fn test_build_array() {
     let array_type = module.type_array(i32_type, 3, Copyability::Trivial);
 
     // build function that constructs an array
-    let mut builder = module.function("make_array", &[], array_type);
+    let mut builder = module.function("makeArray", &[], array_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1086,12 +1088,12 @@ fn test_build_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @make_array() -> [i32; 3] {
-block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: i32 = iconst 3i32
-    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+function makeArray(): int32[3] {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: int32[3] = [v0, v1, v2]
     return v3
 }";
     assert_eq!(output, expected);
@@ -1109,7 +1111,7 @@ fn test_build_field_get_struct() {
     let struct_type = module.type_struct(vec![field0, field1], Copyability::Trivial);
 
     // build function that extracts the second field
-    let mut builder = module.function("get_y", &[struct_type], f64_type);
+    let mut builder = module.function("getY", &[struct_type], f64_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1123,9 +1125,9 @@ fn test_build_field_get_struct() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @get_y(v0: { i32, f64 }) -> f64 {
-block0(v0: { i32, f64 }):
-    v1: f64 = field.get v0, 1
+function getY(v0: { int32, float64 }): float64 {
+b0(v0: { int32, float64 }):
+    v1: float64 = field.get v0, 1
     return v1
 }";
     assert_eq!(output, expected);
@@ -1137,11 +1139,11 @@ fn test_build_field_get_tuple() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copyability::Trivial);
 
     // build function that extracts the first element
-    let mut builder = module.function("get_first", &[tuple_type], i32_type);
+    let mut builder = module.function("getFirst", &[tuple_type], i32_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1155,9 +1157,9 @@ fn test_build_field_get_tuple() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @get_first(v0: (i32, bool)) -> i32 {
-block0(v0: (i32, bool)):
-    v1: i32 = field.get v0, 0
+function getFirst(v0: (int32, boolean)): int32 {
+b0(v0: (int32, boolean)):
+    v1: int32 = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1173,7 +1175,7 @@ fn test_build_element_get_array() {
     let array_type = module.type_array(i32_type, 3, Copyability::Trivial);
 
     // build function that extracts an element at a given index
-    let mut builder = module.function("get_element", &[array_type, i64_type], i32_type);
+    let mut builder = module.function("getElement", &[array_type, i64_type], i32_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1188,9 +1190,9 @@ fn test_build_element_get_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @get_element(v0: [i32; 3], v1: i64) -> i32 {
-block0(v0: [i32; 3], v1: i64):
-    v2: i32 = element.get v0, v1
+function getElement(v0: int32[3], v1: int64): int32 {
+b0(v0: int32[3], v1: int64):
+    v2: int32 = element.get v0, v1
     return v2
 }";
     assert_eq!(output, expected);
@@ -1199,94 +1201,94 @@ block0(v0: [i32; 3], v1: i64):
 /// SSA construction with variable pass-through intermediate block.
 ///
 /// Tests the case where:
-/// - block0: defines x, jumps to block1
-/// - block1 (loop header): uses x, branches to block2 or block4
-/// - block2 (body): updates x, jumps to block3
-/// - block3 (intermediate): does NOT use x, jumps back to block1
-/// - block4 (exit): returns x
+/// - b0: defines x, jumps to b1
+/// - b1 (loop header): uses x, branches to b2 or b4
+/// - b2 (body): updates x, jumps to b3
+/// - b3 (intermediate): does NOT use x, jumps back to b1
+/// - b4 (exit): returns x
 ///
-/// The updated x from block2 must flow through block3 to block1.
+/// The updated x from b2 must flow through b3 to b1.
 #[test]
 fn test_ssa_passthrough_intermediate_block() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
 
     // build function
     let mut builder = module.function("passthrough", &[bool_type], i32_type);
 
     // create blocks
-    let block0 = builder.block(); // init
-    let block1 = builder.block(); // loop header
-    let block2 = builder.block(); // body (updates x)
-    let block3 = builder.block(); // intermediate (pass-through)
-    let block4 = builder.block(); // exit
+    let b0 = builder.block(); // init
+    let b1 = builder.block(); // loop header
+    let b2 = builder.block(); // body (updates x)
+    let b3 = builder.block(); // intermediate (pass-through)
+    let b4 = builder.block(); // exit
 
     // create variable
     let x_var = builder.variable(i32_type);
 
-    // block0: define x = 1, jump to header
-    builder.switch_to_block(block0);
+    // b0: define x = 1, jump to header
+    builder.switch_to_block(b0);
     let init_value = builder.iconst_i32(1);
     builder.define_variable(x_var, init_value);
-    builder.jump(block1);
-    builder.seal_block(block0);
+    builder.jump(b1);
+    builder.seal_block(b0);
 
-    // block1 (header): use x, branch based on condition
-    builder.switch_to_block(block1);
+    // b1 (header): use x, branch based on condition
+    builder.switch_to_block(b1);
     let cond = builder.function_parameter(0);
     let _x_header = builder.use_variable(x_var); // use x in header
-    builder.branch(cond, block2, block4);
-    // don't seal yet - has back edge from block3
+    builder.branch(cond, b2, b4);
+    // don't seal yet - has back edge from b3
 
-    // block2 (body): update x = x + 10
-    builder.switch_to_block(block2);
+    // b2 (body): update x = x + 10
+    builder.switch_to_block(b2);
     let x_body = builder.use_variable(x_var);
     let ten = builder.iconst_i32(10);
     let x_new = builder.iadd(x_body, ten);
     builder.define_variable(x_var, x_new);
-    builder.jump(block3);
-    builder.seal_block(block2);
+    builder.jump(b3);
+    builder.seal_block(b2);
 
-    // block3 (intermediate): does NOT touch x, just jumps back to header
-    builder.switch_to_block(block3);
+    // b3 (intermediate): does NOT touch x, just jumps back to header
+    builder.switch_to_block(b3);
     // intentionally no use or define of x_var here
-    builder.jump(block1);
-    builder.seal_block(block3);
+    builder.jump(b1);
+    builder.seal_block(b3);
 
-    // now seal block1 (all predecessors known: block0, block3)
-    builder.seal_block(block1);
+    // now seal b1 (all predecessors known: b0, b3)
+    builder.seal_block(b1);
 
-    // block4 (exit): return x
-    builder.switch_to_block(block4);
+    // b4 (exit): return x
+    builder.switch_to_block(b4);
     let x_exit = builder.use_variable(x_var);
     builder.return_(Some(x_exit));
-    builder.seal_block(block4);
+    builder.seal_block(b4);
 
     builder.finish();
 
     // verify output
-    // the key check: block3 must pass the updated x to block1
+    // the key check: b3 must pass the updated x to b1
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
-    // expected: block3 passes the updated x (v4) from block2 to block1
-    // note: block3 has no block parameter since it has only one predecessor
+    // expected: b3 passes the updated x (v4) from b2 to b1
+    // note: b3 has no block parameter since it has only one predecessor
     let expected = "\
-function @passthrough(v0: bool) -> i32 {
-block0(v0: bool):
-    v1: i32 = iconst 1i32
-    jump block1(v1)
-block1(v2: i32):
-    branch v0, block2, block4
-block2:
-    v3: i32 = iconst 10i32
-    v4: i32 = iadd v2, v3
-    jump block3
-block3:
-    jump block1(v4)
-block4:
+function passthrough(v0: boolean): int32 {
+b0(v0: boolean):
+    v1: int32 = 1int32
+    jump b1(v1)
+b1(v2: int32):
+    branch v0, b2, b4
+b2:
+    v3: int32 = 10int32
+    v4: int32 = int.add v2, v3
+    jump b3
+b3:
+    jump b1(v4)
+b4:
     return v2
 }";
     assert_eq!(output, expected);
@@ -1300,11 +1302,11 @@ block4:
 fn test_ssa_multiple_phis_at_merge() {
     // setup
     let mut module = ModuleBuilder::unchecked();
-    let bool_type = module.type_bool();
+    let bool_type = module.type_boolean();
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("multi_phi", &[bool_type], i32_type);
+    let mut builder = module.function("multiPhi", &[bool_type], i32_type);
 
     // create blocks: diamond CFG
     let entry = builder.block();
@@ -1353,19 +1355,19 @@ fn test_ssa_multiple_phis_at_merge() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @multi_phi(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 10i32
-    jump block3(v1, v2)
-block2:
-    v3: i32 = iconst 2i32
-    v4: i32 = iconst 20i32
-    jump block3(v3, v4)
-block3(v5: i32, v6: i32):
-    v7: i32 = iadd v5, v6
+function multiPhi(v0: boolean): int32 {
+b0(v0: boolean):
+    branch v0, b1, b2
+b1:
+    v1: int32 = 1int32
+    v2: int32 = 10int32
+    jump b3(v1, v2)
+b2:
+    v3: int32 = 2int32
+    v4: int32 = 20int32
+    jump b3(v3, v4)
+b3(v5: int32, v6: int32):
+    v7: int32 = int.add v5, v6
     return v7
 }";
     assert_eq!(output, expected);

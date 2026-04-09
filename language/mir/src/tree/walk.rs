@@ -167,7 +167,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let result_ty = tree.get(*result);
             visitor.visit_type(tree, *result, result_ty);
         }
-        Type::FunctionValue { signature } => {
+        Type::Closure { signature } => {
             let signature_ty = tree.get(*signature);
             visitor.visit_type(tree, *signature, signature_ty);
         }

@@ -21,7 +21,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         // resolve the global name before formatting
         let name = f.context().global_name(id).to_string();
 
-        // imported globals: extern global @name: type ; readonly
+        // imported globals
         if self.linkage.is_import() {
             write!(
                 f,
@@ -30,46 +30,45 @@ impl<'a> FormatMirNode<'a, Global> for Global {
                     space(),
                     token("global"),
                     space(),
-                    token("@"),
                     text(&name),
                     token(":"),
                     space(),
                     self.ty
                 ]
             )?;
+
+            if self.mutability == Mutability::Immutable {
+                write!(f, [token(","), space(), token("readonly")])?;
+            }
         } else {
             // linkage prefix for exported globals
             if self.linkage == Linkage::Export {
                 write!(f, [token("export"), space()])?;
             }
 
-            // local/exported globals: [export] global @name: type = init ; readonly
+            // local/exported globals
             write!(
                 f,
                 [
                     token("global"),
                     space(),
-                    token("@"),
                     text(&name),
                     token(":"),
                     space(),
-                    self.ty,
-                    space(),
-                    token("="),
-                    space()
+                    self.ty
                 ]
             )?;
+
+            if self.mutability == Mutability::Immutable {
+                write!(f, [token(","), space(), token("readonly")])?;
+            }
+
+            write!(f, [space(), token("="), space()])?;
 
             // format initializer
             if let Some(init) = &self.initializer {
                 format_data_init(init, f)?;
             }
-        }
-
-        // mutability annotation
-        write!(f, [space(), token(";")])?;
-        if self.mutability == Mutability::Immutable {
-            write!(f, [space(), token("readonly")])?;
         }
 
         Ok(())
@@ -82,7 +81,7 @@ fn format_data_init<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     match init {
-        GlobalInitializer::Zero => write!(f, [token("zeroinit")]),
+        GlobalInitializer::Zero => write!(f, [token("zeroInit")]),
         GlobalInitializer::Scalar(constant) => format_constant(constant, f),
         GlobalInitializer::String(value) => format_string_literal(value, f),
         GlobalInitializer::Bytes(bytes) => format_byte_literal(bytes, f),
@@ -157,10 +156,10 @@ fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> For
             width,
             is_signed: _,
         } => {
-            write!(f, [text(&format!("{value}i{width}"))])
+            write!(f, [text(&format!("{value}int{width}"))])
         }
         Constant::UInt { value, width } => {
-            write!(f, [text(&format!("{value}u{width}"))])
+            write!(f, [text(&format!("{value}uint{width}"))])
         }
         Constant::Float { bits, width } => {
             let value = if *width == 32 {
@@ -168,7 +167,7 @@ fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> For
             } else {
                 f64::from_bits(*bits)
             };
-            write!(f, [text(&format!("{value}f{width}"))])
+            write!(f, [text(&format!("{value}float{width}"))])
         }
         Constant::Char { value } => {
             write!(f, [text(&format!("{value:?}"))])
