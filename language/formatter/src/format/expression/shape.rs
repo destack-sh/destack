@@ -1,3 +1,4 @@
+use super::is_type_cast_comment_node;
 use crate::DestackFormatContext;
 use crate::format::context::ParenthesizedExpressionView;
 use destack_ast::{
@@ -65,6 +66,48 @@ pub(crate) fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
     }
 
     false
+}
+
+/// Return whether a left-spine type-cast wrapper owns prefix comments for this expression shell.
+pub(crate) fn expression_has_type_cast_comment_head(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    expression_type_cast_comment_head_start(context, expression_id).is_some()
+}
+
+/// Return the start offset of one left-spine type-cast comment owner.
+pub(crate) fn expression_type_cast_comment_head_start(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<u32> {
+    let mut current_id = expression_id;
+
+    loop {
+        if is_type_cast_comment_node(context, current_id) {
+            let comments = context.comments();
+            let comment_index = comments.get_type_cast_comment_index(context.span(current_id))?;
+            return Some(comments.unprinted_comments()[comment_index].span.start);
+        }
+
+        let next_id = match context.tree.get(current_id) {
+            Expression::Call { left, .. }
+            | Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
+            Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
+            _ => None,
+        };
+
+        let Some(next_id) = next_id else {
+            return None;
+        };
+
+        current_id = next_id;
+    }
 }
 
 /// Return whether an expression prefers inline layout.

@@ -423,6 +423,12 @@ impl<'a> Comments<'a> {
         false
     }
 
+    /// Return whether one raw comment is a type-cast marker.
+    #[inline]
+    pub fn comment_is_type_cast(&self, comment: Comment) -> bool {
+        self.is_type_cast_comment(comment)
+    }
+
     /// Return the raw source text for one comment.
     fn raw_comment_text(&self, comment: Comment) -> &'a str {
         self.source_text.text_for(&comment.span)

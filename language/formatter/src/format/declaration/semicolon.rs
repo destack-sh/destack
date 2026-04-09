@@ -9,6 +9,7 @@ use destack_fir::write;
 use crate::format::annotation::{format_raw_comment, write_raw_comment_slice};
 use crate::format::chain::expression_trivia_anchor_end;
 use crate::{DestackFormatContext, DestackFormatter};
+use destack_source::Span;
 
 /// Return same-line trailing comments that follow one statement terminator anchor.
 fn statement_terminator_comments_after(
@@ -44,16 +45,24 @@ fn statement_terminator_comments_between(
     anchor_end: u32,
     following_span_start: u32,
 ) -> Vec<destack_ast::Comment> {
-    let comments = context.comments().comments_before(following_span_start);
+    let comments = context.comments();
+    let comments_before_boundary = comments.comments_before(following_span_start);
     let mut cursor = anchor_end;
     let mut collected = Vec::new();
 
-    for comment in comments.iter().copied() {
+    for comment in comments_before_boundary.iter().copied() {
         if comment.span.start < anchor_end {
             continue;
         }
 
         if comment.span.end > following_span_start {
+            break;
+        }
+
+        // blank-line-separated comments belong to the following statement
+        if cursor < comment.span.start
+            && context.has_blank_line(Span::new(comment.span.file, cursor, comment.span.start))
+        {
             break;
         }
 
@@ -63,6 +72,10 @@ fn statement_terminator_comments_between(
                 byte.is_ascii_whitespace() || byte == b';'
             })
         {
+            break;
+        }
+
+        if comments.comment_is_type_cast(comment) {
             break;
         }
 

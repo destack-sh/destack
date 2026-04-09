@@ -8,6 +8,7 @@ use super::{
 };
 use crate::format::annotation::{
     format_raw_comment, infix_or_postfix_annotations, prefix_annotations, write_raw_comment_slice,
+    write_raw_leading_comments,
 };
 use crate::format::call::call_drops_parenthesized_callee_wrapper;
 use crate::format::chain::transparent_inner_expression;
@@ -123,7 +124,21 @@ pub(crate) fn format_type_cast_comment_node<'ast>(
         return Ok(false);
     }
 
-    write!(f, [prefix_annotations(f.context(), node_id)])?;
+    let type_cast_comment_nodes = {
+        let comments = f.context().comments();
+        comments
+            .get_type_cast_comment_index(f.context().span(node_id))
+            .map(|index| comments.unprinted_comments()[..=index].to_vec())
+            .unwrap_or_default()
+    };
+
+    if !type_cast_comment_nodes.is_empty() {
+        write_raw_leading_comments(f, &type_cast_comment_nodes)?;
+    }
+
+    f.context()
+        .comments_mut()
+        .mark_as_type_cast_node(f.context().span(node_id));
 
     let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(f, [expression_id])?;
@@ -207,7 +222,6 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
         inner_expression_id,
         parent_expression,
     );
-
     should_drop_assignment_wrapper
         || should_drop_call_callee_instantiation_wrapper
         || should_drop_type_parentheses
