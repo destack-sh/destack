@@ -80,10 +80,10 @@ where
     let composite_type = state.value_type(destination)?;
     let repr_composite_type = executable::repr_type(state.tree(), composite_type);
 
-    // fnvalue stays boxed in the vm so nested storage only carries one managed reference
+    // closure stays boxed in the vm so nested storage only carries one managed reference
     if matches!(
         state.tree().get(repr_composite_type),
-        mir::Type::FunctionValue { .. }
+        mir::Type::Closure { .. }
     ) {
         let function = component_value(state, 0, composite_type)?;
         let environment = component_value(state, 1, composite_type)?;

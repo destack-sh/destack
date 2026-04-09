@@ -69,9 +69,9 @@ impl StepState<'_, '_> {
     ) -> RuntimeResult<Value> {
         match intrinsic {
             // bit manipulation
-            mir::Intrinsic::Clz => self.execute_clz(args),
-            mir::Intrinsic::Ctz => self.execute_ctz(args),
-            mir::Intrinsic::Popcnt => self.execute_popcnt(args),
+            mir::Intrinsic::LeadingZeroCount => self.execute_leading_zero_count(args),
+            mir::Intrinsic::TrailingZeroCount => self.execute_trailing_zero_count(args),
+            mir::Intrinsic::PopulationCount => self.execute_population_count(args),
             mir::Intrinsic::ByteSwap => self.execute_byte_swap(args),
             mir::Intrinsic::BitReverse => self.execute_bit_reverse(args),
             mir::Intrinsic::RotateLeft => self.execute_rotate_left(args),
@@ -117,7 +117,7 @@ impl StepState<'_, '_> {
             // float math (binary)
             mir::Intrinsic::Min => self.execute_float_binary(args, f64::min, f32::min),
             mir::Intrinsic::Max => self.execute_float_binary(args, f64::max, f32::max),
-            mir::Intrinsic::Copysign => {
+            mir::Intrinsic::CopySign => {
                 self.execute_float_binary(args, f64::copysign, f32::copysign)
             }
             mir::Intrinsic::Atan2 => self.execute_float_binary(args, f64::atan2, f32::atan2),
@@ -141,8 +141,8 @@ impl StepState<'_, '_> {
             // comparison
             mir::Intrinsic::RawEq => self.execute_raw_eq(args),
 
-            // transmute and addrspace.cast
-            mir::Intrinsic::Transmute | mir::Intrinsic::AddrSpaceCast => {
+            // transmute and addressSpace.cast
+            mir::Intrinsic::Transmute | mir::Intrinsic::AddressSpaceCast => {
                 args.first().copied().ok_or_else(|| {
                     self.make_error(Error::InvalidIntrinsicArguments {
                         intrinsic: intrinsic.to_str().to_string(),
@@ -151,7 +151,7 @@ impl StepState<'_, '_> {
             }
 
             // pointer operations
-            mir::Intrinsic::PtrOffsetFrom => self.execute_ptr_offset_from(args),
+            mir::Intrinsic::PointerOffsetFrom => self.execute_ptr_offset_from(args),
 
             // memory operations
             mir::Intrinsic::Memcpy => self.execute_memcpy(args),
@@ -174,7 +174,7 @@ impl StepState<'_, '_> {
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Value::VOID),
 
             // gc write barrier (no-op in interpreter)
-            mir::Intrinsic::GcWriteBarrier => Ok(Value::VOID),
+            mir::Intrinsic::WriteBarrier => Ok(Value::VOID),
 
             // runtime introspection
             mir::Intrinsic::ReturnAddress => self.execute_return_address(),
@@ -185,10 +185,10 @@ impl StepState<'_, '_> {
     // bit manipulation
 
     /// Count leading zeros.
-    fn execute_clz(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_leading_zero_count(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "clz".to_string(),
+                intrinsic: "leadingZeroCount".to_string(),
             })
         })?;
 
@@ -223,10 +223,10 @@ impl StepState<'_, '_> {
     }
 
     /// Count trailing zeros.
-    fn execute_ctz(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_trailing_zero_count(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "ctz".to_string(),
+                intrinsic: "trailingZeroCount".to_string(),
             })
         })?;
 
@@ -261,10 +261,10 @@ impl StepState<'_, '_> {
     }
 
     /// Count set bits (population count).
-    fn execute_popcnt(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_population_count(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "popcnt".to_string(),
+                intrinsic: "populationCount".to_string(),
             })
         })?;
 
@@ -1088,7 +1088,7 @@ impl StepState<'_, '_> {
     fn execute_ptr_offset_from(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "ptr_offset_from".to_string(),
+                intrinsic: "ptrOffsetFrom".to_string(),
             }));
         }
 

@@ -96,7 +96,7 @@ pub(super) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             length: *length,
         },
         mir::Type::Newtype { inner, .. } => kind_from_type(tree, *inner),
-        mir::Type::FunctionValue { .. } => ValueKind::Composite { ty },
+        mir::Type::Closure { .. } => ValueKind::Composite { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
@@ -148,7 +148,7 @@ pub(super) fn frame_slot_value_class_from_type(
         } => engine::FrameSlotValueClass::UnknownPointer,
         ValueKind::FunctionPointer { .. } => engine::FrameSlotValueClass::Function,
         ValueKind::Composite { ty } => match tree.get(ty) {
-            mir::Type::FunctionValue { .. } => engine::FrameSlotValueClass::ManagedReference,
+            mir::Type::Closure { .. } => engine::FrameSlotValueClass::ManagedReference,
             mir::Type::Tuple { .. }
             | mir::Type::Struct { .. }
             | mir::Type::Vector { .. }

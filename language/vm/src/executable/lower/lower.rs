@@ -309,10 +309,10 @@ impl<'a> BlockLowerer<'a> {
                     | mir::Terminator::Trap { .. }
                     | mir::Terminator::Unreachable
                     | mir::Terminator::Yield { .. }
-                    | mir::Terminator::Call { .. }
-                    | mir::Terminator::CallIndirect { .. }
-                    | mir::Terminator::CallVirtual { .. }
-                    | mir::Terminator::CallInterface { .. }
+                    | mir::Terminator::Invoke { .. }
+                    | mir::Terminator::InvokeIndirect { .. }
+                    | mir::Terminator::InvokeVirtual { .. }
+                    | mir::Terminator::InvokeInterface { .. }
                     | mir::Terminator::TailCall { .. }
                     | mir::Terminator::TailCallIndirect { .. }
                     | mir::Terminator::TailCallVirtual { .. }

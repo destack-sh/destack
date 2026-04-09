@@ -10,12 +10,12 @@ use destack_heap::Value;
 fn test_yield_resume_value() {
     // define mir program
     let mir = r#"
-function @yield_once(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    yield v1, block1(v0)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
+function yieldOnce(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 5int32
+    yield v1, b1(v0)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
 
@@ -24,7 +24,7 @@ block1(v2: i32, v3: i32):
 
     // start coroutine and capture yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_once", &[Value::int32(7)]),
+        isolate.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
     );
 
     // verify yielded value
@@ -41,11 +41,11 @@ block1(v2: i32, v3: i32):
 fn test_yield_resume_value_ignored() {
     // define mir program
     let mir = r#"
-function @yield_ignore(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    yield v1, block1(v0)
-block1(v2: i32, v3: i32):
+function yieldIgnore(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    yield v1, b1(v0)
+b1(v2: int32, v3: int32):
     return v2
 }"#;
 
@@ -54,7 +54,7 @@ block1(v2: i32, v3: i32):
 
     // start coroutine and capture yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_ignore", &[Value::int32(9)]),
+        isolate.run_function_by_name_yielding("yieldIgnore", &[Value::int32(9)]),
     );
 
     // verify yielded value
@@ -71,15 +71,15 @@ block1(v2: i32, v3: i32):
 fn test_yield_multiple() {
     // define mir program
     let mir = r#"
-function @yield_twice(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 2i32
-    yield v1, block1(v0)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
-    yield v4, block2(v4)
-block2(v5: i32, v6: i32):
-    v7: i32 = iadd v5, v6
+function yieldTwice(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 2int32
+    yield v1, b1(v0)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
+    yield v4, b2(v4)
+b2(v5: int32, v6: int32):
+    v7: int32 = int.add v5, v6
     return v7
 }"#;
 
@@ -88,7 +88,7 @@ block2(v5: i32, v6: i32):
 
     // start coroutine and capture first yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_twice", &[Value::int32(4)]),
+        isolate.run_function_by_name_yielding("yieldTwice", &[Value::int32(4)]),
     );
 
     // verify first yielded value
@@ -112,11 +112,11 @@ block2(v5: i32, v6: i32):
 fn test_yield_resume_no_args() {
     // define mir program
     let mir = r#"
-function @yield_no_args(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 4i32
-    yield v1, block1
-block1(v2: i32):
+function yieldNoArgs(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 4int32
+    yield v1, b1
+b1(v2: int32):
     return v2
 }"#;
 
@@ -125,7 +125,7 @@ block1(v2: i32):
 
     // start coroutine and capture yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_no_args", &[Value::int32(3)]),
+        isolate.run_function_by_name_yielding("yieldNoArgs", &[Value::int32(3)]),
     );
 
     // verify yielded value
@@ -142,16 +142,15 @@ block1(v2: i32):
 fn test_yield_preserves_locals() {
     // define mir program
     let mir = r#"
-function @yield_with_local(v0: i32) -> i32 {
-    local0: i32 ; owned
-
-block0(v0: i32):
-    v1: i32 = iconst 4i32
+function yieldWithLocal(v0: int32): int32 {
+    local local0: int32, owned
+b0(v0: int32):
+    v1: int32 = 4int32
     local.set local0, v1
-    yield v1, block1
-block1(v2: i32):
-    v3: i32 = local.get local0
-    v4: i32 = iadd v3, v2
+    yield v1, b1
+b1(v2: int32):
+    v3: int32 = local.get local0
+    v4: int32 = int.add v3, v2
     return v4
 }"#;
 
@@ -160,7 +159,7 @@ block1(v2: i32):
 
     // start coroutine and capture yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_with_local", &[Value::int32(1)]),
+        isolate.run_function_by_name_yielding("yieldWithLocal", &[Value::int32(1)]),
     );
 
     // verify yielded value
@@ -177,14 +176,14 @@ block1(v2: i32):
 fn test_yield_resume_arguments_prefix() {
     // define mir program
     let mir = r#"
-function @yield_prefix(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 10i32
-    v2: i32 = iconst 20i32
-    yield v1, block1(v0, v2)
-block1(v3: i32, v4: i32, v5: i32):
-    v6: i32 = iadd v3, v4
-    v7: i32 = iadd v6, v5
+function yieldPrefix(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    yield v1, b1(v0, v2)
+b1(v3: int32, v4: int32, v5: int32):
+    v6: int32 = int.add v3, v4
+    v7: int32 = int.add v6, v5
     return v7
 }"#;
 
@@ -193,7 +192,7 @@ block1(v3: i32, v4: i32, v5: i32):
 
     // start coroutine and capture yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_prefix", &[Value::int32(5)]),
+        isolate.run_function_by_name_yielding("yieldPrefix", &[Value::int32(5)]),
     );
 
     // verify yielded value
@@ -210,19 +209,19 @@ block1(v3: i32, v4: i32, v5: i32):
 fn test_yield_clears_trailing_params() {
     // define mir program
     let mir = r#"
-function @yield_trailing(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: i32 = iconst 99i32
-    jump block1(v0, v1, v2)
-block1(v3: i32, v4: i32, v5: i32):
-    v6: i32 = iconst 0i32
-    v7: bool = icmp_eq v5, v6
-    branch v7, block3(v5), block2(v3, v4, v5)
-block2(v8: i32, v9: i32, v10: i32):
-    v11: i32 = iadd v8, v9
-    yield v11, block1(v8, v9)
-block3(v12: i32):
+function yieldTrailing(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 1int32
+    v2: int32 = 99int32
+    jump b1(v0, v1, v2)
+b1(v3: int32, v4: int32, v5: int32):
+    v6: int32 = 0int32
+    v7: boolean = int.eq v5, v6
+    branch v7, b3(v5), b2(v3, v4, v5)
+b2(v8: int32, v9: int32, v10: int32):
+    v11: int32 = int.add v8, v9
+    yield v11, b1(v8, v9)
+b3(v12: int32):
     return v12
 }"#;
 
@@ -231,7 +230,7 @@ block3(v12: i32):
 
     // start coroutine and capture yield
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_trailing", &[Value::int32(2)]),
+        isolate.run_function_by_name_yielding("yieldTrailing", &[Value::int32(2)]),
     );
 
     // verify yielded value
@@ -248,19 +247,18 @@ block3(v12: i32):
 fn test_yield_nested_call() {
     // define mir program
     let mir = r#"
-function @yield_inner(v0: i32) -> i32 {
-block0(v0: i32):
-    yield v0, block1
-block1(v1: i32):
-    v2: i32 = iconst 1i32
-    v3: i32 = iadd v1, v2
+function yieldInner(v0: int32): int32 {
+b0(v0: int32):
+    yield v0, b1
+b1(v1: int32):
+    v2: int32 = 1int32
+    v3: int32 = int.add v1, v2
     return v3
 }
-
-function @outer(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = call @yield_inner(v0)
-    v2: i32 = iadd v1, v0
+function outer(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = call yieldInner(v0): (int32) -> int32
+    v2: int32 = int.add v1, v0
     return v2
 }"#;
 
@@ -286,24 +284,24 @@ block0(v0: i32):
 fn test_yield_preserves_exceptional_call_continuation() {
     // define mir program
     let mir = r#"
-function @worker(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    yield v1, block1(v0)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
+function worker(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 5int32
+    yield v1, b1(v0)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
     return v4
 }
 
-function @caller(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 10i32
-    call @worker(v0) normal block1(v1) unwind block2
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
+function caller(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 10int32
+    invoke worker(v0): (int32) -> int32 -> b1(v1), catch b2
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
     return v4
-block2(v5: ref<managed readonly void>):
-    v6: i32 = iconst 0i32
+b2(v5: ref<void, managed, readonly>):
+    v6: int32 = 0int32
     return v6
 }"#;
 
@@ -319,7 +317,7 @@ block2(v5: ref<managed readonly void>):
     assert_eq!(yielded.value, Value::int32(5));
     let continuation = yielded.continuation;
 
-    // resume and verify the outer normal continuation still runs
+    // resume and verify the outer success continuation still runs
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(3)));
     assert_eq!(output.value, Value::int32(20));
 }
@@ -329,12 +327,12 @@ block2(v5: ref<managed readonly void>):
 fn test_yield_preserves_stack_alloc_in_current_frame() {
     // define mir program
     let mir = r#"
-function @yield_stack_local() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
-    v1: i32 = iconst 1i32
-    yield v1, block1
-block1(v2: i32):
+function yieldStackLocal(): int32 {
+b0:
+    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 1int32
+    yield v1, b1
+b1(v2: int32):
     return v2
 }"#;
 
@@ -343,7 +341,7 @@ block1(v2: i32):
 
     // suspend and resume with live stack-local storage
     let yielded =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_stack_local", &[]));
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldStackLocal", &[]));
     assert_eq!(yielded.value, Value::int32(1));
 
     let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(7)));
@@ -355,13 +353,13 @@ block1(v2: i32):
 fn test_yield_allows_retired_stack_alloc_in_current_frame() {
     // define mir program
     let mir = r#"
-function @yield_retired_stack_local() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
+function yieldRetiredStackLocal(): int32 {
+b0:
+    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
     stack.drop v0
-    v1: i32 = iconst 1i32
-    yield v1, block1
-block1(v2: i32):
+    v1: int32 = 1int32
+    yield v1, b1
+b1(v2: int32):
     return v2
 }"#;
 
@@ -370,7 +368,7 @@ block1(v2: i32):
 
     // allow suspension after the stack allocation is retired
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_retired_stack_local", &[]),
+        isolate.run_function_by_name_yielding("yieldRetiredStackLocal", &[]),
     );
     assert_eq!(yielded.value, Value::int32(1));
 }
@@ -380,17 +378,16 @@ block1(v2: i32):
 fn test_yield_preserves_stack_alloc_in_caller_frame() {
     // define mir program
     let mir = r#"
-function @yield_inner(v0: i32) -> i32 {
-block0(v0: i32):
-    yield v0, block1
-block1(v1: i32):
+function yieldInner(v0: int32): int32 {
+b0(v0: int32):
+    yield v0, b1
+b1(v1: int32):
     return v1
 }
-
-function @outer_with_stack_local(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
-    v2: i32 = call @yield_inner(v0)
+function outerWithStackLocal(v0: int32): int32 {
+b0(v0: int32):
+    v1: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v2: int32 = call yieldInner(v0): (int32) -> int32
     return v2
 }"#;
 
@@ -399,7 +396,7 @@ block0(v0: i32):
 
     // suspend and resume with caller-owned stack-local storage
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("outer_with_stack_local", &[Value::int32(5)]),
+        isolate.run_function_by_name_yielding("outerWithStackLocal", &[Value::int32(5)]),
     );
     assert_eq!(yielded.value, Value::int32(5));
 
@@ -412,17 +409,16 @@ block0(v0: i32):
 fn test_yield_preserves_local_pointer_in_current_frame() {
     // define mir program
     let mir = r#"
-function @yield_local_pointer() -> i32 {
-    local0: i32 ; owned
-
-block0:
-    v0: i32 = iconst 1i32
+function yieldLocalPointer(): int32 {
+    local local0: int32, owned
+b0:
+    v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v2: i32 = iconst 2i32
-    yield v2, block1
-block1(v3: i32):
-    v4: i32 = load v1
+    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v2: int32 = 2int32
+    yield v2, b1
+b1(v3: int32):
+    v4: int32 = load v1
     return v4
 }"#;
 
@@ -431,7 +427,7 @@ block1(v3: i32):
 
     // suspend and resume with live frame-local pointers
     let yielded =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_local_pointer", &[]));
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldLocalPointer", &[]));
     assert_eq!(yielded.value, Value::int32(2));
 
     let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(11)));
@@ -443,12 +439,12 @@ block1(v3: i32):
 fn test_run_function_rejects_yield() {
     // define mir program
     let mir = r#"
-function @yield_once(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    yield v1, block1(v0)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
+function yieldOnce(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 5int32
+    yield v1, b1(v0)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
 
@@ -456,7 +452,7 @@ block1(v2: i32, v3: i32):
     let mut isolate = create_isolate(mir);
 
     // run via the non-yielding entry
-    let result = isolate.run_function_by_name("yield_once", &[Value::int32(7)]);
+    let result = isolate.run_function_by_name("yieldOnce", &[Value::int32(7)]);
 
     // verify unexpected yield error
     assert_runtime_error_matches!(result, Error::UnexpectedYield);
@@ -467,12 +463,12 @@ block1(v2: i32, v3: i32):
 fn test_resume_invalid_continuation() {
     // define mir program
     let mir = r#"
-function @yield_once(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iconst 5i32
-    yield v1, block1(v0)
-block1(v2: i32, v3: i32):
-    v4: i32 = iadd v2, v3
+function yieldOnce(v0: int32): int32 {
+b0(v0: int32):
+    v1: int32 = 5int32
+    yield v1, b1(v0)
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
     return v4
 }"#;
 
@@ -481,7 +477,7 @@ block1(v2: i32, v3: i32):
 
     // start coroutine and capture continuation
     let yielded = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yield_once", &[Value::int32(7)]),
+        isolate.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
     );
     let continuation = yielded.continuation;
 
@@ -500,11 +496,11 @@ block1(v2: i32, v3: i32):
 fn test_continuation_clone_for_fork() {
     // define mir program
     let mir = r#"
-function @yield_once() -> i32 {
-block0:
-    v0: i32 = iconst 1i32
-    yield v0, block1
-block1(v1: i32):
+function yieldOnce(): int32 {
+b0:
+    v0: int32 = 1int32
+    yield v0, b1
+b1(v1: int32):
     return v1
 }"#;
 
@@ -512,8 +508,7 @@ block1(v1: i32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let yielded =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_once", &[]));
+    let yielded = assert_execution_yielded(isolate.run_function_by_name_yielding("yieldOnce", &[]));
     assert_eq!(yielded.value, Value::int32(1));
     let continuation = yielded.continuation;
 
@@ -534,18 +529,19 @@ block1(v1: i32):
 fn test_continuation_roots_keep_allocations() {
     // define mir program
     let mir = r#"
-type @Pair = { ref<managed readonly i32> }
-
-function @yield_alloc() -> i32 {
-block0:
-    v0: ref<managed readonly i32> = managed.alloc i32
-    v1: i32 = iconst 1i32
+type Pair {
+    ref<int32, managed, readonly>;
+}
+function yieldAlloc(): int32 {
+b0:
+    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v1: int32 = 1int32
     store v0, v1
-    v2: @Pair = struct @Pair (v0)
-    yield v1, block1(v2)
-block1(v3: @Pair, v4: i32):
-    v5: ref<managed readonly i32> = field.get v3, 0
-    v6: i32 = load v5
+    v2: Pair = struct Pair (v0)
+    yield v1, b1(v2)
+b1(v3: Pair, v4: int32):
+    v5: ref<int32, managed, readonly> = field.get v3, 0
+    v6: int32 = load v5
     return v6
 }"#;
 
@@ -554,7 +550,7 @@ block1(v3: @Pair, v4: i32):
 
     // start coroutine and capture continuation
     let yielded =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_alloc", &[]));
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldAlloc", &[]));
     let continuation = yielded.continuation;
 
     // collect garbage while continuation is suspended

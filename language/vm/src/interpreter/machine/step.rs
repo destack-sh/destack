@@ -34,6 +34,7 @@ pub(crate) fn step_instruction(
         InstructionOperation::BinaryUint => super::step_binary_uint(state, block, pc),
         InstructionOperation::Branch => super::step_branch(state, block, pc),
         InstructionOperation::BranchBool => super::step_branch_bool(state, block, pc),
+        InstructionOperation::Check => super::step_check(state, block, pc),
         InstructionOperation::Call => super::step_call(state, block, pc),
         InstructionOperation::CallBranch => super::step_call_branch(state, block, pc),
         InstructionOperation::CallIndirect => super::step_call_indirect(state, block, pc),
@@ -148,7 +149,7 @@ pub(crate) fn step_instruction(
         InstructionOperation::FieldStoreRaw => super::step_field_store_raw(state, block, pc),
         InstructionOperation::FieldStoreStack => super::step_field_store_stack(state, block, pc),
         InstructionOperation::FunctionAddr => super::step_function_addr(state, block, pc),
-        InstructionOperation::FunctionValue => super::step_function_value(state, block, pc),
+        InstructionOperation::Closure => super::step_function_value(state, block, pc),
         InstructionOperation::FunctionEnvironment => {
             super::step_function_environment(state, block, pc)
         }

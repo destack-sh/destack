@@ -57,9 +57,9 @@ fn create_isolate_with_data_layout(mir_text: &str, data_layout: DataLayout) -> T
 #[test]
 fn test_managed_allocate() {
     let mir = r#"
-function @alloc() -> ref<managed readonly i32> {
-block0:
-    v0: ref<managed readonly i32> = managed.alloc i32
+function alloc(): ref<int32, managed, readonly> {
+b0:
+    v0: ref<int32, managed, readonly> = managed.alloc int32
     return v0
 }"#;
     let output = run_mir_ok(mir, "alloc", &[]);
@@ -71,15 +71,15 @@ block0:
 #[test]
 fn test_load_store() {
     let mir = r#"
-function @load_store() -> i32 {
-block0:
-    v0: ref<managed readonly i32> = managed.alloc i32
-    v1: i32 = iconst 42i32
+function loadStore(): int32 {
+b0:
+    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-    run_mir_expect(mir, "load_store", &[], Value::int32(42));
+    run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
 /// Store rejects unsupported address spaces in the VM.
@@ -87,16 +87,16 @@ block0:
 fn test_store_unsupported_address_space() {
     // define a shared address space store
     let mir = r#"
-function @store_shared(v0: ref<raw addrspace(shared) i32>) -> void {
-block0(v0: ref<raw addrspace(shared) i32>):
-    v1: i32 = iconst 1i32
+function storeShared(v0: ref<int32, raw, addressSpace(shared)>): void {
+b0(v0: ref<int32, raw, addressSpace(shared)>):
+    v1: int32 = 1int32
     store v0, v1
     return
 }"#;
 
     // run and capture the error
     let pointer = Value::raw_pointer(RawPointer::new(1));
-    let result = run_mir(mir, "store_shared", &[pointer]);
+    let result = run_mir(mir, "storeShared", &[pointer]);
 
     // confirm the address space is rejected
     assert_runtime_error_matches!(result, Error::UnsupportedAddressSpace { .. });
@@ -107,16 +107,16 @@ block0(v0: ref<raw addrspace(shared) i32>):
 fn test_store_invalid_address_space() {
     // define a stack address space store
     let mir = r#"
-function @store_stack(v0: ref<raw addrspace(stack) i32>) -> void {
-block0(v0: ref<raw addrspace(stack) i32>):
-    v1: i32 = iconst 1i32
+function storeStack(v0: ref<int32, raw, addressSpace(stack)>): void {
+b0(v0: ref<int32, raw, addressSpace(stack)>):
+    v1: int32 = 1int32
     store v0, v1
     return
 }"#;
 
     // run with a heap pointer to trigger mismatch
     let pointer = Value::raw_pointer(RawPointer::new(1));
-    let result = run_mir(mir, "store_stack", &[pointer]);
+    let result = run_mir(mir, "storeStack", &[pointer]);
 
     // confirm the address space mismatch
     assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
@@ -127,8 +127,8 @@ block0(v0: ref<raw addrspace(stack) i32>):
 fn test_external_context_shared_bytes_roundtrip() {
     let mut isolate = create_isolate(
         r#"
-function @noop() -> void {
-block0:
+function noop(): void {
+b0:
     return
 }"#,
     );
@@ -170,13 +170,13 @@ block0:
 #[test]
 fn test_managed_allocate_array() {
     let mir = r#"
-function @alloc_array() -> ref<managed readonly i32> {
-block0:
-    v0: i64 = iconst 10i64
-    v1: ref<managed readonly i32> = managed.alloc_array i32, v0
+function allocArray(): ref<int32, managed, readonly> {
+b0:
+    v0: int64 = 10int64
+    v1: ref<int32, managed, readonly> = managed.allocArray int32, v0
     return v1
 }"#;
-    let output = run_mir_ok(mir, "alloc_array", &[]);
+    let output = run_mir_ok(mir, "allocArray", &[]);
     assert!(output.value.is_managed_reference());
     assert_eq!(output.managed_allocation_count, 1);
 }
@@ -185,13 +185,13 @@ block0:
 #[test]
 fn test_extract_field() {
     let mir = r#"
-function @get_first(v0: (i32, i32)) -> i32 {
-block0(v0: (i32, i32)):
-    v1: i32 = field.get v0, 0
+function getFirst(v0: (int32, int32)): int32 {
+b0(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
     return v1
 }"#;
-    let output = run_mir_with_ok(mir, "get_first", |interp| {
-        let ty = interp.parameter_type("get_first", 0);
+    let output = run_mir_with_ok(mir, "getFirst", |interp| {
+        let ty = interp.parameter_type("getFirst", 0);
         let agg = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
         vec![agg]
     });
@@ -203,14 +203,14 @@ block0(v0: (i32, i32)):
 fn test_insert_field() {
     // test that field.set modifies field 0 correctly
     let mir = r#"
-function @set_and_get(v0: (i32, i32), v1: i32) -> i32 {
-block0(v0: (i32, i32), v1: i32):
-    v2: (i32, i32) = field.set v0, 0, v1
-    v3: i32 = field.get v2, 0
+function setAndGet(v0: (int32, int32), v1: int32): int32 {
+b0(v0: (int32, int32), v1: int32):
+    v2: (int32, int32) = field.set v0, 0, v1
+    v3: int32 = field.get v2, 0
     return v3
 }"#;
-    let output = run_mir_with_ok(mir, "set_and_get", |interp| {
-        let ty = interp.parameter_type("set_and_get", 0);
+    let output = run_mir_with_ok(mir, "setAndGet", |interp| {
+        let ty = interp.parameter_type("setAndGet", 0);
         let agg = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
         vec![agg, Value::int32(99)]
     });
@@ -221,16 +221,16 @@ block0(v0: (i32, i32), v1: i32):
 #[test]
 fn test_insert_field_does_not_alias_original() {
     let mir = r#"
-function @set_without_alias(v0: (i32, i32), v1: i32) -> i32 {
-block0(v0: (i32, i32), v1: i32):
-    v2: (i32, i32) = field.set v0, 0, v1
-    v3: i32 = field.get v0, 0
-    v4: i32 = field.get v2, 0
-    v5: i32 = iadd v3, v4
+function setWithoutAlias(v0: (int32, int32), v1: int32): int32 {
+b0(v0: (int32, int32), v1: int32):
+    v2: (int32, int32) = field.set v0, 0, v1
+    v3: int32 = field.get v0, 0
+    v4: int32 = field.get v2, 0
+    v5: int32 = int.add v3, v4
     return v5
 }"#;
-    let output = run_mir_with_ok(mir, "set_without_alias", |interp| {
-        let ty = interp.parameter_type("set_without_alias", 0);
+    let output = run_mir_with_ok(mir, "setWithoutAlias", |interp| {
+        let ty = interp.parameter_type("setWithoutAlias", 0);
         let tuple = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
 
         vec![tuple, Value::int32(99)]
@@ -243,14 +243,14 @@ block0(v0: (i32, i32), v1: i32):
 #[test]
 fn test_extract_element() {
     let mir = r#"
-function @get_elem(v0: [i32; 3], v1: i64) -> i32 {
-block0(v0: [i32; 3], v1: i64):
-    v2: i32 = element.get v0, v1
+function getElem(v0: int32[3], v1: int64): int32 {
+b0(v0: int32[3], v1: int64):
+    v2: int32 = element.get v0, v1
     return v2
 }"#;
     // test element 0
-    let output = run_mir_with_ok(mir, "get_elem", |interp| {
-        let ty = interp.parameter_type("get_elem", 0);
+    let output = run_mir_with_ok(mir, "getElem", |interp| {
+        let ty = interp.parameter_type("getElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
             vec![Value::int32(10), Value::int32(20), Value::int32(30)],
@@ -260,8 +260,8 @@ block0(v0: [i32; 3], v1: i64):
     assert_eq!(output.value, Value::int32(10));
 
     // test element 1
-    let output = run_mir_with_ok(mir, "get_elem", |interp| {
-        let ty = interp.parameter_type("get_elem", 0);
+    let output = run_mir_with_ok(mir, "getElem", |interp| {
+        let ty = interp.parameter_type("getElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
             vec![Value::int32(10), Value::int32(20), Value::int32(30)],
@@ -271,8 +271,8 @@ block0(v0: [i32; 3], v1: i64):
     assert_eq!(output.value, Value::int32(20));
 
     // test element 2
-    let output = run_mir_with_ok(mir, "get_elem", |interp| {
-        let ty = interp.parameter_type("get_elem", 0);
+    let output = run_mir_with_ok(mir, "getElem", |interp| {
+        let ty = interp.parameter_type("getElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
             vec![Value::int32(10), Value::int32(20), Value::int32(30)],
@@ -286,35 +286,35 @@ block0(v0: [i32; 3], v1: i64):
 #[test]
 fn test_extract_element_from_local_array() {
     let mir = r#"
-function @get_local_elem(v0: i64) -> i32 {
-block0(v0: i64):
-    v1: i32 = iconst 10i32
-    v2: i32 = iconst 20i32
-    v3: i32 = iconst 30i32
-    v4: [i32; 3] = array [i32; 3] (v1, v2, v3)
-    v5: i32 = element.get v4, v0
+function getLocalElem(v0: int64): int32 {
+b0(v0: int64):
+    v1: int32 = 10int32
+    v2: int32 = 20int32
+    v3: int32 = 30int32
+    v4: int32[3] = [v1, v2, v3]
+    v5: int32 = element.get v4, v0
     return v5
 }"#;
 
-    run_mir_expect(mir, "get_local_elem", &[Value::uint64(0)], Value::int32(10));
-    run_mir_expect(mir, "get_local_elem", &[Value::uint64(1)], Value::int32(20));
-    run_mir_expect(mir, "get_local_elem", &[Value::uint64(2)], Value::int32(30));
+    run_mir_expect(mir, "getLocalElem", &[Value::uint64(0)], Value::int32(10));
+    run_mir_expect(mir, "getLocalElem", &[Value::uint64(1)], Value::int32(20));
+    run_mir_expect(mir, "getLocalElem", &[Value::uint64(2)], Value::int32(30));
 }
 
 /// Element set returns one fresh array value instead of mutating the original.
 #[test]
 fn test_insert_element_does_not_alias_original() {
     let mir = r#"
-function @set_without_alias(v0: [i32; 3], v1: i64, v2: i32) -> i32 {
-block0(v0: [i32; 3], v1: i64, v2: i32):
-    v3: [i32; 3] = element.set v0, v1, v2
-    v4: i32 = element.get v0, v1
-    v5: i32 = element.get v3, v1
-    v6: i32 = iadd v4, v5
+function setWithoutAlias(v0: int32[3], v1: int64, v2: int32): int32 {
+b0(v0: int32[3], v1: int64, v2: int32):
+    v3: int32[3] = element.set v0, v1, v2
+    v4: int32 = element.get v0, v1
+    v5: int32 = element.get v3, v1
+    v6: int32 = int.add v4, v5
     return v6
 }"#;
-    let output = run_mir_with_ok(mir, "set_without_alias", |interp| {
-        let ty = interp.parameter_type("set_without_alias", 0);
+    let output = run_mir_with_ok(mir, "setWithoutAlias", |interp| {
+        let ty = interp.parameter_type("setWithoutAlias", 0);
         let array = interp.materialize_value_for_type(
             ty,
             vec![Value::int32(10), Value::int32(20), Value::int32(30)],
@@ -331,14 +331,14 @@ block0(v0: [i32; 3], v1: i64, v2: i32):
 fn test_insert_element() {
     // test that element.set modifies the correct element
     let mir = r#"
-function @set_and_get(v0: [i32; 3], v1: i64, v2: i32) -> i32 {
-block0(v0: [i32; 3], v1: i64, v2: i32):
-    v3: [i32; 3] = element.set v0, v1, v2
-    v4: i32 = element.get v3, v1
+function setAndGet(v0: int32[3], v1: int64, v2: int32): int32 {
+b0(v0: int32[3], v1: int64, v2: int32):
+    v3: int32[3] = element.set v0, v1, v2
+    v4: int32 = element.get v3, v1
     return v4
 }"#;
-    let output = run_mir_with_ok(mir, "set_and_get", |interp| {
-        let ty = interp.parameter_type("set_and_get", 0);
+    let output = run_mir_with_ok(mir, "setAndGet", |interp| {
+        let ty = interp.parameter_type("setAndGet", 0);
         let arr = interp.materialize_value_for_type(
             ty,
             vec![Value::int32(10), Value::int32(20), Value::int32(30)],
@@ -352,22 +352,22 @@ block0(v0: [i32; 3], v1: i64, v2: i32):
 #[test]
 fn test_insert_element_on_local_array() {
     let mir = r#"
-function @set_local_and_get(v0: i64, v1: i32) -> i32 {
-block0(v0: i64, v1: i32):
-    v2: i32 = iconst 10i32
-    v3: i32 = iconst 20i32
-    v4: i32 = iconst 30i32
-    v5: [i32; 3] = array [i32; 3] (v2, v3, v4)
-    v6: [i32; 3] = element.set v5, v0, v1
-    v7: i32 = element.get v5, v0
-    v8: i32 = element.get v6, v0
-    v9: i32 = iadd v7, v8
+function setLocalAndGet(v0: int64, v1: int32): int32 {
+b0(v0: int64, v1: int32):
+    v2: int32 = 10int32
+    v3: int32 = 20int32
+    v4: int32 = 30int32
+    v5: int32[3] = [v2, v3, v4]
+    v6: int32[3] = element.set v5, v0, v1
+    v7: int32 = element.get v5, v0
+    v8: int32 = element.get v6, v0
+    v9: int32 = int.add v7, v8
     return v9
 }"#;
 
     run_mir_expect(
         mir,
-        "set_local_and_get",
+        "setLocalAndGet",
         &[Value::uint64(1), Value::int32(99)],
         Value::int32(119),
     );
@@ -377,49 +377,53 @@ block0(v0: i64, v1: i32):
 #[test]
 fn test_heap_field_access() {
     let mir = r#"
-function @heap_field() -> i32 {
-block0:
-    v0: ref<managed readonly (i32, i32)> = managed.alloc (i32, i32)
-    v1: i32 = iconst 42i32
-    v2: ref<managed readonly i32> = field.addr v0, 0
+function heapField(): int32 {
+b0:
+    v0: ref<(int32, int32), managed, readonly> = managed.alloc (int32, int32)
+    v1: int32 = 42int32
+    v2: ref<int32, managed, readonly> = field.address v0, 0
     store v2, v1
-    v3: i32 = load v2
+    v3: int32 = load v2
     return v3
 }"#;
-    run_mir_expect(mir, "heap_field", &[], Value::int32(42));
+    run_mir_expect(mir, "heapField", &[], Value::int32(42));
 }
 
 /// Single field aggregates expose the stored field value.
 #[test]
 fn test_single_field_aggregate_roundtrips_field() {
     let mir = r#"
-type @Box = { value: i32 }
+type Box {
+    value: int32;
+}
 
-function @read_box(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: @Box = struct @Box (v0)
-    v2: i32 = field.get v1, 0
+function readBox(v0: int32): int32 {
+b0(v0: int32):
+    v1: Box = struct Box (v0)
+    v2: int32 = field.get v1, 0
     return v2
 }"#;
 
-    run_mir_expect(mir, "read_box", &[Value::int32(9)], Value::int32(9));
+    run_mir_expect(mir, "readBox", &[Value::int32(9)], Value::int32(9));
 }
 
 /// Managed nominal allocations use layout bytes rather than packed value storage.
 #[test]
 fn test_managed_nominal_allocation_uses_layout_storage() {
     let mir = r#"
-type @Box = { value: i32 }
+type Box {
+    value: int32;
+}
 
-function @alloc_box() -> ref<managed readonly @Box> {
-block0:
-    v0: ref<managed readonly @Box> = managed.alloc @Box
+function allocBox(): ref<Box, managed, readonly> {
+b0:
+    v0: ref<Box, managed, readonly> = managed.alloc Box
     return v0
 }"#;
 
     let mut isolate = create_isolate(mir);
     let output = isolate
-        .run_function_by_name("alloc_box", &[])
+        .run_function_by_name("allocBox", &[])
         .expect("execution failed");
     let handle = output
         .value
@@ -437,19 +441,21 @@ block0:
 #[test]
 fn test_managed_nominal_store_roundtrips_payload() {
     let mir = r#"
-type @Box = { value: i32 }
+type Box {
+    value: int32;
+}
 
-function @make_box(v0: i32) -> ref<managed readonly @Box> {
-block0(v0: i32):
-    v1: @Box = struct @Box (v0)
-    v2: ref<managed readonly @Box> = managed.alloc @Box
+function makeBox(v0: int32): ref<Box, managed, readonly> {
+b0(v0: int32):
+    v1: Box = struct Box (v0)
+    v2: ref<Box, managed, readonly> = managed.alloc Box
     store v2, v1
     return v2
 }"#;
 
     let mut isolate = create_isolate(mir);
     let output = isolate
-        .run_function_by_name("make_box", &[Value::int32(9)])
+        .run_function_by_name("makeBox", &[Value::int32(9)])
         .expect("execution failed");
     let handle = output
         .value
@@ -468,11 +474,14 @@ block0(v0: i32):
 #[test]
 fn test_managed_nominal_allocation_uses_modulus_alignment() {
     let mir = r#"
-type @Packed = { a: u8, b: ref<managed readonly i32>, c: u8 }
-
-function @alloc_packed() -> ref<managed readonly @Packed> {
-block0:
-    v0: ref<managed readonly @Packed> = managed.alloc @Packed
+type Packed {
+    a: uint8;
+    b: ref<int32, managed, readonly>;
+    c: uint8;
+}
+function allocPacked(): ref<Packed, managed, readonly> {
+b0:
+    v0: ref<Packed, managed, readonly> = managed.alloc Packed
     return v0
 }"#;
     let data_layout = DataLayout {
@@ -486,7 +495,7 @@ block0:
 
     let mut isolate = create_isolate_with_data_layout(mir, data_layout);
     let output = isolate
-        .run_function_by_name("alloc_packed", &[])
+        .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
     let handle = output
         .value
@@ -505,10 +514,10 @@ block0:
 #[test]
 fn test_managed_alloc_array_uses_pointer_stride() {
     let mir = r#"
-function @alloc_array() -> ref<managed readonly ref<managed readonly i32>> {
-block0:
-    v0: i64 = iconst 2i64
-    v1: ref<managed readonly ref<managed readonly i32>> = managed.alloc_array ref<managed readonly i32>, v0
+function allocArray(): ref<ref<int32, managed, readonly>, managed, readonly> {
+b0:
+    v0: int64 = 2int64
+    v1: ref<ref<int32, managed, readonly>, managed, readonly> = managed.allocArray ref<int32, managed, readonly>, v0
     return v1
 }"#;
     let data_layout = DataLayout {
@@ -522,7 +531,7 @@ block0:
 
     let mut isolate = create_isolate_with_data_layout(mir, data_layout);
     let output = isolate
-        .run_function_by_name("alloc_array", &[])
+        .run_function_by_name("allocArray", &[])
         .expect("execution failed");
     let handle = output
         .value
@@ -545,32 +554,30 @@ block0:
 #[test]
 fn test_managed_field_load_matches_whole_object_load() {
     let mir = r#"
-type @Holder = { value: ref<managed readonly i32> }
+type Holder {
+    value: ref<int32, managed, readonly>;
+}
 
-function @compare_paths() -> i32 {
-block0:
-    v0: ref<managed readonly i32> = managed.alloc i32
-    v1: i32 = iconst 41i32
+function comparePaths(): int32 {
+b0:
+    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v1: int32 = 41int32
     store v0, v1
-
-    v2: @Holder = struct @Holder (v0)
-    v3: ref<managed readonly @Holder> = managed.alloc @Holder
+    v2: Holder = struct Holder (v0)
+    v3: ref<Holder, managed, readonly> = managed.alloc Holder
     store v3, v2
-
-    v4: ref<managed readonly ref<managed readonly i32>> = field.addr v3, 0
-    v5: ref<managed readonly i32> = load v4
-
-    v6: @Holder = load v3
-    v7: ref<managed readonly i32> = field.get v6, 0
-
-    v8: i32 = load v5
-    v9: i32 = load v7
-    v10: i32 = iadd v8, v9
+    v4: ref<ref<int32, managed, readonly>, managed, readonly> = field.address v3, 0
+    v5: ref<int32, managed, readonly> = load v4
+    v6: Holder = load v3
+    v7: ref<int32, managed, readonly> = field.get v6, 0
+    v8: int32 = load v5
+    v9: int32 = load v7
+    v10: int32 = int.add v8, v9
     return v10
 }"#;
     let mut isolate = create_isolate(mir);
     let output = isolate
-        .run_function_by_name("compare_paths", &[])
+        .run_function_by_name("comparePaths", &[])
         .expect("execution failed");
 
     // both paths should recover the same referenced payload
@@ -581,9 +588,9 @@ block0:
 #[test]
 fn test_invalid_field_access() {
     let mir = r#"
-function @bad_field(v0: (i32,)) -> i32 {
-block0(v0: (i32,)):
-    v1: i32 = field.get v0, 5
+function badField(v0: (int32,)): int32 {
+b0(v0: (int32,)):
+    v1: int32 = field.get v0, 5
     return v1
 }"#;
 
@@ -600,13 +607,13 @@ block0(v0: (i32,)):
 #[test]
 fn test_invalid_array_access() {
     let mir = r#"
-function @bad_elem(v0: [i32; 3], v1: i64) -> i32 {
-block0(v0: [i32; 3], v1: i64):
-    v2: i32 = element.get v0, v1
+function badElem(v0: int32[3], v1: int64): int32 {
+b0(v0: int32[3], v1: int64):
+    v2: int32 = element.get v0, v1
     return v2
 }"#;
-    let result = run_mir_with(mir, "bad_elem", |interp| {
-        let ty = interp.parameter_type("bad_elem", 0);
+    let result = run_mir_with(mir, "badElem", |interp| {
+        let ty = interp.parameter_type("badElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
             vec![Value::int32(10), Value::int32(20), Value::int32(30)],
@@ -620,21 +627,21 @@ block0(v0: [i32; 3], v1: i64):
 #[test]
 fn test_allocation_limit() {
     let mir = r#"
-function @alloc_many() -> void {
-block0:
-    v0: i32 = iconst 0i32
-    jump block1(v0)
-block1(v1: i32):
-    v2: ref<managed readonly i32> = managed.alloc i32
-    v3: i32 = iconst 1i32
-    v4: i32 = iadd v1, v3
-    v5: i32 = iconst 2000i32
-    v6: bool = icmp_slt v4, v5
-    branch v6, block1(v4), block2
-block2:
+function allocMany(): void {
+b0:
+    v0: int32 = 0int32
+    jump b1(v0)
+b1(v1: int32):
+    v2: ref<int32, managed, readonly> = managed.alloc int32
+    v3: int32 = 1int32
+    v4: int32 = int.add v1, v3
+    v5: int32 = 2000int32
+    v6: boolean = int.lt.s v4, v5
+    branch v6, b1(v4), b2
+b2:
     return
 }"#;
-    let result = run_mir(mir, "alloc_many", &[]);
+    let result = run_mir(mir, "allocMany", &[]);
     assert_runtime_error_matches!(result, Error::AllocationFailed);
 }
 
@@ -642,12 +649,12 @@ block2:
 #[test]
 fn test_raw_allocate() {
     let mir = r#"
-function @raw_alloc() -> ref<raw readonly i32> {
-block0:
-    v0: ref<raw readonly i32> = raw.alloc i32
+function rawAlloc(): ref<int32, raw, readonly> {
+b0:
+    v0: ref<int32, raw, readonly> = raw.alloc int32
     return v0
 }"#;
-    let output = run_mir_ok(mir, "raw_alloc", &[]);
+    let output = run_mir_ok(mir, "rawAlloc", &[]);
     assert!(output.value.as_raw_pointer().is_some());
     assert_eq!(output.raw_allocation_count, 1);
 }
@@ -656,16 +663,16 @@ block0:
 #[test]
 fn test_raw_free() {
     let mir = r#"
-function @raw_alloc_free() -> i32 {
-block0:
-    v0: ref<raw readonly i32> = raw.alloc i32
-    v1: i32 = iconst 42i32
+function rawAllocFree(): int32 {
+b0:
+    v0: ref<int32, raw, readonly> = raw.alloc int32
+    v1: int32 = 42int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     raw.free v0
     return v2
 }"#;
-    let output = run_mir_ok(mir, "raw_alloc_free", &[]);
+    let output = run_mir_ok(mir, "rawAllocFree", &[]);
     assert_eq!(output.value, Value::int32(42));
     // after free, raw heap should be empty
     assert_eq!(output.raw_allocation_count, 0);
@@ -675,14 +682,14 @@ block0:
 #[test]
 fn test_raw_free_invalid() {
     let mir = r#"
-function @double_free() -> void {
-block0:
-    v0: ref<raw readonly i32> = raw.alloc i32
+function doubleFree(): void {
+b0:
+    v0: ref<int32, raw, readonly> = raw.alloc int32
     raw.free v0
     raw.free v0
     return
 }"#;
-    let result = run_mir(mir, "double_free", &[]);
+    let result = run_mir(mir, "doubleFree", &[]);
     assert_runtime_error_matches!(result, Error::InvalidManagedReference);
 }
 
@@ -691,25 +698,26 @@ block0:
 fn test_string_header_lengths() {
     let mir = [
         STRING_TYPE_ALIAS,
-        r#"global @literal:string:unicode_he: ref<managed readonly @String> = "h\u{00E9}" ; readonly
+        r#"
+global stringLiteralUnicodeHe: ref<String, managed, readonly>, readonly = "h\u{00E9}"
 
-function @len_utf16() -> u32 {
-block0:
-    v0: ref<managed readonly @String> = global.const @literal:string:unicode_he
-    v1: u32 = field.get v0, 0
+function lenUtf16(): uint32 {
+b0:
+    v0: ref<String, managed, readonly> = global.const stringLiteralUnicodeHe
+    v1: uint32 = field.get v0, 0
     return v1
 }
 
-function @len_bytes() -> u32 {
-block0:
-    v0: ref<managed readonly @String> = global.const @literal:string:unicode_he
-    v1: u32 = field.get v0, 1
+function lenBytes(): uint32 {
+b0:
+    v0: ref<String, managed, readonly> = global.const stringLiteralUnicodeHe
+    v1: uint32 = field.get v0, 1
     return v1
 }"#,
     ]
     .concat();
-    run_mir_expect(&mir, "len_utf16", &[], Value::uint32(2));
-    run_mir_expect(&mir, "len_bytes", &[], Value::uint32(3));
+    run_mir_expect(&mir, "lenUtf16", &[], Value::uint32(2));
+    run_mir_expect(&mir, "lenBytes", &[], Value::uint32(3));
 }
 
 /// String data pointers expose raw bytes for mem intrinsics.
@@ -717,29 +725,30 @@ block0:
 fn test_string_payload_bytes() {
     let mir = [
         STRING_TYPE_ALIAS,
-        r#"global @literal:string:Hi: ref<managed readonly @String> = "Hi" ; readonly
-global @literal:string:abc: ref<managed readonly @String> = "abc" ; readonly
+        r#"
+global stringLiteralHi: ref<String, managed, readonly>, readonly = "Hi"
+global stringLiteralAbc: ref<String, managed, readonly>, readonly = "abc"
 
-function @first_byte() -> u8 {
-block0:
-    v0: ref<managed readonly @String> = global.const @literal:string:Hi
-    v1: ref<raw u8> = field.get v0, 2
-    v2: u8 = load v1
+function firstByte(): uint8 {
+b0:
+    v0: ref<String, managed, readonly> = global.const stringLiteralHi
+    v1: ref<uint8, raw> = field.get v0, 2
+    v2: uint8 = load v1
     return v2
 }
 
-function @memcmp_self() -> i32 {
-block0:
-    v0: ref<managed readonly @String> = global.const @literal:string:abc
-    v1: ref<raw u8> = field.get v0, 2
-    v2: u64 = iconst 3u64
-    v3: i32 = intrinsic.memcmp(v1, v1, v2)
+function memcmpSelf(): int32 {
+b0:
+    v0: ref<String, managed, readonly> = global.const stringLiteralAbc
+    v1: ref<uint8, raw> = field.get v0, 2
+    v2: uint64 = 3uint64
+    v3: int32 = intrinsic.memcmp(v1, v1, v2)
     return v3
 }"#,
     ]
     .concat();
-    run_mir_expect(&mir, "first_byte", &[], Value::uint(72, 8));
-    run_mir_expect(&mir, "memcmp_self", &[], Value::int32(0));
+    run_mir_expect(&mir, "firstByte", &[], Value::uint(72, 8));
+    run_mir_expect(&mir, "memcmpSelf", &[], Value::int32(0));
 }
 
 /// String header pointers follow the active native pointer width.
@@ -747,13 +756,14 @@ block0:
 fn test_string_payload_bytes_under_pointer32_layout() {
     let mir = [
         STRING_TYPE_ALIAS,
-        r#"global @literal:string:Hi: ref<managed readonly @String> = "Hi" ; readonly
+        r#"
+global stringLiteralHi: ref<String, managed, readonly>, readonly = "Hi"
 
-function @first_byte() -> u8 {
-block0:
-    v0: ref<managed readonly @String> = global.const @literal:string:Hi
-    v1: ref<raw u8> = field.get v0, 2
-    v2: u8 = load v1
+function firstByte(): uint8 {
+b0:
+    v0: ref<String, managed, readonly> = global.const stringLiteralHi
+    v1: ref<uint8, raw> = field.get v0, 2
+    v2: uint8 = load v1
     return v2
 }"#,
     ]
@@ -769,7 +779,7 @@ block0:
 
     let mut isolate = create_isolate_with_data_layout(&mir, data_layout);
     let output = isolate
-        .run_function_by_name("first_byte", &[])
+        .run_function_by_name("firstByte", &[])
         .expect("execution failed");
 
     // pointer-sized raw pointers should still roundtrip through the string header
@@ -782,8 +792,8 @@ fn test_string_value_rejects_non_string_managed_reference() {
     let mir = [
         STRING_TYPE_ALIAS,
         r#"
-function @noop() -> void {
-block0:
+function noop(): void {
+b0:
     return
 }"#,
     ]
@@ -815,7 +825,7 @@ block0:
 fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
     let mir = [
         STRING_TYPE_ALIAS,
-        "\nfunction @noop() -> void {\nblock0:\n    return\n}",
+        "\nfunction noop(): void {\nb0:\n    return\n}",
     ]
     .concat();
     let (mut tree, strings) =
@@ -877,12 +887,16 @@ fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
 #[test]
 fn test_string_value_rejects_structurally_matching_non_builtin_layout() {
     let mir = [
-        r#"type @Other = { lengthUtf16: u32, lengthBytes: u32, data: ref<raw u8> }
-"#,
+        r#"
+type Other {
+    lengthUtf16: uint32;
+    lengthBytes: uint32;
+    data: ref<uint8, raw>;
+}"#,
         STRING_TYPE_ALIAS,
         r#"
-function @noop() -> void {
-block0:
+function noop(): void {
+b0:
     return
 }"#,
     ]
@@ -926,51 +940,52 @@ block0:
 #[test]
 fn test_stack_allocate() {
     let mir = r#"
-function @stack_alloc() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
-    v1: i32 = iconst 99i32
+function stackAlloc(): int32 {
+b0:
+    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v1: int32 = 99int32
     store v0, v1
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-    run_mir_expect(mir, "stack_alloc", &[], Value::int32(99));
+    run_mir_expect(mir, "stackAlloc", &[], Value::int32(99));
 }
 
 /// Stack allocation with field access.
 #[test]
 fn test_stack_allocate_struct() {
     let mir = r#"
-function @stack_struct() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) readonly (i32, i32)> = stack.alloc (i32, i32)
-    v1: i32 = iconst 10i32
-    v2: ref<borrowed readonly i32> = field.addr v0, 0
+function stackStruct(): int32 {
+b0:
+    v0: ref<(int32, int32), raw, readonly, addressSpace(stack)> = stack.alloc (int32, int32)
+    v1: int32 = 10int32
+    v2: ref<int32, borrowed, readonly> = field.address v0, 0
     store v2, v1
-    v3: i32 = load v2
+    v3: int32 = load v2
     return v3
 }"#;
-    run_mir_expect(mir, "stack_struct", &[], Value::int32(10));
+    run_mir_expect(mir, "stackStruct", &[], Value::int32(10));
 }
 
 /// Stack allocation stores managed references under a 32 bit pointer layout.
 #[test]
 fn test_stack_allocate_pointer32_managed_reference_field() {
     let mir = r#"
-type @Packed = { a: u8, b: ref<managed readonly i32>, c: u8 }
-
-function @stack_packed() -> i32 {
-block0:
-    v0: ref<managed readonly i32> = managed.alloc i32
-    v1: i32 = iconst 77i32
+type Packed {
+    a: uint8;
+    b: ref<int32, managed, readonly>;
+    c: uint8;
+}
+function stackPacked(): int32 {
+b0:
+    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v1: int32 = 77int32
     store v0, v1
-
-    v2: ref<raw addrspace(stack) readonly @Packed> = stack.alloc @Packed
-    v3: ref<borrowed readonly ref<managed readonly i32>> = field.addr v2, 1
+    v2: ref<Packed, raw, readonly, addressSpace(stack)> = stack.alloc Packed
+    v3: ref<ref<int32, managed, readonly>, borrowed, readonly> = field.address v2, 1
     store v3, v0
-
-    v4: ref<managed readonly i32> = load v3
-    v5: i32 = load v4
+    v4: ref<int32, managed, readonly> = load v3
+    v5: int32 = load v4
     return v5
 }"#;
     let data_layout = DataLayout {
@@ -984,7 +999,7 @@ block0:
 
     let mut isolate = create_isolate_with_data_layout(mir, data_layout);
     let output = isolate
-        .run_function_by_name("stack_packed", &[])
+        .run_function_by_name("stackPacked", &[])
         .expect("execution failed");
 
     // stack storage should preserve managed reference payloads on 32 bit targets
@@ -995,12 +1010,12 @@ block0:
 #[test]
 fn test_null_pointer_load() {
     let mir = r#"
-function @null_load(v0: ref<raw readonly i32>) -> i32 {
-block0(v0: ref<raw readonly i32>):
-    v1: i32 = load v0
+function nullLoad(v0: ref<int32, raw, readonly>): int32 {
+b0(v0: ref<int32, raw, readonly>):
+    v1: int32 = load v0
     return v1
 }"#;
-    let result = run_mir(mir, "null_load", &[Value::raw_pointer(RawPointer::NULL)]);
+    let result = run_mir(mir, "nullLoad", &[Value::raw_pointer(RawPointer::NULL)]);
     assert_runtime_error_matches!(result, Error::NullPointerDereference);
 }
 
@@ -1008,14 +1023,14 @@ block0(v0: ref<raw readonly i32>):
 #[test]
 fn test_null_pointer_store() {
     let mir = r#"
-function @null_store(v0: ref<raw i32>, v1: i32) -> void {
-block0(v0: ref<raw i32>, v1: i32):
+function nullStore(v0: ref<int32, raw>, v1: int32): void {
+b0(v0: ref<int32, raw>, v1: int32):
     store v0, v1
     return
 }"#;
     let result = run_mir(
         mir,
-        "null_store",
+        "nullStore",
         &[Value::raw_pointer(RawPointer::NULL), Value::int32(42)],
     );
     assert_runtime_error_matches!(result, Error::NullPointerDereference);
@@ -1025,15 +1040,15 @@ block0(v0: ref<raw i32>, v1: i32):
 #[test]
 fn test_use_after_free() {
     let mir = r#"
-function @use_after_free() -> i32 {
-block0:
-    v0: ref<raw readonly i32> = raw.alloc i32
-    v1: i32 = iconst 42i32
+function useAfterFree(): int32 {
+b0:
+    v0: ref<int32, raw, readonly> = raw.alloc int32
+    v1: int32 = 42int32
     store v0, v1
     raw.free v0
-    v2: i32 = load v0
+    v2: int32 = load v0
     return v2
 }"#;
-    let result = run_mir(mir, "use_after_free", &[]);
+    let result = run_mir(mir, "useAfterFree", &[]);
     assert_runtime_error_matches!(result, Error::InvalidManagedReference);
 }

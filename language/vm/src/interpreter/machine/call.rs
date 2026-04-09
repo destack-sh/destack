@@ -161,39 +161,36 @@ fn resolve_interface_dispatch_target(
 fn resolve_indirect_callable(
     state: &mut StepState<'_, '_>,
     callable: Value,
-    signature: mir::LocalNodeId<mir::Type>,
+    callable_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Value>), Error> {
-    // plain callable code
-    let signature = crate::executable::repr_type(state.tree(), signature);
+    // dispatch by the actual callee SSA type, not the code signature
+    let callable_type = crate::executable::repr_type(state.tree(), callable_type);
+    match state.tree().get(callable_type) {
+        mir::Type::FunctionPointer { .. } => {
+            let function = callable
+                .as_function_pointer()
+                .ok_or_else(|| Error::TypeMismatch {
+                    expected: "function_pointer".to_string(),
+                    actual: format!("{callable:?}"),
+                })?;
 
-    if matches!(
-        state.tree().get(signature),
-        mir::Type::FunctionPointer { .. }
-    ) {
-        let function = callable
-            .as_function_pointer()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "function_pointer".to_string(),
-                actual: format!("{callable:?}"),
-            })?;
+            Ok((function, None))
+        }
+        mir::Type::Closure { .. } => {
+            let (function_value, environment_value) =
+                access::decode_function_value(state, callable)?;
+            let function =
+                function_value
+                    .as_function_pointer()
+                    .ok_or_else(|| Error::TypeMismatch {
+                        expected: "function_pointer".to_string(),
+                        actual: format!("{function_value:?}"),
+                    })?;
 
-        return Ok((function, None));
+            Ok((function, Some(environment_value)))
+        }
+        _ => Err(Error::InvalidInstruction),
     }
-
-    // closure style callable value
-    let mir::Type::FunctionValue { .. } = state.tree().get(signature) else {
-        return Err(Error::InvalidInstruction);
-    };
-
-    let (function_value, environment_value) = access::decode_function_value(state, callable)?;
-    let function = function_value
-        .as_function_pointer()
-        .ok_or_else(|| Error::TypeMismatch {
-            expected: "function_pointer".to_string(),
-            actual: format!("{function_value:?}"),
-        })?;
-
-    Ok((function, Some(environment_value)))
 }
 
 /// Load a function pointer.
@@ -224,7 +221,7 @@ pub(crate) fn step_function_value(
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let InstructionData::FunctionValue {
+    let InstructionData::Closure {
         dest,
         function,
         environment,
@@ -732,7 +729,6 @@ pub(crate) fn step_call_indirect(
     let InstructionData::CallIndirect {
         dest,
         callee,
-        signature,
         arguments,
     } = &block[pc].data
     else {
@@ -743,7 +739,11 @@ pub(crate) fn step_call_indirect(
     let callee_val = state.get(*callee);
 
     // resolve callable code and environment
-    let (function_id, env) = match resolve_indirect_callable(state, callee_val, *signature) {
+    let callee_type = match state.value_type(*callee) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
+    let (function_id, env) = match resolve_indirect_callable(state, callee_val, callee_type) {
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };
@@ -781,7 +781,6 @@ pub(crate) fn step_call_indirect_branch(
 
     let InstructionData::CallIndirectBranch {
         callee,
-        signature,
         arguments,
         normal_resume_point,
         unwind_resume_point,
@@ -791,7 +790,11 @@ pub(crate) fn step_call_indirect_branch(
     };
 
     let callee_val = state.get(*callee);
-    let (function_id, env) = match resolve_indirect_callable(state, callee_val, *signature) {
+    let callee_type = match state.value_type(*callee) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
+    let (function_id, env) = match resolve_indirect_callable(state, callee_val, callee_type) {
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };
@@ -1156,12 +1159,7 @@ pub(crate) fn step_tail_call_indirect(
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let InstructionData::TailCallIndirect {
-        callee,
-        signature,
-        arguments,
-    } = &block[pc].data
-    else {
+    let InstructionData::TailCallIndirect { callee, arguments } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1169,7 +1167,11 @@ pub(crate) fn step_tail_call_indirect(
     let callee_val = state.get(*callee);
 
     // resolve callable code and environment
-    let (function_id, env) = match resolve_indirect_callable(state, callee_val, *signature) {
+    let callee_type = match state.value_type(*callee) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
+    let (function_id, env) = match resolve_indirect_callable(state, callee_val, callee_type) {
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };

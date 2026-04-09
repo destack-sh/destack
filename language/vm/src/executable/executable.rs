@@ -497,28 +497,28 @@ impl ExecutableBuilder {
                 let block = self.tree.get(block_id);
 
                 match &block.terminator {
-                    mir::Terminator::Call {
+                    mir::Terminator::Invoke {
                         normal_target,
                         normal_arguments,
                         unwind_target,
                         unwind_arguments,
                         ..
                     }
-                    | mir::Terminator::CallIndirect {
+                    | mir::Terminator::InvokeIndirect {
                         normal_target,
                         normal_arguments,
                         unwind_target,
                         unwind_arguments,
                         ..
                     }
-                    | mir::Terminator::CallVirtual {
+                    | mir::Terminator::InvokeVirtual {
                         normal_target,
                         normal_arguments,
                         unwind_target,
                         unwind_arguments,
                         ..
                     }
-                    | mir::Terminator::CallInterface {
+                    | mir::Terminator::InvokeInterface {
                         normal_target,
                         normal_arguments,
                         unwind_target,

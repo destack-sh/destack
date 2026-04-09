@@ -51,56 +51,56 @@ where
 #[test]
 fn test_tensor_load_store() {
     let mir = r#"
-function @tensor_load_store() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
-    v1: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
-    v2: i32 = iconst 42i32
-    v3: i32 = iconst 1i32
-    v4: i32 = iconst 0i32
+function tensorLoadStore(): int32 {
+b0:
+    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
+    v1: tensorRef<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v0 -> tensorRef<int32, raw, addressSpace(stack), (2, 2)>
+    v2: int32 = 42int32
+    v3: int32 = 1int32
+    v4: int32 = 0int32
     tensor.store v1, [v3, v4], v2
-    v5: i32 = tensor.load v1, [v3, v4]
+    v5: int32 = tensor.load v1, [v3, v4]
     return v5
 }"#;
-    run_mir_expect(mir, "tensor_load_store", &[], Value::int32(42));
+    run_mir_expect(mir, "tensorLoadStore", &[], Value::int32(42));
 }
 
 /// Tensor fill and copy write through tensor references.
 #[test]
 fn test_tensor_fill_copy() {
     let mir = r#"
-function @tensor_fill_copy() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
-    v1: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
-    v2: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
-    v3: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v1 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
-    v4: i32 = iconst 5i32
+function tensorFillCopy(): int32 {
+b0:
+    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
+    v1: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
+    v2: tensorRef<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v0 -> tensorRef<int32, raw, addressSpace(stack), (2, 2)>
+    v3: tensorRef<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v1 -> tensorRef<int32, raw, addressSpace(stack), (2, 2)>
+    v4: int32 = 5int32
     tensor.fill v2, v4
     tensor.copy v3, v2
-    v5: i32 = iconst 1i32
-    v6: i32 = iconst 1i32
-    v7: i32 = tensor.load v3, [v5, v6]
+    v5: int32 = 1int32
+    v6: int32 = 1int32
+    v7: int32 = tensor.load v3, [v5, v6]
     return v7
 }"#;
-    run_mir_expect(mir, "tensor_fill_copy", &[], Value::int32(5));
+    run_mir_expect(mir, "tensorFillCopy", &[], Value::int32(5));
 }
 
 /// Tensor reshape preserves element order.
 #[test]
 fn test_tensor_reshape() {
     let mir = r#"
-function @tensor_reshape(v0: tensor<i32, [2, 2]>) -> tensor<i32, [4, 1]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: i32 = iconst 4i32
-    v2: i32 = iconst 1i32
-    v3: tensor<i32, [4, 1]> = tensor.reshape v0, [v1, v2]
+function tensorReshape(v0: tensor<int32, (2, 2)>): tensor<int32, (4, 1)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 4int32
+    v2: int32 = 1int32
+    v3: tensor<int32, (4, 1)> = tensor.reshape v0, shape(v1, v2)
     return v3
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_reshape", |interp| {
+    let slots = run_tensor_slots(mir, "tensorReshape", |interp| {
         vec![tensor_from_values(
             interp,
-            "tensor_reshape",
+            "tensorReshape",
             0,
             &[1, 2, 3, 4],
         )]
@@ -118,15 +118,15 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_broadcast() {
     let mir = r#"
-function @tensor_broadcast(v0: tensor<i32, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: tensor<i32, [2, 2]> = tensor.broadcast v0, [0, 1]
+function tensorBroadcast(v0: tensor<int32, (2, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: tensor<int32, (2, 2)> = tensor.broadcast v0, dimensions(0, 1)
     return v1
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_broadcast", |interp| {
+    let slots = run_tensor_slots(mir, "tensorBroadcast", |interp| {
         vec![tensor_from_values(
             interp,
-            "tensor_broadcast",
+            "tensorBroadcast",
             0,
             &[1, 2, 3, 4],
         )]
@@ -144,15 +144,15 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_transpose() {
     let mir = r#"
-function @tensor_transpose(v0: tensor<i32, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: tensor<i32, [2, 2]> = tensor.transpose v0, [1, 0]
+function tensorTranspose(v0: tensor<int32, (2, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: tensor<int32, (2, 2)> = tensor.transpose v0, permutation(1, 0)
     return v1
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_transpose", |interp| {
+    let slots = run_tensor_slots(mir, "tensorTranspose", |interp| {
         vec![tensor_from_values(
             interp,
-            "tensor_transpose",
+            "tensorTranspose",
             0,
             &[1, 2, 3, 4],
         )]
@@ -170,16 +170,16 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_slice() {
     let mir = r#"
-function @tensor_slice(v0: tensor<i32, [2, 2]>) -> tensor<i32, [2, 1]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: i32 = iconst 2i32
-    v4: tensor<i32, [2, 1]> = tensor.slice v0, offsets=[v1, v2], sizes=[v3, v2], strides=[v2, v2]
+function tensorSlice(v0: tensor<int32, (2, 2)>): tensor<int32, (2, 1)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    v4: tensor<int32, (2, 1)> = tensor.slice v0, offsets(v1, v2), sizes(v3, v2), strides(v2, v2)
     return v4
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_slice", |interp| {
-        vec![tensor_from_values(interp, "tensor_slice", 0, &[1, 2, 3, 4])]
+    let slots = run_tensor_slots(mir, "tensorSlice", |interp| {
+        vec![tensor_from_values(interp, "tensorSlice", 0, &[1, 2, 3, 4])]
     });
     assert_eq!(
         slots,
@@ -191,15 +191,15 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_pad() {
     let mir = r#"
-function @tensor_pad(v0: tensor<i32, [1, 1]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [1, 1]>):
-    v1: i32 = iconst 0i32
-    v2: i32 = iconst 1i32
-    v3: tensor<i32, [2, 2]> = tensor.pad v0, value=v1, low=[v1, v1], high=[v2, v2], interior=[v1, v1]
+function tensorPad(v0: tensor<int32, (1, 1)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (1, 1)>):
+    v1: int32 = 0int32
+    v2: int32 = 1int32
+    v3: tensor<int32, (2, 2)> = tensor.pad v0, value(v1), low(v1, v1), high(v2, v2), interior(v1, v1)
     return v3
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_pad", |interp| {
-        vec![tensor_from_values(interp, "tensor_pad", 0, &[9])]
+    let slots = run_tensor_slots(mir, "tensorPad", |interp| {
+        vec![tensor_from_values(interp, "tensorPad", 0, &[9])]
     });
     assert_eq!(
         slots,
@@ -214,15 +214,15 @@ block0(v0: tensor<i32, [1, 1]>):
 #[test]
 fn test_tensor_concat() {
     let mir = r#"
-function @tensor_concat(v0: tensor<i32, [1, 2]>, v1: tensor<i32, [1, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [1, 2]>, v1: tensor<i32, [1, 2]>):
-    v2: tensor<i32, [2, 2]> = tensor.concat [v0, v1], axis=0
+function tensorConcat(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>):
+    v2: tensor<int32, (2, 2)> = tensor.concat tensors(v0, v1), axis(0)
     return v2
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_concat", |interp| {
+    let slots = run_tensor_slots(mir, "tensorConcat", |interp| {
         vec![
-            tensor_from_values(interp, "tensor_concat", 0, &[1, 2]),
-            tensor_from_values(interp, "tensor_concat", 1, &[3, 4]),
+            tensor_from_values(interp, "tensorConcat", 0, &[1, 2]),
+            tensor_from_values(interp, "tensorConcat", 1, &[3, 4]),
         ]
     });
     assert_eq!(
@@ -238,19 +238,14 @@ block0(v0: tensor<i32, [1, 2]>, v1: tensor<i32, [1, 2]>):
 #[test]
 fn test_tensor_reduce() {
     let mir = r#"
-function @tensor_reduce(v0: tensor<i32, [2, 2]>) -> tensor<i32, [2]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: i32 = iconst 0i32
-    v2: tensor<i32, [2]> = tensor.reduce add, v0, v1, axes=[1]
+function tensorReduce(v0: tensor<int32, (2, 2)>): tensor<int32, (2)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 0int32
+    v2: tensor<int32, (2)> = tensor.reduce add, v0, v1, axes(1)
     return v2
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_reduce", |interp| {
-        vec![tensor_from_values(
-            interp,
-            "tensor_reduce",
-            0,
-            &[1, 2, 3, 4],
-        )]
+    let slots = run_tensor_slots(mir, "tensorReduce", |interp| {
+        vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])]
     });
     assert_eq!(
         slots,
@@ -262,15 +257,15 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_dot() {
     let mir = r#"
-function @tensor_dot(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
-    v2: tensor<i32, [2, 2]> = tensor.dot v0, v1, dims(lhs_batch=[], rhs_batch=[], lhs_contract=[1], rhs_contract=[0])
+function tensorDot(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
+    v2: tensor<int32, (2, 2)> = tensor.dot v0, v1, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
     return v2
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_dot", |interp| {
+    let slots = run_tensor_slots(mir, "tensorDot", |interp| {
         vec![
-            tensor_from_values(interp, "tensor_dot", 0, &[1, 2, 3, 4]),
-            tensor_from_values(interp, "tensor_dot", 1, &[5, 6, 7, 8]),
+            tensor_from_values(interp, "tensorDot", 0, &[1, 2, 3, 4]),
+            tensor_from_values(interp, "tensorDot", 1, &[5, 6, 7, 8]),
         ]
     });
     assert_eq!(
@@ -286,15 +281,15 @@ block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_convolution() {
     let mir = r#"
-function @tensor_convolution(v0: tensor<i32, [1, 1, 1, 1]>, v1: tensor<i32, [1, 1, 1, 1]>) -> tensor<i32, [1, 1, 1, 1]> {
-block0(v0: tensor<i32, [1, 1, 1, 1]>, v1: tensor<i32, [1, 1, 1, 1]>):
-    v2: tensor<i32, [1, 1, 1, 1]> = tensor.convolution v0, v1, dims(input_batch=0, input_feature=1, input_spatial=[2, 3], kernel_input_feature=0, kernel_output_feature=1, kernel_spatial=[2, 3], output_batch=0, output_feature=1, output_spatial=[2, 3]), strides=[1, 1], padding_low=[0, 0], padding_high=[0, 0], lhs_dilation=[1, 1], rhs_dilation=[1, 1], window_reversal=[false, false], feature_group=1, batch_group=1
+function tensorConvolution(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>): tensor<int32, (1, 1, 1, 1)> {
+b0(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>):
+    v2: tensor<int32, (1, 1, 1, 1)> = tensor.convolution v0, v1, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
     return v2
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_convolution", |interp| {
+    let slots = run_tensor_slots(mir, "tensorConvolution", |interp| {
         vec![
-            tensor_from_values(interp, "tensor_convolution", 0, &[2]),
-            tensor_from_values(interp, "tensor_convolution", 1, &[3]),
+            tensor_from_values(interp, "tensorConvolution", 0, &[2]),
+            tensor_from_values(interp, "tensorConvolution", 1, &[3]),
         ]
     });
     assert_eq!(slots, vec![Value::int32(6)]);
@@ -304,15 +299,15 @@ block0(v0: tensor<i32, [1, 1, 1, 1]>, v1: tensor<i32, [1, 1, 1, 1]>):
 #[test]
 fn test_tensor_gather() {
     let mir = r#"
-function @tensor_gather(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>) -> tensor<i32, [1, 1]> {
-block0(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>):
-    v2: tensor<i32, [1, 1]> = tensor.gather v0, v1, dims(offset_dims=[0], collapsed_slice_dims=[1], start_index_map=[0], index_vector_dim=1), slice_sizes=[1, 1]
+function tensorGather(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>): tensor<int32, (1, 1)> {
+b0(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>):
+    v2: tensor<int32, (1, 1)> = tensor.gather v0, v1, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
     return v2
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_gather", |interp| {
+    let slots = run_tensor_slots(mir, "tensorGather", |interp| {
         vec![
-            tensor_from_values(interp, "tensor_gather", 0, &[7]),
-            tensor_from_values(interp, "tensor_gather", 1, &[0]),
+            tensor_from_values(interp, "tensorGather", 0, &[7]),
+            tensor_from_values(interp, "tensorGather", 1, &[0]),
         ]
     });
     assert_eq!(slots, vec![Value::int32(7)]);
@@ -322,16 +317,16 @@ block0(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>):
 #[test]
 fn test_tensor_scatter() {
     let mir = r#"
-function @tensor_scatter(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>, v2: tensor<i32, [1, 1]>) -> tensor<i32, [1, 1]> {
-block0(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>, v2: tensor<i32, [1, 1]>):
-    v3: tensor<i32, [1, 1]> = tensor.scatter v0, v1, v2, dims(update_window_dims=[0], inserted_window_dims=[1], scatter_dims_to_operand_dims=[0], index_vector_dim=1), mode=replace
+function tensorScatter(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>, v2: tensor<int32, (1, 1)>): tensor<int32, (1, 1)> {
+b0(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>, v2: tensor<int32, (1, 1)>):
+    v3: tensor<int32, (1, 1)> = tensor.scatter v0, v1, v2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
     return v3
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_scatter", |interp| {
+    let slots = run_tensor_slots(mir, "tensorScatter", |interp| {
         vec![
-            tensor_from_values(interp, "tensor_scatter", 0, &[0]),
-            tensor_from_values(interp, "tensor_scatter", 1, &[0]),
-            tensor_from_values(interp, "tensor_scatter", 2, &[9]),
+            tensor_from_values(interp, "tensorScatter", 0, &[0]),
+            tensor_from_values(interp, "tensorScatter", 1, &[0]),
+            tensor_from_values(interp, "tensorScatter", 2, &[9]),
         ]
     });
     assert_eq!(slots, vec![Value::int32(9)]);
@@ -341,15 +336,15 @@ block0(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>, v2: tensor<i32, [1, 1]>
 #[test]
 fn test_tensor_convert() {
     let mir = r#"
-function @tensor_convert(v0: tensor<i32, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: tensor<i32, [2, 2]> = tensor.convert exact, v0
+function tensorConvert(v0: tensor<int32, (2, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: tensor<int32, (2, 2)> = tensor.convert exact, v0
     return v1
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_convert", |interp| {
+    let slots = run_tensor_slots(mir, "tensorConvert", |interp| {
         vec![tensor_from_values(
             interp,
-            "tensor_convert",
+            "tensorConvert",
             0,
             &[1, 2, 3, 4],
         )]
@@ -367,15 +362,15 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_compare() {
     let mir = r#"
-function @tensor_compare(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>) -> tensor<bool, [2, 2]> {
-block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
-    v2: tensor<bool, [2, 2]> = tensor.compare icmp_eq, v0, v1
+function tensorCompare(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): tensor<boolean, (2, 2)> {
+b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
+    v2: tensor<boolean, (2, 2)> = tensor.compare int.eq, v0, v1
     return v2
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_compare", |interp| {
+    let slots = run_tensor_slots(mir, "tensorCompare", |interp| {
         vec![
-            tensor_from_values(interp, "tensor_compare", 0, &[1, 2, 3, 4]),
-            tensor_from_values(interp, "tensor_compare", 1, &[1, 9, 3, 4]),
+            tensor_from_values(interp, "tensorCompare", 0, &[1, 2, 3, 4]),
+            tensor_from_values(interp, "tensorCompare", 1, &[1, 9, 3, 4]),
         ]
     });
     assert_eq!(
@@ -391,15 +386,15 @@ block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_convert_rounding() {
     let mir = r#"
-function @tensor_convert_rounding(v0: tensor<f64, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<f64, [2, 2]>):
-    v1: tensor<i32, [2, 2]> = tensor.convert round_toward_zero, v0
+function tensorConvertRounding(v0: tensor<float64, (2, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<float64, (2, 2)>):
+    v1: tensor<int32, (2, 2)> = tensor.convert roundTowardZero, v0
     return v1
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_convert_rounding", |interp| {
+    let slots = run_tensor_slots(mir, "tensorConvertRounding", |interp| {
         vec![tensor_from_f64_values(
             interp,
-            "tensor_convert_rounding",
+            "tensorConvertRounding",
             0,
             &[1.2, 2.9, 3.1, 4.0],
         )]
@@ -417,13 +412,13 @@ block0(v0: tensor<f64, [2, 2]>):
 #[test]
 fn test_tensor_cast() {
     let mir = r#"
-function @tensor_cast(v0: tensor<i32, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: tensor<i32, [2, 2]>):
-    v1: tensor<i32, [2, 2]> = tensor.cast v0
+function tensorCast(v0: tensor<int32, (2, 2)>): tensor<int32, (2, 2)> {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: tensor<int32, (2, 2)> = tensor.cast v0
     return v1
 }"#;
-    let slots = run_tensor_slots(mir, "tensor_cast", |interp| {
-        vec![tensor_from_values(interp, "tensor_cast", 0, &[1, 2, 3, 4])]
+    let slots = run_tensor_slots(mir, "tensorCast", |interp| {
+        vec![tensor_from_values(interp, "tensorCast", 0, &[1, 2, 3, 4])]
     });
     assert_eq!(
         slots,
@@ -438,22 +433,22 @@ block0(v0: tensor<i32, [2, 2]>):
 #[test]
 fn test_tensor_view() {
     let mir = r#"
-function @tensor_view() -> i32 {
-block0:
-    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
-    v1: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 1i32
-    v4: i32 = iconst 2i32
-    v5: i32 = iconst 3i32
+function tensorView(): int32 {
+b0:
+    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
+    v1: tensorRef<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v0 -> tensorRef<int32, raw, addressSpace(stack), (2, 2)>
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    v4: int32 = 2int32
+    v5: int32 = 3int32
     tensor.store v1, [v2, v2], v3
     tensor.store v1, [v2, v3], v4
     tensor.store v1, [v3, v2], v5
     tensor.store v1, [v3, v3], v4
-    v6: tensor_ref<raw addrspace(stack) i32, [2, 1]> = tensor.view v1, offsets=[v2, v3], sizes=[v4, v3], strides=[v3, v3]
-    v7: i32 = tensor.load v6, [v2, v2]
+    v6: tensorRef<int32, raw, addressSpace(stack), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
+    v7: int32 = tensor.load v6, [v2, v2]
     return v7
 }"#;
     // verify the view offset result
-    run_mir_expect(mir, "tensor_view", &[], Value::int32(2));
+    run_mir_expect(mir, "tensorView", &[], Value::int32(2));
 }

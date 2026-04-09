@@ -128,6 +128,8 @@ pub(crate) enum InstructionOperation {
     Branch,
     /// Dispatch operation for `branch_bool`.
     BranchBool,
+    /// Dispatch operation for `check`.
+    Check,
     /// Dispatch operation for `call`.
     Call,
     /// Dispatch operation for `call.branch`.
@@ -261,7 +263,7 @@ pub(crate) enum InstructionOperation {
     /// Dispatch operation for `function_addr`.
     FunctionAddr,
     /// Dispatch operation for `function_value`.
-    FunctionValue,
+    Closure,
     /// Dispatch operation for `function_environment`.
     FunctionEnvironment,
     /// Dispatch operation for `ge_const_int`.
@@ -713,14 +715,12 @@ pub(crate) enum InstructionData {
     CallIndirect {
         dest: mir::Value,
         callee: mir::Value,
-        signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
     },
 
     /// Indirect call terminator with explicit normal and unwind continuations.
     CallIndirectBranch {
         callee: mir::Value,
-        signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
         normal_resume_point: engine::ResumePointId,
         unwind_resume_point: engine::ResumePointId,
@@ -753,7 +753,7 @@ pub(crate) enum InstructionData {
     FunctionAddr { dest: mir::Value, function: u32 },
 
     /// Build a callable value from code and environment.
-    FunctionValue {
+    Closure {
         dest: mir::Value,
         function: u32,
         environment: mir::Value,
@@ -1270,6 +1270,15 @@ pub(crate) enum InstructionData {
         else_copies: CopyRange,
     },
 
+    /// Semantic check with explicit success and failure edges.
+    Check {
+        constraint: mir::CheckConstraint,
+        then_target: u32,
+        then_copies: CopyRange,
+        else_target: u32,
+        else_copies: CopyRange,
+    },
+
     /// Fused compare and branch.
     CompareAndBranch {
         left: mir::Value,
@@ -1353,7 +1362,6 @@ pub(crate) enum InstructionData {
     /// Indirect tail call.
     TailCallIndirect {
         callee: mir::Value,
-        signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
     },
 }
@@ -1388,7 +1396,7 @@ impl InstructionData {
             InstructionData::GlobalAddr { .. } => "global_addr",
             InstructionData::GlobalConst { .. } => "global_const",
             InstructionData::FunctionAddr { .. } => "function_addr",
-            InstructionData::FunctionValue { .. } => "function_value",
+            InstructionData::Closure { .. } => "function_value",
             InstructionData::FunctionEnvironment { .. } => "function_environment",
             InstructionData::GlobalLoad { .. } => "global_load",
             InstructionData::GlobalStore { .. } => "global_store",
@@ -1454,6 +1462,7 @@ impl InstructionData {
             InstructionData::Yield { .. } => "yield",
             InstructionData::Jump { .. } => "jump",
             InstructionData::Branch { .. } => "branch",
+            InstructionData::Check { .. } => "check",
             InstructionData::CompareAndBranch { .. } => "compare_and_branch",
             InstructionData::CompareAndBranchConst { .. } => "compare_and_branch_const",
             InstructionData::Switch { .. } => "switch",

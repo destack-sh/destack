@@ -209,7 +209,7 @@ fn build_layout(
         mir::Type::Array {
             element, length, ..
         } => build_array_layout(tree, layouts, ty, *element, *length as usize),
-        mir::Type::FunctionValue { .. } => {
+        mir::Type::Closure { .. } => {
             scalar_layout(tree.pointer_bytes() as usize, tree.pointer_bytes() as usize)
         }
         mir::Type::Vector { element, lanes, .. } => {
@@ -302,7 +302,7 @@ fn raw_scalar_size_alignment(
         mir::Type::TypeDescriptor
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
-        | mir::Type::FunctionValue { .. }
+        | mir::Type::Closure { .. }
         | mir::Type::FunctionPointer { .. }
         | mir::Type::TensorReference { .. } => {
             let byte_len = tree.pointer_bytes() as usize;
@@ -518,7 +518,7 @@ fn contains_boxed_function_value(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir:
     let ty = repr_type(tree, ty);
 
     match tree.get(ty) {
-        mir::Type::FunctionValue { .. } => true,
+        mir::Type::Closure { .. } => true,
         mir::Type::Struct { fields, .. } => fields.iter().any(|field_id| {
             let field_type = tree.get(*field_id).ty;
             contains_boxed_function_value(tree, field_type)
@@ -542,7 +542,7 @@ fn is_managed_reference_repr(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
         mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
             ..
-        } | mir::Type::FunctionValue { .. }
+        } | mir::Type::Closure { .. }
             | mir::Type::TensorReference {
                 kind: mir::ReferenceKind::Managed,
                 ..
@@ -779,7 +779,7 @@ mod tests {
         (tree, strings)
     }
 
-    /// Look up one aliased type by its `@name`.
+    /// Look up one aliased type by name.
     fn lookup_type_alias(
         tree: &NodeTree,
         strings: &ImmutableStringPool,
@@ -791,15 +791,18 @@ mod tests {
             }
         }
 
-        panic!("missing type alias @{name}");
+        panic!("missing type alias {name}");
     }
 
     /// Compiled raw struct layout matches canonical MIR raw layout metadata.
     #[test]
     fn test_build_layout_imports_raw_struct_layout() {
         let mir_text = r#"
-type @Mixed = { a: u8, b: i64, c: u8 }
-"#;
+type Mixed {
+    a: uint8;
+    b: int64;
+    c: uint8;
+}"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
         let layouts = build_layouts(&tree);
@@ -820,8 +823,11 @@ type @Mixed = { a: u8, b: i64, c: u8 }
     #[test]
     fn test_build_layout_uses_canonical_struct_reference_offsets() {
         let mir_text = r#"
-type @Packed = { a: u8, b: ref<managed readonly i32>, c: u8 }
-"#;
+type Packed {
+    a: uint8;
+    b: ref<int32, managed, readonly>;
+    c: uint8;
+}"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Packed");
         let layouts = build_layouts(&tree);
@@ -844,8 +850,7 @@ type @Packed = { a: u8, b: ref<managed readonly i32>, c: u8 }
     #[test]
     fn test_build_layout_uses_canonical_vector_stride() {
         let mir_text = r#"
-type @Vec = vector<ref<managed readonly i32>, 2>
-"#;
+type Vec vector<ref<int32, managed, readonly>, 2>"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Vec");
         let layouts = build_layouts(&tree);
@@ -874,9 +879,10 @@ type @Vec = vector<ref<managed readonly i32>, 2>
     #[test]
     fn test_build_layout_traces_newtype_wrapped_managed_reference() {
         let mir_text = r#"
-type @Handle = newtype<ref<managed readonly i32>>
-type @Holder = { value: @Handle }
-"#;
+type Handle newtype<ref<int32, managed, readonly>>
+type Holder {
+    value: Handle;
+}"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_layouts(&tree);
@@ -893,14 +899,13 @@ type @Holder = { value: @Handle }
     #[test]
     fn test_build_layout_boxes_function_value() {
         let mir_text = r#"
-type @Closure = fnvalue<fn() -> i32>
-"#;
+type Closure closure() -> int32"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Closure");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
 
-        // fnvalue fields store one managed reference to one boxed callable object
+        // closure fields store one managed reference to one boxed callable object
         assert!(layout.is_scalar());
         assert_eq!(layout.byte_len, tree.pointer_bytes() as usize);
         assert_eq!(
@@ -913,9 +918,11 @@ type @Closure = fnvalue<fn() -> i32>
     #[test]
     fn test_build_layout_traces_boxed_function_value_fields() {
         let mir_text = r#"
-type @Closure = fnvalue<fn() -> i32>
-type @Holder = { pad: u8, closure: @Closure }
-"#;
+type Closure closure() -> int32
+type Holder {
+    pad: uint8;
+    action: Closure;
+}"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_layouts(&tree);
