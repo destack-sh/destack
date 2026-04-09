@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_ast::TokenType;
-use destack_source::{FileContent, FileId};
+use destack_source::FileId;
 use destack_workspace::{Repository, Revision};
 
 use crate::core::{AstQuery, with_ast_query_for_file};
@@ -45,11 +45,10 @@ pub(crate) fn token_text_at_offset(
     let token = token_span_at_offset(repository, revision, file_id, offset)?;
     // read the source content
     let file = repository.file(revision, file_id).ok().flatten()?;
-    let content = match &file.content {
-        FileContent::Text { content } => content.as_str(),
-        FileContent::Json { content, .. } => content.as_str(),
-        _ => return None,
-    };
+    let content = file.text();
+    if content.is_empty() {
+        return None;
+    }
 
     // slice the token text from the source
     let span = token.span;

@@ -62,12 +62,13 @@ fn resolve_export_symbol_info(
 /// Search for importable symbols across the current workspace root.
 pub(crate) fn search_importable_symbols(
     repository: &Repository,
+    revision: Revision,
     query: &str,
     exclude_module: Option<ModuleId>,
 ) -> Vec<ExportedSymbol> {
     let mut exports = Vec::new();
 
-    let entries = repository.search_import_entries(query, exclude_module);
+    let entries = repository.search_import_entries(revision, query, exclude_module);
     exports.extend(entries.into_iter().map(|entry| ExportedSymbol {
         name: entry.name,
         kind: entry.kind,

@@ -21,7 +21,7 @@ pub(crate) fn for_each_visible_extension(
     let canonical_target = get_canonical_symbol(repository, revision, target_symbol);
 
     // scan cached extensions for the canonical target
-    for entry in repository.extension_index_entries_for_target(canonical_target) {
+    for entry in repository.extension_index_entries_for_target(revision, canonical_target) {
         let Some(ctx) = query_context(repository, revision, entry.module_id) else {
             continue;
         };

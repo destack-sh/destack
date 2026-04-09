@@ -294,7 +294,7 @@ fn collect_symbol_reference_spans_across_user_modules(
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
-    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
         let Some(module) = repository.module(revision, module_id).ok().flatten() else {
             continue;
         };
@@ -534,7 +534,7 @@ fn collect_interface_member_implementations(
     let mut members = Vec::new();
     let interface_symbol = get_canonical_symbol(repository, revision, target.interface_symbol);
     let implementing_symbols: Vec<dir::GlobalSymbolId> = repository
-        .nominal_index_entries_for_target(interface_symbol)
+        .nominal_index_entries_for_target(revision, interface_symbol)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelationKind::Implements)
         .map(|entry| entry.source_symbol)

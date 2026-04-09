@@ -17,6 +17,7 @@ pub use method::{
 };
 pub use protocol::{
     QueryExecutionMode, QueryRequest, QueryRequestEnvelope, QueryResponse, QueryResponseEnvelope,
+    default_document_artifact_key,
 };
 pub(crate) use relevance::{
     ImportSortKey, MatchQuality, import_relevance, import_sort_key, import_sort_text,

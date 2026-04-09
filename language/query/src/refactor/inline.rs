@@ -150,7 +150,7 @@ pub fn inline_symbol(
         require_target_name_match: false,
         limit_to_file: None,
     };
-    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+    for module_id in repository.reference_index_modules_for_target(revision, canonical_id) {
         let Some(ctx) = query_context(repository, ctx.revision(), module_id) else {
             continue;
         };

@@ -154,7 +154,7 @@ pub fn incoming_calls(
 ) -> Vec<CallHierarchyIncomingCall> {
     let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
     let mut incoming_by_caller: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in repository.call_index_entries_for_callee(canonical_id) {
+    for entry in repository.call_index_entries_for_callee(revision, canonical_id) {
         let Some(caller_symbol) = entry.caller_symbol else {
             continue;
         };
@@ -197,7 +197,7 @@ pub fn outgoing_calls(
 ) -> Vec<CallHierarchyOutgoingCall> {
     let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
     let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in repository.call_index_entries_for_caller(canonical_id) {
+    for entry in repository.call_index_entries_for_caller(revision, canonical_id) {
         let callee_symbol = get_canonical_symbol(repository, revision, entry.callee_symbol);
 
         calls_with_spans

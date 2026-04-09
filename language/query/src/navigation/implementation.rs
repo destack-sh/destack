@@ -137,7 +137,7 @@ pub fn goto_implementation(
 
     // match cached direct edges against the target symbol set
     for target_symbol in target_symbols {
-        let entries = repository.nominal_index_entries_for_target(target_symbol);
+        let entries = repository.nominal_index_entries_for_target(revision, target_symbol);
 
         for entry in entries {
             let matches = if is_interface {
