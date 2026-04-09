@@ -1,6 +1,5 @@
-use destack_dir::{Expression, LocalNodeId};
-use destack_mir as mir;
 use destack_workspace::CheckFailurePolicy;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
 
@@ -58,7 +57,7 @@ impl FunctionLowerer<'_> {
     /// Resolve integer scalar info for an expression when available.
     pub(crate) fn integer_scalar_info(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Option<(u16, bool)>> {
         // resolve scalar type for the expression
         let scalar_type = self
@@ -78,11 +77,11 @@ impl FunctionLowerer<'_> {
     /// Emit a bounds check for an array access when enabled.
     pub(crate) fn emit_bounds_check(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         array_value: mir::Value,
         array_type: mir::LocalNodeId<mir::Type>,
         index_value: mir::Value,
-        index_expression_id: LocalNodeId<Expression>,
+        index_expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<()> {
         // skip when bounds checks are disabled
         if !self.bounds_checks_enabled() {
@@ -150,7 +149,7 @@ impl FunctionLowerer<'_> {
     /// Emit a null check for a nullable reference when enabled.
     pub(crate) fn emit_null_check(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        _expression_id: dir::LocalNodeId<dir::Expression>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {

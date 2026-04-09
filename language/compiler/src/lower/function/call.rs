@@ -1,4 +1,3 @@
-use destack_dir::{Expression, LocalNodeId, Resolution};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -41,10 +40,10 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_call_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: &LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
-        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: &dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (value, result_type) = self.lower_call(
             expression_id,
@@ -66,10 +65,10 @@ impl FunctionLowerer<'_> {
     /// Lower a call as a statement (no result value).
     pub(crate) fn lower_call_statement(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: &LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
-        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: &dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
     ) -> LowerResult<()> {
         self.lower_call(
             expression_id,
@@ -85,10 +84,10 @@ impl FunctionLowerer<'_> {
     /// Lower a call expression to its result value and type.
     fn lower_call(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: &LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
-        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: &dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
         kind: CallKind,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // resolve call resolution (lower requires static resolution)
@@ -98,9 +97,9 @@ impl FunctionLowerer<'_> {
                     node: expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
-                    message: "call expression missing Resolution (Analyze issue)".to_string(),
+                    message: "call expression missing dir::Resolution (Analyze issue)".to_string(),
                 })?;
-        let Resolution::Static {
+        let dir::Resolution::Static {
             receiver: resolution_receiver,
             candidate,
         } = resolution
@@ -181,10 +180,10 @@ impl FunctionLowerer<'_> {
             let mut receiver_type_id = if is_static { None } else { resolution_receiver };
             let receiver_value = if !is_static
                 && resolution_receiver.is_some()
-                && let Expression::Member {
+                && let dir::Expression::Member {
                     left: receiver_id, ..
                 }
-                | Expression::PrivateMember {
+                | dir::Expression::PrivateMember {
                     left: receiver_id, ..
                 } = left_expr
             {
@@ -372,7 +371,7 @@ impl FunctionLowerer<'_> {
 
     fn lower_binding_call_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
         signature: mir::LocalNodeId<mir::Type>,
         arguments: Vec<mir::Value>,
@@ -561,7 +560,7 @@ impl FunctionLowerer<'_> {
 
     fn cached_type_for_id(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         type_id: dir::LocalTypeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         self.context
@@ -572,7 +571,7 @@ impl FunctionLowerer<'_> {
 
     fn build_result_struct_value(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         struct_mir_type: mir::LocalNodeId<mir::Type>,
         kind_literal: &str,
         value_field: &str,
@@ -632,10 +631,10 @@ impl FunctionLowerer<'_> {
     /// Lower a call through a closure value.
     fn lower_closure_call(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         closure_value: mir::Value,
         closure_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         kind: CallKind,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let anchor = expression_id
@@ -694,7 +693,7 @@ impl FunctionLowerer<'_> {
     /// Resolve a MIR signature type for a lowered function.
     pub(crate) fn signature_type_for_function(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let signature = self
@@ -709,7 +708,7 @@ impl FunctionLowerer<'_> {
     /// Resolve receiver values for interface call lowering.
     pub(super) fn interface_call_receivers(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
         receiver_value: mir::Value,
     ) -> LowerResult<InterfaceCallReceivers> {

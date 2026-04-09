@@ -123,12 +123,6 @@ fn run_correlated_value_prop(
                 else_target,
                 ..
             } => (*condition, *then_target, *else_target),
-            mir::Terminator::Check {
-                condition,
-                success,
-                failure,
-                ..
-            } => (*condition, success.target, failure.target),
             _ => continue,
         };
 

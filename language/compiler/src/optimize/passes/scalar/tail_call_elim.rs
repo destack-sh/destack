@@ -427,12 +427,10 @@ fn remap_terminator_blocks(
             else_arguments: else_arguments.clone(),
         },
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
         } => mir::Terminator::Check {
-            condition: *condition,
             constraint: constraint.clone(),
             success: mir::CheckTarget {
                 target: block_map
@@ -467,16 +465,18 @@ fn remap_terminator_blocks(
                 })
                 .collect(),
         },
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             function,
             arguments,
+            signature,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::Call {
+        } => mir::Terminator::Invoke {
             function: *function,
             arguments: arguments.clone(),
+            signature: *signature,
             normal_target: block_map
                 .get(normal_target)
                 .copied()
@@ -488,7 +488,7 @@ fn remap_terminator_blocks(
                 .unwrap_or(*unwind_target),
             unwind_arguments: unwind_arguments.clone(),
         },
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             signature,
@@ -496,7 +496,7 @@ fn remap_terminator_blocks(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::CallIndirect {
+        } => mir::Terminator::InvokeIndirect {
             callee: *callee,
             arguments: arguments.clone(),
             signature: *signature,
@@ -511,7 +511,7 @@ fn remap_terminator_blocks(
                 .unwrap_or(*unwind_target),
             unwind_arguments: unwind_arguments.clone(),
         },
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             declaring_type,
@@ -521,7 +521,7 @@ fn remap_terminator_blocks(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::CallVirtual {
+        } => mir::Terminator::InvokeVirtual {
             receiver: *receiver,
             arguments: arguments.clone(),
             declaring_type: *declaring_type,
@@ -538,7 +538,7 @@ fn remap_terminator_blocks(
                 .unwrap_or(*unwind_target),
             unwind_arguments: unwind_arguments.clone(),
         },
-        mir::Terminator::CallInterface {
+        mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             declaring_type,
@@ -548,7 +548,7 @@ fn remap_terminator_blocks(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::CallInterface {
+        } => mir::Terminator::InvokeInterface {
             receiver: *receiver,
             arguments: arguments.clone(),
             declaring_type: *declaring_type,
@@ -1291,6 +1291,7 @@ fn transform_sibling_tail_call(
             destination,
             function: called_function,
             arguments,
+            signature,
             ..
         } => {
             // skip self-recursive calls (handled by transform_self_recursive_tail_call)
@@ -1320,6 +1321,7 @@ fn transform_sibling_tail_call(
             let new_terminator = mir::Terminator::TailCall {
                 function: *called_function,
                 arguments: call_args,
+                signature: *signature,
             };
 
             let mut new_block = block.clone();

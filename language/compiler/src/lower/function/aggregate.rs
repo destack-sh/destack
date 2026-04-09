@@ -1,4 +1,3 @@
-use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{FieldLayout, FieldLayoutKind, LowerError, LowerResult, StructLayout};
@@ -21,8 +20,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_tuple_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        elements: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the tuple type
         let tuple_type = self.lower_type_for_expression(expression_id)?;
@@ -67,8 +66,8 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_array_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        elements: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the array type
         let array_type = self.lower_type_for_expression(expression_id)?;
@@ -115,9 +114,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_tagged_object_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        _ty_expr: LocalNodeId<Expression>,
-        properties: &[LocalNodeId<dir::Property>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        _ty_expr: dir::LocalNodeId<dir::Expression>,
+        properties: &[dir::LocalNodeId<dir::Property>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the struct type from type inference
         let struct_type = self.lower_type_for_expression(expression_id)?;
@@ -257,9 +256,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_tagged_scalar_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        _ty_expr: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        _ty_expr: dir::LocalNodeId<dir::Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the newtype result type from type inference
         let newtype_type = self.lower_type_for_expression(expression_id)?;
@@ -326,9 +325,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_tagged_tuple_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        _ty_expr: LocalNodeId<Expression>,
-        elements: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        _ty_expr: dir::LocalNodeId<dir::Expression>,
+        elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the newtype result type from type inference
         let newtype_type = self.lower_type_for_expression(expression_id)?;
@@ -416,9 +415,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_new_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
-        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // reject static arguments for now
         if static_arguments
@@ -630,8 +629,8 @@ impl FunctionLowerer<'_> {
         &mut self,
         struct_type: mir::LocalNodeId<mir::Type>,
         layout: &StructLayout,
-        class_symbol: Option<GlobalSymbolId>,
-        node: AnchoredGlobalNodeId,
+        class_symbol: Option<dir::GlobalSymbolId>,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
         // initialize values in layout order
         let mut values = Vec::with_capacity(layout.fields.len());
@@ -648,8 +647,8 @@ impl FunctionLowerer<'_> {
     fn default_field_value(
         &mut self,
         field: &FieldLayout,
-        class_symbol: Option<GlobalSymbolId>,
-        node: AnchoredGlobalNodeId,
+        class_symbol: Option<dir::GlobalSymbolId>,
+        node: dir::AnchoredGlobalNodeId,
         vtable_value: &mut Option<mir::Value>,
     ) -> LowerResult<mir::Value> {
         // use the vtable pointer for header fields
@@ -667,8 +666,8 @@ impl FunctionLowerer<'_> {
     fn vtable_header_value(
         &mut self,
         field: &FieldLayout,
-        class_symbol: Option<GlobalSymbolId>,
-        node: AnchoredGlobalNodeId,
+        class_symbol: Option<dir::GlobalSymbolId>,
+        node: dir::AnchoredGlobalNodeId,
         vtable_value: &mut Option<mir::Value>,
     ) -> LowerResult<mir::Value> {
         let class_symbol = class_symbol.ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -690,7 +689,7 @@ impl FunctionLowerer<'_> {
     /// Resolve a property key to a field index in the struct using the cached layout.
     fn resolve_property_key_to_field_index(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         key: &dir::DynamicKey,
         layout: &StructLayout,
     ) -> LowerResult<usize> {
@@ -751,8 +750,8 @@ impl FunctionLowerer<'_> {
     /// Find an explicit constructor member for the expression type when present.
     fn explicit_constructor_member_for_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<LocalNodeId<dir::Member>> {
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Member>> {
         // prefer the constructor symbol from the new expression target
         if let Some(target_symbol) = self.constructor_target_symbol_for_expression(expression_id)
             && target_symbol.module_id == self.context.module_id
@@ -781,16 +780,16 @@ impl FunctionLowerer<'_> {
     /// Resolve the target symbol for a new expression when it is a simple reference.
     fn constructor_target_symbol_for_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<GlobalSymbolId> {
-        let Expression::New { left, .. } = self.context.dir_tree.get(expression_id) else {
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let dir::Expression::New { left, .. } = self.context.dir_tree.get(expression_id) else {
             return None;
         };
 
         match self.context.dir_tree.get(*left) {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+            dir::Expression::LocalReference { target_symbol, .. }
+            | dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
             _ => None,
         }
     }
@@ -799,7 +798,7 @@ impl FunctionLowerer<'_> {
     fn explicit_constructor_member_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<LocalNodeId<dir::Member>> {
+    ) -> Option<dir::LocalNodeId<dir::Member>> {
         // scan declarations for explicit constructors
         let declaration_ids = self.declaration_ids_for_symbol(symbol);
         for declaration_id in declaration_ids {
@@ -836,7 +835,7 @@ impl FunctionLowerer<'_> {
     fn declaration_ids_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Vec<LocalNodeId<dir::Declaration>> {
+    ) -> Vec<dir::LocalNodeId<dir::Declaration>> {
         // read the symbol entry for declaration lists
         let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
         let mut declaration_ids = Vec::new();

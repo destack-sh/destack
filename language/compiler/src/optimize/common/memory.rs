@@ -271,7 +271,7 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::Call {
+            mir::Terminator::Invoke {
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -293,7 +293,7 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::CallIndirect {
+            mir::Terminator::InvokeIndirect {
                 callee,
                 arguments,
                 normal_arguments,
@@ -325,14 +325,14 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::CallVirtual {
+            mir::Terminator::InvokeVirtual {
                 receiver,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallInterface {
+            | mir::Terminator::InvokeInterface {
                 receiver,
                 arguments,
                 normal_arguments,

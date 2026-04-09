@@ -7,7 +7,7 @@ use crate::optimize::analyses::{
     ConstantPropagation, ControlFlowGraph, DominatorTree, RangeAnalysis, RangeMap, ValueRange,
 };
 use crate::optimize::common::{
-    BlockParamForwarding, evaluate_integer_range_comparison, fold_binary,
+    BlockParamForwarding, constraint_truth_value, evaluate_integer_range_comparison, fold_binary,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -102,11 +102,17 @@ impl FunctionPass for BoundsCheckEliminate {
 
             // handle constant condition outcomes
             let block_ranges = ranges.exit(block_id);
-            let condition_truth =
-                condition_truth_value(candidate.condition, block_ranges, &definitions, tree);
+            let condition_truth = candidate.condition.and_then(|condition| {
+                condition_truth_value(condition, block_ranges, &definitions, tree)
+            });
+            let constraint_truth = candidate
+                .constraint
+                .as_ref()
+                .and_then(|constraint| constraint_truth_value(constraint, block_ranges));
+            let check_truth = constraint_truth.or(condition_truth);
 
-            // replace checks when the condition is constant
-            if let Some(truth_value) = condition_truth {
+            // replace checks when the outcome is constant
+            if let Some(truth_value) = check_truth {
                 // rewrite to the always taken edge
                 let (target, arguments) = if truth_value == candidate.in_bounds_truth {
                     (candidate.in_bounds_target, &candidate.in_bounds_arguments)
@@ -138,17 +144,19 @@ impl FunctionPass for BoundsCheckEliminate {
             }
 
             // collect constraints from the condition expression
-            let mut condition_constraints = constraints_for_condition(
-                candidate.condition,
-                candidate.in_bounds_truth,
-                block_id,
-                &definitions,
-                tree,
-                constants.as_ref(),
-                block_ranges,
-            )
-            .unwrap_or_default();
-            required_constraints.append(&mut condition_constraints);
+            if let Some(condition) = candidate.condition {
+                let mut condition_constraints = constraints_for_condition(
+                    condition,
+                    candidate.in_bounds_truth,
+                    block_id,
+                    &definitions,
+                    tree,
+                    constants.as_ref(),
+                    block_ranges,
+                )
+                .unwrap_or_default();
+                required_constraints.append(&mut condition_constraints);
+            }
 
             // skip when no constraints were derived
             if required_constraints.is_empty() {
@@ -405,7 +413,7 @@ impl ReachabilityCache {
 #[derive(Debug, Clone)]
 struct BoundsCheckCandidate {
     /// Condition value being checked.
-    condition: mir::Value,
+    condition: Option<mir::Value>,
     /// Target when bounds are satisfied.
     in_bounds_target: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to the in bounds target.
@@ -484,7 +492,7 @@ fn bounds_check_candidate(
                     )
                 };
             Some(BoundsCheckCandidate {
-                condition,
+                condition: Some(condition),
                 in_bounds_target,
                 in_bounds_arguments,
                 out_of_bounds_target: out_target,
@@ -494,7 +502,6 @@ fn bounds_check_candidate(
             })
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -504,7 +511,7 @@ fn bounds_check_candidate(
                 return None;
             }
             Some(BoundsCheckCandidate {
-                condition,
+                condition: None,
                 in_bounds_target: success.target,
                 in_bounds_arguments: success.arguments,
                 out_of_bounds_target: failure.target,
@@ -663,7 +670,6 @@ fn constraints_for_edge(
             .unwrap_or_default()
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -679,7 +685,7 @@ fn constraints_for_edge(
 
             // select the path that reaches the child
             let truth_value = success_reaches;
-            let mut constraints = constraints_for_check_kind(
+            let constraints = constraints_for_check_kind(
                 constraint,
                 truth_value,
                 block_id,
@@ -689,17 +695,6 @@ fn constraints_for_edge(
                 ranges,
             )
             .unwrap_or_default();
-            let mut condition_constraints = constraints_for_condition(
-                *condition,
-                truth_value,
-                block_id,
-                definitions,
-                tree,
-                constants,
-                ranges,
-            )
-            .unwrap_or_default();
-            constraints.append(&mut condition_constraints);
             constraints
         }
         _ => Vec::new(),

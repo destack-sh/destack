@@ -1,6 +1,5 @@
-use destack_dir::{Expression, LocalNodeId};
-
 use crate::{LowerError, LowerResult};
+use destack_dir as dir;
 
 use crate::lower::ModuleLowerer;
 
@@ -8,20 +7,20 @@ impl ModuleLowerer<'_> {
     /// Lower a root expression.
     pub(crate) fn lower_root_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<()> {
         // read the root expression
         let expression = self.dir_tree.get(expression_id);
 
         // route the root expression by kind
         match expression {
-            Expression::Declaration { declaration } => {
+            dir::Expression::Declaration { declaration } => {
                 // lower declaration roots
                 let declaration_id = *declaration;
                 let declaration = self.dir_tree.get(declaration_id);
                 self.lower_declaration(declaration_id, declaration)
             }
-            Expression::Let {
+            dir::Expression::Let {
                 mutability,
                 declarators,
                 ..

@@ -1158,7 +1158,7 @@ impl SymbolCallSite {
         let callsite_ref = CallSiteRef::Terminator(block_id);
 
         match terminator {
-            mir::Terminator::Call { function, .. } => {
+            mir::Terminator::Invoke { function, .. } => {
                 let callee = symbols_by_function.get(function).cloned();
                 let callee_linkage = Some(tree.get(*function).linkage);
                 let signature = Some(SignatureKey::from_function(tree, tree.get(*function)));
@@ -1172,7 +1172,7 @@ impl SymbolCallSite {
                     is_precise: true,
                 })
             }
-            mir::Terminator::CallIndirect { signature, .. } => Some(Self {
+            mir::Terminator::InvokeIndirect { signature, .. } => Some(Self {
                 callsite,
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
@@ -1180,7 +1180,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, *signature),
                 is_precise: false,
             }),
-            mir::Terminator::CallVirtual {
+            mir::Terminator::InvokeVirtual {
                 slot_id, signature, ..
             } => {
                 let declared_target = callsite_ref.declared_dynamic_target(tree);
@@ -1201,7 +1201,7 @@ impl SymbolCallSite {
                     is_precise: false,
                 })
             }
-            mir::Terminator::CallInterface {
+            mir::Terminator::InvokeInterface {
                 slot_id, signature, ..
             } => {
                 let declared_target = callsite_ref.declared_dynamic_target(tree);
@@ -1476,28 +1476,28 @@ impl CallSite {
         let callsite = CallSiteRef::Terminator(block_id);
 
         match terminator {
-            mir::Terminator::Call { function, .. } => Some(Self {
+            mir::Terminator::Invoke { function, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Direct,
                 callee: Some(*function),
                 is_precise: true,
             }),
-            mir::Terminator::CallIndirect { .. } => Some(Self {
+            mir::Terminator::InvokeIndirect { .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::CallVirtual { slot_id, .. } => Some(Self {
+            mir::Terminator::InvokeVirtual { slot_id, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
                 callee: callsite.declared_dynamic_target(tree),
                 is_precise: false,
             }),
-            mir::Terminator::CallInterface { slot_id, .. } => Some(Self {
+            mir::Terminator::InvokeInterface { slot_id, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Interface { slot_id: *slot_id },

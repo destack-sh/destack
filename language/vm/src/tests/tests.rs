@@ -280,6 +280,7 @@ fn test_execute_managed_nominal_field_load() {
 type Box {
     value: int32;
 }
+
 function sumBox(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
@@ -304,6 +305,7 @@ fn test_execute_direct_call_with_managed_receiver_field_load() {
 type Box {
     value: int32;
 }
+
 function readValueClass(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
@@ -312,6 +314,7 @@ b0(v0: int32):
     v3: int32 = call Box.get(v2): (ref<Box, managed, readonly>) -> int32
     return v3
 }
+
 function Box.get(v0: ref<Box, managed, readonly>): int32 {
 b0(v0: ref<Box, managed, readonly>):
     v1: Box = load v0
@@ -328,15 +331,17 @@ b0(v0: ref<Box, managed, readonly>):
 #[test]
 fn test_execute_stored_function_value_roundtrip() {
     let mir_text = r#"
-type Fn fn() -> int32
+type Fn = fn() -> int32;
 type Holder {
     action: Fn;
 }
+
 function target(): int32 {
 b0:
     v0: int32 = 7int32
     return v0
 }
+
 function run(): int32 {
 b0:
     v0: Fn = function.address target
@@ -370,14 +375,18 @@ type GreeterImpl {
 type Greeter#object {
     greet: closure() -> int32;
 }
+
 global GreeterImpl#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+
 extern function Greeter.greet(Greeter#object): int32
+
 function callInterface(v0: Greeter): int32 {
 b0(v0: Greeter):
     v1: ref<void, managed, readonly> = field.get v0, 0
     v2: int32 = call.interface v0, Greeter#object, 1(v1): (Greeter#object) -> int32
     return v2
 }
+
 function runInterface(): int32 {
 b0:
     v0: int32 = 41int32
@@ -389,6 +398,7 @@ b0:
     v6: int32 = call callInterface(v5): (Greeter) -> int32
     return v6
 }
+
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
 b0(v0: int32):
     v1: ref<GreeterImpl, managed, readonly> = managed.alloc GreeterImpl
@@ -402,6 +412,7 @@ b0(v0: int32):
     store v1, v7
     return v1
 }
+
 function GreeterImpl.greet(v0: ref<GreeterImpl, managed, readonly>): int32 {
 b0(v0: ref<GreeterImpl, managed, readonly>):
     v1: GreeterImpl = load v0

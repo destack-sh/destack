@@ -1,4 +1,3 @@
-use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
@@ -19,9 +18,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_binary_operator(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        operand_id: LocalNodeId<Expression>,
+        operand_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::BinaryOperator> {
         let scalar_type = self
             .scalar_type_for_expression(operand_id)
@@ -121,9 +120,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_unary_operator(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
-        operand_id: LocalNodeId<Expression>,
+        operand_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::UnaryOperator> {
         let scalar_type = self.scalar_type_for_expression(operand_id);
         let is_float = matches!(scalar_type, Some(ScalarType::Float { .. }));
@@ -172,10 +171,10 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_logical_operator(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        left_id: LocalNodeId<Expression>,
-        right_id: LocalNodeId<Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // evaluate LHS first
         let (lhs_value, lhs_type) = self.lower_value_expression(left_id)?;

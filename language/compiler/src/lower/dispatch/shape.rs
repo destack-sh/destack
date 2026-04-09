@@ -1,8 +1,7 @@
 use std::collections::{HashMap, HashSet};
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::StringId;
-use destack_dir::{DynamicKey, GlobalSymbolId, LocalNodeId, Member};
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
@@ -18,7 +17,7 @@ pub(crate) enum InterfaceEntry {
         /// The canonical interface dispatch field id.
         field: mir::LocalNodeId<mir::Field>,
         /// The member node for diagnostics.
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
     },
     /// A method slot for interface method dispatch.
     Method {
@@ -27,7 +26,7 @@ pub(crate) enum InterfaceEntry {
         /// The signature type id for the interface method.
         signature: dir::LocalTypeId,
         /// The member node for diagnostics.
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
     },
 }
 
@@ -35,7 +34,7 @@ impl ModuleLowerer<'_> {
     /// Lower and cache interface dispatch slots for an interface symbol.
     pub(crate) fn lower_interface_slots(
         &mut self,
-        interface: GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
     ) -> LowerResult<Vec<InterfaceEntry>> {
         if let Some(slots) = self.interface_slots_by_symbol.get(&interface) {
             return Ok(slots.clone());
@@ -69,7 +68,7 @@ impl ModuleLowerer<'_> {
     /// Collect interface member slots in declaration order.
     fn collect_interface_slots(
         &mut self,
-        interface: GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
     ) -> LowerResult<Vec<InterfaceEntry>> {
         // seed the collection state
         let mut slots = Vec::new();
@@ -92,11 +91,11 @@ impl ModuleLowerer<'_> {
     /// Collect interface slots with inheritance ordering.
     fn collect_interface_slots_inner(
         &mut self,
-        interface: GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
         slots: &mut Vec<InterfaceEntry>,
         seen_fields: &mut HashMap<StringId, dir::LocalTypeId>,
         seen_methods: &mut HashMap<StringId, Vec<dir::LocalTypeId>>,
-        visited: &mut HashSet<GlobalSymbolId>,
+        visited: &mut HashSet<dir::GlobalSymbolId>,
     ) -> LowerResult<()> {
         // avoid cycles in interface inheritance
         if !visited.insert(interface) {
@@ -155,9 +154,9 @@ impl ModuleLowerer<'_> {
     /// Collect slots for a single interface member.
     fn collect_interface_member_slots(
         &mut self,
-        interface_symbol: GlobalSymbolId,
+        interface_symbol: dir::GlobalSymbolId,
         interface_type: mir::LocalNodeId<mir::Type>,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
         slots: &mut Vec<InterfaceEntry>,
         seen_fields: &mut HashMap<StringId, dir::LocalTypeId>,
         seen_methods: &mut HashMap<StringId, Vec<dir::LocalTypeId>>,
@@ -174,7 +173,7 @@ impl ModuleLowerer<'_> {
                 ..
             } => {
                 // reject index signatures for native lowering
-                if matches!(key, Some(DynamicKey::NamedExpression { .. })) {
+                if matches!(key, Some(dir::DynamicKey::NamedExpression { .. })) {
                     return Err(LowerError::UnsupportedConstruct {
                         node: member_id
                             .into_global_any(self.module_id)
@@ -283,8 +282,8 @@ impl ModuleLowerer<'_> {
     /// Resolve a static interface field name for dispatch metadata.
     fn interface_field_name(
         &mut self,
-        member_id: LocalNodeId<Member>,
-        key: Option<DynamicKey>,
+        member_id: dir::LocalNodeId<dir::Member>,
+        key: Option<dir::DynamicKey>,
     ) -> LowerResult<StringId> {
         let Some(key) = key.and_then(|key| {
             self.compiler.static_key_from_dynamic_key(
@@ -310,7 +309,7 @@ impl ModuleLowerer<'_> {
     /// Return the canonical interface dispatch field node for a member.
     fn interface_dispatch_field(
         &mut self,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
         field_name: StringId,
         field_type: dir::LocalTypeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Field>> {

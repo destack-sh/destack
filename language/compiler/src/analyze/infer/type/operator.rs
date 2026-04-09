@@ -616,8 +616,11 @@ impl Compiler {
                             value: TypeLiteral::Any | TypeLiteral::Unknown,
                         }
                     );
-                    let is_unsafe_cast =
-                        is_any_or_unknown || left_to_right == Assignability::NotAssignable;
+                    let is_unsafe_cast = is_any_or_unknown
+                        || (left_to_right == Assignability::NotAssignable
+                            && !allow_pointer_cast
+                            && !allow_enum_cast
+                            && !allow_record_cast);
 
                     if is_unsafe_cast {
                         self.error(AnalyzeError::UnsafeTypeAssertionDisabled {

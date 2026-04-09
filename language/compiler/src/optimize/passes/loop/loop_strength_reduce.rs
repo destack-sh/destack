@@ -1083,7 +1083,6 @@ fn append_arguments_for_successor(
             })
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -1110,7 +1109,6 @@ fn append_arguments_for_successor(
             }
 
             Some(mir::Terminator::Check {
-                condition: *condition,
                 constraint: constraint.clone(),
                 success: mir::CheckTarget {
                     target: success.target,

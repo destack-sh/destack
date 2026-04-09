@@ -1,7 +1,7 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
-use destack_dir::{AnchoredGlobalNodeId, GlobalSymbolId, GlobalTypeId};
+use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::Repository;
 
@@ -37,9 +37,9 @@ pub enum LowerError {
     #[error(code = "EM100", message = "unsupported type {ty}: {message}")]
     UnsupportedType {
         /// Report the node that introduced the unsupported type.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Identify the unsupported type id.
-        ty: GlobalTypeId,
+        ty: dir::GlobalTypeId,
         /// Describe why the type is unsupported.
         message: String,
     },
@@ -48,14 +48,14 @@ pub enum LowerError {
     #[error(code = "EM101", message = "missing type")]
     MissingType {
         /// Report the node that lacks type information.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Non-boolean condition in control flow.
     #[error(code = "EM102", message = "condition requires boolean type")]
     NonBooleanCondition {
         /// Report the condition expression node.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Context where boolean was expected (if, while, for, etc.).
         context: String,
     },
@@ -67,7 +67,7 @@ pub enum LowerError {
     #[error(code = "EM200", message = "unsupported construct: {message}")]
     UnsupportedConstruct {
         /// Report the offending node that cannot be lowered.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Describe why the construct is unsupported.
         message: String,
     },
@@ -76,21 +76,21 @@ pub enum LowerError {
     #[error(code = "EM201", message = "static type arguments not supported")]
     StaticArgumentsNotSupported {
         /// Report the call or member access node.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Unsupported binding pattern.
     #[error(code = "EM202", message = "unsupported binding pattern")]
     UnsupportedPattern {
         /// Report the pattern node.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Invalid static argument.
     #[error(code = "EM203", message = "invalid static argument: {message}")]
     InvalidStaticArgument {
         /// Report the node that carries the static arguments.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Describe why the static argument is invalid.
         message: String,
     },
@@ -102,23 +102,23 @@ pub enum LowerError {
     #[error(code = "EM300", message = "unresolved symbol")]
     UnresolvedSymbol {
         /// Report the reference expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Missing function for symbol.
     #[error(code = "EM301", message = "missing function for symbol {symbol}")]
     MissingFunction {
         /// Report the call node.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// The symbol that should reference a function.
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     },
 
     /// Missing Resolution for method call.
     #[error(code = "EM302", message = "method call missing Resolution")]
     MissingResolution {
         /// Report the method call node.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Method name (for diagnostic context).
         method_name: StringId,
     },
@@ -127,7 +127,7 @@ pub enum LowerError {
     #[error(code = "EM303", message = "`this` reference outside of method context")]
     ThisOutsideMethod {
         /// Report the `this` expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     // -------------------------------------------------------------------------
@@ -137,14 +137,14 @@ pub enum LowerError {
     #[error(code = "EM400", message = "missing struct layout")]
     MissingLayout {
         /// Report the struct expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Missing field initializer.
     #[error(code = "EM401", message = "struct field {field_index} not initialized")]
     MissingFieldInitializer {
         /// Report the struct literal.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Index of the uninitialized field.
         field_index: u32,
     },
@@ -153,14 +153,14 @@ pub enum LowerError {
     #[error(code = "EM402", message = "duplicate struct field initializer")]
     DuplicateField {
         /// Report the duplicate field property.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Field not found in struct type.
     #[error(code = "EM403", message = "field not found in type")]
     FieldNotFound {
         /// Report the member expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     // -------------------------------------------------------------------------
@@ -170,14 +170,14 @@ pub enum LowerError {
     #[error(code = "EM500", message = "function body missing terminator")]
     MissingTerminator {
         /// Report the function declaration.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Break/continue outside of loop.
     #[error(code = "EM501", message = "break/continue outside of loop")]
     BreakContinueOutsideLoop {
         /// Report the break/continue expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         /// Label if present.
         label: Option<StringId>,
     },
@@ -189,7 +189,7 @@ pub enum LowerError {
     )]
     MissingElseBranch {
         /// Report the if expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     // -------------------------------------------------------------------------
@@ -199,21 +199,21 @@ pub enum LowerError {
     #[error(code = "EM600", message = "unsupported binary operator")]
     UnsupportedBinaryOperator {
         /// Report the binary expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Unsupported unary operator.
     #[error(code = "EM601", message = "unsupported unary operator")]
     UnsupportedUnaryOperator {
         /// Report the unary expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     /// Unsupported cast.
     #[error(code = "EM602", message = "unsupported cast")]
     UnsupportedCast {
         /// Report the cast expression.
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     },
 
     // -------------------------------------------------------------------------

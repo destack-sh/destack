@@ -368,27 +368,6 @@ fn fold_terminators(
                     mir::Terminator::Jump { target, arguments }
                 })
             }
-            mir::Terminator::Check {
-                condition,
-                success,
-                failure,
-                ..
-            } => {
-                let condition_constant = exit_constants.get(*condition);
-                let condition_value = match condition_constant {
-                    Some(mir::Constant::Boolean { value }) => Some(*value),
-                    _ => None,
-                };
-
-                condition_value.map(|is_true| {
-                    let (target, arguments) = if is_true {
-                        (success.target, success.arguments.clone())
-                    } else {
-                        (failure.target, failure.arguments.clone())
-                    };
-                    mir::Terminator::Jump { target, arguments }
-                })
-            }
             mir::Terminator::Switch {
                 value,
                 default,

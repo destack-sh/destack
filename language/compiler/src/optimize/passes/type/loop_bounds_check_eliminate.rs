@@ -278,7 +278,6 @@ fn run_loop_bounds_check_eliminate(
             let terminator = tree.get(block_id).terminator.clone();
             let (constraint, success) = match terminator {
                 mir::Terminator::Check {
-                    condition: _,
                     constraint,
                     success,
                     failure: _,
@@ -536,23 +535,7 @@ fn guard_condition(terminator: mir::Terminator, lp: &Loop) -> Option<(mir::Value
             let guard_is_true = then_in_loop;
             Some((condition, guard_is_true))
         }
-        mir::Terminator::Check {
-            condition,
-            success,
-            failure,
-            ..
-        } => {
-            // determine which check edge stays inside the loop
-            let success_in_loop = lp.blocks.contains(&success.target);
-            let failure_in_loop = lp.blocks.contains(&failure.target);
-            if success_in_loop == failure_in_loop {
-                return None;
-            }
-
-            // return the guard value for the in loop edge
-            let guard_is_true = success_in_loop;
-            Some((condition, guard_is_true))
-        }
+        mir::Terminator::Check { .. } => None,
         // no guard for other terminators
         _ => None,
     }

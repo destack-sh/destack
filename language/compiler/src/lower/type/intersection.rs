@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 
 use crate::{LowerError, LowerResult};
@@ -15,7 +14,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<dir::LocalTypeId> {
         // collect intersection elements with flattening
         let mut collected = Vec::new();

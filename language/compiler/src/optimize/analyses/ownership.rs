@@ -841,7 +841,7 @@ impl OwnershipAnalysis {
                     }
                 }
             }
-            mir::Terminator::Call {
+            mir::Terminator::Invoke {
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -857,7 +857,7 @@ impl OwnershipAnalysis {
                     }
                 }
             }
-            mir::Terminator::CallIndirect {
+            mir::Terminator::InvokeIndirect {
                 callee,
                 arguments,
                 normal_arguments,
@@ -877,14 +877,14 @@ impl OwnershipAnalysis {
                     }
                 }
             }
-            mir::Terminator::CallVirtual {
+            mir::Terminator::InvokeVirtual {
                 receiver,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallInterface {
+            | mir::Terminator::InvokeInterface {
                 receiver,
                 arguments,
                 normal_arguments,
@@ -1630,7 +1630,7 @@ fn process_terminator(
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             arguments,
             normal_arguments,
             unwind_arguments,
@@ -1644,7 +1644,7 @@ fn process_terminator(
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             normal_arguments,
@@ -1660,14 +1660,14 @@ fn process_terminator(
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             normal_arguments,
@@ -1792,28 +1792,28 @@ fn predecessor_arguments(
                 arguments.push(resume_arguments.as_slice());
             }
         }
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallIndirect {
+        | mir::Terminator::InvokeIndirect {
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallVirtual {
+        | mir::Terminator::InvokeVirtual {
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             normal_target,
             normal_arguments,
             unwind_target,

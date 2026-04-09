@@ -244,7 +244,6 @@ fn redirect_backedge(
             };
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -262,7 +261,6 @@ fn redirect_backedge(
             }
 
             block.terminator = mir::Terminator::Check {
-                condition: *condition,
                 constraint: constraint.clone(),
                 success: mir::CheckTarget {
                     target: success_target,

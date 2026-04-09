@@ -417,25 +417,10 @@ impl<'a> SccpState<'a> {
                 }
             }
             mir::Terminator::Check {
-                condition,
-                success,
-                failure,
-                ..
+                success, failure, ..
             } => {
-                // evaluate check condition
-                let condition_state = self.value_state(*condition);
-
-                // mark executable edges for the check
-                if let LatticeValue::Constant(mir::Constant::Boolean { value }) = condition_state {
-                    if value {
-                        self.mark_edge_executable(block_id, success.target, &success.arguments);
-                    } else {
-                        self.mark_edge_executable(block_id, failure.target, &failure.arguments);
-                    }
-                } else {
-                    self.mark_edge_executable(block_id, success.target, &success.arguments);
-                    self.mark_edge_executable(block_id, failure.target, &failure.arguments);
-                }
+                self.mark_edge_executable(block_id, success.target, &success.arguments);
+                self.mark_edge_executable(block_id, failure.target, &failure.arguments);
             }
             mir::Terminator::Switch {
                 value,
@@ -475,28 +460,28 @@ impl<'a> SccpState<'a> {
             } => {
                 self.mark_edge_executable(block_id, *resume, resume_arguments);
             }
-            mir::Terminator::Call {
+            mir::Terminator::Invoke {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallIndirect {
+            | mir::Terminator::InvokeIndirect {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallVirtual {
+            | mir::Terminator::InvokeVirtual {
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallInterface {
+            | mir::Terminator::InvokeInterface {
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -1250,29 +1235,6 @@ fn fold_constant_terminator(
             });
         }
     }
-    if let mir::Terminator::Check {
-        condition,
-        success,
-        failure,
-        ..
-    } = terminator
-    {
-        let condition_state = result.value_state(*condition);
-        let is_true = match condition_state {
-            LatticeValue::Constant(mir::Constant::Boolean { value }) => Some(value),
-            _ => None,
-        };
-
-        if let Some(is_true) = is_true {
-            let (target, arguments) = if is_true {
-                (success.target, success.arguments.clone())
-            } else {
-                (failure.target, failure.arguments.clone())
-            };
-            return Some(mir::Terminator::Jump { target, arguments });
-        }
-    }
-
     None
 }
 

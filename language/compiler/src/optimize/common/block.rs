@@ -27,13 +27,11 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
                 || else_arguments.contains(&value)
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
         } => {
-            *condition == value
-                || constraint.uses().contains(&value)
+            constraint.uses().contains(&value)
                 || success.arguments.contains(&value)
                 || failure.arguments.contains(&value)
         }
@@ -52,7 +50,7 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
             resume_arguments,
             ..
         } => *v == value || resume_arguments.contains(&value),
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             arguments,
             normal_arguments,
             unwind_arguments,
@@ -62,7 +60,7 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
                 || normal_arguments.contains(&value)
                 || unwind_arguments.contains(&value)
         }
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             normal_arguments,
@@ -74,14 +72,14 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
                 || normal_arguments.contains(&value)
                 || unwind_arguments.contains(&value)
         }
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             normal_arguments,
@@ -133,12 +131,11 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
         } => {
-            let mut values = vec![*condition];
+            let mut values = Vec::new();
             values.extend(constraint.uses().iter().copied());
             values.extend(success.arguments.iter().copied());
             values.extend(failure.arguments.iter().copied());
@@ -166,7 +163,7 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values.extend(resume_arguments.iter().copied());
             values
         }
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             arguments,
             normal_arguments,
             unwind_arguments,
@@ -177,7 +174,7 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values.extend(unwind_arguments.iter().copied());
             values
         }
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             normal_arguments,
@@ -190,14 +187,14 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values.extend(unwind_arguments.iter().copied());
             values
         }
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             normal_arguments,
@@ -303,7 +300,7 @@ pub fn terminator_arguments_for_successor(
             resume_arguments,
             ..
         } if *resume == successor => resume_arguments,
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             normal_target,
             normal_arguments,
             unwind_target,
@@ -318,21 +315,21 @@ pub fn terminator_arguments_for_successor(
                 &[]
             }
         }
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallVirtual {
+        | mir::Terminator::InvokeVirtual {
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             normal_target,
             normal_arguments,
             unwind_target,
@@ -489,7 +486,6 @@ pub fn append_successor_arguments(
             }
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -503,7 +499,6 @@ pub fn append_successor_arguments(
                 failure_args.extend(extra_args.iter().copied());
             }
             mir::Terminator::Check {
-                condition: *condition,
                 constraint: constraint.clone(),
                 success: mir::CheckTarget {
                     target: success.target,
@@ -709,7 +704,6 @@ fn redirect_successor_to_edge(
             }
         }
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -731,7 +725,6 @@ fn redirect_successor_to_edge(
             }
 
             mir::Terminator::Check {
-                condition: *condition,
                 constraint: constraint.clone(),
                 success: new_success,
                 failure: new_failure,
@@ -1101,13 +1094,12 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
             uses.extend(else_arguments.iter().copied());
         }
         mir::Terminator::Check {
-            condition,
             success,
             failure,
-            ..
+            constraint,
         } => {
-            // record check condition and arguments
-            uses.push(*condition);
+            // record check operands and arguments
+            uses.extend(constraint.uses());
             uses.extend(success.arguments.iter().copied());
             uses.extend(failure.arguments.iter().copied());
         }
@@ -1133,7 +1125,7 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
             uses.push(*value);
             uses.extend(resume_arguments.iter().copied());
         }
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             arguments,
             normal_arguments,
             unwind_arguments,
@@ -1143,7 +1135,7 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
             uses.extend(normal_arguments.iter().copied());
             uses.extend(unwind_arguments.iter().copied());
         }
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             normal_arguments,
@@ -1155,14 +1147,14 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
             uses.extend(normal_arguments.iter().copied());
             uses.extend(unwind_arguments.iter().copied());
         }
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         }
-        | mir::Terminator::CallInterface {
+        | mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             normal_arguments,
@@ -1428,7 +1420,6 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                 }
             }
             mir::Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
@@ -1461,7 +1452,6 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     || new_failure_args != failure.arguments
                 {
                     Some(mir::Terminator::Check {
-                        condition: *condition,
                         constraint: constraint.clone(),
                         success: mir::CheckTarget {
                             target: new_success,
@@ -1697,7 +1687,6 @@ pub fn terminator_substitute_uses(
             else_arguments: else_arguments.iter().map(&substitute).collect(),
         },
         mir::Terminator::Check {
-            condition,
             constraint,
             success,
             failure,
@@ -1782,7 +1771,6 @@ pub fn terminator_substitute_uses(
             };
 
             mir::Terminator::Check {
-                condition: substitute(condition),
                 constraint: constraint.clone(),
                 success,
                 failure,
@@ -1815,22 +1803,24 @@ pub fn terminator_substitute_uses(
             resume: *resume,
             resume_arguments: resume_arguments.iter().map(&substitute).collect(),
         },
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             function,
             arguments,
+            signature,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::Call {
+        } => mir::Terminator::Invoke {
             function: *function,
             arguments: arguments.iter().map(&substitute).collect(),
+            signature: *signature,
             normal_target: *normal_target,
             normal_arguments: normal_arguments.iter().map(&substitute).collect(),
             unwind_target: *unwind_target,
             unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
         },
-        mir::Terminator::CallIndirect {
+        mir::Terminator::InvokeIndirect {
             callee,
             arguments,
             signature,
@@ -1838,7 +1828,7 @@ pub fn terminator_substitute_uses(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::CallIndirect {
+        } => mir::Terminator::InvokeIndirect {
             callee: substitute(callee),
             arguments: arguments.iter().map(&substitute).collect(),
             signature: *signature,
@@ -1847,7 +1837,7 @@ pub fn terminator_substitute_uses(
             unwind_target: *unwind_target,
             unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
         },
-        mir::Terminator::CallVirtual {
+        mir::Terminator::InvokeVirtual {
             receiver,
             arguments,
             declaring_type,
@@ -1857,7 +1847,7 @@ pub fn terminator_substitute_uses(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::CallVirtual {
+        } => mir::Terminator::InvokeVirtual {
             receiver: substitute(receiver),
             arguments: arguments.iter().map(&substitute).collect(),
             declaring_type: *declaring_type,
@@ -1868,7 +1858,7 @@ pub fn terminator_substitute_uses(
             unwind_target: *unwind_target,
             unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
         },
-        mir::Terminator::CallInterface {
+        mir::Terminator::InvokeInterface {
             receiver,
             arguments,
             declaring_type,
@@ -1878,7 +1868,7 @@ pub fn terminator_substitute_uses(
             normal_arguments,
             unwind_target,
             unwind_arguments,
-        } => mir::Terminator::CallInterface {
+        } => mir::Terminator::InvokeInterface {
             receiver: substitute(receiver),
             arguments: arguments.iter().map(&substitute).collect(),
             declaring_type: *declaring_type,
@@ -1900,9 +1890,11 @@ pub fn terminator_substitute_uses(
         mir::Terminator::TailCall {
             function,
             arguments,
+            signature,
         } => mir::Terminator::TailCall {
             function: *function,
             arguments: arguments.iter().map(&substitute).collect(),
+            signature: *signature,
         },
         mir::Terminator::TailCallVirtual {
             receiver,

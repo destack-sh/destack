@@ -1,6 +1,5 @@
 use destack_artifact::WellKnownIntrinsics;
 use destack_dir as dir;
-use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Revision};
 
@@ -11,7 +10,7 @@ impl ModuleLowerer<'_> {
     /// Resolve the intrinsic binding name for a symbol.
     pub(crate) fn resolve_intrinsic_binding_name_id(
         &self,
-        target_symbol: GlobalSymbolId,
+        target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Option<dir::StringId>> {
         // ensure the target module is analyzed before resolving intrinsics
         self.require_analyzed_module(target_symbol.module_id)?;
@@ -33,7 +32,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the intrinsic binding name for a symbol.
     pub(crate) fn resolve_intrinsic_binding_name_id(
         &self,
-        target_symbol: GlobalSymbolId,
+        target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Option<dir::StringId>> {
         // resolve the intrinsic name through the registry
         resolve_intrinsic_binding_name_id(
@@ -56,7 +55,7 @@ fn resolve_intrinsic_binding_name_id(
     compiler: &Compiler,
     local_symbols: &dir::SymbolTable,
     well_known_intrinsics: Option<&WellKnownIntrinsics>,
-    target_symbol: GlobalSymbolId,
+    target_symbol: dir::GlobalSymbolId,
 ) -> LowerResult<Option<dir::StringId>> {
     // skip when no intrinsic registry is available
     let Some(well_known_intrinsics) = well_known_intrinsics else {
@@ -86,8 +85,8 @@ fn resolve_canonical_symbol(
     revision: Revision,
     compiler: &Compiler,
     local_symbols: &dir::SymbolTable,
-    symbol_id: GlobalSymbolId,
-) -> LowerResult<GlobalSymbolId> {
+    symbol_id: dir::GlobalSymbolId,
+) -> LowerResult<dir::GlobalSymbolId> {
     let (canonical_symbol, target_symbol) = if symbol_id.module_id == module_id {
         let symbol = local_symbols.get_symbol(symbol_id.local_id);
         (symbol.canonical_symbol, symbol.target_symbol)

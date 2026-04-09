@@ -1,9 +1,4 @@
 use std::collections::{HashMap, HashSet};
-
-use destack_dir::{
-    Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Member,
-    NodeVisitor, NodeVisitorOptions, walk_expression,
-};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{
@@ -16,12 +11,12 @@ use crate::lower::ModuleLowerer;
 /// Visitor that collects expression ids from a subtree.
 #[derive(Default)]
 struct ExpressionTypeCollector {
-    /// Expression ids encountered during traversal.
-    expression_ids: Vec<LocalNodeId<Expression>>,
-    /// Expression ids used as call or constructor callees.
+    /// dir::Expression ids encountered during traversal.
+    expression_ids: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// dir::Expression ids used as call or constructor callees.
     callee_expression_ids: HashSet<u32>,
     /// Options for the node visitor.
-    options: NodeVisitorOptions,
+    options: dir::NodeVisitorOptions,
 }
 
 impl ExpressionTypeCollector {
@@ -30,12 +25,12 @@ impl ExpressionTypeCollector {
         Self {
             expression_ids: Vec::new(),
             callee_expression_ids: HashSet::new(),
-            options: NodeVisitorOptions::default(),
+            options: dir::NodeVisitorOptions::default(),
         }
     }
 
     /// Return collected expression ids.
-    fn expression_ids(&self) -> &[LocalNodeId<Expression>] {
+    fn expression_ids(&self) -> &[dir::LocalNodeId<dir::Expression>] {
         &self.expression_ids
     }
 
@@ -45,23 +40,23 @@ impl ExpressionTypeCollector {
     }
 }
 
-impl NodeVisitor for ExpressionTypeCollector {
-    fn options(&self) -> &NodeVisitorOptions {
+impl dir::NodeVisitor for ExpressionTypeCollector {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_expression(
         &mut self,
         tree: &dir::NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         // skip lowering callee types for direct calls
-        if let Expression::Call { left, .. } | Expression::New { left, .. } = expression {
+        if let dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } = expression {
             self.callee_expression_ids.insert(left.id);
         }
         self.expression_ids.push(id);
-        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
     }
 }
 
@@ -72,11 +67,11 @@ struct AddressTakenCollector<'a> {
     /// Identify the module for expression lookups.
     module_id: destack_source::ModuleId,
     /// Symbols that require addressable locals.
-    locals: HashSet<GlobalSymbolId>,
+    locals: HashSet<dir::GlobalSymbolId>,
     /// Whether `this` is address taken.
     takes_this: bool,
     /// Options for the node visitor.
-    options: NodeVisitorOptions,
+    options: dir::NodeVisitorOptions,
 }
 
 impl<'a> AddressTakenCollector<'a> {
@@ -87,7 +82,7 @@ impl<'a> AddressTakenCollector<'a> {
             module_id,
             locals: HashSet::new(),
             takes_this: false,
-            options: NodeVisitorOptions::default(),
+            options: dir::NodeVisitorOptions::default(),
         }
     }
 
@@ -103,35 +98,35 @@ impl<'a> AddressTakenCollector<'a> {
     fn record_reference_target(
         &mut self,
         tree: &dir::NodeTree,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
         // unwrap reference targets that can yield addressable bases
         let expression = tree.get(expression_id);
         match expression {
-            Expression::Parenthesized { expression } => {
+            dir::Expression::Parenthesized { expression } => {
                 self.record_reference_target(tree, *expression);
             }
-            Expression::Cast { value, .. } => {
+            dir::Expression::Cast { value, .. } => {
                 self.record_reference_target(tree, *value);
             }
-            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+            dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
                 if !self.expression_is_reference_like(*left) {
                     self.record_reference_target(tree, *left);
                 }
             }
-            Expression::Index { left, .. } => {
+            dir::Expression::Index { left, .. } => {
                 if !self.expression_is_reference_like(*left) {
                     self.record_reference_target(tree, *left);
                 }
             }
-            Expression::LocalReference { target_symbol, .. } => {
+            dir::Expression::LocalReference { target_symbol, .. } => {
                 self.locals.insert(*target_symbol);
             }
-            Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
+            dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => {
                 self.locals.insert(*target_symbol);
             }
-            Expression::This => {
+            dir::Expression::This => {
                 self.takes_this = true;
             }
             _ => {}
@@ -139,7 +134,10 @@ impl<'a> AddressTakenCollector<'a> {
     }
 
     /// Check whether an expression lowers to a reference-like value.
-    fn expression_is_reference_like(&self, expression_id: LocalNodeId<Expression>) -> bool {
+    fn expression_is_reference_like(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
         let node_id = expression_id.into_global_any(self.module_id);
         let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) else {
             return false;
@@ -175,21 +173,21 @@ impl<'a> AddressTakenCollector<'a> {
     }
 }
 
-impl NodeVisitor for AddressTakenCollector<'_> {
-    fn options(&self) -> &NodeVisitorOptions {
+impl dir::NodeVisitor for AddressTakenCollector<'_> {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_expression(
         &mut self,
         tree: &dir::NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
-        if let Expression::ReferenceOf { right, .. } = expression {
+        if let dir::Expression::ReferenceOf { right, .. } = expression {
             self.record_reference_target(tree, *right);
         }
-        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
     }
 }
 
@@ -200,7 +198,7 @@ impl ModuleLowerer<'_> {
         for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
             // skip non function declarations
-            let Declaration::Function {
+            let dir::Declaration::Function {
                 descriptor,
                 signature,
                 body,
@@ -237,7 +235,7 @@ impl ModuleLowerer<'_> {
 
             // require a function declaration
             let declaration = self.dir_tree.get(declaration_id);
-            let Declaration::Function {
+            let dir::Declaration::Function {
                 descriptor, body, ..
             } = declaration
             else {
@@ -272,10 +270,10 @@ impl ModuleLowerer<'_> {
     pub(crate) fn declare_function(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        declaration: &Declaration,
+        declaration: &dir::Declaration,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // require a function declaration
-        let Declaration::Function {
+        let dir::Declaration::Function {
             descriptor,
             signature,
             ..
@@ -308,7 +306,7 @@ impl ModuleLowerer<'_> {
         let mut parameter_types = Vec::new();
         let mut parameter_names = Vec::new();
         for parameter_id in &signature.dynamic_parameters {
-            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_node = dir::GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty =
                 self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
             let parameter_ty = self.lower_type(
@@ -369,12 +367,17 @@ impl ModuleLowerer<'_> {
     /// Prelower types required by a function body expression.
     fn prelower_expression_types(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<()> {
         // collect expression ids for this subtree
         let mut collector = ExpressionTypeCollector::new();
         let expression = self.dir_tree.get(expression_id);
-        collector.visit_expression(self.dir_tree, expression_id, expression);
+        dir::NodeVisitor::visit_expression(
+            &mut collector,
+            self.dir_tree,
+            expression_id,
+            expression,
+        );
 
         // collect type ids referenced by expressions
         let mut type_sources: HashMap<dir::LocalTypeId, dir::GlobalNodeIdAny> = HashMap::new();
@@ -399,7 +402,7 @@ impl ModuleLowerer<'_> {
                 type_sources.entry(type_id).or_insert(node_id);
             }
 
-            if let Expression::Type { value } = self.dir_tree.get(*expression_id) {
+            if let dir::Expression::Type { value } = self.dir_tree.get(*expression_id) {
                 let dir_type = self.types.get_type(*value);
                 if matches!(
                     dir_type,
@@ -413,8 +416,8 @@ impl ModuleLowerer<'_> {
             }
 
             // include local binding symbol types for uninitialized lets
-            if let Expression::Let { declarators, .. } | Expression::Using { declarators, .. } =
-                self.dir_tree.get(*expression_id)
+            if let dir::Expression::Let { declarators, .. }
+            | dir::Expression::Using { declarators, .. } = self.dir_tree.get(*expression_id)
             {
                 for declarator_id in declarators {
                     let declarator = self.dir_tree.get(*declarator_id);
@@ -457,19 +460,24 @@ impl ModuleLowerer<'_> {
     /// Collect address taken bindings within a function body.
     fn collect_address_taken_bindings(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> AddressTakenBindings {
         // walk the function body to find reference targets
         let mut collector = AddressTakenCollector::new(self.types, self.module_id);
         let expression = self.dir_tree.get(expression_id);
-        collector.visit_expression(self.dir_tree, expression_id, expression);
+        dir::NodeVisitor::visit_expression(
+            &mut collector,
+            self.dir_tree,
+            expression_id,
+            expression,
+        );
         collector.into_bindings()
     }
 
     /// Resolve the signature type id for a declaration or member node.
     pub(crate) fn signature_type_id_for_node(
         &self,
-        node_id: GlobalNodeIdAny,
+        node_id: dir::GlobalNodeIdAny,
     ) -> LowerResult<dir::LocalTypeId> {
         // resolve the signature type id
         self.types
@@ -481,10 +489,10 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_function(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        declaration: &Declaration,
+        declaration: &dir::Declaration,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // require a function declaration
-        let Declaration::Function {
+        let dir::Declaration::Function {
             descriptor,
             signature,
             body,
@@ -516,7 +524,7 @@ impl ModuleLowerer<'_> {
         let mut parameter_types = Vec::new();
         let mut parameter_names = Vec::new();
         for parameter_id in &signature.dynamic_parameters {
-            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_node = dir::GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty =
                 self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
             let parameter_ty = self.lower_type(
@@ -738,9 +746,9 @@ impl ModuleLowerer<'_> {
     /// Resolve a `this` symbol for explicit parameters or captured bindings.
     fn resolve_this_symbol_for_function(
         &self,
-        symbol_id: GlobalSymbolId,
+        symbol_id: dir::GlobalSymbolId,
         signature: &dir::FunctionSignature,
-    ) -> Option<GlobalSymbolId> {
+    ) -> Option<dir::GlobalSymbolId> {
         // prefer explicit this parameters
         if let Some(parameter_id) = signature.this_parameter {
             let parameter = self.dir_tree.get(parameter_id);
@@ -770,7 +778,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve the module-local owner path for an anonymous lambda.
-    fn lambda_owner_name(&self, symbol_id: GlobalSymbolId) -> Option<String> {
+    fn lambda_owner_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
         let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
         let mut scope_id = symbol_data.scope.0;
         let mut seen_scopes = HashSet::new();
@@ -823,14 +831,14 @@ impl ModuleLowerer<'_> {
     /// Lower a method member to a MIR function.
     pub(crate) fn lower_method(
         &mut self,
-        member_id: LocalNodeId<Member>,
-        member: &Member,
+        member_id: dir::LocalNodeId<dir::Member>,
+        member: &dir::Member,
         this_type: Option<mir::LocalNodeId<mir::Type>>,
-        owner_symbol: GlobalSymbolId,
-        parent_declaration_id: LocalNodeId<Declaration>,
+        owner_symbol: dir::GlobalSymbolId,
+        parent_declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> LowerResult<()> {
         // require a method member
-        let Member::Method {
+        let dir::Member::Method {
             modifiers,
             key,
             signature,
@@ -1185,7 +1193,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a method return type for lowering.
     pub(crate) fn resolve_method_return_type(
         &mut self,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
         member_node: dir::GlobalNodeIdAny,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // get signature type from analyzed metadata
@@ -1236,7 +1244,7 @@ impl ModuleLowerer<'_> {
         // lower declared parameter types
         for parameter_id in &signature.dynamic_parameters {
             // resolve the parameter type id
-            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_node = dir::GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty_id =
                 self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
 

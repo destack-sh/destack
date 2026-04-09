@@ -140,7 +140,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 // function value declarations
                 if let mir::Instruction::FunctionAddr { function, .. }
-                | mir::Instruction::FunctionValue { function, .. } = inst
+                | mir::Instruction::Closure { function, .. } = inst
                     && !self.function_ref_map.contains_key(function)
                 {
                     self.declare_function_ref(*function, target)?;
@@ -149,7 +149,7 @@ impl<'a> FunctionLowerer<'a> {
 
             // check terminator for direct callees
             match &block.terminator {
-                mir::Terminator::Call { function, .. }
+                mir::Terminator::Invoke { function, .. }
                 | mir::Terminator::TailCall { function, .. }
                     if !self.function_ref_map.contains_key(function) =>
                 {
@@ -452,14 +452,14 @@ impl<'a> FunctionLowerer<'a> {
                 let address = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 value_map.insert(*destination, address);
             }
-            mir::Instruction::FunctionValue {
+            mir::Instruction::Closure {
                 destination,
                 function,
                 environment,
             } => {
                 let destination_type =
                     self.value_type_or_error(*destination, instruction_id.into_any())?;
-                let mir::Type::FunctionValue { .. } = self.tree.get(destination_type) else {
+                let mir::Type::Closure { .. } = self.tree.get(destination_type) else {
                     return Err(CodegenCraneliftError::Internal {
                         message: "function.bind result must be a callable value".into(),
                     });
@@ -897,7 +897,7 @@ impl<'a> FunctionLowerer<'a> {
                 let field_values = self.tree.get_arguments(*fields);
                 let field_count = match self.tree.get(*ty) {
                     mir::Type::Struct { fields, .. } => fields.len(),
-                    mir::Type::FunctionValue { .. } => 2,
+                    mir::Type::Closure { .. } => 2,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "Struct instruction with non-aggregate type".into(),
@@ -1137,34 +1137,15 @@ impl<'a> FunctionLowerer<'a> {
                 );
             }
 
-            // check: brif (semantic check with explicit failure edge)
+            // check: explicit condition lowering is not implemented here yet
             mir::Terminator::Check {
-                condition,
-                success,
-                failure,
+                success: _,
+                failure: _,
                 ..
             } => {
-                let cond_value = value_map[condition];
-                let success_block = block_map[&success.target];
-                let failure_block = block_map[&failure.target];
-                let success_arguments: Vec<cir::BlockArg> = success
-                    .arguments
-                    .iter()
-                    .map(|v| cir::BlockArg::from(value_map[v]))
-                    .collect();
-                let failure_arguments: Vec<cir::BlockArg> = failure
-                    .arguments
-                    .iter()
-                    .map(|v| cir::BlockArg::from(value_map[v]))
-                    .collect();
-
-                builder.ins().brif(
-                    cond_value,
-                    success_block,
-                    &success_arguments,
-                    failure_block,
-                    &failure_arguments,
-                );
+                return Err(CodegenCraneliftError::Internal {
+                    message: "check terminators are not supported in native codegen yet".into(),
+                });
             }
 
             // switch: br_table or brif chain (multi-way branch)
@@ -1197,10 +1178,10 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // exception edge calls: explicit unwind CFG is not lowered yet
-            mir::Terminator::Call { .. }
-            | mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallVirtual { .. }
-            | mir::Terminator::CallInterface { .. } => {
+            mir::Terminator::Invoke { .. }
+            | mir::Terminator::InvokeIndirect { .. }
+            | mir::Terminator::InvokeVirtual { .. }
+            | mir::Terminator::InvokeInterface { .. } => {
                 return Err(CodegenCraneliftError::Internal {
                     message: "exceptional call terminators are not supported in native codegen yet"
                         .into(),
@@ -1230,6 +1211,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Terminator::TailCall {
                 function,
                 arguments,
+                signature: _,
             } => {
                 let callee = self.tree.get(*function);
                 if callee.environment.is_some() {
@@ -1398,8 +1380,8 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CodegenCraneliftResult<cir::SigRef> {
         // callable abi
         let (signature, has_environment) = match self.tree.get(signature) {
-            mir::Type::FunctionPointer { .. } => (signature, None),
-            mir::Type::FunctionValue { signature } => (*signature, Some(())),
+            mir::Type::FunctionPointer { .. } => (signature, false),
+            mir::Type::Closure { signature } => (*signature, true),
             _ => {
                 return Err(CodegenCraneliftError::Internal {
                     message: format!("{error_context} signature is not a function type"),
@@ -1421,7 +1403,7 @@ impl<'a> FunctionLowerer<'a> {
             let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
-        if has_environment.is_some() {
+        if has_environment {
             signature
                 .params
                 .push(cir::AbiParam::new(self.pointer_type()));
@@ -1450,7 +1432,7 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // closure callable aggregate
-        let mir::Type::FunctionValue {
+        let mir::Type::Closure {
             signature: function_type,
         } = self.tree.get(signature)
         else {
@@ -1621,7 +1603,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Type::Tuple { elements, .. } => *elements
                 .get(index as usize)
                 .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
-            mir::Type::FunctionValue { signature } => match index {
+            mir::Type::Closure { signature } => match index {
                 0 => *signature,
                 1 => self.tree.function_value_environment_type(),
                 _ => return Err(CodegenCraneliftError::out_of_bounds(node, index, 2)),

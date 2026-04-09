@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, DynamicKey, LocalNodeId, Member};
+use destack_dir::{self as dir};
 
 use crate::{LowerError, LowerResult};
 
@@ -9,11 +9,11 @@ impl ModuleLowerer<'_> {
     /// Resolve a dispatchable member name from a key and signature mode.
     pub(crate) fn member_dispatch_name_or_error(
         &self,
-        key: Option<&DynamicKey>,
+        key: Option<&dir::DynamicKey>,
         mode: Option<dir::FunctionMode>,
-        node: LocalNodeId<Member>,
+        node: dir::LocalNodeId<dir::Member>,
     ) -> LowerResult<StringId> {
-        if let Some(DynamicKey::Name(name)) = key {
+        if let Some(dir::DynamicKey::Name(name)) = key {
             return Ok(*name);
         }
 

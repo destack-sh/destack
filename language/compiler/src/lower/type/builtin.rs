@@ -1,7 +1,5 @@
 use destack_artifact::{DirAnalyzed, DirDeclared};
-use destack_dir::{
-    self as dir, Declaration, Member, SymbolSpaceOrder, SymbolType, TypeKind, WellKnownSymbol,
-};
+use destack_dir::{self as dir};
 use destack_mir as mir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Revision};
@@ -77,8 +75,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
         }
 
         // resolve the builtin string symbol
-        let Some(string_symbol) = self
-            .resolve_well_known_symbol(WellKnownSymbol::String, SymbolSpaceOrder::TypeThenValue)?
+        let Some(string_symbol) = self.resolve_well_known_symbol(
+            dir::WellKnownSymbol::String,
+            dir::SymbolSpaceOrder::TypeThenValue,
+        )?
         else {
             return Ok(None);
         };
@@ -103,8 +103,8 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Resolve a well-known symbol for this profile.
     pub(crate) fn resolve_well_known_symbol(
         &self,
-        symbol: WellKnownSymbol,
-        order: SymbolSpaceOrder,
+        symbol: dir::WellKnownSymbol,
+        order: dir::SymbolSpaceOrder,
     ) -> LowerResult<Option<dir::GlobalSymbolId>> {
         // resolve the canonical well-known symbol
         let resolved =
@@ -169,7 +169,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
             .ok()?;
 
         // extract struct members
-        let Declaration::Struct { members, .. } = tree.get(declaration_id) else {
+        let dir::Declaration::Struct { members, .. } = tree.get(declaration_id) else {
             return None;
         };
 
@@ -190,8 +190,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let mut field_inputs = Vec::new();
         let pointer_bytes = self.type_lowerer.pointer_bytes();
 
-        let vector_symbol = self
-            .resolve_well_known_symbol(WellKnownSymbol::Vector, SymbolSpaceOrder::TypeThenValue)?;
+        let vector_symbol = self.resolve_well_known_symbol(
+            dir::WellKnownSymbol::Vector,
+            dir::SymbolSpaceOrder::TypeThenValue,
+        )?;
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
@@ -200,7 +202,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         );
 
         for (source_index, member_id) in members.iter().enumerate() {
-            let Member::Field { key, value, .. } = tree.get(*member_id) else {
+            let dir::Member::Field { key, value, .. } = tree.get(*member_id) else {
                 continue;
             };
 
@@ -330,7 +332,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
         // ignore non alias symbols
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+        if !matches!(
+            symbol_entry.ty,
+            dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
+        ) {
             return type_id;
         }
 
@@ -341,10 +346,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let Ok(declaration_id) = primary.local_id.try_into_typed::<dir::Declaration>() else {
             return type_id;
         };
-        let Declaration::Type { kind, value, .. } = tree.get(declaration_id) else {
+        let dir::Declaration::Type { kind, value, .. } = tree.get(declaration_id) else {
             return type_id;
         };
-        if *kind != TypeKind::Nominal {
+        if *kind != dir::TypeKind::Nominal {
             return type_id;
         }
 

@@ -1,6 +1,3 @@
-use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeId, NodeVisitor, NodeVisitorOptions, walk_expression,
-};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -11,9 +8,9 @@ use crate::lower::ModuleLowerer;
 /// Visitor that collects call expressions from a subtree.
 struct ExternalCallCollector {
     /// Call expressions found in the subtree.
-    calls: Vec<LocalNodeId<Expression>>,
+    calls: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Options for the node visitor.
-    options: NodeVisitorOptions,
+    options: dir::NodeVisitorOptions,
 }
 
 impl ExternalCallCollector {
@@ -21,21 +18,21 @@ impl ExternalCallCollector {
     fn new() -> Self {
         Self {
             calls: Vec::new(),
-            options: NodeVisitorOptions::default(),
+            options: dir::NodeVisitorOptions::default(),
         }
     }
 }
 
-impl NodeVisitor for ExternalCallCollector {
-    fn options(&self) -> &NodeVisitorOptions {
+impl dir::NodeVisitor for ExternalCallCollector {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_expression(
         &mut self,
         tree: &dir::NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         // record direct call expressions
         if matches!(expression, dir::Expression::Call { .. }) {
@@ -43,7 +40,7 @@ impl NodeVisitor for ExternalCallCollector {
         }
 
         // continue walking the subtree
-        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
     }
 }
 
@@ -56,12 +53,17 @@ impl ModuleLowerer<'_> {
     /// Declare call targets referenced by an expression subtree.
     pub(crate) fn declare_call_targets_for_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<()> {
         // collect call expressions from the subtree
         let mut collector = ExternalCallCollector::new();
         let expression = self.dir_tree.get(expression_id);
-        collector.visit_expression(self.dir_tree, expression_id, expression);
+        dir::NodeVisitor::visit_expression(
+            &mut collector,
+            self.dir_tree,
+            expression_id,
+            expression,
+        );
 
         // declare each required call target lazily for this subtree
         for call_id in collector.calls {
@@ -72,7 +74,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Declare the function referenced by a call, when needed.
-    fn declare_call_target(&mut self, expression_id: LocalNodeId<Expression>) -> LowerResult<()> {
+    fn declare_call_target(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> LowerResult<()> {
         // resolve the static call candidate
         let node_id = expression_id.into_global_any(self.module_id);
         let Some(resolution_id) = self.types.get_resolution_for_node(node_id) else {
@@ -119,8 +124,8 @@ impl ModuleLowerer<'_> {
     /// Declare the MIR function for an external call target.
     fn declare_external_function(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
         signature: &dir::ResolvedSignature,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // return the existing declaration when present
@@ -218,8 +223,8 @@ impl ModuleLowerer<'_> {
     /// Resolve the extern or binding name for a symbol, if any.
     pub(crate) fn binding_name_for_symbol(
         &self,
-        expression_id: LocalNodeId<Expression>,
-        symbol: GlobalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Option<BindingResolution>> {
         // require analysis for the referenced module
         self.require_analyzed_module(symbol.module_id)?;

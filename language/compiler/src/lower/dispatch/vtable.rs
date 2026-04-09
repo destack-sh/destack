@@ -1,8 +1,7 @@
 use std::collections::HashSet;
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::StringId;
-use destack_dir::{FunctionAbstraction, FunctionMode, GlobalSymbolId, LocalNodeId, Member};
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
@@ -26,7 +25,7 @@ pub(crate) struct MethodKey {
     /// The method name.
     name: StringId,
     /// The function mode for accessor discrimination.
-    mode: Option<FunctionMode>,
+    mode: Option<dir::FunctionMode>,
     /// The signature type id for the method.
     signature: dir::LocalTypeId,
 }
@@ -35,7 +34,7 @@ impl MethodKey {
     /// Create a virtual method key for dispatch lookups.
     pub(crate) fn new(
         name: StringId,
-        mode: Option<FunctionMode>,
+        mode: Option<dir::FunctionMode>,
         signature: dir::LocalTypeId,
     ) -> Self {
         Self {
@@ -62,11 +61,11 @@ pub(crate) struct VtableMethod {
     /// The slot identity for overrides.
     key: MethodKey,
     /// The abstraction mode for override handling.
-    abstraction: FunctionAbstraction,
+    abstraction: dir::FunctionAbstraction,
     /// The member node for diagnostics.
-    member_id: LocalNodeId<Member>,
+    member_id: dir::LocalNodeId<dir::Member>,
     /// The method symbol for this implementation.
-    symbol: GlobalSymbolId,
+    symbol: dir::GlobalSymbolId,
 }
 
 impl VtableMethod {
@@ -76,7 +75,7 @@ impl VtableMethod {
     }
 
     /// Return the member id for this slot.
-    pub(crate) fn member_id(&self) -> LocalNodeId<Member> {
+    pub(crate) fn member_id(&self) -> dir::LocalNodeId<dir::Member> {
         self.member_id
     }
 }
@@ -95,7 +94,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the vtable for a single class symbol.
-    fn vtable_for_symbol(&mut self, symbol: GlobalSymbolId) -> LowerResult<mir::VtableId> {
+    fn vtable_for_symbol(&mut self, symbol: dir::GlobalSymbolId) -> LowerResult<mir::VtableId> {
         if let Some(table_id) = self.vtable_by_symbol.get(&symbol).copied() {
             return Ok(table_id);
         }
@@ -189,7 +188,7 @@ impl ModuleLowerer<'_> {
     /// Create the global backing storage for a class vtable.
     pub(crate) fn create_vtable_global(
         &mut self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         slot_count: u64,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<VtableGlobal> {
@@ -231,7 +230,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect the class lineage from base to derived.
-    pub(crate) fn collect_class_lineage(&self, symbol: GlobalSymbolId) -> Vec<GlobalSymbolId> {
+    pub(crate) fn collect_class_lineage(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Vec<dir::GlobalSymbolId> {
         // walk the extends chain from derived to base
         let mut lineage = Vec::new();
         let mut seen = HashSet::new();
@@ -261,7 +263,7 @@ impl ModuleLowerer<'_> {
     /// Collect virtual methods declared on a single class.
     fn collect_virtual_methods_for_class(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Vec<VtableMethod>> {
         // collect declaration ids for the class symbol
         let declaration_ids = self.declaration_ids_for_symbol(symbol);
@@ -330,7 +332,7 @@ impl ModuleLowerer<'_> {
         // reject constructor and new members
         if matches!(
             signature.mode,
-            Some(FunctionMode::Constructor) | Some(FunctionMode::New)
+            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
         ) {
             return false;
         }
@@ -341,7 +343,7 @@ impl ModuleLowerer<'_> {
     /// Collect virtual method slots for a class in vtable order.
     pub(crate) fn virtual_method_slots_for_class(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Vec<VtableMethod>> {
         // collect virtual methods in lineage order
         let lineage = self.collect_class_lineage(symbol);
@@ -369,8 +371,8 @@ impl ModuleLowerer<'_> {
                         // reject overrides without a base slot
                         if matches!(
                             method.abstraction,
-                            FunctionAbstraction::ConcreteOverride
-                                | FunctionAbstraction::AbstractOverride
+                            dir::FunctionAbstraction::ConcreteOverride
+                                | dir::FunctionAbstraction::AbstractOverride
                         ) {
                             return Err(LowerError::UnsupportedConstruct {
                                 node: method
@@ -391,7 +393,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Check whether a class has any virtual methods.
-    pub(crate) fn class_has_virtual_methods(&self, symbol: GlobalSymbolId) -> LowerResult<bool> {
+    pub(crate) fn class_has_virtual_methods(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> LowerResult<bool> {
         // report whether any slots exist
         let slots = self.virtual_method_slots_for_class(symbol)?;
         Ok(!slots.is_empty())
@@ -400,7 +405,7 @@ impl ModuleLowerer<'_> {
     /// Resolve the signature type id for a method member.
     pub(crate) fn method_signature_type_id(
         &self,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
     ) -> LowerResult<dir::LocalTypeId> {
         // resolve the signature type from analysis
         let node_id = member_id.into_global_any(self.module_id);
@@ -412,8 +417,8 @@ impl ModuleLowerer<'_> {
     /// Resolve the MIR function id for a method symbol.
     pub(crate) fn method_function_id(
         &self,
-        member_id: LocalNodeId<Member>,
-        method_symbol: GlobalSymbolId,
+        member_id: dir::LocalNodeId<dir::Member>,
+        method_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // lookup the lowered function by symbol
         let function_id = self.function_for_symbol(method_symbol).ok_or_else(|| {

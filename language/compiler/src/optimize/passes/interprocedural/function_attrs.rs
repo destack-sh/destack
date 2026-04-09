@@ -373,7 +373,7 @@ fn compute_function_summary(
             mir::Terminator::Return { .. } => {
                 has_return = true;
             }
-            mir::Terminator::Call { function, .. } => {
+            mir::Terminator::Invoke { function, .. } => {
                 let (effect, behavior) = call_effects_for_direct_callee(*function, summaries);
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
@@ -381,9 +381,9 @@ fn compute_function_summary(
                     has_return = true;
                 }
             }
-            mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallVirtual { .. }
-            | mir::Terminator::CallInterface { .. } => {
+            mir::Terminator::InvokeIndirect { .. }
+            | mir::Terminator::InvokeVirtual { .. }
+            | mir::Terminator::InvokeInterface { .. } => {
                 let (effect, behavior) =
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
                 memory_builder.record_effect(&effect);

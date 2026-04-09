@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
 use destack_core::{StringId, StringPool};
-use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Repository, Revision};
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, LowerError, LowerResult, RequirementError};
 
@@ -21,7 +20,7 @@ use crate::lower::{
 /// Shared, immutable inputs for lowering a single function body.
 pub(crate) struct FunctionLoweringContext<'a> {
     /// Identify the function symbol currently being lowered.
-    pub(crate) symbol: GlobalSymbolId,
+    pub(crate) symbol: dir::GlobalSymbolId,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
@@ -57,7 +56,7 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) function_signature_types:
         &'a HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
     /// Resolve binding symbols for ABI lowering.
-    pub(crate) binding_symbols: &'a HashSet<GlobalSymbolId>,
+    pub(crate) binding_symbols: &'a HashSet<dir::GlobalSymbolId>,
     /// Enable ABI lowering for bindings.
     pub(crate) binding_abi_lowering: bool,
     /// Cached runtime status layout for binding ABI calls.
@@ -66,24 +65,26 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) take_platform_error_function: Option<mir::LocalNodeId<mir::Function>>,
 
     /// Resolve globals by symbol for module-level variable references.
-    pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
+    pub(crate) globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, GlobalBinding>,
     /// Resolve string literal globals by literal content.
     pub(crate) string_literal_globals: &'a HashMap<StringId, mir::LocalNodeId<mir::Global>>,
 
     /// Resolve interface dispatch slots for call lowering.
-    pub(crate) interface_slots_by_symbol: &'a HashMap<GlobalSymbolId, Vec<InterfaceEntry>>,
+    pub(crate) interface_slots_by_symbol: &'a HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
     /// Resolve interface itab ids for interface upcasts.
-    pub(crate) interface_itab_ids: &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::ItabId>,
+    pub(crate) interface_itab_ids:
+        &'a HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), mir::ItabId>,
     /// Resolve virtual dispatch slot ids for method calls.
-    pub(crate) virtual_method_slots_by_key: &'a HashMap<(GlobalSymbolId, MethodKey), u32>,
+    pub(crate) virtual_method_slots_by_key: &'a HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
     /// Resolve vtable globals for class allocations.
-    pub(crate) vtable_globals_by_symbol: &'a HashMap<GlobalSymbolId, VtableGlobal>,
+    pub(crate) vtable_globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, VtableGlobal>,
     /// Synthetic name for call signatures in dispatch tables.
     pub(crate) dispatch_call_name: destack_core::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_core::StringId,
     /// Resolve function environment layouts by function symbol.
-    pub(crate) function_environment_layouts: &'a HashMap<GlobalSymbolId, FunctionEnvironmentLayout>,
+    pub(crate) function_environment_layouts:
+        &'a HashMap<dir::GlobalSymbolId, FunctionEnvironmentLayout>,
     /// Fallback environment pointer type for non-capturing closures.
     pub(crate) empty_function_environment_pointer_type: mir::LocalNodeId<mir::Type>,
 }
@@ -91,15 +92,15 @@ pub(crate) struct FunctionLoweringContext<'a> {
 /// Mutable bindings state while lowering a single function.
 pub(crate) struct FunctionBindings {
     /// Track locals by symbol for variable resolution.
-    pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
+    pub(crate) locals_by_symbol: HashMap<dir::GlobalSymbolId, LocalBinding>,
     /// Symbol id for the implicit `this` binding.
-    pub(crate) this_symbol: Option<GlobalSymbolId>,
+    pub(crate) this_symbol: Option<dir::GlobalSymbolId>,
     /// Binding for `this` in method bodies.
     pub(crate) this_binding: Option<LocalBinding>,
     /// Symbols that require boxed capture storage.
-    pub(crate) reference_locals: HashSet<GlobalSymbolId>,
+    pub(crate) reference_locals: HashSet<dir::GlobalSymbolId>,
     /// Symbols that require addressable locals.
-    pub(crate) address_taken_locals: HashSet<GlobalSymbolId>,
+    pub(crate) address_taken_locals: HashSet<dir::GlobalSymbolId>,
     /// Whether `this` is address taken in the function.
     pub(crate) takes_this_address: bool,
     /// Function environment value for captured bindings.
@@ -109,7 +110,7 @@ pub(crate) struct FunctionBindings {
 /// Address taken bindings for a function body.
 pub(crate) struct AddressTakenBindings {
     /// Symbols that require addressable locals.
-    pub(crate) locals: HashSet<GlobalSymbolId>,
+    pub(crate) locals: HashSet<dir::GlobalSymbolId>,
     /// Whether `this` is address taken in the function.
     pub(crate) takes_this: bool,
 }
@@ -127,9 +128,9 @@ impl AddressTakenBindings {
 /// Mutable control flow state while lowering a single function.
 pub(crate) struct FunctionControlFlow {
     /// Track loop contexts by symbol for labeled break/continue.
-    pub(crate) loops_by_symbol: HashMap<GlobalSymbolId, LoopContext>,
+    pub(crate) loops_by_symbol: HashMap<dir::GlobalSymbolId, LoopContext>,
     /// Track labelled block contexts by symbol for labeled breaks.
-    pub(crate) labels_by_symbol: HashMap<GlobalSymbolId, BreakContext>,
+    pub(crate) labels_by_symbol: HashMap<dir::GlobalSymbolId, BreakContext>,
     /// Track loop nesting for unlabeled break/continue.
     pub(crate) loop_stack: Vec<LoopContext>,
     /// Track breakable contexts for unlabeled breaks.
@@ -229,7 +230,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Return the lowered function id for a symbol-backed instance.
     pub(crate) fn function_for_symbol(
         &self,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         let instance = InstanceKey::symbol(symbol);
         self.context.functions_by_instance.get(&instance).copied()
@@ -303,7 +304,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn string_literal_value_for_id(
         &mut self,
         literal_id: StringId,
-        anchor: Option<AnchoredGlobalNodeId>,
+        anchor: Option<dir::AnchoredGlobalNodeId>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the literal global
         let global = self
@@ -340,8 +341,8 @@ impl<'a> FunctionLowerer<'a> {
     /// Load the vtable pointer for a class symbol as a raw reference.
     pub(crate) fn vtable_pointer_for_class(
         &mut self,
-        class_symbol: GlobalSymbolId,
-        _node: AnchoredGlobalNodeId,
+        class_symbol: dir::GlobalSymbolId,
+        _node: dir::AnchoredGlobalNodeId,
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<mir::Value> {
         // resolve the vtable global for the class
@@ -378,44 +379,48 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a value expression to its result value and type.
     pub(crate) fn lower_value_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
-            Expression::Parenthesized { expression } => self.lower_value_expression(*expression),
+            dir::Expression::Parenthesized { expression } => {
+                self.lower_value_expression(*expression)
+            }
 
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
+            dir::Expression::LocalReference { target_symbol, .. }
+            | dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => {
                 self.lower_reference_expression(expression_id, *target_symbol)
             }
 
-            Expression::ScalarLiteral { value } => self.lower_scalar_literal(expression_id, value),
+            dir::Expression::ScalarLiteral { value } => {
+                self.lower_scalar_literal(expression_id, value)
+            }
 
-            Expression::Cast {
+            dir::Expression::Cast {
                 operator,
                 value,
                 target_type: _,
                 source: _,
             } => self.lower_cast_expression(expression_id, *operator, *value),
 
-            Expression::Binary {
+            dir::Expression::Binary {
                 left,
                 operator,
                 right,
             } => self.lower_binary_expression(expression_id, *left, *operator, *right),
 
-            Expression::TypeBinary {
+            dir::Expression::TypeBinary {
                 left,
                 operator,
                 right,
             } => self.lower_type_binary_expression(expression_id, *left, *operator, *right),
 
-            Expression::Assign { left, right } => {
+            dir::Expression::Assign { left, right } => {
                 self.lower_assign_expression(expression_id, *left, *right)
             }
 
-            Expression::Call {
+            dir::Expression::Call {
                 left,
                 dynamic_arguments,
                 static_arguments,
@@ -423,26 +428,26 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_call_expression(expression_id, left, dynamic_arguments, static_arguments)
             }
 
-            Expression::New {
+            dir::Expression::New {
                 static_arguments,
                 dynamic_arguments,
                 ..
             } => self.lower_new_expression(expression_id, static_arguments, dynamic_arguments),
 
-            Expression::TupleExpression { elements } => {
+            dir::Expression::TupleExpression { elements } => {
                 self.lower_tuple_expression(expression_id, elements)
             }
 
-            Expression::ArrayExpression { elements } => {
+            dir::Expression::ArrayExpression { elements } => {
                 self.lower_array_expression(expression_id, elements)
             }
 
-            Expression::Member {
+            dir::Expression::Member {
                 left,
                 name,
                 static_arguments,
             }
-            | Expression::PrivateMember {
+            | dir::Expression::PrivateMember {
                 left,
                 name,
                 static_arguments,
@@ -466,7 +471,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_member_expression(expression_id, *left, name)
             }
 
-            Expression::Index { left, right } => {
+            dir::Expression::Index { left, right } => {
                 let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(self.context.module_id)
@@ -476,31 +481,31 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_index_expression(expression_id, *left, index_expr)
             }
 
-            Expression::Unary { operator, right } => {
+            dir::Expression::Unary { operator, right } => {
                 self.lower_unary_expression(expression_id, *operator, *right)
             }
 
-            Expression::ReferenceOf {
+            dir::Expression::ReferenceOf {
                 mutability, right, ..
             } => self.lower_reference_of_expression(expression_id, *mutability, *right),
 
-            Expression::ValueOf {
+            dir::Expression::ValueOf {
                 mutability, right, ..
             } => self.lower_value_of_expression(expression_id, *mutability, *right),
 
-            Expression::If {
+            dir::Expression::If {
                 condition,
                 then_expression,
                 else_expression,
                 ..
             } => match condition {
-                IfCondition::Expression { condition } => self.lower_conditional_expression(
+                dir::IfCondition::Expression { condition } => self.lower_conditional_expression(
                     expression_id,
                     *condition,
                     *then_expression,
                     *else_expression,
                 ),
-                IfCondition::Let { .. } => {
+                dir::IfCondition::Let { .. } => {
                     // if let should be elaborated before lowering
                     Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -511,19 +516,19 @@ impl<'a> FunctionLowerer<'a> {
                 }
             },
 
-            Expression::TaggedObjectExpression { ty, properties } => {
+            dir::Expression::TaggedObjectExpression { ty, properties } => {
                 self.lower_tagged_object_expression(expression_id, *ty, properties)
             }
 
-            Expression::TaggedScalarExpression { ty, value } => {
+            dir::Expression::TaggedScalarExpression { ty, value } => {
                 self.lower_tagged_scalar_expression(expression_id, *ty, *value)
             }
 
-            Expression::TaggedTupleExpression { ty, elements } => {
+            dir::Expression::TaggedTupleExpression { ty, elements } => {
                 self.lower_tagged_tuple_expression(expression_id, *ty, elements)
             }
 
-            Expression::Declaration { declaration } => {
+            dir::Expression::Declaration { declaration } => {
                 // lower function declarations used as values
                 let declaration = self.context.dir_tree.get(*declaration);
                 let dir::Declaration::Function { descriptor, .. } = declaration else {
@@ -539,7 +544,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_reference_expression(expression_id, symbol)
             }
 
-            Expression::This => self.lower_this_expression(expression_id),
+            dir::Expression::This => self.lower_this_expression(expression_id),
 
             _ => Err(LowerError::UnsupportedConstruct {
                 node: expression_id
@@ -553,7 +558,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a variable reference expression.
     pub(crate) fn lower_reference_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let symbol_data = self.context.symbols.get_symbol(target_symbol.local_id);
@@ -603,7 +608,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a function symbol reference to a closure value.
     fn lower_function_value_for_symbol(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the closure value type
@@ -631,9 +636,9 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a cast expression.
     fn lower_cast_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::CastOperator,
-        value_id: LocalNodeId<Expression>,
+        value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match operator {
             dir::CastOperator::InstanceUpcast => {
@@ -668,7 +673,7 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // lower the cast input first
-        let (value, _) = self.lower_value_expression(value_id)?;
+        let (value, source_type) = self.lower_value_expression(value_id)?;
 
         // resolve the target type for the cast
         let target_type = self.lower_type_for_expression(expression_id)?;
@@ -679,6 +684,8 @@ impl<'a> FunctionLowerer<'a> {
         // emit the cast when needed
         let value = if let Some(mir_operator) = mir_operator {
             self.state.builder.cast(mir_operator, value, target_type)
+        } else if source_type != target_type {
+            self.state.builder.bitcast(value, target_type)
         } else {
             value
         };
@@ -689,16 +696,16 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower an assignment expression.
     fn lower_assign_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        right: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the assigned value
         let (value, value_type) = self.lower_value_expression(right)?;
 
         // update the assignment target
         match self.context.dir_tree.get(left) {
-            Expression::LocalReference { target_symbol, .. } => {
+            dir::Expression::LocalReference { target_symbol, .. } => {
                 if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
                     self.store_captured_binding(expression_id, &field, value)?;
                     return Ok((value, value_type));
@@ -710,12 +717,12 @@ impl<'a> FunctionLowerer<'a> {
                 // update the variable binding
                 self.set_binding_value(binding, value);
             }
-            Expression::Member {
+            dir::Expression::Member {
                 left: receiver_id,
                 name,
                 static_arguments,
             }
-            | Expression::PrivateMember {
+            | dir::Expression::PrivateMember {
                 left: receiver_id,
                 name,
                 static_arguments,
@@ -732,7 +739,7 @@ impl<'a> FunctionLowerer<'a> {
 
                 // only support assignments to this fields in constructors
                 let receiver = self.context.dir_tree.get(*receiver_id);
-                if !matches!(receiver, Expression::This) {
+                if !matches!(receiver, dir::Expression::This) {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.context.module_id)
@@ -834,9 +841,9 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a unary expression.
     fn lower_unary_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower operand and emit unary operation
         let (operand_value, operand_type) = self.lower_value_expression(right)?;
@@ -856,7 +863,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a `this` expression.
     pub(crate) fn lower_this_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // prefer the method-local binding when present
         if let Some(binding) = self.state.bindings.this_binding {

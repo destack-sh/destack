@@ -1,4 +1,3 @@
-use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -19,9 +18,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_reference_of_expression(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         mutability: Option<dir::Mutability>,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the reference result type
         let pointee_type = self.lower_type_for_expression(right)?;
@@ -38,10 +37,10 @@ impl FunctionLowerer<'_> {
 
         // lower the reference target to an address when possible
         match self.context.dir_tree.get(right) {
-            Expression::Parenthesized { expression } => {
+            dir::Expression::Parenthesized { expression } => {
                 self.lower_reference_of_expression(expression_id, mutability, *expression)
             }
-            Expression::LocalReference { target_symbol, .. } => {
+            dir::Expression::LocalReference { target_symbol, .. } => {
                 if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
                     return self.borrow_captured_binding(expression_id, &field, mutability);
                 }
@@ -74,7 +73,7 @@ impl FunctionLowerer<'_> {
                     }),
                 }
             }
-            Expression::This => {
+            dir::Expression::This => {
                 if let Some(binding) = self.state.bindings.this_binding {
                     return match binding.storage {
                         LocalStorage::Local(local) => {
@@ -117,8 +116,8 @@ impl FunctionLowerer<'_> {
                     message: "this reference outside of method context".to_string(),
                 })
             }
-            Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
+            dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => {
                 if let Some(binding) = self
                     .state
                     .bindings
@@ -160,12 +159,12 @@ impl FunctionLowerer<'_> {
                 let value = self.state.builder.global_addr(global.global, result_type);
                 Ok((value, result_type))
             }
-            Expression::Member {
+            dir::Expression::Member {
                 left,
                 name,
                 static_arguments,
             }
-            | Expression::PrivateMember {
+            | dir::Expression::PrivateMember {
                 left,
                 name,
                 static_arguments,
@@ -215,7 +214,7 @@ impl FunctionLowerer<'_> {
                         .field_addr(aggregate_value, field_index as u32, result_type);
                 Ok((value, result_type))
             }
-            Expression::Index { left, right } => {
+            dir::Expression::Index { left, right } => {
                 let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(self.context.module_id)
@@ -272,9 +271,9 @@ impl FunctionLowerer<'_> {
     /// ```
     pub(crate) fn lower_value_of_expression(
         &mut self,
-        _expression_id: LocalNodeId<Expression>,
+        _expression_id: dir::LocalNodeId<dir::Expression>,
         mutability: Option<dir::Mutability>,
-        right: LocalNodeId<Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the owned value expression
         let (value, pointee_type) = self.lower_value_expression(right)?;

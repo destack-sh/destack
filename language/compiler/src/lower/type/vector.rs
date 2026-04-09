@@ -1,4 +1,3 @@
-use destack_dir::{AnchoredGlobalNodeId, LocalTypeId};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -17,9 +16,9 @@ impl TypeLowerer {
     pub(super) fn lower_vector_reference_type(
         &mut self,
         types: &dir::TypeTable,
-        type_id: LocalTypeId,
+        type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         static_arguments: Option<&[dir::StaticArgument]>,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
@@ -51,9 +50,9 @@ impl TypeLowerer {
     /// Resolve evaluated static arguments for Vector<T, N>.
     fn vector_static_argument_pair(
         &self,
-        _type_id: LocalTypeId,
+        _type_id: dir::LocalTypeId,
         _module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         static_arguments: &[dir::StaticArgument],
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<(dir::StaticExpression, dir::StaticExpression)> {
@@ -100,9 +99,9 @@ impl TypeLowerer {
     /// Parse and validate the Vector<T, N> lane count.
     fn vector_lane_count(
         &self,
-        type_id: LocalTypeId,
+        type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         lane_expression: &dir::StaticExpression,
     ) -> LowerResult<u32> {
         // parse lane count literal
@@ -146,11 +145,11 @@ impl TypeLowerer {
     /// Resolve the Vector<T, N> element type id.
     fn vector_element_type_id(
         &self,
-        type_id: LocalTypeId,
+        type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
         element_expression: &dir::StaticExpression,
-    ) -> LowerResult<LocalTypeId> {
+    ) -> LowerResult<dir::LocalTypeId> {
         // resolve element type argument
         let element_type_id = match element_expression {
             dir::StaticExpression::Type { ty } => *ty,

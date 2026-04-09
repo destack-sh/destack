@@ -253,12 +253,10 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::Check {
-                condition,
                 constraint,
                 success,
                 failure,
             } => {
-                self.check_use(state, *condition, None, block_id, context);
                 for &value in constraint.uses().iter() {
                     self.check_use(state, value, None, block_id, context);
                 }
@@ -297,7 +295,7 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::Call {
+            mir::Terminator::Invoke {
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -311,7 +309,7 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::CallIndirect {
+            mir::Terminator::InvokeIndirect {
                 callee,
                 arguments,
                 normal_arguments,
@@ -327,14 +325,14 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::CallVirtual {
+            mir::Terminator::InvokeVirtual {
                 receiver,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
-            | mir::Terminator::CallInterface {
+            | mir::Terminator::InvokeInterface {
                 receiver,
                 arguments,
                 normal_arguments,

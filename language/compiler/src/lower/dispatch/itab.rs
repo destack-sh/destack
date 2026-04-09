@@ -1,8 +1,7 @@
 use std::collections::HashSet;
+use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::StringId;
-use destack_dir::{GlobalSymbolId, LocalNodeId, Member};
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
@@ -24,8 +23,8 @@ impl ModuleLowerer<'_> {
     /// Return a single interface itab for a concrete type.
     fn itab_for_pair(
         &mut self,
-        concrete: GlobalSymbolId,
-        interface: GlobalSymbolId,
+        concrete: dir::GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
     ) -> LowerResult<mir::ItabId> {
         if let Some(table_id) = self.itab_by_pair.get(&(concrete, interface)).copied() {
             return Ok(table_id);
@@ -192,7 +191,7 @@ impl ModuleLowerer<'_> {
     /// Resolve the interface method function id for an itab slot.
     fn interface_method_stub(
         &self,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // resolve the interface method symbol
         let member = self.dir_tree.get(member_id);
@@ -215,7 +214,7 @@ impl ModuleLowerer<'_> {
         &self,
         concrete_mir_type: mir::LocalNodeId<mir::Type>,
         field_name: StringId,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<u32> {
         // resolve the struct layout for the concrete type
@@ -251,10 +250,10 @@ impl ModuleLowerer<'_> {
     /// Resolve the concrete method target for an interface method.
     fn interface_method_target(
         &self,
-        concrete: GlobalSymbolId,
+        concrete: dir::GlobalSymbolId,
         method_name: StringId,
         signature_type_id: dir::LocalTypeId,
-        member_id: LocalNodeId<Member>,
+        member_id: dir::LocalNodeId<dir::Member>,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // decide the search order for concrete methods
         let mut symbols = Vec::new();
@@ -333,7 +332,9 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect concrete to interface pairs for itab generation.
-    pub(crate) fn collect_interface_pairs(&self) -> Vec<(GlobalSymbolId, GlobalSymbolId)> {
+    pub(crate) fn collect_interface_pairs(
+        &self,
+    ) -> Vec<(dir::GlobalSymbolId, dir::GlobalSymbolId)> {
         let mut pairs = Vec::new();
 
         // scan type lineages for concrete symbols

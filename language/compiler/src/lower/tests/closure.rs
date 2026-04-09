@@ -28,7 +28,8 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type fn#param.int32#return.int32 closure(int32) -> int32
+type fn#param.int32#return.int32 = closure(int32) -> int32;
+
 function makeIdentity(): fn#param.int32#return.int32 {
 b0:
     v0: ref?<{  }, managed> = null
@@ -40,6 +41,7 @@ function makeIdentity.lambda#7(v0: int32): int32 {
 b0(v0: int32):
     return v0
 }
+
 function applyIdentity(v0: int32): int32 {
 b0(v0: int32):
     v1: fn#param.int32#return.int32 = call makeIdentity(): () -> fn#param.int32#return.int32
@@ -84,10 +86,11 @@ function applyAdder(input: int32): int32 {
         module_id,
         "native",
         r#"
-type fn#param.int32#return.int32 closure(int32) -> int32
+type fn#param.int32#return.int32 = closure(int32) -> int32;
 type environment#9 {
     base: int32;
 }
+
 function makeAdder(): fn#param.int32#return.int32 {
 b0:
     v0: int32 = 5int32
@@ -107,6 +110,7 @@ b0(v0: int32):
     v5: int32 = int.add v4, v0
     return v5
 }
+
 function applyAdder(v0: int32): int32 {
 b0(v0: int32):
     v1: fn#param.int32#return.int32 = call makeAdder(): () -> fn#param.int32#return.int32
@@ -154,10 +158,11 @@ function runCounter(): int32 {
         module_id,
         "native",
         r#"
-type fn#return.int32 closure() -> int32
+type fn#return.int32 = closure() -> int32;
 type environment#8 {
     count: ref<int32, managed>;
 }
+
 function makeCounter(): fn#return.int32 {
 b0:
     v0: int32 = 0int32
@@ -187,6 +192,7 @@ b0:
     v10: int32 = load v9
     return v10
 }
+
 function runCounter(): int32 {
 b0:
     v0: fn#return.int32 = call makeCounter(): () -> fn#return.int32

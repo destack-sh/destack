@@ -252,14 +252,14 @@ fn call_constraint_from_terminator(
 
     // classify call terminators
     match terminator {
-        mir::Terminator::Call { .. } => None,
-        mir::Terminator::CallIndirect { signature, .. } => {
+        mir::Terminator::Invoke { .. } => None,
+        mir::Terminator::InvokeIndirect { signature, .. } => {
             call_constraint_from_signature(tree, *signature, None)
         }
-        mir::Terminator::CallVirtual { signature, .. } => {
+        mir::Terminator::InvokeVirtual { signature, .. } => {
             call_constraint_from_signature(tree, *signature, declared_target)
         }
-        mir::Terminator::CallInterface { signature, .. } => {
+        mir::Terminator::InvokeInterface { signature, .. } => {
             call_constraint_from_signature(tree, *signature, declared_target)
         }
         mir::Terminator::TailCall { .. } => None,
