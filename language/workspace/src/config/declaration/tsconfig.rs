@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{File, FileContent, FileId, PathExt, Uri};
+use destack_source::{File, FileId, PathExt, Uri};
 
-use crate::config::{TsConfigJson, TsConfigOptions};
+use crate::config::{TsConfigJson, TsConfigOptions, parse_jsonc_file};
 
 /// Template variable for the config directory path (e.g. `${configDir}`).
 /// <https://github.com/microsoft/TypeScript/pull/58042>
@@ -40,16 +40,8 @@ pub struct TsConfigDeclaration {
 impl TsConfigDeclaration {
     /// Parse a tsconfig from a File with JSON content.
     pub fn parse(is_root: bool, file: &Arc<File>) -> Result<Self, serde_json::Error> {
-        // extract the JSON value from file content
-        let FileContent::Json { value, .. } = &file.content else {
-            return Err(serde_json::Error::io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "file is not JSON",
-            )));
-        };
-
         // parse the tsconfig from the JSON value
-        let tsconfig_json: TsConfigJson = serde_json::from_value(value.clone())?;
+        let tsconfig_json: TsConfigJson = serde_json::from_value(parse_jsonc_file(file)?)?;
 
         // extract path from file (prefer file.path, fall back to URI conversion)
         let path = file

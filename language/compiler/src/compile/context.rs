@@ -16,7 +16,7 @@ pub struct CompilerContext<'a> {
     compiler: &'a Compiler,
     /// The pinned repository snapshot.
     snapshot: RepositorySnapshot,
-    /// The running artifact key, when this context belongs to one queued task.
+    /// The running artifact key, when this context belongs to one provide attempt.
     artifact_key: Option<ArtifactKey>,
 }
 
@@ -49,7 +49,7 @@ impl<'a> CompilerContext<'a> {
         self.snapshot.revision()
     }
 
-    /// Return the running artifact key when this context belongs to one queued task.
+    /// Return the running artifact key when this context belongs to one provide attempt.
     pub fn artifact_key(&self) -> Option<ArtifactKey> {
         self.artifact_key
     }
@@ -92,15 +92,6 @@ impl<'a> CompilerContext<'a> {
         self.module(module_id).is_code()
     }
 
-    /// Load package config options for one module in this pinned revision.
-    pub fn package_options_for_module(&self, module: &Module) -> Option<PackageOptions> {
-        self.compiler
-            .repository
-            .package_options_for_module(self.revision(), module)
-            .ok()
-            .flatten()
-    }
-
     /// Load package config options for one package in this pinned revision.
     pub fn package_options(&self, package_id: PackageId) -> Option<PackageOptions> {
         self.compiler
@@ -119,7 +110,7 @@ impl<'a> CompilerContext<'a> {
 
     /// Load compiler options for one module in this pinned revision.
     pub fn compiler_options_for_module(&self, module: &Module) -> Option<CompilerOptions> {
-        self.package_options_for_module(module)
+        self.package_options(module.package_id)
             .map(|options| options.compiler)
     }
 
@@ -140,14 +131,10 @@ impl<'a> CompilerContext<'a> {
 
     /// Resolve the default profile for one module in this pinned revision.
     pub fn default_profile_for_module(&self, module_id: ModuleId) -> Profile {
-        let profile = self
-            .compiler
+        self.compiler
             .repository
             .default_profile_for_module(self.revision(), module_id)
-            .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
-
-        self.compiler.remember_profile(profile.clone());
-        profile
+            .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"))
     }
 
     /// Resolve the default profile id for one module in this pinned revision.
@@ -157,14 +144,10 @@ impl<'a> CompilerContext<'a> {
 
     /// Resolve the target profile for one module in this pinned revision.
     pub fn profile_for_target(&self, module_id: ModuleId, target_id: &TargetId) -> Option<Profile> {
-        let profile = self
-            .compiler
+        self.compiler
             .repository
             .profile_for_target(self.revision(), module_id, target_id)
-            .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"))?;
-
-        self.compiler.remember_profile(profile.clone());
-        Some(profile)
+            .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"))
     }
 
     /// Resolve the target profile id for one module in this pinned revision.

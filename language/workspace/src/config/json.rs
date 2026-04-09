@@ -1,0 +1,46 @@
+use destack_source::{File, FileContent, strip_json};
+use serde_json::Value;
+
+/// Build one JSON content error.
+fn json_content_error(message: &str) -> serde_json::Error {
+    serde_json::Error::io(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        message,
+    ))
+}
+
+/// Parse one strict JSON text payload.
+pub fn parse_json_text(content: &str) -> Result<Value, serde_json::Error> {
+    let json_str = content.strip_prefix('\u{feff}').unwrap_or(content);
+
+    serde_json::from_str(json_str)
+}
+
+/// Parse one JSONC text payload.
+pub fn parse_jsonc_text(content: &str) -> Result<Value, serde_json::Error> {
+    let json_content = content.strip_prefix('\u{feff}').unwrap_or(content);
+    let json_str = strip_json(json_content).map_err(serde_json::Error::io)?;
+    let json_str = if json_str.trim().is_empty() {
+        "{}".to_string()
+    } else {
+        json_str
+    };
+
+    serde_json::from_str(&json_str)
+}
+
+/// Parse one file as strict JSON text.
+pub fn parse_json_file(file: &File) -> Result<Value, serde_json::Error> {
+    match file.content.payload() {
+        FileContent::Text { content } => parse_json_text(content),
+        FileContent::Binary { .. } => Err(json_content_error("file is not text")),
+    }
+}
+
+/// Parse one file as JSONC text.
+pub fn parse_jsonc_file(file: &File) -> Result<Value, serde_json::Error> {
+    match file.content.payload() {
+        FileContent::Text { content } => parse_jsonc_text(content),
+        FileContent::Binary { .. } => Err(json_content_error("file is not text")),
+    }
+}

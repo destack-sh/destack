@@ -1,7 +1,9 @@
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
+
 use destack_artifact::Loader;
 use destack_builtin::BuiltinLibraryKind;
 use destack_source::{FileId, LanguageType, ModuleId, PackageId, Uri};
-use std::path::{Path, PathBuf};
 
 use crate::config::{ModuleTarget, SourceType};
 
@@ -14,8 +16,8 @@ pub enum ModuleSource {
     Builtin(BuiltinLibraryKind),
 }
 
-impl std::hash::Hash for ModuleSource {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl Hash for ModuleSource {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Self::User => {
                 0_u8.hash(state);

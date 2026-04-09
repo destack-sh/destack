@@ -12,7 +12,11 @@ impl Repository {
         revision: Revision,
     ) -> Result<RepositorySnapshot, RepositoryError> {
         // verify and pin the revision
-        self.revision(revision)?;
+        let revision_state = self.revision(revision)?;
+        if !revision_state.is_immutable() {
+            return Err(RepositoryError::MutableRevision { revision });
+        }
+
         self.pin_revision(revision);
 
         let pin = Arc::new(RevisionPin::new(revision, Arc::downgrade(self)));
@@ -133,13 +137,14 @@ impl Drop for RevisionPin {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_artifact::DiskCacheStore;
     use destack_source::{FileSystem, PhysicalFileSystem};
 
-    use crate::repository::{Change, Ref, Repository, RepositoryOptions};
+    use crate::repository::{AmbientSnapshot, Change, Ref, Repository};
 
     /// Keep one anonymous revision alive while one snapshot is pinned.
     #[test]
@@ -147,7 +152,10 @@ mod tests {
         let root = unique_test_root("repository-snapshot");
         fs::create_dir_all(&root).expect("repository snapshot test root should exist");
 
-        let repository = Arc::new(Repository::open_root(root.clone()));
+        let repository = Arc::new(Repository::open_root(
+            root.clone(),
+            AmbientSnapshot::capture_process(),
+        ));
         let reference = Ref::for_workspace_root(&root);
         let base_revision = repository
             .current(&reference)
@@ -182,7 +190,7 @@ mod tests {
     }
 
     /// Build one unique workspace root for one repository test.
-    fn unique_test_root(prefix: &str) -> std::path::PathBuf {
+    fn unique_test_root(prefix: &str) -> PathBuf {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("wall clock should be after unix epoch")
@@ -198,16 +206,12 @@ mod tests {
         let root = unique_test_root("repository-history");
         fs::create_dir_all(&root).expect("repository history test root should exist");
 
-        let options = RepositoryOptions {
-            file_history_limit: 2,
-            ..RepositoryOptions::default()
-        };
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let repository = Arc::new(Repository::new(
             root.clone(),
-            options,
             Arc::new(DiskCacheStore::new()),
             file_system,
+            AmbientSnapshot::capture_process(),
         ));
         let reference = Ref::for_workspace_root(&root);
 
@@ -215,24 +219,24 @@ mod tests {
             .seed_root_source(&reference)
             .expect("repository root source should seed");
 
-        let revision_1 = repository
-            .apply(
-                &reference,
-                Change::add_text("src/example.ts", "export const value = 1"),
-            )
-            .expect("first revision should publish");
-        let revision_2 = repository
-            .apply(
-                &reference,
-                Change::set_text("src/example.ts", "export const value = 2"),
-            )
-            .expect("second revision should publish");
-        let revision_3 = repository
-            .apply(
-                &reference,
-                Change::set_text("src/example.ts", "export const value = 3"),
-            )
-            .expect("third revision should publish");
+        let mut revisions = Vec::new();
+
+        for value in 1..=33 {
+            let change = if value == 1 {
+                Change::add_text("src/example.ts", format!("export const value = {value}"))
+            } else {
+                Change::set_text("src/example.ts", format!("export const value = {value}"))
+            };
+            let revision = repository
+                .apply(&reference, change)
+                .expect("revision should publish");
+
+            revisions.push(revision);
+        }
+
+        let revision_1 = revisions[0];
+        let revision_2 = revisions[1];
+        let revision_3 = *revisions.last().expect("latest revision should exist");
         let file_id = repository.file_id_for_logical_path("src/example.ts");
 
         // retained head state
@@ -240,7 +244,7 @@ mod tests {
             .file(revision_3, file_id)
             .expect("retained file lookup should succeed")
             .expect("retained file should exist");
-        assert_eq!(file.text(), "export const value = 3");
+        assert_eq!(file.text(), "export const value = 33");
 
         // bounded history
         assert!(repository.revision(revision_1).is_err());

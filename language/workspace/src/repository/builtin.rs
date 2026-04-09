@@ -15,7 +15,7 @@ use indexmap::IndexMap;
 use parking_lot::Mutex;
 
 use crate::ModuleSource;
-use crate::repository::{Ref, Repository, RepositoryError, Revision, SourceMap};
+use crate::repository::{FileOrigin, Ref, Repository, RepositoryError, Revision, SourceMap};
 
 /// Well-known package ID for builtins.
 pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
@@ -70,46 +70,74 @@ pub struct BuiltinLibrarySelection {
     pub ambient_modules: Vec<ModuleId>,
 }
 
-/// Language and library builtins.
+/// Immutable builtin module catalog.
 #[derive(Debug)]
-pub struct Builtins {
-    /// The builtin package ID.
-    pub package_id: PackageId,
+struct BuiltinCatalog {
     /// Intrinsic modules by path.
-    pub intrinsic_module_by_path: IndexMap<String, ModuleId>,
+    intrinsic_module_by_path: IndexMap<String, ModuleId>,
     /// Intrinsic module for each language item.
-    pub intrinsic_module_by_item: IndexMap<LanguageSymbol, ModuleId>,
-    /// The prelude module ID.
-    pub prelude_module_id: ModuleId,
+    intrinsic_module_by_item: IndexMap<LanguageSymbol, ModuleId>,
+    /// The prelude module id.
+    prelude_module_id: ModuleId,
     /// The builtin source for each module.
     module_source_by_id: DashMap<ModuleId, ModuleSource>,
     /// The builtin logical path for each module.
     module_path_by_id: DashMap<ModuleId, String>,
+}
 
+impl BuiltinCatalog {
+    /// Create one empty builtin catalog.
+    fn empty() -> Self {
+        Self {
+            intrinsic_module_by_path: IndexMap::new(),
+            intrinsic_module_by_item: IndexMap::new(),
+            prelude_module_id: ModuleId::EPHEMERAL,
+            module_source_by_id: DashMap::new(),
+            module_path_by_id: DashMap::new(),
+        }
+    }
+}
+
+/// Mutable builtin library cache state.
+#[derive(Debug)]
+struct BuiltinLibraryCache {
     /// Library modules cache.
-    library_module_by_name: DashMap<(BuiltinLibraryKey, String), Vec<ModuleId>>,
+    module_ids_by_name: DashMap<(BuiltinLibraryKey, String), Vec<ModuleId>>,
     /// Selected builtin library modules for one profile key.
-    library_selection_by_key: DashMap<BuiltinLibraryKey, BuiltinLibrarySelection>,
+    selection_by_key: DashMap<BuiltinLibraryKey, BuiltinLibrarySelection>,
     /// Input-side lock for builtin library registration.
-    library_load_lock: Mutex<()>,
+    load_lock: Mutex<()>,
     /// Library name for each registered library module.
-    pub library_name_by_module: DashMap<ModuleId, &'static str>,
+    library_name_by_module: DashMap<ModuleId, &'static str>,
+}
+
+impl BuiltinLibraryCache {
+    /// Create one empty builtin library cache.
+    fn empty() -> Self {
+        Self {
+            module_ids_by_name: DashMap::new(),
+            selection_by_key: DashMap::new(),
+            load_lock: Mutex::new(()),
+            library_name_by_module: DashMap::new(),
+        }
+    }
+}
+
+/// Language and library builtins.
+#[derive(Debug)]
+pub struct Builtins {
+    /// The immutable builtin module catalog.
+    catalog: BuiltinCatalog,
+    /// The mutable builtin library cache.
+    library_cache: BuiltinLibraryCache,
 }
 
 impl Builtins {
     /// Create one empty builtin store.
     pub fn empty() -> Self {
         Self {
-            package_id: BUILTIN_PACKAGE_ID,
-            intrinsic_module_by_path: IndexMap::new(),
-            intrinsic_module_by_item: IndexMap::new(),
-            prelude_module_id: ModuleId::EPHEMERAL,
-            module_source_by_id: DashMap::new(),
-            module_path_by_id: DashMap::new(),
-            library_module_by_name: DashMap::new(),
-            library_selection_by_key: DashMap::new(),
-            library_load_lock: Mutex::new(()),
-            library_name_by_module: DashMap::new(),
+            catalog: BuiltinCatalog::empty(),
+            library_cache: BuiltinLibraryCache::empty(),
         }
     }
 
@@ -120,11 +148,12 @@ impl Builtins {
             let module_path = source.module_path();
             let module_id =
                 ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
-            self.module_source_by_id.insert(
+            self.catalog.module_source_by_id.insert(
                 module_id,
                 ModuleSource::Builtin(BuiltinLibraryKind::Intrinsic),
             );
-            self.module_path_by_id
+            self.catalog
+                .module_path_by_id
                 .insert(module_id, module_path.clone());
             intrinsic_modules.insert(module_path, module_id);
         }
@@ -134,9 +163,12 @@ impl Builtins {
                 let module_path = source.module_path();
                 let module_id =
                     ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
-                self.module_source_by_id
+                self.catalog
+                    .module_source_by_id
                     .insert(module_id, ModuleSource::Builtin(library.kind));
-                self.module_path_by_id.insert(module_id, module_path);
+                self.catalog
+                    .module_path_by_id
+                    .insert(module_id, module_path);
             }
         }
 
@@ -156,14 +188,20 @@ impl Builtins {
             panic!("prelude module '{prelude_path}' is not in INTRINSIC_SOURCES")
         });
 
-        self.intrinsic_module_by_path = intrinsic_modules;
-        self.intrinsic_module_by_item = language_symbol_modules;
-        self.prelude_module_id = prelude_module_id;
+        self.catalog.intrinsic_module_by_path = intrinsic_modules;
+        self.catalog.intrinsic_module_by_item = language_symbol_modules;
+        self.catalog.prelude_module_id = prelude_module_id;
+    }
+
+    /// Return the builtin prelude module id.
+    pub fn prelude_module_id(&self) -> ModuleId {
+        self.catalog.prelude_module_id
     }
 
     /// Get the ModuleId for a language item's defining module.
     pub fn module_for_item(&self, item: LanguageSymbol) -> ModuleId {
         *self
+            .catalog
             .intrinsic_module_by_item
             .get(&item)
             .unwrap_or_else(|| panic!("language item {item:?} not registered"))
@@ -171,34 +209,34 @@ impl Builtins {
 
     /// Return the builtin source kind for one module.
     pub fn module_source(&self, module_id: ModuleId) -> Option<ModuleSource> {
-        self.module_source_by_id
+        self.catalog
+            .module_source_by_id
             .get(&module_id)
             .map(|source| *source.value())
     }
 
     /// Return the builtin logical path for one module.
     pub fn module_path(&self, module_id: ModuleId) -> Option<String> {
-        self.module_path_by_id
+        self.catalog
+            .module_path_by_id
             .get(&module_id)
             .map(|path| path.value().clone())
     }
 
-    /// Return the builtin module origin for one logical path.
-    pub fn module_origin_by_logical_path(
-        &self,
-        logical_path: &str,
-    ) -> Option<(String, ModuleSource)> {
-        let module_path = logical_path.strip_prefix("builtin://")?;
+    /// Return the builtin module source kind for one builtin module path.
+    pub fn module_source_for_path(&self, module_path: &str) -> Option<ModuleSource> {
         let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(module_path));
-        let source = self.module_source(module_id)?;
-
-        Some((module_path.to_string(), source))
+        self.module_source(module_id)
     }
 
     /// Return the cached builtin library selection for one profile key.
-    pub fn library_selection(&self, profile_key: &ProfileKey) -> Option<BuiltinLibrarySelection> {
+    pub fn cached_library_selection(
+        &self,
+        profile_key: &ProfileKey,
+    ) -> Option<BuiltinLibrarySelection> {
         let library_key = BuiltinLibraryKey::from_profile_key(profile_key);
-        self.library_selection_by_key
+        self.library_cache
+            .selection_by_key
             .get(&library_key)
             .map(|selection| selection.clone())
     }
@@ -220,18 +258,20 @@ impl Builtins {
     }
 
     /// Cache the builtin library selection for one profile key.
-    pub fn set_library_selection(
+    pub fn cache_library_selection(
         &self,
         profile_key: &ProfileKey,
         selection: BuiltinLibrarySelection,
     ) {
         let library_key = BuiltinLibraryKey::from_profile_key(profile_key);
-        self.library_selection_by_key.insert(library_key, selection);
+        self.library_cache
+            .selection_by_key
+            .insert(library_key, selection);
     }
 
     /// Load a library module set.
     pub fn load_library(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
-        let _guard = self.library_load_lock.lock();
+        let _guard = self.library_cache.load_lock.lock();
         let name = self.profile_builtin_library_name(name, profile_key);
 
         let mut loading = HashSet::new();
@@ -250,7 +290,7 @@ impl Builtins {
         for builtin_source in INTRINSIC_SOURCES {
             repository.insert_seeded_source(
                 &mut seeded_source,
-                &builtin_source.virtual_path(),
+                FileOrigin::builtin(builtin_source.module_path()),
                 FileContent::Text {
                     content: builtin_source.content.to_string(),
                 },
@@ -262,7 +302,7 @@ impl Builtins {
             for builtin_source in library.sources {
                 repository.insert_seeded_source(
                     &mut seeded_source,
-                    &builtin_source.virtual_path(),
+                    FileOrigin::builtin(builtin_source.module_path()),
                     FileContent::Text {
                         content: builtin_source.content.to_string(),
                     },
@@ -275,7 +315,8 @@ impl Builtins {
 
     /// Get the library name for a module, if any.
     pub fn library_name_for_module(&self, module_id: ModuleId) -> Option<&'static str> {
-        self.library_name_by_module
+        self.library_cache
+            .library_name_by_module
             .get(&module_id)
             .map(|name| *name)
     }
@@ -308,13 +349,41 @@ impl Builtins {
         let mut module_ids = Vec::new();
         let mut seen = HashSet::new();
 
-        for (path, module_id) in self.intrinsic_module_by_path.iter() {
+        for (path, module_id) in self.catalog.intrinsic_module_by_path.iter() {
             if !path.starts_with("primitive/") {
                 continue;
             }
 
             if seen.insert(*module_id) {
                 module_ids.push(*module_id);
+            }
+        }
+
+        module_ids
+    }
+
+    /// Get builtin modules referenced by language item definitions.
+    pub fn language_symbol_module_ids(&self) -> Vec<ModuleId> {
+        let mut module_ids = Vec::new();
+        let mut seen = HashSet::new();
+
+        for module_id in self.catalog.intrinsic_module_by_item.values().copied() {
+            if seen.insert(module_id) {
+                module_ids.push(module_id);
+            }
+        }
+
+        module_ids
+    }
+
+    /// Get all registered intrinsic builtin modules.
+    pub fn registered_intrinsic_module_ids(&self) -> Vec<ModuleId> {
+        let mut module_ids = Vec::new();
+        let mut seen = HashSet::new();
+
+        for module_id in self.catalog.intrinsic_module_by_path.values().copied() {
+            if seen.insert(module_id) {
+                module_ids.push(module_id);
             }
         }
 
@@ -391,10 +460,13 @@ impl Builtins {
         }
 
         for module_id in &module_ids {
-            self.library_name_by_module.insert(*module_id, library.name);
+            self.library_cache
+                .library_name_by_module
+                .insert(*module_id, library.name);
         }
 
-        self.library_module_by_name
+        self.library_cache
+            .module_ids_by_name
             .insert((library_key.clone(), name.to_string()), module_ids.clone());
 
         loading.remove(name);
@@ -413,12 +485,15 @@ impl Builtins {
         library_key: &BuiltinLibraryKey,
     ) -> Option<Vec<ModuleId>> {
         let cached = self
-            .library_module_by_name
+            .library_cache
+            .module_ids_by_name
             .get(&(library_key.clone(), name.to_string()))?;
 
         if let Some(library) = builtin_library(name) {
             for module_id in cached.iter() {
-                self.library_name_by_module.insert(*module_id, library.name);
+                self.library_cache
+                    .library_name_by_module
+                    .insert(*module_id, library.name);
             }
         }
 

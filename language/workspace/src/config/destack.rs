@@ -69,7 +69,7 @@ pub struct DestackJson {
     pub tasks: Option<IndexMap<String, TaskJson>>,
     /// Repository wide workspace membership.
     pub workspace: Option<WorkspaceJson>,
-    /// Extends other Destack configs or tsconfigs.
+    /// Extends other Destack configs or tsconfig files by path.
     pub extends: Option<ExtendsFieldJson>,
     /// Specific files to include in the project.
     pub files: Option<Vec<String>>,
@@ -146,8 +146,8 @@ impl DestackJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ExtendsFieldJson {
-    /// Extend a single Destack config.
+    /// Extend a single config path.
     Single(String),
-    /// Extend multiple Destack configs.
+    /// Extend multiple config paths.
     Multiple(Vec<String>),
 }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_source::{File, FileContent, FileId};
+use destack_source::{File, FileId};
 use serde_json::Value;
 
 use crate::config::{
@@ -10,8 +10,8 @@ use crate::config::{
     config_options_from_json, environment_options_from_json, extend_account_options,
     extend_asset_options, extend_config_options, extend_environment_options,
     extend_feature_options, extend_secret_options, extend_telemetry_options,
-    feature_options_from_json, runtime_options_with_base, secret_options_from_json,
-    telemetry_options_from_json,
+    feature_options_from_json, parse_jsonc_file, runtime_options_with_base,
+    secret_options_from_json, telemetry_options_from_json,
 };
 
 /// Parsed `destack.json` declaration.
@@ -36,14 +36,7 @@ pub struct DestackDeclaration {
 impl DestackDeclaration {
     /// Parse one `destack.json` declaration from one file.
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
-        let FileContent::Json { value, .. } = &file.content else {
-            return Err(serde_json::Error::io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "file is not JSON",
-            )));
-        };
-
-        let raw_json = value.clone();
+        let raw_json = parse_jsonc_file(file)?;
         let json: DestackJson = serde_json::from_value(raw_json.clone())?;
 
         json.linter.validate().map_err(|error| {

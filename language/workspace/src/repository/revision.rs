@@ -1,5 +1,6 @@
+use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use im::OrdMap;
@@ -8,13 +9,11 @@ use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{
-    DestackDeclaration, PackageDeclaration, Profile, Target, TsConfigDeclaration, Workspace,
-};
+use crate::{DestackDeclaration, PackageDeclaration, Profile, TsConfigDeclaration, Workspace};
 use destack_artifact::{ArtifactKey, ArtifactStamp};
-use destack_source::{FileId, FileType, ProfileId, TargetId};
+use destack_source::{FileId, FileType, ProfileId};
 
-use crate::repository::{FileContentId, QueryIndex};
+use crate::repository::{AmbientSnapshot, FileContentId, QueryIndex};
 
 /// A ref names one movable repository tip.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -43,8 +42,8 @@ impl Ref {
     }
 }
 
-impl std::fmt::Display for Ref {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Ref {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
     }
 }
@@ -77,8 +76,8 @@ impl Revision {
     }
 }
 
-impl std::fmt::Display for Revision {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Revision {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(formatter, "r{:016x}", self.0)
     }
 }
@@ -196,18 +195,21 @@ pub struct RevisionState {
     pub mode: RevisionMode,
     /// The parent revisions for this snapshot.
     pub parents: SmallVec<[Revision; 2]>,
+
     /// The source map for this revision.
     pub source: Arc<SourceMap>,
+    /// The ambient semantic snapshot for this revision.
+    pub ambient: Arc<AmbientSnapshot>,
+
     /// The cached workspace view for this revision.
     pub workspace: OnceLock<Arc<Workspace>>,
-    /// The cached target view for this revision.
-    pub targets: OnceLock<Arc<OrdMap<TargetId, Target>>>,
     /// The cached profile view for this revision.
     pub profiles: OnceLock<Arc<OrdMap<ProfileId, Profile>>>,
     /// The cached artifact stamp for each revision local artifact key.
     pub artifact_stamps: OnceLock<Arc<RwLock<FxHashMap<ArtifactKey, ArtifactStamp>>>>,
     /// The cached query index for this revision.
     pub query_index: OnceLock<Arc<RwLock<QueryIndex>>>,
+
     /// The cached package declarations for this revision.
     pub package_declarations:
         OnceLock<Arc<RwLock<FxHashMap<FileId, Option<Arc<PackageDeclaration>>>>>>,
@@ -218,18 +220,26 @@ pub struct RevisionState {
     pub tsconfig_declarations:
         OnceLock<Arc<RwLock<FxHashMap<FileId, Option<Arc<TsConfigDeclaration>>>>>>,
     /// The cached workspace directory paths for this revision.
-    pub directory_paths: OnceLock<Arc<FxHashSet<std::path::PathBuf>>>,
+    pub directory_paths: OnceLock<Arc<FxHashSet<PathBuf>>>,
 }
 
 impl RevisionState {
     /// Build one revision state record from explicit parts.
-    pub fn new(parents: SmallVec<[Revision; 2]>, source: Arc<SourceMap>) -> Self {
-        Self::with_mode(RevisionMode::Immutable, parents, source)
+    pub fn new(
+        parents: SmallVec<[Revision; 2]>,
+        source: Arc<SourceMap>,
+        ambient: Arc<AmbientSnapshot>,
+    ) -> Self {
+        Self::with_mode(RevisionMode::Immutable, parents, source, ambient)
     }
 
     /// Build one mutable revision state record from explicit parts.
-    pub fn new_mutable(parents: SmallVec<[Revision; 2]>, source: Arc<SourceMap>) -> Self {
-        Self::with_mode(RevisionMode::Mutable, parents, source)
+    pub fn new_mutable(
+        parents: SmallVec<[Revision; 2]>,
+        source: Arc<SourceMap>,
+        ambient: Arc<AmbientSnapshot>,
+    ) -> Self {
+        Self::with_mode(RevisionMode::Mutable, parents, source, ambient)
     }
 
     /// Build one revision state record from one explicit mode.
@@ -237,13 +247,14 @@ impl RevisionState {
         mode: RevisionMode,
         parents: SmallVec<[Revision; 2]>,
         source: Arc<SourceMap>,
+        ambient: Arc<AmbientSnapshot>,
     ) -> Self {
         Self {
             mode,
             parents,
             source,
+            ambient,
             workspace: OnceLock::new(),
-            targets: OnceLock::new(),
             profiles: OnceLock::new(),
             artifact_stamps: OnceLock::new(),
             query_index: OnceLock::new(),
@@ -292,6 +303,9 @@ impl RevisionState {
             file_id.hash(&mut hasher);
             entry.hash(&mut hasher);
         }
+
+        // ambient semantic inputs
+        self.ambient.hash(&mut hasher);
 
         Revision::new(hasher.finish())
     }

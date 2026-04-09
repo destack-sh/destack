@@ -1,7 +1,3 @@
-//! JSON Schema generation for destack.json.
-//!
-//! Run via: `just schema` or `cargo run -p destack_workspace --features schema`
-
 use destack_workspace::DestackJson;
 use schemars::schema_for;
 

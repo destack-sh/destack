@@ -280,7 +280,7 @@ impl Compiler {
         builtins: &Builtins,
         profile_key: &ProfileKey,
     ) -> ResolveResult<BuiltinLibrarySelection> {
-        if let Some(selection) = builtins.library_selection(profile_key) {
+        if let Some(selection) = builtins.cached_library_selection(profile_key) {
             return Ok(selection);
         }
 
@@ -288,7 +288,7 @@ impl Compiler {
         let ordered_libraries = self.ordered_libraries_for_profile_key(profile_key)?;
         if self.check_builtin_library_version_conflicts(&ordered_libraries)? {
             let selection = BuiltinLibrarySelection::default();
-            builtins.set_library_selection(profile_key, selection.clone());
+            builtins.cache_library_selection(profile_key, selection.clone());
             return Ok(selection);
         }
 
@@ -331,7 +331,7 @@ impl Compiler {
             ambient_modules,
         };
 
-        builtins.set_library_selection(profile_key, selection.clone());
+        builtins.cache_library_selection(profile_key, selection.clone());
 
         Ok(selection)
     }
@@ -362,28 +362,6 @@ impl Compiler {
         }
 
         Ok(ordered_libraries)
-    }
-
-    /// Load builtin library modules in dependency order for benchmark runs.
-    #[cfg(feature = "bench")]
-    pub(crate) fn load_library_modules_for_bench(
-        &self,
-        libs: &[&str],
-    ) -> ResolveResult<Vec<destack_source::ModuleId>> {
-        let builtins = self.repository.builtins.as_ref();
-
-        let mut lib_names: Vec<String> = libs.iter().map(|lib| (*lib).to_string()).collect();
-        if !lib_names.iter().any(|name| name == "globals") {
-            lib_names.push("globals".to_string());
-        }
-
-        let default_profile_id =
-            self.default_profile_id_for_module(self.repository.root_module_id());
-        let mut profile_key = self.profile(default_profile_id).key.clone();
-        profile_key.lib = lib_names;
-
-        let selection = self.builtin_library_selection(builtins, &profile_key)?;
-        Ok(selection.library_modules)
     }
 
     /// Collect the dependencies of a library and add them to the ordered list.

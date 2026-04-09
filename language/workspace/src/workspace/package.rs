@@ -5,13 +5,13 @@ use indexmap::IndexMap;
 
 use crate::config::Target;
 
-/// The discovery kind for a package.
+/// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PackageKind {
-    /// Physical package on disk.
-    Physical,
-    /// Synthetic package for loose files.
-    Synthetic,
+    /// Declared package rooted by authored workspace config.
+    Declared,
+    /// Implicit package rooted by one loose-file directory.
+    Implicit,
     /// Ephemeral package for virtual content.
     Ephemeral,
     /// Builtin package for language primitives.
@@ -23,11 +23,11 @@ pub enum PackageKind {
 pub struct Package {
     /// The package id.
     pub id: PackageId,
-    /// The discovery kind.
+    /// The ownership kind.
     pub kind: PackageKind,
     /// The package uri.
     pub uri: Uri,
-    /// The package directory when physical.
+    /// The package directory when filesystem backed.
     pub path: Option<PathBuf>,
     /// The package name.
     pub name: Option<String>,
@@ -47,10 +47,5 @@ impl Package {
     /// Get one target by id.
     pub fn target(&self, target: &TargetId) -> Option<&Target> {
         self.targets.get(target)
-    }
-
-    /// Get the default non-synthetic target.
-    pub fn default_target(&self) -> Option<&Target> {
-        self.targets.values().find(|target| !target.synthetic)
     }
 }

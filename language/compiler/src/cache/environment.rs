@@ -132,11 +132,7 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> Option<EnvironmentImageContext> {
         let builtins = self.repository.builtins.as_ref();
-        let mut module_ids: Vec<_> = builtins
-            .intrinsic_module_by_item
-            .values()
-            .copied()
-            .collect();
+        let mut module_ids = builtins.language_symbol_module_ids();
         module_ids.sort_unstable();
         module_ids.dedup();
 

@@ -4,9 +4,11 @@ use destack_artifact::{Loader, ModuleEdgeRelation, ProfileKey};
 use destack_builtin::{builtin_library, resolve_profile_builtin_library_name};
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
-use destack_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{ResolveOptions, ResolveTrace, Resolver};
 use destack_source::{FileType, LanguageType, ModuleId, PackageId, Uri};
-use destack_workspace::{BUILTIN_PACKAGE_ID, Edit, NodeLinker, ProfileId, TsCompilerOptions};
+use destack_workspace::{
+    BUILTIN_PACKAGE_ID, Change, Edit, NodeLinker, ProfileId, TsCompilerOptions,
+};
 
 use crate::import::{
     ImportResolveContext, apply_node_linker_resolve_policy, apply_typescript_import_resolve_policy,
@@ -52,6 +54,15 @@ enum SourceImportResolvePolicy {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return the fallback directory for import resolution.
+    fn resolve_root_directory(&self) -> PathBuf {
+        self.options
+            .import_resolve
+            .cwd
+            .clone()
+            .unwrap_or_else(|| self.repository.workspace_root().to_path_buf())
+    }
+
     /// Convert one repository failure into an internal import error.
     fn import_repository_error(error: destack_workspace::RepositoryError) -> ImportError {
         ImportError::Internal {
@@ -213,11 +224,23 @@ impl Compiler {
             source_language_type,
             edge_relation,
         );
+        let mut trace = ResolveTrace::default();
         let resolution = match source_path {
-            Some(source_path) => resolver.resolve_from_file(source_path, specifier_str),
-            None => resolver.resolve_from_directory(directory, specifier_str),
+            Some(source_path) => resolver.resolve_from_file_with_trace(
+                revision,
+                source_path,
+                specifier_str,
+                &mut trace,
+            ),
+            None => resolver.resolve_from_directory_with_trace(
+                revision,
+                directory,
+                specifier_str,
+                &mut trace,
+            ),
         };
         if let Ok(resolution) = resolution {
+            self.require_trace_files(revision, source_module, &trace)?;
             return Ok((resolution.path, resolver));
         }
         let error = resolution.err();
@@ -226,6 +249,85 @@ impl Compiler {
             target: specifier_id,
             error,
         })
+    }
+
+    /// Yield direct file requirements for every traced dependency missing from the revision.
+    fn require_trace_files(
+        &self,
+        revision: destack_workspace::Revision,
+        source_module: Option<ModuleId>,
+        trace: &ResolveTrace,
+    ) -> ImportResult<()> {
+        use std::collections::BTreeSet;
+
+        let anchor = source_module
+            .map(DiagnosticAnchor::from)
+            .unwrap_or(DiagnosticAnchor::Global);
+        let mut requirements = Vec::new();
+        let mut paths = BTreeSet::new();
+
+        for path in &trace.found_dependencies {
+            paths.insert(path.clone());
+        }
+
+        for path in paths {
+            let Some(requirement) =
+                self.file_requirement_for_path_if_missing(revision, anchor.clone(), &path)?
+            else {
+                continue;
+            };
+
+            requirements.push(crate::Requirement::File(requirement));
+        }
+
+        if requirements.is_empty() {
+            return Ok(());
+        }
+
+        let requirement = match requirements.len() {
+            1 => RequirementSet::One(
+                requirements
+                    .into_iter()
+                    .next()
+                    .expect("single requirement should exist"),
+            ),
+            _ => RequirementSet::All(requirements),
+        };
+
+        Err(ImportError::Yield { requirement })
+    }
+
+    /// Build one direct file requirement when a traced path is missing from the revision.
+    fn file_requirement_for_path_if_missing(
+        &self,
+        revision: destack_workspace::Revision,
+        anchor: DiagnosticAnchor,
+        path: &Path,
+    ) -> ImportResult<Option<FileRequirement>> {
+        let file_id = self.repository.file_id_for_workspace_path(path);
+
+        if self
+            .repository
+            .file(revision, file_id)
+            .map_err(Self::import_repository_error)?
+            .is_some()
+        {
+            return Ok(None);
+        }
+
+        let logical_path = self.repository.normalize_workspace_path(path);
+        let content = self
+            .repository
+            .load_workspace_file_content(path)
+            .map_err(Self::import_repository_error)?;
+
+        Ok(Some(FileRequirement::new(
+            anchor,
+            Change::single(Edit::SetFile {
+                logical_path,
+                content,
+            }),
+        )))
     }
 
     /// Resolve a specifier to value and type targets with explicit edge semantics.
@@ -648,10 +750,10 @@ impl Compiler {
                 .map_err(Self::import_repository_error)?;
             let requirement = FileRequirement::new(
                 DiagnosticAnchor::from(module_id),
-                Edit::SetFile {
+                Change::single(Edit::SetFile {
                     logical_path,
                     content,
-                },
+                }),
             );
 
             return Err(ImportError::Yield {
@@ -661,7 +763,7 @@ impl Compiler {
 
         // find tsconfig (if any)
         let _tsconfig_file_id = resolver
-            .find_tsconfig_for_file(path)
+            .find_tsconfig_for_file(revision, path)
             .map_err(|error| ImportError::ModuleNotFound {
                 target: self.repository.strings.intern(uri.as_ref()),
                 error: Some(error),
@@ -704,7 +806,7 @@ impl Compiler {
         apply_node_linker_resolve_policy(
             &mut base_options,
             node_linker,
-            self.repository.cwd.as_path(),
+            self.resolve_root_directory().as_path(),
         );
 
         // config-owned packages suppress tsconfig overlays
@@ -908,7 +1010,7 @@ impl Compiler {
     ) -> PathBuf {
         if let Some(module_id) = source_module {
             let Some(module) = self.repository.module(revision, module_id).ok().flatten() else {
-                return self.repository.cwd.clone();
+                return self.resolve_root_directory();
             };
             let Some(module_file) = self
                 .repository
@@ -916,15 +1018,15 @@ impl Compiler {
                 .ok()
                 .flatten()
             else {
-                return self.repository.cwd.clone();
+                return self.resolve_root_directory();
             };
             module_file
                 .uri
                 .to_path_buf()
                 .and_then(|path| path.parent().map(|p| p.to_path_buf()))
-                .unwrap_or_else(|| self.repository.cwd.clone())
+                .unwrap_or_else(|| self.resolve_root_directory())
         } else {
-            self.repository.cwd.clone()
+            self.resolve_root_directory()
         }
     }
 
@@ -957,7 +1059,7 @@ impl Compiler {
         // try to find a physical package (package.json)
         if let Some(package_id) =
             resolver
-                .find_package(path)
+                .find_package(revision, path)
                 .map_err(|error| ImportError::ModuleNotFound {
                     target: self
                         .repository
@@ -972,11 +1074,7 @@ impl Compiler {
                 .ok()
                 .flatten()
                 .and_then(|package| package.path.clone())
-                .or_else(|| {
-                    resolver
-                        .package_maybe(package_id)
-                        .and_then(|package| package.path)
-                });
+                .or_else(|| resolver.find_package_root(revision, path).ok().flatten());
             return Ok((package_id, package_root));
         }
 

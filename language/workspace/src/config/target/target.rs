@@ -335,6 +335,21 @@ impl std::hash::Hash for Target {
 }
 
 impl Target {
+    /// Return the known implicit target names.
+    pub fn implicit_target_names() -> &'static [&'static str] {
+        &[
+            "default",
+            "js",
+            "ts",
+            "html",
+            "node",
+            "wasm",
+            "wasm-wasi",
+            "wasi",
+            "native",
+        ]
+    }
+
     /// Create a new target with the given name and default JS output.
     pub fn js(name: impl Into<String>) -> Self {
         Self {
