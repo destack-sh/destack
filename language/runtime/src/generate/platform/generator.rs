@@ -3,10 +3,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use destack_artifact::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
-use destack_compiler::{Compiler, CompilerOptions, RequirementCollector, RequirementError};
+use destack_artifact::{EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey, Runtime};
+use destack_compiler::{Compiler, CompilerOptions};
+use destack_linter::Linter;
+use destack_session::Session;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity};
-use destack_workspace::{ProfileId, Ref, Repository, Revision};
+use destack_workspace::{AmbientSnapshot, Profile, ProfileId, Ref, Repository, Revision};
 
 use crate::context::GeneratorContext;
 use crate::option::parse_generator_options;
@@ -33,6 +35,8 @@ pub(crate) struct RuntimeGenerator {
     context: Arc<GeneratorContext>,
     /// Compiler instance for analysis passes.
     compiler: Arc<Compiler>,
+    /// Private generator session for artifact driving.
+    session: Session,
     /// The current diagnostics from generator analysis.
     current_diagnostics: Mutex<DiagnosticCollection>,
     /// The generator filesystem layout.
@@ -95,7 +99,10 @@ impl RuntimeGenerator {
     /// Build the generator state from a workspace root.
     fn new(cwd: PathBuf) -> Self {
         // repository and imported root revision
-        let repository = Arc::new(Repository::open_root(cwd.clone()));
+        let repository = Arc::new(Repository::open_root(
+            cwd.clone(),
+            AmbientSnapshot::capture_process(),
+        ));
         let reference = Ref::for_workspace_root(repository.workspace_root());
         let revision = repository
             .current(&reference)
@@ -108,6 +115,15 @@ impl RuntimeGenerator {
 
         // create a compiler instance for binding analysis
         let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
+        let session = Session::fork(
+            cwd.clone(),
+            repository.clone(),
+            revision,
+            compiler.clone(),
+            Arc::new(Linter::new(repository.clone())),
+            None,
+        )
+        .expect("runtime generator session should initialize");
 
         // resolve generator output paths from the runtime crate root
         let layout = WorkspaceLayout::from_runtime_crate();
@@ -118,6 +134,7 @@ impl RuntimeGenerator {
             revision,
             context,
             compiler,
+            session,
             current_diagnostics: Mutex::new(DiagnosticCollection::new()),
             layout,
         }
@@ -137,20 +154,10 @@ impl RuntimeGenerator {
         profile_id: ProfileId,
         platform_modules: &[destack_source::ModuleId],
     ) -> Result<(), String> {
-        self.compiler
-            .run_to_completion(self.revision, |compiler, _context| {
-                self.require_platform_analysis(compiler, profile_id, platform_modules)
-            })
-            .map_err(|error| match error {
-                RequirementError::NotReady { requirement } => {
-                    format!("platform analysis did not converge: {requirement:?}")
-                }
-                RequirementError::Failed { requirement } => self.format_platform_analysis_failure(
-                    profile_id,
-                    platform_modules,
-                    &requirement,
-                ),
-            })?;
+        let artifact_keys = self.platform_analysis_roots(profile_id, platform_modules);
+        self.session
+            .provide_artifacts(&artifact_keys)
+            .map_err(|error| error.to_string())?;
 
         // publish diagnostics from the current module artifact families
         let mut diagnostics = DiagnosticCollection::new();
@@ -181,7 +188,11 @@ impl RuntimeGenerator {
         let mut diagnostics = DiagnosticCollection::new();
         let profile_key = self.profile_key();
 
-        if let Some(selection) = self.repository.builtins().library_selection(&profile_key) {
+        if let Some(selection) = self
+            .repository
+            .builtins()
+            .cached_library_selection(&profile_key)
+        {
             for module_id in selection.library_modules {
                 diagnostics.merge_from(&self.repository.module_artifact_diagnostics(
                     self.revision,
@@ -212,43 +223,24 @@ impl RuntimeGenerator {
         )
     }
 
-    /// Require the full platform analysis surface for one profile.
-    fn require_platform_analysis(
+    /// Build the requested platform analysis roots.
+    fn platform_analysis_roots(
         &self,
-        compiler: &Compiler,
         profile_id: ProfileId,
         platform_modules: &[destack_source::ModuleId],
-    ) -> Result<(), RequirementError> {
-        // collect the full root requirement set before driving
-        let mut collector = RequirementCollector::new();
-
-        if let Some(error) =
-            collector.try_collect(compiler.require_language_environment(self.revision, profile_id))
-        {
-            return Err(error);
-        }
-
-        if let Some(error) =
-            collector.try_collect(compiler.require_library_environment(self.revision, profile_id))
-        {
-            return Err(error);
-        }
+    ) -> Vec<destack_artifact::ArtifactKey> {
+        let mut artifact_keys = vec![
+            destack_artifact::ArtifactKey::language_environment(profile_id),
+            destack_artifact::ArtifactKey::library_environment(profile_id),
+        ];
 
         for module_id in platform_modules {
-            if let Some(error) = collector.try_collect(compiler.require_dir_patched(
-                self.revision,
-                *module_id,
-                profile_id,
-            )) {
-                return Err(error);
-            }
+            artifact_keys.push(destack_artifact::ArtifactKey::dir_patched(
+                *module_id, profile_id,
+            ));
         }
 
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(RequirementError::NotReady { requirement });
-        }
-
-        Ok(())
+        artifact_keys
     }
 
     /// Print diagnostics and stop on errors.
@@ -329,7 +321,7 @@ impl RuntimeGenerator {
             false,
             false,
             false,
-            EnvSnapshot::from_env_all(),
+            EnvironmentStamp::from_env_all(),
             ProfileFlags::default(),
         )
     }
@@ -701,7 +693,7 @@ impl RuntimeGenerator {
 
         // configure the native profile for platform modules
         let profile_key = generator.profile_key();
-        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
+        let profile_id = Profile::id_for_key(&profile_key);
 
         // load the platform modules for analysis
         let platform_modules = generator.load_platform_modules(&profile_key);
@@ -798,7 +790,7 @@ mod tests {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generator = RuntimeGenerator::new(workspace_root);
         let profile_key = generator.profile_key();
-        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
+        let profile_id = Profile::id_for_key(&profile_key);
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules = generator
             .select_modules(
@@ -825,7 +817,7 @@ mod tests {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generator = RuntimeGenerator::new(workspace_root);
         let profile_key = generator.profile_key();
-        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
+        let profile_id = Profile::id_for_key(&profile_key);
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules = generator
             .select_modules(
@@ -858,7 +850,7 @@ mod tests {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generator = RuntimeGenerator::new(workspace_root);
         let profile_key = generator.profile_key();
-        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
+        let profile_id = Profile::id_for_key(&profile_key);
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules = generator
             .select_modules(

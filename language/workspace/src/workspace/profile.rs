@@ -1,6 +1,7 @@
-use destack_artifact::{EnvSnapshot, ProfileFlags};
+use destack_artifact::{EnvironmentStamp, ProfileFlags};
 use serde::{Deserialize, Serialize};
 
+use crate::EnvironmentSnapshot;
 use crate::config::CompilerOptions;
 
 /// The stable profile id.
@@ -24,12 +25,13 @@ pub struct ProfileEnv {
 impl ProfileEnv {
     /// Derive the effective node environment and mode flags.
     pub fn mode_from_snapshot(
-        snapshot: &EnvSnapshot,
+        snapshot: &EnvironmentStamp,
+        environment: &EnvironmentSnapshot,
         debug: bool,
     ) -> (Option<String>, bool, bool, bool) {
         let has_node_env = snapshot.keys().iter().any(|key| key == "NODE_ENV");
         let mut node_env = if has_node_env {
-            std::env::var("NODE_ENV").ok()
+            environment.get("NODE_ENV").map(ToOwned::to_owned)
         } else {
             None
         };
@@ -53,15 +55,23 @@ impl ProfileEnv {
     }
 
     /// Build one profile environment from one snapshot.
-    pub fn from_snapshot(snapshot: &EnvSnapshot, debug: bool) -> Self {
+    pub fn from_snapshot(
+        snapshot: &EnvironmentStamp,
+        environment: &EnvironmentSnapshot,
+        debug: bool,
+    ) -> Self {
         let mut values = snapshot
             .keys()
             .iter()
-            .filter_map(|key| std::env::var(key).ok().map(|value| (key.clone(), value)))
+            .filter_map(|key| {
+                environment
+                    .get(key)
+                    .map(|value| (key.clone(), value.to_string()))
+            })
             .collect::<Vec<_>>();
 
         let has_node_env = snapshot.keys().iter().any(|key| key == "NODE_ENV");
-        let (node_env, dev, prod, test) = Self::mode_from_snapshot(snapshot, debug);
+        let (node_env, dev, prod, test) = Self::mode_from_snapshot(snapshot, environment, debug);
 
         if has_node_env
             && let Some(node_env_value) = node_env.clone()

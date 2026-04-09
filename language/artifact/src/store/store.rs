@@ -11,7 +11,7 @@ use crate::{
     ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, Data, DirAnalyzed,
     DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved,
     IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized,
-    ModuleGraph, ModuleOutput, PackageOutput,
+    ModuleGraph, ModuleLinted, ModuleOutput, PackageLinted, PackageOutput, WorkspaceLinted,
 };
 
 /// One versioned artifact family map.
@@ -83,6 +83,12 @@ pub struct ArtifactStore {
     module_output: ArtifactMap<ModuleOutput>,
     /// Output entries by package and target.
     package_output: ArtifactMap<PackageOutput>,
+    /// Module lint surfaces by module and profile.
+    module_linted: ArtifactMap<ModuleLinted>,
+    /// Package lint surfaces by package.
+    package_linted: ArtifactMap<PackageLinted>,
+    /// Workspace lint surfaces.
+    workspace_linted: ArtifactMap<WorkspaceLinted>,
 }
 
 impl ArtifactStore {
@@ -145,6 +151,7 @@ impl ArtifactStore {
         self.collect_profiles_for_module(&self.dir_patched, module, &mut profiles);
         self.collect_profiles_for_module(&self.mir_bases, module, &mut profiles);
         self.collect_profiles_for_module(&self.mir_optimized, module, &mut profiles);
+        self.collect_profiles_for_module(&self.module_linted, module, &mut profiles);
 
         profiles
     }
@@ -208,6 +215,15 @@ impl ArtifactStore {
             ArtifactKey::PackageOutput { .. } => {
                 self.package_output.remove(version);
             }
+            ArtifactKey::ModuleLinted { .. } => {
+                self.module_linted.remove(version);
+            }
+            ArtifactKey::PackageLinted { .. } => {
+                self.package_linted.remove(version);
+            }
+            ArtifactKey::WorkspaceLinted => {
+                self.workspace_linted.remove(version);
+            }
         }
     }
 
@@ -238,6 +254,9 @@ impl ArtifactStore {
             ArtifactKey::MirOptimized { .. } => self.evict_matching(&self.mir_optimized, key),
             ArtifactKey::ModuleOutput { .. } => self.evict_matching(&self.module_output, key),
             ArtifactKey::PackageOutput { .. } => self.evict_matching(&self.package_output, key),
+            ArtifactKey::ModuleLinted { .. } => self.evict_matching(&self.module_linted, key),
+            ArtifactKey::PackageLinted { .. } => self.evict_matching(&self.package_linted, key),
+            ArtifactKey::WorkspaceLinted => self.evict_matching(&self.workspace_linted, key),
         }
     }
 
@@ -364,6 +383,9 @@ impl ArtifactStore {
             ArtifactKey::MirOptimized { .. } => self.mir_optimized.contains_key(version),
             ArtifactKey::ModuleOutput { .. } => self.module_output.contains_key(version),
             ArtifactKey::PackageOutput { .. } => self.package_output.contains_key(version),
+            ArtifactKey::ModuleLinted { .. } => self.module_linted.contains_key(version),
+            ArtifactKey::PackageLinted { .. } => self.package_linted.contains_key(version),
+            ArtifactKey::WorkspaceLinted => self.workspace_linted.contains_key(version),
         }
     }
 
@@ -663,6 +685,60 @@ impl ArtifactStore {
         );
     }
 
+    /// Publish one module lint surface at one exact version.
+    pub fn publish_module_linted(
+        &self,
+        version: ArtifactVersion,
+        payload: impl Into<Arc<ModuleLinted>>,
+    ) {
+        let payload = payload.into();
+        let is_expected_key = matches!(&version.key, ArtifactKey::ModuleLinted { .. });
+
+        self.publish(
+            &self.module_linted,
+            version,
+            payload,
+            is_expected_key,
+            "ModuleLinted",
+        );
+    }
+
+    /// Publish one package lint surface at one exact version.
+    pub fn publish_package_linted(
+        &self,
+        version: ArtifactVersion,
+        payload: impl Into<Arc<PackageLinted>>,
+    ) {
+        let payload = payload.into();
+        let is_expected_key = matches!(&version.key, ArtifactKey::PackageLinted { .. });
+
+        self.publish(
+            &self.package_linted,
+            version,
+            payload,
+            is_expected_key,
+            "PackageLinted",
+        );
+    }
+
+    /// Publish one workspace lint surface at one exact version.
+    pub fn publish_workspace_linted(
+        &self,
+        version: ArtifactVersion,
+        payload: impl Into<Arc<WorkspaceLinted>>,
+    ) {
+        let payload = payload.into();
+        let is_expected_key = matches!(&version.key, ArtifactKey::WorkspaceLinted);
+
+        self.publish(
+            &self.workspace_linted,
+            version,
+            payload,
+            is_expected_key,
+            "WorkspaceLinted",
+        );
+    }
+
     /// Get one module graph.
     pub fn module_graph(&self, version: &ArtifactVersion) -> Option<Arc<ModuleGraph>> {
         self.module_graphs
@@ -794,6 +870,27 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
+    /// Get one module lint surface.
+    pub fn module_linted(&self, version: &ArtifactVersion) -> Option<Arc<ModuleLinted>> {
+        self.module_linted
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one package lint surface.
+    pub fn package_linted(&self, version: &ArtifactVersion) -> Option<Arc<PackageLinted>> {
+        self.package_linted
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one workspace lint surface.
+    pub fn workspace_linted(&self, version: &ArtifactVersion) -> Option<Arc<WorkspaceLinted>> {
+        self.workspace_linted
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
     /// Clear all semantic artifacts.
     pub fn clear(&self) {
         self.entries.clear();
@@ -815,6 +912,9 @@ impl ArtifactStore {
         self.mir_optimized.clear();
         self.module_output.clear();
         self.package_output.clear();
+        self.module_linted.clear();
+        self.package_linted.clear();
+        self.workspace_linted.clear();
         self.retained_versions.clear();
     }
 

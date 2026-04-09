@@ -24,6 +24,7 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_linter::Linter;
 use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
+use destack_session::Session;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileContent, FileId, FileSystem,
     FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
@@ -39,8 +40,7 @@ use destack_workspace::{
 use serde_json::{Value as JsonValue, json};
 
 use crate::{
-    AnalyzeOptions, ArtifactTaskKeyExt, Compiler, CompilerContext, CompilerOptions, TaskPhase,
-    default_workers,
+    AnalyzeOptions, CompilePhase, Compiler, CompilerContext, CompilerOptions, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -115,8 +115,8 @@ impl TestFileSystem {
         }
     }
 
-    /// Return a cache store suited to this file system.
-    pub fn cache_store(&self) -> Arc<dyn CacheStore> {
+    /// Return a cache backend suited to this file system.
+    pub fn cache(&self) -> Arc<dyn CacheStore> {
         match self {
             Self::Memory { .. } => Arc::new(MemoryCacheStore::new()),
             Self::Physical { .. } => Arc::new(DiskCacheStore::new()),
@@ -258,18 +258,9 @@ impl TestWorkspaceView {
         let logical_path = self.repository.normalize_workspace_path(path);
 
         // publish the revision change before updating the indexed file entry
-        let change = match &file.content {
-            FileContent::Missing => Edit::remove_file(&logical_path),
-            FileContent::Unloaded => {
-                panic!(
-                    "cannot replace source file with unloaded content: {}",
-                    file.name
-                )
-            }
-            content => Edit::SetFile {
-                logical_path,
-                content: content.clone(),
-            },
+        let change = Edit::SetFile {
+            logical_path,
+            content: file.content.payload().clone(),
         };
         self.repository
             .apply(&reference, Change::from(change))
@@ -413,8 +404,14 @@ pub struct TestProgram {
     pub program: Arc<TestWorkspaceView>,
     /// The compiler.
     pub compiler: Arc<Compiler>,
+    /// The linter.
+    pub linter: Arc<Linter>,
+    /// The shared session for high level artifact provision.
+    pub session: Arc<Session>,
     /// The latest diagnostics from one test compiler operation.
     latest_diagnostics: Mutex<DiagnosticCollection>,
+    /// Pending artifact roots for the next test compile.
+    pending_artifact_keys: Mutex<Vec<ArtifactKey>>,
     /// The dumper options.
     pub dumper_options: DumperOptions,
     /// Optional override for the default profile in tests.
@@ -1288,11 +1285,11 @@ impl TestProgram {
                 });
         }
 
-        let cache_store = fs.cache_store();
+        let cache = fs.cache();
         let repository = Arc::new(
             Repository::open_root_from_fs(root_directory.clone(), fs.fs())
                 .expect("failed to import repository from compiler test file system")
-                .with_cache_store(cache_store),
+                .with_cache(cache),
         );
         let program = Arc::new(TestWorkspaceView::new(repository.clone(), root_directory));
 
@@ -1305,6 +1302,20 @@ impl TestProgram {
         };
         let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
         let workspace_reference = Ref::for_workspace_root(program.root_directory());
+        let linter = Arc::new(Linter::new(repository.clone()));
+        let session = Arc::new(
+            Session::new(
+                program.root_directory().clone(),
+                repository.clone(),
+                workspace_reference.clone(),
+                None,
+                compiler.clone(),
+                linter.clone(),
+                None,
+                None,
+            )
+            .expect("failed to initialize compiler test session"),
+        );
 
         // track the seeded package manifest in the initial revision
         repository
@@ -1313,13 +1324,19 @@ impl TestProgram {
                 Change::from([Edit::set_text("package.json", r#"{ "name": "test" }"#)]),
             )
             .unwrap_or_else(|error| panic!("failed to publish initial package manifest: {error}"));
+        session
+            .materialize_filesystem(true)
+            .expect("failed to materialize compiler test workspace");
 
         Self {
             fs,
             repository,
             program,
             compiler,
+            linter,
+            session,
             latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
+            pending_artifact_keys: Mutex::new(Vec::new()),
             dumper_options: DumperOptions::default(),
             default_profile_override: None,
         }
@@ -1412,7 +1429,7 @@ impl TestProgram {
         let default_profile = self.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
         key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
-        let profile_id = self.compiler.remember_profile_key(key);
+        let profile_id = Profile::from_key(key).id();
         self.default_profile_override = Some(profile_id);
         self
     }
@@ -1422,7 +1439,7 @@ impl TestProgram {
         let default_profile = self.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
         key.emit = emit;
-        let profile_id = self.compiler.remember_profile_key(key);
+        let profile_id = Profile::from_key(key).id();
         self.default_profile_override = Some(profile_id);
         self
     }
@@ -1517,7 +1534,7 @@ impl TestProgram {
     /// Get the default profile id for the root module.
     pub fn default_profile_id_for_root(&self) -> ProfileId {
         let revision = self.program.current_revision();
-        let root_module_id = self.program.root_module_id();
+        let root_module_id = self.program.synthetic_root_module_id();
 
         self.default_profile_override.unwrap_or_else(|| {
             self.compiler
@@ -1553,9 +1570,10 @@ impl TestProgram {
         self.context().analyze_context_options_for_module(module_id)
     }
 
-    /// Return one cached profile value.
+    /// Return one profile value for the current revision.
     pub fn profile(&self, profile_id: ProfileId) -> Profile {
-        self.compiler.profile(profile_id)
+        self.compiler
+            .profile_for_revision(self.current_revision(), profile_id)
     }
 
     /// Return one revision-scoped module graph artifact.
@@ -1616,23 +1634,13 @@ impl TestProgram {
     /// Resolve the language environment for the default root profile.
     pub fn resolve_language_environment(&self) {
         let profile = self.default_profile_id_for_root();
-        let revision = self.program.current_revision();
-        self.compiler
-            .run_to_completion(revision, |compiler, _context| {
-                compiler.require_language_environment(_context.revision(), profile)
-            })
-            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
+        self.run(ArtifactKey::language_environment(profile));
     }
 
     /// Resolve builtin libraries for the default root profile.
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
-        let revision = self.program.current_revision();
-        self.compiler
-            .run_to_completion(revision, |compiler, _context| {
-                compiler.require_library_environment(_context.revision(), profile)
-            })
-            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
+        self.run(ArtifactKey::library_environment(profile));
     }
 
     /// Enqueue Analyze task for a module.
@@ -1644,12 +1652,7 @@ impl TestProgram {
     /// Drive declaration analysis for one module to completion.
     pub fn declare_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        let revision = self.program.current_revision();
-        self.compiler
-            .run_to_completion(revision, |compiler, _context| {
-                compiler.require_dir_declared(_context.revision(), module, profile)
-            })
-            .unwrap_or_else(|error| panic!("failed to declare module {module:?}: {error:?}"));
+        self.run(ArtifactKey::dir_declared(module, profile));
     }
 
     /// Analyze a module and check no diagnostics.
@@ -1664,14 +1667,7 @@ impl TestProgram {
     /// Lint a module through the linter crate.
     pub fn lint_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ArtifactKey::dir_analyzed(module, profile));
-        self.compile();
-        let revision = self.program.current_revision();
-
-        let linter = Linter::new(self.repository.clone());
-        linter
-            .lint_module(revision, module, self.profile(profile))
-            .unwrap_or_else(|error| panic!("failed to lint module {module:?}: {error}"));
+        self.run(ArtifactKey::module_linted(module, profile));
     }
 
     /// Enqueue Elaborate task for a module.
@@ -1786,8 +1782,10 @@ impl TestProgram {
 
     /// Enqueue one artifact key.
     pub fn enqueue(&self, artifact_key: ArtifactKey) {
-        self.compiler
-            .enqueue(self.program.current_revision(), artifact_key);
+        self.pending_artifact_keys
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .push(artifact_key);
     }
 
     /// Return the workspace reference for repository revision updates.
@@ -1894,11 +1892,10 @@ impl TestProgram {
         };
         let file = self.program.source_file(file_id);
 
-        match &file.content {
-            FileContent::Json { value, .. } => value.clone(),
+        match file.content.payload() {
             FileContent::Text { content } => serde_json::from_str(content)
                 .unwrap_or_else(|error| panic!("invalid tracked destack.json: {error}")),
-            _ => json!({}),
+            FileContent::Binary { .. } => json!({}),
         }
     }
 
@@ -2280,8 +2277,10 @@ impl TestProgram {
 
     /// Enqueue one artifact key (does not run it).
     pub fn enqueue_artifact<T: Into<ArtifactKey>>(&self, artifact_key: T) {
-        self.compiler
-            .enqueue(self.program.current_revision(), artifact_key.into());
+        self.pending_artifact_keys
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .push(artifact_key.into());
     }
 
     /// Enqueue one artifact key and run to completion.
@@ -2298,6 +2297,19 @@ impl TestProgram {
 
     /// Run all queued tasks to completion with a custom timeout.
     pub fn compile_with_timeout(&self, timeout: Duration) {
+        let artifact_keys = {
+            let mut pending_artifact_keys = self
+                .pending_artifact_keys
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+
+            std::mem::take(&mut *pending_artifact_keys)
+        };
+
+        if artifact_keys.is_empty() {
+            return;
+        }
+
         // only serialize tests that also run a parallel compiler
         let compile_guard = (self.compiler.options.workers > 1).then(|| {
             TEST_COMPILE_LOCK
@@ -2305,44 +2317,26 @@ impl TestProgram {
                 .unwrap_or_else(|error| error.into_inner())
         });
 
-        // spawn the compile thread
-        let compiler = self.compiler.clone();
+        // spawn the provide thread
+        let session = self.session.clone();
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
-            compiler.compile();
-            let _ = tx.send(());
+            let result = session.provide(&artifact_keys);
+            let _ = tx.send(result);
         });
 
         match rx.recv_timeout(timeout) {
-            Ok(()) => {}
+            Ok(Ok(_stats)) => {}
+            Ok(Err(error)) => {
+                panic!("failed to provide compiler test artifacts: {error}");
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 let snapshot = self.compiler.stats.snapshot_with_repository(
                     self.program.tracked_module_count(),
                     Some(self.program.as_ref()),
                 );
                 let summary = format_stats_snapshot(&snapshot);
-                let tasks = self
-                    .compiler
-                    .task_handles()
-                    .into_iter()
-                    .map(|handle| {
-                        let description = handle.artifact_key.trace_args(
-                            handle.revision,
-                            &self.program,
-                            &self.compiler.artifacts,
-                        );
-                        format!(
-                            "  {:?} {:?} {} yields={} last_outcome={:?}",
-                            handle.id,
-                            handle.status,
-                            description,
-                            handle.yield_count,
-                            handle.last_outcome,
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                panic!("compile timed out after {timeout:?}\n{summary}\ntasks:\n{tasks}");
+                panic!("compile timed out after {timeout:?}\n{summary}");
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 panic!("compile thread panicked");
@@ -2526,7 +2520,7 @@ impl TestProgram {
     }
 
     /// Check that no diagnostics for the given phases are present.
-    pub fn check_no_diagnostics_for_phases(&self, phases: &[TaskPhase]) {
+    pub fn check_no_diagnostics_for_phases(&self, phases: &[CompilePhase]) {
         // build prefixes for both errors and warnings for each phase
         let prefixes: Vec<String> = phases
             .iter()
@@ -2560,14 +2554,14 @@ impl TestProgram {
     }
 
     /// Check that no diagnostics up to (but not including) the given phase are present.
-    pub fn check_no_diagnostics_up_to_excluding_phase(&self, phase: TaskPhase) {
-        let phases: Vec<TaskPhase> = TaskPhase::all().take_while(|p| *p != phase).collect();
+    pub fn check_no_diagnostics_up_to_excluding_phase(&self, phase: CompilePhase) {
+        let phases: Vec<CompilePhase> = CompilePhase::all().take_while(|p| *p != phase).collect();
         self.check_no_diagnostics_for_phases(&phases);
     }
 
     /// Check that no diagnostics up to and including the given phase are present.
-    pub fn check_no_diagnostics_up_to_including_phase(&self, phase: TaskPhase) {
-        let phases: Vec<TaskPhase> = TaskPhase::all()
+    pub fn check_no_diagnostics_up_to_including_phase(&self, phase: CompilePhase) {
+        let phases: Vec<CompilePhase> = CompilePhase::all()
             .take_while(|p| p.code() <= phase.code())
             .collect();
         self.check_no_diagnostics_for_phases(&phases);
@@ -3267,16 +3261,7 @@ impl TestProgram {
 fn format_stats_snapshot(snapshot: &crate::StatsSnapshot) -> String {
     let mut output = String::new();
 
-    let _ = writeln!(
-        output,
-        "stats: elapsed={:?} enqueued={} completed={} yielded={} failed={} skipped={}",
-        snapshot.elapsed,
-        snapshot.tasks.enqueued,
-        snapshot.tasks.completed,
-        snapshot.tasks.yielded,
-        snapshot.tasks.failed,
-        snapshot.tasks.skipped
-    );
+    let _ = writeln!(output, "stats: elapsed={:?}", snapshot.elapsed);
     let _ = writeln!(
         output,
         "modules: parsed={} bound={} resolved={} analyzed={} elaborated={} executed={} lowered={} optimized={} generated={}",
@@ -3303,26 +3288,6 @@ fn format_stats_snapshot(snapshot: &crate::StatsSnapshot) -> String {
         snapshot.cache.dir_writes_memory,
         snapshot.cache.mir_writes_memory
     );
-
-    let _ = writeln!(output, "phases:");
-    for phase in &snapshot.phases {
-        let _ = writeln!(
-            output,
-            "  {} {:?} x{}",
-            phase.phase.name(),
-            phase.duration,
-            phase.task_count
-        );
-    }
-
-    let _ = writeln!(output, "top tasks:");
-    for task in snapshot.task_names.iter().take(10) {
-        let _ = writeln!(
-            output,
-            "  {} {:?} x{}",
-            task.name, task.duration, task.task_count
-        );
-    }
 
     output
 }

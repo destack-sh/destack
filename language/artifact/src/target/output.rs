@@ -233,9 +233,8 @@ impl OutputContent {
             Self::Text { code, .. } => FileContent::Text {
                 content: code.clone(),
             },
-            Self::Json { content, value, .. } => FileContent::Json {
+            Self::Json { content, .. } => FileContent::Text {
                 content: content.clone(),
-                value: value.clone(),
             },
             Self::Binary { bytes, .. } => FileContent::Binary {
                 content: bytes.clone(),

@@ -1,20 +1,143 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_artifact::{EnvSnapshot, Platform, ProfileKey, Runtime};
+use destack_artifact::{Platform, ProfileKey, Runtime};
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId, matches as glob_matches};
+use im::OrdMap;
 
-use crate::repository::{ModuleTsConfigContext, Profile, Repository, RepositoryError, Revision};
+use crate::repository::{
+    EnvironmentSnapshot, ModuleTsConfigContext, Profile, Repository, RepositoryError, Revision,
+};
 use crate::{
     CompilerOptions, DsPathAliases, EntryResolutionMode, EntrySource, Module, ModuleDetection,
-    ModuleFormat, Package, PackageOptions, ProfileConfig, ProfileEnv, Target, TargetDiscoveryIssue,
-    TargetDiscoveryOptions, TsConfigDeclaration, TsConfigOptions, builtin_libs_for_type_entries,
+    ModuleFormat, Package, ProfileConfig, ProfileEnv, Target, TargetDiscoveryError,
+    TargetDiscoveryOptions, TsConfigOptions, builtin_libs_for_type_entries,
     discover_typescript_type_entries, normalize_typescript_lib_names,
     normalize_typescript_type_entries, profile_flags_for_compiler_options, typescript_default_libs,
 };
 
+/// One target selection result for a pinned package snapshot.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
+pub enum TargetSelection {
+    /// One target was selected.
+    Selected {
+        /// The selected target id.
+        target_id: TargetId,
+        /// The selected target configuration.
+        target: Target,
+    },
+    /// The configured default target name does not exist.
+    MissingConfigured {
+        /// The missing configured target id.
+        target_id: TargetId,
+    },
+    /// The package has no configured targets.
+    None,
+    /// The package has multiple targets and no explicit default.
+    Ambiguous {
+        /// The available target ids.
+        target_ids: Vec<TargetId>,
+    },
+}
+
 impl Repository {
+    /// Return one exact revision-scoped target by id when present.
+    pub fn target(
+        &self,
+        revision: Revision,
+        target_id: TargetId,
+    ) -> Result<Option<Target>, RepositoryError> {
+        let workspace = self.workspace(revision)?;
+
+        Ok(workspace.target_by_id(target_id).cloned())
+    }
+
+    /// Return one effective revision-scoped target by id when present.
+    pub fn effective_target(
+        &self,
+        revision: Revision,
+        target_id: TargetId,
+    ) -> Result<Option<Target>, RepositoryError> {
+        let workspace = self.workspace(revision)?;
+
+        // explicit targets
+        if let Some(target) = workspace.target_by_id(target_id) {
+            return Ok(Some(target.clone()));
+        }
+
+        // implicit targets
+        let package_id = target_id.package_id();
+
+        Ok(Self::implicit_target_for_package(package_id, target_id))
+    }
+
+    /// Return whether one package explicitly defines one target in a pinned revision.
+    pub fn has_explicit_target(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+    ) -> Result<bool, RepositoryError> {
+        let Some(package) = self.package(revision, package_id)? else {
+            return Err(RepositoryError::MissingPackage {
+                package: package_id,
+            });
+        };
+
+        Ok(package.targets.contains_key(&target_id))
+    }
+
+    /// Select the default target for one package in one pinned revision.
+    pub fn default_target(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<TargetSelection, RepositoryError> {
+        let Some(package) = self.package(revision, package_id)? else {
+            return Err(RepositoryError::MissingPackage {
+                package: package_id,
+            });
+        };
+        let package_options = self.package_options(revision, package_id)?;
+
+        // honor one explicit default target from config
+        if let Some(package_options) = package_options.as_ref()
+            && let Some(default_target) = package_options.default_target.as_ref()
+        {
+            let target_id = self.intern_target_id(package_id, default_target);
+
+            if let Some(target) = package.targets.get(&target_id) {
+                return Ok(TargetSelection::Selected {
+                    target_id,
+                    target: target.clone(),
+                });
+            }
+
+            return Ok(TargetSelection::MissingConfigured { target_id });
+        }
+
+        // no configured targets
+        if package.targets.is_empty() {
+            return Ok(TargetSelection::None);
+        }
+
+        // one configured target is the implicit default
+        if package.targets.len() == 1 {
+            let (target_id, target) = package.targets.iter().next().expect("checked len");
+
+            return Ok(TargetSelection::Selected {
+                target_id: *target_id,
+                target: target.clone(),
+            });
+        }
+
+        // otherwise the package is ambiguous
+        Ok(TargetSelection::Ambiguous {
+            target_ids: package.targets.keys().copied().collect(),
+        })
+    }
+
     /// Build compiler options for one target.
     pub fn compiler_options_for_target(
         target: &Target,
@@ -31,67 +154,26 @@ impl Repository {
         options
     }
 
-    /// Access tsconfig for a module via closure.
-    pub fn read_tsconfig_declaration_for_module<T>(
-        &self,
-        revision: Revision,
-        module: &Module,
-        read: impl FnOnce(&TsConfigDeclaration) -> T,
-    ) -> Result<Option<T>, RepositoryError> {
-        let Some(tsconfig_file_id) = module.tsconfig_file_id else {
-            return Ok(None);
-        };
-        let Some(tsconfig) = self.tsconfig_declaration(revision, tsconfig_file_id)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(read(&tsconfig)))
-    }
-
-    /// Return tsconfig options for one module.
-    pub fn tsconfig_options_for_module(
-        &self,
-        revision: Revision,
-        module: &Module,
-    ) -> Result<Option<TsConfigOptions>, RepositoryError> {
-        self.read_tsconfig_declaration_for_module(revision, module, |tsconfig| tsconfig.options())
-    }
-
-    /// Return package options for one module.
-    pub fn package_options_for_module(
-        &self,
-        revision: Revision,
-        module: &Module,
-    ) -> Result<Option<PackageOptions>, RepositoryError> {
-        self.package_options(revision, module.package_id)
-    }
-
-    /// Return the package id for one target id when known.
-    pub fn package_id_by_target_id(&self, target_id: TargetId) -> Option<PackageId> {
-        self.package_id_by_target_id
-            .get(&target_id)
-            .map(|entry| *entry.value())
-    }
-
-    /// Return the target name for one target id when known.
-    pub fn target_name_by_target_id(&self, target_id: TargetId) -> Option<Arc<str>> {
-        self.target_name_by_target_id
-            .get(&target_id)
-            .map(|entry| Arc::clone(entry.value()))
-    }
-
     /// Intern one target identity and return its stable id.
     pub fn intern_target_id(&self, package_id: PackageId, name: &str) -> TargetId {
-        let target_id = TargetId::new(package_id, name);
+        TargetId::new(package_id, name)
+    }
 
-        self.package_id_by_target_id
-            .entry(target_id)
-            .or_insert(package_id);
-        self.target_name_by_target_id
-            .entry(target_id)
-            .or_insert_with(|| Arc::<str>::from(name.to_string()));
+    /// Build the explicit target index for one package snapshot set.
+    pub(crate) fn targets_by_id(
+        &self,
+        packages: &OrdMap<PackageId, Package>,
+    ) -> OrdMap<TargetId, Target> {
+        let mut targets_by_id = OrdMap::new();
 
-        target_id
+        // explicit targets
+        for package in packages.values() {
+            for (target_id, target) in &package.targets {
+                targets_by_id.insert(*target_id, target.clone());
+            }
+        }
+
+        targets_by_id
     }
 
     /// Get the default profile for one module.
@@ -100,6 +182,7 @@ impl Repository {
         revision: Revision,
         module_id: ModuleId,
     ) -> Result<Profile, RepositoryError> {
+        let revision_state = self.revision(revision)?;
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
@@ -111,19 +194,15 @@ impl Repository {
 
         let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(revision, &package, &module)?;
-        let package_options = self.package_options(revision, package.id)?;
+        let package_options = self.read_package_options(revision, &package)?;
 
         let (target, profile_config) = if let Some(package_options) = package_options.as_ref() {
-            let target = package_options
-                .default_target
-                .as_ref()
-                .and_then(|name| {
-                    let target_id = self.intern_target_id(package.id, name);
-                    package.targets.get(&target_id)
-                })
-                .or_else(|| package.targets.values().find(|target| !target.synthetic))
-                .cloned()
-                .unwrap_or_else(|| self.implicit_target_for_module(&module));
+            let target = match self.default_target(revision, package.id)? {
+                TargetSelection::Selected { target, .. } => target,
+                TargetSelection::MissingConfigured { .. }
+                | TargetSelection::None
+                | TargetSelection::Ambiguous { .. } => self.implicit_target_for_module(&module),
+            };
             let profile_config = compiler_options
                 .profile
                 .as_ref()
@@ -138,9 +217,10 @@ impl Repository {
             &compiler_options,
             profile_config,
             tsconfig_context.as_ref().map(|context| &context.options),
+            &revision_state.ambient.environment,
         );
 
-        Ok(Profile::from_key(key))
+        Ok(Profile::from_key(key, &revision_state.ambient.environment))
     }
 
     /// Get the default profile id for one module.
@@ -159,6 +239,7 @@ impl Repository {
         module_id: ModuleId,
         target_id: &TargetId,
     ) -> Result<Option<Profile>, RepositoryError> {
+        let revision_state = self.revision(revision)?;
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
@@ -167,18 +248,17 @@ impl Repository {
                 package: module.package_id,
             });
         };
-        let Some(target) = package.targets.get(target_id).cloned().or_else(|| {
-            self.target_name_by_target_id(*target_id).and_then(|name| {
-                let name: &str = name.as_ref();
-                Target::implicit_for_name(name)
-            })
-        }) else {
+        if target_id.package_id() != module.package_id {
+            return Ok(None);
+        }
+
+        let Some(target) = self.effective_target(revision, *target_id)? else {
             return Ok(None);
         };
 
         let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(revision, &package, &module)?;
-        let package_options = self.package_options(revision, package.id)?;
+        let package_options = self.read_package_options(revision, &package)?;
         let profile_config = package_options.as_ref().and_then(|package_options| {
             target
                 .profile
@@ -192,9 +272,13 @@ impl Repository {
             &compiler_options,
             profile_config,
             tsconfig_context.as_ref().map(|context| &context.options),
+            &revision_state.ambient.environment,
         );
 
-        Ok(Some(Profile::from_key(key)))
+        Ok(Some(Profile::from_key(
+            key,
+            &revision_state.ambient.environment,
+        )))
     }
 
     /// Get the profile id for a target.
@@ -311,7 +395,7 @@ impl Repository {
         target: &Target,
         target_id: &TargetId,
         options: &TargetDiscoveryOptions<'_>,
-    ) -> Result<Vec<PathBuf>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<PathBuf>, TargetDiscoveryError> {
         // target entries
         if matches!(options.entry_source, EntrySource::Target) {
             return Ok(target.entry.clone());
@@ -325,7 +409,7 @@ impl Repository {
         let package_directory =
             package_path
                 .as_ref()
-                .ok_or(TargetDiscoveryIssue::MissingPackagePath {
+                .ok_or(TargetDiscoveryError::MissingPackagePath {
                     package: package_id,
                     target: *target_id,
                 })?;
@@ -342,7 +426,7 @@ impl Repository {
         // keep already-known package modules too
         let module_ids = self
             .package_module_ids(revision, package_id)
-            .map_err(|error| TargetDiscoveryIssue::Repository {
+            .map_err(|error| TargetDiscoveryError::Repository {
                 package: package_id,
                 target: *target_id,
                 message: error.to_string(),
@@ -350,7 +434,7 @@ impl Repository {
 
         for module_id in module_ids {
             let module = self.module(revision, module_id).map_err(|error| {
-                TargetDiscoveryIssue::Repository {
+                TargetDiscoveryError::Repository {
                     package: package_id,
                     target: *target_id,
                     message: error.to_string(),
@@ -466,7 +550,7 @@ impl Repository {
         target_id: &TargetId,
         entry_paths: &[PathBuf],
         resolution_mode: EntryResolutionMode,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         let mut discovered_modules = Vec::new();
 
         for entry_path in entry_paths {
@@ -502,11 +586,11 @@ impl Repository {
         package_path: &Option<PathBuf>,
         target_id: &TargetId,
         entry_path: &Path,
-    ) -> Result<ModuleId, TargetDiscoveryIssue> {
+    ) -> Result<ModuleId, TargetDiscoveryError> {
         let package_directory =
             package_path
                 .as_ref()
-                .ok_or(TargetDiscoveryIssue::MissingPackagePath {
+                .ok_or(TargetDiscoveryError::MissingPackagePath {
                     package: package_id,
                     target: *target_id,
                 })?;
@@ -532,7 +616,7 @@ impl Repository {
 
         // then resolve the repository module
         self.resolve_entry_module_id(revision, package_id, &resolved_path)
-            .ok_or(TargetDiscoveryIssue::MissingEntry {
+            .ok_or(TargetDiscoveryError::MissingEntry {
                 package: package_id,
                 target: *target_id,
                 path: resolved_path,
@@ -547,14 +631,14 @@ impl Repository {
         package_path: &Option<PathBuf>,
         target_id: &TargetId,
         entry_path: &Path,
-    ) -> Result<ModuleId, TargetDiscoveryIssue> {
+    ) -> Result<ModuleId, TargetDiscoveryError> {
         let mut candidate_paths = Vec::new();
 
         if !entry_path.is_absolute() {
             let package_directory =
                 package_path
                     .as_ref()
-                    .ok_or(TargetDiscoveryIssue::MissingPackagePath {
+                    .ok_or(TargetDiscoveryError::MissingPackagePath {
                         package: package_id,
                         target: *target_id,
                     })?;
@@ -588,7 +672,7 @@ impl Repository {
             .cloned()
             .unwrap_or_else(|| entry_path.to_path_buf());
 
-        Err(TargetDiscoveryIssue::MissingEntry {
+        Err(TargetDiscoveryError::MissingEntry {
             package: package_id,
             target: *target_id,
             path: missing_path,
@@ -621,7 +705,7 @@ impl Repository {
         target: &Target,
         target_id: &TargetId,
         options: &TargetDiscoveryOptions<'_>,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         let entry_paths = self.select_target_entry_paths(
             revision,
             package_id,
@@ -649,20 +733,20 @@ impl Repository {
         package_path: &Option<PathBuf>,
         target: &Target,
         target_id: &TargetId,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         let mut discovered_modules = Vec::new();
 
         // package-local include scan
         let module_ids = self
             .package_module_ids(revision, package_id)
-            .map_err(|error| TargetDiscoveryIssue::Repository {
+            .map_err(|error| TargetDiscoveryError::Repository {
                 package: package_id,
                 target: *target_id,
                 message: error.to_string(),
             })?;
         for module_id in module_ids {
             let Some(module) = self.module(revision, module_id).map_err(|error| {
-                TargetDiscoveryIssue::Repository {
+                TargetDiscoveryError::Repository {
                     package: package_id,
                     target: *target_id,
                     message: error.to_string(),
@@ -714,7 +798,7 @@ impl Repository {
         module: &Module,
     ) -> Result<(CompilerOptions, Option<ModuleTsConfigContext>), RepositoryError> {
         let mut compiler_options = self
-            .package_options(revision, package.id)?
+            .read_package_options(revision, package)?
             .map(|package_options| package_options.compiler)
             .unwrap_or_default();
 
@@ -819,6 +903,17 @@ impl Repository {
         }
     }
 
+    /// Return one implicit target when the id matches one known implicit target name.
+    fn implicit_target_for_package(package_id: PackageId, target_id: TargetId) -> Option<Target> {
+        for name in Target::implicit_target_names() {
+            if TargetId::new(package_id, name) == target_id {
+                return Target::implicit_for_name(name);
+            }
+        }
+
+        None
+    }
+
     /// Collect type libraries for one target profile.
     fn collect_types_for_target(
         target: &Target,
@@ -908,6 +1003,7 @@ impl Repository {
         compiler_options: &CompilerOptions,
         profile_config: Option<&ProfileConfig>,
         tsconfig_options: Option<&TsConfigOptions>,
+        environment: &EnvironmentSnapshot,
     ) -> ProfileKey {
         let compiler_options = Self::compiler_options_for_target(target, compiler_options);
         let emit = target.emit;
@@ -942,11 +1038,11 @@ impl Repository {
         let env = profile_config
             .and_then(|profile| profile.comptime_env.as_ref())
             .or(compiler_options.comptime_env.as_ref())
-            .map(|keys| EnvSnapshot::from_env_whitelist(keys))
-            .unwrap_or_else(EnvSnapshot::from_env_all);
+            .map(|keys| environment.environment_stamp_whitelist(keys))
+            .unwrap_or_else(|| environment.environment_stamp_all());
 
         let flags = profile_flags_for_compiler_options(&compiler_options);
-        let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
+        let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, environment, debug);
 
         ProfileKey::new(
             emit,
