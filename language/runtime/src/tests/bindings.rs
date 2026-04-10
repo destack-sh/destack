@@ -1,4 +1,4 @@
-use destack_mir::{FunctionBuilder, ModuleBuilder};
+use destack_mir::ModuleBuilder;
 use destack_vm::Isolate;
 
 use crate::diagnostic::RuntimeError;
@@ -21,8 +21,7 @@ fn build_random_call_module(
     let signature = module.type_function_pointer(param_types.clone(), u64_type);
 
     // entry function
-    let entry_name = module.intern("main");
-    let mut builder = FunctionBuilder::new(module.tree_mut(), entry_name, &[], u64_type, true);
+    let mut builder = module.function("main", &[], u64_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 

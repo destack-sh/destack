@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
         let mut destination = None;
         let mut destination_type = None;
         let mut instruction_span = None;
-        if self.peek_token(TokenType::Value) {
+        if self.is_value_definition_start() {
             let (parsed_destination, parsed_type, parsed_span) = self.parse_typed_destination()?;
             self.record_value_type(parsed_destination, parsed_type);
             self.eat_token(TokenType::Equals)?;

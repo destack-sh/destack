@@ -50,47 +50,12 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             write!(f, [token("export"), space()])?;
         }
 
-        // block, local, and value index maps
+        // local index map and current function
         {
             let context = f.context_mut();
-            context.block_indices.clear();
             context.local_indices.clear();
-            context.value_indices.clear();
-            for (i, block_id) in self.blocks.iter().enumerate() {
-                context.block_indices.insert(*block_id, i);
-            }
             for (i, local_id) in self.locals.iter().enumerate() {
                 context.local_indices.insert(*local_id, i);
-            }
-            // assign SSA display indices in definition order
-            let mut next_value_index = 0usize;
-            for param in &self.parameters {
-                context.value_indices.entry(param.value).or_insert_with(|| {
-                    let index = next_value_index;
-                    next_value_index += 1;
-                    index
-                });
-            }
-            for block_id in &self.blocks {
-                let block = context.tree.get(*block_id);
-                for param in &block.parameters {
-                    context.value_indices.entry(param.value).or_insert_with(|| {
-                        let index = next_value_index;
-                        next_value_index += 1;
-                        index
-                    });
-                }
-                for inst_id in &block.instructions {
-                    let inst = context.tree.get(*inst_id);
-                    let Some(destination) = inst.destination() else {
-                        continue;
-                    };
-                    context.value_indices.entry(destination).or_insert_with(|| {
-                        let index = next_value_index;
-                        next_value_index += 1;
-                        index
-                    });
-                }
             }
             context.current_function = Some(id);
         }

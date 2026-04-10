@@ -14,8 +14,8 @@ impl<'a> FormatMirNode<'a, Block> for Block {
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         // block label
-        let block_index = f.context().block_index(id);
-        write!(f, [text(&format!("b{block_index}"))])?;
+        let block_name = f.context().block_name(id);
+        write!(f, [text(&block_name)])?;
 
         // block parameters
         if !self.parameters.is_empty() {
@@ -69,11 +69,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         }
 
         Terminator::Jump { target, arguments } => {
-            let block_index = f.context().block_index(*target);
-            write!(
-                f,
-                [token("jump"), space(), text(&format!("b{block_index}"))]
-            )?;
+            let block_name = f.context().block_name(*target);
+            write!(f, [token("jump"), space(), text(&block_name)])?;
             if !arguments.is_empty() {
                 format_value_list(arguments, f)?;
             }
@@ -87,8 +84,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             else_target,
             else_arguments,
         } => {
-            let then_index = f.context().block_index(*then_target);
-            let else_index = f.context().block_index(*else_target);
+            let then_name = f.context().block_name(*then_target);
+            let else_name = f.context().block_name(*else_target);
             write!(
                 f,
                 [
@@ -97,13 +94,13 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     condition,
                     token(","),
                     space(),
-                    text(&format!("b{then_index}"))
+                    text(&then_name)
                 ]
             )?;
             if !then_arguments.is_empty() {
                 format_value_list(then_arguments, f)?;
             }
-            write!(f, [token(","), space(), text(&format!("b{else_index}"))])?;
+            write!(f, [token(","), space(), text(&else_name)])?;
             if !else_arguments.is_empty() {
                 format_value_list(else_arguments, f)?;
             }
@@ -115,23 +112,15 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             success,
             failure,
         } => {
-            let success_index = f.context().block_index(success.target);
-            let failure_index = f.context().block_index(failure.target);
+            let success_name = f.context().block_name(success.target);
+            let failure_name = f.context().block_name(failure.target);
             write!(f, [token("check"), space()])?;
             format_check_constraint(constraint, f)?;
-            write!(
-                f,
-                [
-                    space(),
-                    token("->"),
-                    space(),
-                    text(&format!("b{success_index}"))
-                ]
-            )?;
+            write!(f, [space(), token("->"), space(), text(&success_name)])?;
             if !success.arguments.is_empty() {
                 format_value_list(&success.arguments, f)?;
             }
-            write!(f, [token(","), space(), text(&format!("b{failure_index}"))])?;
+            write!(f, [token(","), space(), text(&failure_name)])?;
             if !failure.arguments.is_empty() {
                 format_value_list(&failure.arguments, f)?;
             }
@@ -144,7 +133,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             default_arguments,
             cases,
         } => {
-            let default_index = f.context().block_index(*default);
+            let default_name = f.context().block_name(*default);
             write!(
                 f,
                 [
@@ -153,14 +142,14 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     value,
                     token(","),
                     space(),
-                    text(&format!("b{default_index}"))
+                    text(&default_name)
                 ]
             )?;
             if !default_arguments.is_empty() {
                 format_value_list(default_arguments, f)?;
             }
             for case in cases {
-                let case_index = f.context().block_index(case.target);
+                let case_name = f.context().block_name(case.target);
                 write!(
                     f,
                     [
@@ -170,7 +159,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                         space(),
                         token("=>"),
                         space(),
-                        text(&format!("b{case_index}"))
+                        text(&case_name)
                     ]
                 )?;
                 if !case.arguments.is_empty() {
@@ -189,7 +178,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             resume,
             resume_arguments,
         } => {
-            let resume_index = f.context().block_index(*resume);
+            let resume_name = f.context().block_name(*resume);
             write!(
                 f,
                 [
@@ -198,7 +187,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     value,
                     token(","),
                     space(),
-                    text(&format!("b{resume_index}"))
+                    text(&resume_name)
                 ]
             )?;
             if !resume_arguments.is_empty() {
@@ -418,18 +407,10 @@ fn format_call_continuations<'a>(
     unwind_arguments: &[Value],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    let normal_index = f.context().block_index(normal_target);
-    let unwind_index = f.context().block_index(unwind_target);
+    let normal_name = f.context().block_name(normal_target);
+    let unwind_name = f.context().block_name(unwind_target);
 
-    write!(
-        f,
-        [
-            space(),
-            token("->"),
-            space(),
-            text(&format!("b{normal_index}"))
-        ]
-    )?;
+    write!(f, [space(), token("->"), space(), text(&normal_name)])?;
     if !normal_arguments.is_empty() {
         format_value_list(normal_arguments, f)?;
     }
@@ -441,7 +422,7 @@ fn format_call_continuations<'a>(
             space(),
             token("catch"),
             space(),
-            text(&format!("b{unwind_index}"))
+            text(&unwind_name)
         ]
     )?;
     if !unwind_arguments.is_empty() {
