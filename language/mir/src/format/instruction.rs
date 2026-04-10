@@ -1164,8 +1164,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::Call {
                 destination,
                 function,
-                arguments,
-                signature,
+                call,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1174,18 +1173,17 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 }
                 write!(f, [token("call"), space()])?;
                 format_function_reference(*function, f)?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(*signature, f)
+                format_call_signature_suffix(call.signature, f)
             }
 
             Instruction::CallVirtual {
                 destination,
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1206,18 +1204,17 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         text(&slot_id.0.to_string())
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(*signature, f)
+                format_call_signature_suffix(call.signature, f)
             }
 
             Instruction::CallInterface {
                 destination,
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1238,16 +1235,15 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         text(&slot_id.0.to_string())
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(*signature, f)
+                format_call_signature_suffix(call.signature, f)
             }
 
             Instruction::CallIndirect {
                 destination,
                 callee,
-                arguments,
-                signature,
+                call,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1255,9 +1251,9 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     write!(f, [space(), token("="), space()])?;
                 }
                 write!(f, [token("call.indirect"), space(), callee])?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(*signature, f)
+                format_call_signature_suffix(call.signature, f)
             }
 
             Instruction::ManagedAlloc {

@@ -403,6 +403,9 @@ fn build_synthetic_aliases(
 
         // track metadata names when available
         if let Some(name) = metadata_name_for_type(tree, strings, type_id, use_local_names) {
+            if entry.preferred_metadata_name.is_none() {
+                entry.preferred_metadata_name = Some(name.clone());
+            }
             entry.metadata_names.insert(name);
         }
     }
@@ -455,13 +458,8 @@ fn alias_name_for_candidate(
     next_alias_indices: &mut HashMap<String, usize>,
     alias_names: &HashSet<String>,
 ) -> String {
-    // prefer a single metadata name when available
-    if candidate.metadata_names.len() == 1 {
-        let name = candidate
-            .metadata_names
-            .iter()
-            .next()
-            .unwrap_or_else(|| panic!("missing metadata name for alias candidate"));
+    // prefer the stable earliest metadata name when available
+    if let Some(name) = &candidate.preferred_metadata_name {
         return unique_alias_name(name, alias_names);
     }
 
@@ -534,7 +532,8 @@ fn metadata_name_for_type(
     use_local_names: bool,
 ) -> Option<String> {
     // read the metadata name when available
-    tree.type_table
+    tree.metadata
+        .layout
         .display_name(ty)
         .map(|name_id| strings.get(name_id).to_string())
         .map(|name| {
@@ -566,6 +565,8 @@ struct AliasCandidateGroup {
     total_uses: u32,
     /// Type ids that share the same structural key.
     type_ids: Vec<LocalNodeId<Type>>,
+    /// The first metadata name seen for the group in type order.
+    preferred_metadata_name: Option<String>,
     /// Metadata names seen for the group.
     metadata_names: HashSet<String>,
 }
@@ -827,31 +828,31 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
         }
 
         match &block.terminator {
-            Terminator::Invoke { signature, .. }
-            | Terminator::InvokeIndirect { signature, .. }
+            Terminator::Invoke { call, .. }
+            | Terminator::InvokeIndirect { call, .. }
             | Terminator::InvokeVirtual {
                 declaring_type: _,
-                signature,
+                call,
                 ..
             }
             | Terminator::InvokeInterface {
                 declaring_type: _,
-                signature,
+                call,
                 ..
             }
-            | Terminator::TailCall { signature, .. }
-            | Terminator::TailCallIndirect { signature, .. }
+            | Terminator::TailCall { call, .. }
+            | Terminator::TailCallIndirect { call, .. }
             | Terminator::TailCallVirtual {
                 declaring_type: _,
-                signature,
+                call,
                 ..
             }
             | Terminator::TailCallInterface {
                 declaring_type: _,
-                signature,
+                call,
                 ..
             } => {
-                record_type_use(tree, *signature, &mut counts);
+                record_type_use(tree, call.signature, &mut counts);
             }
             _ => {}
         }
@@ -897,27 +898,27 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
             Instruction::Array { ty, .. } => {
                 record_type_use(tree, *ty, &mut counts);
             }
-            Instruction::Call { signature, .. } => {
-                record_type_use(tree, *signature, &mut counts);
+            Instruction::Call { call, .. } => {
+                record_type_use(tree, call.signature, &mut counts);
             }
             Instruction::CallVirtual {
                 declaring_type,
-                signature,
+                call,
                 ..
             } => {
                 record_type_use(tree, *declaring_type, &mut counts);
-                record_type_use(tree, *signature, &mut counts);
+                record_type_use(tree, call.signature, &mut counts);
             }
             Instruction::CallInterface {
                 declaring_type,
-                signature,
+                call,
                 ..
             } => {
                 record_type_use(tree, *declaring_type, &mut counts);
-                record_type_use(tree, *signature, &mut counts);
+                record_type_use(tree, call.signature, &mut counts);
             }
-            Instruction::CallIndirect { signature, .. } => {
-                record_type_use(tree, *signature, &mut counts);
+            Instruction::CallIndirect { call, .. } => {
+                record_type_use(tree, call.signature, &mut counts);
             }
             Instruction::ManagedAlloc {
                 layout,

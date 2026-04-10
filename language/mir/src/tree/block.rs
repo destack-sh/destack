@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Function, Instruction, InterfaceSlotId, LocalNodeId, Node, NodeType, Type,
-    TypedValue, Value, VtableSlotId,
+    BinaryOperator, Call, Function, Instruction, InterfaceSlotId, LocalNodeId, Node, NodeType,
+    Type, TypedValue, Value, VtableSlotId,
 };
 
 /// A basic block is a sequence of instructions with:
@@ -256,10 +256,8 @@ pub enum Terminator {
     Invoke {
         /// The direct callee function.
         function: LocalNodeId<Function>,
-        /// The arguments to pass to the callee.
-        arguments: Vec<Value>,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
         /// The success continuation block.
         normal_target: LocalNodeId<Block>,
         /// Arguments for the success continuation after the implicit result.
@@ -279,10 +277,8 @@ pub enum Terminator {
     InvokeIndirect {
         /// The callable value to call.
         callee: Value,
-        /// The arguments to pass to the callee.
-        arguments: Vec<Value>,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
         /// The success continuation block.
         normal_target: LocalNodeId<Block>,
         /// Arguments for the success continuation after the implicit result.
@@ -302,14 +298,14 @@ pub enum Terminator {
     InvokeVirtual {
         /// The receiver value for dispatch.
         receiver: Value,
-        /// The arguments to pass to the callee.
-        arguments: Vec<Value>,
         /// The declaring type for this virtual call.
         declaring_type: LocalNodeId<Type>,
         /// The vtable slot id for the method.
         slot_id: VtableSlotId,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The declared method target when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
         /// The success continuation block.
         normal_target: LocalNodeId<Block>,
         /// Arguments for the success continuation after the implicit result.
@@ -329,14 +325,14 @@ pub enum Terminator {
     InvokeInterface {
         /// The receiver value for dispatch.
         receiver: Value,
-        /// The arguments to pass to the callee.
-        arguments: Vec<Value>,
         /// The declaring interface type for this call.
         declaring_type: LocalNodeId<Type>,
         /// The interface slot id for the method.
         slot_id: InterfaceSlotId,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The declared method target when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
         /// The success continuation block.
         normal_target: LocalNodeId<Block>,
         /// Arguments for the success continuation after the implicit result.
@@ -372,10 +368,8 @@ pub enum Terminator {
     TailCall {
         /// The function to tail call.
         function: LocalNodeId<Function>,
-        /// The arguments to pass.
-        arguments: Vec<Value>,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
     },
 
     /// Tail call through a function pointer (does not return to this function).
@@ -385,10 +379,8 @@ pub enum Terminator {
     TailCallIndirect {
         /// The callable value to tail call.
         callee: Value,
-        /// The arguments to pass.
-        arguments: Vec<Value>,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
     },
     /// Tail call through a virtual dispatch slot.
     ///
@@ -396,14 +388,14 @@ pub enum Terminator {
     TailCallVirtual {
         /// The receiver value for dispatch.
         receiver: Value,
-        /// The arguments to pass.
-        arguments: Vec<Value>,
         /// The declaring type for this virtual call.
         declaring_type: LocalNodeId<Type>,
         /// The vtable slot id for the method.
         slot_id: VtableSlotId,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The declared method target when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
     },
     /// Tail call through an interface dispatch slot.
     ///
@@ -411,18 +403,76 @@ pub enum Terminator {
     TailCallInterface {
         /// The receiver value for dispatch.
         receiver: Value,
-        /// The arguments to pass.
-        arguments: Vec<Value>,
         /// The declaring interface type for this call.
         declaring_type: LocalNodeId<Type>,
         /// The interface slot id for the method.
         slot_id: InterfaceSlotId,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
+        /// The declared method target when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The shared call payload.
+        call: Call<Vec<Value>>,
     },
 }
 
 impl Terminator {
+    /// Return the dispatch kind when this terminator performs a call.
+    pub fn call_dispatch_kind(&self) -> Option<crate::CallDispatchKind> {
+        match self {
+            Terminator::Invoke { .. } | Terminator::TailCall { .. } => {
+                Some(crate::CallDispatchKind::Direct)
+            }
+            Terminator::InvokeIndirect { .. } | Terminator::TailCallIndirect { .. } => {
+                Some(crate::CallDispatchKind::Indirect)
+            }
+            Terminator::InvokeVirtual { slot_id, .. }
+            | Terminator::TailCallVirtual { slot_id, .. } => {
+                Some(crate::CallDispatchKind::Virtual { slot_id: *slot_id })
+            }
+            Terminator::InvokeInterface { slot_id, .. }
+            | Terminator::TailCallInterface { slot_id, .. } => {
+                Some(crate::CallDispatchKind::Interface { slot_id: *slot_id })
+            }
+            _ => None,
+        }
+    }
+
+    /// Return the call signature when this terminator performs a call.
+    pub fn call_signature(&self) -> Option<LocalNodeId<Type>> {
+        match self {
+            Terminator::Invoke { call, .. }
+            | Terminator::InvokeIndirect { call, .. }
+            | Terminator::InvokeVirtual { call, .. }
+            | Terminator::InvokeInterface { call, .. }
+            | Terminator::TailCall { call, .. }
+            | Terminator::TailCallIndirect { call, .. }
+            | Terminator::TailCallVirtual { call, .. }
+            | Terminator::TailCallInterface { call, .. } => Some(call.signature),
+            _ => None,
+        }
+    }
+
+    /// Return the declared target when this terminator performs a call.
+    pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
+        match self {
+            Terminator::Invoke { function, .. } | Terminator::TailCall { function, .. } => {
+                Some(*function)
+            }
+            Terminator::InvokeVirtual {
+                declared_target, ..
+            }
+            | Terminator::InvokeInterface {
+                declared_target, ..
+            }
+            | Terminator::TailCallVirtual {
+                declared_target, ..
+            }
+            | Terminator::TailCallInterface {
+                declared_target, ..
+            } => *declared_target,
+            _ => None,
+        }
+    }
+
     /// Get all successor block ids.
     pub fn successors(&self) -> SmallVec<[LocalNodeId<Block>; 2]> {
         match self {
@@ -524,45 +574,45 @@ impl Terminator {
                 uses
             }
             Terminator::Invoke {
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
-                let mut uses: SmallVec<[Value; 4]> = arguments.iter().copied().collect();
+                let mut uses: SmallVec<[Value; 4]> = call.arguments.iter().copied().collect();
                 uses.extend(normal_arguments.iter().copied());
                 uses.extend(unwind_arguments.iter().copied());
                 uses
             }
             Terminator::InvokeIndirect {
                 callee,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 let mut uses = smallvec![*callee];
-                uses.extend(arguments.iter().copied());
+                uses.extend(call.arguments.iter().copied());
                 uses.extend(normal_arguments.iter().copied());
                 uses.extend(unwind_arguments.iter().copied());
                 uses
             }
             Terminator::InvokeVirtual {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
             | Terminator::InvokeInterface {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 let mut uses = smallvec![*receiver];
-                uses.extend(arguments.iter().copied());
+                uses.extend(call.arguments.iter().copied());
                 uses.extend(normal_arguments.iter().copied());
                 uses.extend(unwind_arguments.iter().copied());
                 uses
@@ -570,30 +620,20 @@ impl Terminator {
             Terminator::Throw { value } => smallvec![*value],
             Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
-            Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
-            Terminator::TailCallIndirect {
-                callee, arguments, ..
-            } => {
+            Terminator::TailCall { call, .. } => call.arguments.iter().copied().collect(),
+            Terminator::TailCallIndirect { callee, call, .. } => {
                 let mut uses = smallvec![*callee];
-                uses.extend(arguments.iter().copied());
+                uses.extend(call.arguments.iter().copied());
                 uses
             }
-            Terminator::TailCallVirtual {
-                receiver,
-                arguments,
-                ..
-            } => {
+            Terminator::TailCallVirtual { receiver, call, .. } => {
                 let mut uses = smallvec![*receiver];
-                uses.extend(arguments.iter().copied());
+                uses.extend(call.arguments.iter().copied());
                 uses
             }
-            Terminator::TailCallInterface {
-                receiver,
-                arguments,
-                ..
-            } => {
+            Terminator::TailCallInterface { receiver, call, .. } => {
                 let mut uses = smallvec![*receiver];
-                uses.extend(arguments.iter().copied());
+                uses.extend(call.arguments.iter().copied());
                 uses
             }
         }

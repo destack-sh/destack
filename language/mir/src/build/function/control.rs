@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, CallSite, CheckConstraint, CheckTarget, DevirtualizationMetadata, Function,
-    InterfaceSlotId, LocalNodeId, Terminator, TrapKind, Type, Value, VtableSlotId,
+    Block, Call, CheckConstraint, CheckTarget, Function, InterfaceSlotId, LocalNodeId, Terminator,
+    TrapKind, Type, Value, VtableSlotId,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -115,8 +115,7 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::Invoke {
             function,
-            arguments: argument_values,
-            signature,
+            call: Call::new(argument_values, signature),
             normal_target: normal_block,
             normal_arguments,
             unwind_target: unwind_block,
@@ -142,8 +141,7 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::InvokeIndirect {
             callee,
-            arguments: argument_values,
-            signature,
+            call: Call::new(argument_values, signature),
             normal_target: normal_block,
             normal_arguments,
             unwind_target: unwind_block,
@@ -172,19 +170,15 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::InvokeVirtual {
             receiver,
-            arguments: argument_values,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
+            call: Call::new(argument_values, signature),
             normal_target: normal_block,
             normal_arguments,
             unwind_target: unwind_block,
             unwind_arguments,
         };
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Terminator(block_id),
-            DevirtualizationMetadata { declared_target },
-        );
     }
 
     /// Call an interface method with explicit success and exception continuations.
@@ -208,19 +202,15 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::InvokeInterface {
             receiver,
-            arguments: argument_values,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
+            call: Call::new(argument_values, signature),
             normal_target: normal_block,
             normal_arguments,
             unwind_target: unwind_block,
             unwind_arguments,
         };
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Terminator(block_id),
-            DevirtualizationMetadata { declared_target },
-        );
     }
 
     /// Tail call to a function (does not return to this function).
@@ -236,8 +226,7 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::TailCall {
             function,
-            arguments: argument_values,
-            signature,
+            call: Call::new(argument_values, signature),
         };
     }
 
@@ -257,15 +246,11 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::TailCallVirtual {
             receiver,
-            arguments: argument_values,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
+            call: Call::new(argument_values, signature),
         };
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Terminator(block_id),
-            DevirtualizationMetadata { declared_target },
-        );
     }
 
     /// Tail call through an interface dispatch slot.
@@ -284,15 +269,11 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::TailCallInterface {
             receiver,
-            arguments: argument_values,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
+            call: Call::new(argument_values, signature),
         };
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Terminator(block_id),
-            DevirtualizationMetadata { declared_target },
-        );
     }
 
     /// Tail call through a function pointer (does not return to this function).
@@ -308,8 +289,7 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block);
         block.terminator = Terminator::TailCallIndirect {
             callee,
-            arguments: argument_values,
-            signature,
+            call: Call::new(argument_values, signature),
         };
     }
 }

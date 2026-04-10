@@ -4,12 +4,12 @@ use crate::{AddressSpace, MemoryRegionSet};
 
 /// Set of address spaces that an operation may access.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct AddressSpaceSet {
+pub struct AddressSpaceMask {
     /// Address spaces included in the set.
     pub spaces: Vec<AddressSpace>,
 }
 
-impl AddressSpaceSet {
+impl AddressSpaceMask {
     /// Create an address space set from the provided entries.
     pub fn new(spaces: Vec<AddressSpace>) -> Self {
         Self { spaces }
@@ -46,7 +46,7 @@ pub struct MemoryEffect {
     /// The memory regions that may be accessed.
     pub locations: MemoryRegionSet,
     /// Optional address space restriction for the access set.
-    pub address_spaces: Option<AddressSpaceSet>,
+    pub address_spaces: Option<AddressSpaceMask>,
     /// True when the operation only touches memory reachable from arguments.
     pub argmemonly: bool,
     /// True when the operation only touches inaccessible memory.
@@ -122,7 +122,7 @@ impl MemoryEffect {
     }
 
     /// Return this effect with a refined address space set.
-    pub fn with_address_spaces(mut self, address_spaces: AddressSpaceSet) -> Self {
+    pub fn with_address_spaces(mut self, address_spaces: AddressSpaceMask) -> Self {
         self.address_spaces = Some(address_spaces);
         self
     }
@@ -152,26 +152,26 @@ impl Default for MemoryEffect {
     }
 }
 
-/// Repeatability classification for an effectful operation.
+/// Effect class for an operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Repeatability {
+pub enum EffectClass {
     /// Pure operation with no observable side effects.
     Pure,
     /// Deterministic operation with observable effects.
-    Repeatable,
-    /// Non-deterministic operation that requires record or replay.
-    NonRepeatable,
+    Deterministic,
+    /// Non-deterministic operation with observable effects.
+    NonDeterministic,
 }
 
-impl Repeatability {
+impl EffectClass {
     /// Return true when the operation is pure.
     pub fn is_pure(self) -> bool {
         matches!(self, Self::Pure)
     }
 
     /// Return true when the operation is deterministic.
-    pub fn is_repeatable(self) -> bool {
-        !matches!(self, Self::NonRepeatable)
+    pub fn is_deterministic(self) -> bool {
+        !matches!(self, Self::NonDeterministic)
     }
 }
 
@@ -191,111 +191,173 @@ impl UnwindBehavior {
     }
 }
 
+/// Suspend behavior for a call or function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SuspendBehavior {
+    /// The operation cannot suspend execution.
+    CannotSuspend,
+    /// The operation may suspend execution.
+    MaySuspend,
+}
+
+impl SuspendBehavior {
+    /// Return true when the operation may suspend.
+    pub fn may_suspend(self) -> bool {
+        matches!(self, Self::MaySuspend)
+    }
+}
+
+/// Return behavior for a call or function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReturnBehavior {
+    /// The operation may or may not return to the caller.
+    MayReturn,
+    /// The operation never returns to the caller.
+    NoReturn,
+    /// The operation is guaranteed to return to the caller.
+    WillReturn,
+}
+
+impl ReturnBehavior {
+    /// Return true when the operation never returns.
+    pub fn is_no_return(self) -> bool {
+        matches!(self, Self::NoReturn)
+    }
+
+    /// Return true when the operation is guaranteed to return.
+    pub fn is_will_return(self) -> bool {
+        matches!(self, Self::WillReturn)
+    }
+}
+
+/// Region and address-space scope for one allocation side effect.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AllocationAccess {
+    /// The memory regions that may be touched.
+    pub locations: MemoryRegionSet,
+    /// The address spaces that may be touched.
+    pub address_spaces: Option<AddressSpaceMask>,
+}
+
+impl AllocationAccess {
+    /// Create one unconstrained access summary.
+    pub const fn unknown() -> Self {
+        Self {
+            locations: MemoryRegionSet::ANY,
+            address_spaces: None,
+        }
+    }
+}
+
+/// Allocation and free behavior for a call or function.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AllocationEffect {
+    /// Allocation behavior when the operation may allocate.
+    pub allocate: Option<AllocationAccess>,
+    /// Free behavior when the operation may free.
+    pub free: Option<AllocationAccess>,
+}
+
+impl AllocationEffect {
+    /// Create one behavior with no allocation side effects.
+    pub const fn none() -> Self {
+        Self {
+            allocate: None,
+            free: None,
+        }
+    }
+
+    /// Create one conservative unknown allocation behavior.
+    pub const fn unknown() -> Self {
+        Self {
+            allocate: Some(AllocationAccess::unknown()),
+            free: Some(AllocationAccess::unknown()),
+        }
+    }
+}
+
 /// Behavioral effects for calls and functions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CallBehavior {
-    /// Repeatability classification for this operation.
-    pub repeatability: Repeatability,
+    /// Effect class for this operation.
+    pub effect_class: EffectClass,
     /// Whether this operation may unwind or throw.
-    pub unwind_behavior: UnwindBehavior,
-    /// True when this operation may suspend execution.
-    pub may_suspend: bool,
-    /// The call never returns to the caller.
-    pub noreturn: bool,
-    /// The call is guaranteed to return eventually.
-    pub will_return: bool,
-    /// The call is convergent and cannot be arbitrarily duplicated.
-    pub convergent: bool,
-    /// The call may allocate memory.
-    pub allocates: bool,
-    /// The memory regions that may be allocated.
-    pub alloc_locations: Option<MemoryRegionSet>,
-    /// The address spaces that allocations may use.
-    pub alloc_address_spaces: Option<AddressSpaceSet>,
-    /// The call may free memory.
-    pub frees: bool,
-    /// The memory regions that may be freed.
-    pub free_locations: Option<MemoryRegionSet>,
-    /// The address spaces that frees may touch.
-    pub free_address_spaces: Option<AddressSpaceSet>,
+    pub unwind: UnwindBehavior,
+    /// Whether this operation may suspend execution.
+    pub suspend: SuspendBehavior,
+    /// Return behavior for this operation.
+    pub return_behavior: ReturnBehavior,
+    /// Whether optimization must not duplicate this operation.
+    pub must_not_duplicate: bool,
+    /// Allocation and free behavior for this operation.
+    pub allocation: AllocationEffect,
 }
 
 impl CallBehavior {
     /// Create a behavior with no special effects.
     pub const fn none() -> Self {
         Self {
-            repeatability: Repeatability::Repeatable,
-            unwind_behavior: UnwindBehavior::CannotUnwind,
-            may_suspend: false,
-            noreturn: false,
-            will_return: false,
-            convergent: false,
-            allocates: false,
-            alloc_locations: None,
-            alloc_address_spaces: None,
-            frees: false,
-            free_locations: None,
-            free_address_spaces: None,
+            effect_class: EffectClass::Deterministic,
+            unwind: UnwindBehavior::CannotUnwind,
+            suspend: SuspendBehavior::CannotSuspend,
+            return_behavior: ReturnBehavior::MayReturn,
+            must_not_duplicate: false,
+            allocation: AllocationEffect::none(),
         }
     }
 
     /// Create a conservative unknown behavior.
     pub const fn unknown() -> Self {
         Self {
-            repeatability: Repeatability::NonRepeatable,
-            unwind_behavior: UnwindBehavior::MayUnwind,
-            may_suspend: false,
-            noreturn: false,
-            will_return: false,
-            convergent: false,
-            allocates: true,
-            alloc_locations: None,
-            alloc_address_spaces: None,
-            frees: true,
-            free_locations: None,
-            free_address_spaces: None,
+            effect_class: EffectClass::NonDeterministic,
+            unwind: UnwindBehavior::MayUnwind,
+            suspend: SuspendBehavior::CannotSuspend,
+            return_behavior: ReturnBehavior::MayReturn,
+            must_not_duplicate: false,
+            allocation: AllocationEffect::unknown(),
         }
     }
 
     /// Create a pure behavior summary.
     pub const fn pure() -> Self {
         Self {
-            repeatability: Repeatability::Pure,
-            unwind_behavior: UnwindBehavior::CannotUnwind,
-            may_suspend: false,
-            noreturn: false,
-            will_return: false,
-            convergent: false,
-            allocates: false,
-            alloc_locations: None,
-            alloc_address_spaces: None,
-            frees: false,
-            free_locations: None,
-            free_address_spaces: None,
+            effect_class: EffectClass::Pure,
+            unwind: UnwindBehavior::CannotUnwind,
+            suspend: SuspendBehavior::CannotSuspend,
+            return_behavior: ReturnBehavior::WillReturn,
+            must_not_duplicate: false,
+            allocation: AllocationEffect::none(),
         }
     }
 
-    /// Create a repeatable behavior summary.
-    pub const fn repeatable() -> Self {
-        Self::none()
+    /// Return this behavior with the may-suspend flag enabled.
+    pub const fn with_suspend(mut self) -> Self {
+        self.suspend = SuspendBehavior::MaySuspend;
+        self
     }
 
-    /// Create a non-repeatable behavior summary.
-    pub const fn non_repeatable() -> Self {
-        Self {
-            repeatability: Repeatability::NonRepeatable,
-            unwind_behavior: UnwindBehavior::CannotUnwind,
-            may_suspend: false,
-            noreturn: false,
-            will_return: false,
-            convergent: false,
-            allocates: false,
-            alloc_locations: None,
-            alloc_address_spaces: None,
-            frees: false,
-            free_locations: None,
-            free_address_spaces: None,
-        }
+    /// Return this behavior with the may-unwind flag enabled.
+    pub const fn with_unwind(mut self) -> Self {
+        self.unwind = UnwindBehavior::MayUnwind;
+        self
+    }
+
+    /// Return this behavior with noreturn enabled.
+    pub const fn with_noreturn(mut self) -> Self {
+        self.return_behavior = ReturnBehavior::NoReturn;
+        self
+    }
+
+    /// Return this behavior with will-return enabled.
+    pub const fn with_will_return(mut self) -> Self {
+        self.return_behavior = ReturnBehavior::WillReturn;
+        self
+    }
+
+    /// Return this behavior with duplication disabled.
+    pub const fn with_no_duplicate(mut self) -> Self {
+        self.must_not_duplicate = true;
+        self
     }
 }
 

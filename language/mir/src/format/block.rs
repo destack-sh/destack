@@ -209,8 +209,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
         Terminator::Invoke {
             function,
-            arguments,
-            signature,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
@@ -221,8 +220,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             let func = tree.get(*function);
             let name = strings.get(func.name);
             write!(f, [token("invoke"), space(), text(name)])?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)?;
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -234,8 +233,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
         Terminator::InvokeIndirect {
             callee,
-            arguments,
-            signature,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
@@ -243,8 +241,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             ..
         } => {
             write!(f, [token("invoke.indirect"), space(), callee])?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)?;
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -256,14 +254,14 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
         Terminator::InvokeVirtual {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
+            ..
         } => {
             write!(
                 f,
@@ -279,8 +277,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot_id.0.to_string())
                 ]
             )?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)?;
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -292,14 +290,14 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
         Terminator::InvokeInterface {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
+            ..
         } => {
             write!(
                 f,
@@ -315,8 +313,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot_id.0.to_string())
                 ]
             )?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)?;
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)?;
             format_call_continuations(
                 *normal_target,
                 normal_arguments,
@@ -345,37 +343,27 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
-        Terminator::TailCall {
-            function,
-            arguments,
-            signature,
-        } => {
+        Terminator::TailCall { function, call } => {
             let tree = f.context().tree;
             let strings = f.context().strings;
             let func = tree.get(*function);
             let name = strings.get(func.name);
             write!(f, [token("tailCall"), space(), text(name)])?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)
         }
 
-        Terminator::TailCallIndirect {
-            callee,
-            arguments,
-            signature,
-            ..
-        } => {
+        Terminator::TailCallIndirect { callee, call, .. } => {
             write!(f, [token("tailCall.indirect"), space(), callee])?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)
         }
 
         Terminator::TailCallVirtual {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
             ..
         } => {
             write!(
@@ -392,16 +380,15 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot_id.0.to_string())
                 ]
             )?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)
         }
 
         Terminator::TailCallInterface {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
             ..
         } => {
             write!(
@@ -418,8 +405,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot_id.0.to_string())
                 ]
             )?;
-            format_value_list(arguments, f)?;
-            format_call_signature_suffix(*signature, f)
+            format_value_list(&call.arguments, f)?;
+            format_call_signature_suffix(call.signature, f)
         }
     }
 }

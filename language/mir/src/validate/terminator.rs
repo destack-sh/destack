@@ -111,8 +111,7 @@ impl<'a> Validator<'a> {
             }
             Terminator::Invoke {
                 function: callee_id,
-                arguments,
-                signature,
+                call,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -125,13 +124,13 @@ impl<'a> Validator<'a> {
                 )?;
                 let anchor = ValidateAnchor::node(block_id);
                 self.validate_direct_call_environment(anchor, *callee_id)?;
-                self.validate_call_signature_matches_function(anchor, *signature, *callee_id)?;
+                self.validate_call_signature_matches_function(anchor, call.signature, *callee_id)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "call signature")?;
+                    self.function_pointer_signature(call.signature, anchor, "call signature")?;
 
                 self.validate_regular_call(
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                     *normal_target,
@@ -143,9 +142,8 @@ impl<'a> Validator<'a> {
                 )?;
             }
             Terminator::InvokeIndirect {
-                signature,
                 callee,
-                arguments,
+                call,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -153,19 +151,22 @@ impl<'a> Validator<'a> {
                 ..
             } => {
                 let anchor = ValidateAnchor::node(block_id);
-                let (parameters, result) =
-                    self.indirect_call_signature(*signature, anchor, "call.indirect signature")?;
+                let (parameters, result) = self.indirect_call_signature(
+                    call.signature,
+                    anchor,
+                    "call.indirect signature",
+                )?;
                 self.validate_indirect_callee_signature(
                     function,
                     *callee,
-                    *signature,
+                    call.signature,
                     anchor,
                     "call.indirect callee",
                 )?;
 
                 self.validate_regular_call(
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                     *normal_target,
@@ -179,8 +180,7 @@ impl<'a> Validator<'a> {
             Terminator::InvokeVirtual {
                 declaring_type,
                 slot_id,
-                signature,
-                arguments,
+                call,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -191,11 +191,11 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "call signature")?;
+                    self.function_pointer_signature(call.signature, anchor, "call signature")?;
 
                 self.validate_regular_call(
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                     *normal_target,
@@ -209,8 +209,7 @@ impl<'a> Validator<'a> {
             Terminator::InvokeInterface {
                 declaring_type,
                 slot_id,
-                signature,
-                arguments,
+                call,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -221,11 +220,11 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "call signature")?;
+                    self.function_pointer_signature(call.signature, anchor, "call signature")?;
 
                 self.validate_regular_call(
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                     *normal_target,
@@ -238,8 +237,7 @@ impl<'a> Validator<'a> {
             }
             Terminator::TailCall {
                 function: callee_id,
-                arguments,
-                signature,
+                call,
             } => {
                 self.ensure_node_type(
                     NodeType::Function,
@@ -248,34 +246,29 @@ impl<'a> Validator<'a> {
                 )?;
                 let anchor = ValidateAnchor::node(block_id);
                 self.validate_direct_call_environment(anchor, *callee_id)?;
-                self.validate_call_signature_matches_function(anchor, *signature, *callee_id)?;
+                self.validate_call_signature_matches_function(anchor, call.signature, *callee_id)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "tailCall signature")?;
+                    self.function_pointer_signature(call.signature, anchor, "tailCall signature")?;
 
                 self.validate_tail_call(
                     function,
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                 )?;
             }
-            Terminator::TailCallIndirect {
-                arguments,
-                signature,
-                callee,
-                ..
-            } => {
+            Terminator::TailCallIndirect { callee, call, .. } => {
                 let anchor = ValidateAnchor::node(block_id);
                 let (parameters, result) = self.indirect_call_signature(
-                    *signature,
+                    call.signature,
                     anchor,
                     "tailCall.indirect signature",
                 )?;
                 self.validate_indirect_callee_signature(
                     function,
                     *callee,
-                    *signature,
+                    call.signature,
                     anchor,
                     "tailCall.indirect callee",
                 )?;
@@ -283,49 +276,47 @@ impl<'a> Validator<'a> {
                 self.validate_tail_call(
                     function,
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                 )?;
             }
             Terminator::TailCallVirtual {
-                arguments,
                 declaring_type,
                 slot_id,
-                signature,
+                call,
                 ..
             } => {
                 let anchor = ValidateAnchor::node(block_id);
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "tailCall signature")?;
+                    self.function_pointer_signature(call.signature, anchor, "tailCall signature")?;
 
                 self.validate_tail_call(
                     function,
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                 )?;
             }
             Terminator::TailCallInterface {
-                arguments,
                 declaring_type,
                 slot_id,
-                signature,
+                call,
                 ..
             } => {
                 let anchor = ValidateAnchor::node(block_id);
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "tailCall signature")?;
+                    self.function_pointer_signature(call.signature, anchor, "tailCall signature")?;
 
                 self.validate_tail_call(
                     function,
                     block_id,
-                    arguments.len(),
+                    call.arguments.len(),
                     parameters.len(),
                     result,
                 )?;

@@ -1333,8 +1333,7 @@ impl<'a> Dumper<'a> {
             Instruction::Call {
                 destination,
                 function,
-                arguments,
-                signature,
+                call,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1344,7 +1343,7 @@ impl<'a> Dumper<'a> {
                 self.write("call ");
                 self.write(&self.format_function_id(*function));
                 self.write("(");
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
@@ -1353,16 +1352,15 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
             Instruction::CallVirtual {
                 destination,
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1376,7 +1374,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&slot_id.0.to_string());
                 self.write("(");
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
@@ -1385,16 +1383,15 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
             Instruction::CallInterface {
                 destination,
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1408,7 +1405,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&slot_id.0.to_string());
                 self.write("(");
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
@@ -1417,14 +1414,13 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
             Instruction::CallIndirect {
                 destination,
                 callee,
-                arguments,
-                signature,
+                call,
                 ..
             } => {
                 if let Some(dst) = destination {
@@ -1434,7 +1430,7 @@ impl<'a> Dumper<'a> {
                 self.write("call.indirect ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
@@ -1443,7 +1439,7 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
             Instruction::ManagedAlloc {
@@ -1922,8 +1918,7 @@ impl<'a> Dumper<'a> {
 
             Terminator::Invoke {
                 function,
-                arguments,
-                signature,
+                call,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -1933,7 +1928,7 @@ impl<'a> Dumper<'a> {
                 self.write(" ");
                 self.write(&self.format_function_id(*function));
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -1941,7 +1936,7 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
@@ -1970,8 +1965,7 @@ impl<'a> Dumper<'a> {
 
             Terminator::InvokeIndirect {
                 callee,
-                arguments,
-                signature,
+                call,
                 normal_target,
                 normal_arguments,
                 unwind_target,
@@ -1982,7 +1976,7 @@ impl<'a> Dumper<'a> {
                 self.write(" ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -1990,7 +1984,7 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
@@ -2019,14 +2013,14 @@ impl<'a> Dumper<'a> {
 
             Terminator::InvokeVirtual {
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
+                ..
             } => {
                 self.write_colored("invoke.virtual", Color::Red);
                 self.write(" ");
@@ -2036,7 +2030,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&slot_id.0.to_string());
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -2044,7 +2038,7 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
@@ -2073,14 +2067,14 @@ impl<'a> Dumper<'a> {
 
             Terminator::InvokeInterface {
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
+                ..
             } => {
                 self.write_colored("invoke.interface", Color::Red);
                 self.write(" ");
@@ -2090,7 +2084,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&slot_id.0.to_string());
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -2098,7 +2092,7 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
                 self.write(&self.format_block_id(*normal_target));
                 if !normal_arguments.is_empty() {
@@ -2146,16 +2140,12 @@ impl<'a> Dumper<'a> {
                 }
             }
 
-            Terminator::TailCall {
-                function,
-                arguments,
-                signature,
-            } => {
+            Terminator::TailCall { function, call } => {
                 self.write_colored("tailCall", Color::Red);
                 self.write(" ");
                 self.write(&self.format_function_id(*function));
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -2163,20 +2153,15 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
-            Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                signature,
-                ..
-            } => {
+            Terminator::TailCallIndirect { callee, call, .. } => {
                 self.write_colored("tailCall.indirect", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -2184,15 +2169,14 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
             Terminator::TailCallVirtual {
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 ..
             } => {
                 self.write_colored("tailCall.virtual", Color::Red);
@@ -2203,7 +2187,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&slot_id.0.to_string());
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -2211,15 +2195,14 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
             Terminator::TailCallInterface {
                 receiver,
-                arguments,
+                call,
                 declaring_type,
                 slot_id,
-                signature,
                 ..
             } => {
                 self.write_colored("tailCall.interface", Color::Red);
@@ -2230,7 +2213,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&slot_id.0.to_string());
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                for (i, arg) in call.arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -2238,7 +2221,7 @@ impl<'a> Dumper<'a> {
                 }
                 self.write(")");
                 self.write(" : ");
-                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
         }
         self.write("\n");

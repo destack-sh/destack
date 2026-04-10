@@ -3,17 +3,18 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::Variable;
 use crate::{
-    AllocSize, AllocationMode, Block, CallBehavior, CallSite, DevirtualizationMetadata,
-    ExecutionModel, ExecutionStage, Function, Instruction, Lifetime, Linkage, LocalNodeId,
-    MemoryEffect, NodeTree, PointerAttributes, Type, TypedValue, Value,
+    AllocationMode, AllocationSize, Block, CallBehavior, ExecutionModel, ExecutionStage, Function,
+    Instruction, Lifetime, Linkage, LocalNodeId, MemoryEffect, NodeTree, PointerAttribute, Type,
+    TypedValue, Value,
 };
 
 mod aggregate;
-mod calls;
+mod call;
 mod control;
 mod memory;
+mod rewrite;
 mod ssa;
-mod values;
+mod value;
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
 /// Implements the algorithm from
@@ -103,11 +104,11 @@ impl<'a> FunctionBuilder<'a> {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: MemoryEffect::unknown(),
+            memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
-            alloc_size: None,
-            parameter_attributes: vec![PointerAttributes::default(); parameter_types.len()],
-            return_attributes: PointerAttributes::default(),
+            allocation_size: None,
+            parameter_attributes: vec![PointerAttribute::default(); parameter_types.len()],
+            return_attribute: PointerAttribute::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
@@ -181,11 +182,11 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Set memory effects for the function.
-    pub fn set_memory_effects(&mut self, effects: MemoryEffect) {
-        // update the function memory effects
+    /// Set the memory effect for the function.
+    pub fn set_memory_effect(&mut self, effect: MemoryEffect) {
+        // update the function memory effect
         let function = self.tree.get_mut(self.function_id);
-        function.memory_effects = effects;
+        function.memory_effect = effect;
     }
 
     /// Set behavioral effects for the function.
@@ -196,14 +197,14 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Set allocation size metadata for the function.
-    pub fn set_alloc_size(&mut self, alloc_size: AllocSize) {
+    pub fn set_allocation_size(&mut self, allocation_size: AllocationSize) {
         // update the allocation size metadata
         let function = self.tree.get_mut(self.function_id);
-        function.alloc_size = Some(alloc_size);
+        function.allocation_size = Some(allocation_size);
     }
 
     /// Set pointer attributes for all parameters.
-    pub fn set_parameter_attributes(&mut self, attributes: Vec<PointerAttributes>) {
+    pub fn set_parameter_attributes(&mut self, attributes: Vec<PointerAttribute>) {
         // validate the parameter count
         let parameter_count = self.tree.get(self.function_id).parameters.len();
         assert_eq!(
@@ -218,7 +219,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Set pointer attributes for a single parameter.
-    pub fn set_parameter_attribute(&mut self, index: usize, attributes: PointerAttributes) {
+    pub fn set_parameter_attribute(&mut self, index: usize, attributes: PointerAttribute) {
         // access the parameter attributes
         let function = self.tree.get_mut(self.function_id);
         let parameter_attributes = &mut function.parameter_attributes;
@@ -230,11 +231,11 @@ impl<'a> FunctionBuilder<'a> {
         *target = attributes;
     }
 
-    /// Set pointer attributes for the return value.
-    pub fn set_return_attributes(&mut self, attributes: PointerAttributes) {
-        // update the return attributes
+    /// Set the pointer attribute for the return value.
+    pub fn set_return_attribute(&mut self, attribute: PointerAttribute) {
+        // update the return attribute
         let function = self.tree.get_mut(self.function_id);
-        function.return_attributes = attributes;
+        function.return_attribute = attribute;
     }
 
     /// Set the execution model for this function.
@@ -317,21 +318,6 @@ impl<'a> FunctionBuilder<'a> {
             .entry(to_block)
             .or_default()
             .push(from_block);
-    }
-
-    /// Record dispatch metadata when a callsite carries real devirtualization facts.
-    fn insert_dispatch_callsite_metadata(
-        &mut self,
-        callsite: CallSite,
-        metadata: DevirtualizationMetadata,
-    ) {
-        if metadata.is_empty() {
-            return;
-        }
-
-        self.tree
-            .dispatch_table
-            .insert_callsite_metadata(callsite, metadata);
     }
 
     /// Insert an instruction into the current block.
