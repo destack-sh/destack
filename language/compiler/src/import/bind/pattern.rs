@@ -3,9 +3,9 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     BindingCategory, DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, ModuleBinding, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind,
-    StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, TypeTable,
+    LocalSymbolId, ModuleBinding, Mutability, NodeTree, NodeType, Pattern, PatternField,
+    ProvenanceReason, ScopeKind, StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -503,7 +503,13 @@ impl Compiler {
         }
 
         // canonicalize shorthand as an explicit nested binding pattern
-        let pattern_id = tree.reserve_from(NodeType::Pattern, parent_id, scope, Some(parent_id));
+        let pattern_id = tree.reserve_from(
+            NodeType::Pattern,
+            parent_id,
+            scope,
+            Some(parent_id),
+            Some(ProvenanceReason::Bound),
+        );
         let pattern = Pattern::Binding {
             mutability: field_mutability,
             name: field_name,

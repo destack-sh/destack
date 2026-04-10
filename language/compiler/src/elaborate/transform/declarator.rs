@@ -97,6 +97,7 @@ impl Compiler {
                     binding_expression_id.into_any(),
                     scope,
                     None,
+                    Some(dir::ProvenanceReason::Elaborated),
                 );
 
                 // create a new descriptor for this binding using the declarator symbol

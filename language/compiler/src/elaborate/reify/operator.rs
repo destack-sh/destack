@@ -201,6 +201,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let call = self.operator_call_expression(
             state,
@@ -252,6 +253,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let member_id = state.tree.insert_as_owner(
             member_id,
@@ -278,6 +280,7 @@ impl Compiler {
                 origin_id.into_any(),
                 state.tree.get_scope(origin_id),
                 None,
+                Some(dir::ProvenanceReason::Reified),
             );
             let argument_id = state.tree.insert_as_owner(
                 argument_id,
@@ -334,6 +337,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let reference_id = state.tree.insert_as_owner(
             reference_id,

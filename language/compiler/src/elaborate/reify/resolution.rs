@@ -103,10 +103,13 @@ impl Compiler {
             _ => expression.clone(),
         };
 
-        let cloned_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let cloned_id = state.tree.reserve_from(
+            NodeType::Expression,
+            expression_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Reified),
+        );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
         state.types.copy_node_analysis(
             expression_id.into_global_any(state.ctx.module_id),
@@ -128,10 +131,13 @@ impl Compiler {
         let value_expression = state.tree.get(value).clone();
         let value = self.clone_resolution_expression(state, value, &value_expression, scope);
 
-        let cloned_id =
-            state
-                .tree
-                .reserve_from(NodeType::Argument, argument_id.into_any(), scope, None);
+        let cloned_id = state.tree.reserve_from(
+            NodeType::Argument,
+            argument_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Reified),
+        );
 
         let cloned_argument = match argument {
             dir::Argument::Named {
@@ -265,6 +271,7 @@ impl Compiler {
                 expression_id.into_any(),
                 scope,
                 None,
+                Some(dir::ProvenanceReason::Reified),
             );
             else_branch = state.tree.insert_as_owner(
                 if_id,

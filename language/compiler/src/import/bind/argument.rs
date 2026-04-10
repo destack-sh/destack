@@ -5,8 +5,8 @@ use destack_dir::{
     AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingCategory, BindingKind,
     BindingModifier, BindingOperator, DeclarationKind, Expression, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, Parameter,
-    StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable,
-    VarianceModifier, Visibility,
+    ProvenanceReason, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing,
+    TypeTable, VarianceModifier, Visibility,
 };
 use destack_workspace::Module;
 
@@ -503,8 +503,13 @@ impl Compiler {
                 )
             }
             ast::Argument::Error => {
-                let error_expression_id =
-                    tree.reserve_from(NodeType::Expression, argument_id, scope, Some(argument_id));
+                let error_expression_id = tree.reserve_from(
+                    NodeType::Expression,
+                    argument_id,
+                    scope,
+                    Some(argument_id),
+                    Some(ProvenanceReason::Bound),
+                );
                 let error_expression = tree.insert(error_expression_id, Expression::Error);
 
                 tree.insert(

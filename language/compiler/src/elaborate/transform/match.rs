@@ -165,10 +165,13 @@ impl Compiler {
             MatchCase::Expression { selector, body, .. } => (selector.clone(), *body),
             MatchCase::Block { selector, body, .. } => {
                 // wrap block in a block expression
-                let block_expr_id =
-                    state
-                        .tree
-                        .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+                let block_expr_id = state.tree.reserve_from(
+                    NodeType::Expression,
+                    match_id.into_any(),
+                    scope,
+                    None,
+                    Some(dir::ProvenanceReason::Elaborated),
+                );
                 let block_expr: LocalNodeId<Expression> = state
                     .tree
                     .insert_as_owner(block_expr_id, Expression::Block { block: *body });
@@ -376,9 +379,13 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> LocalNodeId<Expression> {
         // allocate the if expression node
-        let if_id = state
-            .tree
-            .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let if_id = state.tree.reserve_from(
+            NodeType::Expression,
+            match_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
 
         // insert the if expression
         let if_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
@@ -1353,10 +1360,13 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // create index literal
-        let index_lit_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let index_lit_id = state.tree.reserve_from(
+            NodeType::Expression,
+            match_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let index_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             index_lit_id,
             Expression::ScalarLiteral {
@@ -1371,10 +1381,13 @@ impl Compiler {
         );
 
         // create index expression: value[index]
-        let idx_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let idx_id = state.tree.reserve_from(
+            NodeType::Expression,
+            match_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expr_id = state.tree.insert_as_owner(
             idx_id,
             Expression::Index {
@@ -1407,10 +1420,13 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // reserve the member access node
-        let member_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let member_id = state.tree.reserve_from(
+            NodeType::Expression,
+            match_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
 
         // insert the member access expression
         let expr_id = state.tree.insert_as_owner(
@@ -1656,9 +1672,13 @@ impl Compiler {
         }
 
         // create Block containing all expressions
-        let block_id = state
-            .tree
-            .reserve_from(NodeType::Block, match_id.into_any(), scope, None);
+        let block_id = state.tree.reserve_from(
+            NodeType::Block,
+            match_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
@@ -1669,10 +1689,13 @@ impl Compiler {
         );
 
         // wrap in Expression::Block
-        let block_expr_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let block_expr_id = state.tree.reserve_from(
+            NodeType::Expression,
+            match_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block { block });
@@ -1724,9 +1747,13 @@ impl Compiler {
         }
 
         // create the Block node
-        let block_id = state
-            .tree
-            .reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
+        let block_id = state.tree.reserve_from(
+            NodeType::Block,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
@@ -1737,10 +1764,13 @@ impl Compiler {
         );
 
         // create the Expression::Block wrapper
-        let block_expr_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let block_expr_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block { block });

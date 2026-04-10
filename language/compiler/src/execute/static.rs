@@ -85,12 +85,14 @@ impl Compiler {
                         anchor_id,
                         scope,
                         Some(parent_id),
+                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_any = tree.reserve_from(
                         dir::NodeType::Expression,
                         anchor_id,
                         scope,
                         Some(argument_any),
+                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_expression = self.static_expression_to_expression(
                         tree, module_id, profile_id, anchor_id, value_any, scope, element,
@@ -117,12 +119,14 @@ impl Compiler {
                         anchor_id,
                         scope,
                         Some(parent_id),
+                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_any = tree.reserve_from(
                         dir::NodeType::Expression,
                         anchor_id,
                         scope,
                         Some(argument_any),
+                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_expression = self.static_expression_to_expression(
                         tree, module_id, profile_id, anchor_id, value_any, scope, element,
@@ -149,6 +153,7 @@ impl Compiler {
                         anchor_id,
                         scope,
                         Some(parent_id),
+                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let property = self.static_property_to_property(
                         tree,
@@ -195,8 +200,13 @@ impl Compiler {
                 symbol,
             } => {
                 // build the field value expression
-                let value_any =
-                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
+                let value_any = tree.reserve_from(
+                    dir::NodeType::Expression,
+                    anchor_id,
+                    scope,
+                    Some(parent_id),
+                    Some(dir::ProvenanceReason::Evaluated),
+                );
                 let value_expression = self.static_expression_to_expression(
                     tree, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;
@@ -210,6 +220,7 @@ impl Compiler {
                             anchor_id,
                             scope,
                             Some(parent_id),
+                            Some(dir::ProvenanceReason::Evaluated),
                         );
                         let default_expression = self.static_expression_to_expression(
                             tree,
@@ -241,8 +252,13 @@ impl Compiler {
                 symbol,
             } => {
                 // build the method body expression
-                let body_any =
-                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
+                let body_any = tree.reserve_from(
+                    dir::NodeType::Expression,
+                    anchor_id,
+                    scope,
+                    Some(parent_id),
+                    Some(dir::ProvenanceReason::Evaluated),
+                );
                 let body_expression = self.static_expression_to_expression(
                     tree, module_id, profile_id, anchor_id, body_any, scope, body,
                 )?;

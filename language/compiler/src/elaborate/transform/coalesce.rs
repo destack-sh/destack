@@ -81,6 +81,7 @@ impl Compiler {
             original_expr_id.into_any(),
             scope,
             None,
+            Some(dir::ProvenanceReason::Elaborated),
         );
         let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
@@ -427,6 +428,7 @@ impl Compiler {
             expression_id.into_any(),
             block_scope,
             None,
+            Some(dir::ProvenanceReason::Elaborated),
         );
         let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
@@ -441,10 +443,13 @@ impl Compiler {
         );
 
         // build local block value: { let t = left; if (...) ... else ... }
-        let block_id =
-            state
-                .tree
-                .reserve_from(NodeType::Block, expression_id.into_any(), block_scope, None);
+        let block_id = state.tree.reserve_from(
+            NodeType::Block,
+            expression_id.into_any(),
+            block_scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block_id = state.tree.insert_as_owner(
             block_id,
             dir::Block {

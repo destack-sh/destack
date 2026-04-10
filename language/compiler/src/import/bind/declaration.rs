@@ -6,8 +6,8 @@ use destack_dir::{
     DeclarationKind, DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField,
     EnumKind, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, LocalSymbolId, ModuleBinding, Name, NamespaceKind, NodeTree, NodeType,
-    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, TypeTable,
+    ProvenanceReason, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -686,6 +686,7 @@ impl Compiler {
                         declaration_id,
                         scope,
                         Some(declaration_id),
+                        Some(ProvenanceReason::Bound),
                     );
                     let dependency = DependencyItem::UnresolvedRemote {
                         source: DependencySource::ImportEquals,

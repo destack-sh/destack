@@ -452,10 +452,13 @@ impl Compiler {
             self.wrap_branch_value_in_assignment(state, scope, target_id2, else_expression)?;
 
         // create the new if expression
-        let new_if_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, declarator_id.into_any(), scope, None);
+        let new_if_id = state.tree.reserve_from(
+            NodeType::Expression,
+            declarator_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let new_if: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_if_id,
             Expression::If {
@@ -500,10 +503,13 @@ impl Compiler {
         // create let with the last expression as value
         let last_expr = seq_expressions[seq_expressions.len() - 1];
 
-        let new_declarator_id =
-            state
-                .tree
-                .reserve_from(NodeType::Declarator, declarator_id.into_any(), scope, None);
+        let new_declarator_id = state.tree.reserve_from(
+            NodeType::Declarator,
+            declarator_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let new_declarator: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             new_declarator_id,
             Declarator {
@@ -518,6 +524,7 @@ impl Compiler {
             original_let_id.into_any(),
             scope,
             None,
+            Some(dir::ProvenanceReason::Elaborated),
         );
         let new_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_let_id,
@@ -554,10 +561,13 @@ impl Compiler {
         };
 
         // create uninitialized declarator
-        let uninit_declarator_id =
-            state
-                .tree
-                .reserve_from(NodeType::Declarator, declarator_id.into_any(), scope, None);
+        let uninit_declarator_id = state.tree.reserve_from(
+            NodeType::Declarator,
+            declarator_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let uninit_declarator: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             uninit_declarator_id,
             Declarator {
@@ -568,10 +578,13 @@ impl Compiler {
         );
 
         // create the uninitialized let
-        let uninit_let_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, declarator_id.into_any(), scope, None);
+        let uninit_let_id = state.tree.reserve_from(
+            NodeType::Expression,
+            declarator_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let uninit_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             uninit_let_id,
             Expression::Let {
@@ -595,10 +608,13 @@ impl Compiler {
         state.tree.replace(inner_block_id, updated_block);
 
         // add the block expression
-        let block_expr_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, declarator_id.into_any(), scope, None);
+        let block_expr_id = state.tree.reserve_from(
+            NodeType::Expression,
+            declarator_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             block_expr_id,
             Expression::Block {
@@ -855,9 +871,13 @@ impl Compiler {
         }
 
         // create the block node
-        let block_id = state
-            .tree
-            .reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
+        let block_id = state.tree.reserve_from(
+            NodeType::Block,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
@@ -868,10 +888,13 @@ impl Compiler {
         );
 
         // wrap the block as an expression
-        let block_expr_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let block_expr_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block_expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block { block });
