@@ -317,7 +317,7 @@ impl Frame {
 
             layout.reference_map.for_each_reference(
                 allocation.bytes(),
-                executable.tree.data_layout.native_pointer_bytes,
+                executable.tree.metadata.layout.storage.native_pointer_bytes,
                 |reference| roots.push(reference),
             );
         }

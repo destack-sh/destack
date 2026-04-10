@@ -60,7 +60,7 @@ pub(crate) fn compute_type_layout(
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
     // use explicit layout metadata when available
-    if let Some(layout) = tree.type_table.type_layout(type_id) {
+    if let Some(layout) = tree.metadata.layout.type_layout(type_id) {
         return Ok(TypeLayout::new(layout.size, layout.alignment));
     }
 
@@ -128,7 +128,7 @@ pub(crate) fn compute_type_layout(
             fields: _,
             copyability: _,
         } => {
-            let Some(layout) = tree.type_table.type_layout(type_id) else {
+            let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",
                     type_id.into(),
@@ -139,7 +139,7 @@ pub(crate) fn compute_type_layout(
 
         // function values: read canonical layout metadata
         mir::Type::Closure { .. } => {
-            let Some(layout) = tree.type_table.type_layout(type_id) else {
+            let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",
                     type_id.into(),

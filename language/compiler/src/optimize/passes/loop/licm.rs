@@ -1377,10 +1377,11 @@ b2:
         let load_v1 = block.instructions[0];
         let store_v2 = block.instructions[2];
 
-        let domain = test.tree.memory_table.alias_scopes.create_domain(None);
+        let domain = test.tree.metadata.memory.alias_scopes.create_domain(None);
         let scope_a = test
             .tree
-            .memory_table
+            .metadata
+            .memory
             .alias_scopes
             .create_scope(domain, None);
 

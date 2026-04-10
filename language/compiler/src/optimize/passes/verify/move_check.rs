@@ -296,12 +296,13 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::Invoke {
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -311,13 +312,14 @@ impl<'a> MoveCheckContext<'a> {
             }
             mir::Terminator::InvokeIndirect {
                 callee,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 self.check_use(state, *callee, None, block_id, context);
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -327,20 +329,21 @@ impl<'a> MoveCheckContext<'a> {
             }
             mir::Terminator::InvokeVirtual {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
             | mir::Terminator::InvokeInterface {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 self.check_use(state, *receiver, None, block_id, context);
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -357,31 +360,21 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::Unreachable => {}
-            mir::Terminator::TailCall { arguments, .. } => {
-                for &arg in arguments {
+            mir::Terminator::TailCall { call, .. } => {
+                for &arg in &call.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::TailCallVirtual {
-                receiver,
-                arguments,
-                ..
-            }
-            | mir::Terminator::TailCallInterface {
-                receiver,
-                arguments,
-                ..
-            } => {
+            mir::Terminator::TailCallVirtual { receiver, call, .. }
+            | mir::Terminator::TailCallInterface { receiver, call, .. } => {
                 self.check_use(state, *receiver, None, block_id, context);
-                for &arg in arguments {
+                for &arg in &call.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
-            } => {
+            mir::Terminator::TailCallIndirect { callee, call, .. } => {
                 self.check_use(state, *callee, None, block_id, context);
-                for &arg in arguments {
+                for &arg in &call.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }

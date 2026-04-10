@@ -782,7 +782,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::Call {
                 destination,
                 function,
-                arguments,
+                call,
                 ..
             } => {
                 let callee = self.tree.get(*function);
@@ -798,7 +798,7 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
 
                 // gather argument values
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
 
                 // make the call
@@ -817,15 +817,14 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::CallIndirect {
                 destination,
                 callee,
-                arguments,
-                signature,
+                call,
                 ..
             } => {
                 let sig_ref =
-                    self.build_indirect_call_signature(*signature, builder, "indirect call")?;
+                    self.build_indirect_call_signature(call.signature, builder, "indirect call")?;
                 let (callee_value, environment_value) =
-                    self.lower_indirect_callable(*callee, *signature, value_map, builder)?;
-                let args = self.tree.get_arguments(*arguments);
+                    self.lower_indirect_callable(*callee, call.signature, value_map, builder)?;
+                let args = self.tree.get_arguments(call.arguments);
                 let mut argument_values: Vec<cir::Value> =
                     args.iter().map(|v| value_map[v]).collect();
                 if let Some(environment_value) = environment_value {
@@ -1208,11 +1207,7 @@ impl<'a> FunctionLowerer<'a> {
             },
 
             // tail call: return_call (direct tail call)
-            mir::Terminator::TailCall {
-                function,
-                arguments,
-                signature: _,
-            } => {
+            mir::Terminator::TailCall { function, call } => {
                 let callee = self.tree.get(*function);
                 if callee.environment.is_some() {
                     return Err(CodegenCraneliftError::Internal {
@@ -1227,24 +1222,20 @@ impl<'a> FunctionLowerer<'a> {
 
                 // gather argument values
                 let argument_values: Vec<cir::Value> =
-                    arguments.iter().map(|v| value_map[v]).collect();
+                    call.arguments.iter().map(|v| value_map[v]).collect();
 
                 // emit return_call
                 builder.ins().return_call(*function_ref, &argument_values);
             }
 
             // tail call indirect: return_call_indirect (indirect tail call)
-            mir::Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                signature,
-            } => {
+            mir::Terminator::TailCallIndirect { callee, call } => {
                 let sig_ref =
-                    self.build_indirect_call_signature(*signature, builder, "tail call")?;
+                    self.build_indirect_call_signature(call.signature, builder, "tail call")?;
                 let (callee_value, environment_value) =
-                    self.lower_indirect_callable(*callee, *signature, value_map, builder)?;
+                    self.lower_indirect_callable(*callee, call.signature, value_map, builder)?;
                 let mut argument_values: Vec<cir::Value> =
-                    arguments.iter().map(|v| value_map[v]).collect();
+                    call.arguments.iter().map(|v| value_map[v]).collect();
                 if let Some(environment_value) = environment_value {
                     argument_values.push(environment_value);
                 }

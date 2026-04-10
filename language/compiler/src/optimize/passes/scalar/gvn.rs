@@ -9,7 +9,7 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
-    location_sets_may_alias, memory_locations_compatible, tbaa_tags_may_alias,
+    location_sets_may_alias, memory_locations_compatible, type_alias_tags_may_alias,
 };
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext, TypeContext,
@@ -198,13 +198,13 @@ struct MemoryEntry {
     /// The memory location set for the access.
     location_set: mir::MemoryRegionSet,
     /// The address spaces for the access.
-    address_spaces: Option<mir::AddressSpaceSet>,
+    address_spaces: Option<mir::AddressSpaceMask>,
     /// Alias scopes applied to the access.
-    alias_scopes: Vec<mir::AliasScopeId>,
+    alias_scopes: Vec<mir::MemoryAliasScopeId>,
     /// No alias scopes applied to the access.
-    noalias_scopes: Vec<mir::AliasScopeId>,
-    /// Optional TBAA tag for the access.
-    tbaa_tag: Option<mir::TbaaTagId>,
+    noalias_scopes: Vec<mir::MemoryAliasScopeId>,
+    /// Optional type-alias tag for the access.
+    type_alias_tag: Option<mir::TypeAliasTagId>,
 }
 
 impl ScopedValueTable {
@@ -338,10 +338,10 @@ impl ScopedValueTable {
                     continue;
                 }
 
-                if !tbaa_tags_may_alias(
-                    &tree.memory_table.tbaa,
-                    entry.tbaa_tag,
-                    use_effect.tbaa_tag,
+                if !type_alias_tags_may_alias(
+                    &tree.metadata.memory.type_alias,
+                    entry.type_alias_tag,
+                    use_effect.type_alias_tag,
                 ) {
                     continue;
                 }
@@ -640,7 +640,7 @@ fn process_block(
                     address_spaces: use_access.effect.address_spaces.clone(),
                     alias_scopes: use_access.effect.alias_scopes.clone(),
                     noalias_scopes: use_access.effect.noalias_scopes.clone(),
-                    tbaa_tag: use_access.effect.tbaa_tag,
+                    type_alias_tag: use_access.effect.type_alias_tag,
                 });
             }
             continue;
@@ -1387,10 +1387,10 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let mut test = TestProgram::new(input);
 
         // create tbaa tags with disjoint offsets
-        let root = test.create_tbaa_node(None, false);
-        let access = test.create_tbaa_node(Some(root), false);
-        let tag_a = test.create_tbaa_tag(root, access, 0, 4, false);
-        let tag_b = test.create_tbaa_tag(root, access, 8, 4, false);
+        let root = test.create_type_alias_node(None, false);
+        let access = test.create_type_alias_node(Some(root), false);
+        let tag_a = test.create_type_alias_tag(root, access, 0, 4, false);
+        let tag_b = test.create_type_alias_tag(root, access, 8, 4, false);
 
         // locate the relevant instructions
         let function_id = test.first_function_id();
@@ -1507,16 +1507,11 @@ b0:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call {
-            effects: call_effects,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { memory_effect, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        *memory_effect = Some(mir::MemoryEffect::none());
 
         test.run_pass(&GlobalValueNumbering);
         test.assert_output(expected);

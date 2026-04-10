@@ -274,7 +274,7 @@ fn run_load_pre(
 
     // drop memory metadata for removed loads
     for load_id in &to_remove {
-        tree.memory_table.remove_memory_accesses(*load_id);
+        tree.metadata.memory.remove_memory_accesses(*load_id);
     }
 
     changed || updated
@@ -504,7 +504,7 @@ fn clone_load_metadata(
     pointer: mir::Value,
 ) {
     // skip when there is no metadata to clone
-    let Some(accesses) = tree.memory_table.memory_accesses(source) else {
+    let Some(accesses) = tree.metadata.memory.memory_accesses(source) else {
         return;
     };
 
@@ -518,7 +518,8 @@ fn clone_load_metadata(
         cloned.push(updated);
     }
 
-    tree.memory_table
+    tree.metadata
+        .memory
         .insert_memory_accesses(destination, cloned);
 }
 
@@ -667,14 +668,17 @@ extern function readOnly(): void"#;
         let function = test.tree.get(function_id);
         let join_block = function.blocks[3];
         let call_inst = test.instructions_in_block(join_block)[0];
-        let call_effects = mir::CallEffects::default()
-            .with_memory_effects(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY))
-            .with_behavior(mir::CallBehavior::none());
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { effects, .. } = instruction else {
+        let mir::Instruction::Call {
+            memory_effect,
+            call_behavior,
+            ..
+        } = instruction
+        else {
             panic!("expected call instruction");
         };
-        *effects = Some(call_effects);
+        *memory_effect = Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY));
+        *call_behavior = Some(mir::CallBehavior::none());
 
         test.run_pass(&LoadPre);
         test.assert_output(expected);
@@ -748,8 +752,7 @@ b3:
             size: None,
             alignment: None,
             is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering: None,
             scope: None,
             memory_scope: None,
@@ -757,7 +760,7 @@ b3:
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         };
         test.insert_memory_accesses(load_inst, vec![access]);
 

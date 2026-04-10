@@ -869,16 +869,15 @@ fn apply_instruction_effects(
         Instruction::Call {
             destination: Some(dest),
             function,
-            arguments,
-            signature,
+            call,
             ..
         } => {
-            let signature_type = tree.get(*signature);
+            let signature_type = tree.get(call.signature);
             let return_contains_borrow =
                 signature_return_contains_borrowed_refs(signature_type, tree);
             let origins = origins_for_call(
                 *function,
-                tree.get_arguments(*arguments),
+                tree.get_arguments(call.arguments),
                 state,
                 lifetime_analysis,
                 return_contains_borrow,
@@ -890,24 +889,22 @@ fn apply_instruction_effects(
         // virtual and interface calls use signature fallback
         Instruction::CallVirtual {
             destination: Some(dest),
-            arguments,
-            signature,
+            call,
             ..
         }
         | Instruction::CallInterface {
             destination: Some(dest),
-            arguments,
-            signature,
+            call,
             ..
         } => {
-            let signature_type = tree.get(*signature);
+            let signature_type = tree.get(call.signature);
             let return_contains_borrow =
                 signature_return_contains_borrowed_refs(signature_type, tree);
             let origins =
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     origins_for_targets(
                         targets,
-                        tree.get_arguments(*arguments),
+                        tree.get_arguments(call.arguments),
                         state,
                         lifetime_analysis,
                         return_contains_borrow,
@@ -916,7 +913,7 @@ fn apply_instruction_effects(
                     origins_for_signature(
                         signature_type,
                         tree,
-                        tree.get_arguments(*arguments),
+                        tree.get_arguments(call.arguments),
                         state,
                         return_contains_borrow,
                     )
@@ -928,18 +925,17 @@ fn apply_instruction_effects(
         // indirect calls rely on the signature
         Instruction::CallIndirect {
             destination: Some(dest),
-            arguments,
-            signature,
+            call,
             ..
         } => {
-            let signature_type = tree.get(*signature);
+            let signature_type = tree.get(call.signature);
             let return_contains_borrow =
                 signature_return_contains_borrowed_refs(signature_type, tree);
             let origins =
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     origins_for_targets(
                         targets,
-                        tree.get_arguments(*arguments),
+                        tree.get_arguments(call.arguments),
                         state,
                         lifetime_analysis,
                         return_contains_borrow,
@@ -948,7 +944,7 @@ fn apply_instruction_effects(
                     origins_for_signature(
                         signature_type,
                         tree,
-                        tree.get_arguments(*arguments),
+                        tree.get_arguments(call.arguments),
                         state,
                         return_contains_borrow,
                     )

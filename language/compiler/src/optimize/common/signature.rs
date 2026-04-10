@@ -142,20 +142,26 @@ impl ParameterRemap {
     }
 
     /// Remap allocation size parameter indices after removals.
-    pub fn remap_alloc_size(&self, alloc_size: Option<mir::AllocSize>) -> Option<mir::AllocSize> {
+    pub fn remap_allocation_size(
+        &self,
+        allocation_size: Option<mir::AllocationSize>,
+    ) -> Option<mir::AllocationSize> {
         // read the existing allocation size metadata
-        let alloc_size = alloc_size?;
+        let allocation_size = allocation_size?;
 
         // remap the required element size index
-        let element_size_index = self.remap_parameter_index(alloc_size.element_size_index)?;
+        let element_size_index = self.remap_parameter_index(allocation_size.element_size_index)?;
 
         // remap the optional element count index
-        let element_count_index = match alloc_size.element_count_index {
+        let element_count_index = match allocation_size.element_count_index {
             Some(index) => Some(self.remap_parameter_index(index)?),
             None => None,
         };
 
-        Some(mir::AllocSize::new(element_size_index, element_count_index))
+        Some(mir::AllocationSize::new(
+            element_size_index,
+            element_count_index,
+        ))
     }
 }
 
@@ -188,9 +194,9 @@ pub fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
     }
 
     // include allocation size indices
-    if let Some(alloc_size) = function.alloc_size {
-        required.insert(alloc_size.element_size_index as usize);
-        if let Some(count_index) = alloc_size.element_count_index {
+    if let Some(allocation_size) = function.allocation_size {
+        required.insert(allocation_size.element_size_index as usize);
+        if let Some(count_index) = allocation_size.element_count_index {
             required.insert(count_index as usize);
         }
     }

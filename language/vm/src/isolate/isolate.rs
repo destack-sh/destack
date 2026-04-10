@@ -127,7 +127,9 @@ impl Isolate {
     pub fn heap_managed_reference_bytes(&self) -> u8 {
         self.executable
             .tree
-            .data_layout
+            .metadata
+            .layout
+            .storage
             .managed_reference_layout
             .bytes
     }

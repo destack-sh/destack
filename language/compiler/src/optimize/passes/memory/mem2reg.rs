@@ -780,19 +780,21 @@ fn update_terminator_arguments(
         }
         Terminator::Invoke {
             function,
-            arguments,
-            signature,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => Terminator::Invoke {
             function: *function,
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
-            signature: *signature,
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
             normal_target: *normal_target,
             normal_arguments: extend_arguments(
                 *normal_target,
@@ -812,19 +814,21 @@ fn update_terminator_arguments(
         },
         Terminator::InvokeIndirect {
             callee,
-            arguments,
-            signature,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => Terminator::InvokeIndirect {
             callee: resolve_value(*callee, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
-            signature: *signature,
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
             normal_target: *normal_target,
             normal_arguments: extend_arguments(
                 *normal_target,
@@ -844,23 +848,27 @@ fn update_terminator_arguments(
         },
         Terminator::InvokeVirtual {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => Terminator::InvokeVirtual {
             receiver: resolve_value(*receiver, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
+            declared_target: *declared_target,
             normal_target: *normal_target,
             normal_arguments: extend_arguments(
                 *normal_target,
@@ -880,23 +888,27 @@ fn update_terminator_arguments(
         },
         Terminator::InvokeInterface {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => Terminator::InvokeInterface {
             receiver: resolve_value(*receiver, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
+            declared_target: *declared_target,
             normal_target: *normal_target,
             normal_arguments: extend_arguments(
                 *normal_target,
@@ -925,61 +937,67 @@ fn update_terminator_arguments(
             payload: payload.map(|value| resolve_value(value, substitutions)),
         },
         Terminator::Unreachable => Terminator::Unreachable,
-        Terminator::TailCall {
-            function,
-            arguments,
-            signature,
-        } => Terminator::TailCall {
+        Terminator::TailCall { function, call } => Terminator::TailCall {
             function: *function,
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
-            signature: *signature,
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
         },
         Terminator::TailCallVirtual {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
         } => Terminator::TailCallVirtual {
             receiver: resolve_value(*receiver, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
+            declared_target: *declared_target,
         },
         Terminator::TailCallInterface {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
         } => Terminator::TailCallInterface {
             receiver: resolve_value(*receiver, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
+            declared_target: *declared_target,
         },
-        Terminator::TailCallIndirect {
-            callee,
-            arguments,
-            signature,
-        } => Terminator::TailCallIndirect {
+        Terminator::TailCallIndirect { callee, call } => Terminator::TailCallIndirect {
             callee: resolve_value(*callee, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|v| resolve_value(*v, substitutions))
-                .collect(),
-            signature: *signature,
+            call: mir::Call {
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|v| resolve_value(*v, substitutions))
+                    .collect(),
+                ..call.clone()
+            },
         },
     }
 }

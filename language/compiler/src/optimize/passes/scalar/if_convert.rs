@@ -602,7 +602,8 @@ b3(v9: int32):
                 } => {
                     let accesses = test
                         .tree
-                        .memory_table
+                        .metadata
+                        .memory
                         .memory_accesses(instruction_id)
                         .expect("missing metadata for hoisted add");
                     assert_eq!(accesses.len(), 1);
@@ -618,7 +619,8 @@ b3(v9: int32):
                 } => {
                     let accesses = test
                         .tree
-                        .memory_table
+                        .metadata
+                        .memory
                         .memory_accesses(instruction_id)
                         .expect("missing metadata for hoisted sub");
                     assert_eq!(accesses.len(), 1);

@@ -568,7 +568,9 @@ fn replace_constant_calls(
                 value: constant.clone(),
             },
         );
-        tree.memory_table.remove_memory_accesses(call_instruction);
+        tree.metadata
+            .memory
+            .remove_memory_accesses(call_instruction);
         changed = true;
     }
 
@@ -598,11 +600,11 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call {
                             function: callee,
-                            arguments,
+                            call,
                             ..
                         } = instruction
                     {
-                        let arguments = tree.get_arguments(*arguments).to_vec();
+                        let arguments = tree.get_arguments(call.arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
                             callee: *callee,
@@ -626,7 +628,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             match &block.terminator {
                 mir::Terminator::Invoke {
                     function: callee,
-                    arguments,
+                    call,
                     ..
                 } => {
                     data.callsites.push(DirectCallSite {
@@ -634,19 +636,20 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         callee: *callee,
                         block: block_id,
                         call_instruction: None,
-                        arguments: arguments.clone(),
+                        arguments: call.arguments.clone(),
                     });
                 }
-                mir::Terminator::InvokeIndirect { signature, .. }
-                | mir::Terminator::InvokeVirtual { signature, .. }
-                | mir::Terminator::InvokeInterface { signature, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                mir::Terminator::InvokeIndirect { call, .. }
+                | mir::Terminator::InvokeVirtual { call, .. }
+                | mir::Terminator::InvokeInterface { call, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    {
                         data.indirect_signatures.insert(signature);
                     }
                 }
                 mir::Terminator::TailCall {
                     function: callee,
-                    arguments,
+                    call,
                     ..
                 } => {
                     data.callsites.push(DirectCallSite {
@@ -654,13 +657,14 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         callee: *callee,
                         block: block_id,
                         call_instruction: None,
-                        arguments: arguments.clone(),
+                        arguments: call.arguments.clone(),
                     });
                 }
-                mir::Terminator::TailCallIndirect { signature, .. }
-                | mir::Terminator::TailCallVirtual { signature, .. }
-                | mir::Terminator::TailCallInterface { signature, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                mir::Terminator::TailCallIndirect { call, .. }
+                | mir::Terminator::TailCallVirtual { call, .. }
+                | mir::Terminator::TailCallInterface { call, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    {
                         data.indirect_signatures.insert(signature);
                     }
                 }
@@ -679,14 +683,14 @@ fn call_is_pure(
     callee: mir::LocalNodeId<mir::Function>,
 ) -> bool {
     let instruction = tree.get(call_instruction);
-    let call_effects = instruction.call_effects();
-
     // resolve callsite effects when present
-    let effects = call_effects
-        .and_then(|meta| meta.memory_effects.clone())
-        .or_else(|| Some(tree.get(callee).memory_effects.clone()));
-    let behavior = call_effects
-        .and_then(|meta| meta.behavior.clone())
+    let effects = instruction
+        .call_memory_effect()
+        .cloned()
+        .or_else(|| Some(tree.get(callee).memory_effect.clone()));
+    let behavior = instruction
+        .call_behavior()
+        .cloned()
         .or_else(|| Some(tree.get(callee).call_behavior.clone()));
 
     // reject calls with no effect metadata
@@ -703,11 +707,11 @@ fn call_is_pure(
     }
 
     // reject calls with non local behavior
-    if behavior.unwind_behavior.may_unwind()
-        || behavior.noreturn
-        || behavior.convergent
-        || behavior.allocates
-        || behavior.frees
+    if behavior.unwind.may_unwind()
+        || behavior.return_behavior.is_no_return()
+        || behavior.must_not_duplicate
+        || behavior.allocation.allocate.is_some()
+        || behavior.allocation.free.is_some()
     {
         return false;
     }
@@ -782,7 +786,7 @@ b0:
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("pure");
-        test.tree.get_mut(callee_id).memory_effects = mir::MemoryEffect::none();
+        test.tree.get_mut(callee_id).memory_effect = mir::MemoryEffect::none();
         test.tree.get_mut(callee_id).call_behavior = mir::CallBehavior::none();
 
         test.run_module_pass(&InterproceduralSccp);

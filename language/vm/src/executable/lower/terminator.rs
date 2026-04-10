@@ -371,12 +371,8 @@ impl<'a> BlockLowerer<'a> {
                 },
             },
 
-            mir::Terminator::Invoke {
-                function,
-                arguments,
-                ..
-            } => {
-                let args = pool.argument_range(arguments);
+            mir::Terminator::Invoke { function, call, .. } => {
+                let args = pool.argument_range(&call.arguments);
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
@@ -400,10 +396,8 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::InvokeIndirect {
-                callee, arguments, ..
-            } => {
-                let arguments = pool.argument_range(arguments);
+            mir::Terminator::InvokeIndirect { callee, call, .. } => {
+                let arguments = pool.argument_range(&call.arguments);
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
@@ -428,10 +422,10 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::InvokeVirtual {
                 receiver,
                 slot_id,
-                arguments,
+                call,
                 ..
             } => {
-                let arguments = pool.argument_range(arguments);
+                let arguments = pool.argument_range(&call.arguments);
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
@@ -462,10 +456,10 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::InvokeInterface {
                 receiver,
                 slot_id,
-                arguments,
+                call,
                 ..
             } => {
-                let arguments = pool.argument_range(arguments);
+                let arguments = pool.argument_range(&call.arguments);
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
@@ -493,13 +487,9 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::TailCall {
-                function,
-                arguments,
-                ..
-            } => {
+            mir::Terminator::TailCall { function, call, .. } => {
                 if *function == self.function_id {
-                    let args = pool.argument_range(arguments);
+                    let args = pool.argument_range(&call.arguments);
                     Instruction {
                         operation: InstructionOperation::TailCallSelf,
                         data: InstructionData::TailCallSelf {
@@ -509,7 +499,7 @@ impl<'a> BlockLowerer<'a> {
                     }
                 } else {
                     let callee = self.tree.get(*function);
-                    let copies = pool.parameter_copy_range(&callee.parameters, arguments);
+                    let copies = pool.parameter_copy_range(&callee.parameters, &call.arguments);
                     let target = self.call_target(*function);
 
                     Instruction {
@@ -523,10 +513,8 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
-            } => {
-                let args = pool.argument_range(arguments);
+            mir::Terminator::TailCallIndirect { callee, call, .. } => {
+                let args = pool.argument_range(&call.arguments);
                 Instruction {
                     operation: InstructionOperation::TailCallIndirect,
                     data: InstructionData::TailCallIndirect {
@@ -539,10 +527,10 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::TailCallVirtual {
                 receiver,
                 slot_id,
-                arguments,
+                call,
                 ..
             } => {
-                let args = pool.argument_range(arguments);
+                let args = pool.argument_range(&call.arguments);
                 Instruction {
                     operation: InstructionOperation::TailCallVirtual,
                     data: InstructionData::TailCallVirtual {
@@ -560,10 +548,10 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::TailCallInterface {
                 receiver,
                 slot_id,
-                arguments,
+                call,
                 ..
             } => {
-                let args = pool.argument_range(arguments);
+                let args = pool.argument_range(&call.arguments);
                 Instruction {
                     operation: InstructionOperation::TailCallInterface,
                     data: InstructionData::TailCallInterface {

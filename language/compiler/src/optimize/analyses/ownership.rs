@@ -481,10 +481,10 @@ impl OwnershipAnalysis {
             }
 
             // call moves arguments (if non-copy)
-            Instruction::Call { arguments, .. }
-            | Instruction::CallVirtual { arguments, .. }
-            | Instruction::CallInterface { arguments, .. } => {
-                let args = tree.get_arguments(*arguments);
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. } => {
+                let args = tree.get_arguments(call.arguments);
                 for &arg in args {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
@@ -495,8 +495,8 @@ impl OwnershipAnalysis {
                     self.set_origin_for_destination(state, dest, None, tree);
                 }
             }
-            Instruction::CallIndirect { arguments, .. } => {
-                let args = tree.get_arguments(*arguments);
+            Instruction::CallIndirect { call, .. } => {
+                let args = tree.get_arguments(call.arguments);
                 for &arg in args {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
@@ -842,12 +842,13 @@ impl OwnershipAnalysis {
                 }
             }
             mir::Terminator::Invoke {
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -859,7 +860,7 @@ impl OwnershipAnalysis {
             }
             mir::Terminator::InvokeIndirect {
                 callee,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
@@ -867,7 +868,8 @@ impl OwnershipAnalysis {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved_with_source(*callee, at.clone());
                 }
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -879,14 +881,14 @@ impl OwnershipAnalysis {
             }
             mir::Terminator::InvokeVirtual {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
             | mir::Terminator::InvokeInterface {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
@@ -894,7 +896,8 @@ impl OwnershipAnalysis {
                 if !self.value_is_copy(*receiver, tree) {
                     state.mark_moved_with_source(*receiver, at.clone());
                 }
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -916,39 +919,29 @@ impl OwnershipAnalysis {
                     state.mark_moved_with_source(*payload, at.clone());
                 }
             }
-            mir::Terminator::TailCall { arguments, .. } => {
-                for &arg in arguments {
+            mir::Terminator::TailCall { call, .. } => {
+                for &arg in &call.arguments {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
-            mir::Terminator::TailCallVirtual {
-                receiver,
-                arguments,
-                ..
-            }
-            | mir::Terminator::TailCallInterface {
-                receiver,
-                arguments,
-                ..
-            } => {
+            mir::Terminator::TailCallVirtual { receiver, call, .. }
+            | mir::Terminator::TailCallInterface { receiver, call, .. } => {
                 if !self.value_is_copy(*receiver, tree) {
                     state.mark_moved_with_source(*receiver, at.clone());
                 }
-                for &arg in arguments {
+                for &arg in &call.arguments {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
-            mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
-            } => {
+            mir::Terminator::TailCallIndirect { callee, call, .. } => {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved_with_source(*callee, at.clone());
                 }
-                for &arg in arguments {
+                for &arg in &call.arguments {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
                     }
@@ -1295,26 +1288,18 @@ fn process_instruction(
 
         // call moves arguments (if non-copy)
         Instruction::Call {
-            destination,
-            arguments,
-            ..
+            destination, call, ..
         }
         | Instruction::CallVirtual {
-            destination,
-            arguments,
-            ..
+            destination, call, ..
         }
         | Instruction::CallInterface {
-            destination,
-            arguments,
-            ..
+            destination, call, ..
         }
         | Instruction::CallIndirect {
-            destination,
-            arguments,
-            ..
+            destination, call, ..
         } => {
-            let args = tree.get_arguments(*arguments);
+            let args = tree.get_arguments(call.arguments);
             for &arg in args {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
@@ -1631,12 +1616,13 @@ fn process_terminator(
             }
         }
         mir::Terminator::Invoke {
-            arguments,
+            call,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
-            for &arg in arguments
+            for &arg in call
+                .arguments
                 .iter()
                 .chain(normal_arguments.iter())
                 .chain(unwind_arguments.iter())
@@ -1646,13 +1632,14 @@ fn process_terminator(
         }
         mir::Terminator::InvokeIndirect {
             callee,
-            arguments,
+            call,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
             state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
-            for &arg in arguments
+            for &arg in call
+                .arguments
                 .iter()
                 .chain(normal_arguments.iter())
                 .chain(unwind_arguments.iter())
@@ -1662,20 +1649,21 @@ fn process_terminator(
         }
         mir::Terminator::InvokeVirtual {
             receiver,
-            arguments,
+            call,
             normal_arguments,
             unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeInterface {
             receiver,
-            arguments,
+            call,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
             state.mark_moved_if_not_copy_with_source(*receiver, at.clone(), tree, value_types);
-            for &arg in arguments
+            for &arg in call
+                .arguments
                 .iter()
                 .chain(normal_arguments.iter())
                 .chain(unwind_arguments.iter())
@@ -1695,31 +1683,21 @@ fn process_terminator(
         | mir::Terminator::Check { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Unreachable => {}
-        mir::Terminator::TailCall { arguments, .. } => {
-            for &arg in arguments {
+        mir::Terminator::TailCall { call, .. } => {
+            for &arg in &call.arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
-        mir::Terminator::TailCallVirtual {
-            receiver,
-            arguments,
-            ..
-        }
-        | mir::Terminator::TailCallInterface {
-            receiver,
-            arguments,
-            ..
-        } => {
+        mir::Terminator::TailCallVirtual { receiver, call, .. }
+        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
             state.mark_moved_if_not_copy_with_source(*receiver, at.clone(), tree, value_types);
-            for &arg in arguments {
+            for &arg in &call.arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
-        mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
-        } => {
+        mir::Terminator::TailCallIndirect { callee, call, .. } => {
             state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
-            for &arg in arguments {
+            for &arg in &call.arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }

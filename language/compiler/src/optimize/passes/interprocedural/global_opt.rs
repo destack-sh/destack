@@ -139,7 +139,8 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
                 };
 
                 // drop memory metadata for the load
-                tree.memory_table
+                tree.metadata
+                    .memory
                     .memory_accesses_by_instruction_id
                     .remove(&use_id);
                 entry_changed = true;
@@ -149,7 +150,8 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
                 // remove the global.address instruction after rewriting loads
                 let block = tree.get_mut(entry.block_id);
                 block.instructions.retain(|id| *id != entry.instruction_id);
-                tree.debug_table
+                tree.metadata
+                    .debug
                     .instruction_locations
                     .remove(&entry.instruction_id);
                 update_debug_for_removed_global_addr(
@@ -364,14 +366,14 @@ fn collect_written_globals(
                 }
 
                 // detect calls that may write memory
-                if let mir::Instruction::Call { arguments, .. }
-                | mir::Instruction::CallVirtual { arguments, .. }
-                | mir::Instruction::CallInterface { arguments, .. } = instruction
+                if let mir::Instruction::Call { call, .. }
+                | mir::Instruction::CallVirtual { call, .. }
+                | mir::Instruction::CallInterface { call, .. } = instruction
                     && call_writes_memory(tree, instruction)
-                    && any_argument_global(arguments, &definitions, addr_info, tree)
+                    && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
-                        arguments,
+                        &call.arguments,
                         &definitions,
                         addr_info,
                         tree,
@@ -379,10 +381,10 @@ fn collect_written_globals(
                     continue;
                 }
 
-                if let mir::Instruction::CallIndirect { arguments, .. } = instruction
+                if let mir::Instruction::CallIndirect { call, .. } = instruction
                     && call_writes_memory(tree, instruction)
                 {
-                    let args = tree.get_arguments(*arguments).to_vec();
+                    let args = tree.get_arguments(call.arguments).to_vec();
                     if any_argument_global_values(&args, &definitions, addr_info, tree) {
                         written.extend(globals_from_values(&args, &definitions, addr_info, tree));
                         continue;
@@ -523,21 +525,27 @@ fn update_debug_for_removed_global_addr(
     tree: &mut mir::NodeTree,
 ) {
     // read the function scope for debug updates
-    let Some(function_scope) = tree.debug_table.function_scopes.get(&function_id).copied() else {
+    let Some(function_scope) = tree
+        .metadata
+        .debug
+        .function_scopes
+        .get(&function_id)
+        .copied()
+    else {
         return;
     };
 
     // collect debug variables referencing the removed value
     let mut to_update = Vec::new();
-    for (index, binding) in tree.debug_table.bindings.iter().enumerate() {
+    for (index, binding) in tree.metadata.debug.bindings.iter().enumerate() {
         // skip bindings outside the function scope
-        if !scope_in_function(binding.scope, function_scope, &tree.debug_table) {
+        if !scope_in_function(binding.scope, function_scope, &tree.metadata.debug) {
             continue;
         }
 
         // read the current binding location ranges
         let binding_id = mir::DebugBindingId::new(index as u32);
-        let Some(ranges) = tree.debug_table.binding_location_ranges.get(&binding_id) else {
+        let Some(ranges) = tree.metadata.debug.binding_location_ranges.get(&binding_id) else {
             continue;
         };
 
@@ -554,7 +562,8 @@ fn update_debug_for_removed_global_addr(
     // rewrite debug locations to the global value
     for binding_id in to_update {
         if let Some(ranges) = tree
-            .debug_table
+            .metadata
+            .debug
             .binding_location_ranges
             .get_mut(&binding_id)
         {
@@ -569,7 +578,7 @@ fn update_debug_for_removed_global_addr(
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::DebugTable,
+    debug_info: &mir::Debug,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -600,15 +609,7 @@ fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
 
 /// Return true when a callsite may write memory.
 fn call_writes_memory(tree: &mir::NodeTree, instruction: &mir::Instruction) -> bool {
-    let Some(metadata) = instruction.call_effects() else {
-        let Some(function) = instruction.call_declared_target() else {
-            return true;
-        };
-
-        return function_memory_writes_from_tree(tree, function);
-    };
-
-    let Some(effects) = metadata.memory_effects.as_ref() else {
+    let Some(effects) = instruction.call_memory_effect() else {
         let Some(function) = instruction.call_declared_target() else {
             return true;
         };
@@ -626,35 +627,15 @@ fn terminator_write_arguments(
     terminator: &mir::Terminator,
 ) -> Option<Vec<mir::Value>> {
     match terminator {
-        mir::Terminator::Invoke {
-            function,
-            arguments,
-            ..
-        } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
-        mir::Terminator::InvokeIndirect { arguments, .. } => Some(arguments.clone()),
-        mir::Terminator::InvokeVirtual {
-            receiver,
-            arguments,
-            ..
+        mir::Terminator::Invoke { function, call, .. } => {
+            function_memory_writes_from_tree(tree, *function).then(|| call.arguments.clone())
         }
-        | mir::Terminator::InvokeInterface {
-            receiver,
-            arguments,
-            ..
-        }
-        | mir::Terminator::TailCallVirtual {
-            receiver,
-            arguments,
-            ..
-        }
-        | mir::Terminator::TailCallInterface {
-            receiver,
-            arguments,
-            ..
-        } => {
-            let declared_target = tree
-                .dispatch_metadata(mir::CallSite::Terminator(block_id))
-                .and_then(|metadata| metadata.declared_target);
+        mir::Terminator::InvokeIndirect { call, .. } => Some(call.arguments.clone()),
+        mir::Terminator::InvokeVirtual { receiver, call, .. }
+        | mir::Terminator::InvokeInterface { receiver, call, .. }
+        | mir::Terminator::TailCallVirtual { receiver, call, .. }
+        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
+            let declared_target = tree.get(block_id).terminator.call_declared_target();
 
             let may_write = declared_target
                 .map(|function| function_memory_writes_from_tree(tree, function))
@@ -664,16 +645,14 @@ fn terminator_write_arguments(
                 return None;
             }
 
-            let mut values = arguments.clone();
+            let mut values = call.arguments.clone();
             values.push(*receiver);
             Some(values)
         }
-        mir::Terminator::TailCall {
-            function,
-            arguments,
-            ..
-        } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
-        mir::Terminator::TailCallIndirect { arguments, .. } => Some(arguments.clone()),
+        mir::Terminator::TailCall { function, call, .. } => {
+            function_memory_writes_from_tree(tree, *function).then(|| call.arguments.clone())
+        }
+        mir::Terminator::TailCallIndirect { call, .. } => Some(call.arguments.clone()),
         _ => None,
     }
 }
@@ -683,7 +662,7 @@ fn function_memory_writes_from_tree(
     tree: &mir::NodeTree,
     function: mir::LocalNodeId<mir::Function>,
 ) -> bool {
-    tree.get(function).memory_effects.writes
+    tree.get(function).memory_effect.writes
 }
 
 #[cfg(test)]
@@ -814,23 +793,24 @@ b0:
 
         let root_name = test.tree.get(root_id).name;
         let global_type = test.tree.get(global_id).ty;
-        let file_id = FileId::new(0);
-        let span = Span::empty(file_id);
         let scope_id =
             test.tree
-                .debug_table
-                .create_scope(mir::DebugScopeKind::Function, None, span, None);
+                .metadata
+                .debug
+                .create_scope(mir::DebugScopeKind::Function, None, None, None);
         test.tree
-            .debug_table
+            .metadata
+            .debug
             .function_scopes
             .insert(root_id, scope_id);
-        let binding_id = test.tree.debug_table.create_binding(
+        let binding_id = test.tree.metadata.debug.create_binding(
             root_name,
             global_type,
             scope_id,
+            None,
             mir::DebugBindingKind::Local,
         );
-        test.tree.debug_table.binding_location_ranges.insert(
+        test.tree.metadata.debug.binding_location_ranges.insert(
             binding_id,
             vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
@@ -839,11 +819,11 @@ b0:
                 end: None,
             }],
         );
-        test.tree.debug_table.instruction_locations.insert(
+        test.tree.metadata.debug.instruction_locations.insert(
             instruction_id,
             mir::DebugLocation {
-                span,
                 scope: scope_id,
+                provenance: None,
                 inline_site: None,
             },
         );
@@ -852,7 +832,8 @@ b0:
         test.assert_output(expected);
         let location = test
             .tree
-            .debug_table
+            .metadata
+            .debug
             .binding_location_ranges
             .get(&binding_id)
             .expect("missing debug binding location");
@@ -869,7 +850,8 @@ b0:
         assert!(
             !test
                 .tree
-                .debug_table
+                .metadata
+                .debug
                 .instruction_locations
                 .contains_key(&instruction_id)
         );

@@ -11,7 +11,7 @@ use crate::optimize::common::{
     ValueEquivalence, address_spaces_may_alias, alias_scopes_may_alias,
     build_instruction_block_map, build_value_definition_map, effect_is_trackable,
     effects_match_location, instruction_has_atomic_ordering, location_sets_may_alias,
-    tbaa_tags_may_alias,
+    type_alias_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -564,11 +564,11 @@ fn memop_alias_result(
         return AliasResult::NoAlias;
     }
 
-    // apply tbaa metadata
-    if !tbaa_tags_may_alias(
-        &tree.memory_table.tbaa,
-        dest_effect.tbaa_tag,
-        source_effect.tbaa_tag,
+    // apply type-alias metadata
+    if !type_alias_tags_may_alias(
+        &tree.metadata.memory.type_alias,
+        dest_effect.type_alias_tag,
+        source_effect.type_alias_tag,
     ) {
         return AliasResult::NoAlias;
     }
@@ -783,7 +783,7 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effects =
+        test.tree.get_mut(callee).memory_effect =
             mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY);
 
         test.run_pass(&MemCse);
@@ -812,7 +812,7 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effects =
+        test.tree.get_mut(callee).memory_effect =
             mir::MemoryEffect::read_write(mir::MemoryRegionSet::ANY);
 
         test.run_pass(&MemCse);
@@ -855,7 +855,7 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effects =
+        test.tree.get_mut(callee).memory_effect =
             mir::MemoryEffect::write_only(mir::MemoryRegionSet::RAW_HEAP);
 
         test.run_pass(&MemCse);
@@ -898,9 +898,9 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effects =
+        test.tree.get_mut(callee).memory_effect =
             mir::MemoryEffect::write_only(mir::MemoryRegionSet::ANY)
-                .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared]));
+                .with_address_spaces(mir::AddressSpaceMask::new(vec![mir::AddressSpace::Shared]));
 
         test.run_pass(&MemCse);
         test.assert_output(expected);

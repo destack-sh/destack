@@ -975,10 +975,10 @@ fn check_instruction(
         Instruction::Call {
             destination,
             function,
-            arguments,
+            call,
             ..
         } => {
-            let args = checker.tree.get_arguments(*arguments);
+            let args = checker.tree.get_arguments(call.arguments);
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
@@ -988,17 +988,16 @@ fn check_instruction(
             }
         }
 
-        Instruction::CallVirtual { arguments, .. }
-        | Instruction::CallInterface { arguments, .. } => {
+        Instruction::CallVirtual { call, .. } | Instruction::CallInterface { call, .. } => {
             // callee is used, not moved
-            let args = checker.tree.get_arguments(*arguments);
+            let args = checker.tree.get_arguments(call.arguments);
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
         }
-        Instruction::CallIndirect { arguments, .. } => {
+        Instruction::CallIndirect { call, .. } => {
             // callee is used, not moved
-            let args = checker.tree.get_arguments(*arguments);
+            let args = checker.tree.get_arguments(call.arguments);
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
