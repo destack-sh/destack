@@ -4,7 +4,9 @@ use destack_core::{ImmutableStringPool, StringPool};
 use destack_source::{FileId, Span};
 
 use crate::validate::Validator;
-use crate::{Field, Function, Global, LocalNodeId, NodeTree, Type, Value};
+use crate::{
+    Block, Field, Function, Global, LocalNodeId, NodeTree, Type, Value, finalize_function_names,
+};
 
 use super::error::{ParseError, ParseResult};
 use super::key::{FieldKey, TypeKey};
@@ -46,12 +48,24 @@ pub struct Parser<'a> {
     pub(super) type_alias_map: HashMap<String, LocalNodeId<Type>>,
     /// Set of type aliases that have been defined.
     pub(super) type_alias_definitions: HashSet<String>,
+    /// Map from symbolic block names to their predeclared block ids.
+    pub(super) block_name_map: HashMap<String, LocalNodeId<Block>>,
+    /// Map from explicit numeric block labels to their predeclared block ids.
+    pub(super) block_id_by_label_index: HashMap<u32, LocalNodeId<Block>>,
+    /// Blocks predeclared for the current function body in source order.
+    pub(super) predeclared_blocks: Vec<LocalNodeId<Block>>,
+    /// Map from symbolic value names to their SSA ids.
+    pub(super) value_name_map: HashMap<String, Value>,
     /// Type interner for canonical type ids.
     pub(super) type_intern: HashMap<TypeKey, LocalNodeId<Type>>,
     /// Field interner for canonical field ids.
     pub(super) field_intern: HashMap<FieldKey, LocalNodeId<Field>>,
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
+    /// The next SSA value id for the current function.
+    pub(super) next_value_id: u32,
+    /// The number of blocks parsed in the current function so far.
+    pub(super) parsed_block_count: usize,
 }
 
 #[allow(clippy::type_complexity)]
@@ -71,9 +85,15 @@ impl<'a> Parser<'a> {
             global_map: HashMap::new(),
             type_alias_map: HashMap::new(),
             type_alias_definitions: HashSet::new(),
+            block_name_map: HashMap::new(),
+            block_id_by_label_index: HashMap::new(),
+            predeclared_blocks: Vec::new(),
+            value_name_map: HashMap::new(),
             type_intern: HashMap::new(),
             field_intern: HashMap::new(),
             current_function: None,
+            next_value_id: 0,
+            parsed_block_count: 0,
         }
     }
 
@@ -85,6 +105,16 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<(NodeTree, ImmutableStringPool)> {
         let mut parser = Parser::new(file_id, source, options);
         parser.parse_module()?;
+
+        // finalize generated MIR names before validation
+        let function_ids: Vec<_> = parser
+            .tree
+            .iter_nodes::<Function>()
+            .map(|(function_id, _)| function_id)
+            .collect();
+        for function_id in function_ids {
+            finalize_function_names(&mut parser.tree, &mut parser.strings, function_id);
+        }
 
         // validate the finished tree
         let validator = Validator::new(&parser.tree);
@@ -264,6 +294,114 @@ impl<'a> Parser<'a> {
 
             function.set_value_type(value, ty);
         }
+    }
+
+    /// Reset per-function parse state.
+    pub(super) fn reset_function_parse_state(&mut self) {
+        self.block_name_map.clear();
+        self.block_id_by_label_index.clear();
+        self.predeclared_blocks.clear();
+        self.value_name_map.clear();
+        self.next_value_id = 0;
+        self.parsed_block_count = 0;
+    }
+
+    /// Return whether the current token starts a value definition.
+    pub(super) fn is_value_definition_start(&self) -> bool {
+        if self.peek_token(TokenType::Value) {
+            return true;
+        }
+
+        let Some(token) = self.peek() else {
+            return false;
+        };
+
+        if token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        matches!(
+            self.peek_nth_token(1).map(|token| token.ty),
+            Some(TokenType::Colon)
+        )
+    }
+
+    /// Return whether the current token starts a value reference.
+    pub(super) fn is_value_reference_start(&self) -> bool {
+        self.peek()
+            .is_some_and(|token| matches!(token.ty, TokenType::Value | TokenType::Identifier))
+    }
+
+    /// Return whether the current token starts a block label.
+    pub(super) fn is_block_label_start(&self) -> bool {
+        if self.peek_token(TokenType::BlockRefence) {
+            return true;
+        }
+
+        let Some(token) = self.peek() else {
+            return false;
+        };
+
+        if token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        let Some(raw_index) = self
+            .tokens
+            .iter()
+            .enumerate()
+            .skip(self.pos)
+            .find_map(|(index, token)| (!token.ty.is_trivia()).then_some(index))
+        else {
+            return false;
+        };
+
+        let mut saw_colon = false;
+        for token in self.tokens.iter().skip(raw_index + 1) {
+            match token.ty {
+                TokenType::Newline | TokenType::End => break,
+                TokenType::Equals => return false,
+                TokenType::Colon => saw_colon = true,
+                _ => {}
+            }
+        }
+
+        saw_colon
+    }
+
+    /// Return whether the token at one raw index starts a line-local block label.
+    pub(super) fn is_block_label_token(&self, token_index: usize) -> bool {
+        let Some(token) = self.tokens.get(token_index) else {
+            return false;
+        };
+
+        if !matches!(token.ty, TokenType::BlockRefence | TokenType::Identifier) {
+            return false;
+        }
+
+        if self.tokens[..token_index]
+            .iter()
+            .rev()
+            .take_while(|token| token.ty != TokenType::Newline)
+            .any(|token| !token.ty.is_trivia())
+        {
+            return false;
+        }
+
+        let mut saw_label_marker = false;
+        let mut next_index = token_index + 1;
+        while let Some(next_token) = self.tokens.get(next_index) {
+            match next_token.ty {
+                TokenType::Newline | TokenType::End => break,
+                TokenType::Equals => return false,
+                TokenType::Colon | TokenType::OpenParen => saw_label_marker = true,
+                _ => {}
+            }
+
+            next_index += 1;
+        }
+
+        saw_label_marker
     }
 }
 

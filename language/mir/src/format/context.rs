@@ -111,9 +111,6 @@ pub struct MirFormatContext<'a> {
     file: File,
 
     // local context (a little bit hacky but fine for now)
-    /// Map from block ID to its index in the current function's block list.
-    /// Used for formatting block references with stable indices.
-    pub block_indices: HashMap<LocalNodeId<Block>, usize>,
     /// Map from local ID to its index in the current function's local list.
     pub local_indices: HashMap<LocalNodeId<Local>, usize>,
     /// Map from function ID to its unique display name.
@@ -124,8 +121,6 @@ pub struct MirFormatContext<'a> {
     pub type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     /// Synthetic aliases generated for readability.
     pub synthetic_aliases: Vec<(LocalNodeId<Type>, String)>,
-    /// Map from SSA value to its display index in the current function.
-    pub value_indices: HashMap<Value, usize>,
     /// The function currently being formatted.
     pub current_function: Option<LocalNodeId<Function>>,
 }
@@ -184,13 +179,11 @@ impl<'a> MirFormatContext<'a> {
             tree,
             strings,
             file: File::empty_text(FileType::Destack),
-            block_indices: HashMap::new(),
             local_indices: HashMap::new(),
             function_names,
             global_names,
             type_alias_by_type,
             synthetic_aliases,
-            value_indices: HashMap::new(),
             current_function: None,
         }
     }
@@ -205,15 +198,13 @@ impl<'a> MirFormatContext<'a> {
         name.to_string()
     }
 
-    /// Get the index of a block in the current function.
-    pub fn block_index(&self, id: LocalNodeId<Block>) -> usize {
-        // resolve the cached block index when available
-        if let Some(index) = self.block_indices.get(&id) {
-            return *index;
-        }
-
-        // fall back to the local id
-        id.id as usize
+    /// Get the display name of a block in the current function.
+    pub fn block_name(&self, id: LocalNodeId<Block>) -> String {
+        let block = self.tree.get(id);
+        let name = block
+            .name
+            .unwrap_or_else(|| panic!("missing MIR block name for {id:?}"));
+        self.strings.get(name).to_string()
     }
 
     /// Get the index of a local in the current function.
@@ -227,15 +218,17 @@ impl<'a> MirFormatContext<'a> {
         id.id as usize
     }
 
-    /// Get the display index for an SSA value in the current function.
-    pub fn value_index(&self, value: Value) -> usize {
-        // resolve the cached value index when available
-        if let Some(index) = self.value_indices.get(&value) {
-            return *index;
-        }
+    /// Get the display name for an SSA value in the current function.
+    pub fn value_name(&self, value: Value) -> String {
+        let function_id = self
+            .current_function
+            .unwrap_or_else(|| panic!("missing current function while formatting {value:?}"));
+        let function = self.tree.get(function_id);
+        let name = function
+            .value_name(value)
+            .unwrap_or_else(|| panic!("missing MIR value name for {value:?}"));
 
-        // fall back to the raw value id
-        value.0 as usize
+        self.strings.get(name).to_string()
     }
 
     /// Get the unique function display name.
@@ -577,8 +570,24 @@ fn type_key_for_alias(
     strings: &ImmutableStringPool,
     ty: LocalNodeId<Type>,
 ) -> String {
+    let mut active_types = HashSet::new();
+    type_key_for_alias_inner(tree, strings, ty, &mut active_types)
+}
+
+/// Build a structural key used for alias grouping.
+fn type_key_for_alias_inner(
+    tree: &NodeTree,
+    strings: &ImmutableStringPool,
+    ty: LocalNodeId<Type>,
+    active_types: &mut HashSet<LocalNodeId<Type>>,
+) -> String {
+    // stop when the traversal hits a recursive cycle
+    if !active_types.insert(ty) {
+        return format!("recursiveType{}", ty.id);
+    }
+
     // format a stable structural key
-    match tree.get(ty) {
+    let key = match tree.get(ty) {
         Type::Void => "void".to_string(),
         Type::Boolean => "boolean".to_string(),
         Type::Int { width, is_signed } => {
@@ -610,7 +619,8 @@ fn type_key_for_alias(
                 result.push_str("ref<");
             }
             // append the pointee key first
-            result.push_str(&type_key_for_alias(tree, strings, *pointee));
+            let pointee_key = type_key_for_alias_inner(tree, strings, *pointee, active_types);
+            result.push_str(&pointee_key);
 
             // append the reference kind
             result.push_str(", ");
@@ -645,13 +655,14 @@ fn type_key_for_alias(
             element, length, ..
         } => {
             // format array keys with element and length
-            format!("{}[{length}]", type_key_for_alias(tree, strings, *element))
+            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
+            format!("{element_key}[{length}]")
         }
         Type::Tuple { elements, .. } => {
             // join tuple element keys
             let elements = elements
                 .iter()
-                .map(|element| type_key_for_alias(tree, strings, *element))
+                .map(|element| type_key_for_alias_inner(tree, strings, *element, active_types))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("({elements})")
@@ -662,7 +673,8 @@ fn type_key_for_alias(
                 .iter()
                 .map(|field_id| {
                     let field = tree.get(*field_id);
-                    let field_type = type_key_for_alias(tree, strings, field.ty);
+                    let field_type =
+                        type_key_for_alias_inner(tree, strings, field.ty, active_types);
                     match field.name {
                         Some(name) => format!("{}: {field_type}", strings.get(name)),
                         None => field_type,
@@ -673,12 +685,12 @@ fn type_key_for_alias(
             format!("{{ {fields} }}")
         }
         Type::Newtype { inner, .. } => {
-            let inner_key = type_key_for_alias(tree, strings, *inner);
+            let inner_key = type_key_for_alias_inner(tree, strings, *inner, active_types);
             format!("newtype<{inner_key}>")
         }
         Type::Vector { element, lanes, .. } => {
             // format vector keys with element and lane count
-            let element_key = type_key_for_alias(tree, strings, *element);
+            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
             format!("vector<{element_key}, {lanes}>")
         }
         Type::Tensor {
@@ -688,7 +700,7 @@ fn type_key_for_alias(
             ..
         } => {
             // format tensor keys with element, shape, and layout
-            let element_key = type_key_for_alias(tree, strings, *element);
+            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
             let shape_key = format_shape_key(shape);
             let layout_key = format_tensor_layout_key(layout);
             format!("tensor<{element_key}, {shape_key}, {layout_key}>")
@@ -709,7 +721,8 @@ fn type_key_for_alias(
             } else {
                 result.push_str("tensorRef<");
             }
-            result.push_str(&type_key_for_alias(tree, strings, *element));
+            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
+            result.push_str(&element_key);
             result.push_str(", ");
             result.push_str(match kind {
                 ReferenceKind::Managed => "managed",
@@ -742,10 +755,10 @@ fn type_key_for_alias(
             // join parameter and result keys
             let params = parameters
                 .iter()
-                .map(|param| type_key_for_alias(tree, strings, *param))
+                .map(|param| type_key_for_alias_inner(tree, strings, *param, active_types))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias(tree, strings, *result);
+            let result = type_key_for_alias_inner(tree, strings, *result, active_types);
             format!("fn({params}) -> {result}")
         }
         Type::Closure { signature, .. } => {
@@ -754,13 +767,16 @@ fn type_key_for_alias(
             };
             let params = parameters
                 .iter()
-                .map(|param| type_key_for_alias(tree, strings, *param))
+                .map(|param| type_key_for_alias_inner(tree, strings, *param, active_types))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias(tree, strings, *result);
+            let result = type_key_for_alias_inner(tree, strings, *result, active_types);
             format!("closure({params}) -> {result}")
         }
-    }
+    };
+
+    active_types.remove(&ty);
+    key
 }
 
 /// Format a shape key for a tensor or vector.

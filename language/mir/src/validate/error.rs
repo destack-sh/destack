@@ -57,6 +57,18 @@ pub enum ValidateError {
         /// The anchor for this error.
         anchor: ValidateAnchor,
     },
+    /// A function block is missing its finalized name.
+    MissingBlockName {
+        /// The block missing a name.
+        block_id: LocalNodeId<Block>,
+        /// The anchor for this error.
+        anchor: ValidateAnchor,
+    },
+    /// Two blocks in one function share a name.
+    DuplicateBlockName {
+        /// The anchor for this error.
+        anchor: ValidateAnchor,
+    },
     /// A local id is listed more than once.
     DuplicateLocalId {
         /// The duplicate local id.
@@ -75,6 +87,18 @@ pub enum ValidateError {
     DuplicateValueDefinition {
         /// The duplicate value.
         value: Value,
+        /// The anchor for this error.
+        anchor: ValidateAnchor,
+    },
+    /// A defined SSA value is missing its finalized name.
+    MissingValueName {
+        /// The value missing a name.
+        value: Value,
+        /// The anchor for this error.
+        anchor: ValidateAnchor,
+    },
+    /// Two values in one function share a name.
+    DuplicateValueName {
         /// The anchor for this error.
         anchor: ValidateAnchor,
     },
@@ -222,9 +246,13 @@ impl ValidateError {
             | ValidateError::EntryBlockNotInFunction { anchor }
             | ValidateError::EntryBlockParameterMismatch { anchor }
             | ValidateError::DuplicateBlockId { anchor, .. }
+            | ValidateError::MissingBlockName { anchor, .. }
+            | ValidateError::DuplicateBlockName { anchor, .. }
             | ValidateError::DuplicateLocalId { anchor, .. }
             | ValidateError::DuplicateInstructionId { anchor, .. }
             | ValidateError::DuplicateValueDefinition { anchor, .. }
+            | ValidateError::MissingValueName { anchor, .. }
+            | ValidateError::DuplicateValueName { anchor, .. }
             | ValidateError::MissingValueType { anchor, .. }
             | ValidateError::InvalidNodeReference { anchor, .. }
             | ValidateError::LocalReferenceNotInFunction { anchor, .. }
@@ -264,6 +292,12 @@ impl fmt::Display for ValidateError {
             ValidateError::DuplicateBlockId { block_id, .. } => {
                 write!(f, "duplicate block id block{}", block_id.id)
             }
+            ValidateError::MissingBlockName { block_id, .. } => {
+                write!(f, "missing MIR block name for block{}", block_id.id)
+            }
+            ValidateError::DuplicateBlockName { .. } => {
+                write!(f, "duplicate MIR block name")
+            }
             ValidateError::DuplicateLocalId { local_id, .. } => {
                 write!(f, "duplicate local id local{}", local_id.id)
             }
@@ -272,6 +306,12 @@ impl fmt::Display for ValidateError {
             }
             ValidateError::DuplicateValueDefinition { value, .. } => {
                 write!(f, "duplicate value definition v{}", value.id())
+            }
+            ValidateError::MissingValueName { value, .. } => {
+                write!(f, "missing MIR value name for v{}", value.id())
+            }
+            ValidateError::DuplicateValueName { .. } => {
+                write!(f, "duplicate MIR value name")
             }
             ValidateError::MissingValueType { value, .. } => {
                 write!(f, "missing type for value v{}", value.id())

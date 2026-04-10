@@ -80,6 +80,7 @@ impl<'a> Parser<'a> {
                         name: name_id,
                         parameters: Vec::new(),
                         parameter_names: Vec::new(),
+                        value_names: Vec::new(),
                         value_types: Vec::new(),
                         return_type: void_type,
                         return_lifetime: Lifetime::Inferred,
@@ -180,28 +181,7 @@ impl<'a> Parser<'a> {
         let (name, _) = self.parse_symbol_name()?;
 
         // parameter list
-        self.eat_token(TokenType::OpenParen)?;
-        let parameters = if linkage.is_import() {
-            let mut parameter_types = Vec::new();
-            while !self.peek_token(TokenType::CloseParen) {
-                parameter_types.push(self.parse_type()?);
-                if !self.eat_token_maybe(TokenType::Comma) {
-                    break;
-                }
-            }
-
-            parameter_types
-                .iter()
-                .enumerate()
-                .map(|(index, &ty)| TypedValue {
-                    value: Value::new(index as u32),
-                    ty,
-                })
-                .collect::<Vec<_>>()
-        } else {
-            self.parse_typed_value_list()?
-        };
-        self.eat_token(TokenType::CloseParen)?;
+        let parameters = self.scan_function_placeholder_parameters(linkage)?;
 
         // return type
         self.eat_token(TokenType::Colon)?;
@@ -222,8 +202,96 @@ impl<'a> Parser<'a> {
         }
 
         // definitions: skip the body without trying to parse it yet
+        self.skip_optional_braced_body();
+
+        Ok(())
+    }
+
+    /// Scan one function parameter list for placeholder seeding.
+    fn scan_function_placeholder_parameters(
+        &mut self,
+        linkage: Linkage,
+    ) -> ParseResult<Vec<TypedValue>> {
+        self.eat_token(TokenType::OpenParen)?;
+
+        let parameters = if linkage.is_import() {
+            let mut parameter_types = Vec::new();
+            while !self.peek_token(TokenType::CloseParen) {
+                parameter_types.push(self.parse_type()?);
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
+                }
+            }
+
+            parameter_types
+                .into_iter()
+                .enumerate()
+                .map(|(index, ty)| TypedValue {
+                    value: Value::new(index as u32),
+                    ty,
+                })
+                .collect()
+        } else {
+            let mut parameters = Vec::new();
+            let mut next_value_id = 0u32;
+
+            while !self.peek_token(TokenType::CloseParen) {
+                let value = self.scan_function_placeholder_value(&mut next_value_id)?;
+                self.eat_token(TokenType::Colon)?;
+                let ty = self.parse_type()?;
+                parameters.push(TypedValue { value, ty });
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
+                }
+            }
+
+            parameters
+        };
+
+        self.eat_token(TokenType::CloseParen)?;
+
+        Ok(parameters)
+    }
+
+    /// Scan one value definition for placeholder signature seeding.
+    fn scan_function_placeholder_value(&mut self, next_value_id: &mut u32) -> ParseResult<Value> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
+        let token_ty = token.ty;
+        let token_text = token.text.to_string();
+        let token_start = token.start;
+
+        match token_ty {
+            TokenType::Value => {
+                self.bump();
+
+                let index: u32 = token_text
+                    .strip_prefix('v')
+                    .and_then(|text| text.parse().ok())
+                    .ok_or_else(|| ParseError::invalid("value definition", token_start))?;
+                *next_value_id = (*next_value_id).max(index + 1);
+                Ok(Value::new(index))
+            }
+            TokenType::Identifier => {
+                self.bump();
+
+                let value = Value::new(*next_value_id);
+                *next_value_id += 1;
+                Ok(value)
+            }
+            _ => Err(ParseError::unexpected(
+                "value definition",
+                token_ty,
+                token_start,
+            )),
+        }
+    }
+
+    /// Skip one braced body when present.
+    fn skip_optional_braced_body(&mut self) {
         if !self.eat_token_maybe(TokenType::OpenBrace) {
-            return Ok(());
+            return;
         }
 
         let mut depth = 1usize;
@@ -236,8 +304,6 @@ impl<'a> Parser<'a> {
 
             self.bump();
         }
-
-        Ok(())
     }
 
     /// Parse a type alias definition.

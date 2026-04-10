@@ -1,6 +1,8 @@
 use crate::build::{FunctionBuilder, ModuleBuilder};
+use crate::validate::Validator;
 use crate::{
     Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type, TypedValue, Value,
+    finalize_function_names,
 };
 
 impl ModuleBuilder {
@@ -61,6 +63,7 @@ impl ModuleBuilder {
         let name_id = self.strings.intern(name);
         FunctionBuilder::new(
             &mut self.tree,
+            &mut self.strings,
             name_id,
             parameter_types,
             return_type,
@@ -70,7 +73,7 @@ impl ModuleBuilder {
 
     /// Start building a body for an existing declared function.
     pub fn function_body(&mut self, function_id: LocalNodeId<Function>) -> FunctionBuilder<'_> {
-        FunctionBuilder::from_declared(&mut self.tree, function_id, self.verify)
+        FunctionBuilder::from_declared(&mut self.tree, &mut self.strings, function_id, self.verify)
     }
 
     /// Declare a local function without a body.
@@ -89,8 +92,17 @@ impl ModuleBuilder {
                 ty,
             })
             .collect();
-        self.tree
-            .insert(Function::declare(name_id, parameters, return_type))
+        let function_id = self
+            .tree
+            .insert(Function::declare(name_id, parameters, return_type));
+        finalize_function_names(&mut self.tree, &mut self.strings, function_id);
+
+        let validator = Validator::new(&self.tree);
+        if let Err(error) = validator.validate_function(function_id) {
+            panic!("mir validation failed: {error}");
+        }
+
+        function_id
     }
 
     /// Declare an external function (defined elsewhere).
@@ -109,7 +121,16 @@ impl ModuleBuilder {
                 ty,
             })
             .collect();
-        self.tree
-            .insert(Function::import(name_id, parameters, return_type))
+        let function_id = self
+            .tree
+            .insert(Function::import(name_id, parameters, return_type));
+        finalize_function_names(&mut self.tree, &mut self.strings, function_id);
+
+        let validator = Validator::new(&self.tree);
+        if let Err(error) = validator.validate_function(function_id) {
+            panic!("mir validation failed: {error}");
+        }
+
+        function_id
     }
 }

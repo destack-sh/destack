@@ -198,38 +198,30 @@ impl TryFrom<&str> for ExecutionStage {
 pub struct Function {
     /// The function's name (for linking and debugging).
     pub name: StringId,
+    /// Linkage (local, export, or import).
+    pub linkage: Linkage,
+
     /// Function parameters as typed SSA values.
     pub parameters: Vec<TypedValue>,
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
+    /// Pointer attributes for parameters, indexed by parameter position.
+    pub parameter_attributes: Vec<PointerAttribute>,
+
+    /// Optional explicit SSA value names keyed by value id.
+    pub value_names: Vec<Option<StringId>>,
     /// SSA value types by value id.
     pub value_types: Vec<LocalNodeId<Type>>,
+    /// Counter for allocating unique SSA value IDs.
+    pub(crate) next_value_id: u32,
+
     /// The return type.
     pub return_type: LocalNodeId<Type>,
     /// Lifetime bounds for the return value.
     pub return_lifetime: Lifetime,
-    /// Memory effect for this function.
-    pub memory_effect: MemoryEffect,
-    /// Behavioral effects for this function.
-    pub call_behavior: CallBehavior,
-    /// Allocation size metadata for allocator-like functions.
-    pub allocation_size: Option<AllocationSize>,
-    /// Pointer attributes for parameters, indexed by parameter position.
-    pub parameter_attributes: Vec<PointerAttribute>,
     /// Pointer attribute for the return value.
     pub return_attribute: PointerAttribute,
-    /// Linkage (local, export, or import).
-    pub linkage: Linkage,
-    /// Memory allocation restrictions for this function.
-    pub allocation: AllocationMode,
-    /// The suspension kind when this function can suspend.
-    pub suspension: Option<SuspensionKind>,
-    /// The execution model for GPU kernels.
-    pub execution_model: Option<ExecutionModel>,
-    /// The execution stage within the pipeline.
-    pub execution_stage: Option<ExecutionStage>,
-    /// The workgroup size for compute kernels.
-    pub workgroup_size: Option<[u32; 3]>,
+
     /// The hidden environment type for this function when present.
     pub environment: Option<LocalNodeId<Type>>,
     /// Local variables (stack-allocated slots for mutable bindings).
@@ -239,8 +231,23 @@ pub struct Function {
     /// The entry block (execution starts here).
     pub entry: Option<LocalNodeId<Block>>,
 
-    /// Counter for allocating unique SSA value IDs.
-    pub(crate) next_value_id: u32,
+    /// Memory effect for this function.
+    pub memory_effect: MemoryEffect,
+    /// Behavioral effects for this function.
+    pub call_behavior: CallBehavior,
+    /// Allocation size metadata for allocator-like functions.
+    pub allocation_size: Option<AllocationSize>,
+    /// Memory allocation restrictions for this function.
+    pub allocation: AllocationMode,
+    /// The suspension kind when this function can suspend.
+    pub suspension: Option<SuspensionKind>,
+
+    /// The execution model for GPU kernels.
+    pub execution_model: Option<ExecutionModel>,
+    /// The execution stage within the pipeline.
+    pub execution_stage: Option<ExecutionStage>,
+    /// The workgroup size for compute kernels.
+    pub workgroup_size: Option<[u32; 3]>,
 }
 
 impl Node for Function {
@@ -264,6 +271,7 @@ impl Function {
             name,
             parameters,
             parameter_names,
+            value_names: vec![None; next_value_id as usize],
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
@@ -306,6 +314,7 @@ impl Function {
             name,
             parameters,
             parameter_names,
+            value_names: vec![None; next_value_id as usize],
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
@@ -345,6 +354,7 @@ impl Function {
             name,
             parameters,
             parameter_names,
+            value_names: vec![None; next_value_id as usize],
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
@@ -372,6 +382,11 @@ impl Function {
         self.value_types.get(value.0 as usize).copied()
     }
 
+    /// Get the explicit name for an SSA value when one exists.
+    pub fn value_name(&self, value: Value) -> Option<StringId> {
+        self.value_names.get(value.0 as usize).copied().flatten()
+    }
+
     /// Get the type for an SSA value or panic if missing.
     pub fn require_value_type(&self, value: Value) -> LocalNodeId<Type> {
         // ensure value types are always recorded for SSA values
@@ -387,6 +402,9 @@ impl Function {
         let index = value.0 as usize;
         if index == self.value_types.len() {
             self.value_types.push(ty);
+            if index == self.value_names.len() {
+                self.value_names.push(None);
+            }
             return;
         }
 

@@ -1,3 +1,5 @@
+use destack_source::Span;
+
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block, Call,
     CallBehavior, CheckConstraint, CheckTarget, ExecutionModel, ExecutionStage, Function,
@@ -151,36 +153,18 @@ impl<'a> Parser<'a> {
             .get(&name)
             .unwrap_or_else(|| panic!("function {name} should be pre-registered"));
         self.current_function = Some(function_id);
+        self.reset_function_parse_state();
 
         // function metadata
         let (execution_model, execution_stage, workgroup_size, environment_type) =
             self.resolve_function_attributes(&attributes)?;
 
         // parameters
-        self.eat_token(TokenType::OpenParen)?;
-        let parameters = if linkage.is_import() {
-            // extern parameters
-            let mut parameter_types = Vec::new();
-            while !self.peek_token(TokenType::CloseParen) {
-                parameter_types.push(self.parse_type()?);
-                if !self.eat_token_maybe(TokenType::Comma) {
-                    break;
-                }
-            }
-
-            parameter_types
-                .iter()
-                .enumerate()
-                .map(|(index, &ty)| TypedValue {
-                    value: Value::new(index as u32),
-                    ty,
-                })
-                .collect()
-        } else {
-            // definition parameters
-            self.parse_typed_value_list()?
-        };
-        self.eat_token(TokenType::CloseParen)?;
+        let parameters = self.parse_function_parameters(linkage)?;
+        let parameter_names = parameters
+            .iter()
+            .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
+            .collect::<Vec<_>>();
 
         // return type
         self.eat_token(TokenType::Colon)?;
@@ -190,13 +174,14 @@ impl<'a> Parser<'a> {
         if linkage.is_import() {
             let name_id = self.strings.intern(&name);
             let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
-            let parameter_count = parameters.len();
             let value_types = self.seed_value_types(&parameters);
             let next_value_id = value_types.len() as u32;
+            let value_names = self.tree.get(function_id).value_names.clone();
             let function = Function {
                 name: name_id,
                 parameters,
-                parameter_names: vec![None; parameter_count],
+                parameter_names,
+                value_names,
                 value_types,
                 return_type,
                 return_lifetime: Lifetime::Inferred,
@@ -244,7 +229,7 @@ impl<'a> Parser<'a> {
         let function = self.tree.get_mut(id);
         function.name = name_id;
         function.parameters = parameters.clone();
-        function.parameter_names = vec![None; parameters.len()];
+        function.parameter_names = parameter_names;
         function.value_types = value_types;
         function.return_type = return_type;
         function.linkage = linkage;
@@ -268,24 +253,18 @@ impl<'a> Parser<'a> {
             locals.push(local);
         }
 
-        // blocks and source index mapping
+        // predeclare symbolic block labels so references can resolve forward
+        self.predeclare_blocks()?;
+
+        // blocks
         let mut blocks = Vec::new();
-        let mut source_index_to_block = Vec::<Option<LocalNodeId<Block>>>::new();
-        while self.peek_token(TokenType::BlockRefence) {
-            let (block, source_idx) = self.parse_block()?;
-
-            while source_index_to_block.len() <= source_idx as usize {
-                source_index_to_block.push(None);
-            }
-
-            source_index_to_block[source_idx as usize] = Some(block);
+        while self.is_block_label_start() {
+            let block = self.parse_block()?;
             blocks.push(block);
+            self.parsed_block_count += 1;
         }
 
         // resolve body references
-        for block_id in &blocks {
-            self.resolve_block_terminators(*block_id, &source_index_to_block);
-        }
         let source_index_to_local: Vec<_> = locals.clone();
         for block_id in &blocks {
             self.resolve_local_references(*block_id, &source_index_to_local);
@@ -312,6 +291,36 @@ impl<'a> Parser<'a> {
         }
 
         Ok(id)
+    }
+
+    /// Parse one function parameter list.
+    fn parse_function_parameters(&mut self, linkage: Linkage) -> ParseResult<Vec<TypedValue>> {
+        self.eat_token(TokenType::OpenParen)?;
+
+        let parameters = if linkage.is_import() {
+            let mut parameter_types = Vec::new();
+            while !self.peek_token(TokenType::CloseParen) {
+                parameter_types.push(self.parse_type()?);
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
+                }
+            }
+
+            parameter_types
+                .into_iter()
+                .enumerate()
+                .map(|(index, ty)| TypedValue {
+                    value: Value::new(index as u32),
+                    ty,
+                })
+                .collect()
+        } else {
+            self.parse_typed_value_list()?
+        };
+
+        self.eat_token(TokenType::CloseParen)?;
+
+        Ok(parameters)
     }
 
     /// Parse a workgroupSize attribute.
@@ -491,25 +500,52 @@ impl<'a> Parser<'a> {
         Ok(self.tree.insert(local))
     }
 
-    /// Parse a basic block and return (block_id, source_index).
-    fn parse_block(&mut self) -> ParseResult<(LocalNodeId<Block>, u32)> {
-        // block header
-        let (block_span, source_idx) = {
-            let block_token = self.eat_token(TokenType::BlockRefence)?;
-            let block_start = block_token.start;
-            let block_length = block_token.text.len();
-            let source_idx = block_token
-                .text
-                .strip_prefix('b')
-                .and_then(|text| text.parse().ok())
-                .ok_or_else(|| ParseError::invalid("block reference", block_token.start))?;
+    /// Parse a basic block into its predeclared block id.
+    fn parse_block(&mut self) -> ParseResult<LocalNodeId<Block>> {
+        let Some(&block_id) = self.predeclared_blocks.get(self.parsed_block_count) else {
+            panic!(
+                "missing predeclared block for parsed block {}",
+                self.parsed_block_count
+            );
+        };
 
-            (self.span_at(block_start, block_length), source_idx)
+        // block header
+        let (block_span, block_name) = {
+            let block_token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("block label", self.pos()))?;
+            let block_span = self.span_for_token(block_token);
+
+            let block_name = match block_token.ty {
+                TokenType::BlockRefence => {
+                    self.bump();
+                    None
+                }
+                TokenType::Identifier => {
+                    let name = block_token.text.to_string();
+                    self.bump();
+                    let name_id = self.strings.intern(&name);
+                    Some(name_id)
+                }
+                _ => {
+                    return Err(ParseError::unexpected(
+                        "block label",
+                        block_token.ty,
+                        block_token.start,
+                    ));
+                }
+            };
+
+            (block_span, block_name)
         };
 
         // block parameters
         let parameters = if self.eat_token_maybe(TokenType::OpenParen) {
-            let params = self.parse_typed_value_list()?;
+            let params = if self.is_entry_block_parameter_list() {
+                self.parse_entry_block_parameters()?
+            } else {
+                self.parse_typed_value_list()?
+            };
             self.eat_token(TokenType::CloseParen)?;
             params
         } else {
@@ -527,7 +563,7 @@ impl<'a> Parser<'a> {
         let mut instructions = Vec::new();
         let mut terminator = None;
 
-        while !self.peek_token(TokenType::BlockRefence)
+        while !self.is_block_label_start()
             && !self.peek_token(TokenType::CloseBrace)
             && !self.peek_token(TokenType::End)
         {
@@ -563,15 +599,106 @@ impl<'a> Parser<'a> {
 
         // finalize block
         let block = Block {
+            name: block_name,
             parameters,
             instructions,
             terminator: terminator.unwrap_or(Terminator::Unreachable),
         };
 
-        let id = self.tree.insert(block);
-        self.tree.set_text_span(id, block_span);
+        *self.tree.get_mut(block_id) = block;
+        self.tree.set_text_span(block_id, block_span);
 
-        Ok((id, source_idx))
+        Ok(block_id)
+    }
+
+    /// Return whether the current block header is the entry block parameter mirror.
+    fn is_entry_block_parameter_list(&self) -> bool {
+        let Some(function_id) = self.current_function else {
+            return false;
+        };
+
+        let function = self.tree.get(function_id);
+        self.parsed_block_count == 0 && !function.parameters.is_empty()
+    }
+
+    /// Parse the entry block parameter mirror and reuse the function parameters.
+    fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<TypedValue>> {
+        let function_id = self
+            .current_function
+            .unwrap_or_else(|| panic!("entry block parameters require a current function"));
+        let parameters = self.tree.get(function_id).parameters.clone();
+
+        for (parameter_index, parameter) in parameters.iter().enumerate() {
+            let (value, _) = self.parse_entry_block_parameter()?;
+            if value != parameter.value {
+                return Err(ParseError::new(
+                    format!(
+                        "entry block parameter {parameter_index} expected value {:?} got {:?}",
+                        parameter.value, value
+                    ),
+                    self.pos(),
+                ));
+            }
+
+            self.eat_token(TokenType::Colon)?;
+            let ty = self.parse_type()?;
+            if ty != parameter.ty {
+                return Err(ParseError::new(
+                    format!(
+                        "entry block parameter {parameter_index} expected type {:?} got {:?}",
+                        parameter.ty, ty
+                    ),
+                    self.pos(),
+                ));
+            }
+
+            if parameter_index + 1 < parameters.len() {
+                self.eat_token(TokenType::Comma)?;
+            }
+        }
+
+        Ok(parameters)
+    }
+
+    /// Parse one entry block parameter and resolve it to the mirrored function parameter.
+    fn parse_entry_block_parameter(&mut self) -> ParseResult<(Value, Span)> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("entry block parameter", self.pos()))?;
+        let span = self.span_for_token(token);
+
+        match token.ty {
+            TokenType::Value => {
+                let text = token.text.to_string();
+                self.bump();
+
+                let index: u32 = text
+                    .strip_prefix('v')
+                    .and_then(|text| text.parse().ok())
+                    .ok_or_else(|| {
+                        ParseError::invalid("entry block parameter", span.start as usize)
+                    })?;
+
+                Ok((Value::new(index), span))
+            }
+            TokenType::Identifier => {
+                let name = token.text.to_string();
+                let start = token.start;
+                self.bump();
+
+                let value =
+                    self.value_name_map.get(&name).copied().ok_or_else(|| {
+                        ParseError::new(format!("undefined value '{name}'"), start)
+                    })?;
+
+                Ok((value, span))
+            }
+            _ => Err(ParseError::unexpected(
+                "entry block parameter",
+                token.ty,
+                token.start,
+            )),
+        }
     }
 
     /// Return whether the current line contains call continuations.
@@ -607,7 +734,7 @@ impl<'a> Parser<'a> {
         match token.ty {
             TokenType::Return => {
                 self.bump();
-                let value = if self.peek_token(TokenType::Value) {
+                let value = if self.is_value_reference_start() {
                     Some(self.parse_value()?)
                 } else {
                     None
@@ -1119,114 +1246,65 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    /// Resolve block references in terminators after parsing blocks.
-    fn resolve_block_terminators(
-        &mut self,
-        block_id: LocalNodeId<Block>,
-        source_to_actual: &[Option<LocalNodeId<Block>>],
-    ) {
-        let block = self.tree.get_mut(block_id);
+    /// Collect and predeclare blocks before parsing the function body.
+    fn predeclare_blocks(&mut self) -> ParseResult<()> {
+        let mut token_index = self.pos;
 
-        // rewrite terminator targets
-        match &mut block.terminator {
-            Terminator::Return { .. }
-            | Terminator::Throw { .. }
-            | Terminator::Trap { .. }
-            | Terminator::Unreachable
-            | Terminator::TailCall { .. }
-            | Terminator::TailCallIndirect { .. }
-            | Terminator::TailCallVirtual { .. }
-            | Terminator::TailCallInterface { .. } => {}
-            Terminator::Invoke {
-                normal_target,
-                unwind_target,
-                ..
+        while token_index < self.tokens.len() {
+            let Some(token) = self.tokens.get(token_index) else {
+                break;
+            };
+
+            if token.ty == TokenType::CloseBrace || token.ty == TokenType::End {
+                break;
             }
-            | Terminator::InvokeIndirect {
-                normal_target,
-                unwind_target,
-                ..
+
+            if !self.is_block_label_token(token_index) {
+                token_index += 1;
+                continue;
             }
-            | Terminator::InvokeVirtual {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeInterface {
-                normal_target,
-                unwind_target,
-                ..
-            } => {
-                *normal_target = source_to_actual
-                    .get(normal_target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*normal_target);
-                *unwind_target = source_to_actual
-                    .get(unwind_target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*unwind_target);
-            }
-            Terminator::Jump { target, .. } => {
-                *target = source_to_actual
-                    .get(target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*target);
-            }
-            Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                *then_target = source_to_actual
-                    .get(then_target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*then_target);
-                *else_target = source_to_actual
-                    .get(else_target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*else_target);
-            }
-            Terminator::Check {
-                success, failure, ..
-            } => {
-                success.target = source_to_actual
-                    .get(success.target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(success.target);
-                failure.target = source_to_actual
-                    .get(failure.target.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(failure.target);
-            }
-            Terminator::Switch { default, cases, .. } => {
-                *default = source_to_actual
-                    .get(default.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*default);
-                for case in cases.iter_mut() {
-                    case.target = source_to_actual
-                        .get(case.target.id as usize)
-                        .copied()
-                        .flatten()
-                        .unwrap_or(case.target);
+
+            let block_id = self.tree.insert(Block::new());
+            self.predeclared_blocks.push(block_id);
+
+            match token.ty {
+                TokenType::BlockRefence => {
+                    let source_index = token
+                        .text
+                        .strip_prefix('b')
+                        .and_then(|text| text.parse::<u32>().ok())
+                        .ok_or_else(|| ParseError::invalid("block label", token.start))?;
+
+                    if self
+                        .block_id_by_label_index
+                        .insert(source_index, block_id)
+                        .is_some()
+                    {
+                        return Err(ParseError::new(
+                            format!("duplicate block label '{}'", token.text),
+                            token.start,
+                        ));
+                    }
                 }
+                TokenType::Identifier => {
+                    if self
+                        .block_name_map
+                        .insert(token.text.to_string(), block_id)
+                        .is_some()
+                    {
+                        return Err(ParseError::new(
+                            format!("duplicate block label '{}'", token.text),
+                            token.start,
+                        ));
+                    }
+                }
+                _ => unreachable!("block label predeclaration should only see block labels"),
             }
-            Terminator::Yield { resume, .. } => {
-                *resume = source_to_actual
-                    .get(resume.id as usize)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(*resume);
-            }
+
+            token_index += 1;
         }
+
+        Ok(())
     }
 
     /// Resolve local references in instructions after parsing locals.

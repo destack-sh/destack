@@ -62,6 +62,95 @@ impl<'tree> Validator<'tree> {
             )?;
         }
 
+        self.validate_names(function_id, function)?;
+
+        Ok(())
+    }
+
+    /// Validate block and SSA value names for one function.
+    fn validate_names(
+        &self,
+        function_id: LocalNodeId<Function>,
+        function: &Function,
+    ) -> ValidateResult<()> {
+        let entry = function.entry;
+        let mut block_names = HashSet::new();
+        let mut value_names = HashSet::new();
+
+        // block names
+        for &block_id in &function.blocks {
+            let block = self.tree.get(block_id);
+            let Some(name_id) = block.name else {
+                return Err(ValidateError::MissingBlockName {
+                    block_id,
+                    anchor: ValidateAnchor::node(block_id),
+                });
+            };
+
+            if !block_names.insert(name_id) {
+                return Err(ValidateError::DuplicateBlockName {
+                    anchor: ValidateAnchor::node(block_id),
+                });
+            }
+        }
+
+        // parameter names
+        for parameter in &function.parameters {
+            let Some(name_id) = function.value_name(parameter.value) else {
+                return Err(ValidateError::MissingValueName {
+                    value: parameter.value,
+                    anchor: ValidateAnchor::node(function_id),
+                });
+            };
+
+            if !value_names.insert(name_id) {
+                return Err(ValidateError::DuplicateValueName {
+                    anchor: ValidateAnchor::node(function_id),
+                });
+            }
+        }
+
+        // block parameter and instruction names
+        for &block_id in &function.blocks {
+            let block = self.tree.get(block_id);
+
+            if Some(block_id) != entry {
+                for parameter in &block.parameters {
+                    let Some(name_id) = function.value_name(parameter.value) else {
+                        return Err(ValidateError::MissingValueName {
+                            value: parameter.value,
+                            anchor: ValidateAnchor::node(block_id),
+                        });
+                    };
+
+                    if !value_names.insert(name_id) {
+                        return Err(ValidateError::DuplicateValueName {
+                            anchor: ValidateAnchor::node(block_id),
+                        });
+                    }
+                }
+            }
+
+            for &instruction_id in &block.instructions {
+                let instruction = self.tree.get(instruction_id);
+                let Some(destination) = instruction.destination() else {
+                    continue;
+                };
+                let Some(name_id) = function.value_name(destination) else {
+                    return Err(ValidateError::MissingValueName {
+                        value: destination,
+                        anchor: ValidateAnchor::node(instruction_id),
+                    });
+                };
+
+                if !value_names.insert(name_id) {
+                    return Err(ValidateError::DuplicateValueName {
+                        anchor: ValidateAnchor::node(instruction_id),
+                    });
+                }
+            }
+        }
+
         Ok(())
     }
 
