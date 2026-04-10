@@ -604,14 +604,46 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
+    /// TypeScript-style `as` assertion.
+    ///
+    /// Examples:
+    /// ```
+    /// value as Foo
+    /// value as const
+    /// ```
+    As {
+        expression: LocalNodeId<Expression>,
+        type_annotation: LocalNodeId<Expression>,
+    },
+
+    /// TypeScript-style `satisfies` expression.
+    ///
+    /// Examples:
+    /// ```
+    /// value satisfies Foo
+    /// ```
+    Satisfies {
+        expression: LocalNodeId<Expression>,
+        type_annotation: LocalNodeId<Expression>,
+    },
+
+    /// TypeScript-style angle assertion.
+    ///
+    /// Examples:
+    /// ```
+    /// <Foo>value
+    /// ```
+    TypeAssertion {
+        type_annotation: LocalNodeId<Expression>,
+        expression: LocalNodeId<Expression>,
+    },
+
     /// Type binary operation (infix).
     ///
     /// Examples:
     /// ```
-    /// x as int32
     /// x is int32
     /// x instanceof int32
-    /// x satisfies int32
     /// x extends int32
     /// x implements int32
     /// ```

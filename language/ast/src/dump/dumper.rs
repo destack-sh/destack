@@ -1045,6 +1045,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::As {
+                expression: _,
+                type_annotation: _,
+            } => {
+                self.node("Expression::As", _id.id).end();
+            }
+            Expression::Satisfies {
+                expression: _,
+                type_annotation: _,
+            } => {
+                self.node("Expression::Satisfies", _id.id).end();
+            }
+            Expression::TypeAssertion {
+                type_annotation: _,
+                expression: _,
+            } => {
+                self.node("Expression::TypeAssertion", _id.id).end();
+            }
             Expression::ValueOf {
                 mutability,
                 variance,

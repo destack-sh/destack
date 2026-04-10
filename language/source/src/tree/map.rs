@@ -32,10 +32,14 @@ pub enum NodeSpanType {
     Enclosing,
     /// The main span of a node (usually its identifier).
     Main,
-    /// The leading span of a node (usually its first identifier).
+    /// The semantic head span of a node.
+    Head,
+    /// The leading owned prefix span of a node.
     Leading,
     /// The infix separator span that structurally leads into a node.
     Separator,
+    /// The trailing owned suffix span of a node.
+    Trailing,
     /// One indexed segment span of a compound node.
     Segment(u16),
     /// The type declaration span of a node.
@@ -358,6 +362,25 @@ impl NodeSourceMap {
                 .get(&SourcePartKey::new(node_id, span_type))
                 .copied(),
         }
+    }
+
+    /// Find the innermost side span of one kind that fully contains a span.
+    pub fn find_innermost_side_owner(
+        &self,
+        span: Span,
+        span_type: NodeSpanType,
+    ) -> Option<SourcePartKey> {
+        self.side_spans
+            .iter()
+            .filter_map(|(key, part_span)| {
+                (key.span_type == span_type
+                    && part_span.file == span.file
+                    && part_span.start <= span.start
+                    && part_span.end >= span.end)
+                    .then_some((*key, *part_span))
+            })
+            .min_by_key(|(_, part_span)| part_span.end - part_span.start)
+            .map(|(key, _)| key)
     }
 
     /// Get a side span or the enclosing span if no side span is set.

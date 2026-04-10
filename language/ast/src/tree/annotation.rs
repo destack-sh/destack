@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 
-use destack_source::Span;
+use destack_source::{SourcePartKey, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, TokenType};
@@ -72,14 +72,6 @@ pub enum CommentContent {
 /// // comment
 /// /* comment */
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CommentPosition {
-    /// The comment is attached before one token.
-    Leading,
-    /// The comment is attached after one token.
-    Trailing,
-}
-
 /// Newline shape flags captured around one raw comment.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -128,11 +120,8 @@ pub struct Comment {
     pub span: Span,
     /// The kind of the comment.
     pub kind: CommentKind,
-    /// The start of the token this leading comment is attached to.
-    /// Trailing comment attachment is not computed.
-    pub attached_to: u32,
-    /// The token-relative comment position.
-    pub position: CommentPosition,
+    /// The source part this comment is structurally attached to.
+    pub attached_part: SourcePartKey,
     /// The newline shape around the comment.
     pub newlines: CommentNewlines,
     /// The structured comment content classification.
@@ -140,14 +129,13 @@ pub struct Comment {
 }
 
 impl Comment {
-    /// Create a comment with default trailing placement.
+    /// Create a comment with one structural owner.
     #[inline]
-    pub fn new(span: Span, kind: CommentKind) -> Self {
+    pub fn new(span: Span, kind: CommentKind, attached_part: SourcePartKey) -> Self {
         Self {
             span,
             kind,
-            attached_to: 0,
-            position: CommentPosition::Trailing,
+            attached_part,
             newlines: CommentNewlines::default(),
             content: CommentContent::None,
         }
@@ -185,22 +173,10 @@ impl Comment {
         self.kind == CommentKind::MultiLineBlock
     }
 
-    /// Return whether this comment is leading.
-    #[inline]
-    pub fn is_leading(self) -> bool {
-        self.position == CommentPosition::Leading
-    }
-
-    /// Return whether this comment is trailing.
-    #[inline]
-    pub fn is_trailing(self) -> bool {
-        self.position == CommentPosition::Trailing
-    }
-
     /// Return whether this comment is classified as jsdoc.
     #[inline]
     pub fn is_jsdoc(self) -> bool {
-        self.content == CommentContent::Jsdoc && self.is_leading()
+        self.content == CommentContent::Jsdoc
     }
 
     /// Return whether this comment is preceded by a newline.
