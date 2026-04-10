@@ -16,7 +16,7 @@ use crate::{Keyword, TokenType};
 /// == != < > <= >=                    // comparison
 /// && || ??                           // boolean
 /// in of                              // container
-/// as in is instanceof satisfies      // type binary operator
+/// in is instanceof extends implements // type binary operator
 /// =                                  // assignment
 /// *= /= %= **= *%= *|=               // assignment multiplication
 /// += -= +%= -%= +|= -|=              // assignment addition
@@ -33,7 +33,7 @@ pub enum OperatorPrecedence {
     /// `!x -x -%x ~x &x *x ..x ++x --x`
     Prefix = 1900,
     /// Type unary operators.
-    /// `type readonly typeof keyof as comptime as const`
+    /// `type readonly typeof keyof as comptime`
     TypeUnary = 1800,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *| **% **|`
@@ -57,7 +57,7 @@ pub enum OperatorPrecedence {
     /// `in` `of`
     Container = 1100,
     /// Type binary operators.
-    /// `as in is instanceof satisfies extends implements`
+    /// `in is instanceof extends implements`
     TypeBinary = 1000,
     /// Assignment-related binary operators.
     /// `=`
@@ -98,8 +98,6 @@ pub enum TypeUnaryOperator {
     Keyof = 1803,
     /// `as comptime`
     AsComptime = 1802,
-    /// `as const`
-    AsConst = 1801,
 }
 
 impl TypeUnaryOperator {
@@ -126,9 +124,7 @@ impl TypeUnaryOperator {
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof => true,
-            TypeUnaryOperator::Must
-            | TypeUnaryOperator::AsComptime
-            | TypeUnaryOperator::AsConst => false,
+            TypeUnaryOperator::Must | TypeUnaryOperator::AsComptime => false,
         }
     }
 
@@ -142,7 +138,7 @@ impl TypeUnaryOperator {
     #[inline]
     pub fn from_prefix_token(token_str: &str, _token_type: TokenType) -> Option<TypeUnaryOperator> {
         match token_str {
-            // NOTE: newtype | type / readonly / as const are disambiguated separately
+            // NOTE: newtype | type / readonly are disambiguated separately
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
             _ => None,
@@ -158,7 +154,6 @@ impl TypeUnaryOperator {
     ) -> Option<TypeUnaryOperator> {
         match (token_str, next_token_str) {
             ("as", "comptime") => Some(TypeUnaryOperator::AsComptime),
-            ("as", "const") => Some(TypeUnaryOperator::AsConst),
             _ => None,
         }
     }
@@ -276,17 +271,12 @@ impl UnaryOperator {
 /// A TypeBinaryOperator is a type binary operator.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeBinaryOperator {
-    /// `as`
-    // NOTE #Cleanup: cast binds between elementwise and comparison for TS-style parsing
-    Cast = 1355,
     /// `in`
     In = 1006,
     /// `is`
     Is = 1005,
     /// `instanceof`
     InstanceOf = 1004,
-    /// `satisfies`
-    Satisfies = 1003,
     /// `extends`
     Extends = 1002,
     /// `implements`
@@ -311,11 +301,9 @@ impl TypeBinaryOperator {
     #[inline]
     pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeBinaryOperator> {
         match token_str {
-            "as" => Some(TypeBinaryOperator::Cast),
             "in" => Some(TypeBinaryOperator::In),
             "is" => Some(TypeBinaryOperator::Is),
             "instanceof" => Some(TypeBinaryOperator::InstanceOf),
-            "satisfies" => Some(TypeBinaryOperator::Satisfies),
             "extends" => Some(TypeBinaryOperator::Extends),
             "implements" => Some(TypeBinaryOperator::Implements),
             _ => None,

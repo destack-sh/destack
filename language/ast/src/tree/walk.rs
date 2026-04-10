@@ -589,6 +589,39 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
+        Expression::As {
+            expression,
+            type_annotation,
+        } => {
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
+
+            let type_annotation_node = tree.get(*type_annotation);
+            visitor.visit_expression(tree, *type_annotation, type_annotation_node);
+        }
+
+        Expression::Satisfies {
+            expression,
+            type_annotation,
+        } => {
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
+
+            let type_annotation_node = tree.get(*type_annotation);
+            visitor.visit_expression(tree, *type_annotation, type_annotation_node);
+        }
+
+        Expression::TypeAssertion {
+            type_annotation,
+            expression,
+        } => {
+            let type_annotation_node = tree.get(*type_annotation);
+            visitor.visit_expression(tree, *type_annotation, type_annotation_node);
+
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
+        }
+
         Expression::ValueOf {
             mutability: _,
             variance: _,
