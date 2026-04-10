@@ -13,7 +13,14 @@ impl ModuleLowerer<'_> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::TypeLineage> {
         // skip if metadata already exists
-        if let Some(lineage) = self.builder.tree().type_table.lineage(mir_type).cloned() {
+        if let Some(lineage) = self
+            .builder
+            .tree()
+            .metadata
+            .layout
+            .lineage(mir_type)
+            .cloned()
+        {
             return Ok(lineage);
         }
 
@@ -85,7 +92,8 @@ impl ModuleLowerer<'_> {
         };
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .set_lineage(mir_type, type_lineage.clone());
 
         Ok(type_lineage)

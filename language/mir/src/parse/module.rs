@@ -1,6 +1,6 @@
 use crate::{
     AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
-    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttributes, Type, TypeAlias, TypedValue,
+    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias, TypedValue,
     Value,
 };
 
@@ -83,11 +83,11 @@ impl<'a> Parser<'a> {
                         value_types: Vec::new(),
                         return_type: void_type,
                         return_lifetime: Lifetime::Inferred,
-                        memory_effects: MemoryEffect::unknown(),
+                        memory_effect: MemoryEffect::unknown(),
                         call_behavior: CallBehavior::unknown(),
-                        alloc_size: None,
+                        allocation_size: None,
                         parameter_attributes: Vec::new(),
-                        return_attributes: PointerAttributes::default(),
+                        return_attribute: PointerAttribute::default(),
                         linkage: Linkage::Local,
                         allocation: AllocationMode::Any,
                         suspension: None,
@@ -281,15 +281,23 @@ impl<'a> Parser<'a> {
             ty: placeholder_id,
         };
         let id = self.tree.insert(alias);
-        self.tree.set_span(id, name_span);
+        self.tree.set_text_span(id, name_span);
         self.tree
-            .type_table
+            .metadata
+            .layout
             .set_display_name(placeholder_id, name_id);
 
         if ty != placeholder_id {
             let resolved = self.tree.get(ty).clone();
             *self.tree.get_mut(placeholder_id) = resolved;
-            self.tree.type_table.copy_type_metadata(ty, placeholder_id);
+            self.tree
+                .metadata
+                .layout
+                .copy_type_metadata(ty, placeholder_id);
+            self.tree
+                .metadata
+                .dispatch
+                .copy_type_metadata(ty, placeholder_id);
         }
         self.type_alias_definitions.insert(name);
 
@@ -346,7 +354,7 @@ impl<'a> Parser<'a> {
             initializer,
         };
         let id = self.tree.insert(global);
-        self.tree.set_span(id, name_span);
+        self.tree.set_text_span(id, name_span);
         self.global_map.insert(name, id);
 
         // optional declaration terminator

@@ -106,11 +106,12 @@ impl ModuleLowerer<'_> {
         let metadata_name = self.builder.intern(&metadata_name);
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .ensure_display_name(env_type, metadata_name);
 
         // record layout metadata for the env type
-        self.insert_layout_entry(env_type, mir::LayoutType::FunctionEnvironment, &layout);
+        self.insert_layout_entry(env_type, mir::LayoutKind::FunctionEnvironment, &layout);
         self.type_lowerer.set_layout(env_type, layout);
 
         // build the managed env pointer type
@@ -208,7 +209,8 @@ impl ModuleLowerer<'_> {
             .intern(EMPTY_FUNCTION_ENVIRONMENT_METADATA_NAME);
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .ensure_display_name(env_type, metadata_name);
 
         self.type_lowerer.set_layout(env_type, layout);

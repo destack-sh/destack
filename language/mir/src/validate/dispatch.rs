@@ -1,7 +1,6 @@
 use crate::{
-    CallSite, DevirtualizationMetadata, Function, Instruction, InterfaceDispatchEntry,
-    InterfaceSlotId, ItabEntry, LocalNodeId, NodeType, Terminator, Type, Value, VtableEntry,
-    VtableSlotId,
+    Function, Instruction, InterfaceDispatchEntry, InterfaceSlotId, ItabEntry, LocalNodeId,
+    NodeType, Terminator, Type, Value, VtableEntry, VtableSlotId,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -10,78 +9,59 @@ use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 impl<'a> Validator<'a> {
     /// Validate dispatch call facts metadata table invariants.
     pub(super) fn validate_dispatch(&self) -> ValidateResult<()> {
-        // callsite facts
-        for (&callsite, facts) in &self.tree.dispatch_table.callsite_metadata {
-            if facts.is_empty() {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "dispatch callsite metadata must carry at least one fact".to_string(),
-                    anchor: match callsite {
-                        CallSite::Instruction(instruction_id) => {
-                            ValidateAnchor::node(instruction_id)
-                        }
-                        CallSite::Terminator(block_id) => ValidateAnchor::node(block_id),
-                    },
-                });
+        // dynamic call instructions
+        for (instruction_id, instruction) in self.tree.iter_nodes::<Instruction>() {
+            match instruction {
+                Instruction::CallVirtual {
+                    declared_target,
+                    call,
+                    ..
+                }
+                | Instruction::CallInterface {
+                    declared_target,
+                    call,
+                    ..
+                } => {
+                    self.validate_dispatch_call_fact_target(
+                        ValidateAnchor::node(instruction_id),
+                        call.signature,
+                        *declared_target,
+                    )?;
+                }
+                _ => {}
             }
+        }
 
-            // callsite ownership and signature
-            match callsite {
-                CallSite::Instruction(instruction_id) => {
-                    self.ensure_node_type(
-                        NodeType::Instruction,
-                        instruction_id.id,
-                        ValidateAnchor::node(instruction_id),
-                    )?;
-
-                    let instruction = self.tree.get(instruction_id);
-                    let signature = match instruction {
-                        Instruction::CallVirtual { signature, .. }
-                        | Instruction::CallInterface { signature, .. } => *signature,
-                        _ => {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message:
-                                    "dispatch callsite metadata attached to non dispatch instruction"
-                                        .to_string(),
-                                anchor: ValidateAnchor::node(instruction_id),
-                            });
-                        }
-                    };
-
-                    self.validate_dispatch_call_fact_target(
-                        ValidateAnchor::node(instruction_id),
-                        signature,
-                        facts,
-                    )?;
+        // dynamic call terminators
+        for (block_id, block) in self.tree.iter_nodes::<crate::Block>() {
+            match &block.terminator {
+                Terminator::InvokeVirtual {
+                    declared_target,
+                    call,
+                    ..
                 }
-                CallSite::Terminator(block_id) => {
-                    self.ensure_node_type(
-                        NodeType::Block,
-                        block_id.id,
-                        ValidateAnchor::node(block_id),
-                    )?;
-
-                    let block = self.tree.get(block_id);
-                    let signature = match &block.terminator {
-                        Terminator::InvokeVirtual { signature, .. }
-                        | Terminator::InvokeInterface { signature, .. }
-                        | Terminator::TailCallVirtual { signature, .. }
-                        | Terminator::TailCallInterface { signature, .. } => *signature,
-                        _ => {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message:
-                                    "dispatch callsite metadata attached to non dispatch terminator"
-                                        .to_string(),
-                                anchor: ValidateAnchor::node(block_id),
-                            });
-                        }
-                    };
-
+                | Terminator::InvokeInterface {
+                    declared_target,
+                    call,
+                    ..
+                }
+                | Terminator::TailCallVirtual {
+                    declared_target,
+                    call,
+                    ..
+                }
+                | Terminator::TailCallInterface {
+                    declared_target,
+                    call,
+                    ..
+                } => {
                     self.validate_dispatch_call_fact_target(
                         ValidateAnchor::node(block_id),
-                        signature,
-                        facts,
+                        call.signature,
+                        *declared_target,
                     )?;
                 }
+                _ => {}
             }
         }
 
@@ -93,10 +73,9 @@ impl<'a> Validator<'a> {
         &self,
         anchor: ValidateAnchor,
         signature: LocalNodeId<Type>,
-        facts: &DevirtualizationMetadata,
+        declared_target: Option<LocalNodeId<Function>>,
     ) -> ValidateResult<()> {
-        // declared target
-        if let Some(declared_target) = facts.declared_target {
+        if let Some(declared_target) = declared_target {
             self.validate_call_signature_matches_function(anchor, signature, declared_target)?;
         }
 
@@ -218,12 +197,12 @@ impl<'a> Validator<'a> {
         slot_id: VtableSlotId,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
-        let Some(vtable_id) = self.tree.type_table.vtable_id(declaring_type) else {
+        let Some(vtable_id) = self.tree.metadata.dispatch.vtable_id(declaring_type) else {
             return Ok(());
         };
 
         // vtable entry
-        let Some(vtable) = self.tree.dispatch_table.vtables.get(vtable_id.index()) else {
+        let Some(vtable) = self.tree.metadata.dispatch.vtables.get(vtable_id.index()) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "virtual dispatch references missing vtable metadata".to_string(),
                 anchor,
@@ -256,7 +235,8 @@ impl<'a> Validator<'a> {
         // interface shape
         if let Some(shape) = self
             .tree
-            .dispatch_table
+            .metadata
+            .dispatch
             .interface_dispatch_shape(declaring_interface)
         {
             let Some(entry) = shape.entries.get(slot_id.index()) else {
@@ -280,7 +260,7 @@ impl<'a> Validator<'a> {
         // itab consistency
         let mut found_itab = false;
         let mut declared_method = None;
-        for (_itab_id, itab) in self.tree.dispatch_table.iter_itabs() {
+        for (_itab_id, itab) in self.tree.metadata.dispatch.iter_itabs() {
             if itab.interface != declaring_interface {
                 continue;
             }
@@ -305,7 +285,7 @@ impl<'a> Validator<'a> {
             };
 
             if let Some(expected_declared_method) = declared_method {
-                if expected_declared_method != *slot_declared_method {
+                if expected_declared_method != slot_declared_method {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "interface dispatch slot maps inconsistent declared methods"
                             .to_string(),
@@ -313,7 +293,7 @@ impl<'a> Validator<'a> {
                     });
                 }
             } else {
-                declared_method = Some(*slot_declared_method);
+                declared_method = Some(slot_declared_method);
             }
         }
 

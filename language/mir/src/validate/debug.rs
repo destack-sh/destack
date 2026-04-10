@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     Block, DebugInlineSiteId, DebugLocation, DebugRangeStart, DebugScopeId, DebugScopeKind,
-    DebugValueLocation, Function, Instruction, Local, LocalNodeId, NodeType, Type,
+    DebugValueLocation, Function, Instruction, Local, LocalNodeId, NodeType, ProvenanceId, Type,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -22,17 +22,19 @@ impl<'a> Validator<'a> {
         let scope_functions = self.resolve_debug_scope_functions()?;
 
         // type references
-        for debug_type in &self.tree.debug_table.types {
+        for debug_type in &self.tree.metadata.debug.types {
             self.ensure_node_type(NodeType::Type, debug_type.ty.id, self.module_anchor())?;
+            self.validate_debug_provenance(debug_type.provenance, self.module_anchor())?;
         }
 
         // scopes
-        for index in 0..self.tree.debug_table.scopes.len() {
+        for index in 0..self.tree.metadata.debug.scopes.len() {
             let scope_id = DebugScopeId::new(index as u32);
-            let scope = self.tree.debug_table.scope(scope_id);
+            let scope = self.tree.metadata.debug.scope(scope_id);
+            self.validate_debug_provenance(scope.provenance, self.module_anchor())?;
 
             if let Some(parent_id) = scope.parent
-                && parent_id.index() >= self.tree.debug_table.scopes.len()
+                && parent_id.index() >= self.tree.metadata.debug.scopes.len()
             {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "debug scope references a missing parent scope".to_string(),
@@ -42,8 +44,8 @@ impl<'a> Validator<'a> {
         }
 
         // inline sites
-        let mut validated_inline_sites = vec![false; self.tree.debug_table.inline_sites.len()];
-        for index in 0..self.tree.debug_table.inline_sites.len() {
+        let mut validated_inline_sites = vec![false; self.tree.metadata.debug.inline_sites.len()];
+        for index in 0..self.tree.metadata.debug.inline_sites.len() {
             let inline_site_id = DebugInlineSiteId::new(index as u32);
             if validated_inline_sites[inline_site_id.index()] {
                 continue;
@@ -66,10 +68,12 @@ impl<'a> Validator<'a> {
 
                 inline_site_path.push(inline_site_id);
 
-                let inline_site = self.tree.debug_table.inline_site(inline_site_id);
+                let inline_site = self.tree.metadata.debug.inline_site(inline_site_id);
+                self.validate_debug_provenance(inline_site.provenance, self.module_anchor())?;
                 let Some(callee_scope) = self
                     .tree
-                    .debug_table
+                    .metadata
+                    .debug
                     .scopes
                     .get(inline_site.callee_scope.index())
                 else {
@@ -100,7 +104,8 @@ impl<'a> Validator<'a> {
 
                 current_inline_site = match inline_site.parent {
                     Some(parent_inline_site_id) => {
-                        if parent_inline_site_id.index() >= self.tree.debug_table.inline_sites.len()
+                        if parent_inline_site_id.index()
+                            >= self.tree.metadata.debug.inline_sites.len()
                         {
                             return Err(ValidateError::MetadataInvariantViolation {
                                 message:
@@ -175,7 +180,7 @@ impl<'a> Validator<'a> {
         }
 
         // block scopes
-        for (&block_id, &scope_id) in &self.tree.debug_table.block_scopes {
+        for (&block_id, &scope_id) in &self.tree.metadata.debug.block_scopes {
             self.ensure_node_type(NodeType::Block, block_id.id, ValidateAnchor::node(block_id))?;
 
             let Some(&function_id) = block_functions.get(&block_id) else {
@@ -195,7 +200,7 @@ impl<'a> Validator<'a> {
         }
 
         // instruction locations
-        for (&instruction_id, location) in &self.tree.debug_table.instruction_locations {
+        for (&instruction_id, location) in &self.tree.metadata.debug.instruction_locations {
             self.ensure_node_type(
                 NodeType::Instruction,
                 instruction_id.id,
@@ -214,8 +219,9 @@ impl<'a> Validator<'a> {
         }
 
         // bindings
-        for binding in &self.tree.debug_table.bindings {
+        for binding in &self.tree.metadata.debug.bindings {
             self.ensure_node_type(NodeType::Type, binding.ty.id, self.module_anchor())?;
+            self.validate_debug_provenance(binding.provenance, self.module_anchor())?;
 
             if binding.scope.index() >= scope_functions.len() {
                 return Err(ValidateError::MetadataInvariantViolation {
@@ -225,15 +231,15 @@ impl<'a> Validator<'a> {
             }
         }
 
-        for (&binding_id, ranges) in &self.tree.debug_table.binding_location_ranges {
-            if binding_id.index() >= self.tree.debug_table.bindings.len() {
+        for (&binding_id, ranges) in &self.tree.metadata.debug.binding_location_ranges {
+            if binding_id.index() >= self.tree.metadata.debug.bindings.len() {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "debug binding range references a missing binding".to_string(),
                     anchor: self.module_anchor(),
                 });
             }
 
-            let binding = self.tree.debug_table.binding(binding_id);
+            let binding = self.tree.metadata.debug.binding(binding_id);
             let function_id = scope_functions[binding.scope.index()];
             let mut previous_end = 0usize;
 
@@ -289,8 +295,12 @@ impl<'a> Validator<'a> {
         }
 
         // coroutine states
-        for coroutine_state in &self.tree.debug_table.coroutine_states {
+        for coroutine_state in &self.tree.metadata.debug.coroutine_states {
             let function_id = scope_functions[coroutine_state.scope.index()];
+            self.validate_debug_provenance(
+                coroutine_state.provenance,
+                ValidateAnchor::node(function_id),
+            )?;
 
             self.validate_debug_location(
                 &coroutine_state.suspend_location,
@@ -299,7 +309,8 @@ impl<'a> Validator<'a> {
             )?;
 
             for &binding_id in &coroutine_state.lifted_bindings {
-                let Some(binding) = self.tree.debug_table.bindings.get(binding_id.index()) else {
+                let Some(binding) = self.tree.metadata.debug.bindings.get(binding_id.index())
+                else {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "debug coroutine state references a missing binding".to_string(),
                         anchor: ValidateAnchor::node(function_id),
@@ -321,16 +332,16 @@ impl<'a> Validator<'a> {
 
     /// Resolve the owning function for every debug scope.
     fn resolve_debug_scope_functions(&self) -> ValidateResult<Vec<LocalNodeId<Function>>> {
-        let mut root_functions = vec![None; self.tree.debug_table.scopes.len()];
+        let mut root_functions = vec![None; self.tree.metadata.debug.scopes.len()];
 
-        for (&function_id, &scope_id) in &self.tree.debug_table.function_scopes {
+        for (&function_id, &scope_id) in &self.tree.metadata.debug.function_scopes {
             self.ensure_node_type(
                 NodeType::Function,
                 function_id.id,
                 ValidateAnchor::node(function_id),
             )?;
 
-            let Some(scope) = self.tree.debug_table.scopes.get(scope_id.index()) else {
+            let Some(scope) = self.tree.metadata.debug.scopes.get(scope_id.index()) else {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "function debug scope references a missing scope".to_string(),
                     anchor: ValidateAnchor::node(function_id),
@@ -356,8 +367,8 @@ impl<'a> Validator<'a> {
             }
         }
 
-        let mut scope_functions = vec![None; self.tree.debug_table.scopes.len()];
-        for index in 0..self.tree.debug_table.scopes.len() {
+        let mut scope_functions = vec![None; self.tree.metadata.debug.scopes.len()];
+        for index in 0..self.tree.metadata.debug.scopes.len() {
             let mut scope_path = Vec::<DebugScopeId>::new();
             let mut current_scope = DebugScopeId::new(index as u32);
 
@@ -383,7 +394,7 @@ impl<'a> Validator<'a> {
 
                 scope_path.push(current_scope);
 
-                let scope = self.tree.debug_table.scope(current_scope);
+                let scope = self.tree.metadata.debug.scope(current_scope);
                 let Some(parent_id) = scope.parent else {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "debug lexical scopes must be rooted in a function scope"
@@ -406,6 +417,13 @@ impl<'a> Validator<'a> {
         expected_function: Option<LocalNodeId<Function>>,
         scope_functions: &[LocalNodeId<Function>],
     ) -> ValidateResult<()> {
+        self.validate_debug_provenance(
+            location.provenance,
+            expected_function
+                .map(ValidateAnchor::node)
+                .unwrap_or_else(|| self.module_anchor()),
+        )?;
+
         let function_id = scope_functions[location.scope.index()];
 
         if let Some(expected_function) = expected_function
@@ -418,7 +436,7 @@ impl<'a> Validator<'a> {
         }
 
         if let Some(inline_site_id) = location.inline_site
-            && inline_site_id.index() >= self.tree.debug_table.inline_sites.len()
+            && inline_site_id.index() >= self.tree.metadata.debug.inline_sites.len()
         {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "debug location references a missing inline site".to_string(),
@@ -429,6 +447,26 @@ impl<'a> Validator<'a> {
         }
 
         Ok(())
+    }
+
+    /// Validate one optional provenance link on a debug record.
+    fn validate_debug_provenance(
+        &self,
+        provenance_id: Option<ProvenanceId>,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        let Some(provenance_id) = provenance_id else {
+            return Ok(());
+        };
+
+        if self.tree.metadata.provenance.contains(provenance_id) {
+            return Ok(());
+        }
+
+        Err(ValidateError::MetadataInvariantViolation {
+            message: "debug metadata references a missing provenance record".to_string(),
+            anchor,
+        })
     }
 
     /// Validate one debug value location against one function and binding type.

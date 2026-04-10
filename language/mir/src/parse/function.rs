@@ -1,8 +1,8 @@
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block,
+    AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block, Call,
     CallBehavior, CheckConstraint, CheckTarget, ExecutionModel, ExecutionStage, Function,
     Instruction, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Mutability, Ownership,
-    PointerAttributes, SwitchCase, Terminator, TrapKind, Type, TypedValue, Value,
+    PointerAttribute, SwitchCase, Terminator, TrapKind, Type, TypedValue, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -189,7 +189,7 @@ impl<'a> Parser<'a> {
         // extern function body
         if linkage.is_import() {
             let name_id = self.strings.intern(&name);
-            let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+            let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
             let parameter_count = parameters.len();
             let value_types = self.seed_value_types(&parameters);
             let next_value_id = value_types.len() as u32;
@@ -200,11 +200,11 @@ impl<'a> Parser<'a> {
                 value_types,
                 return_type,
                 return_lifetime: Lifetime::Inferred,
-                memory_effects: MemoryEffect::unknown(),
+                memory_effect: MemoryEffect::unknown(),
                 call_behavior: CallBehavior::unknown(),
-                alloc_size: None,
+                allocation_size: None,
                 parameter_attributes,
-                return_attributes: PointerAttributes::default(),
+                return_attribute: PointerAttribute::default(),
                 linkage,
                 allocation: AllocationMode::Any, // #Incomplete: set proper MIR allocation mode?
                 suspension: None,
@@ -219,7 +219,7 @@ impl<'a> Parser<'a> {
             };
 
             // update the placeholder with the parsed signature
-            self.tree.set_span(function_id, name_span);
+            self.tree.set_text_span(function_id, name_span);
             *self.tree.get_mut(function_id) = function;
             self.current_function = None;
 
@@ -237,7 +237,7 @@ impl<'a> Parser<'a> {
         // seed signature data before mutating the placeholder
         let name_id = self.strings.intern(&name);
         let id = function_id;
-        self.tree.set_span(id, name_span);
+        self.tree.set_text_span(id, name_span);
         let value_types = self.seed_value_types(&parameters);
 
         // populate signature fields
@@ -248,11 +248,11 @@ impl<'a> Parser<'a> {
         function.value_types = value_types;
         function.return_type = return_type;
         function.linkage = linkage;
-        function.memory_effects = MemoryEffect::unknown();
+        function.memory_effect = MemoryEffect::unknown();
         function.call_behavior = CallBehavior::unknown();
-        function.alloc_size = None;
-        function.parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
-        function.return_attributes = PointerAttributes::default();
+        function.allocation_size = None;
+        function.parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
+        function.return_attribute = PointerAttribute::default();
         function.execution_model = execution_model;
         function.execution_stage = execution_stage;
         function.workgroup_size = workgroup_size;
@@ -569,7 +569,7 @@ impl<'a> Parser<'a> {
         };
 
         let id = self.tree.insert(block);
-        self.tree.set_span(id, block_span);
+        self.tree.set_text_span(id, block_span);
 
         Ok((id, source_idx))
     }
@@ -621,8 +621,7 @@ impl<'a> Parser<'a> {
                     self.parse_call_continuations()?;
                 Ok(Terminator::Invoke {
                     function,
-                    arguments,
-                    signature,
+                    call: Call::new(arguments, signature),
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -753,8 +752,7 @@ impl<'a> Parser<'a> {
                 let (function, arguments, signature) = self.parse_direct_call_target()?;
                 Ok(Terminator::TailCall {
                     function,
-                    arguments,
-                    signature,
+                    call: Call::new(arguments, signature),
                 })
             }
             TokenType::TailCallIndirect => {
@@ -762,8 +760,7 @@ impl<'a> Parser<'a> {
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
                 Ok(Terminator::TailCallIndirect {
                     callee,
-                    arguments,
-                    signature,
+                    call: Call::new(arguments, signature),
                 })
             }
             TokenType::InvokeIndirect => {
@@ -773,8 +770,7 @@ impl<'a> Parser<'a> {
                     self.parse_call_continuations()?;
                 Ok(Terminator::InvokeIndirect {
                     callee,
-                    arguments,
-                    signature,
+                    call: Call::new(arguments, signature),
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -787,10 +783,10 @@ impl<'a> Parser<'a> {
                     self.parse_virtual_call_target()?;
                 Ok(Terminator::TailCallVirtual {
                     receiver,
-                    arguments,
                     declaring_type,
                     slot_id,
-                    signature,
+                    declared_target: None,
+                    call: Call::new(arguments, signature),
                 })
             }
             TokenType::InvokeVirtual => {
@@ -801,10 +797,10 @@ impl<'a> Parser<'a> {
                     self.parse_call_continuations()?;
                 Ok(Terminator::InvokeVirtual {
                     receiver,
-                    arguments,
                     declaring_type,
                     slot_id,
-                    signature,
+                    declared_target: None,
+                    call: Call::new(arguments, signature),
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -817,10 +813,10 @@ impl<'a> Parser<'a> {
                     self.parse_interface_call_target()?;
                 Ok(Terminator::TailCallInterface {
                     receiver,
-                    arguments,
                     declaring_type,
                     slot_id,
-                    signature,
+                    declared_target: None,
+                    call: Call::new(arguments, signature),
                 })
             }
             TokenType::InvokeInterface => {
@@ -831,10 +827,10 @@ impl<'a> Parser<'a> {
                     self.parse_call_continuations()?;
                 Ok(Terminator::InvokeInterface {
                     receiver,
-                    arguments,
                     declaring_type,
                     slot_id,
-                    signature,
+                    declared_target: None,
+                    call: Call::new(arguments, signature),
                     normal_target,
                     normal_arguments,
                     unwind_target,

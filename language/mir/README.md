@@ -28,13 +28,13 @@ Blocks are the basic control flow units with:
  - a single terminator
 
 ```mir
-entry:
-    first: int32 = 1
-    second: int32 = 2
+entry: // can use any name
+    v0: int32 = 1
+    second: int32 = 2 // can use any name
     jump add(second)
 
 add(value: int32):            // value comes from predecessor
-    sum: int32 = int.add first, value // can still use first from dominating block
+    sum: int32 = int.add v0, value // can still use first from dominating block
     return sum
 ```
 
@@ -122,43 +122,15 @@ Blocks end with a terminator that transfers control:
 `check` carries a semantic constraint (`bounds`, `null`, `zeroDivisor`, `shiftRange`, `overflow`, `dynamicType`, `receiverType`, `interfaceConformance`, etc.) and splits control flow into success and failure paths.
 Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -> ok, fail`.
 
-## Intrinsics
+### Pointers and References
 
-Intrinsics are primitive operations handled directly by backends.
-They have no function body; hosts implement intrinsics however they like.
+References are just pointers, of course, and pointer sized integer types are modeled explicitly.
+```mir
+ref<int32, raw, addressSpace(shared)>
+ref<int32, raw, readonly, addressSpace(7)>
+```
 
-| Category | Examples |
-|----------|----------|
-| Reflection | `sizeOf`, `alignOf`, `typeOf` |
-| Bit manipulation | `leadingZeroCount`, `trailingZeroCount`, `populationCount`, `byteSwap`, `bitReverse`, `rotateLeft`, `rotateRight` |
-| Checked arithmetic | `add.overflow`, `sub.overflow`, `mul.overflow` |
-| Unchecked arithmetic | `add.unchecked`, `sub.unchecked`, `mul.unchecked`, `div.unchecked`, `rem.unchecked`, `shl.unchecked`, `shr.unchecked` |
-| Saturating arithmetic | `add.sat`, `sub.sat` |
-| Pointer ops | `transmute`, `addressSpace.cast`, `ptrOffsetFrom`, `rawEq` |
-| Memory | `memcpy`, `memmove`, `memset`, `memcmp`, `prefetch.read`, `prefetch.write` |
-| Float math | `sqrt`, `abs`, `fma`, `copySign`, `min`, `max`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `exp2`, `log`, `log2`, `log10`, `pow`, `floor`, `ceil`, `trunc`, `round` |
-| GC barriers | `writeBarrier` |
-| Control | `breakpoint`, `returnAddress`, `frameAddress` |
-| Branch hints | `expect` |
-| Optimization | `blackBox` |
-
-### Pointers
-
-Pointer sized integer types are modeled explicitly.
-`isize` is a signed integer with the target pointer width.
-`usize` is an unsigned integer with the target pointer width.
-Their concrete widths are resolved from module data layout metadata.
-
-### Function Values
-
-Bare code pointers use `fn(...) -> ...`.
-Callable closure values use `closure(...) -> ...`.
-The signature operand is always a bare function pointer type, and the environment operand carries the captured context reference.
-Canonical MIR treats function values as a dedicated two field aggregate rather than an anonymous struct convention.
-
-### References
-
-References carry a kind and reference-level mutability:
+In general, we use `ref` to model references with additional side metadata:
 - `managed` for runtime managed object references
 - `owned` for explicit ownership (`^T`)
 - `borrowed` for `&T` and `&readonly T`
@@ -176,33 +148,8 @@ Address spaces are optional and appear last.
 | raw | mutable | `ref<int32, raw>` | raw pointer (mutable) |
 | raw | readonly | `ref<int32, raw, readonly>` | raw pointer (readonly) |
 
-Address spaces describe where the reference points:
-`generic`, `stack`, `global`, `shared`, `local`, `constant`, or a target-specific id.
-Use `addressSpace(name)` or `addressSpace(7)` in the reference syntax:
 
-```mir
-ref<int32, raw, addressSpace(shared)>
-ref<int32, raw, readonly, addressSpace(7)>
-```
-
-`managed` references always use `addressSpace(generic)`.
-`borrowed`, `raw`, and `owned` references may use non generic address spaces when the target and allocator semantics define them.
-`addressSpace(constant)` references are always immutable.
-`owned` references cannot use `addressSpace(constant)`.
-`addressSpace(generic)` is the default and is omitted in canonical MIR formatting.
-Address space changes are explicit and use the `addressSpace.cast` intrinsic.
-
-Binding immutability and effect-level readonly facts are separate from reference-level readonly.
-
-Local declarations use the same payload-first qualifier shape and keep an explicit `local` introducer:
-
-```mir
-local temp: int32, owned
-local valuesLocal: int32[4], owned, readonly
-local borrowSlot: ref<int32, borrowed>, borrowed
-```
-
-Field names are optional in MIR types and are for readability only:
+Field names are optional in MIR types and are only for readability:
 
 ```mir
 type Point {
@@ -211,10 +158,10 @@ type Point {
 }
 ```
 
-### Type Aliases
+## Type Aliases
 
-The MIR text format supports named type aliases for readability.
-Aliases are purely syntactic sugar over concrete layouts.
+The MIR text format supports - entirely optional - named type aliases for readability.
+Aliases are really just syntactic sugar over concrete layouts.
 
 ```mir
 type Point {
@@ -230,7 +177,6 @@ entry(point: ref<Point, managed>):
 
 Aliases are referenced with plain names in type positions.
 The underlying MIR still stores and uses the concrete type.
-This makes some documentation and tests much more readable.
 
 ## Functions
 
@@ -264,32 +210,11 @@ Immutable globals are constants (string literals, lookup tables).
 String initializers require a managed reference to the builtin String layout.
 Mutable globals are module-level state (use sparingly).
 
-### Coroutines
-
-Generators and async functions are lowered to state machines in DIR before reaching MIR.
-MIR just sees the `Yield` terminator and knows the function is a coroutine:
-
-```mir
-entry:
-    next: closure() -> int32 = call computeNext(): () -> closure() -> int32
-    yield next, resume
-
-resume(value: int32):    // resumed with value from .next(arg) or resolved promise
-    ...
-```
-
-The `SuspensionKind` (Generator, Async, AsyncGenerator) tells codegen what wrapper to generate.
-Resume arguments appear as normal block arguments, with the resumed value appended after them.
-
-
 ## Attributes
 
 Attributes can be attached to functions, globals, type aliases, and struct fields.
-They use TS++-style decorator syntax and support bare, value, and key-value forms.
-Attributes always apply to the next item or field in the text stream.
 The supported forms are `@name`, `@name(value)`, and `@name(key=value, ...)`.
 Attribute values support identifiers, integers, floats, strings, and lists.
-Canonical MIR formatting uses camelCase decorator names and keys.
 
 ```mir
 @executionModel(graphics)
@@ -311,21 +236,6 @@ type Point {
 @section(".rodata")
 global Message: ref<String, managed, readonly>, readonly = "hello"
 ```
-
-`const` is still accepted by the parser for compatibility.
-Canonical MIR formatting always emits `readonly`.
-
-### Linkage
-
-```ds
-newtype Linkage =
-    | Local   // defined here, not visible outside (private)
-    | Export  // defined here, visible outside (public)
-    | Import  // declared here, defined elsewhere
-```
-
-Exported symbols get mangled names for linking.
-Imported symbols reference external definitions (FFI, other modules, runtime).
 
 ## Testing
 

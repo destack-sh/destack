@@ -169,14 +169,11 @@ impl ModuleLowerer<'_> {
             };
             self.builder
                 .tree_mut()
-                .dispatch_table
+                .metadata
+                .dispatch
                 .insert_vtable_at(table_id, table);
             table_id
         };
-
-        // attach the vtable to type metadata
-        let type_table = &mut self.builder.tree_mut().type_table;
-        type_table.set_vtable_id(mir_type, table_id);
 
         // register the lowered vtable table
         self.insert_vtable_table(symbol, table_id)?;

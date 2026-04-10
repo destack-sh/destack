@@ -3,10 +3,10 @@ use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
+use crate::{
+    Block, Constant, Function, Global, Instruction, Local, LocalNodeId, ProvenanceId, Type, Value,
+};
 use destack_core::StringId;
-use destack_source::Span;
-
-use crate::{Block, Constant, Function, Global, Instruction, Local, LocalNodeId, Type, Value};
 
 /// Identifier for a debug scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -104,8 +104,8 @@ pub struct DebugScope {
     pub name: Option<StringId>,
     /// The kind of scope.
     pub kind: DebugScopeKind,
-    /// Source span for the scope.
-    pub span: Span,
+    /// The provenance record for this scope when one exists.
+    pub provenance: Option<ProvenanceId>,
     /// Parent scope for nesting.
     pub parent: Option<DebugScopeId>,
 }
@@ -132,6 +132,8 @@ pub struct DebugBinding {
     pub ty: LocalNodeId<Type>,
     /// Scope containing the binding.
     pub scope: DebugScopeId,
+    /// The provenance record for this binding when one exists.
+    pub provenance: Option<ProvenanceId>,
     /// Binding category.
     pub kind: DebugBindingKind,
 }
@@ -143,6 +145,8 @@ pub struct DebugType {
     pub name: Option<StringId>,
     /// MIR type represented by this debug type.
     pub ty: LocalNodeId<Type>,
+    /// The provenance record for this debug type when one exists.
+    pub provenance: Option<ProvenanceId>,
 }
 
 /// One explicit inline call site.
@@ -152,6 +156,8 @@ pub struct DebugInlineSite {
     pub callee_scope: DebugScopeId,
     /// Source location of the call site.
     pub call_location: DebugLocation,
+    /// The provenance record for this inline site when one exists.
+    pub provenance: Option<ProvenanceId>,
     /// Parent inline site for nested inlining.
     pub parent: Option<DebugInlineSiteId>,
 }
@@ -159,10 +165,10 @@ pub struct DebugInlineSite {
 /// Debug location for an instruction or block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DebugLocation {
-    /// The source span for this location.
-    pub span: Span,
     /// The scope containing this location.
     pub scope: DebugScopeId,
+    /// The provenance record for this location when one exists.
+    pub provenance: Option<ProvenanceId>,
     /// Inline provenance for this location.
     pub inline_site: Option<DebugInlineSiteId>,
 }
@@ -253,13 +259,15 @@ pub struct DebugCoroutineState {
     pub scope: DebugScopeId,
     /// Source location of the suspend point.
     pub suspend_location: DebugLocation,
+    /// The provenance record for this coroutine state when one exists.
+    pub provenance: Option<ProvenanceId>,
     /// Bindings lifted into coroutine state.
     pub lifted_bindings: Vec<DebugBindingId>,
 }
 
 /// Table of debug information for MIR nodes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DebugTable {
+pub struct Debug {
     /// Debug scopes indexed by id.
     pub scopes: Vec<DebugScope>,
     /// Debug bindings indexed by id.
@@ -280,7 +288,7 @@ pub struct DebugTable {
     pub binding_location_ranges: HashMap<DebugBindingId, Vec<DebugBindingLocationRange>>,
 }
 
-impl DebugTable {
+impl Debug {
     /// Create a new empty debug info table.
     pub fn new() -> Self {
         Self::default()
@@ -291,14 +299,14 @@ impl DebugTable {
         &mut self,
         kind: DebugScopeKind,
         name: Option<StringId>,
-        span: Span,
+        provenance: Option<ProvenanceId>,
         parent: Option<DebugScopeId>,
     ) -> DebugScopeId {
         let id = DebugScopeId::new(self.scopes.len() as u32);
         self.scopes.push(DebugScope {
             name,
             kind,
-            span,
+            provenance,
             parent,
         });
         id
@@ -310,6 +318,7 @@ impl DebugTable {
         name: StringId,
         ty: LocalNodeId<Type>,
         scope: DebugScopeId,
+        provenance: Option<ProvenanceId>,
         kind: DebugBindingKind,
     ) -> DebugBindingId {
         let id = DebugBindingId::new(self.bindings.len() as u32);
@@ -317,15 +326,25 @@ impl DebugTable {
             name,
             ty,
             scope,
+            provenance,
             kind,
         });
         id
     }
 
     /// Create a new debug type entry.
-    pub fn create_type(&mut self, name: Option<StringId>, ty: LocalNodeId<Type>) -> DebugTypeId {
+    pub fn create_type(
+        &mut self,
+        name: Option<StringId>,
+        ty: LocalNodeId<Type>,
+        provenance: Option<ProvenanceId>,
+    ) -> DebugTypeId {
         let id = DebugTypeId::new(self.types.len() as u32);
-        self.types.push(DebugType { name, ty });
+        self.types.push(DebugType {
+            name,
+            ty,
+            provenance,
+        });
         id
     }
 
@@ -334,12 +353,14 @@ impl DebugTable {
         &mut self,
         callee_scope: DebugScopeId,
         call_location: DebugLocation,
+        provenance: Option<ProvenanceId>,
         parent: Option<DebugInlineSiteId>,
     ) -> DebugInlineSiteId {
         let id = DebugInlineSiteId::new(self.inline_sites.len() as u32);
         self.inline_sites.push(DebugInlineSite {
             callee_scope,
             call_location,
+            provenance,
             parent,
         });
         id
@@ -350,12 +371,14 @@ impl DebugTable {
         &mut self,
         scope: DebugScopeId,
         suspend_location: DebugLocation,
+        provenance: Option<ProvenanceId>,
         lifted_bindings: Vec<DebugBindingId>,
     ) -> DebugCoroutineStateId {
         let id = DebugCoroutineStateId::new(self.coroutine_states.len() as u32);
         self.coroutine_states.push(DebugCoroutineState {
             scope,
             suspend_location,
+            provenance,
             lifted_bindings,
         });
         id

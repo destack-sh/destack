@@ -1,21 +1,21 @@
 use std::collections::HashSet;
 
 use crate::{
-    AddressSpace, Instruction, InterfaceDispatchEntry, ItabEntry, LayoutType,
-    ManagedReferenceRepresentation, Mutability, NodeType, ProvenanceId, ProvenanceKind,
-    ReferenceKind, Type,
+    AddressSpace, AstNodeKey, DirNodeKey, Instruction, InterfaceDispatchEntry, ItabEntry,
+    LayoutKind, ManagedReferenceRepresentation, Mutability, NodeType, ProvenanceAnchor,
+    ProvenanceId, ProvenanceKey, ProvenanceRecord, ReferenceKind, Type,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 
-/// One provenance visitation state for cycle checks.
+/// One origin visitation state for cycle checks.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum ProvenanceVisitState {
+enum OriginVisitState {
     /// The record has not been visited yet.
     Unvisited,
     /// The record is currently being visited.
     Visiting,
-    /// The record and its parents are fully validated.
+    /// The record and its inputs are fully validated.
     Done,
 }
 
@@ -34,7 +34,14 @@ impl<'a> Validator<'a> {
         }
 
         // managed reference storage
-        match self.tree.data_layout.managed_reference_layout.bytes {
+        match self
+            .tree
+            .metadata
+            .layout
+            .storage
+            .managed_reference_layout
+            .bytes
+        {
             4 | 8 => {}
             managed_reference_bytes => {
                 return Err(ValidateError::MetadataInvariantViolation {
@@ -47,7 +54,15 @@ impl<'a> Validator<'a> {
         }
 
         // managed reference alignment
-        if self.tree.data_layout.managed_reference_layout.alignment == 0 {
+        if self
+            .tree
+            .metadata
+            .layout
+            .storage
+            .managed_reference_layout
+            .alignment
+            == 0
+        {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "managed reference alignment must be non zero".to_string(),
                 anchor,
@@ -56,7 +71,9 @@ impl<'a> Validator<'a> {
 
         if !self
             .tree
-            .data_layout
+            .metadata
+            .layout
+            .storage
             .managed_reference_layout
             .alignment
             .is_power_of_two()
@@ -68,10 +85,10 @@ impl<'a> Validator<'a> {
         }
 
         // representation contract
-        let managed_layout = self.tree.data_layout.managed_reference_layout;
+        let managed_layout = self.tree.metadata.layout.storage.managed_reference_layout;
         match managed_layout.representation {
             ManagedReferenceRepresentation::NativePointer => {
-                if managed_layout.bytes != self.tree.data_layout.native_pointer_bytes {
+                if managed_layout.bytes != self.tree.metadata.layout.storage.native_pointer_bytes {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "native-pointer managed references must match native pointer size"
                             .to_string(),
@@ -90,7 +107,7 @@ impl<'a> Validator<'a> {
             }
         }
 
-        if managed_layout.alignment != self.tree.data_layout.native_pointer_bytes {
+        if managed_layout.alignment != self.tree.metadata.layout.storage.native_pointer_bytes {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "managed reference alignment must match native pointer size".to_string(),
                 anchor,
@@ -98,7 +115,8 @@ impl<'a> Validator<'a> {
         }
 
         // per-instruction memory metadata
-        for (&instruction_id, accesses) in &self.tree.memory_table.memory_accesses_by_instruction_id
+        for (&instruction_id, accesses) in
+            &self.tree.metadata.memory.memory_accesses_by_instruction_id
         {
             self.ensure_node_type(
                 NodeType::Instruction,
@@ -171,55 +189,8 @@ impl<'a> Validator<'a> {
             }
         }
 
-        // vtable ownership
-        for (&type_id, &vtable_id) in &self.tree.type_table.vtable_by_type {
-            let Some(lineage) = self.tree.type_table.lineage(type_id) else {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "type table vtable mapping is missing lineage".to_string(),
-                    anchor: ValidateAnchor::node(type_id),
-                });
-            };
-            if lineage.is_interface {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "interface type cannot carry a vtable".to_string(),
-                    anchor: ValidateAnchor::node(type_id),
-                });
-            }
-
-            let Some(vtable) = self.tree.dispatch_table.vtables.get(vtable_id.index()) else {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "type table references missing vtable metadata".to_string(),
-                    anchor: ValidateAnchor::node(type_id),
-                });
-            };
-            if vtable.ty != type_id {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "type table vtable owner mismatch".to_string(),
-                    anchor: ValidateAnchor::node(type_id),
-                });
-            }
-        }
-
-        // itab ownership
-        for (&type_id, itabs) in &self.tree.type_table.itabs_by_type {
-            for (&interface_type, &itab_id) in itabs {
-                let Some(itab) = self.tree.dispatch_table.itabs.get(itab_id.index()) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "type table references missing itab metadata".to_string(),
-                        anchor: ValidateAnchor::node(type_id),
-                    });
-                };
-                if itab.concrete != type_id || itab.interface != interface_type {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "type table itab mapping mismatch".to_string(),
-                        anchor: ValidateAnchor::node(type_id),
-                    });
-                }
-            }
-        }
-
         // interface shapes
-        for (&interface_type, shape) in &self.tree.dispatch_table.interface_dispatch_shapes {
+        for (&interface_type, shape) in &self.tree.metadata.dispatch.interface_dispatch_shapes {
             if shape.interface != interface_type {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "interface dispatch shape key mismatch".to_string(),
@@ -239,11 +210,12 @@ impl<'a> Validator<'a> {
         }
 
         // itab contents
-        for (itab_id, itab) in self.tree.dispatch_table.iter_itabs() {
+        for (_itab_id, itab) in self.tree.metadata.dispatch.iter_itabs() {
             let anchor = ValidateAnchor::node(itab.interface);
             let Some(shape) = self
                 .tree
-                .dispatch_table
+                .metadata
+                .dispatch
                 .interface_dispatch_shape(itab.interface)
             else {
                 return Err(ValidateError::MetadataInvariantViolation {
@@ -293,28 +265,14 @@ impl<'a> Validator<'a> {
                     }
                 }
             }
-
-            let Some(mapped_itab_id) = self.tree.type_table.itab_id(itab.concrete, itab.interface)
-            else {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "itab missing concrete type interface mapping".to_string(),
-                    anchor: ValidateAnchor::node(itab.concrete),
-                });
-            };
-
-            if mapped_itab_id != itab_id {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "itab concrete type interface mapping id mismatch".to_string(),
-                    anchor: ValidateAnchor::node(itab.concrete),
-                });
-            }
         }
 
         // type to layout mappings
-        for (&type_id, &layout_id) in &self.tree.type_table.layout_by_type {
+        for (&type_id, &layout_id) in &self.tree.metadata.layout.layout_by_type {
             let Some(layout) = self
                 .tree
-                .type_table
+                .metadata
+                .layout
                 .layout_table
                 .layouts
                 .get(layout_id.index())
@@ -327,13 +285,13 @@ impl<'a> Validator<'a> {
 
             // type-specific layout contracts
             let ty = self.tree.get(type_id);
-            match (ty, &layout.layout_type) {
+            match (ty, &layout.kind) {
                 (
                     Type::Struct { fields, .. },
-                    LayoutType::Struct
-                    | LayoutType::Union { .. }
-                    | LayoutType::Interface { .. }
-                    | LayoutType::FunctionEnvironment,
+                    LayoutKind::Struct
+                    | LayoutKind::Union { .. }
+                    | LayoutKind::Interface { .. }
+                    | LayoutKind::FunctionEnvironment,
                 ) => {
                     if fields.len() != layout.fields.len() {
                         return Err(ValidateError::MetadataInvariantViolation {
@@ -354,7 +312,7 @@ impl<'a> Validator<'a> {
                         }
                     }
                 }
-                (Type::Closure { signature }, LayoutType::Closure) => {
+                (Type::Closure { signature }, LayoutKind::Closure) => {
                     if layout.fields.len() != 2 {
                         return Err(ValidateError::MetadataInvariantViolation {
                             message: "function value layout must have exactly two fields"
@@ -372,7 +330,7 @@ impl<'a> Validator<'a> {
                         });
                     }
                 }
-                (Type::Tuple { elements, .. }, LayoutType::Tuple) => {
+                (Type::Tuple { elements, .. }, LayoutKind::Tuple) => {
                     if elements.len() != layout.fields.len() {
                         return Err(ValidateError::MetadataInvariantViolation {
                             message: "tuple element count does not match layout field count"
@@ -381,7 +339,7 @@ impl<'a> Validator<'a> {
                         });
                     }
                 }
-                (Type::Array { .. }, LayoutType::Array { .. }) => {}
+                (Type::Array { .. }, LayoutKind::Array { .. }) => {}
                 _ => {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "type table layout kind mismatch".to_string(),
@@ -392,28 +350,35 @@ impl<'a> Validator<'a> {
         }
 
         // node attachments
-        self.validate_node_provenance_attachments()?;
+        self.validate_node_origin_attachments()?;
 
-        // provenance graph
-        self.validate_provenance_records()?;
+        // origin graph
+        self.validate_origin_records()?;
 
         // reverse index
-        self.validate_provenance_reverse_index()?;
+        self.validate_origin_reverse_index()?;
 
         Ok(())
     }
 
-    /// Validate node-attached provenance ids.
-    fn validate_node_provenance_attachments(&self) -> ValidateResult<()> {
-        for (node_id, provenance_id) in self.tree.provenance_by_node_id.iter().enumerate() {
-            let Some(provenance_id) = provenance_id else {
+    /// Validate node-attached origin ids.
+    fn validate_node_origin_attachments(&self) -> ValidateResult<()> {
+        for (node_id, origin_id) in self
+            .tree
+            .metadata
+            .provenance
+            .provenance_by_node_id
+            .iter()
+            .enumerate()
+        {
+            let Some(origin_id) = origin_id else {
                 continue;
             };
 
-            if !self.tree.provenance_table.contains(*provenance_id) {
+            if !self.tree.metadata.provenance.contains(*origin_id) {
                 return Err(self.metadata_error(
                     ValidateAnchor::for_raw_node(self.tree, node_id as u32),
-                    "node references a missing provenance record",
+                    "node references a missing origin record",
                 ));
             }
         }
@@ -421,159 +386,174 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate provenance records.
-    fn validate_provenance_records(&self) -> ValidateResult<()> {
+    /// Validate origin records.
+    fn validate_origin_records(&self) -> ValidateResult<()> {
         let mut states =
-            vec![ProvenanceVisitState::Unvisited; self.tree.provenance_table.records.len()];
+            vec![OriginVisitState::Unvisited; self.tree.metadata.provenance.record_by_id.len()];
 
-        for index in 0..self.tree.provenance_table.records.len() {
-            self.validate_provenance_record(ProvenanceId::new(index as u32), &mut states)?;
+        for index in 0..self.tree.metadata.provenance.record_by_id.len() {
+            self.validate_origin_record(ProvenanceId::new(index as u32), &mut states)?;
         }
 
         Ok(())
     }
 
-    /// Validate one provenance record and its parent chain.
-    fn validate_provenance_record(
+    /// Validate one origin record and its MIR input chain.
+    fn validate_origin_record(
         &self,
-        provenance_id: ProvenanceId,
-        states: &mut [ProvenanceVisitState],
+        origin_id: ProvenanceId,
+        states: &mut [OriginVisitState],
     ) -> ValidateResult<()> {
-        match states[provenance_id.index()] {
-            ProvenanceVisitState::Done => return Ok(()),
-            ProvenanceVisitState::Visiting => {
+        match states[origin_id.index()] {
+            OriginVisitState::Done => return Ok(()),
+            OriginVisitState::Visiting => {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "provenance parent chain must be acyclic".to_string(),
+                    message: "origin graph must be acyclic".to_string(),
                     anchor: self.module_anchor(),
                 });
             }
-            ProvenanceVisitState::Unvisited => {}
+            OriginVisitState::Unvisited => {}
         }
 
-        states[provenance_id.index()] = ProvenanceVisitState::Visiting;
-        let record = self.tree.provenance_table.record(provenance_id);
+        states[origin_id.index()] = OriginVisitState::Visiting;
+        let record = self.tree.metadata.provenance.record(origin_id);
 
-        // parent records
-        for &parent_id in &record.parents {
-            if !self.tree.provenance_table.contains(parent_id) {
+        // primary MIR anchor
+        if let ProvenanceAnchor::Mir(parent_id) = record.anchor {
+            if !self.tree.metadata.provenance.contains(parent_id) {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "provenance record references a missing parent".to_string(),
+                    message: "origin record references a missing MIR anchor".to_string(),
                     anchor: self.module_anchor(),
                 });
             }
 
-            self.validate_provenance_record(parent_id, states)?;
+            self.validate_origin_record(parent_id, states)?;
         }
 
-        // record contract
-        let anchor = self.module_anchor();
-        match record.kind {
-            ProvenanceKind::Direct => {
-                if record.reason.is_some() {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "direct provenance must not carry a reason".to_string(),
-                        anchor,
-                    });
-                }
+        // input MIR anchors
+        for input in &record.contributors {
+            let ProvenanceKey::Mir(parent_id) = *input else {
+                continue;
+            };
 
-                if record.origins.len() != 1 || !record.parents.is_empty() {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "direct provenance must have exactly one origin and no parents"
-                            .to_string(),
-                        anchor,
-                    });
-                }
+            if !self.tree.metadata.provenance.contains(parent_id) {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "origin record references a missing MIR input".to_string(),
+                    anchor: self.module_anchor(),
+                });
             }
-            ProvenanceKind::Synthetic => {
-                if !record.origins.is_empty() {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "synthetic provenance must not carry direct origins".to_string(),
-                        anchor,
-                    });
-                }
-            }
-            ProvenanceKind::Derived => {
-                if record.parents.is_empty() {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "derived provenance must carry at least one parent".to_string(),
-                        anchor,
-                    });
-                }
-            }
-            ProvenanceKind::Merged => {
-                let source_count = record.origins.len() + record.parents.len();
-                if source_count < 2 {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "merged provenance must carry at least two sources".to_string(),
-                        anchor,
-                    });
-                }
-            }
-            ProvenanceKind::Inlined | ProvenanceKind::Optimized => {
-                if record.origins.is_empty() && record.parents.is_empty() {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "inlined and optimized provenance must carry at least one source"
-                            .to_string(),
-                        anchor,
-                    });
-                }
-            }
+
+            self.validate_origin_record(parent_id, states)?;
         }
 
-        states[provenance_id.index()] = ProvenanceVisitState::Done;
+        states[origin_id.index()] = OriginVisitState::Done;
 
         Ok(())
     }
 
-    /// Validate the reverse provenance index.
-    fn validate_provenance_reverse_index(&self) -> ValidateResult<()> {
-        // reverse index entries
-        for (&origin, records) in &self.tree.provenance_table.records_by_origin {
+    /// Validate the reverse origin index.
+    fn validate_origin_reverse_index(&self) -> ValidateResult<()> {
+        // AST reverse index entries
+        for (&ast_key, records) in &self.tree.metadata.provenance.record_by_ast {
             let mut seen = HashSet::new();
 
-            for &provenance_id in records {
-                if !seen.insert(provenance_id) {
+            for &origin_id in records {
+                if !seen.insert(origin_id) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "provenance reverse index must not contain duplicates".to_string(),
+                        message: "origin reverse index must not contain duplicates".to_string(),
                         anchor: self.module_anchor(),
                     });
                 }
 
-                if !self.tree.provenance_table.contains(provenance_id) {
+                if !self.tree.metadata.provenance.contains(origin_id) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "provenance reverse index references a missing record".to_string(),
+                        message: "origin reverse index references a missing record".to_string(),
                         anchor: self.module_anchor(),
                     });
                 }
 
-                let record = self.tree.provenance_table.record(provenance_id);
-                if !record.origins.contains(&origin) {
+                let record = self.tree.metadata.provenance.record(origin_id);
+                if !self.record_mentions_ast(record, ast_key) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "provenance reverse index does not match record origins"
-                            .to_string(),
+                        message: "origin reverse index does not match AST references".to_string(),
                         anchor: self.module_anchor(),
                     });
                 }
             }
         }
 
-        // forward record entries
-        for (index, record) in self.tree.provenance_table.records.iter().enumerate() {
-            let provenance_id = ProvenanceId::new(index as u32);
+        // DIR reverse index entries
+        for (&dir_key, records) in &self.tree.metadata.provenance.record_by_dir {
+            let mut seen = HashSet::new();
 
-            for &origin in &record.origins {
-                let Some(records) = self.tree.provenance_table.records_by_origin.get(&origin)
+            for &origin_id in records {
+                if !seen.insert(origin_id) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "origin reverse index must not contain duplicates".to_string(),
+                        anchor: self.module_anchor(),
+                    });
+                }
+
+                if !self.tree.metadata.provenance.contains(origin_id) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "origin reverse index references a missing record".to_string(),
+                        anchor: self.module_anchor(),
+                    });
+                }
+
+                let record = self.tree.metadata.provenance.record(origin_id);
+                if !self.record_mentions_dir(record, dir_key) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "origin reverse index does not match DIR references".to_string(),
+                        anchor: self.module_anchor(),
+                    });
+                }
+            }
+        }
+
+        // forward AST and DIR references
+        for (index, record) in self
+            .tree
+            .metadata
+            .provenance
+            .record_by_id
+            .iter()
+            .enumerate()
+        {
+            let origin_id = ProvenanceId::new(index as u32);
+
+            for ast_key in self.record_ast_keys(record) {
+                let Some(records) = self.tree.metadata.provenance.record_by_ast.get(&ast_key)
                 else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "provenance record origin is missing from the reverse index"
+                        message: "origin record AST reference is missing from the reverse index"
                             .to_string(),
                         anchor: self.module_anchor(),
                     });
                 };
 
-                if !records.contains(&provenance_id) {
+                if !records.contains(&origin_id) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "provenance record origin is missing from the reverse index"
+                        message: "origin record AST reference is missing from the reverse index"
+                            .to_string(),
+                        anchor: self.module_anchor(),
+                    });
+                }
+            }
+
+            for dir_key in self.record_dir_keys(record) {
+                let Some(records) = self.tree.metadata.provenance.record_by_dir.get(&dir_key)
+                else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "origin record DIR reference is missing from the reverse index"
+                            .to_string(),
+                        anchor: self.module_anchor(),
+                    });
+                };
+
+                if !records.contains(&origin_id) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "origin record DIR reference is missing from the reverse index"
                             .to_string(),
                         anchor: self.module_anchor(),
                     });
@@ -582,5 +562,57 @@ impl<'a> Validator<'a> {
         }
 
         Ok(())
+    }
+
+    /// Return true when one record mentions one AST key.
+    fn record_mentions_ast(&self, record: &ProvenanceRecord, ast_key: AstNodeKey) -> bool {
+        self.record_ast_keys(record).contains(&ast_key)
+    }
+
+    /// Return true when one record mentions one DIR key.
+    fn record_mentions_dir(&self, record: &ProvenanceRecord, dir_key: DirNodeKey) -> bool {
+        self.record_dir_keys(record).contains(&dir_key)
+    }
+
+    /// Collect unique AST keys mentioned by one origin record.
+    fn record_ast_keys(&self, record: &ProvenanceRecord) -> Vec<AstNodeKey> {
+        let mut keys = Vec::new();
+
+        if let ProvenanceAnchor::Ast(ast_key) = record.anchor {
+            keys.push(ast_key);
+        }
+
+        for input in &record.contributors {
+            let ProvenanceKey::Ast(ast_key) = *input else {
+                continue;
+            };
+
+            if !keys.contains(&ast_key) {
+                keys.push(ast_key);
+            }
+        }
+
+        keys
+    }
+
+    /// Collect unique DIR keys mentioned by one origin record.
+    fn record_dir_keys(&self, record: &ProvenanceRecord) -> Vec<DirNodeKey> {
+        let mut keys = Vec::new();
+
+        if let ProvenanceAnchor::Dir(dir_key) = record.anchor {
+            keys.push(dir_key);
+        }
+
+        for input in &record.contributors {
+            let ProvenanceKey::Dir(dir_key) = *input else {
+                continue;
+            };
+
+            if !keys.contains(&dir_key) {
+                keys.push(dir_key);
+            }
+        }
+
+        keys
     }
 }
