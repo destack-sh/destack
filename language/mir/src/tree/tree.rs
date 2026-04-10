@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::mem::size_of;
 
 use destack_core::Arena;
-use destack_source::Span;
+use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,6 +15,11 @@ use crate::{
 
 /// Approximate per-entry overhead for one hash-map entry.
 const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
+
+#[inline]
+fn empty_source_span() -> Span {
+    Span::empty(FileId::new(0))
+}
 
 /// MIR node tree for a single module.
 ///
@@ -31,6 +36,8 @@ pub struct NodeTree {
     pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// Maps global node id → attached attributes.
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
+    /// Source spans for parsed MIR syntax ownership.
+    pub source_map: NodeSourceMap,
 
     // node arenas
     pub(crate) functions: Arena<Function>,
@@ -87,6 +94,7 @@ impl NodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
+            source_map: NodeSourceMap::with_capacity(capacity),
 
             functions: Arena::new(),
             blocks: Arena::new(),
@@ -108,6 +116,7 @@ impl NodeTree {
         owned_bytes += self.local_id_by_node_id.capacity() * size_of::<u32>();
         owned_bytes += self.node_type_by_node_id.capacity() * size_of::<NodeType>();
         owned_bytes += hash_map_bytes(&self.attributes_by_node_id);
+        owned_bytes += size_of::<NodeSourceMap>();
         owned_bytes += self.functions.retained_bytes();
         owned_bytes += self.blocks.retained_bytes();
         owned_bytes += self.instructions.retained_bytes();
@@ -143,6 +152,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
+        self.source_map.append(empty_source_span());
         self.metadata.provenance.provenance_by_node_id.push(None);
 
         LocalNodeId::new(global_id)
@@ -160,6 +170,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
+        self.source_map.append(empty_source_span());
         let origin_id = self.create_direct_provenance(source_dir_id);
 
         self.metadata
@@ -715,6 +726,7 @@ impl NodeTree {
         };
 
         self.metadata.provenance.set_span(provenance_id, span);
+        self.source_map.set(id.id, span);
     }
 
     /// Set the span for one parsed MIR node and anchor it to the parsed text.
@@ -732,6 +744,55 @@ impl NodeTree {
         };
 
         self.metadata.provenance.set_span(provenance_id, span);
+        self.source_map.set(id.id, span);
+    }
+
+    /// Get the main syntax span for a MIR node when present.
+    #[inline]
+    pub fn get_main_span<T>(&self, id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_main(id.id)
+    }
+
+    /// Get the main syntax span for a MIR node by raw id.
+    #[inline]
+    pub fn get_main_span_by_id(&self, id: u32) -> Option<Span> {
+        self.source_map.get_main(id)
+    }
+
+    /// Set the main syntax span for a MIR node.
+    #[inline]
+    pub fn set_main_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set_main(id.id, span);
+    }
+
+    /// Get one side span for a MIR node when present.
+    #[inline]
+    pub fn get_side_span<T>(&self, id: LocalNodeId<T>, span_type: NodeSpanType) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_side(id.id, span_type)
+    }
+
+    /// Get one side span for a MIR node by raw id when present.
+    #[inline]
+    pub fn get_side_span_by_id(&self, id: u32, span_type: NodeSpanType) -> Option<Span> {
+        self.source_map.get_side(id, span_type)
+    }
+
+    /// Set one side span for a MIR node.
+    #[inline]
+    pub fn set_side_span<T>(&mut self, id: LocalNodeId<T>, span_type: NodeSpanType, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set_side(id.id, span_type, span);
     }
 
     /// Iterate over all nodes of a given type.

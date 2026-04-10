@@ -55,6 +55,7 @@ impl<'a> FunctionBuilder<'a> {
             let instruction = self.tree.get_mut(instruction_id);
             let argument_slice = instruction.argument_slice();
             match instruction {
+                Instruction::Error => {}
                 Instruction::Const { .. }
                 | Instruction::LocalGet { .. }
                 | Instruction::LocalAddr { .. }
@@ -309,6 +310,7 @@ impl<'a> FunctionBuilder<'a> {
     fn replace_value_in_terminator(terminator: &mut Terminator, from: Value, to: Value) {
         // update terminator operands
         match terminator {
+            Terminator::Error => {}
             Terminator::Return { value } => {
                 if let Some(value) = value {
                     Self::replace_value_in_slot(value, from, to);

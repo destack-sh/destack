@@ -1,4 +1,4 @@
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
@@ -60,6 +60,10 @@ impl<'a> FormatMirNode<'a, Block> for Block {
 
 fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     match term {
+        Terminator::Error => Err(FormatError::SyntaxError {
+            message: "cannot format recovered MIR terminator",
+        }),
+
         Terminator::Return { value } => {
             write!(f, [token("return")])?;
             if let Some(v) = value {

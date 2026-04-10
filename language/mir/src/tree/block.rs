@@ -184,6 +184,9 @@ impl CheckConstraint {
 /// Block terminator - how control flow leaves a block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Terminator {
+    /// Recovered invalid terminator syntax.
+    Error,
+
     /// Return from the function.
     Return {
         /// The value to return, or None for void functions.
@@ -423,6 +426,7 @@ impl Terminator {
     /// Return the dispatch kind when this terminator performs a call.
     pub fn call_dispatch_kind(&self) -> Option<crate::CallDispatchKind> {
         match self {
+            Terminator::Error => None,
             Terminator::Invoke { .. } | Terminator::TailCall { .. } => {
                 Some(crate::CallDispatchKind::Direct)
             }
@@ -444,6 +448,7 @@ impl Terminator {
     /// Return the call signature when this terminator performs a call.
     pub fn call_signature(&self) -> Option<LocalNodeId<Type>> {
         match self {
+            Terminator::Error => None,
             Terminator::Invoke { call, .. }
             | Terminator::InvokeIndirect { call, .. }
             | Terminator::InvokeVirtual { call, .. }
@@ -459,6 +464,7 @@ impl Terminator {
     /// Return the declared target when this terminator performs a call.
     pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
         match self {
+            Terminator::Error => None,
             Terminator::Invoke { function, .. } | Terminator::TailCall { function, .. } => {
                 Some(*function)
             }
@@ -481,6 +487,7 @@ impl Terminator {
     /// Get all successor block ids.
     pub fn successors(&self) -> SmallVec<[LocalNodeId<Block>; 2]> {
         match self {
+            Terminator::Error => smallvec![],
             Terminator::Return { .. } => smallvec![],
             Terminator::Jump { target, .. } => smallvec![*target],
             Terminator::Branch {
@@ -533,6 +540,7 @@ impl Terminator {
     /// Get all values used by this terminator.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
+            Terminator::Error => smallvec![],
             Terminator::Return { value } => value.iter().copied().collect(),
             Terminator::Jump { arguments, .. } => arguments.iter().copied().collect(),
             Terminator::Branch {

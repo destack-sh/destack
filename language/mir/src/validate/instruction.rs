@@ -21,6 +21,14 @@ impl<'a> Validator<'a> {
     ) -> ValidateResult<()> {
         let anchor = ValidateAnchor::node(instruction_id);
 
+        // recovered syntax
+        if matches!(instruction, Instruction::Error) {
+            return Err(ValidateError::RecoveredSyntaxNode {
+                kind: "instruction",
+                anchor,
+            });
+        }
+
         // uses
         self.validate_instruction_uses(instruction, anchor, defined_values)?;
 

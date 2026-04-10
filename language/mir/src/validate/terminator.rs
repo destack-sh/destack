@@ -19,12 +19,23 @@ impl<'a> Validator<'a> {
         block_order: &HashMap<LocalNodeId<Block>, usize>,
         defined_values: &HashSet<Value>,
     ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(block_id);
+
+        // recovered syntax
+        if matches!(terminator, Terminator::Error) {
+            return Err(ValidateError::RecoveredSyntaxNode {
+                kind: "terminator",
+                anchor,
+            });
+        }
+
         // validate terminator inputs
         self.validate_terminator_uses(block_id, terminator, defined_values)?;
         self.validate_return_terminator(function, block_id, terminator)?;
 
         // validate terminator-specific structure
         match terminator {
+            Terminator::Error => unreachable!("recovered terminator should have returned above"),
             Terminator::Return { .. } | Terminator::Unreachable => {}
             Terminator::Throw { value } => {
                 self.validate_throw_terminator(function, block_id, *value)?;
