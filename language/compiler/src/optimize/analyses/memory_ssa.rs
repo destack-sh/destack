@@ -3304,7 +3304,7 @@ b0(v0: ref<int32, raw>):
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { memory_effect, .. } = instruction else {
+        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
             panic!("expected call instruction");
         };
         *memory_effect = Some(mir::MemoryEffect::none());
@@ -3347,17 +3347,13 @@ b0(v0: ref<int32, raw>, v1: int32):
         let arg1 = mir::ArgumentAttribute::default();
 
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call {
-            memory_effect,
-            argument_attributes,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { call, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *memory_effect =
+
+        call.memory_effect =
             Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly());
-        *argument_attributes = vec![arg0, arg1];
+        call.argument_attributes = vec![arg0, arg1];
 
         let function = test.tree.get(function_id);
         let analyses = test.function_analyses(function);

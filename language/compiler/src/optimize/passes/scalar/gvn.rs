@@ -1508,7 +1508,7 @@ b0:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { memory_effect, .. } = instruction else {
+        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
             panic!("expected call instruction");
         };
         *memory_effect = Some(mir::MemoryEffect::none());

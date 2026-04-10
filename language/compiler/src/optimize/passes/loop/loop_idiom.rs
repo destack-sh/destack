@@ -274,6 +274,7 @@ fn run_loop_idiom(
 
                 let mem_block = if should_guard {
                     let mem_block = tree.insert(mir::Block {
+                        name: None,
                         parameters: Vec::new(),
                         instructions: Vec::new(),
                         terminator: mir::Terminator::Jump {
@@ -426,6 +427,7 @@ fn run_loop_idiom(
 
             let mem_block = if should_guard {
                 let mem_block = tree.insert(mir::Block {
+                    name: None,
                     parameters: Vec::new(),
                     instructions: Vec::new(),
                     terminator: mir::Terminator::Jump {

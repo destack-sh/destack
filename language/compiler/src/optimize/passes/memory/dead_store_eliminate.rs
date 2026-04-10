@@ -906,16 +906,12 @@ b0:
         };
 
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call {
-            memory_effect,
-            argument_attributes,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { call, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *memory_effect = Some(mir::MemoryEffect::none());
-        *argument_attributes = vec![arg0];
+
+        call.memory_effect = Some(mir::MemoryEffect::none());
+        call.argument_attributes = vec![arg0];
 
         test.run_pass(&DeadStoreEliminate);
         test.assert_output(expected);
