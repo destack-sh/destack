@@ -201,7 +201,7 @@ type Circle { value: int32 }
 function makeShape(v0: Circle): makeShape#return#union {
 b0(v0: Circle):
     v1: uint8 = 0uint8
-    v2: ref<usize1], raw, addressSpace(stack)> = stack.alloc usize[1]
+    v2: ref<usize[1], raw, addressSpace(stack)> = stack.alloc usize[1]
     v3: uint64 = 0uint64
     v4: usize = cast.bit v3 -> usize
     v5: usize[1] = [v4]
@@ -288,8 +288,18 @@ b0(v0: ref?<Circle, managed, readonly>):
         let return_union = "test/test:acceptNullable#return#union";
         let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union);
         let return_union_type = test.type_by_metadata_name(tree, strings, return_union);
-        assert!(tree.type_table.union_layout(parameter_union_type).is_none());
-        assert!(tree.type_table.union_layout(return_union_type).is_none());
+        assert!(
+            tree.metadata
+                .layout
+                .union_layout(parameter_union_type)
+                .is_none()
+        );
+        assert!(
+            tree.metadata
+                .layout
+                .union_layout(return_union_type)
+                .is_none()
+        );
     });
 }
 
@@ -321,23 +331,35 @@ function acceptUnion(value: Circle | null | undefined): Circle | null | undefine
         module_id,
         "native",
         r#"
-type Struct0 {
+type acceptUnion#parameter:value#union {
     tag: uint8;
     payload: usize[1];
 }
-function acceptUnion(v0: Struct0): Struct0 {
-b0(v0: Struct0):
+
+function acceptUnion(v0: acceptUnion#parameter:value#union): acceptUnion#parameter:value#union {
+b0(v0: acceptUnion#parameter:value#union):
     return v0
 }"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        // resolve the union metadata name for the return type
-        let union_metadata_name = "test/test:acceptUnion#return#union";
-        let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
+        // resolve the union metadata names
+        let parameter_union_name = "test/test:acceptUnion#parameter:value#union";
+        let return_union_name = "test/test:acceptUnion#return#union";
+        let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union_name);
+        let return_union_type = test.type_by_metadata_name(tree, strings, return_union_name);
 
-        // assert union metadata exists for the tagged union
-        assert!(tree.type_table.union_layout(union_type).is_some());
+        // assert the parameter and return layouts are tagged unions
+        let parameter_layout = test.union_layout(tree, parameter_union_type);
+        let return_layout = test.union_layout(tree, return_union_type);
+        assert!(matches!(
+            parameter_layout.payload_kind,
+            mir::UnionPayloadKind::Inline
+        ));
+        assert!(matches!(
+            return_layout.payload_kind,
+            mir::UnionPayloadKind::Inline
+        ));
     });
 }
 
@@ -373,6 +395,7 @@ type makeNull#return#union {
     tag: uint8;
     payload: usize[1];
 }
+
 function makeNull(): makeNull#return#union {
 b0:
     v0: uint8 = 1uint8
@@ -417,6 +440,7 @@ type makeUndefined#return#union {
     tag: uint8;
     payload: usize[1];
 }
+
 function makeUndefined(): makeUndefined#return#union {
 b0:
     v0: uint8 = 2uint8
@@ -470,11 +494,13 @@ type makeFrame#return#union {
     tag: uint8;
     payload: ref<void, managed, readonly>;
 }
+
 type Frame {
     first: int64;
     second: int64;
     third: int64;
 }
+
 function makeFrame(v0: Frame): makeFrame#return#union {
 b0(v0: Frame):
     v1: uint8 = 0uint8
@@ -525,7 +551,7 @@ type Circle { value: int32 }
 function takeCircle(v0: takeCircle#parameter:value#union): Circle {
 b0(v0: takeCircle#parameter:value#union):
     v1: usize[1] = field.get v0, 1
-    v2: ref<usize1], raw, addressSpace(stack)> = stack.alloc usize[1]
+    v2: ref<usize[1], raw, addressSpace(stack)> = stack.alloc usize[1]
     store v2, v1
     v3: ref<Circle, raw, addressSpace(stack)> = cast.bit v2 -> ref<Circle, raw, addressSpace(stack)>
     v4: Circle = load v3

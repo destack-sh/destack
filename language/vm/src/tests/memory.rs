@@ -6,25 +6,25 @@ use crate::tests::{
 };
 use destack_heap::{
     Heap, HeapLayoutOptions, HeapLimits, LayoutId, MemoryContext, RawPointer, ReferenceMap,
-    STRING_TYPE_ALIAS, SharedSpace, Value, ValueTag,
+    STRING_TYPE_ALIAS, SharedSpace, StringLayout, Value, ValueTag,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{DataLayout, ManagedReferenceLayout, ManagedReferenceRepresentation, TypeAlias};
+use destack_mir::{ManagedReferenceLayout, ManagedReferenceRepresentation, Storage, TypeAlias};
 use destack_source::FileId;
 
-/// Build one test isolate with an explicit MIR data layout.
-fn create_isolate_with_data_layout(mir_text: &str, data_layout: DataLayout) -> TestIsolate {
+/// Build one test isolate with explicit MIR storage metadata.
+fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate {
     let (mut tree, strings) = Parser::parse(
         FileId::new(0),
         mir_text,
         ParseOptions {
-            pointer_bytes: data_layout.native_pointer_bytes,
+            pointer_bytes: storage.native_pointer_bytes,
         },
     )
     .expect("failed to parse MIR");
 
     // keep the helper honest: parse must produce the requested layout directly
-    assert_eq!(tree.data_layout, data_layout);
+    assert_eq!(tree.metadata.layout.storage, storage);
 
     // keep raw MIR tests explicit about the well known String contract
     stamp_well_known_string_type_for_tests(&mut tree, &strings);
@@ -34,7 +34,7 @@ fn create_isolate_with_data_layout(mir_text: &str, data_layout: DataLayout) -> T
     let mut heap = Heap::with_limits_and_layout(
         HeapLimits::default(),
         HeapLayoutOptions {
-            managed_reference_bytes: data_layout.managed_reference_layout.bytes,
+            managed_reference_bytes: storage.managed_reference_layout.bytes,
             ..Default::default()
         },
     );
@@ -484,7 +484,7 @@ b0:
     v0: ref<Packed, managed, readonly> = managed.alloc Packed
     return v0
 }"#;
-    let data_layout = DataLayout {
+    let storage = Storage {
         native_pointer_bytes: 8,
         managed_reference_layout: ManagedReferenceLayout {
             bytes: 8,
@@ -493,7 +493,7 @@ b0:
         },
     };
 
-    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
+    let mut isolate = create_isolate_with_storage(mir, storage);
     let output = isolate
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
@@ -520,7 +520,7 @@ b0:
     v1: ref<ref<int32, managed, readonly>, managed, readonly> = managed.allocArray ref<int32, managed, readonly>, v0
     return v1
 }"#;
-    let data_layout = DataLayout {
+    let storage = Storage {
         native_pointer_bytes: 8,
         managed_reference_layout: ManagedReferenceLayout {
             bytes: 8,
@@ -529,7 +529,7 @@ b0:
         },
     };
 
-    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
+    let mut isolate = create_isolate_with_storage(mir, storage);
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
@@ -768,7 +768,7 @@ b0:
 }"#,
     ]
     .concat();
-    let data_layout = DataLayout {
+    let storage = Storage {
         native_pointer_bytes: 4,
         managed_reference_layout: ManagedReferenceLayout {
             bytes: 4,
@@ -777,7 +777,7 @@ b0:
         },
     };
 
-    let mut isolate = create_isolate_with_data_layout(&mir, data_layout);
+    let mut isolate = create_isolate_with_storage(&mir, storage);
     let output = isolate
         .run_function_by_name("firstByte", &[])
         .expect("execution failed");
@@ -799,7 +799,7 @@ b0:
     ]
     .concat();
     let mut isolate = create_isolate(&mir);
-    let byte_len = destack_heap::StringLayout::new(8).byte_len();
+    let byte_len = StringLayout::new(8).byte_len();
     let bytes = vec![0u8; byte_len];
     let handle = isolate
         .heap
@@ -841,7 +841,7 @@ fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
         .string_type()
         .map(|type_id| type_id.id)
         .expect("missing canonical well known string type id");
-    let layout = destack_heap::StringLayout::new(tree.data_layout.native_pointer_bytes);
+    let layout = StringLayout::new(tree.metadata.layout.storage.native_pointer_bytes);
     let isolate = crate::Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::new();
@@ -852,17 +852,17 @@ fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
 
     let wrote_length_utf16 = layout.write_field(
         &mut header,
-        destack_heap::StringLayout::LENGTH_UTF16_FIELD as u32,
+        StringLayout::LENGTH_UTF16_FIELD as u32,
         Value::uint32(2),
     );
     let wrote_length_bytes = layout.write_field(
         &mut header,
-        destack_heap::StringLayout::LENGTH_BYTES_FIELD as u32,
+        StringLayout::LENGTH_BYTES_FIELD as u32,
         Value::uint32(2),
     );
     let wrote_data = layout.write_field(
         &mut header,
-        destack_heap::StringLayout::DATA_FIELD as u32,
+        StringLayout::DATA_FIELD as u32,
         Value::raw_pointer(payload),
     );
 
@@ -917,7 +917,7 @@ b0:
     let isolate = crate::Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::new();
-    let byte_len = destack_heap::StringLayout::new(8).byte_len();
+    let byte_len = StringLayout::new(8).byte_len();
     let bytes = vec![0u8; byte_len];
     let handle = heap
         .allocate_managed_bytes(&bytes, ReferenceMap::empty(), Some(other_layout_id))
@@ -988,7 +988,7 @@ b0:
     v5: int32 = load v4
     return v5
 }"#;
-    let data_layout = DataLayout {
+    let storage = Storage {
         native_pointer_bytes: 4,
         managed_reference_layout: ManagedReferenceLayout {
             bytes: 4,
@@ -997,7 +997,7 @@ b0:
         },
     };
 
-    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
+    let mut isolate = create_isolate_with_storage(mir, storage);
     let output = isolate
         .run_function_by_name("stackPacked", &[])
         .expect("execution failed");

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use destack_core::LocalStringPool;
-use destack_mir::{DataLayout, ManagedReferenceLayout, ManagedReferenceRepresentation, NodeTree};
+use destack_mir::{ManagedReferenceLayout, ManagedReferenceRepresentation, NodeTree, Storage};
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeAccess, RuntimeIdentitySelector, RuntimeOptions,
     RuntimeSelector, RuntimeWorld, TimeMode,
@@ -73,11 +73,11 @@ fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
     ));
 }
 
-/// Uses the engine data layout for heap managed-reference width.
+/// Uses the engine storage metadata for heap managed-reference width.
 #[test]
 fn test_runtime_heap_follows_engine_managed_reference_width() {
     let mut tree = NodeTree::new();
-    tree.data_layout = DataLayout {
+    tree.metadata.layout.storage = Storage {
         native_pointer_bytes: 4,
         managed_reference_layout: ManagedReferenceLayout {
             bytes: 4,

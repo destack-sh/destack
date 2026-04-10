@@ -321,10 +321,10 @@ b0(v0: ref<Dog, managed, readonly>):
         // resolve vtables by class metadata names
         let animal_type = test.type_by_metadata_name(tree, strings, "test/test:Animal");
         let animal_table_id = test.type_vtable_id(tree, animal_type);
-        let animal_table = tree.dispatch_table.vtable(animal_table_id);
+        let animal_table = tree.metadata.dispatch.vtable(animal_table_id);
         let dog_type = test.type_by_metadata_name(tree, strings, "test/test:Dog");
         let dog_table_id = test.type_vtable_id(tree, dog_type);
-        let dog_table = tree.dispatch_table.vtable(dog_table_id);
+        let dog_table = tree.metadata.dispatch.vtable(dog_table_id);
 
         // assert the fixed vtable prefix
         test.assert_vtable_prefix(animal_table);
@@ -367,28 +367,28 @@ class Car extends Vehicle {
         module_id,
         "native",
         r#"
-type Struct0 {
+type Vehicle {
     vtable: ref<void, raw, readonly, addressSpace(global)>;
 }
 global Vehicle#vtable: ref?<void, raw, readonly, addressSpace(global)>[4], readonly = zeroInit
 global Car#vtable: ref?<void, raw, readonly, addressSpace(global)>[5], readonly = zeroInit
-function Vehicle.start(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
+function Vehicle.start(v0: ref<Vehicle, managed, readonly>): int32 {
+b0(v0: ref<Vehicle, managed, readonly>):
     v1: int32 = 1int32
     return v1
 }
-function Vehicle.stop(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
+function Vehicle.stop(v0: ref<Vehicle, managed, readonly>): int32 {
+b0(v0: ref<Vehicle, managed, readonly>):
     v1: int32 = 2int32
     return v1
 }
-function Car.start(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
+function Car.start(v0: ref<Vehicle, managed, readonly>): int32 {
+b0(v0: ref<Vehicle, managed, readonly>):
     v1: int32 = 3int32
     return v1
 }
-function Car.honk(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
+function Car.honk(v0: ref<Vehicle, managed, readonly>): int32 {
+b0(v0: ref<Vehicle, managed, readonly>):
     v1: int32 = 4int32
     return v1
 }"#,
@@ -400,8 +400,8 @@ b0(v0: ref<Struct0, managed, readonly>):
 
         let base_table_id = test.type_vtable_id(tree, base_type);
         let derived_table_id = test.type_vtable_id(tree, derived_type);
-        let base_table = tree.dispatch_table.vtable(base_table_id);
-        let derived_table = tree.dispatch_table.vtable(derived_table_id);
+        let base_table = tree.metadata.dispatch.vtable(base_table_id);
+        let derived_table = tree.metadata.dispatch.vtable(derived_table_id);
 
         let base_methods = test.vtable_method_names(base_table, tree, strings);
         let derived_methods = test.vtable_method_names(derived_table, tree, strings);
@@ -525,23 +525,23 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type Struct0 {
+type Logger {
     vtable: ref<void, raw, readonly, addressSpace(global)>;
 }
 global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
 global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-function callLogger(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
-    v1: int32 = call.virtual v0, Struct0, 2(v0): (ref<Struct0, managed, readonly>) -> int32
+function callLogger(v0: ref<Logger, managed, readonly>): int32 {
+b0(v0: ref<Logger, managed, readonly>):
+    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
     return v1
 }
-function Logger.log(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
+function Logger.log(v0: ref<Logger, managed, readonly>): int32 {
+b0(v0: ref<Logger, managed, readonly>):
     v1: int32 = 1int32
     return v1
 }
-function FileLogger.log(v0: ref<Struct0, managed, readonly>): int32 {
-b0(v0: ref<Struct0, managed, readonly>):
+function FileLogger.log(v0: ref<Logger, managed, readonly>): int32 {
+b0(v0: ref<Logger, managed, readonly>):
     v1: int32 = 2int32
     return v1
 }"#,

@@ -268,6 +268,7 @@ type FieldMapBox {
     leftFieldMap: int32;
     rightFieldMap: int32;
 }
+
 function readField(v0: FieldMapBox): int32 {
 b0(v0: FieldMapBox):
     v1: int32 = field.get v0, 0
@@ -280,22 +281,15 @@ b0(v0: FieldMapBox):
         // locate the struct payload type
         let struct_type = test.type_by_metadata_name(tree, strings, "test/test:FieldMapBox");
 
-        // resolve the field map metadata
-        let field_map = tree
-            .type_table
-            .field_map(struct_type)
-            .expect("missing field map metadata");
-        assert_eq!(field_map.len(), 2);
-
-        // assert the left field mapping
+        // assert the left field lookup
         let left_field =
-            test.expect_field_map_entry_by_name(tree, strings, struct_type, "leftFieldMap");
+            test.expect_struct_field_by_name(tree, strings, struct_type, "leftFieldMap");
         let left_name = test.field_name(tree, strings, left_field);
         assert_eq!(left_name, "leftFieldMap");
 
-        // assert the right field mapping
+        // assert the right field lookup
         let right_field =
-            test.expect_field_map_entry_by_name(tree, strings, struct_type, "rightFieldMap");
+            test.expect_struct_field_by_name(tree, strings, struct_type, "rightFieldMap");
         let right_name = test.field_name(tree, strings, right_field);
         assert_eq!(right_name, "rightFieldMap");
     });
@@ -334,12 +328,14 @@ function readValue(value: int32): int32 {
 type Box {
     value: int32;
 }
+
 function readValue(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
     v2: int32 = call Box.get(v1): (Box) -> int32
     return v2
 }
+
 function Box.get(v0: Box): int32 {
 b0(v0: Box):
     v1: int32 = field.get v0, 0
@@ -363,7 +359,7 @@ fn test_lower_multiple_struct_field_access() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Data { 
+struct Data {
     a: number;
     b: number;
     c: number;
