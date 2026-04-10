@@ -89,7 +89,7 @@ impl StringInterner {
 
         // initialize empty caches
         Self {
-            layout: StringLayout::new(tree.data_layout.native_pointer_bytes),
+            layout: StringLayout::new(tree.metadata.layout.storage.native_pointer_bytes),
             layout_id,
             type_id,
             literals: HashMap::new(),

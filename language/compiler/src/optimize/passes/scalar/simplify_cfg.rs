@@ -4243,6 +4243,7 @@ b0:
                     normal_arguments,
                     unwind_target,
                     unwind_arguments,
+                    ..
                 } => {
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
@@ -4257,6 +4258,7 @@ b0:
                     normal_arguments,
                     unwind_target,
                     unwind_arguments,
+                    ..
                 } => {
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
@@ -4451,6 +4453,7 @@ b0:
                     normal_arguments: _,
                     unwind_target: _,
                     unwind_arguments: _,
+                    ..
                 }
                 | mir::Terminator::InvokeInterface {
                     receiver: _,
@@ -4462,6 +4465,7 @@ b0:
                     normal_arguments: _,
                     unwind_target: _,
                     unwind_arguments: _,
+                    ..
                 }
                 | mir::Terminator::Throw { value: _ } => {
                     for value in block.terminator.uses() {

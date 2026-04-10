@@ -327,7 +327,12 @@ fn evaluate_check_constraint(
                 return Ok(false);
             };
 
-            Ok(state.tree().type_table.itab_id(actual, *expected).is_some())
+            Ok(state
+                .tree()
+                .metadata
+                .dispatch
+                .itab_id(actual, *expected)
+                .is_some())
         }
     }
 }

@@ -5,6 +5,14 @@ use crate::optimize::common::terminator_substitute_uses;
 use destack_mir as mir;
 use mir::Instruction;
 
+/// Clone one call payload with remapped arguments.
+fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir::Call<A> {
+    mir::Call {
+        arguments,
+        ..call.clone()
+    }
+}
+
 /// Check if an instruction is pure (result depends only on operands).
 ///
 /// A pure instruction has no side effects AND does not read mutable state.
@@ -374,19 +382,14 @@ pub fn instruction_allows_read_only_motion(
     }
 
     // require call metadata to be present
-    let Some(metadata) = instruction.call_effects() else {
+    let Some(behavior) = instruction.call_behavior() else {
         return false;
     };
-
-    // require non effecting call behavior
-    let Some(behavior) = metadata.behavior.as_ref() else {
-        return false;
-    };
-    if behavior.unwind_behavior.may_unwind()
-        || behavior.convergent
-        || behavior.noreturn
-        || behavior.allocates
-        || behavior.frees
+    if behavior.unwind.may_unwind()
+        || behavior.must_not_duplicate
+        || behavior.return_behavior.is_no_return()
+        || behavior.allocation.allocate.is_some()
+        || behavior.allocation.free.is_some()
     {
         return false;
     }
@@ -974,49 +977,41 @@ pub fn instruction_substitute_uses(
         mir::Instruction::CallVirtual {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallVirtual {
             destination: *destination,
             receiver: substitute(receiver),
-            arguments: *arguments,
+            call: call.clone(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(receiver),
-            arguments: *arguments,
+            call: call.clone(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(callee),
-            arguments: *arguments,
-            signature: *signature,
-            effects: effects.clone(),
+            call: call.clone(),
         },
         mir::Instruction::ManagedAllocArray {
             destination,
@@ -1412,62 +1407,50 @@ pub fn instruction_substitute_uses_in_tree(
         mir::Instruction::Call {
             destination,
             function,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::Call {
             destination: *destination,
             function: *function,
-            arguments: substitute_arguments(*arguments),
-            signature: *signature,
-            effects: effects.clone(),
+            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
         },
         mir::Instruction::CallVirtual {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallVirtual {
             destination: *destination,
             receiver: substitute(*receiver),
-            arguments: substitute_arguments(*arguments),
+            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(*receiver),
-            arguments: substitute_arguments(*arguments),
+            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(*callee),
-            arguments: substitute_arguments(*arguments),
-            signature: *signature,
-            effects: effects.clone(),
+            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -1747,8 +1730,13 @@ pub fn clone_instruction_metadata(
     cloned: mir::LocalNodeId<mir::Instruction>,
     value_map: &HashMap<mir::Value, mir::Value>,
 ) {
+    // preserve instruction provenance by default
+    if let Some(provenance_id) = tree.get_provenance(original.id) {
+        tree.set_provenance(cloned.id, provenance_id);
+    }
+
     // clone memory access metadata
-    if let Some(accesses) = tree.memory_table.memory_accesses(original) {
+    if let Some(accesses) = tree.metadata.memory.memory_accesses(original) {
         let mut cloned_accesses = accesses.to_vec();
         for access in &mut cloned_accesses {
             if let mir::MemoryAccessTarget::Pointer(value) = access.target
@@ -1758,7 +1746,8 @@ pub fn clone_instruction_metadata(
             }
         }
 
-        tree.memory_table
+        tree.metadata
+            .memory
             .insert_memory_accesses(cloned, cloned_accesses);
     }
 }
@@ -1775,7 +1764,7 @@ pub fn remap_instruction_memory_accesses(
     }
 
     // read existing memory access metadata
-    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
+    let Some(accesses) = tree.metadata.memory.memory_accesses(instruction) else {
         return;
     };
 
@@ -1788,7 +1777,8 @@ pub fn remap_instruction_memory_accesses(
         }
     }
 
-    tree.memory_table
+    tree.metadata
+        .memory
         .insert_memory_accesses(instruction, updated);
 }
 
@@ -2459,62 +2449,50 @@ pub fn instruction_map(
         mir::Instruction::Call {
             destination,
             function,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::Call {
             destination: destination.map(remap),
             function: *function,
-            arguments: remap_arguments(*arguments),
-            signature: *signature,
-            effects: effects.clone(),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
         mir::Instruction::CallVirtual {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallVirtual {
             destination: destination.map(remap),
             receiver: remap(*receiver),
-            arguments: remap_arguments(*arguments),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
-            arguments: remap_arguments(*arguments),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
-            arguments: remap_arguments(*arguments),
-            signature: *signature,
-            effects: effects.clone(),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
         mir::Instruction::ManagedAlloc {
             destination,
@@ -3237,62 +3215,50 @@ pub fn instruction_map_with_locals(
         mir::Instruction::Call {
             destination,
             function,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::Call {
             destination: destination.map(remap),
             function: *function,
-            arguments: remap_arguments(*arguments),
-            signature: *signature,
-            effects: effects.clone(),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
         mir::Instruction::CallVirtual {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallVirtual {
             destination: destination.map(remap),
             receiver: remap(*receiver),
-            arguments: remap_arguments(*arguments),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
-            effects,
+            declared_target,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
-            arguments: remap_arguments(*arguments),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
-            effects: effects.clone(),
+            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            arguments,
-            signature,
-            effects,
+            call,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
-            arguments: remap_arguments(*arguments),
-            signature: *signature,
-            effects: effects.clone(),
+            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -3526,14 +3492,14 @@ pub fn terminator_remap(
             remap_args(resume_arguments);
         }
         mir::Terminator::Invoke {
-            arguments,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
             ..
         } => {
-            remap_args(arguments);
+            remap_args(&mut call.arguments);
             remap_target(normal_target);
             remap_args(normal_arguments);
             remap_target(unwind_target);
@@ -3541,7 +3507,7 @@ pub fn terminator_remap(
         }
         mir::Terminator::InvokeIndirect {
             callee,
-            arguments,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
@@ -3549,7 +3515,7 @@ pub fn terminator_remap(
             ..
         } => {
             remap_value(callee);
-            remap_args(arguments);
+            remap_args(&mut call.arguments);
             remap_target(normal_target);
             remap_args(normal_arguments);
             remap_target(unwind_target);
@@ -3557,7 +3523,7 @@ pub fn terminator_remap(
         }
         mir::Terminator::InvokeVirtual {
             receiver,
-            arguments,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
@@ -3566,7 +3532,7 @@ pub fn terminator_remap(
         }
         | mir::Terminator::InvokeInterface {
             receiver,
-            arguments,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
@@ -3574,7 +3540,7 @@ pub fn terminator_remap(
             ..
         } => {
             remap_value(receiver);
-            remap_args(arguments);
+            remap_args(&mut call.arguments);
             remap_target(normal_target);
             remap_args(normal_arguments);
             remap_target(unwind_target);
@@ -3590,30 +3556,18 @@ pub fn terminator_remap(
         }
         mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall {
-            function: _,
-            arguments,
-            ..
+            function: _, call, ..
         } => {
-            remap_args(arguments);
+            remap_args(&mut call.arguments);
         }
-        mir::Terminator::TailCallVirtual {
-            receiver,
-            arguments,
-            ..
-        }
-        | mir::Terminator::TailCallInterface {
-            receiver,
-            arguments,
-            ..
-        } => {
+        mir::Terminator::TailCallVirtual { receiver, call, .. }
+        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
             remap_value(receiver);
-            remap_args(arguments);
+            remap_args(&mut call.arguments);
         }
-        mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
-        } => {
+        mir::Terminator::TailCallIndirect { callee, call, .. } => {
             remap_value(callee);
-            remap_args(arguments);
+            remap_args(&mut call.arguments);
         }
     }
 }

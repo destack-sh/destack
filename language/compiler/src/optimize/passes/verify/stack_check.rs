@@ -174,48 +174,45 @@ impl StackPointerMap {
             Instruction::Call {
                 destination: Some(dest),
                 function,
-                arguments,
+                call,
                 ..
             } => {
-                let arguments = tree.get_arguments(*arguments);
+                let arguments = tree.get_arguments(call.arguments);
                 let lifetime = lifetime_analysis.get(*function);
                 self.apply_lifetime_result(*dest, lifetime, arguments);
             }
             Instruction::CallVirtual {
                 destination: Some(dest),
                 receiver,
-                arguments,
-                signature,
+                call,
                 ..
             }
             | Instruction::CallInterface {
                 destination: Some(dest),
                 receiver,
-                arguments,
-                signature,
+                call,
                 ..
             } => {
-                let mut args = Vec::with_capacity(tree.get_arguments(*arguments).len() + 1);
+                let mut args = Vec::with_capacity(tree.get_arguments(call.arguments).len() + 1);
                 args.push(*receiver);
-                args.extend_from_slice(tree.get_arguments(*arguments));
+                args.extend_from_slice(tree.get_arguments(call.arguments));
 
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     self.apply_call_targets(*dest, &args, targets, lifetime_analysis);
                 } else {
-                    self.apply_signature_lifetime(*dest, *signature, tree, &args, None);
+                    self.apply_signature_lifetime(*dest, call.signature, tree, &args, None);
                 }
             }
             Instruction::CallIndirect {
                 destination: Some(dest),
-                arguments,
-                signature,
+                call,
                 ..
             } => {
-                let args = tree.get_arguments(*arguments);
+                let args = tree.get_arguments(call.arguments);
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     self.apply_call_targets(*dest, args, targets, lifetime_analysis);
                 } else {
-                    self.apply_signature_lifetime(*dest, *signature, tree, args, None);
+                    self.apply_signature_lifetime(*dest, call.signature, tree, args, None);
                 }
             }
             // calls without destination: nothing to track

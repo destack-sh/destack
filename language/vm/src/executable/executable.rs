@@ -15,27 +15,25 @@ pub struct Executable {
     pub(crate) tree: mir::NodeTree,
     /// The immutable string pool for this executable.
     pub(crate) strings: ImmutableStringPool,
+    /// Lowered function bodies for the current interpreter backend.
+    pub(crate) functions: FunctionTable,
     /// Lookup table for function ids by name.
     pub(crate) function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
+    /// Compiled layouts keyed by MIR type id.
+    pub(crate) layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     /// Lookup table for vtables keyed by vtable globals.
     pub(crate) vtable_id_by_global: HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId>,
+
     /// Logical frame layouts by dense layout id.
     pub(crate) frame_layouts: Vec<engine::FrameLayout>,
     /// Logical frame layout id by owning function.
     pub(crate) frame_layout_id_by_function:
         HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
+
     /// Resume points by dense resume point id.
     pub(crate) resume_points: Vec<engine::ResumePoint>,
     /// Resume transfers by dense transfer id.
     pub(crate) resume_transfers: Vec<engine::ResumeTransfer>,
-    /// Safepoints by dense safepoint id.
-    pub(crate) safepoints: Vec<engine::Safepoint>,
-    /// Safepoint id keyed by semantic resume point.
-    pub(crate) safepoint_id_by_resume_point: HashMap<engine::ResumePointId, engine::SafepointId>,
-    /// Materialization maps by dense map id.
-    pub(crate) materialization_maps: Vec<engine::MaterializationMap>,
-    /// Compiled layouts keyed by MIR type id.
-    pub(crate) layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     /// Generic resume point ids keyed by function, block, and instruction offset.
     pub(crate) resume_point_id_by_position: HashMap<
         (
@@ -45,8 +43,13 @@ pub struct Executable {
         ),
         engine::ResumePointId,
     >,
-    /// Lowered function bodies for the current interpreter backend.
-    pub(crate) functions: FunctionTable,
+
+    /// Safepoints by dense safepoint id.
+    pub(crate) safepoints: Vec<engine::Safepoint>,
+    /// Safepoint id keyed by semantic resume point.
+    pub(crate) safepoint_id_by_resume_point: HashMap<engine::ResumePointId, engine::SafepointId>,
+    /// Materialization maps by dense map id.
+    pub(crate) materialization_maps: Vec<engine::MaterializationMap>,
 }
 
 impl Executable {
@@ -266,7 +269,7 @@ impl ExecutableBuilder {
     fn build_vtable_id_by_global(&self) -> HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId> {
         let mut map = HashMap::new();
 
-        for (table_id, table) in self.tree.dispatch_table.iter_vtables() {
+        for (table_id, table) in self.tree.metadata.dispatch.iter_vtables() {
             let mir::VtableStorage::Global(global) = table.storage;
             map.insert(global, table_id);
         }

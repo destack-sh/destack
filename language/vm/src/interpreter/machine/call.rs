@@ -101,7 +101,7 @@ fn resolve_virtual_dispatch_target(
         .ok_or(Error::InvalidInstruction)?;
 
     // resolve the vtable slot for the virtual call
-    let table = state.tree().dispatch_table.vtable(table_id);
+    let table = state.tree().metadata.dispatch.vtable(table_id);
     let slot = table
         .entries
         .get(slot_id as usize)
@@ -143,7 +143,7 @@ fn resolve_interface_dispatch_target(
     let table_id = mir::ItabId::new(raw_id);
 
     // resolve the itab slot for the interface call
-    let table = state.tree().dispatch_table.itab(table_id);
+    let table = state.tree().metadata.dispatch.itab(table_id);
     let slot = table
         .entries
         .get(slot_id as usize)

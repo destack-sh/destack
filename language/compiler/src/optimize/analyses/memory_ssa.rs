@@ -7,7 +7,7 @@ use crate::optimize::common::{
     MemoryLocation, TypeKey, ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
     build_value_definition_map, collect_reachable_blocks, compute_dominance_frontiers,
     location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_kind,
-    resolve_pointer_pointee_type, tbaa_tags_may_alias,
+    resolve_pointer_pointee_type, type_alias_tags_may_alias,
 };
 use crate::optimize::{
     Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses, FunctionAnalysis,
@@ -109,13 +109,13 @@ pub struct MemoryAccessEffect {
     /// The memory location set associated with this access.
     pub location_set: mir::MemoryRegionSet,
     /// The address spaces associated with this access.
-    pub address_spaces: Option<mir::AddressSpaceSet>,
+    pub address_spaces: Option<mir::AddressSpaceMask>,
     /// Alias scopes applied to this access.
-    pub alias_scopes: Vec<mir::AliasScopeId>,
+    pub alias_scopes: Vec<mir::MemoryAliasScopeId>,
     /// No alias scopes applied to this access.
-    pub noalias_scopes: Vec<mir::AliasScopeId>,
-    /// Optional TBAA tag for this access.
-    pub tbaa_tag: Option<mir::TbaaTagId>,
+    pub noalias_scopes: Vec<mir::MemoryAliasScopeId>,
+    /// Optional type-alias tag for this access.
+    pub type_alias_tag: Option<mir::TypeAliasTagId>,
 }
 
 /// Query information for clobbering access lookups.
@@ -126,13 +126,13 @@ struct MemoryAccessQuery {
     /// The memory location set associated with this query.
     location_set: mir::MemoryRegionSet,
     /// The address spaces associated with this query.
-    address_spaces: Option<mir::AddressSpaceSet>,
+    address_spaces: Option<mir::AddressSpaceMask>,
     /// Alias scopes applied to this access.
-    alias_scopes: Vec<mir::AliasScopeId>,
+    alias_scopes: Vec<mir::MemoryAliasScopeId>,
     /// No alias scopes applied to this access.
-    noalias_scopes: Vec<mir::AliasScopeId>,
-    /// Optional TBAA tag for the access.
-    tbaa_tag: Option<mir::TbaaTagId>,
+    noalias_scopes: Vec<mir::MemoryAliasScopeId>,
+    /// Optional type-alias tag for the access.
+    type_alias_tag: Option<mir::TypeAliasTagId>,
 }
 
 impl MemoryAccessQuery {
@@ -148,7 +148,7 @@ impl MemoryAccessQuery {
             address_spaces: effect.address_spaces.clone(),
             alias_scopes,
             noalias_scopes,
-            tbaa_tag: effect.tbaa_tag,
+            type_alias_tag: effect.type_alias_tag,
         }
     }
 
@@ -160,7 +160,7 @@ impl MemoryAccessQuery {
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         }
     }
 }
@@ -174,7 +174,9 @@ fn location_set_for_location(location: &MemoryAccessLocation) -> mir::MemoryRegi
 }
 
 /// Canonicalize alias scope lists for stable comparisons.
-fn canonicalize_alias_scopes(mut scopes: Vec<mir::AliasScopeId>) -> Vec<mir::AliasScopeId> {
+fn canonicalize_alias_scopes(
+    mut scopes: Vec<mir::MemoryAliasScopeId>,
+) -> Vec<mir::MemoryAliasScopeId> {
     // sort scopes by id and drop duplicates
     scopes.sort_by_key(|scope| scope.index());
     scopes.dedup();
@@ -194,7 +196,7 @@ impl MemoryAccessEffect {
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         }
     }
 
@@ -210,7 +212,7 @@ impl MemoryAccessEffect {
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         }
     }
 
@@ -226,7 +228,7 @@ impl MemoryAccessEffect {
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         }
     }
 
@@ -242,7 +244,7 @@ impl MemoryAccessEffect {
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         }
     }
 }
@@ -1065,13 +1067,13 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.apply_local_location(&mut effect);
                 Self::single_effect(effect)
             }
-            mir::Instruction::Call { arguments, .. }
-            | mir::Instruction::CallVirtual { arguments, .. }
-            | mir::Instruction::CallInterface { arguments, .. } => {
-                self.call_effects(instruction, *arguments, None)
+            mir::Instruction::Call { call, .. }
+            | mir::Instruction::CallVirtual { call, .. }
+            | mir::Instruction::CallInterface { call, .. } => {
+                self.call_effects(instruction, call.arguments, None)
             }
-            mir::Instruction::CallIndirect { arguments, .. } => {
-                self.call_effects(instruction, *arguments, None)
+            mir::Instruction::CallIndirect { call, .. } => {
+                self.call_effects(instruction, call.arguments, None)
             }
             mir::Instruction::RawFree { .. }
             | mir::Instruction::RawDrop { .. }
@@ -1096,7 +1098,7 @@ impl<'a> MemoryAccessCollector<'a> {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> Option<SmallVec<[MemoryAccessEffect; 2]>> {
         // read metadata when present
-        let accesses = self.tree.memory_table.memory_accesses(instruction_id)?;
+        let accesses = self.tree.metadata.memory.memory_accesses(instruction_id)?;
 
         // build effect list from metadata
         let mut effects = SmallVec::new();
@@ -1172,7 +1174,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
         effect.alias_scopes = canonicalize_alias_scopes(access.alias_scopes.clone());
         effect.noalias_scopes = canonicalize_alias_scopes(access.noalias_scopes.clone());
-        effect.tbaa_tag = access.tbaa_tag;
+        effect.type_alias_tag = access.type_alias_tag;
         effect
     }
 
@@ -1194,7 +1196,7 @@ impl<'a> MemoryAccessCollector<'a> {
         &mut self,
         access: &mir::MemoryAccessMetadata,
         location: &MemoryAccessLocation,
-    ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceSet>) {
+    ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceMask>) {
         if let Some(address_space) = access.address_space {
             let location_set = self.location_set_for_address_space(address_space);
             return (location_set, self.address_space_set(address_space));
@@ -1218,7 +1220,7 @@ impl<'a> MemoryAccessCollector<'a> {
     fn location_set_for_pointer(
         &mut self,
         pointer: mir::Value,
-    ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceSet>) {
+    ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceMask>) {
         let Some(address_space) =
             resolve_pointer_address_space(pointer, self.tree, &self.value_types)
         else {
@@ -1246,12 +1248,12 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 
     /// Build an address space set when the space is explicit.
-    fn address_space_set(&self, address_space: mir::AddressSpace) -> Option<mir::AddressSpaceSet> {
+    fn address_space_set(&self, address_space: mir::AddressSpace) -> Option<mir::AddressSpaceMask> {
         if address_space.is_generic() {
             return None;
         }
 
-        Some(mir::AddressSpaceSet::new(vec![address_space]))
+        Some(mir::AddressSpaceMask::new(vec![address_space]))
     }
 
     /// Merge pointer and call location sets conservatively.
@@ -1271,9 +1273,9 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Merge pointer and call address space sets conservatively.
     fn merge_address_spaces(
         &self,
-        pointer_spaces: Option<mir::AddressSpaceSet>,
-        call_spaces: Option<&mir::AddressSpaceSet>,
-    ) -> Option<mir::AddressSpaceSet> {
+        pointer_spaces: Option<mir::AddressSpaceMask>,
+        call_spaces: Option<&mir::AddressSpaceMask>,
+    ) -> Option<mir::AddressSpaceMask> {
         match (pointer_spaces, call_spaces) {
             (Some(pointer_spaces), Some(call_spaces)) => {
                 if pointer_spaces.is_disjoint(call_spaces) {
@@ -1285,7 +1287,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         .copied()
                         .filter(|space| call_spaces.contains(*space))
                         .collect();
-                    Some(mir::AddressSpaceSet::new(spaces))
+                    Some(mir::AddressSpaceMask::new(spaces))
                 }
             }
             (Some(pointer_spaces), None) => Some(pointer_spaces),
@@ -1302,11 +1304,10 @@ impl<'a> MemoryAccessCollector<'a> {
         env: Option<mir::Value>,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         // read callsite effects when present
-        let call_effects = instruction.call_effects();
-
         // use callsite or callee metadata for memory effects
-        let mut memory_effects = call_effects
-            .and_then(|effects| effects.memory_effects.clone())
+        let mut memory_effects = instruction
+            .call_memory_effect()
+            .cloned()
             .or_else(|| self.callee_memory_effects(instruction));
 
         // fall back to conservative unknown when missing
@@ -1368,22 +1369,23 @@ impl<'a> MemoryAccessCollector<'a> {
                 }
 
                 // read argument metadata
-                let arg_metadata = call_effects
-                    .and_then(|effects| effects.argument_metadata.get(index))
+                let arg_attribute = instruction
+                    .call_argument_attributes()
+                    .and_then(|argument_attributes| argument_attributes.get(index))
                     .cloned()
                     .unwrap_or_default();
 
                 // clamp access to the call effects
-                let access = self.clamp_argument_access(arg_metadata.access, &effects);
+                let access = self.clamp_argument_access(arg_attribute.access, &effects);
                 if access == mir::ArgumentAccess::None {
                     continue;
                 }
 
                 // build the access location
-                let size = arg_metadata
+                let size = arg_attribute
                     .attributes
                     .dereferenceable_bytes
-                    .or(arg_metadata.attributes.dereferenceable_or_null_bytes);
+                    .or(arg_attribute.attributes.dereferenceable_or_null_bytes);
                 let access_type = self.pointer_access_type(arg_value);
                 let pointer_kind = self.pointer_kind(arg_value);
                 let pointer_space = self.pointer_address_space(arg_value);
@@ -1414,10 +1416,10 @@ impl<'a> MemoryAccessCollector<'a> {
                 effect.address_spaces =
                     self.merge_address_spaces(pointer_spaces, effects.address_spaces.as_ref());
 
-                effect.alias_scopes = canonicalize_alias_scopes(arg_metadata.alias_scopes.clone());
+                effect.alias_scopes = canonicalize_alias_scopes(arg_attribute.alias_scopes.clone());
                 effect.noalias_scopes =
-                    canonicalize_alias_scopes(arg_metadata.noalias_scopes.clone());
-                effect.tbaa_tag = arg_metadata.tbaa_tag;
+                    canonicalize_alias_scopes(arg_attribute.noalias_scopes.clone());
+                effect.type_alias_tag = arg_attribute.type_alias_tag;
 
                 // record the access effect
                 arg_effects.push(effect);
@@ -1506,7 +1508,7 @@ impl<'a> MemoryAccessCollector<'a> {
         // only direct calls have callee metadata
         let function = instruction.call_declared_target()?;
         let callee = self.tree.get(function);
-        Some(callee.memory_effects.clone())
+        Some(callee.memory_effect.clone())
     }
 
     /// Determine memory effects for an intrinsic.
@@ -2022,7 +2024,7 @@ fn access_clobbers_query(
         pointer_location,
         &query.alias_scopes,
         &query.noalias_scopes,
-        query.tbaa_tag,
+        query.type_alias_tag,
     );
     mod_ref.is_mod()
 }
@@ -2053,8 +2055,12 @@ fn effects_may_alias(
         return false;
     }
 
-    // check tbaa disambiguation
-    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, def_effect.tbaa_tag, query.tbaa_tag) {
+    // check type-alias disambiguation
+    if !type_alias_tags_may_alias(
+        &tree.metadata.memory.type_alias,
+        def_effect.type_alias_tag,
+        query.type_alias_tag,
+    ) {
         return false;
     }
 
@@ -2365,8 +2371,7 @@ b0:
             size: Some(4),
             alignment: None,
             is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering: None,
             scope: Some(mir::AtomicScope::Device),
             memory_scope: Some(mir::MemoryScope::Device),
@@ -2374,7 +2379,7 @@ b0:
             address_space: Some(mir::AddressSpace::Stack),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         };
         test.insert_memory_accesses(load_inst, vec![access]);
 
@@ -2474,11 +2479,11 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         );
 
         // create disjoint tbaa tags
-        let root = test.create_tbaa_node(None, false);
-        let int_node = test.create_tbaa_node(Some(root), false);
-        let float_node = test.create_tbaa_node(Some(root), false);
-        let int_tag = test.create_tbaa_tag(root, int_node, 0, 4, false);
-        let float_tag = test.create_tbaa_tag(root, float_node, 0, 4, false);
+        let root = test.create_type_alias_node(None, false);
+        let int_node = test.create_type_alias_node(Some(root), false);
+        let float_node = test.create_type_alias_node(Some(root), false);
+        let int_tag = test.create_type_alias_tag(root, int_node, 0, 4, false);
+        let float_tag = test.create_type_alias_tag(root, float_node, 0, 4, false);
 
         // locate store and load instructions
         let function_id = test.first_function_id();
@@ -2613,10 +2618,10 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         );
 
         // create disjoint tbaa tags with the same base and access
-        let root = test.create_tbaa_node(None, false);
-        let access = test.create_tbaa_node(Some(root), false);
-        let tag_a = test.create_tbaa_tag(root, access, 0, 4, false);
-        let tag_b = test.create_tbaa_tag(root, access, 8, 4, false);
+        let root = test.create_type_alias_node(None, false);
+        let access = test.create_type_alias_node(Some(root), false);
+        let tag_a = test.create_type_alias_tag(root, access, 0, 4, false);
+        let tag_b = test.create_type_alias_tag(root, access, 8, 4, false);
 
         // locate store and load instructions
         let function_id = test.first_function_id();
@@ -2683,10 +2688,10 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         );
 
         // create overlapping tbaa tags with the same base and access
-        let root = test.create_tbaa_node(None, false);
-        let access = test.create_tbaa_node(Some(root), false);
-        let tag_a = test.create_tbaa_tag(root, access, 0, 8, false);
-        let tag_b = test.create_tbaa_tag(root, access, 4, 8, false);
+        let root = test.create_type_alias_node(None, false);
+        let access = test.create_type_alias_node(Some(root), false);
+        let tag_a = test.create_type_alias_tag(root, access, 0, 8, false);
+        let tag_b = test.create_type_alias_tag(root, access, 4, 8, false);
 
         // locate store and load instructions
         let function_id = test.first_function_id();
@@ -2813,8 +2818,7 @@ b0(v0: ref<int32, raw>):
             size: Some(4),
             alignment: None,
             is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering: None,
             scope: None,
             memory_scope: None,
@@ -2822,7 +2826,7 @@ b0(v0: ref<int32, raw>):
             address_space: Some(mir::AddressSpace::Stack),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         };
         let load_access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
@@ -2830,8 +2834,7 @@ b0(v0: ref<int32, raw>):
             size: Some(4),
             alignment: None,
             is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering: None,
             scope: None,
             memory_scope: None,
@@ -2839,7 +2842,7 @@ b0(v0: ref<int32, raw>):
             address_space: Some(mir::AddressSpace::Global),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         };
 
         test.insert_memory_accesses(store_inst, vec![store_access]);
@@ -3300,16 +3303,11 @@ b0(v0: ref<int32, raw>):
 
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
-        let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call {
-            effects: call_effects,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { memory_effect, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        *memory_effect = Some(mir::MemoryEffect::none());
 
         let function = test.tree.get(function_id);
         let analyses = test.function_analyses(function);
@@ -3342,25 +3340,24 @@ b0(v0: ref<int32, raw>, v1: int32):
         };
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let arg0 = mir::CallArgumentMetadata {
+        let arg0 = mir::ArgumentAttribute {
             access: mir::ArgumentAccess::Read,
             ..Default::default()
         };
-        let arg1 = mir::CallArgumentMetadata::default();
+        let arg1 = mir::ArgumentAttribute::default();
 
-        let effects = mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly();
-        let effects = mir::CallEffects::default()
-            .with_memory_effects(effects)
-            .with_argument_metadata(vec![arg0, arg1]);
         let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
-            effects: call_effects,
+            memory_effect,
+            argument_attributes,
             ..
         } = instruction
         else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        *memory_effect =
+            Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly());
+        *argument_attributes = vec![arg0, arg1];
 
         let function = test.tree.get(function_id);
         let analyses = test.function_analyses(function);
@@ -3412,8 +3409,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             size: Some(4),
             alignment: None,
             is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering: None,
             scope: None,
             memory_scope: None,
@@ -3421,7 +3417,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         };
         let write_access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Write,
@@ -3429,8 +3425,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             size: Some(4),
             alignment: None,
             is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering: None,
             scope: None,
             memory_scope: None,
@@ -3438,7 +3433,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
-            tbaa_tag: None,
+            type_alias_tag: None,
         };
 
         // attach memory access metadata to the call

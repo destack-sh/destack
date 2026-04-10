@@ -70,7 +70,7 @@ struct MemoryEffectBuilder {
     /// The aggregate memory region set.
     locations: mir::MemoryRegionSet,
     /// The aggregate address space set when available.
-    address_spaces: Option<mir::AddressSpaceSet>,
+    address_spaces: Option<mir::AddressSpaceMask>,
     /// Whether effects are limited to argument memory.
     argmemonly: bool,
     /// Whether effects are limited to inaccessible memory.
@@ -89,7 +89,7 @@ impl MemoryEffectBuilder {
             reads: false,
             writes: false,
             locations: mir::MemoryRegionSet::NONE,
-            address_spaces: Some(mir::AddressSpaceSet::new(Vec::new())),
+            address_spaces: Some(mir::AddressSpaceMask::new(Vec::new())),
             argmemonly: true,
             inaccessible_mem_only: true,
             nosync: true,
@@ -156,26 +156,26 @@ impl MemoryEffectBuilder {
 
 /// Builder for call behavior summaries.
 struct CallBehaviorBuilder {
-    /// Repeatability classification for the function.
-    repeatability: mir::Repeatability,
+    /// Effect class for the function.
+    effect_class: mir::EffectClass,
     /// Whether any operation may unwind.
     unwind_behavior: mir::UnwindBehavior,
     /// Whether any callee may suspend execution.
     may_suspend: bool,
-    /// Whether any callee is convergent.
-    convergent: bool,
+    /// Whether any callee must not be duplicated.
+    must_not_duplicate: bool,
     /// Whether any callee allocates.
     allocates: bool,
     /// The aggregate allocation region set when available.
     alloc_locations: Option<mir::MemoryRegionSet>,
     /// The aggregate allocation address space set when available.
-    alloc_address_spaces: Option<mir::AddressSpaceSet>,
+    alloc_address_spaces: Option<mir::AddressSpaceMask>,
     /// Whether any callee frees memory.
     frees: bool,
     /// The aggregate free region set when available.
     free_locations: Option<mir::MemoryRegionSet>,
     /// The aggregate free address space set when available.
-    free_address_spaces: Option<mir::AddressSpaceSet>,
+    free_address_spaces: Option<mir::AddressSpaceMask>,
 }
 
 impl CallBehaviorBuilder {
@@ -183,51 +183,49 @@ impl CallBehaviorBuilder {
     fn new() -> Self {
         // seed the builder with no behavior flags
         Self {
-            repeatability: mir::Repeatability::Repeatable,
+            effect_class: mir::EffectClass::Deterministic,
             unwind_behavior: mir::UnwindBehavior::CannotUnwind,
             may_suspend: false,
-            convergent: false,
+            must_not_duplicate: false,
             allocates: false,
             alloc_locations: Some(mir::MemoryRegionSet::NONE),
-            alloc_address_spaces: Some(mir::AddressSpaceSet::new(Vec::new())),
+            alloc_address_spaces: Some(mir::AddressSpaceMask::new(Vec::new())),
             frees: false,
             free_locations: Some(mir::MemoryRegionSet::NONE),
-            free_address_spaces: Some(mir::AddressSpaceSet::new(Vec::new())),
+            free_address_spaces: Some(mir::AddressSpaceMask::new(Vec::new())),
         }
     }
 
     /// Record a call behavior into the builder.
     fn record_behavior(&mut self, behavior: &mir::CallBehavior) {
-        // merge repeatability and behavior flags
-        if behavior.repeatability == mir::Repeatability::NonRepeatable {
-            self.repeatability = mir::Repeatability::NonRepeatable;
+        // merge effect class and behavior flags
+        if behavior.effect_class == mir::EffectClass::NonDeterministic {
+            self.effect_class = mir::EffectClass::NonDeterministic;
         }
-        if behavior.unwind_behavior == mir::UnwindBehavior::MayUnwind {
+        if behavior.unwind == mir::UnwindBehavior::MayUnwind {
             self.unwind_behavior = mir::UnwindBehavior::MayUnwind;
         }
-        self.may_suspend |= behavior.may_suspend;
+        self.may_suspend |= behavior.suspend.may_suspend();
 
-        // merge convergence information
-        self.convergent |= behavior.convergent;
+        // merge duplication restrictions
+        self.must_not_duplicate |= behavior.must_not_duplicate;
 
         // merge allocation information
-        if behavior.allocates {
+        if let Some(allocate) = &behavior.allocation.allocate {
             self.allocates = true;
-            self.alloc_locations = merge_region_set(self.alloc_locations, behavior.alloc_locations);
+            self.alloc_locations = merge_region_set(self.alloc_locations, Some(allocate.locations));
             let alloc_address_spaces = self.alloc_address_spaces.take();
-            self.alloc_address_spaces = merge_address_space_set(
-                alloc_address_spaces,
-                behavior.alloc_address_spaces.clone(),
-            );
+            self.alloc_address_spaces =
+                merge_address_space_set(alloc_address_spaces, allocate.address_spaces.clone());
         }
 
         // merge free information
-        if behavior.frees {
+        if let Some(free) = &behavior.allocation.free {
             self.frees = true;
-            self.free_locations = merge_region_set(self.free_locations, behavior.free_locations);
+            self.free_locations = merge_region_set(self.free_locations, Some(free.locations));
             let free_address_spaces = self.free_address_spaces.take();
             self.free_address_spaces =
-                merge_address_space_set(free_address_spaces, behavior.free_address_spaces.clone());
+                merge_address_space_set(free_address_spaces, free.address_spaces.clone());
         }
     }
 
@@ -235,21 +233,29 @@ impl CallBehaviorBuilder {
     fn finish(self, noreturn: bool) -> mir::CallBehavior {
         // assemble the final call behavior summary
         mir::CallBehavior {
-            repeatability: self.repeatability,
-            unwind_behavior: self.unwind_behavior,
-            may_suspend: self.may_suspend,
-            noreturn,
-            will_return: false,
-            convergent: self.convergent,
-            allocates: self.allocates,
-            alloc_locations: self.allocates.then_some(self.alloc_locations).flatten(),
-            alloc_address_spaces: self
-                .allocates
-                .then_some(self.alloc_address_spaces)
-                .flatten(),
-            frees: self.frees,
-            free_locations: self.frees.then_some(self.free_locations).flatten(),
-            free_address_spaces: self.frees.then_some(self.free_address_spaces).flatten(),
+            effect_class: self.effect_class,
+            unwind: self.unwind_behavior,
+            suspend: if self.may_suspend {
+                mir::SuspendBehavior::MaySuspend
+            } else {
+                mir::SuspendBehavior::CannotSuspend
+            },
+            return_behavior: if noreturn {
+                mir::ReturnBehavior::NoReturn
+            } else {
+                mir::ReturnBehavior::MayReturn
+            },
+            must_not_duplicate: self.must_not_duplicate,
+            allocation: mir::AllocationEffect {
+                allocate: self.allocates.then_some(mir::AllocationAccess {
+                    locations: self.alloc_locations.unwrap_or(mir::MemoryRegionSet::ANY),
+                    address_spaces: self.alloc_address_spaces,
+                }),
+                free: self.frees.then_some(mir::AllocationAccess {
+                    locations: self.free_locations.unwrap_or(mir::MemoryRegionSet::ANY),
+                    address_spaces: self.free_address_spaces,
+                }),
+            },
         }
     }
 }
@@ -309,7 +315,7 @@ fn run_function_attrs(tree: &mut mir::NodeTree) -> bool {
         let (merged_memory, merged_behavior) = {
             let function = tree.get(function_id);
             (
-                merge_memory_effect(Some(&function.memory_effects), &summary.memory_effects),
+                merge_memory_effect(Some(&function.memory_effect), &summary.memory_effects),
                 merge_call_behavior(Some(&function.call_behavior), &summary.call_behavior),
             )
         };
@@ -318,8 +324,8 @@ fn run_function_attrs(tree: &mut mir::NodeTree) -> bool {
         let mut function_changed = false;
         {
             let function = tree.get_mut(function_id);
-            if function.memory_effects != merged_memory {
-                function.memory_effects = merged_memory.clone();
+            if function.memory_effect != merged_memory {
+                function.memory_effect = merged_memory.clone();
                 function_changed = true;
             }
             if function.call_behavior != merged_behavior {
@@ -377,7 +383,7 @@ fn compute_function_summary(
                 let (effect, behavior) = call_effects_for_direct_callee(*function, summaries);
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
-                if !behavior.noreturn {
+                if !behavior.return_behavior.is_no_return() {
                     has_return = true;
                 }
             }
@@ -388,7 +394,7 @@ fn compute_function_summary(
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
-                if !behavior.noreturn {
+                if !behavior.return_behavior.is_no_return() {
                     has_return = true;
                 }
             }
@@ -400,7 +406,7 @@ fn compute_function_summary(
                 let (effect, behavior) = call_effects_for_direct_callee(*function, summaries);
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
-                if !behavior.noreturn {
+                if !behavior.return_behavior.is_no_return() {
                     has_return = true;
                 }
             }
@@ -479,29 +485,37 @@ fn merge_call_behavior(
 
     // union behavioral flags and region sets
     let mut merged = existing.clone();
-    merged.repeatability = match (merged.repeatability, inferred.repeatability) {
-        (mir::Repeatability::NonRepeatable, _) | (_, mir::Repeatability::NonRepeatable) => {
-            mir::Repeatability::NonRepeatable
+    merged.effect_class = match (merged.effect_class, inferred.effect_class) {
+        (mir::EffectClass::NonDeterministic, _) | (_, mir::EffectClass::NonDeterministic) => {
+            mir::EffectClass::NonDeterministic
         }
-        (mir::Repeatability::Pure, mir::Repeatability::Pure) => mir::Repeatability::Pure,
-        _ => mir::Repeatability::Repeatable,
+        (mir::EffectClass::Pure, mir::EffectClass::Pure) => mir::EffectClass::Pure,
+        _ => mir::EffectClass::Deterministic,
     };
-    if inferred.unwind_behavior == mir::UnwindBehavior::MayUnwind {
-        merged.unwind_behavior = mir::UnwindBehavior::MayUnwind;
+    if inferred.unwind == mir::UnwindBehavior::MayUnwind {
+        merged.unwind = mir::UnwindBehavior::MayUnwind;
     }
-    merged.may_suspend |= inferred.may_suspend;
-    merged.noreturn |= inferred.noreturn;
-    merged.convergent |= inferred.convergent;
-    merged.allocates |= inferred.allocates;
-    merged.frees |= inferred.frees;
-    merged.alloc_locations = merge_region_set(merged.alloc_locations, inferred.alloc_locations);
-    merged.free_locations = merge_region_set(merged.free_locations, inferred.free_locations);
-    let alloc_address_spaces = merged.alloc_address_spaces.take();
-    merged.alloc_address_spaces =
-        merge_address_space_set(alloc_address_spaces, inferred.alloc_address_spaces.clone());
-    let free_address_spaces = merged.free_address_spaces.take();
-    merged.free_address_spaces =
-        merge_address_space_set(free_address_spaces, inferred.free_address_spaces.clone());
+    if inferred.suspend.may_suspend() {
+        merged.suspend = mir::SuspendBehavior::MaySuspend;
+    }
+    merged.return_behavior = match (merged.return_behavior, inferred.return_behavior) {
+        (mir::ReturnBehavior::NoReturn, _) | (_, mir::ReturnBehavior::NoReturn) => {
+            mir::ReturnBehavior::NoReturn
+        }
+        (mir::ReturnBehavior::WillReturn, mir::ReturnBehavior::WillReturn) => {
+            mir::ReturnBehavior::WillReturn
+        }
+        _ => mir::ReturnBehavior::MayReturn,
+    };
+    merged.must_not_duplicate |= inferred.must_not_duplicate;
+    merged.allocation.allocate = merge_allocation_access(
+        merged.allocation.allocate.take(),
+        inferred.allocation.allocate.clone(),
+    );
+    merged.allocation.free = merge_allocation_access(
+        merged.allocation.free.take(),
+        inferred.allocation.free.clone(),
+    );
 
     merged
 }
@@ -532,15 +546,20 @@ fn update_call_metadata(
 
             // update metadata entries when missing
             let instruction = tree.get_mut(instruction_id);
-            let Some(metadata) = instruction.call_effects_mut() else {
+            let Some(memory_effect) = instruction.call_memory_effect_mut() else {
                 continue;
             };
-            if metadata.memory_effects.is_none() {
-                metadata.memory_effects = Some(summary.memory_effects.clone());
+
+            if memory_effect.is_none() {
+                *memory_effect = Some(summary.memory_effects.clone());
                 changed = true;
             }
-            if metadata.behavior.is_none() {
-                metadata.behavior = Some(summary.call_behavior.clone());
+
+            let Some(call_behavior) = instruction.call_behavior_mut() else {
+                continue;
+            };
+            if call_behavior.is_none() {
+                *call_behavior = Some(summary.call_behavior.clone());
                 changed = true;
             }
         }
@@ -568,9 +587,8 @@ fn call_effects_for_instruction(
     }
 
     // seed effects from call metadata when present
-    let metadata = instruction.call_effects();
-    let mut memory_effect = metadata.and_then(|meta| meta.memory_effects.clone());
-    let mut behavior = metadata.and_then(|meta| meta.behavior.clone());
+    let mut memory_effect = instruction.call_memory_effect().cloned();
+    let mut behavior = instruction.call_behavior().cloned();
 
     // fall back to direct callee summaries when available
     if let Some(summary) =
@@ -612,10 +630,8 @@ fn call_effects_for_dynamic_terminator(
     block_id: mir::LocalNodeId<mir::Block>,
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> (mir::MemoryEffect, mir::CallBehavior) {
-    // use sparse declared target facts when available
-    let declared_target = tree
-        .dispatch_metadata(mir::CallSite::Terminator(block_id))
-        .and_then(|metadata| metadata.declared_target);
+    // use the declared target when present
+    let declared_target = tree.get(block_id).terminator.call_declared_target();
 
     let Some(callee) = declared_target else {
         return (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown());
@@ -641,7 +657,7 @@ fn effects_for_instruction(
     instruction: &mir::Instruction,
 ) -> (mir::MemoryEffect, mir::CallBehavior) {
     // prefer explicit memory access metadata when present
-    if let Some(accesses) = tree.memory_table.memory_accesses(instruction_id) {
+    if let Some(accesses) = tree.metadata.memory.memory_accesses(instruction_id) {
         let effect = memory_effect_from_accesses(accesses);
         return (effect, mir::CallBehavior::none());
     }
@@ -748,7 +764,7 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
     // apply ordering and address space annotations
     effect.nosync = true;
     if let Some(space) = access.address_space {
-        effect.address_spaces = Some(mir::AddressSpaceSet::new(vec![space]));
+        effect.address_spaces = Some(mir::AddressSpaceMask::new(vec![space]));
     }
     if access.is_volatile
         || access.ordering.is_some()
@@ -811,7 +827,7 @@ fn memory_effect_for_intrinsic(intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
 
 /// Apply stack address space metadata to a memory effect.
 fn stack_effect(mut effect: mir::MemoryEffect) -> mir::MemoryEffect {
-    effect.address_spaces = Some(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Stack]));
+    effect.address_spaces = Some(mir::AddressSpaceMask::new(vec![mir::AddressSpace::Stack]));
     effect.nosync = true;
     effect
 }
@@ -828,10 +844,10 @@ fn alloc_behavior(
     address_space: Option<mir::AddressSpace>,
 ) -> mir::CallBehavior {
     let mut behavior = mir::CallBehavior::none();
-    behavior.allocates = true;
-    behavior.alloc_locations = Some(locations);
-    behavior.alloc_address_spaces =
-        address_space.map(|space| mir::AddressSpaceSet::new(vec![space]));
+    behavior.allocation.allocate = Some(mir::AllocationAccess {
+        locations,
+        address_spaces: address_space.map(|space| mir::AddressSpaceMask::new(vec![space])),
+    });
     behavior
 }
 
@@ -841,10 +857,10 @@ fn free_behavior(
     address_space: Option<mir::AddressSpace>,
 ) -> mir::CallBehavior {
     let mut behavior = mir::CallBehavior::none();
-    behavior.frees = true;
-    behavior.free_locations = Some(locations);
-    behavior.free_address_spaces =
-        address_space.map(|space| mir::AddressSpaceSet::new(vec![space]));
+    behavior.allocation.free = Some(mir::AllocationAccess {
+        locations,
+        address_spaces: address_space.map(|space| mir::AddressSpaceMask::new(vec![space])),
+    });
     behavior
 }
 
@@ -870,9 +886,9 @@ fn merge_region_set(
 
 /// Merge two optional address space sets.
 fn merge_address_space_set(
-    left: Option<mir::AddressSpaceSet>,
-    right: Option<mir::AddressSpaceSet>,
-) -> Option<mir::AddressSpaceSet> {
+    left: Option<mir::AddressSpaceMask>,
+    right: Option<mir::AddressSpaceMask>,
+) -> Option<mir::AddressSpaceMask> {
     // merge address space sets conservatively
     match (left, right) {
         (Some(mut left), Some(right)) => {
@@ -884,6 +900,22 @@ fn merge_address_space_set(
             Some(left)
         }
         _ => None,
+    }
+}
+
+/// Merge two optional allocation access summaries.
+fn merge_allocation_access(
+    left: Option<mir::AllocationAccess>,
+    right: Option<mir::AllocationAccess>,
+) -> Option<mir::AllocationAccess> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(mir::AllocationAccess {
+            locations: merge_region_set(Some(left.locations), Some(right.locations))
+                .unwrap_or(mir::MemoryRegionSet::ANY),
+            address_spaces: merge_address_space_set(left.address_spaces, right.address_spaces),
+        }),
+        (Some(access), None) | (None, Some(access)) => Some(access),
+        (None, None) => None,
     }
 }
 
@@ -908,7 +940,7 @@ b0(v0: int32):
         let function_id = test.function_id_by_name("pure");
         let function = test.tree.get(function_id);
 
-        assert_eq!(function.memory_effects, mir::MemoryEffect::none());
+        assert_eq!(function.memory_effect, mir::MemoryEffect::none());
     }
 
     /// Allocation and free instructions are surfaced in call behavior.
@@ -952,16 +984,18 @@ b0:
         let caller_id = test.function_id_by_name("caller");
         let (call_inst, _callee_id) = test.first_call_in_entry(caller_id);
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { effects, .. } = instruction else {
+        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
             panic!("expected call instruction");
         };
-        *effects = Some(mir::CallEffects::default());
+        *memory_effect = Some(mir::MemoryEffect::none());
 
         test.run_module_pass(&FunctionAttrs);
         test.assert_output(input);
         let instruction = test.tree.get(call_inst);
-        let effects = instruction.call_effects().expect("missing call effects");
-        assert_eq!(effects.memory_effects, Some(mir::MemoryEffect::none()));
+        assert_eq!(
+            instruction.call_memory_effect(),
+            Some(&mir::MemoryEffect::none())
+        );
     }
 
     /// Tail calls to returning functions do not imply noreturn.
@@ -1025,7 +1059,7 @@ b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int3
         test.assert_output(input);
         let function_id = test.function_id_by_name("callee");
         let function = test.tree.get(function_id);
-        let effects = &function.memory_effects;
+        let effects = &function.memory_effect;
 
         assert!(effects.reads);
         assert!(effects.writes);
@@ -1056,6 +1090,6 @@ b2(v2: ref<void, managed, readonly>):
         let caller_id = test.function_id_by_name("caller");
         let caller = test.tree.get(caller_id);
 
-        assert!(caller.memory_effects.writes);
+        assert!(caller.memory_effect.writes);
     }
 }

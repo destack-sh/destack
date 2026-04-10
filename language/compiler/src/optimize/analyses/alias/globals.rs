@@ -87,10 +87,10 @@ impl GlobalsAA {
                     }
 
                     // calls may access any address-taken global
-                    mir::Instruction::Call { arguments, .. }
-                    | mir::Instruction::CallVirtual { arguments, .. }
-                    | mir::Instruction::CallInterface { arguments, .. } => {
-                        let args = tree.get_arguments(*arguments);
+                    mir::Instruction::Call { call, .. }
+                    | mir::Instruction::CallVirtual { call, .. }
+                    | mir::Instruction::CallInterface { call, .. } => {
+                        let args = tree.get_arguments(call.arguments);
                         for &arg in args {
                             if let Some(global) =
                                 Self::get_global_base(arg, &info.definitions, tree)
@@ -99,8 +99,8 @@ impl GlobalsAA {
                             }
                         }
                     }
-                    mir::Instruction::CallIndirect { arguments, .. } => {
-                        let args = tree.get_arguments(*arguments);
+                    mir::Instruction::CallIndirect { call, .. } => {
+                        let args = tree.get_arguments(call.arguments);
                         for &arg in args {
                             if let Some(global) =
                                 Self::get_global_base(arg, &info.definitions, tree)

@@ -467,16 +467,14 @@ fn remap_terminator_blocks(
         },
         mir::Terminator::Invoke {
             function,
-            arguments,
-            signature,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => mir::Terminator::Invoke {
             function: *function,
-            arguments: arguments.clone(),
-            signature: *signature,
+            call: call.clone(),
             normal_target: block_map
                 .get(normal_target)
                 .copied()
@@ -490,16 +488,14 @@ fn remap_terminator_blocks(
         },
         mir::Terminator::InvokeIndirect {
             callee,
-            arguments,
-            signature,
+            call,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => mir::Terminator::InvokeIndirect {
             callee: *callee,
-            arguments: arguments.clone(),
-            signature: *signature,
+            call: call.clone(),
             normal_target: block_map
                 .get(normal_target)
                 .copied()
@@ -513,20 +509,20 @@ fn remap_terminator_blocks(
         },
         mir::Terminator::InvokeVirtual {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => mir::Terminator::InvokeVirtual {
             receiver: *receiver,
-            arguments: arguments.clone(),
+            call: call.clone(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
+            declared_target: *declared_target,
             normal_target: block_map
                 .get(normal_target)
                 .copied()
@@ -540,20 +536,20 @@ fn remap_terminator_blocks(
         },
         mir::Terminator::InvokeInterface {
             receiver,
-            arguments,
+            call,
             declaring_type,
             slot_id,
-            signature,
+            declared_target,
             normal_target,
             normal_arguments,
             unwind_target,
             unwind_arguments,
         } => mir::Terminator::InvokeInterface {
             receiver: *receiver,
-            arguments: arguments.clone(),
+            call: call.clone(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            signature: *signature,
+            declared_target: *declared_target,
             normal_target: block_map
                 .get(normal_target)
                 .copied()
@@ -602,18 +598,17 @@ fn update_recursive_calls_to_impl(
         if let Instruction::Call {
             destination,
             function,
-            arguments,
-            effects,
+            call,
             ..
         } = instr
             && function == original_function_id
         {
+            let mut call = call;
+            call.signature = signature;
             let new_instr = Instruction::Call {
                 destination,
                 function: impl_function_id,
-                arguments,
-                signature,
-                effects,
+                call,
             };
             tree.replace(instr_id, new_instr);
         }
@@ -653,9 +648,7 @@ fn rewrite_as_wrapper(
     let call_instr = Instruction::Call {
         destination: Some(result_value),
         function: impl_function_id,
-        arguments: call_arguments,
-        signature,
-        effects: None,
+        call: mir::Call::new(call_arguments, signature),
     };
     let call_id = tree.insert(call_instr);
 
@@ -745,8 +738,7 @@ fn update_call_site(
     let Instruction::Call {
         destination,
         function,
-        arguments,
-        effects,
+        call,
         ..
     } = call_instr
     else {
@@ -762,18 +754,19 @@ fn update_call_site(
     let const_id = tree.insert(const_instr);
 
     // get the existing arguments and append the identity
-    let mut new_args: Vec<mir::Value> = tree.get_arguments(arguments).to_vec();
+    let mut new_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
     new_args.push(identity_value);
 
     // create new call with extended arguments
     let new_arguments = tree.add_arguments(&new_args);
-    let signature = build_signature_type(function, tree);
+    let mut call = call;
+    call.arguments = new_arguments;
+    call.signature = build_signature_type(function, tree);
+
     let new_call = Instruction::Call {
         destination,
         function,
-        arguments: new_arguments,
-        signature,
-        effects,
+        call,
     };
     let new_call_id = tree.insert(new_call);
 
@@ -943,7 +936,7 @@ fn detect_accumulator_pattern(
         if let Instruction::Call {
             destination: Some(call_dest),
             function: called_func,
-            arguments,
+            call,
             ..
         } = instr
         {
@@ -998,7 +991,7 @@ fn detect_accumulator_pattern(
                 other_operand,
                 call_index: idx,
                 binary_index: binary_idx,
-                call_arguments: *arguments,
+                call_arguments: call.arguments,
             });
         }
     }
@@ -1215,7 +1208,7 @@ fn transform_self_recursive_tail_call(
     let mir::Instruction::Call {
         destination,
         function: called_function,
-        arguments,
+        call,
         ..
     } = last_instruction
     else {
@@ -1239,7 +1232,7 @@ fn transform_self_recursive_tail_call(
     }
 
     // extract call arguments before mutating
-    let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
+    let call_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
 
     // rewrite the block: remove call, replace return with jump to entry
     let block = tree.get(block_id);
@@ -1290,8 +1283,7 @@ fn transform_sibling_tail_call(
         mir::Instruction::Call {
             destination,
             function: called_function,
-            arguments,
-            signature,
+            call,
             ..
         } => {
             // skip self-recursive calls (handled by transform_self_recursive_tail_call)
@@ -1311,7 +1303,7 @@ fn transform_sibling_tail_call(
             }
 
             // extract call arguments before mutating
-            let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
+            let call_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCall
             let block = tree.get(block_id);
@@ -1320,8 +1312,7 @@ fn transform_sibling_tail_call(
 
             let new_terminator = mir::Terminator::TailCall {
                 function: *called_function,
-                arguments: call_args,
-                signature: *signature,
+                call: mir::Call::new(call_args, call.signature),
             };
 
             let mut new_block = block.clone();
@@ -1334,8 +1325,7 @@ fn transform_sibling_tail_call(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            arguments,
-            signature,
+            call,
             ..
         } => {
             // return value must match call result
@@ -1351,7 +1341,7 @@ fn transform_sibling_tail_call(
 
             // extract call info before mutating
             let callee_value = *callee;
-            let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
+            let call_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCallIndirect
             let block = tree.get(block_id);
@@ -1360,8 +1350,7 @@ fn transform_sibling_tail_call(
 
             let new_terminator = mir::Terminator::TailCallIndirect {
                 callee: callee_value,
-                arguments: call_args,
-                signature: *signature,
+                call: mir::Call::new(call_args, call.signature),
             };
 
             let mut new_block = block.clone();

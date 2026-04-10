@@ -108,18 +108,12 @@ fn enforce_call_effects(
                 continue;
             }
 
-            let Some(effects) = instruction.call_effects() else {
-                emit_missing_requirement(ctx, metadata, *instruction_id, "call effects");
-                ok = false;
-                continue;
-            };
-
-            if effects.memory_effects.is_none() {
+            if instruction.call_memory_effect().is_none() {
                 emit_missing_requirement(ctx, metadata, *instruction_id, "call memory effects");
                 ok = false;
             }
 
-            if effects.behavior.is_none() {
+            if instruction.call_behavior().is_none() {
                 emit_missing_requirement(ctx, metadata, *instruction_id, "call behavior");
                 ok = false;
             }
@@ -151,7 +145,7 @@ fn enforce_memory_metadata(
                 continue;
             }
 
-            let Some(accesses) = tree.memory_table.memory_accesses(*instruction_id) else {
+            let Some(accesses) = tree.metadata.memory.memory_accesses(*instruction_id) else {
                 emit_missing_requirement(ctx, metadata, *instruction_id, "memory access metadata");
                 ok = false;
                 continue;
@@ -218,12 +212,12 @@ fn enforce_type_layouts(
             continue;
         }
 
-        let Some(layout_id) = tree.type_table.layout_id(type_id) else {
+        let Some(layout_id) = tree.metadata.layout.layout_id(type_id) else {
             emit_missing_type_layout(ctx, metadata, type_id, "type layout");
             ok = false;
             continue;
         };
-        if !layout_exists(&tree.type_table.layout_table, layout_id) {
+        if !layout_exists(&tree.metadata.layout.layout_table, layout_id) {
             emit_missing_type_layout(ctx, metadata, type_id, "type layout entry");
             ok = false;
         }
@@ -300,7 +294,7 @@ fn type_requires_layout(
     matches!(
         ty,
         mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
-    ) || tree.type_table.union_layout(type_id).is_some()
+    ) || tree.metadata.layout.union_layout(type_id).is_some()
 }
 
 /// Return true when a layout entry exists in the layout table.

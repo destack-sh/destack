@@ -180,10 +180,11 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         .or_default()
                         .push(DirectCallSite::Terminator(block_id));
                 }
-                mir::Terminator::InvokeIndirect { signature, .. }
-                | mir::Terminator::InvokeVirtual { signature, .. }
-                | mir::Terminator::InvokeInterface { signature, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                mir::Terminator::InvokeIndirect { call, .. }
+                | mir::Terminator::InvokeVirtual { call, .. }
+                | mir::Terminator::InvokeInterface { call, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    {
                         data.indirect_signatures.insert(signature);
                     }
                 }
@@ -193,10 +194,11 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         .or_default()
                         .push(DirectCallSite::Terminator(block_id));
                 }
-                mir::Terminator::TailCallIndirect { signature, .. }
-                | mir::Terminator::TailCallVirtual { signature, .. }
-                | mir::Terminator::TailCallInterface { signature, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                mir::Terminator::TailCallIndirect { call, .. }
+                | mir::Terminator::TailCallVirtual { call, .. }
+                | mir::Terminator::TailCallInterface { call, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    {
                         data.indirect_signatures.insert(signature);
                     }
                 }
@@ -258,7 +260,7 @@ fn apply_parameter_removals(
         function.return_lifetime = remap
             .remap_return_lifetime(&function.return_lifetime)
             .unwrap_or(mir::Lifetime::Inferred);
-        function.alloc_size = remap.remap_alloc_size(function.alloc_size);
+        function.allocation_size = remap.remap_allocation_size(function.allocation_size);
         function.entry.expect("defined function has entry block")
     };
 
@@ -287,48 +289,37 @@ fn update_call_sites(
     for site in call_sites {
         match *site {
             DirectCallSite::Instruction(instruction_id) => {
-                let (destination, function, slice, signature, effects) =
-                    match tree.get(instruction_id) {
-                        mir::Instruction::Call {
-                            destination,
-                            function,
-                            arguments,
-                            signature,
-                            effects,
-                        } => (
-                            *destination,
-                            *function,
-                            *arguments,
-                            *signature,
-                            effects.clone(),
-                        ),
-                        _ => continue,
-                    };
+                let (destination, function, slice, call) = match tree.get(instruction_id) {
+                    mir::Instruction::Call {
+                        destination,
+                        function,
+                        call,
+                    } => (*destination, *function, call.arguments, call.clone()),
+                    _ => continue,
+                };
 
                 // filter the argument list
                 let arguments = remap.filter_by_index(tree.get_arguments(slice));
 
                 // refresh the signature when arguments are removed
                 let signature = if unused.is_empty() {
-                    signature
+                    call.signature
                 } else {
                     *signature_type.get_or_insert_with(|| build_signature_type(function_id, tree))
                 };
 
-                let mut effects = effects;
-                if let Some(effects) = effects.as_mut() {
-                    effects.argument_metadata = remap.filter_by_index(&effects.argument_metadata);
-                    effects.alloc_size = remap.remap_alloc_size(effects.alloc_size);
-                }
-
                 // update the call instruction with the new argument slice
                 let new_slice = tree.add_arguments(&arguments);
+                let mut call = call;
+                call.arguments = new_slice;
+                call.signature = signature;
+                call.argument_attributes = remap.filter_by_index(&call.argument_attributes);
+                call.allocation_size = remap.remap_allocation_size(call.allocation_size);
+
                 let updated = mir::Instruction::Call {
                     destination,
                     function,
-                    arguments: new_slice,
-                    signature,
-                    effects,
+                    call,
                 };
                 *tree.get_mut(instruction_id) = updated;
             }
@@ -337,38 +328,33 @@ fn update_call_sites(
                 match &block.terminator {
                     mir::Terminator::Invoke {
                         function,
-                        arguments,
-                        signature,
+                        call,
                         normal_target,
                         normal_arguments,
                         unwind_target,
                         unwind_arguments,
                     } => {
                         // filter the argument list
-                        let new_arguments = remap.filter_by_index(arguments);
+                        let mut new_call = call.clone();
+                        new_call.arguments = remap.filter_by_index(&call.arguments);
 
                         block.terminator = mir::Terminator::Invoke {
                             function: *function,
-                            arguments: new_arguments,
-                            signature: *signature,
+                            call: new_call,
                             normal_target: *normal_target,
                             normal_arguments: normal_arguments.clone(),
                             unwind_target: *unwind_target,
                             unwind_arguments: unwind_arguments.clone(),
                         };
                     }
-                    mir::Terminator::TailCall {
-                        function,
-                        arguments,
-                        signature,
-                    } => {
+                    mir::Terminator::TailCall { function, call } => {
                         // filter the argument list
-                        let new_arguments = remap.filter_by_index(arguments);
+                        let mut new_call = call.clone();
+                        new_call.arguments = remap.filter_by_index(&call.arguments);
 
                         block.terminator = mir::Terminator::TailCall {
                             function: *function,
-                            arguments: new_arguments,
-                            signature: *signature,
+                            call: new_call,
                         };
                     }
                     _ => {}
@@ -385,26 +371,32 @@ fn update_debug_for_removed_parameters(
     tree: &mut mir::NodeTree,
 ) {
     // read the function scope for parameter variables
-    let Some(function_scope) = tree.debug_table.function_scopes.get(&function_id).copied() else {
+    let Some(function_scope) = tree
+        .metadata
+        .debug
+        .function_scopes
+        .get(&function_id)
+        .copied()
+    else {
         return;
     };
 
     // collect debug variables that reference removed values
     let mut to_update = Vec::new();
-    for (index, binding) in tree.debug_table.bindings.iter().enumerate() {
+    for (index, binding) in tree.metadata.debug.bindings.iter().enumerate() {
         // skip non parameter bindings
         if binding.kind != mir::DebugBindingKind::Parameter {
             continue;
         }
 
         // skip bindings outside the function scope
-        if !scope_in_function(binding.scope, function_scope, &tree.debug_table) {
+        if !scope_in_function(binding.scope, function_scope, &tree.metadata.debug) {
             continue;
         }
 
         // read the current binding location ranges
         let binding_id = mir::DebugBindingId::new(index as u32);
-        let Some(ranges) = tree.debug_table.binding_location_ranges.get(&binding_id) else {
+        let Some(ranges) = tree.metadata.debug.binding_location_ranges.get(&binding_id) else {
             continue;
         };
 
@@ -421,7 +413,8 @@ fn update_debug_for_removed_parameters(
     // rewrite removed parameter locations to undefined
     for binding_id in to_update {
         if let Some(ranges) = tree
-            .debug_table
+            .metadata
+            .debug
             .binding_location_ranges
             .get_mut(&binding_id)
         {
@@ -436,7 +429,7 @@ fn update_debug_for_removed_parameters(
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::DebugTable,
+    debug_info: &mir::Debug,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -630,25 +623,25 @@ b0(v0: int32):
             })
             .expect("missing call instruction");
 
-        let effects = mir::CallEffects::default().with_argument_metadata(vec![
-            mir::CallArgumentMetadata::default(),
-            mir::CallArgumentMetadata::default(),
-        ]);
         let instruction = test.tree.get_mut(call_id);
-        let mir::Instruction::Call {
-            effects: call_effects,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { call, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        call.argument_attributes = vec![
+            mir::ArgumentAttribute::default(),
+            mir::ArgumentAttribute::default(),
+        ];
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(expected);
         let instruction = test.tree.get(call_id);
-        let effects = instruction.call_effects().expect("missing call effects");
-        assert_eq!(effects.argument_metadata.len(), 1);
+        assert_eq!(
+            instruction
+                .call_argument_attributes()
+                .expect("missing call argument attributes")
+                .len(),
+            1
+        );
     }
 
     /// Metadata parameter indices are remapped after removal.
@@ -680,14 +673,17 @@ b0(v0: int32, v1: int32):
         let callee_id = test.function_id_by_name("callee");
         let callee = test.tree.get_mut(callee_id);
         callee.return_lifetime = mir::Lifetime::Parameters(vec![2]);
-        callee.alloc_size = Some(mir::AllocSize::new(2, Some(0)));
+        callee.allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(expected);
 
         let callee = test.tree.get(callee_id);
         assert_eq!(callee.return_lifetime, mir::Lifetime::Parameters(vec![1]));
-        assert_eq!(callee.alloc_size, Some(mir::AllocSize::new(1, Some(0))));
+        assert_eq!(
+            callee.allocation_size,
+            Some(mir::AllocationSize::new(1, Some(0)))
+        );
     }
 
     /// Allocation metadata prevents removing its parameters.
@@ -702,19 +698,19 @@ b0(v0: int32, v1: int32):
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
         let callee = test.tree.get_mut(callee_id);
-        callee.alloc_size = Some(mir::AllocSize::new(1, None));
+        callee.allocation_size = Some(mir::AllocationSize::new(1, None));
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(input);
         assert_eq!(
-            test.tree.get(callee_id).alloc_size,
-            Some(mir::AllocSize::new(1, None))
+            test.tree.get(callee_id).allocation_size,
+            Some(mir::AllocationSize::new(1, None))
         );
     }
 
     /// Allocation metadata is remapped at callsites.
     #[test]
-    fn test_dead_arg_eliminate_remaps_call_alloc_size() {
+    fn test_dead_arg_eliminate_remaps_call_allocation_size() {
         let input = r#"
 function callee(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
@@ -750,22 +746,16 @@ b0(v0: int32):
             })
             .expect("missing call instruction");
 
-        let effects = mir::CallEffects::default().with_alloc_size(mir::AllocSize::new(2, Some(0)));
         let instruction = test.tree.get_mut(call_id);
-        let mir::Instruction::Call {
-            effects: call_effects,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { call, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        call.allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(expected);
         let instruction = test.tree.get(call_id);
-        let effects = instruction.call_effects().expect("missing call effects");
-        assert_eq!(effects.alloc_size, None);
+        assert_eq!(instruction.call_allocation_size(), None);
     }
 
     /// Return lifetime metadata preserves parameters.
@@ -821,23 +811,24 @@ b0(v0: int32):
         let param_value = callee.parameters[1].value;
         let param_type = callee.parameters[1].ty;
         let callee_name = callee.name;
-        let file_id = FileId::new(0);
-        let span = Span::empty(file_id);
         let scope_id =
             test.tree
-                .debug_table
-                .create_scope(mir::DebugScopeKind::Function, None, span, None);
+                .metadata
+                .debug
+                .create_scope(mir::DebugScopeKind::Function, None, None, None);
         test.tree
-            .debug_table
+            .metadata
+            .debug
             .function_scopes
             .insert(callee_id, scope_id);
-        let binding_id = test.tree.debug_table.create_binding(
+        let binding_id = test.tree.metadata.debug.create_binding(
             callee_name,
             param_type,
             scope_id,
+            None,
             mir::DebugBindingKind::Parameter,
         );
-        test.tree.debug_table.binding_location_ranges.insert(
+        test.tree.metadata.debug.binding_location_ranges.insert(
             binding_id,
             vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
@@ -851,7 +842,8 @@ b0(v0: int32):
         test.assert_output(expected);
         let location = test
             .tree
-            .debug_table
+            .metadata
+            .debug
             .binding_location_ranges
             .get(&binding_id)
             .expect("missing debug binding location");

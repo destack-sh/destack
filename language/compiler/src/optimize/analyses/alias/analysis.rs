@@ -127,9 +127,9 @@ impl AliasAnalysis {
         &self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         loc: &MemoryLocation,
-        alias_scopes: &[mir::AliasScopeId],
-        noalias_scopes: &[mir::AliasScopeId],
-        tbaa_tag: Option<mir::TbaaTagId>,
+        alias_scopes: &[mir::MemoryAliasScopeId],
+        noalias_scopes: &[mir::MemoryAliasScopeId],
+        type_alias_tag: Option<mir::TypeAliasTagId>,
     ) -> ModRefInfo {
         // start with basic aa's assessment
         let mut result = self.basic.get_mod_ref_info_with_metadata(
@@ -137,7 +137,7 @@ impl AliasAnalysis {
             loc,
             alias_scopes,
             noalias_scopes,
-            tbaa_tag,
+            type_alias_tag,
             &self.tree,
         );
 
@@ -397,16 +397,11 @@ b0(v0: ref<int32, raw>):
         };
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
-        let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
         let instruction = program.tree.get_mut(call_inst);
-        let mir::Instruction::Call {
-            effects: call_effects,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { memory_effect, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        *memory_effect = Some(mir::MemoryEffect::none());
 
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses(function);
@@ -433,27 +428,26 @@ b0:
         let function_id = program.entry_function_id();
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
-        let arg0 = mir::CallArgumentMetadata {
+        let arg0 = mir::ArgumentAttribute {
             access: mir::ArgumentAccess::Read,
             ..Default::default()
         };
-        let arg1 = mir::CallArgumentMetadata {
+        let arg1 = mir::ArgumentAttribute {
             access: mir::ArgumentAccess::None,
             ..Default::default()
         };
-        let effects = mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly();
-        let effects = mir::CallEffects::default()
-            .with_memory_effects(effects)
-            .with_argument_metadata(vec![arg0, arg1]);
         let instruction = program.tree.get_mut(call_inst);
         let mir::Instruction::Call {
-            effects: call_effects,
+            memory_effect,
+            argument_attributes,
             ..
         } = instruction
         else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        *memory_effect =
+            Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly());
+        *argument_attributes = vec![arg0, arg1];
 
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses(function);
@@ -525,10 +519,10 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
 
         let function_id = program.entry_function_id();
         let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let int_node = program.create_tbaa_node(None, false);
-        let float_node = program.create_tbaa_node(None, false);
-        let int_tag = program.create_tbaa_tag(int_node, int_node, 0, 4, false);
-        let float_tag = program.create_tbaa_tag(float_node, float_node, 0, 4, false);
+        let int_node = program.create_type_alias_node(None, false);
+        let float_node = program.create_type_alias_node(None, false);
+        let int_tag = program.create_type_alias_tag(int_node, int_node, 0, 4, false);
+        let float_tag = program.create_type_alias_tag(float_node, float_node, 0, 4, false);
 
         program.insert_pointer_access(
             memset_inst,
@@ -607,9 +601,9 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
 
         let function_id = program.entry_function_id();
         let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let node = program.create_tbaa_node(None, false);
-        let tag_a = program.create_tbaa_tag(node, node, 0, 8, false);
-        let tag_b = program.create_tbaa_tag(node, node, 8, 8, false);
+        let node = program.create_type_alias_node(None, false);
+        let tag_a = program.create_type_alias_tag(node, node, 0, 8, false);
+        let tag_b = program.create_type_alias_tag(node, node, 8, 8, false);
 
         program.insert_pointer_access(
             memset_inst,

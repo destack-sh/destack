@@ -278,7 +278,7 @@ fn run_store_pre(
 
     // drop memory metadata for removed stores
     for instruction_id in &to_remove {
-        tree.memory_table.remove_memory_accesses(*instruction_id);
+        tree.metadata.memory.remove_memory_accesses(*instruction_id);
     }
 
     true
@@ -583,7 +583,7 @@ fn clone_store_metadata(
     pointer: Option<mir::Value>,
 ) {
     // skip when there is no metadata to clone
-    let Some(accesses) = tree.memory_table.memory_accesses(source) else {
+    let Some(accesses) = tree.metadata.memory.memory_accesses(source) else {
         return;
     };
 
@@ -597,7 +597,8 @@ fn clone_store_metadata(
         cloned.push(updated);
     }
 
-    tree.memory_table
+    tree.metadata
+        .memory
         .insert_memory_accesses(destination, cloned);
 }
 

@@ -212,7 +212,7 @@ impl Agent {
         bindings.apply_runtime_defaults(options);
         Self::apply_capability_profile(&mut bindings, options)?;
 
-        // heap layout follows the engine data layout
+        // heap layout follows the engine storage metadata
         let mut gc = Gc::default();
         gc.configure(options.heap.clone());
         let managed_reference_bytes = engine.heap_managed_reference_bytes();

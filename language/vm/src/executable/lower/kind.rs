@@ -506,22 +506,16 @@ fn infer_instruction_kind(
             Some(kind_from_type(tree, function.return_type))
         }
         mir::Instruction::CallVirtual {
-            destination,
-            signature,
-            ..
+            destination, call, ..
         }
         | mir::Instruction::CallInterface {
-            destination,
-            signature,
-            ..
+            destination, call, ..
         }
         | mir::Instruction::CallIndirect {
-            destination,
-            signature,
-            ..
+            destination, call, ..
         } => {
             destination.as_ref()?;
-            let mir::Type::FunctionPointer { result, .. } = tree.get(*signature) else {
+            let mir::Type::FunctionPointer { result, .. } = tree.get(call.signature) else {
                 return None;
             };
 

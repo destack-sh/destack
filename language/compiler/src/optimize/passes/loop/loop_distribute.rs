@@ -692,7 +692,7 @@ fn prune_latch_instructions(
         if keep.contains(instruction_id) {
             filtered.push(*instruction_id);
         } else {
-            tree.memory_table.remove_memory_accesses(*instruction_id);
+            tree.metadata.memory.remove_memory_accesses(*instruction_id);
         }
     }
 

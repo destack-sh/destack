@@ -3,7 +3,7 @@ use destack_mir as mir;
 use crate::optimize::TypeContext;
 use crate::optimize::common::{
     DecomposedPointer, MemoryLocation, PointerBase, PointerDecomposer, RangeRelation, ValueTypeMap,
-    alias_scopes_may_alias, range_relation, tbaa_tags_may_alias,
+    alias_scopes_may_alias, range_relation, type_alias_tags_may_alias,
 };
 
 use super::common::FunctionAA;
@@ -329,19 +329,19 @@ impl BasicAA {
         &self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         loc: &MemoryLocation,
-        query_alias_scopes: &[mir::AliasScopeId],
-        query_noalias_scopes: &[mir::AliasScopeId],
-        query_tbaa_tag: Option<mir::TbaaTagId>,
+        query_alias_scopes: &[mir::MemoryAliasScopeId],
+        query_noalias_scopes: &[mir::MemoryAliasScopeId],
+        query_type_alias_tag: Option<mir::TypeAliasTagId>,
         tree: &mir::NodeTree,
     ) -> ModRefInfo {
         // prefer explicit memory metadata when present
-        if let Some(accesses) = tree.memory_table.memory_accesses(instruction_id) {
+        if let Some(accesses) = tree.metadata.memory.memory_accesses(instruction_id) {
             return self.mod_ref_from_metadata(
                 accesses,
                 loc,
                 query_alias_scopes,
                 query_noalias_scopes,
-                query_tbaa_tag,
+                query_type_alias_tag,
                 tree,
             );
         }
@@ -433,9 +433,9 @@ impl BasicAA {
         &self,
         accesses: &[mir::MemoryAccessMetadata],
         loc: &MemoryLocation,
-        query_alias_scopes: &[mir::AliasScopeId],
-        query_noalias_scopes: &[mir::AliasScopeId],
-        query_tbaa_tag: Option<mir::TbaaTagId>,
+        query_alias_scopes: &[mir::MemoryAliasScopeId],
+        query_noalias_scopes: &[mir::MemoryAliasScopeId],
+        query_type_alias_tag: Option<mir::TypeAliasTagId>,
         tree: &mir::NodeTree,
     ) -> ModRefInfo {
         if accesses.is_empty() {
@@ -450,7 +450,7 @@ impl BasicAA {
                 loc,
                 query_alias_scopes,
                 query_noalias_scopes,
-                query_tbaa_tag,
+                query_type_alias_tag,
                 tree,
             ) {
                 continue;
@@ -479,9 +479,9 @@ impl BasicAA {
         &self,
         access: &mir::MemoryAccessMetadata,
         loc: &MemoryLocation,
-        query_alias_scopes: &[mir::AliasScopeId],
-        query_noalias_scopes: &[mir::AliasScopeId],
-        query_tbaa_tag: Option<mir::TbaaTagId>,
+        query_alias_scopes: &[mir::MemoryAliasScopeId],
+        query_noalias_scopes: &[mir::MemoryAliasScopeId],
+        query_type_alias_tag: Option<mir::TypeAliasTagId>,
         tree: &mir::NodeTree,
     ) -> bool {
         if !self.location_sets_overlap(access, loc, tree) {
@@ -501,7 +501,11 @@ impl BasicAA {
             return false;
         }
 
-        if !tbaa_tags_may_alias(&tree.memory_table.tbaa, access.tbaa_tag, query_tbaa_tag) {
+        if !type_alias_tags_may_alias(
+            &tree.metadata.memory.type_alias,
+            access.type_alias_tag,
+            query_type_alias_tag,
+        ) {
             return false;
         }
 
@@ -642,11 +646,10 @@ impl BasicAA {
         tree: &mir::NodeTree,
     ) -> ModRefInfo {
         // read callsite effects when present
-        let call_effects = inst.call_effects();
-
         // read call memory effects from metadata or callee
-        let mut memory_effects = call_effects
-            .and_then(|effects| effects.memory_effects.clone())
+        let mut memory_effects = inst
+            .call_memory_effect()
+            .cloned()
             .or_else(|| self.callee_memory_effects(inst, tree));
 
         // fall back to conservative behavior without effects
@@ -674,7 +677,7 @@ impl BasicAA {
 
         // argmemonly calls only touch pointer arguments
         if effects.argmemonly {
-            return self.argmemonly_mod_ref(inst, loc, tree, call_effects, &effects);
+            return self.argmemonly_mod_ref(inst, loc, tree, &effects);
         }
 
         // honor coarse location set restrictions when possible
@@ -694,7 +697,6 @@ impl BasicAA {
         inst: &mir::Instruction,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
-        call_effects: Option<&mir::CallEffects>,
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
         // honor coarse location sets when a real region restriction exists
@@ -738,22 +740,23 @@ impl BasicAA {
             }
 
             // read argument metadata
-            let arg_metadata = call_effects
-                .and_then(|effects| effects.argument_metadata.get(index))
+            let arg_attribute = inst
+                .call_argument_attributes()
+                .and_then(|argument_attributes| argument_attributes.get(index))
                 .cloned()
                 .unwrap_or_default();
 
             // clamp the argument access to call effects
-            let arg_access = self.clamp_argument_access(arg_metadata.access, effects);
+            let arg_access = self.clamp_argument_access(arg_attribute.access, effects);
             if arg_access == mir::ArgumentAccess::None {
                 continue;
             }
 
             // build a location for the argument pointer
-            let arg_loc = if let Some(size) = arg_metadata
+            let arg_loc = if let Some(size) = arg_attribute
                 .attributes
                 .dereferenceable_bytes
-                .or(arg_metadata.attributes.dereferenceable_or_null_bytes)
+                .or(arg_attribute.attributes.dereferenceable_or_null_bytes)
             {
                 MemoryLocation::with_size(arg_value, size)
             } else {
@@ -773,7 +776,7 @@ impl BasicAA {
     }
 
     /// Convert pointer attributes into basic alias parameter attributes.
-    fn parameter_attributes(attrs: &mir::PointerAttributes) -> ParameterAttributes {
+    fn parameter_attributes(attrs: &mir::PointerAttribute) -> ParameterAttributes {
         let mut result = ParameterAttributes::NONE;
 
         // apply noalias when guaranteed
@@ -860,7 +863,7 @@ impl BasicAA {
         // resolve the declared target when available
         let function = inst.call_declared_target()?;
         let callee = tree.get(function);
-        Some(callee.memory_effects.clone())
+        Some(callee.memory_effect.clone())
     }
 
     /// Resolve a coarse memory location set for a pointer location.
@@ -1131,10 +1134,10 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
 
         let function_id = program.entry_function_id();
         let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let int_node = program.create_tbaa_node(None, false);
-        let float_node = program.create_tbaa_node(None, false);
-        let int_tag = program.create_tbaa_tag(int_node, int_node, 0, 4, false);
-        let float_tag = program.create_tbaa_tag(float_node, float_node, 0, 4, false);
+        let int_node = program.create_type_alias_node(None, false);
+        let float_node = program.create_type_alias_node(None, false);
+        let int_tag = program.create_type_alias_tag(int_node, int_node, 0, 4, false);
+        let float_tag = program.create_type_alias_tag(float_node, float_node, 0, 4, false);
 
         program.insert_pointer_access(
             memset_inst,
@@ -1200,7 +1203,7 @@ b0:
             })
             .expect("missing local.address");
 
-        program.tree.memory_table.insert_memory_accesses(
+        program.tree.metadata.memory.insert_memory_accesses(
             memset_inst,
             vec![mir::MemoryAccessMetadata {
                 kind: mir::MemoryAccessKind::Write,
@@ -1208,8 +1211,7 @@ b0:
                 size: Some(4),
                 alignment: None,
                 is_volatile: false,
-                is_invariant: false,
-                is_non_temporal: false,
+                is_load_invariant: false,
                 ordering: None,
                 scope: None,
                 memory_scope: None,
@@ -1217,7 +1219,7 @@ b0:
                 address_space: None,
                 alias_scopes: Vec::new(),
                 noalias_scopes: Vec::new(),
-                tbaa_tag: None,
+                type_alias_tag: None,
             }],
         );
 

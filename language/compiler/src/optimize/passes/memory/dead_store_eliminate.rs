@@ -896,8 +896,8 @@ b0:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let arg0 = mir::CallArgumentMetadata {
-            attributes: mir::PointerAttributes {
+        let arg0 = mir::ArgumentAttribute {
+            attributes: mir::PointerAttribute {
                 capture: mir::CaptureKind::NoCapture,
                 ..Default::default()
             },
@@ -905,18 +905,17 @@ b0:
             ..Default::default()
         };
 
-        let effects = mir::CallEffects::default()
-            .with_memory_effects(mir::MemoryEffect::none())
-            .with_argument_metadata(vec![arg0]);
         let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
-            effects: call_effects,
+            memory_effect,
+            argument_attributes,
             ..
         } = instruction
         else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        *memory_effect = Some(mir::MemoryEffect::none());
+        *argument_attributes = vec![arg0];
 
         test.run_pass(&DeadStoreEliminate);
         test.assert_output(expected);
@@ -1368,7 +1367,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         // create a scope for disambiguation
         let mut test = TestProgram::new(input);
         let scope = {
-            let scopes = &mut test.tree.memory_table.alias_scopes;
+            let scopes = &mut test.tree.metadata.memory.alias_scopes;
             let domain = scopes.create_domain(None);
             scopes.create_scope(domain, None)
         };
@@ -1419,14 +1418,14 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
 }"#;
         let expected = input;
 
-        // create disjoint tbaa tags
+        // create disjoint type-alias tags
         let mut test = TestProgram::new(input);
         let (tag_a, tag_b) = {
-            let tbaa = &mut test.tree.memory_table.tbaa;
-            let root = tbaa.create_node(None, None, false);
-            let access = tbaa.create_node(None, Some(root), false);
-            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
-            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
+            let type_alias = &mut test.tree.metadata.memory.type_alias;
+            let root = type_alias.create_node(None, None, false);
+            let access = type_alias.create_node(None, Some(root), false);
+            let tag_a = type_alias.create_tag(root, access, 0, 4, false);
+            let tag_b = type_alias.create_tag(root, access, 8, 4, false);
             (tag_a, tag_b)
         };
 

@@ -263,11 +263,11 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call {
                             function: callee,
-                            arguments,
+                            call,
                             ..
                         } = instruction
                     {
-                        let arguments = tree.get_arguments(*arguments).to_vec();
+                        let arguments = tree.get_arguments(call.arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
                             callee: *callee,
@@ -475,12 +475,14 @@ fn clone_function(
 
             // preserve debug locations for the cloned instruction
             if let Some(location) = tree
-                .debug_table
+                .metadata
+                .debug
                 .instruction_locations
                 .get(&instruction_id)
                 .cloned()
             {
-                tree.debug_table
+                tree.metadata
+                    .debug
                     .instruction_locations
                     .insert(new_id, location);
             }
@@ -566,7 +568,7 @@ fn apply_parameter_removals(
         function.return_lifetime = remap
             .remap_return_lifetime(&function.return_lifetime)
             .unwrap_or(mir::Lifetime::Inferred);
-        function.alloc_size = remap.remap_alloc_size(function.alloc_size);
+        function.allocation_size = remap.remap_allocation_size(function.allocation_size);
         function.entry.expect("defined function has entry block")
     };
 
@@ -588,20 +590,16 @@ fn update_callsite(
     // update the call instruction
     let (destination, slice) = match tree.get(callsite.call_instruction) {
         mir::Instruction::Call {
-            destination,
-            arguments,
-            ..
-        } => (*destination, *arguments),
+            destination, call, ..
+        } => (*destination, call.arguments),
         _ => return false,
     };
 
     // filter the argument list to match the specialized signature
     let arguments = remap.filter_by_index(tree.get_arguments(slice));
     let new_slice = tree.add_arguments(&arguments);
-    let (signature, effects) = match tree.get(callsite.call_instruction) {
-        mir::Instruction::Call {
-            signature, effects, ..
-        } => (*signature, effects.clone()),
+    let call = match tree.get(callsite.call_instruction) {
+        mir::Instruction::Call { call, .. } => call.clone(),
         _ => return false,
     };
 
@@ -612,19 +610,16 @@ fn update_callsite(
         Some(build_signature_type(new_callee, tree))
     };
 
-    let mut effects = effects;
-    if let Some(effects) = effects.as_mut() {
-        effects.argument_metadata = remap.filter_by_index(&effects.argument_metadata);
-        effects.alloc_size = remap.remap_alloc_size(effects.alloc_size);
-    }
+    let mut call = call;
+    call.argument_attributes = remap.filter_by_index(&call.argument_attributes);
+    call.allocation_size = remap.remap_allocation_size(call.allocation_size);
+    call.arguments = new_slice;
+    call.signature = signature_type.unwrap_or(call.signature);
 
-    let signature = signature_type.unwrap_or(signature);
     let updated = mir::Instruction::Call {
         destination,
         function: new_callee,
-        arguments: new_slice,
-        signature,
-        effects,
+        call,
     };
     tree.replace(callsite.call_instruction, updated);
 
@@ -716,17 +711,11 @@ b0:
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
         let (call_id, _callee_id) = test.first_call_in_entry(root_id);
-        let argument_metadata = vec![mir::CallArgumentMetadata::default(); 2];
-        let effects = mir::CallEffects::default().with_argument_metadata(argument_metadata);
         let instruction = test.tree.get_mut(call_id);
-        let mir::Instruction::Call {
-            effects: call_effects,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { call, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *call_effects = Some(effects);
+        call.argument_attributes = vec![mir::ArgumentAttribute::default(); 2];
 
         test.run_module_pass(&ArgumentSpecialize);
         test.assert_output(expected);
@@ -734,7 +723,6 @@ b0:
         let (call_id, callee_id) = test.first_call_in_entry(root_id);
         let callee = test.tree.get(callee_id);
         let instruction = test.tree.get(call_id);
-        let effects = instruction.call_effects().expect("missing call effects");
         let signature = test.tree.get(
             instruction
                 .call_signature()
@@ -745,7 +733,12 @@ b0:
             result: callee.return_type,
         };
 
-        assert!(effects.argument_metadata.is_empty());
+        assert!(
+            instruction
+                .call_argument_attributes()
+                .expect("missing call argument attributes")
+                .is_empty()
+        );
         assert_eq!(signature, &expected_signature);
     }
 
@@ -831,7 +824,8 @@ b0:
         let specialized_pointer = specialized_pointer.expect("missing specialized pointer");
         let accesses = test
             .tree
-            .memory_table
+            .metadata
+            .memory
             .memory_accesses(specialized_load)
             .expect("missing specialized access metadata");
         assert_eq!(accesses.len(), 1);
@@ -1009,7 +1003,7 @@ b0(v0: int32):
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
-        test.tree.get_mut(callee_id).alloc_size = Some(mir::AllocSize::new(0, None));
+        test.tree.get_mut(callee_id).allocation_size = Some(mir::AllocationSize::new(0, None));
 
         test.run_module_pass(&ArgumentSpecialize);
         test.assert_output(expected);

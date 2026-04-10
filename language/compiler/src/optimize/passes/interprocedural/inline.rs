@@ -546,11 +546,11 @@ fn resolve_inline_target(
         mir::Instruction::Call {
             destination,
             function,
-            arguments,
+            call,
             ..
         } => {
             // capture call arguments for a direct call
-            let args = tree.get_arguments(*arguments).to_vec();
+            let args = tree.get_arguments(call.arguments).to_vec();
             Some((*function, args, *destination))
         }
         _ => None,
@@ -707,7 +707,15 @@ fn inline_callsite(
     }
 
     // remap the inlined blocks and rewrite returns
-    remap_inline_blocks(tree, &callee, &block_map, &value_map, &local_map);
+    let call_provenance = tree.get_provenance(site.call_instruction_id.id);
+    remap_inline_blocks(
+        tree,
+        &callee,
+        &block_map,
+        &value_map,
+        &local_map,
+        call_provenance,
+    );
     rewrite_inlined_returns(
         tree,
         &block_map,
@@ -716,9 +724,11 @@ fn inline_callsite(
     );
 
     // clean up metadata for the removed call instruction
-    tree.memory_table
+    tree.metadata
+        .memory
         .remove_memory_accesses(site.call_instruction_id);
-    tree.debug_table
+    tree.metadata
+        .debug
         .instruction_locations
         .remove(&site.call_instruction_id);
 
@@ -919,6 +929,7 @@ fn remap_inline_blocks(
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
     local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
+    call_provenance: Option<mir::ProvenanceId>,
 ) {
     // clone instruction bodies and remap terminators for each block
     for block_id in &callee.blocks {
@@ -940,14 +951,32 @@ fn remap_inline_blocks(
             // clone memory access metadata onto the new instruction
             clone_instruction_metadata(tree, instruction_id, new_id, value_map);
 
+            // inlined instruction provenance
+            if let (Some(call_provenance), Some(instruction_provenance)) =
+                (call_provenance, tree.get_provenance(instruction_id.id))
+            {
+                let provenance_id = tree.metadata.provenance.create(
+                    mir::ProvenanceAnchor::Mir(call_provenance),
+                    None,
+                    vec![
+                        mir::ProvenanceKey::Mir(call_provenance),
+                        mir::ProvenanceKey::Mir(instruction_provenance),
+                    ],
+                    Some(mir::ProvenanceReason::Inlined),
+                );
+                tree.set_provenance(new_id.id, provenance_id);
+            }
+
             // clone debug locations onto the new instruction
             if let Some(location) = tree
-                .debug_table
+                .metadata
+                .debug
                 .instruction_locations
                 .get(&instruction_id)
                 .cloned()
             {
-                tree.debug_table
+                tree.metadata
+                    .debug
                     .instruction_locations
                     .insert(new_id, location);
             }
@@ -1611,7 +1640,8 @@ b0:
         let inlined_pointer = inlined_pointer.expect("missing inlined pointer");
         let accesses = test
             .tree
-            .memory_table
+            .metadata
+            .memory
             .memory_accesses(inlined_load)
             .expect("missing inlined access metadata");
         assert_eq!(accesses.len(), 1);

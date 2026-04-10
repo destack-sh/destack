@@ -448,10 +448,10 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::Call {
                 destination,
                 function,
-                arguments,
+                call,
                 ..
             } => {
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 let args_range = pool.argument_range(args);
                 let callee = self.tree.get(*function);
                 let copies = pool.parameter_copy_range(&callee.parameters, args);
@@ -473,10 +473,10 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 receiver,
                 slot_id,
-                arguments,
+                call,
                 ..
             } => {
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 let args_range = pool.argument_range(args);
                 Instruction {
                     operation: InstructionOperation::CallVirtual,
@@ -498,10 +498,10 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 receiver,
                 slot_id,
-                arguments,
+                call,
                 ..
             } => {
-                let args = self.tree.get_arguments(*arguments);
+                let args = self.tree.get_arguments(call.arguments);
                 let args_range = pool.argument_range(args);
                 Instruction {
                     operation: InstructionOperation::CallInterface,
@@ -522,10 +522,10 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::CallIndirect {
                 destination,
                 callee,
-                arguments,
+                call,
                 ..
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(*arguments));
+                let args = pool.argument_range(self.tree.get_arguments(call.arguments));
                 Instruction {
                     operation: InstructionOperation::CallIndirect,
                     data: InstructionData::CallIndirect {

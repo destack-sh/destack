@@ -120,14 +120,14 @@ pub fn collect_non_escaping_stack_allocs(
                 | mir::Instruction::CallInterface { .. }
                 | mir::Instruction::CallIndirect { .. } => {
                     // capture call effects for escape checks
-                    let call_effects = instruction.call_effects();
+                    let argument_attributes = instruction.call_argument_attributes();
 
                     // mark stack pointers passed to calls as escaping
                     if let Some(arg_slice) = instruction.argument_slice() {
                         let arguments = tree.get_arguments(arg_slice);
 
                         for (index, &arg) in arguments.iter().enumerate() {
-                            if call_argument_escapes(call_effects, index) {
+                            if call_argument_escapes(argument_attributes, index) {
                                 record_stack_escape(
                                     arg,
                                     definitions,
@@ -272,12 +272,13 @@ pub fn collect_non_escaping_stack_allocs(
                 }
             }
             mir::Terminator::Invoke {
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -295,7 +296,7 @@ pub fn collect_non_escaping_stack_allocs(
             }
             mir::Terminator::InvokeIndirect {
                 callee,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
@@ -309,7 +310,8 @@ pub fn collect_non_escaping_stack_allocs(
                     &stack_allocs,
                     &mut escaping,
                 );
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -327,14 +329,14 @@ pub fn collect_non_escaping_stack_allocs(
             }
             mir::Terminator::InvokeVirtual {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
             }
             | mir::Terminator::InvokeInterface {
                 receiver,
-                arguments,
+                call,
                 normal_arguments,
                 unwind_arguments,
                 ..
@@ -348,7 +350,8 @@ pub fn collect_non_escaping_stack_allocs(
                     &stack_allocs,
                     &mut escaping,
                 );
-                for &arg in arguments
+                for &arg in call
+                    .arguments
                     .iter()
                     .chain(normal_arguments.iter())
                     .chain(unwind_arguments.iter())
@@ -388,10 +391,10 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::TailCall { arguments, .. }
-            | mir::Terminator::TailCallVirtual { arguments, .. }
-            | mir::Terminator::TailCallInterface { arguments, .. } => {
-                for &arg in arguments {
+            mir::Terminator::TailCall { call, .. }
+            | mir::Terminator::TailCallVirtual { call, .. }
+            | mir::Terminator::TailCallInterface { call, .. } => {
+                for &arg in &call.arguments {
                     record_stack_escape(
                         arg,
                         definitions,
@@ -403,9 +406,7 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
-            } => {
+            mir::Terminator::TailCallIndirect { callee, call, .. } => {
                 record_stack_escape(
                     *callee,
                     definitions,
@@ -415,7 +416,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &stack_allocs,
                     &mut escaping,
                 );
-                for &arg in arguments {
+                for &arg in &call.arguments {
                     record_stack_escape(
                         arg,
                         definitions,
@@ -439,19 +440,25 @@ pub fn collect_non_escaping_stack_allocs(
 }
 
 /// Report whether a call argument may escape.
-fn call_argument_escapes(call_effects: Option<&mir::CallEffects>, index: usize) -> bool {
-    // default to escaping when effects are missing
-    let Some(effects) = call_effects else {
+fn call_argument_escapes(
+    argument_attributes: Option<&[mir::ArgumentAttribute]>,
+    index: usize,
+) -> bool {
+    // default to escaping when argument attributes are missing
+    let Some(argument_attributes) = argument_attributes else {
         return true;
     };
 
-    // default to escaping when argument metadata is missing
-    let Some(arg_metadata) = effects.argument_metadata.get(index) else {
+    // default to escaping when argument attributes are missing
+    let Some(argument_attribute) = argument_attributes.get(index) else {
         return true;
     };
 
     // treat no capture arguments as non escaping
-    !matches!(arg_metadata.attributes.capture, mir::CaptureKind::NoCapture)
+    !matches!(
+        argument_attribute.attributes.capture,
+        mir::CaptureKind::NoCapture
+    )
 }
 
 /// Record a stack escape by walking derived values.
@@ -807,10 +814,10 @@ impl MemoryLocation {
 
 /// Check whether alias scopes permit two accesses to alias.
 pub fn alias_scopes_may_alias(
-    alias_scopes_a: &[mir::AliasScopeId],
-    noalias_scopes_a: &[mir::AliasScopeId],
-    alias_scopes_b: &[mir::AliasScopeId],
-    noalias_scopes_b: &[mir::AliasScopeId],
+    alias_scopes_a: &[mir::MemoryAliasScopeId],
+    noalias_scopes_a: &[mir::MemoryAliasScopeId],
+    alias_scopes_b: &[mir::MemoryAliasScopeId],
+    noalias_scopes_b: &[mir::MemoryAliasScopeId],
 ) -> bool {
     // check noalias scopes from the first access
     if scopes_intersect(noalias_scopes_a, alias_scopes_b) {
@@ -853,8 +860,12 @@ pub fn effects_match_location(
         return false;
     }
 
-    // check tbaa disambiguation
-    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, current.tbaa_tag, previous.tbaa_tag) {
+    // check type-alias disambiguation
+    if !type_alias_tags_may_alias(
+        &tree.metadata.memory.type_alias,
+        current.type_alias_tag,
+        previous.type_alias_tag,
+    ) {
         return false;
     }
 
@@ -901,8 +912,12 @@ pub fn effects_may_alias(
         return false;
     }
 
-    // check tbaa disambiguation
-    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, left.tbaa_tag, right.tbaa_tag) {
+    // check type-alias disambiguation
+    if !type_alias_tags_may_alias(
+        &tree.metadata.memory.type_alias,
+        left.type_alias_tag,
+        right.type_alias_tag,
+    ) {
         return false;
     }
 
@@ -940,7 +955,7 @@ pub fn instruction_has_atomic_ordering(
     }
 
     // read access metadata for this instruction
-    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
+    let Some(accesses) = tree.metadata.memory.memory_accesses(instruction) else {
         return false;
     };
 
@@ -971,7 +986,7 @@ pub fn instruction_requires_exact_access(
     }
 
     // read memory access metadata for the instruction
-    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
+    let Some(accesses) = tree.metadata.memory.memory_accesses(instruction) else {
         return false;
     };
 
@@ -1008,8 +1023,8 @@ pub fn location_sets_may_alias(a: mir::MemoryRegionSet, b: mir::MemoryRegionSet)
 
 /// Check whether two address space sets may alias.
 pub fn address_spaces_may_alias(
-    a: &Option<mir::AddressSpaceSet>,
-    b: &Option<mir::AddressSpaceSet>,
+    a: &Option<mir::AddressSpaceMask>,
+    b: &Option<mir::AddressSpaceMask>,
 ) -> bool {
     match (a, b) {
         (Some(a), Some(b)) => !a.is_disjoint(b),
@@ -1017,11 +1032,11 @@ pub fn address_spaces_may_alias(
     }
 }
 
-/// Check whether two TBAA tags may alias.
-pub fn tbaa_tags_may_alias(
-    tbaa: &mir::TbaaTable,
-    tag_a: Option<mir::TbaaTagId>,
-    tag_b: Option<mir::TbaaTagId>,
+/// Check whether two type-alias tags may alias.
+pub fn type_alias_tags_may_alias(
+    type_alias: &mir::TypeAliasTable,
+    tag_a: Option<mir::TypeAliasTagId>,
+    tag_b: Option<mir::TypeAliasTagId>,
 ) -> bool {
     // require both tags for disambiguation
     let (Some(tag_a), Some(tag_b)) = (tag_a, tag_b) else {
@@ -1029,8 +1044,8 @@ pub fn tbaa_tags_may_alias(
     };
 
     // resolve tags to base and access nodes
-    let tag_a = tbaa.tag(tag_a);
-    let tag_b = tbaa.tag(tag_b);
+    let tag_a = type_alias.tag(tag_a);
+    let tag_b = type_alias.tag(tag_b);
 
     // disjoint offsets within the same base access never alias
     if tag_a.base == tag_b.base
@@ -1043,12 +1058,12 @@ pub fn tbaa_tags_may_alias(
     }
 
     // base nodes must be compatible
-    if !tbaa_nodes_may_alias(tbaa, tag_a.base, tag_b.base) {
+    if !type_alias_nodes_may_alias(type_alias, tag_a.base, tag_b.base) {
         return false;
     }
 
     // access nodes must be compatible
-    if !tbaa_nodes_may_alias(tbaa, tag_a.access, tag_b.access) {
+    if !type_alias_nodes_may_alias(type_alias, tag_a.access, tag_b.access) {
         return false;
     }
 
@@ -1056,7 +1071,10 @@ pub fn tbaa_tags_may_alias(
 }
 
 /// Check whether two alias scope slices intersect.
-fn scopes_intersect(scopes_a: &[mir::AliasScopeId], scopes_b: &[mir::AliasScopeId]) -> bool {
+fn scopes_intersect(
+    scopes_a: &[mir::MemoryAliasScopeId],
+    scopes_b: &[mir::MemoryAliasScopeId],
+) -> bool {
     // scan for any matching scope id
     for scope_a in scopes_a {
         // check for a matching id in the other list
@@ -1077,11 +1095,11 @@ fn ranges_disjoint(offset_a: u64, size_a: u64, offset_b: u64, size_b: u64) -> bo
     end_a <= offset_b || end_b <= offset_a
 }
 
-/// Check whether two TBAA nodes may alias.
-fn tbaa_nodes_may_alias(
-    tbaa: &mir::TbaaTable,
-    node_a: mir::TbaaNodeId,
-    node_b: mir::TbaaNodeId,
+/// Check whether two type-alias nodes may alias.
+fn type_alias_nodes_may_alias(
+    type_alias: &mir::TypeAliasTable,
+    node_a: mir::TypeAliasNodeId,
+    node_b: mir::TypeAliasNodeId,
 ) -> bool {
     // fast path for identical nodes
     if node_a == node_b {
@@ -1089,19 +1107,19 @@ fn tbaa_nodes_may_alias(
     }
 
     // allow aliasing when a is an ancestor of b
-    if tbaa_node_is_ancestor(tbaa, node_a, node_b) {
+    if type_alias_node_is_ancestor(type_alias, node_a, node_b) {
         return true;
     }
 
     // allow aliasing when b is an ancestor of a
-    tbaa_node_is_ancestor(tbaa, node_b, node_a)
+    type_alias_node_is_ancestor(type_alias, node_b, node_a)
 }
 
-/// Check whether a TBAA node is an ancestor of another node.
-fn tbaa_node_is_ancestor(
-    tbaa: &mir::TbaaTable,
-    ancestor: mir::TbaaNodeId,
-    node: mir::TbaaNodeId,
+/// Check whether one type-alias node is an ancestor of another node.
+fn type_alias_node_is_ancestor(
+    type_alias: &mir::TypeAliasTable,
+    ancestor: mir::TypeAliasNodeId,
+    node: mir::TypeAliasNodeId,
 ) -> bool {
     // walk up the parent chain
     let mut current = Some(node);
@@ -1119,7 +1137,7 @@ fn tbaa_node_is_ancestor(
         }
 
         // climb to the parent node
-        current = tbaa.node(node_id).parent;
+        current = type_alias.node(node_id).parent;
     }
 
     false
