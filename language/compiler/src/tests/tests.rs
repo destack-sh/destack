@@ -2748,22 +2748,22 @@ impl TestProgram {
         expected: &str,
         options: MirFormatOptions,
     ) -> String {
-        // trim the expected input
-        let expected = expected.trim();
-
-        // parse and reformat to the canonical layout
-        let (tree, strings) = mir::parse::Parser::parse(
-            destack_source::FileId::new(0),
-            expected,
-            mir::parse::ParseOptions::default(),
-        )
-        .unwrap_or_else(|error| panic!("expected mir parse failed: {error}"));
-        format_mir(&tree, &strings, options)
+        normalize_mir_text_with_options("expected", expected, options)
     }
 
     /// Normalize expected MIR text for comparison.
     fn normalize_mir_expected(&self, expected: &str) -> String {
         self.normalize_mir_expected_with_options(expected, self.mir_format_options())
+    }
+
+    /// Normalize actual MIR text for comparison.
+    fn normalize_mir_actual_with_options(&self, actual: &str, options: MirFormatOptions) -> String {
+        normalize_mir_text_with_options("actual", actual, options)
+    }
+
+    /// Normalize actual MIR text for comparison.
+    fn normalize_mir_actual(&self, actual: &str) -> String {
+        self.normalize_mir_actual_with_options(actual, self.mir_format_options())
     }
 
     /// Run a callback with the MIR tree and strings for a lowered target.
@@ -2871,9 +2871,9 @@ impl TestProgram {
 
     /// Assert that a module's MIR matches the expected text format.
     pub fn assert_mir(&self, module_id: ModuleId, target: &str, expected: &str) {
-        // format the actual mir
+        // normalize the actual mir
         let actual = self.mir_to_string(module_id, target);
-        let actual = actual.trim().to_string();
+        let actual = self.normalize_mir_actual(&actual);
 
         // normalize the expected mir
         let expected = self.normalize_mir_expected(expected);
@@ -3276,4 +3276,44 @@ fn format_stats_snapshot(snapshot: &crate::StatsSnapshot) -> String {
     );
 
     output
+}
+
+/// Normalize MIR text for comparison.
+fn normalize_mir_text_with_options(
+    label: &str,
+    mir_text: &str,
+    options: MirFormatOptions,
+) -> String {
+    let mir_text = mir_text.trim();
+
+    let (tree, strings) = mir::parse::Parser::parse(
+        destack_source::FileId::new(0),
+        mir_text,
+        mir::parse::ParseOptions::default(),
+    )
+    .unwrap_or_else(|error| panic!("{label} mir parse failed: {error}"));
+
+    format_mir(&tree, &strings, options)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reject malformed emitted MIR during actual normalization.
+    #[test]
+    #[should_panic(expected = "actual mir parse failed")]
+    fn test_rejects_invalid_actual_mir_during_normalization() {
+        normalize_mir_text_with_options(
+            "actual",
+            r#"
+function broken(): void {
+b0():
+    v0: ref<usize1], raw, addressSpace(stack)> = stack.alloc usize[1]
+    return
+}
+            "#,
+            MirFormatOptions::default(),
+        );
+    }
 }

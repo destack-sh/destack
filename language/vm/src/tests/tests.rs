@@ -155,7 +155,7 @@ pub(crate) fn stamp_well_known_string_type_for_tests(
     });
 
     if let Some(string_type) = string_type {
-        tree.type_table.set_string_type(string_type);
+        tree.metadata.layout.set_string_type(string_type);
     }
 }
 

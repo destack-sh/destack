@@ -40,7 +40,7 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
     ) -> Vec<&'a mir::Vtable> {
         // collect class vtables
-        tree.dispatch_table.vtables.iter().collect()
+        tree.metadata.dispatch.vtables.iter().collect()
     }
 
     /// Collect interface dispatch tables from a MIR tree.
@@ -49,7 +49,7 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
     ) -> Vec<&'a mir::Itab> {
         // collect interface itabs
-        tree.dispatch_table.itabs.iter().collect()
+        tree.metadata.dispatch.itabs.iter().collect()
     }
 
     /// Resolve an interface dispatch table for a concrete and interface object pair.
@@ -63,7 +63,8 @@ impl TestProgram {
         let concrete_type = self.type_by_metadata_name(tree, strings, concrete_name);
         let interface_type = self.type_by_metadata_name(tree, strings, interface_name);
 
-        tree.dispatch_table
+        tree.metadata
+            .dispatch
             .itabs
             .iter()
             .find(|table| table.concrete == concrete_type && table.interface == interface_type)
@@ -211,7 +212,7 @@ impl TestProgram {
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         // scan type display names for a matching name
-        for (ty, name_id) in &tree.type_table.display_name_by_type {
+        for (ty, name_id) in &tree.metadata.layout.display_name_by_type {
             if strings.get(*name_id) != name {
                 continue;
             }
@@ -239,7 +240,8 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> &'a mir::TypeLineage {
-        tree.type_table
+        tree.metadata
+            .layout
             .lineage(type_id)
             .unwrap_or_else(|| panic!("missing lineage metadata for '{type_id:?}'"))
     }
@@ -262,7 +264,8 @@ impl TestProgram {
         tree: &mir::NodeTree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> mir::VtableId {
-        tree.type_table
+        tree.metadata
+            .dispatch
             .vtable_id(type_id)
             .unwrap_or_else(|| panic!("missing vtable id for '{type_id:?}'"))
     }
@@ -273,7 +276,8 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> &'a mir::UnionLayout {
-        tree.type_table
+        tree.metadata
+            .layout
             .union_layout(type_id)
             .unwrap_or_else(|| panic!("missing union layout metadata for '{type_id:?}'"))
     }
@@ -384,8 +388,8 @@ impl TestProgram {
         })?;
 
         // resolve the layout metadata for offsets
-        let layout_id = tree.type_table.layout_id(struct_type)?;
-        let layout = tree.type_table.layout_table.layout(layout_id);
+        let layout_id = tree.metadata.layout.layout_id(struct_type)?;
+        let layout = tree.metadata.layout.layout_table.layout(layout_id);
         layout
             .fields
             .iter()
@@ -405,30 +409,36 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("missing struct field offset '{field_name}'"))
     }
 
-    /// Resolve a field map entry by field name.
-    pub(crate) fn field_map_entry_by_name(
+    /// Resolve one struct field by field name.
+    pub(crate) fn struct_field_by_name(
         &self,
         tree: &mir::NodeTree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> Option<mir::LocalNodeId<mir::Field>> {
-        tree.type_table
-            .field_map(struct_type)?
-            .iter()
-            .find_map(|(name, field_id)| (strings.get(*name) == field_name).then_some(*field_id))
+        let mir::Type::Struct { fields, .. } = tree.get(struct_type) else {
+            return None;
+        };
+
+        fields.iter().find_map(|field_id| {
+            let field = tree.get(*field_id);
+            field
+                .name
+                .and_then(|name| (strings.get(name) == field_name).then_some(*field_id))
+        })
     }
 
-    /// Resolve a field map entry by field name or panic.
-    pub(crate) fn expect_field_map_entry_by_name(
+    /// Resolve one struct field by field name or panic.
+    pub(crate) fn expect_struct_field_by_name(
         &self,
         tree: &mir::NodeTree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> mir::LocalNodeId<mir::Field> {
-        self.field_map_entry_by_name(tree, strings, struct_type, field_name)
-            .unwrap_or_else(|| panic!("missing field map entry '{field_name}'"))
+        self.struct_field_by_name(tree, strings, struct_type, field_name)
+            .unwrap_or_else(|| panic!("missing struct field '{field_name}'"))
     }
 
     /// Resolve a field name for a field id or panic.

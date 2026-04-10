@@ -236,43 +236,46 @@ impl TestProgram {
     }
 
     /// Create a new alias scope.
-    pub(crate) fn create_alias_scope(&mut self) -> mir::AliasScopeId {
+    pub(crate) fn create_alias_scope(&mut self) -> mir::MemoryAliasScopeId {
         // create a new domain for the scope
-        let domain = self.tree.memory_table.alias_scopes.create_domain(None);
+        let domain = self.tree.metadata.memory.alias_scopes.create_domain(None);
 
         // create the scope within the domain
         self.tree
-            .memory_table
+            .metadata
+            .memory
             .alias_scopes
             .create_scope(domain, None)
     }
 
-    /// Create a new tbaa node.
-    pub(crate) fn create_tbaa_node(
+    /// Create a new type-alias node.
+    pub(crate) fn create_type_alias_node(
         &mut self,
-        parent: Option<mir::TbaaNodeId>,
+        parent: Option<mir::TypeAliasNodeId>,
         is_constant: bool,
-    ) -> mir::TbaaNodeId {
+    ) -> mir::TypeAliasNodeId {
         // insert a new node into the table
         self.tree
-            .memory_table
-            .tbaa
+            .metadata
+            .memory
+            .type_alias
             .create_node(None, parent, is_constant)
     }
 
-    /// Create a new tbaa tag.
-    pub(crate) fn create_tbaa_tag(
+    /// Create a new type-alias tag.
+    pub(crate) fn create_type_alias_tag(
         &mut self,
-        base: mir::TbaaNodeId,
-        access: mir::TbaaNodeId,
+        base: mir::TypeAliasNodeId,
+        access: mir::TypeAliasNodeId,
         offset: u64,
         size: u64,
         is_immutable: bool,
-    ) -> mir::TbaaTagId {
+    ) -> mir::TypeAliasTagId {
         // insert a new tag into the table
         self.tree
-            .memory_table
-            .tbaa
+            .metadata
+            .memory
+            .type_alias
             .create_tag(base, access, offset, size, is_immutable)
     }
 
@@ -344,9 +347,9 @@ impl TestProgram {
         kind: mir::MemoryAccessKind,
         pointer: mir::Value,
         size: Option<u64>,
-        alias_scopes: Vec<mir::AliasScopeId>,
-        noalias_scopes: Vec<mir::AliasScopeId>,
-        tbaa_tag: Option<mir::TbaaTagId>,
+        alias_scopes: Vec<mir::MemoryAliasScopeId>,
+        noalias_scopes: Vec<mir::MemoryAliasScopeId>,
+        type_alias_tag: Option<mir::TypeAliasTagId>,
     ) {
         self.insert_pointer_access_with_options(
             instruction,
@@ -355,7 +358,7 @@ impl TestProgram {
             size,
             alias_scopes,
             noalias_scopes,
-            tbaa_tag,
+            type_alias_tag,
             false,
             None,
         );
@@ -369,7 +372,8 @@ impl TestProgram {
     ) {
         // insert the metadata entries
         self.tree
-            .memory_table
+            .metadata
+            .memory
             .insert_memory_accesses(instruction, accesses);
     }
 
@@ -381,9 +385,9 @@ impl TestProgram {
         kind: mir::MemoryAccessKind,
         pointer: mir::Value,
         size: Option<u64>,
-        alias_scopes: Vec<mir::AliasScopeId>,
-        noalias_scopes: Vec<mir::AliasScopeId>,
-        tbaa_tag: Option<mir::TbaaTagId>,
+        alias_scopes: Vec<mir::MemoryAliasScopeId>,
+        noalias_scopes: Vec<mir::MemoryAliasScopeId>,
+        type_alias_tag: Option<mir::TypeAliasTagId>,
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
     ) {
@@ -394,8 +398,7 @@ impl TestProgram {
             size,
             alignment: None,
             is_volatile,
-            is_invariant: false,
-            is_non_temporal: false,
+            is_load_invariant: false,
             ordering,
             scope: None,
             memory_scope: None,
@@ -403,12 +406,13 @@ impl TestProgram {
             address_space: None,
             alias_scopes,
             noalias_scopes,
-            tbaa_tag,
+            type_alias_tag,
         };
 
         // insert the metadata entry
         self.tree
-            .memory_table
+            .metadata
+            .memory
             .insert_memory_accesses(instruction, vec![access]);
     }
 
@@ -1288,7 +1292,12 @@ b0(v0: int32, v1: int32):
                 _ => None,
             })
             .unwrap_or_else(|| panic!("missing struct type"));
-        let _ = test.tree.type_table.layout_by_type.remove(&struct_type_id);
+        let _ = test
+            .tree
+            .metadata
+            .layout
+            .layout_by_type
+            .remove(&struct_type_id);
 
         let options = PipelineOptions {
             require_optimized_metadata: true,
