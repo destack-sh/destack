@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    AtomicRmwOperator, AtomicScope, BinaryOperator, CallEffects, Constant, Function, Global,
-    InterfaceSlotId, Intrinsic, Local, LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics,
-    Node, NodeType, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    AllocationSize, ArgumentAttribute, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
+    CallBehavior, Constant, Function, Global, InterfaceSlotId, Intrinsic, Local, LocalNodeId,
+    MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType, PointerAttribute,
+    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
     TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, Value,
     VectorConvertMode, VectorReduceOperator, VtableSlotId,
@@ -632,12 +633,8 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The function to call.
         function: LocalNodeId<Function>,
-        /// The arguments to pass (stored in NodeTree's argument buffer).
-        arguments: ArgumentSlice,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
-        /// Optional callsite effects and attributes.
-        effects: Option<CallEffects>,
+        /// The shared call payload.
+        call: Call<ArgumentSlice>,
     },
     /// Call a virtual method through a vtable slot.
     CallVirtual {
@@ -645,16 +642,14 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The receiver value for dispatch.
         receiver: Value,
-        /// The arguments to pass (stored in NodeTree's argument buffer).
-        arguments: ArgumentSlice,
         /// The declaring type for this virtual call.
         declaring_type: LocalNodeId<Type>,
         /// The vtable slot id for the method.
         slot_id: VtableSlotId,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
-        /// Optional callsite effects and attributes.
-        effects: Option<CallEffects>,
+        /// The declared method target when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The shared call payload.
+        call: Call<ArgumentSlice>,
     },
     /// Call an interface method through an itab slot.
     CallInterface {
@@ -662,16 +657,14 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The receiver value for dispatch.
         receiver: Value,
-        /// The arguments to pass (stored in NodeTree's argument buffer).
-        arguments: ArgumentSlice,
         /// The declaring interface type for this call.
         declaring_type: LocalNodeId<Type>,
         /// The itab slot id for the method.
         slot_id: InterfaceSlotId,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
-        /// Optional callsite effects and attributes.
-        effects: Option<CallEffects>,
+        /// The declared method target when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The shared call payload.
+        call: Call<ArgumentSlice>,
     },
     /// Call through a function pointer (call.indirect).
     CallIndirect {
@@ -679,12 +672,8 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The callable value to call.
         callee: Value,
-        /// The arguments to pass (stored in NodeTree's argument buffer).
-        arguments: ArgumentSlice,
-        /// The signature type for the callee.
-        signature: LocalNodeId<Type>,
-        /// Optional callsite effects and attributes.
-        effects: Option<CallEffects>,
+        /// The shared call payload.
+        call: Call<ArgumentSlice>,
     },
 
     // allocation (managed - runtime tracks memory: managed.alloc, managed.allocArray)
@@ -1097,10 +1086,10 @@ impl Instruction {
             Instruction::TensorSlice { arguments, .. } => Some(*arguments),
             Instruction::TensorPad { arguments, .. } => Some(*arguments),
             Instruction::TensorConcat { tensors, .. } => Some(*tensors),
-            Instruction::Call { arguments, .. } => Some(*arguments),
-            Instruction::CallVirtual { arguments, .. } => Some(*arguments),
-            Instruction::CallInterface { arguments, .. } => Some(*arguments),
-            Instruction::CallIndirect { arguments, .. } => Some(*arguments),
+            Instruction::Call { call, .. } => Some(call.arguments),
+            Instruction::CallVirtual { call, .. } => Some(call.arguments),
+            Instruction::CallInterface { call, .. } => Some(call.arguments),
+            Instruction::CallIndirect { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
             _ => None,
         }
@@ -1124,10 +1113,10 @@ impl Instruction {
     /// Return the signature type for call instructions.
     pub fn call_signature(&self) -> Option<LocalNodeId<Type>> {
         match self {
-            Instruction::Call { signature, .. }
-            | Instruction::CallVirtual { signature, .. }
-            | Instruction::CallInterface { signature, .. }
-            | Instruction::CallIndirect { signature, .. } => Some(*signature),
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(call.signature),
             _ => None,
         }
     }
@@ -1136,28 +1125,122 @@ impl Instruction {
     pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
         match self {
             Instruction::Call { function, .. } => Some(*function),
+            Instruction::CallVirtual {
+                declared_target, ..
+            }
+            | Instruction::CallInterface {
+                declared_target, ..
+            } => *declared_target,
             _ => None,
         }
     }
 
-    /// Return callsite effects for call instructions, when present.
-    pub fn call_effects(&self) -> Option<&CallEffects> {
+    /// Return the memory effect for call instructions, when present.
+    pub fn call_memory_effect(&self) -> Option<&MemoryEffect> {
         match self {
-            Instruction::Call { effects, .. }
-            | Instruction::CallVirtual { effects, .. }
-            | Instruction::CallInterface { effects, .. }
-            | Instruction::CallIndirect { effects, .. } => effects.as_ref(),
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => call.memory_effect.as_ref(),
             _ => None,
         }
     }
 
-    /// Return mutable callsite effects for call instructions, when present.
-    pub fn call_effects_mut(&mut self) -> Option<&mut CallEffects> {
+    /// Return mutable memory effect storage for call instructions.
+    pub fn call_memory_effect_mut(&mut self) -> Option<&mut Option<MemoryEffect>> {
         match self {
-            Instruction::Call { effects, .. }
-            | Instruction::CallVirtual { effects, .. }
-            | Instruction::CallInterface { effects, .. }
-            | Instruction::CallIndirect { effects, .. } => effects.as_mut(),
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&mut call.memory_effect),
+            _ => None,
+        }
+    }
+
+    /// Return the call behavior for call instructions, when present.
+    pub fn call_behavior(&self) -> Option<&CallBehavior> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => call.behavior.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Return mutable call behavior storage for call instructions.
+    pub fn call_behavior_mut(&mut self) -> Option<&mut Option<CallBehavior>> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&mut call.behavior),
+            _ => None,
+        }
+    }
+
+    /// Return the allocation size metadata for call instructions, when present.
+    pub fn call_allocation_size(&self) -> Option<AllocationSize> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => call.allocation_size,
+            _ => None,
+        }
+    }
+
+    /// Return mutable allocation size storage for call instructions.
+    pub fn call_allocation_size_mut(&mut self) -> Option<&mut Option<AllocationSize>> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&mut call.allocation_size),
+            _ => None,
+        }
+    }
+
+    /// Return argument attributes for call instructions.
+    pub fn call_argument_attributes(&self) -> Option<&[ArgumentAttribute]> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&call.argument_attributes),
+            _ => None,
+        }
+    }
+
+    /// Return mutable argument attributes for call instructions.
+    pub fn call_argument_attributes_mut(&mut self) -> Option<&mut Vec<ArgumentAttribute>> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&mut call.argument_attributes),
+            _ => None,
+        }
+    }
+
+    /// Return the return attribute for call instructions.
+    pub fn call_return_attribute(&self) -> Option<&PointerAttribute> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&call.return_attribute),
+            _ => None,
+        }
+    }
+
+    /// Return mutable return attribute storage for call instructions.
+    pub fn call_return_attribute_mut(&mut self) -> Option<&mut PointerAttribute> {
+        match self {
+            Instruction::Call { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallInterface { call, .. }
+            | Instruction::CallIndirect { call, .. } => Some(&mut call.return_attribute),
             _ => None,
         }
     }

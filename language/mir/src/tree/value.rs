@@ -5,7 +5,7 @@ use crate::{LocalNodeId, Type};
 /// SSA value (virtual register).
 ///
 /// Values are created by instructions and consumed by other instructions.
-/// Each value is defined exactly once (SSA property).
+/// Each value is defined exactly once.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Value(pub u32);

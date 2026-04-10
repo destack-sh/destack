@@ -1,8 +1,5 @@
 use crate::build::FunctionBuilder;
-use crate::{
-    CallEffects, CallSite, DevirtualizationMetadata, Function, Instruction, InterfaceSlotId,
-    LocalNodeId, Type, Value, VtableSlotId,
-};
+use crate::{Call, Function, Instruction, InterfaceSlotId, LocalNodeId, Type, Value, VtableSlotId};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -19,9 +16,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Call {
             destination: Some(destination),
             function,
-            arguments,
-            signature,
-            effects: None,
+            call: Call::new(arguments, signature),
         });
         self.define_value(destination, result_type);
         Some(destination)
@@ -38,9 +33,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Call {
             destination: None,
             function,
-            arguments,
-            signature,
-            effects: None,
+            call: Call::new(arguments, signature),
         });
     }
 
@@ -57,19 +50,14 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&argument_values);
-        let instruction_id = self.insert_instruction(Instruction::CallVirtual {
+        self.insert_instruction(Instruction::CallVirtual {
             destination: Some(destination),
             receiver,
-            arguments,
             declaring_type,
             slot_id,
-            signature,
-            effects: None,
+            declared_target,
+            call: Call::new(arguments, signature),
         });
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Instruction(instruction_id),
-            DevirtualizationMetadata { declared_target },
-        );
         self.define_value(destination, result_type);
         Some(destination)
     }
@@ -85,19 +73,14 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let arguments = self.tree.add_arguments(&argument_values);
-        let instruction_id = self.insert_instruction(Instruction::CallVirtual {
+        self.insert_instruction(Instruction::CallVirtual {
             destination: None,
             receiver,
-            arguments,
             declaring_type,
             slot_id,
-            signature,
-            effects: None,
+            declared_target,
+            call: Call::new(arguments, signature),
         });
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Instruction(instruction_id),
-            DevirtualizationMetadata { declared_target },
-        );
     }
 
     /// Call an interface method through an itab slot.
@@ -113,19 +96,14 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&argument_values);
-        let instruction_id = self.insert_instruction(Instruction::CallInterface {
+        self.insert_instruction(Instruction::CallInterface {
             destination: Some(destination),
             receiver,
-            arguments,
             declaring_type,
             slot_id,
-            signature,
-            effects: None,
+            declared_target,
+            call: Call::new(arguments, signature),
         });
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Instruction(instruction_id),
-            DevirtualizationMetadata { declared_target },
-        );
         self.define_value(destination, result_type);
         Some(destination)
     }
@@ -141,58 +119,13 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let arguments = self.tree.add_arguments(&argument_values);
-        let instruction_id = self.insert_instruction(Instruction::CallInterface {
+        self.insert_instruction(Instruction::CallInterface {
             destination: None,
             receiver,
-            arguments,
             declaring_type,
             slot_id,
-            signature,
-            effects: None,
-        });
-        self.insert_dispatch_callsite_metadata(
-            CallSite::Instruction(instruction_id),
-            DevirtualizationMetadata { declared_target },
-        );
-    }
-
-    /// Call a function with explicit effects metadata.
-    pub fn call_with_effects(
-        &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-        effects: CallEffects,
-    ) -> Option<Value> {
-        let destination = self.allocate_value();
-        let result_type = self.signature_result_type(signature);
-        let arguments = self.tree.add_arguments(&argument_values);
-        self.insert_instruction(Instruction::Call {
-            destination: Some(destination),
-            function,
-            arguments,
-            signature,
-            effects: Some(effects),
-        });
-        self.define_value(destination, result_type);
-        Some(destination)
-    }
-
-    /// Call a function with no return value and explicit effects metadata.
-    pub fn call_void_with_effects(
-        &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-        effects: CallEffects,
-    ) {
-        let arguments = self.tree.add_arguments(&argument_values);
-        self.insert_instruction(Instruction::Call {
-            destination: None,
-            function,
-            arguments,
-            signature,
-            effects: Some(effects),
+            declared_target,
+            call: Call::new(arguments, signature),
         });
     }
 
@@ -263,9 +196,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
             callee,
-            arguments,
-            signature,
-            effects: None,
+            call: Call::new(arguments, signature),
         });
         self.define_value(destination, result_type);
         destination
@@ -282,9 +213,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee,
-            arguments,
-            signature,
-            effects: None,
+            call: Call::new(arguments, signature),
         });
     }
 }

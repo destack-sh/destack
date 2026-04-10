@@ -60,52 +60,43 @@ impl<'a> Validator<'a> {
         let anchor = ValidateAnchor::node(instruction_id);
 
         // shared call metadata
-        let Some((destination, arguments, signature, effects)) = (match instruction {
+        let Some((destination, call)) = (match instruction {
             Instruction::Call {
-                destination,
-                arguments,
-                signature,
-                effects,
-                ..
+                destination, call, ..
             }
             | Instruction::CallVirtual {
-                destination,
-                arguments,
-                signature,
-                effects,
-                ..
+                destination, call, ..
             }
             | Instruction::CallInterface {
-                destination,
-                arguments,
-                signature,
-                effects,
-                ..
+                destination, call, ..
             }
             | Instruction::CallIndirect {
-                destination,
-                arguments,
-                signature,
-                effects,
-                ..
-            } => Some((*destination, *arguments, *signature, effects.as_ref())),
+                destination, call, ..
+            } => Some((*destination, call)),
             _ => None,
         }) else {
             return Ok(());
         };
 
-        self.validate_argument_slice(arguments, instruction_id)?;
-        let arguments = self.tree.get_arguments(arguments);
+        self.validate_argument_slice(call.arguments, instruction_id)?;
+        let arguments = self.tree.get_arguments(call.arguments);
 
-        self.validate_call_signature(instruction_id, destination, arguments.len(), signature)?;
-        self.validate_call_effects(instruction_id, effects, arguments.len())?;
+        self.validate_call_signature(instruction_id, destination, arguments.len(), call.signature)?;
+        self.validate_call_metadata(
+            instruction_id,
+            call.memory_effect.as_ref(),
+            call.behavior.as_ref(),
+            call.argument_attributes.as_slice(),
+            &call.return_attribute,
+            arguments.len(),
+        )?;
 
         // per-call-kind checks
         match instruction {
             Instruction::Call {
                 function: callee, ..
             } => {
-                self.validate_call_signature_matches_function(anchor, signature, *callee)?;
+                self.validate_call_signature_matches_function(anchor, call.signature, *callee)?;
                 self.validate_direct_call_environment(anchor, *callee)?;
             }
             Instruction::CallVirtual {
@@ -122,13 +113,11 @@ impl<'a> Validator<'a> {
             } => {
                 self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
             }
-            Instruction::CallIndirect {
-                callee, signature, ..
-            } => {
+            Instruction::CallIndirect { callee, .. } => {
                 self.validate_indirect_callee_signature(
                     function,
                     *callee,
-                    *signature,
+                    call.signature,
                     anchor,
                     "call.indirect callee",
                 )?;
@@ -1693,19 +1682,19 @@ impl<'a> Validator<'a> {
                     anchor,
                 )?;
             }
-            Instruction::Call { signature, .. } => {
-                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                if !matches!(self.tree.get(*signature), Type::FunctionPointer { .. }) {
+            Instruction::Call { call, .. } => {
+                self.ensure_node_type(NodeType::Type, call.signature.id, anchor)?;
+                if !matches!(self.tree.get(call.signature), Type::FunctionPointer { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
                     });
                 }
             }
-            Instruction::CallIndirect { signature, .. } => {
-                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+            Instruction::CallIndirect { call, .. } => {
+                self.ensure_node_type(NodeType::Type, call.signature.id, anchor)?;
                 if !matches!(
-                    self.tree.get(*signature),
+                    self.tree.get(call.signature),
                     Type::FunctionPointer { .. } | Type::Closure { .. }
                 ) {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1716,17 +1705,17 @@ impl<'a> Validator<'a> {
             }
             Instruction::CallVirtual {
                 declaring_type,
-                signature,
+                call,
                 ..
             }
             | Instruction::CallInterface {
                 declaring_type,
-                signature,
+                call,
                 ..
             } => {
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
-                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                if !matches!(self.tree.get(*signature), Type::FunctionPointer { .. }) {
+                self.ensure_node_type(NodeType::Type, call.signature.id, anchor)?;
+                if !matches!(self.tree.get(call.signature), Type::FunctionPointer { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,

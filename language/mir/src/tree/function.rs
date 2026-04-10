@@ -2,8 +2,8 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
-    NodeTree, NodeType, PointerAttributes, Type, TypedValue, Value,
+    AllocationSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
+    NodeTree, NodeType, PointerAttribute, Type, TypedValue, Value,
 };
 
 /// Memory allocation restrictions for a function.
@@ -208,16 +208,16 @@ pub struct Function {
     pub return_type: LocalNodeId<Type>,
     /// Lifetime bounds for the return value.
     pub return_lifetime: Lifetime,
-    /// Memory effects for this function.
-    pub memory_effects: MemoryEffect,
+    /// Memory effect for this function.
+    pub memory_effect: MemoryEffect,
     /// Behavioral effects for this function.
     pub call_behavior: CallBehavior,
     /// Allocation size metadata for allocator-like functions.
-    pub alloc_size: Option<AllocSize>,
+    pub allocation_size: Option<AllocationSize>,
     /// Pointer attributes for parameters, indexed by parameter position.
-    pub parameter_attributes: Vec<PointerAttributes>,
-    /// Pointer attributes for the return value.
-    pub return_attributes: PointerAttributes,
+    pub parameter_attributes: Vec<PointerAttribute>,
+    /// Pointer attribute for the return value.
+    pub return_attribute: PointerAttribute,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
@@ -255,7 +255,7 @@ impl Function {
         return_type: LocalNodeId<Type>,
     ) -> Self {
         // seed parameter attributes
-        let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         let parameter_names = vec![None; parameters.len()];
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
         let value_types = Self::seed_value_types(&parameters, next_value_id);
@@ -267,11 +267,11 @@ impl Function {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: MemoryEffect::unknown(),
+            memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
-            alloc_size: None,
+            allocation_size: None,
             parameter_attributes,
-            return_attributes: PointerAttributes::default(),
+            return_attribute: PointerAttribute::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
@@ -294,7 +294,7 @@ impl Function {
         entry: LocalNodeId<Block>,
     ) -> Self {
         // seed parameter attributes
-        let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         let parameter_names = vec![None; parameters.len()];
 
         // compute the next value id from parameters
@@ -309,11 +309,11 @@ impl Function {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: MemoryEffect::unknown(),
+            memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
-            alloc_size: None,
+            allocation_size: None,
             parameter_attributes,
-            return_attributes: PointerAttributes::default(),
+            return_attribute: PointerAttribute::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
@@ -335,7 +335,7 @@ impl Function {
         return_type: LocalNodeId<Type>,
     ) -> Self {
         // seed parameter attributes
-        let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         let parameter_names = vec![None; parameters.len()];
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
         let value_types = Self::seed_value_types(&parameters, next_value_id);
@@ -348,11 +348,11 @@ impl Function {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: MemoryEffect::unknown(),
+            memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
-            alloc_size: None,
+            allocation_size: None,
             parameter_attributes,
-            return_attributes: PointerAttributes::default(),
+            return_attribute: PointerAttribute::default(),
             linkage: Linkage::Import,
             allocation: AllocationMode::Any,
             suspension: None,

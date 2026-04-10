@@ -1,7 +1,7 @@
 use crate::{
-    CallBehavior, CallEffects, Function, Instruction, LocalNodeId, MemoryAccessKind,
-    MemoryAccessMetadata, MemoryEffect, NodeType, PointerAttributes, Repeatability, Type,
-    UnwindBehavior,
+    ArgumentAttribute, CallBehavior, EffectClass, Function, Instruction, LocalNodeId,
+    MemoryAccessKind, MemoryAccessMetadata, MemoryEffect, NodeType, PointerAttribute,
+    ReturnBehavior, SuspendBehavior, Type, UnwindBehavior,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -36,13 +36,13 @@ impl<'a> Validator<'a> {
         }
 
         // memory and call behavior
-        self.validate_memory_effect_invariants(Some(&function.memory_effects), anchor)?;
+        self.validate_memory_effect_invariants(Some(&function.memory_effect), anchor)?;
         self.validate_call_behavior_invariants(Some(&function.call_behavior), anchor)?;
 
         // pointer attributes
         self.validate_pointer_attributes_invariants(
             "function return attributes",
-            &function.return_attributes,
+            &function.return_attribute,
             anchor,
         )?;
 
@@ -70,39 +70,36 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate call effects invariants.
-    pub(super) fn validate_call_effects(
+    /// Validate call metadata invariants.
+    pub(super) fn validate_call_metadata(
         &self,
         instruction_id: LocalNodeId<Instruction>,
-        effects: Option<&CallEffects>,
+        memory_effect: Option<&MemoryEffect>,
+        call_behavior: Option<&CallBehavior>,
+        argument_attributes: &[ArgumentAttribute],
+        return_attribute: &PointerAttribute,
         argument_count: usize,
     ) -> ValidateResult<()> {
-        let Some(effects) = effects else {
-            return Ok(());
-        };
-
         let anchor = ValidateAnchor::node(instruction_id);
-        if !effects.argument_metadata.is_empty()
-            && effects.argument_metadata.len() != argument_count
-        {
+        if !argument_attributes.is_empty() && argument_attributes.len() != argument_count {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: format!(
-                    "call effects argument count mismatch expected {argument_count} got {}",
-                    effects.argument_metadata.len()
+                    "call argument attribute count mismatch expected {argument_count} got {}",
+                    argument_attributes.len()
                 ),
                 anchor,
             });
         }
 
-        self.validate_memory_effect_invariants(effects.memory_effects.as_ref(), anchor)?;
-        self.validate_call_behavior_invariants(effects.behavior.as_ref(), anchor)?;
+        self.validate_memory_effect_invariants(memory_effect, anchor)?;
+        self.validate_call_behavior_invariants(call_behavior, anchor)?;
         self.validate_pointer_attributes_invariants(
             "call return attributes",
-            &effects.return_attributes,
+            return_attribute,
             anchor,
         )?;
 
-        for argument in &effects.argument_metadata {
+        for argument in argument_attributes {
             self.validate_pointer_attributes_invariants(
                 "call argument attributes",
                 &argument.attributes,
@@ -151,60 +148,29 @@ impl<'a> Validator<'a> {
             return Ok(());
         };
 
-        if behavior.noreturn && behavior.will_return {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "noreturn implies will_return is false".to_string(),
-                anchor,
-            });
-        }
-
-        if behavior.will_return && behavior.unwind_behavior == UnwindBehavior::MayUnwind {
+        if behavior.return_behavior == ReturnBehavior::WillReturn
+            && behavior.unwind == UnwindBehavior::MayUnwind
+        {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "will_return requires cannot_unwind".to_string(),
                 anchor,
             });
         }
 
-        if behavior.repeatability == Repeatability::Pure && behavior.may_suspend {
+        if behavior.effect_class == EffectClass::Pure
+            && behavior.suspend == SuspendBehavior::MaySuspend
+        {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "pure effect cannot suspend".to_string(),
                 anchor,
             });
         }
 
-        if behavior.repeatability == Repeatability::Pure
-            && behavior.unwind_behavior == UnwindBehavior::MayUnwind
+        if behavior.effect_class == EffectClass::Pure
+            && behavior.unwind == UnwindBehavior::MayUnwind
         {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "pure effect cannot unwind".to_string(),
-                anchor,
-            });
-        }
-
-        if !behavior.allocates && behavior.alloc_locations.is_some() {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "alloc locations set without allocates".to_string(),
-                anchor,
-            });
-        }
-
-        if !behavior.allocates && behavior.alloc_address_spaces.is_some() {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "alloc address spaces set without allocates".to_string(),
-                anchor,
-            });
-        }
-
-        if !behavior.frees && behavior.free_locations.is_some() {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "free locations set without frees".to_string(),
-                anchor,
-            });
-        }
-
-        if !behavior.frees && behavior.free_address_spaces.is_some() {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "free address spaces set without frees".to_string(),
                 anchor,
             });
         }
@@ -216,7 +182,7 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_pointer_attributes_invariants(
         &self,
         label: &str,
-        attributes: &PointerAttributes,
+        attributes: &PointerAttribute,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         if attributes.readonly && attributes.writeonly {
@@ -235,7 +201,7 @@ impl<'a> Validator<'a> {
         access: &MemoryAccessMetadata,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
-        if access.is_invariant && access.kind != MemoryAccessKind::Read {
+        if access.is_load_invariant && access.kind != MemoryAccessKind::Read {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "invariant access must be read".to_string(),
                 anchor,
