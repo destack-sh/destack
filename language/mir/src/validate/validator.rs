@@ -59,17 +59,10 @@ impl<'a> Validator<'a> {
             ));
         }
 
-        if self.tree.provenance_by_node_id.len() != node_count {
+        if self.tree.metadata.provenance.provenance_by_node_id.len() != node_count {
             return Err(self.metadata_error(
                 anchor,
                 "provenance_by_node_id length does not match node table length",
-            ));
-        }
-
-        if self.tree.span_by_node_id.len() != node_count {
-            return Err(self.metadata_error(
-                anchor,
-                "span_by_node_id length does not match node table length",
             ));
         }
 

@@ -1,6 +1,6 @@
 use destack_core::StringId;
 
-use crate::metadata::{Layout, LayoutField, LayoutType};
+use crate::metadata::{Layout, LayoutField, LayoutKind};
 use crate::parse::{ParseError, ParseResult, Parser};
 use crate::tree::compute_type_layout;
 use crate::{Field, LocalNodeId, Type};
@@ -9,7 +9,7 @@ impl Parser<'_> {
     /// Record layout metadata for aggregate types parsed from MIR text.
     pub(super) fn record_layout_for_type(&mut self, type_id: LocalNodeId<Type>) -> ParseResult<()> {
         // skip if metadata already exists
-        if self.tree.type_table.layout_id(type_id).is_some() {
+        if self.tree.metadata.layout.layout_id(type_id).is_some() {
             return Ok(());
         }
 
@@ -68,7 +68,7 @@ impl Parser<'_> {
 
         // assemble the layout table entry
         let layout_entry = Layout {
-            layout_type: LayoutType::Struct,
+            kind: LayoutKind::Struct,
             size: layout.size,
             alignment: layout.alignment,
             fields: layout_fields,
@@ -119,7 +119,7 @@ impl Parser<'_> {
 
         // assemble the layout table entry
         let layout_entry = Layout {
-            layout_type: LayoutType::Tuple,
+            kind: LayoutKind::Tuple,
             size: total_size,
             alignment: max_alignment,
             fields: layout_fields,
@@ -154,7 +154,7 @@ impl Parser<'_> {
 
         // assemble the layout table entry
         let layout_entry = Layout {
-            layout_type: LayoutType::Array {
+            kind: LayoutKind::Array {
                 element_type: element,
                 element_stride,
                 element_count: Some(length_u32),
@@ -203,7 +203,7 @@ impl Parser<'_> {
 
         let layout = compute_type_layout(&self.tree, type_id, self.tree.pointer_bytes());
         let layout_entry = Layout {
-            layout_type: LayoutType::Closure,
+            kind: LayoutKind::Closure,
             size: layout.size,
             alignment: max_alignment,
             fields: layout_fields,
@@ -216,8 +216,8 @@ impl Parser<'_> {
 
     /// Insert a layout entry and attach it to the type table.
     fn insert_layout_entry(&mut self, type_id: LocalNodeId<Type>, layout: Layout) {
-        let layout_id = self.tree.type_table.layout_table.insert(layout);
-        self.tree.type_table.set_layout_id(type_id, layout_id);
+        let layout_id = self.tree.metadata.layout.layout_table.insert(layout);
+        self.tree.metadata.layout.set_layout_id(type_id, layout_id);
     }
 
     /// Build a synthetic field name for unnamed struct fields.

@@ -312,7 +312,8 @@ impl<'a> BuiltinTypeLayouts<'a> {
         // attach the name when missing
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .ensure_display_name(mir_type, name_id);
     }
 

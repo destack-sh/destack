@@ -105,7 +105,7 @@ impl ModuleLowerer<'_> {
         let dir_type = self.types.get_type(type_id);
 
         // skip if metadata already exists
-        if let Some(name) = self.builder.tree().type_table.display_name(mir_type) {
+        if let Some(name) = self.builder.tree().metadata.layout.display_name(mir_type) {
             return Ok(name);
         }
 
@@ -133,7 +133,8 @@ impl ModuleLowerer<'_> {
             // attach metadata for the current reference type when missing
             self.builder
                 .tree_mut()
-                .type_table
+                .metadata
+                .layout
                 .ensure_display_name(mir_type, reference_name);
 
             return Ok(reference_name);
@@ -155,7 +156,8 @@ impl ModuleLowerer<'_> {
             })?;
             self.builder
                 .tree_mut()
-                .type_table
+                .metadata
+                .layout
                 .ensure_display_name(mir_type, instance_name);
             return Ok(instance_name);
         }
@@ -179,7 +181,8 @@ impl ModuleLowerer<'_> {
         // attach the metadata name
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .ensure_display_name(mir_type, name_id);
 
         Ok(name_id)
@@ -307,7 +310,8 @@ impl ModuleLowerer<'_> {
             {
                 self.builder
                     .tree_mut()
-                    .type_table
+                    .metadata
+                    .layout
                     .ensure_display_name(mir_type, name_id);
             }
 
@@ -316,7 +320,8 @@ impl ModuleLowerer<'_> {
             {
                 self.builder
                     .tree_mut()
-                    .type_table
+                    .metadata
+                    .layout
                     .ensure_display_name(mir_type, instance_name_id);
             }
 
@@ -333,7 +338,8 @@ impl ModuleLowerer<'_> {
             names.reference = Some(reference_name_id);
             self.builder
                 .tree_mut()
-                .type_table
+                .metadata
+                .layout
                 .ensure_display_name(mir_type, reference_name_id);
         }
 
@@ -348,7 +354,8 @@ impl ModuleLowerer<'_> {
 
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .ensure_display_name(mir_type, name_id);
 
         names.instance = Some(name_id);
@@ -359,11 +366,11 @@ impl ModuleLowerer<'_> {
     /// Validate that every MIR type has a metadata name assigned.
     pub(crate) fn validate_metadata_names_assigned(&self) -> LowerResult<()> {
         // read the mir type table
-        let type_table = &self.builder.tree().type_table;
+        let layout = &self.builder.tree().metadata.layout;
 
         // require names for existing metadata entries
-        for type_id in type_table.layout_by_type.keys() {
-            if type_table.display_name(*type_id).is_some() {
+        for type_id in layout.layout_by_type.keys() {
+            if layout.display_name(*type_id).is_some() {
                 continue;
             }
 
@@ -386,7 +393,7 @@ impl ModuleLowerer<'_> {
                 }
             };
 
-            let has_name = type_table.display_name(mir_type).is_some();
+            let has_name = layout.display_name(mir_type).is_some();
             if has_name {
                 continue;
             }
@@ -423,7 +430,8 @@ impl ModuleLowerer<'_> {
         // attach metadata when missing
         self.builder
             .tree_mut()
-            .type_table
+            .metadata
+            .layout
             .ensure_display_name(mir_type, name_id);
         Ok(())
     }

@@ -582,7 +582,7 @@ fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
 
 /// Return the raw MIR array stride.
 fn raw_array_stride(layout: &mir::Layout) -> usize {
-    let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
+    let mir::LayoutKind::Array { element_stride, .. } = &layout.kind else {
         panic!("missing MIR array layout stride")
     };
 
@@ -758,23 +758,20 @@ mod tests {
     use super::*;
     use destack_core::ImmutableStringPool;
     use destack_mir::parse::{ParseOptions, Parser};
-    use destack_mir::{DataLayout, NodeTree, Type, TypeAlias};
+    use destack_mir::{NodeTree, Storage, Type, TypeAlias};
     use destack_source::FileId;
 
-    /// Parse one MIR module with the given data layout.
-    fn parse_tree_with_layout(
-        mir_text: &str,
-        data_layout: DataLayout,
-    ) -> (NodeTree, ImmutableStringPool) {
+    /// Parse one MIR module with the given storage metadata.
+    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (NodeTree, ImmutableStringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
             ParseOptions {
-                pointer_bytes: data_layout.native_pointer_bytes,
+                pointer_bytes: storage.native_pointer_bytes,
             },
         )
         .expect("failed to parse MIR");
-        tree.data_layout = data_layout;
+        tree.metadata.layout.storage = storage;
 
         (tree, strings)
     }
@@ -803,7 +800,7 @@ type Mixed {
     b: int64;
     c: uint8;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
@@ -828,7 +825,7 @@ type Packed {
     b: ref<int32, managed, readonly>;
     c: uint8;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Packed");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
@@ -851,7 +848,7 @@ type Packed {
     fn test_build_layout_uses_canonical_vector_stride() {
         let mir_text = r#"
 type Vec = vector<ref<int32, managed, readonly>, 2>"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Vec");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
@@ -883,7 +880,7 @@ type Handle = newtype<ref<int32, managed, readonly>>;
 type Holder {
     value: Handle;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
@@ -900,7 +897,7 @@ type Holder {
     fn test_build_layout_boxes_function_value() {
         let mir_text = r#"
 type Closure = closure() -> int32"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Closure");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
@@ -923,7 +920,7 @@ type Holder {
     pad: uint8;
     action: Closure;
 }"#;
-        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");

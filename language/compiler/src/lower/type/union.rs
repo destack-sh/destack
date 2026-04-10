@@ -239,7 +239,8 @@ impl TypeLowerer {
                 })?;
 
         // build union metadata for optimization
-        let discriminant_metadata = self.union_discriminant_metadata(&discriminant, builder);
+        let discriminant_metadata =
+            self.union_discriminant_metadata(&discriminant, &mir_element_types, builder, node)?;
 
         // cache union layout metadata
         self.union_cache.insert(
@@ -268,7 +269,7 @@ impl TypeLowerer {
             payload_field_name: payload_name,
             discriminant: discriminant_metadata,
         };
-        let type_table = &mut builder.tree_mut().type_table;
+        let type_table = &mut builder.tree_mut().metadata.layout;
         type_table.set_union_layout(mir_type, union_metadata);
 
         // return the union type
@@ -395,25 +396,80 @@ impl TypeLowerer {
     fn union_discriminant_metadata(
         &self,
         discriminant: &Option<UnionDiscriminant>,
+        element_types: &[mir::LocalNodeId<mir::Type>],
         builder: &mut mir::ModuleBuilder,
-    ) -> Option<mir::UnionDiscriminant> {
-        let discriminant = discriminant.as_ref()?;
-        let primary_field = static_key_to_field_name(&discriminant.primary_key, builder);
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<Option<mir::UnionDiscriminant>> {
+        let Some(discriminant) = discriminant.as_ref() else {
+            return Ok(None);
+        };
+
+        let primary_field_index = discriminant
+            .fields
+            .iter()
+            .position(|field| field.key == discriminant.primary_key)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "missing primary union discriminant field".to_string(),
+            })? as u32;
         let mut fields = Vec::with_capacity(discriminant.fields.len());
 
         for field in &discriminant.fields {
             let field_name = static_key_to_field_name(&field.key, builder);
+            let mut field_by_element = Vec::with_capacity(element_types.len());
+
+            for &element_type in element_types {
+                let field_id =
+                    self.union_discriminant_field_id(element_type, field_name, builder, anchor)?;
+                field_by_element.push(field_id);
+            }
+
             let values = field
                 .values
                 .iter()
                 .map(|literal| self.union_discriminant_value_metadata(&literal.value))
                 .collect();
-            fields.push(mir::UnionDiscriminantField { field_name, values });
+            fields.push(mir::UnionDiscriminantField {
+                field_by_element,
+                field_name,
+                values,
+            });
         }
 
-        Some(mir::UnionDiscriminant {
-            primary_field,
+        Ok(Some(mir::UnionDiscriminant {
+            primary_field_index,
             fields,
+        }))
+    }
+
+    /// Resolve one lowered MIR field id for one discriminant field name.
+    fn union_discriminant_field_id(
+        &self,
+        element_type: mir::LocalNodeId<mir::Type>,
+        field_name: StringId,
+        builder: &mir::ModuleBuilder,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::LocalNodeId<mir::Field>> {
+        let fields = match builder.tree().get(element_type) {
+            mir::Type::Struct { fields, .. } => fields,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "union discriminant requires aggregate element types".to_string(),
+                });
+            }
+        };
+
+        for &field_id in fields {
+            let field = builder.tree().get(field_id);
+            if field.name == Some(field_name) {
+                return Ok(field_id);
+            }
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            node: anchor,
+            message: "missing lowered union discriminant field".to_string(),
         })
     }
 

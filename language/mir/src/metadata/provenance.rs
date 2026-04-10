@@ -1,208 +1,347 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::mem::size_of;
 
+use destack_source::{FileId, ModuleId, ProfileId, Span};
 use serde::{Deserialize, Serialize};
 
-/// Identifier for one provenance record.
+/// Approximate per-entry overhead for one hash-map entry.
+const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
+
+/// One typed provenance record identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProvenanceId(u32);
+pub struct ProvenanceId(
+    /// The raw index into the provenance table.
+    u32,
+);
 
 impl ProvenanceId {
-    /// Create a provenance id from a raw index.
+    /// Create a provenance id from one raw index.
     pub fn new(index: u32) -> Self {
         Self(index)
     }
 
-    /// Get the raw index for this id.
+    /// Return the raw index as one vector index.
     pub fn index(self) -> usize {
         self.0 as usize
     }
 }
 
-/// The broad provenance class for a MIR node.
+/// One typed AST node key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ProvenanceKind {
-    /// The MIR node comes directly from one semantic DIR node.
-    Direct,
-    /// The MIR node was synthesized without a direct previous-layer node.
+pub struct AstNodeKey {
+    /// The file containing the AST node.
+    pub file_id: FileId,
+    /// The raw AST node id within the file.
+    pub node_id: u32,
+}
+
+/// One typed DIR node key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DirNodeKey {
+    /// The source module when it is known.
+    pub module_id: Option<ModuleId>,
+    /// The raw DIR node id within the source module.
+    pub node_id: u32,
+    /// The semantic profile when it is known.
+    pub profile_id: Option<ProfileId>,
+}
+
+impl DirNodeKey {
+    /// Create one DIR node key from one local source node id.
+    pub fn local(node_id: u32) -> Self {
+        Self {
+            module_id: None,
+            node_id,
+            profile_id: None,
+        }
+    }
+}
+
+/// The primary diagnostic or display anchor for one MIR provenance record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ProvenanceAnchor {
+    /// One primary AST node anchor.
+    Ast(AstNodeKey),
+    /// One primary DIR node anchor.
+    Dir(DirNodeKey),
+    /// One primary MIR origin anchor.
+    Mir(ProvenanceId),
+    /// One primary text anchor.
+    Text(FileId),
+    /// One synthetic anchor with no direct upstream source.
     Synthetic,
-    /// The MIR node was derived from one existing MIR node.
-    Derived,
-    /// The MIR node merges multiple semantic or MIR origins.
+}
+
+/// One contributing provenance key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ProvenanceKey {
+    /// One contributing AST node.
+    Ast(AstNodeKey),
+    /// One contributing DIR node.
+    Dir(DirNodeKey),
+    /// One contributing MIR origin record.
+    Mir(ProvenanceId),
+    /// One contributing text source.
+    Text(FileId),
+}
+
+/// The reason one MIR provenance record was created.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ProvenanceReason {
+    /// The node was parsed directly from MIR text.
+    Parsed,
+    /// The node was lowered from upstream IR.
+    Lowered,
+    /// The node was synthesized by merging multiple sources.
     Merged,
-    /// The MIR node was introduced by inlining.
+    /// The node was synthesized by inlining.
     Inlined,
-    /// The MIR node was created or rewritten by an optimization.
+    /// The node was synthesized by canonicalization.
+    Canonicalized,
+    /// The node was synthesized by optimization.
     Optimized,
 }
 
-/// The specific reason a MIR node was introduced or rewritten.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ProvenanceReason {
-    /// The MIR node was synthesized while lowering a runtime check.
-    LoweredCheck,
-    /// The MIR node was synthesized while lowering dynamic dispatch.
-    LoweredDispatch,
-    /// The MIR node was synthesized while lowering closures or function values.
-    LoweredClosure,
-    /// The MIR node was synthesized while lowering coroutines or async state.
-    LoweredCoroutine,
+/// One typed MIR provenance record.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProvenanceRecord {
+    /// The primary diagnostic or display anchor.
+    pub anchor: ProvenanceAnchor,
+    /// The primary source span when one exists.
+    pub span: Option<Span>,
+    /// Additional contributing provenance keys.
+    pub contributors: Vec<ProvenanceKey>,
+    /// The transform or lowering reason when there is one.
+    pub reason: Option<ProvenanceReason>,
 }
 
-/// Provenance for one MIR node.
-///
-/// Origins are previous-layer DIR node ids.
-/// Parents point at earlier MIR provenance records when one MIR transform derives a new node
-/// from one or more existing MIR nodes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+impl ProvenanceRecord {
+    /// Return the first direct DIR source id when one exists.
+    pub fn primary_dir_source_id(&self) -> Option<u32> {
+        match self.anchor {
+            ProvenanceAnchor::Dir(key) => Some(key.node_id),
+            _ => self.contributors.iter().find_map(|input| match input {
+                ProvenanceKey::Dir(key) => Some(key.node_id),
+                _ => None,
+            }),
+        }
+    }
+}
+
+/// Provenance and source-tracking metadata for MIR nodes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Provenance {
-    /// The broad provenance class for this node.
-    pub kind: ProvenanceKind,
-    /// The specific cause for this node, if one is useful.
-    pub reason: Option<ProvenanceReason>,
-    /// The primary semantic origins in DIR.
-    pub origins: Vec<u32>,
-    /// Earlier MIR provenance records this node derives from.
-    pub parents: Vec<ProvenanceId>,
+    /// Maps MIR node id to one typed provenance record.
+    pub provenance_by_node_id: Vec<Option<ProvenanceId>>,
+    /// Canonical typed provenance records.
+    pub record_by_id: Vec<ProvenanceRecord>,
+    /// Reverse index from AST node to provenance records.
+    pub record_by_ast: HashMap<AstNodeKey, Vec<ProvenanceId>>,
+    /// Reverse index from DIR node to provenance records.
+    pub record_by_dir: HashMap<DirNodeKey, Vec<ProvenanceId>>,
 }
 
 impl Provenance {
-    /// Create direct provenance from one DIR origin.
-    pub fn direct(origin: u32) -> Self {
-        Self {
-            kind: ProvenanceKind::Direct,
-            reason: None,
-            origins: vec![origin],
-            parents: Vec::new(),
-        }
-    }
-
-    /// Return the preferred DIR origin for diagnostics and anchoring.
-    pub fn primary_origin(&self) -> Option<u32> {
-        self.origins.first().copied()
-    }
-}
-
-/// Canonical provenance records for MIR nodes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProvenanceTable {
-    /// Provenance records indexed by id.
-    pub records: Vec<Provenance>,
-    /// Optional reverse index from DIR origin to MIR provenance records.
-    pub records_by_origin: HashMap<u32, Vec<ProvenanceId>>,
-}
-
-impl ProvenanceTable {
     /// Create a new empty provenance table.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Create a new provenance record.
-    pub fn create(
-        &mut self,
-        kind: ProvenanceKind,
-        reason: Option<ProvenanceReason>,
-        origins: Vec<u32>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        let id = ProvenanceId::new(self.records.len() as u32);
-        let origins = dedup_stable(origins);
-        let parents = dedup_stable(parents);
-
-        self.records.push(Provenance {
-            kind,
-            reason,
-            origins: origins.clone(),
-            parents,
-        });
-
-        for origin in origins {
-            self.records_by_origin.entry(origin).or_default().push(id);
-        }
-
-        id
-    }
-
-    /// Create direct provenance from one DIR origin.
-    pub fn direct(&mut self, origin: u32) -> ProvenanceId {
-        self.create(ProvenanceKind::Direct, None, vec![origin], Vec::new())
-    }
-
-    /// Create synthetic provenance.
-    pub fn synthetic(
-        &mut self,
-        reason: Option<ProvenanceReason>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.create(ProvenanceKind::Synthetic, reason, Vec::new(), parents)
-    }
-
-    /// Create derived provenance.
-    pub fn derived(
-        &mut self,
-        reason: Option<ProvenanceReason>,
-        origins: Vec<u32>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.create(ProvenanceKind::Derived, reason, origins, parents)
-    }
-
-    /// Create merged provenance.
-    pub fn merged(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
-        self.create(ProvenanceKind::Merged, None, origins, parents)
-    }
-
-    /// Create inlined provenance.
-    pub fn inlined(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
-        self.create(ProvenanceKind::Inlined, None, origins, parents)
-    }
-
     /// Return the owned bytes for this provenance table.
     pub fn owned_bytes(&self) -> usize {
         let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.records.capacity() * size_of::<Provenance>();
-        owned_bytes += self.records_by_origin.capacity() * size_of::<(u32, Vec<ProvenanceId>)>();
+        owned_bytes += self.provenance_by_node_id.capacity() * size_of::<Option<ProvenanceId>>();
+        owned_bytes += self.record_by_id.capacity() * size_of::<ProvenanceRecord>();
+        owned_bytes += hash_map_bytes(&self.record_by_ast);
+        owned_bytes += hash_map_bytes(&self.record_by_dir);
 
-        for record in &self.records {
-            owned_bytes += record.origins.capacity() * size_of::<u32>();
-            owned_bytes += record.parents.capacity() * size_of::<ProvenanceId>();
+        for records in self.record_by_ast.values() {
+            owned_bytes += records.capacity() * size_of::<ProvenanceId>();
         }
 
-        for records in self.records_by_origin.values() {
+        for records in self.record_by_dir.values() {
             owned_bytes += records.capacity() * size_of::<ProvenanceId>();
         }
 
         owned_bytes
     }
 
-    /// Create optimized provenance.
+    /// Create one typed provenance record.
+    pub fn create(
+        &mut self,
+        anchor: ProvenanceAnchor,
+        span: Option<Span>,
+        contributors: Vec<ProvenanceKey>,
+        reason: Option<ProvenanceReason>,
+    ) -> ProvenanceId {
+        let provenance_id = ProvenanceId::new(self.record_by_id.len() as u32);
+        let record = ProvenanceRecord {
+            anchor,
+            span,
+            contributors,
+            reason,
+        };
+
+        self.index_record(provenance_id, &record);
+        self.record_by_id.push(record);
+        provenance_id
+    }
+
+    /// Return true when one provenance id exists.
+    pub fn contains(&self, provenance_id: ProvenanceId) -> bool {
+        provenance_id.index() < self.record_by_id.len()
+    }
+
+    /// Return one provenance record by id.
+    pub fn record(&self, provenance_id: ProvenanceId) -> &ProvenanceRecord {
+        &self.record_by_id[provenance_id.index()]
+    }
+
+    /// Return the primary source span for one provenance record when present.
+    pub fn span(&self, provenance_id: ProvenanceId) -> Option<Span> {
+        self.record(provenance_id).span
+    }
+
+    /// Record the primary source span for one provenance record.
+    pub fn set_span(&mut self, provenance_id: ProvenanceId, span: Span) {
+        let record = &mut self.record_by_id[provenance_id.index()];
+        record.span = Some(span);
+
+        if let ProvenanceAnchor::Text(file_id) = &mut record.anchor {
+            *file_id = span.file;
+        }
+    }
+
+    /// Create one direct DIR-local provenance record.
+    pub fn direct_dir_local(&mut self, node_id: u32) -> ProvenanceId {
+        let key = DirNodeKey::local(node_id);
+
+        self.create(
+            ProvenanceAnchor::Dir(key),
+            None,
+            vec![ProvenanceKey::Dir(key)],
+            Some(ProvenanceReason::Lowered),
+        )
+    }
+
+    /// Create one direct MIR text provenance record.
+    pub fn text(&mut self, span: Span) -> ProvenanceId {
+        self.create(
+            ProvenanceAnchor::Text(span.file),
+            Some(span),
+            vec![ProvenanceKey::Text(span.file)],
+            Some(ProvenanceReason::Parsed),
+        )
+    }
+
+    /// Create one synthetic provenance record.
+    pub fn synthetic(
+        &mut self,
+        reason: Option<ProvenanceReason>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        let contributors = parents
+            .into_iter()
+            .map(ProvenanceKey::Mir)
+            .collect::<Vec<_>>();
+        let anchor = anchor_from_contributors(&contributors).unwrap_or(ProvenanceAnchor::Synthetic);
+
+        self.create(anchor, None, contributors, reason)
+    }
+
+    /// Create one derived provenance record from DIR sources and MIR parents.
+    pub fn derived(
+        &mut self,
+        reason: Option<ProvenanceReason>,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        let mut contributors = origins
+            .into_iter()
+            .map(DirNodeKey::local)
+            .map(ProvenanceKey::Dir)
+            .collect::<Vec<_>>();
+        contributors.extend(parents.into_iter().map(ProvenanceKey::Mir));
+
+        let anchor = anchor_from_contributors(&contributors).unwrap_or(ProvenanceAnchor::Synthetic);
+
+        self.create(anchor, None, contributors, reason)
+    }
+
+    /// Create one merged provenance record.
+    pub fn merged(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
+        self.derived(Some(ProvenanceReason::Merged), origins, parents)
+    }
+
+    /// Create one inlined provenance record.
+    pub fn inlined(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
+        self.derived(Some(ProvenanceReason::Inlined), origins, parents)
+    }
+
+    /// Create one optimized provenance record.
     pub fn optimized(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
-        self.create(ProvenanceKind::Optimized, None, origins, parents)
+        self.derived(Some(ProvenanceReason::Optimized), origins, parents)
     }
 
-    /// Return whether one provenance id exists.
-    pub fn contains(&self, id: ProvenanceId) -> bool {
-        id.index() < self.records.len()
-    }
+    /// Index one new record in the reverse provenance tables.
+    fn index_record(&mut self, provenance_id: ProvenanceId, record: &ProvenanceRecord) {
+        let mut seen_ast = HashSet::new();
+        let mut seen_dir = HashSet::new();
 
-    /// Get one provenance record by id.
-    pub fn record(&self, id: ProvenanceId) -> &Provenance {
-        &self.records[id.index()]
+        if let ProvenanceAnchor::Ast(key) = record.anchor
+            && seen_ast.insert(key)
+        {
+            self.record_by_ast
+                .entry(key)
+                .or_default()
+                .push(provenance_id);
+        }
+
+        if let ProvenanceAnchor::Dir(key) = record.anchor
+            && seen_dir.insert(key)
+        {
+            self.record_by_dir
+                .entry(key)
+                .or_default()
+                .push(provenance_id);
+        }
+
+        for input in &record.contributors {
+            match *input {
+                ProvenanceKey::Ast(key) => {
+                    if seen_ast.insert(key) {
+                        self.record_by_ast
+                            .entry(key)
+                            .or_default()
+                            .push(provenance_id);
+                    }
+                }
+                ProvenanceKey::Dir(key) => {
+                    if seen_dir.insert(key) {
+                        self.record_by_dir
+                            .entry(key)
+                            .or_default()
+                            .push(provenance_id);
+                    }
+                }
+                ProvenanceKey::Mir(_) | ProvenanceKey::Text(_) => {}
+            }
+        }
     }
 }
 
-/// Deduplicate a short vector while preserving the first occurrence of each element.
-fn dedup_stable<T: PartialEq>(items: Vec<T>) -> Vec<T> {
-    let mut deduped = Vec::with_capacity(items.len());
+/// Return the approximate owned bytes for one hash map table.
+fn hash_map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
+    size_of::<HashMap<K, V>>()
+        + map.capacity() * (size_of::<K>() + size_of::<V>() + HASH_MAP_ENTRY_OVERHEAD_BYTES)
+}
 
-    for item in items {
-        if deduped.iter().any(|existing| existing == &item) {
-            continue;
-        }
-
-        deduped.push(item);
-    }
-
-    deduped
+/// Choose one primary anchor from one contributor list when possible.
+fn anchor_from_contributors(inputs: &[ProvenanceKey]) -> Option<ProvenanceAnchor> {
+    inputs.first().copied().map(|input| match input {
+        ProvenanceKey::Ast(key) => ProvenanceAnchor::Ast(key),
+        ProvenanceKey::Dir(key) => ProvenanceAnchor::Dir(key),
+        ProvenanceKey::Mir(provenance_id) => ProvenanceAnchor::Mir(provenance_id),
+        ProvenanceKey::Text(file_id) => ProvenanceAnchor::Text(file_id),
+    })
 }

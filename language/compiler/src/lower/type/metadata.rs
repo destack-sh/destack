@@ -1,10 +1,7 @@
-use std::collections::HashMap;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_core::StringId;
-
 use crate::lower::ModuleLowerer;
-use crate::{FieldLayoutKind, LowerError, LowerResult, StructLayout};
+use crate::{LowerError, LowerResult, StructLayout};
 
 impl ModuleLowerer<'_> {
     /// Return layout metadata for a cached aggregate layout.
@@ -34,14 +31,14 @@ impl ModuleLowerer<'_> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<mir::LayoutId>> {
         // skip if metadata already exists
-        if let Some(layout_id) = self.builder.tree().type_table.layout_id(ty) {
+        if let Some(layout_id) = self.builder.tree().metadata.layout.layout_id(ty) {
             return Ok(Some(layout_id));
         }
 
         // resolve the cached struct layout when available
         if let Some(layout) = self.type_lowerer.layout_for_type(ty).cloned() {
-            let layout_type = self.layout_type_for_mir_type(type_id, ty, anchor, &layout)?;
-            let layout_id = self.insert_layout_entry(ty, layout_type, &layout);
+            let layout_kind = self.layout_kind_for_mir_type(type_id, ty, anchor, &layout)?;
+            let layout_id = self.insert_layout_entry(ty, layout_kind, &layout);
 
             return Ok(Some(layout_id));
         }
@@ -69,7 +66,7 @@ impl ModuleLowerer<'_> {
                 let (fields, size, alignment) = self.tuple_layout_fields(&elements);
                 let layout_id = self.insert_layout_metadata(
                     ty,
-                    mir::LayoutType::Tuple,
+                    mir::LayoutKind::Tuple,
                     size,
                     alignment,
                     fields,
@@ -78,10 +75,10 @@ impl ModuleLowerer<'_> {
                 Ok(Some(layout_id))
             }
             LayoutTarget::Array(element, length) => {
-                let (layout_type, size, alignment) =
+                let (layout_kind, size, alignment) =
                     self.array_layout_info(type_id, element, length, anchor)?;
                 let layout_id =
-                    self.insert_layout_metadata(ty, layout_type, size, alignment, Vec::new());
+                    self.insert_layout_metadata(ty, layout_kind, size, alignment, Vec::new());
 
                 Ok(Some(layout_id))
             }
@@ -92,7 +89,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn insert_layout_entry(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        layout_type: mir::LayoutType,
+        layout_kind: mir::LayoutKind,
         layout: &StructLayout,
     ) -> mir::LayoutId {
         // build the layout fields in order
@@ -108,28 +105,28 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        self.insert_layout_metadata(ty, layout_type, layout.size, layout.alignment, fields)
+        self.insert_layout_metadata(ty, layout_kind, layout.size, layout.alignment, fields)
     }
 
     /// Insert a layout entry and attach it to the type metadata.
     fn insert_layout_metadata(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        layout_type: mir::LayoutType,
+        layout_kind: mir::LayoutKind,
         size: u32,
         alignment: u32,
         fields: Vec<mir::LayoutField>,
     ) -> mir::LayoutId {
         // build the mir layout entry
         let layout_entry = mir::Layout {
-            layout_type,
+            kind: layout_kind,
             size,
             alignment,
             fields,
         };
 
         // attach layout metadata to the type table
-        let type_table = &mut self.builder.tree_mut().type_table;
+        let type_table = &mut self.builder.tree_mut().metadata.layout;
         let layout_id = type_table.layout_table.insert(layout_entry);
         type_table.set_layout_id(ty, layout_id);
 
@@ -185,7 +182,7 @@ impl ModuleLowerer<'_> {
         element: mir::LocalNodeId<mir::Type>,
         length: u64,
         anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<(mir::LayoutType, u32, u32)> {
+    ) -> LowerResult<(mir::LayoutKind, u32, u32)> {
         // compute element size and alignment
         let element_type = self.builder.tree().get(element);
         let (size, alignment) = self
@@ -202,7 +199,7 @@ impl ModuleLowerer<'_> {
         })?;
 
         Ok((
-            mir::LayoutType::Array {
+            mir::LayoutKind::Array {
                 element_type: element,
                 element_stride: stride,
                 element_count: Some(length_u32),
@@ -213,16 +210,16 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve the layout kind for a lowered type.
-    fn layout_type_for_mir_type(
+    fn layout_kind_for_mir_type(
         &self,
         type_id: Option<dir::LocalTypeId>,
         mir_type: mir::LocalNodeId<mir::Type>,
         anchor: dir::AnchoredGlobalNodeId,
         layout: &StructLayout,
-    ) -> LowerResult<mir::LayoutType> {
+    ) -> LowerResult<mir::LayoutKind> {
         // prefer union layouts when present
-        let layout_type = if let Some(union_layout) =
-            self.builder.tree().type_table.union_layout(mir_type)
+        let layout_kind = if let Some(union_layout) =
+            self.builder.tree().metadata.layout.union_layout(mir_type)
         {
             let tag_index = layout
                 .field_index(union_layout.tag_field_name)
@@ -251,7 +248,7 @@ impl ModuleLowerer<'_> {
                         message: "missing union payload field".to_string(),
                     })?;
 
-            mir::LayoutType::Union {
+            mir::LayoutKind::Union {
                 tag_type: union_layout.tag_type,
                 tag_offset: tag_field.offset,
                 payload_offset: payload_field.offset,
@@ -274,7 +271,7 @@ impl ModuleLowerer<'_> {
                     message: "missing interface table field".to_string(),
                 })?;
 
-            mir::LayoutType::Interface {
+            mir::LayoutKind::Interface {
                 object_offset: object_field.offset,
                 table_offset: itab_field.offset,
             }
@@ -283,7 +280,7 @@ impl ModuleLowerer<'_> {
         else if type_id.is_some_and(|type_id| {
             matches!(self.types.get_type(type_id), dir::Type::Function { .. })
         }) {
-            mir::LayoutType::Closure
+            mir::LayoutKind::Closure
         }
         // mark function environments explicitly when present
         else if self
@@ -291,14 +288,14 @@ impl ModuleLowerer<'_> {
             .values()
             .any(|env_layout| env_layout.env_type == mir_type)
         {
-            mir::LayoutType::FunctionEnvironment
+            mir::LayoutKind::FunctionEnvironment
         }
         // default to plain struct layout
         else {
-            mir::LayoutType::Struct
+            mir::LayoutKind::Struct
         };
 
-        Ok(layout_type)
+        Ok(layout_kind)
     }
 
     /// Build one consistent array layout error.
@@ -320,69 +317,6 @@ impl ModuleLowerer<'_> {
             node: anchor,
             message: message.to_string(),
         }
-    }
-
-    /// Return field map metadata for nominal struct and class layouts.
-    pub(crate) fn field_map_metadata_for_type(
-        &mut self,
-        type_id: dir::LocalTypeId,
-        mir_type: mir::LocalNodeId<mir::Type>,
-        anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<Option<HashMap<StringId, mir::LocalNodeId<mir::Field>>>> {
-        // restrict field maps to struct and class payloads
-        let Some(symbol) = self.types.symbol_for_instance_type(type_id) else {
-            return Ok(None);
-        };
-        if !matches!(
-            symbol.ty(),
-            dir::SymbolType::Struct | dir::SymbolType::Class
-        ) {
-            return Ok(None);
-        }
-
-        // skip if metadata already exists
-        if let Some(field_map) = self.builder.tree().type_table.field_map(mir_type)
-            && !field_map.is_empty()
-        {
-            return Ok(Some(field_map.clone()));
-        }
-
-        // require a struct layout for field map generation
-        let mir_type_node = self.builder.tree().get(mir_type);
-        let mir::Type::Struct { fields, .. } = mir_type_node else {
-            return Ok(None);
-        };
-
-        // resolve the cached layout for the struct
-        let layout = self
-            .type_lowerer
-            .layout_for_type_or_error(mir_type, anchor)?;
-
-        // reject layout size mismatches
-        if fields.len() != layout.fields.len() {
-            return Err(LowerError::UnsupportedConstruct {
-                node: anchor,
-                message: "field map layout size mismatch".to_string(),
-            });
-        }
-
-        // build the field map from source field indices
-        let mut field_map = HashMap::new();
-        for (index, field) in layout.fields.iter().enumerate() {
-            // skip synthetic fields
-            if field.kind != FieldLayoutKind::Source {
-                continue;
-            }
-
-            let field_id = fields[index];
-            field_map.insert(field.name, field_id);
-        }
-
-        // record the field map metadata
-        let type_table = &mut self.builder.tree_mut().type_table;
-        type_table.set_field_map(mir_type, field_map.clone());
-
-        Ok(Some(field_map))
     }
 }
 

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, CastOperator, Function,
+    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Function,
     Instruction, InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope,
     MemorySemantics, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
                     elements,
                 };
                 let id = self.tree.insert(instruction);
-                self.tree.set_span(id, instruction_span.unwrap());
+                self.tree.set_text_span(id, instruction_span.unwrap());
                 return Ok(id);
             }
 
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
                 let id = self.tree.insert(instruction);
-                self.tree.set_span(id, instruction_span.unwrap());
+                self.tree.set_text_span(id, instruction_span.unwrap());
                 return Ok(id);
             }
         }
@@ -197,9 +197,7 @@ impl<'a> Parser<'a> {
                 Instruction::Call {
                     destination,
                     function,
-                    arguments,
-                    signature,
-                    effects: None,
+                    call: Call::new(arguments, signature),
                 }
             }
             "call.virtual" => {
@@ -209,11 +207,10 @@ impl<'a> Parser<'a> {
                 Instruction::CallVirtual {
                     destination,
                     receiver,
-                    arguments,
                     declaring_type,
                     slot_id,
-                    signature,
-                    effects: None,
+                    declared_target: None,
+                    call: Call::new(arguments, signature),
                 }
             }
             "call.interface" => {
@@ -223,11 +220,10 @@ impl<'a> Parser<'a> {
                 Instruction::CallInterface {
                     destination,
                     receiver,
-                    arguments,
                     declaring_type,
                     slot_id,
-                    signature,
-                    effects: None,
+                    declared_target: None,
+                    call: Call::new(arguments, signature),
                 }
             }
             "call.indirect" => {
@@ -236,9 +232,7 @@ impl<'a> Parser<'a> {
                 Instruction::CallIndirect {
                     destination,
                     callee,
-                    arguments,
-                    signature,
-                    effects: None,
+                    call: Call::new(arguments, signature),
                 }
             }
             _ if opcode_text.starts_with("intrinsic.") => {
@@ -952,7 +946,7 @@ impl<'a> Parser<'a> {
 
         // record the instruction
         let instruction_id = self.tree.insert(instruction);
-        self.tree.set_span(instruction_id, instruction_span);
+        self.tree.set_text_span(instruction_id, instruction_span);
         Ok(instruction_id)
     }
     /// Parse a bracketed list of values.

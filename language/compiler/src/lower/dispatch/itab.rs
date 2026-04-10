@@ -142,7 +142,7 @@ impl ModuleLowerer<'_> {
         }
 
         // register the canonical interface dispatch shape
-        let dispatch_table = &mut self.builder.tree_mut().dispatch_table;
+        let dispatch_table = &mut self.builder.tree_mut().metadata.dispatch;
         let shape = mir::InterfaceDispatchShape {
             interface: interface_mir_type,
             entries: shape_entries,
@@ -172,14 +172,11 @@ impl ModuleLowerer<'_> {
             };
             self.builder
                 .tree_mut()
-                .dispatch_table
+                .metadata
+                .dispatch
                 .insert_itab_at(table_id, table);
             table_id
         };
-
-        // attach the itab to type metadata
-        let type_table = &mut self.builder.tree_mut().type_table;
-        type_table.set_itab_id(concrete_mir_type, interface_mir_type, table_id);
 
         // register the lowered itab table
         self.insert_itab_table((concrete, interface), table_id)?;

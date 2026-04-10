@@ -870,7 +870,6 @@ impl<'a> ModuleLowerer<'a> {
             let anchor = self.type_anchor(type_id);
             self.metadata_name_for_type(type_id, mir_type, anchor)?;
             self.layout_metadata_for_type(type_id, mir_type, anchor)?;
-            self.field_map_metadata_for_type(type_id, mir_type, anchor)?;
             if let Some(symbol) = self.types.symbol_for_instance_type(type_id) {
                 self.lineage_metadata_for_symbol(symbol, mir_type, anchor)?;
             }
@@ -923,7 +922,8 @@ impl<'a> ModuleLowerer<'a> {
         if let Some(string_type) = string_type {
             self.builder
                 .tree_mut()
-                .type_table
+                .metadata
+                .layout
                 .set_string_type(string_type);
         }
 

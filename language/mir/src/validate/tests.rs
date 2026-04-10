@@ -1,14 +1,13 @@
 use destack_core::StringPool;
-use destack_source::{FileId, Span};
+use destack_source::FileId;
 
 use crate::parse::{ParseError, ParseOptions, Parser};
 use crate::{
-    AddressSpace, AllocationMode, ArgumentSlice, Block, CallArgumentMetadata, CallBehavior,
-    CallEffects, CallSite, Constant, Copyability, DebugBindingKind, DebugRangeStart,
-    DebugScopeKind, DebugValueLocation, DevirtualizationMetadata, Field, Function, Instruction,
-    Layout, LayoutField, LayoutType, Local, LocalNodeId, Mutability, NodeTree, Ownership,
-    ProvenanceKind, ReferenceKind, Repeatability, Terminator, Type, UnwindBehavior, Value,
-    VtableSlotId,
+    AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Block, Call, CallBehavior,
+    Constant, Copyability, DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation,
+    EffectClass, Field, Function, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
+    Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey, ReferenceKind,
+    SuspendBehavior, Terminator, Type, UnwindBehavior, Value, VtableSlotId,
 };
 
 use super::Validator;
@@ -454,16 +453,22 @@ fn test_reject_debug_binding_empty_range() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let span = Span::new(FileId::new(0), 0, 0);
-    let scope_id = tree
-        .debug_table
-        .create_scope(DebugScopeKind::Function, Some(name), span, None);
-    tree.debug_table.set_function_scope(function_id, scope_id);
+    let scope_id =
+        tree.metadata
+            .debug
+            .create_scope(DebugScopeKind::Function, Some(name), None, None);
+    tree.metadata
+        .debug
+        .set_function_scope(function_id, scope_id);
 
-    let binding_id =
-        tree.debug_table
-            .create_binding(name, value_type, scope_id, DebugBindingKind::Local);
-    tree.debug_table.add_binding_location_range(
+    let binding_id = tree.metadata.debug.create_binding(
+        name,
+        value_type,
+        scope_id,
+        None,
+        DebugBindingKind::Local,
+    );
+    tree.metadata.debug.add_binding_location_range(
         binding_id,
         DebugValueLocation::Value(Value::new(0)),
         DebugRangeStart::instruction(instruction),
@@ -480,19 +485,22 @@ fn test_reject_debug_binding_empty_range() {
     );
 }
 
-/// Reject one cyclic provenance parent chain.
+/// Reject one cyclic origin graph.
 #[test]
-fn test_reject_provenance_cycle() {
+fn test_reject_origin_cycle() {
     let mut tree = NodeTree::new();
-    let first = tree
-        .provenance_table
-        .create(ProvenanceKind::Derived, None, Vec::new(), Vec::new());
-    let second =
-        tree.provenance_table
-            .create(ProvenanceKind::Derived, None, Vec::new(), vec![first]);
-    tree.provenance_table.records[first.index()]
-        .parents
-        .push(second);
+    let first =
+        tree.metadata
+            .provenance
+            .create(ProvenanceAnchor::Synthetic, None, Vec::new(), None);
+    let second = tree.metadata.provenance.create(
+        ProvenanceAnchor::Mir(first),
+        None,
+        vec![ProvenanceKey::Mir(first)],
+        None,
+    );
+    tree.metadata.provenance.record_by_id[first.index()].contributors =
+        vec![ProvenanceKey::Mir(second)];
 
     let validator = Validator::new(&tree);
     let error = validator
@@ -500,7 +508,7 @@ fn test_reject_provenance_cycle() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: provenance parent chain must be acyclic"
+        "metadata invariant violation: origin graph must be acyclic"
     );
 }
 
@@ -626,9 +634,7 @@ fn test_reject_argument_slice_out_of_bounds() {
     let instruction = tree.insert(Instruction::Call {
         destination: None,
         function: callee_id,
-        arguments: ArgumentSlice::new(0, 1),
-        signature,
-        effects: None,
+        call: Call::new(ArgumentSlice::new(0, 1), signature),
     });
     let block = Block {
         parameters: Vec::new(),
@@ -652,7 +658,7 @@ fn test_reject_argument_slice_out_of_bounds() {
     );
 }
 
-/// Reject call effects with mismatched argument metadata lengths.
+/// Reject call metadata with mismatched argument attribute lengths.
 #[test]
 fn test_reject_call_effect_argument_count_mismatch() {
     let mut tree = NodeTree::new();
@@ -667,16 +673,13 @@ fn test_reject_call_effect_argument_count_mismatch() {
     let callee = Function::import(name, Vec::new(), void_ty);
     let callee_id = tree.insert(callee);
 
-    let effects = CallEffects {
-        argument_metadata: vec![CallArgumentMetadata::default()],
-        ..CallEffects::default()
-    };
     let instruction = tree.insert(Instruction::Call {
         destination: None,
         function: callee_id,
-        arguments: ArgumentSlice::new(0, 0),
-        signature,
-        effects: Some(effects),
+        call: Call {
+            argument_attributes: vec![ArgumentAttribute::default()],
+            ..Call::new(ArgumentSlice::new(0, 0), signature)
+        },
     });
     let block = Block {
         parameters: Vec::new(),
@@ -696,7 +699,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: call effects argument count mismatch expected 0 got 1"
+        "metadata invariant violation: call argument attribute count mismatch expected 0 got 1"
     );
 }
 
@@ -716,21 +719,17 @@ fn test_reject_pure_effect_with_suspend() {
     let callee_id = tree.insert(callee);
 
     let behavior = CallBehavior {
-        repeatability: Repeatability::Pure,
-        unwind_behavior: UnwindBehavior::CannotUnwind,
-        may_suspend: true,
+        effect_class: EffectClass::Pure,
+        suspend: SuspendBehavior::MaySuspend,
         ..CallBehavior::none()
-    };
-    let effects = CallEffects {
-        behavior: Some(behavior),
-        ..CallEffects::default()
     };
     let instruction = tree.insert(Instruction::Call {
         destination: None,
         function: callee_id,
-        arguments: ArgumentSlice::new(0, 0),
-        signature,
-        effects: Some(effects),
+        call: Call {
+            behavior: Some(behavior),
+            ..Call::new(ArgumentSlice::new(0, 0), signature)
+        },
     });
     let block = Block {
         parameters: Vec::new(),
@@ -770,21 +769,17 @@ fn test_reject_pure_effect_with_unwind() {
     let callee_id = tree.insert(callee);
 
     let behavior = CallBehavior {
-        repeatability: Repeatability::Pure,
-        unwind_behavior: UnwindBehavior::MayUnwind,
-        may_suspend: false,
+        effect_class: EffectClass::Pure,
+        unwind: UnwindBehavior::MayUnwind,
         ..CallBehavior::none()
-    };
-    let effects = CallEffects {
-        behavior: Some(behavior),
-        ..CallEffects::default()
     };
     let instruction = tree.insert(Instruction::Call {
         destination: None,
         function: callee_id,
-        arguments: ArgumentSlice::new(0, 0),
-        signature,
-        effects: Some(effects),
+        call: Call {
+            behavior: Some(behavior),
+            ..Call::new(ArgumentSlice::new(0, 0), signature)
+        },
     });
     let block = Block {
         parameters: Vec::new(),
@@ -805,24 +800,6 @@ fn test_reject_pure_effect_with_unwind() {
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: pure effect cannot unwind"
-    );
-}
-
-/// Dispatch metadata must not carry empty sparse entries.
-#[test]
-fn test_reject_empty_dispatch_callsite_metadata() {
-    let mut tree = NodeTree::new();
-    tree.dispatch_table.insert_callsite_metadata(
-        CallSite::Instruction(LocalNodeId::new(0)),
-        DevirtualizationMetadata::default(),
-    );
-
-    let error = Validator::new(&tree)
-        .validate()
-        .expect_err("expected validation failure");
-    assert_eq!(
-        error.to_string(),
-        "metadata invariant violation: dispatch callsite metadata must carry at least one fact"
     );
 }
 
@@ -973,8 +950,8 @@ fn test_reject_struct_layout_field_type_mismatch() {
         copyability: Copyability::Trivial,
     });
 
-    let layout_id = tree.type_table.layout_table.insert(Layout {
-        layout_type: LayoutType::Struct,
+    let layout_id = tree.metadata.layout.layout_table.insert(Layout {
+        kind: LayoutKind::Struct,
         size: 4,
         alignment: 4,
         fields: vec![LayoutField {
@@ -986,7 +963,7 @@ fn test_reject_struct_layout_field_type_mismatch() {
             source_index: Some(0),
         }],
     });
-    tree.type_table.set_layout_id(struct_type, layout_id);
+    tree.metadata.layout.set_layout_id(struct_type, layout_id);
 
     let validator = Validator::new(&tree);
     let error = validator
@@ -998,20 +975,22 @@ fn test_reject_struct_layout_field_type_mismatch() {
     );
 }
 
-/// Dynamic call declared targets are metadata only.
+/// Dynamic call declared targets are stored inline on the instruction.
 #[test]
-fn test_dynamic_call_declared_target_is_metadata_only() {
+fn test_dynamic_call_declared_target_is_inline() {
     let instruction = Instruction::CallVirtual {
         destination: None,
         receiver: Value::new(0),
-        arguments: ArgumentSlice::new(0, 0),
+        call: Call::new(ArgumentSlice::new(0, 0), LocalNodeId::new(0)),
         declaring_type: LocalNodeId::new(0),
         slot_id: VtableSlotId::new(0),
-        signature: LocalNodeId::new(0),
-        effects: None,
+        declared_target: Some(LocalNodeId::new(1)),
     };
 
-    assert_eq!(instruction.call_declared_target(), None);
+    assert_eq!(
+        instruction.call_declared_target(),
+        Some(LocalNodeId::new(1))
+    );
 }
 
 /// Reject managed allocation instructions when noManaged is required.
