@@ -26,10 +26,10 @@ fn test_format_simple_add() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function add(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function add(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }";
     assert_eq!(output, expected);
 }
@@ -60,11 +60,11 @@ fn test_format_with_locals() {
 function withLocals(): int64 {
     local local0: int64, owned
 
-b0:
-    v0: int64 = 42int64
-    local.set local0, v0
-    v1: int64 = local.get local0
-    return v1
+entry0:
+    value0: int64 = 42int64
+    local.set local0, value0
+    value1: int64 = local.get local0
+    return value1
 }";
     assert_eq!(output, expected);
 }
@@ -101,8 +101,8 @@ fn test_format_local_addr() {
 function localAddr(): void {
     local local0: int32, owned
 
-b0:
-    v0: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+entry0:
+    value0: ref<int32, borrowed, addressSpace(stack)> = local.address local0
     return
 }";
     assert_eq!(output, expected);
@@ -144,12 +144,12 @@ fn test_format_vector_compare_and_convert() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function vectorOps(): void {
-b0:
-    v0: int32 = 1int32
-    v1: vector<int32, 4> = vector.splat v0
-    v2: vector<int32, 4> = vector.splat v0
-    v3: vector<boolean, 4> = vector.compare int.eq, v1, v2
-    v4: vector<float32, 4> = vector.convert exact, v1
+entry0:
+    value0: int32 = 1int32
+    value1: vector<int32, 4> = vector.splat value0
+    value2: vector<int32, 4> = vector.splat value0
+    value3: vector<boolean, 4> = vector.compare int.eq, value1, value2
+    value4: vector<float32, 4> = vector.convert exact, value1
     return
 }";
     assert_eq!(output, expected);
@@ -205,10 +205,10 @@ fn test_format_tensor_compare_and_convert() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function tensorOps(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): void {
-b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
-    v2: tensor<boolean, (2, 2)> = tensor.compare int.eq, v0, v1
-    v3: tensor<float32, (2, 2)> = tensor.convert exact, v0
+function tensorOps(value0: tensor<int32, (2, 2)>, value1: tensor<int32, (2, 2)>): void {
+entry0(value0: tensor<int32, (2, 2)>, value1: tensor<int32, (2, 2)>):
+    value2: tensor<boolean, (2, 2)> = tensor.compare int.eq, value0, value1
+    value3: tensor<float32, (2, 2)> = tensor.convert exact, value0
     return
 }";
     assert_eq!(output, expected);
@@ -238,7 +238,7 @@ fn test_format_function_metadata() {
 @executionModel(kernel)
 @workgroupSize(8, 1, 1)
 function kernel(): void {
-b0:
+entry0:
     return
 }";
     assert_eq!(output, expected);
@@ -268,7 +268,7 @@ fn test_format_function_stage_metadata() {
 @executionModel(graphics)
 @executionStage(vertex)
 function vertexMain(): void {
-b0:
+entry0:
     return
 }";
     assert_eq!(output, expected);
@@ -319,20 +319,20 @@ fn test_format_branch() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function select(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
+function select(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1, block2
 
-b1:
-    v1: int32 = 1int32
-    jump b3
+block1:
+    value1: int32 = 1int32
+    jump block3
 
-b2:
-    v2: int32 = 0int32
-    jump b3
+block2:
+    value2: int32 = 0int32
+    jump block3
 
-b3:
-    return v1
+block3:
+    return value1
 }";
     assert_eq!(output, expected);
 }
@@ -357,7 +357,7 @@ fn test_format_void_return() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function noop(): void {
-b0:
+entry0:
     return
 }";
     assert_eq!(output, expected);
@@ -389,9 +389,9 @@ fn test_format_ssa_variable() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function varTest(): int32 {
-b0:
-    v0: int32 = 10int32
-    return v0
+entry0:
+    value0: int32 = 10int32
+    return value0
 }";
     assert_eq!(output, expected);
 }
@@ -434,12 +434,12 @@ fn test_format_global_variable() {
 global counter: int32 = zeroInit
 
 function increment(): void {
-b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address counter
-    v1: int32 = load v0
-    v2: int32 = 1int32
-    v3: int32 = int.add v1, v2
-    store v0, v3
+entry0:
+    value0: ref<int32, raw, addressSpace(global)> = global.address counter
+    value1: int32 = load value0
+    value2: int32 = 1int32
+    value3: int32 = int.add value1, value2
+    store value0, value3
     return
 }";
     assert_eq!(output, expected);
@@ -476,9 +476,9 @@ fn test_format_global_constant() {
 global MAGIC: int64, readonly = 42int64
 
 function getMagic(): int64 {
-b0:
-    v0: int64 = global.const MAGIC
-    return v0
+entry0:
+    value0: int64 = global.const MAGIC
+    return value0
 }";
     assert_eq!(output, expected);
 }
@@ -509,9 +509,9 @@ fn test_format_reference_mutability_preserved() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function refMutability(v0: ref<int32, managed>, v1: ref<int32, owned, readonly>): ref<int32, managed> {
-b0(v0: ref<int32, managed>, v1: ref<int32, owned, readonly>):
-    return v0
+function refMutability(value0: ref<int32, managed>, value1: ref<int32, owned, readonly>): ref<int32, managed> {
+entry0(value0: ref<int32, managed>, value1: ref<int32, owned, readonly>):
+    return value0
 }";
     assert_eq!(output, expected);
 }

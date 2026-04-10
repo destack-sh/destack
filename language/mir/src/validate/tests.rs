@@ -46,6 +46,7 @@ fn test_validate_rejects_local_not_in_function() {
         local,
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -80,6 +81,34 @@ b1(v0: int32):
 
     let error = parse_error(source);
     assert_eq!(error.message, "duplicate value definition v0");
+}
+
+/// Reject duplicate final SSA value names.
+#[test]
+fn test_reject_duplicate_value_names() {
+    let source = r#"function collide(value1: int32): int32 {
+b0(value1: int32):
+    v1: int32 = 0int32
+    return value1
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(error.message, "duplicate MIR value name");
+}
+
+/// Reject duplicate final block names.
+#[test]
+fn test_reject_duplicate_block_names() {
+    let source = r#"function collide(): void {
+block1:
+    jump b1
+
+b1:
+    return
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(error.message, "duplicate MIR block name");
 }
 
 /// Reject block argument count mismatches.
@@ -301,7 +330,7 @@ b0:
 }"#;
 
     let error = parse_error(source);
-    assert_eq!(error.message, "expected value, got CloseBrace");
+    assert_eq!(error.message, "expected value reference, got CloseBrace");
 }
 
 /// Reject panic traps with mutable managed payloads.
@@ -405,6 +434,7 @@ fn test_reject_duplicate_instruction_id() {
     });
     let assume = tree.insert(Instruction::Assume { condition: value });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction, assume, assume],
         terminator: Terminator::Return { value: None },
@@ -442,6 +472,7 @@ fn test_reject_debug_binding_empty_range() {
         value: Constant::int32(1),
     });
     let block_id = tree.insert(Block {
+        name: Some(pool.intern("entry0")),
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -449,6 +480,7 @@ fn test_reject_debug_binding_empty_range() {
 
     let mut function = Function::local(name, Vec::new(), void_type, block_id);
     function.set_value_type(Value::new(0), value_type);
+    function.value_names[0] = Some(pool.intern("value0"));
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -530,6 +562,7 @@ fn test_reject_duplicate_local_id() {
         Ownership::Owned,
     ));
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: Vec::new(),
         terminator: Terminator::Return { value: None },
@@ -559,6 +592,7 @@ fn test_reject_function_return_type_wrong_node_kind() {
 
     let void_type = tree.insert_type(Type::Void);
     let block_id = tree.insert(Block {
+        name: None,
         parameters: Vec::new(),
         instructions: Vec::new(),
         terminator: Terminator::Return { value: None },
@@ -592,6 +626,7 @@ fn test_reject_function_environment_type_wrong_node_kind() {
 
     let void_type = tree.insert_type(Type::Void);
     let block_id = tree.insert(Block {
+        name: None,
         parameters: Vec::new(),
         instructions: Vec::new(),
         terminator: Terminator::Return { value: None },
@@ -637,6 +672,7 @@ fn test_reject_argument_slice_out_of_bounds() {
         call: Call::new(ArgumentSlice::new(0, 1), signature),
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -682,6 +718,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
         },
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -732,6 +769,7 @@ fn test_reject_pure_effect_with_suspend() {
         },
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -782,6 +820,7 @@ fn test_reject_pure_effect_with_unwind() {
         },
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -1019,6 +1058,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
         result_type: result_ty,
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },
@@ -1068,6 +1108,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
         result_type: result_ty,
     });
     let block = Block {
+        name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
         terminator: Terminator::Return { value: None },

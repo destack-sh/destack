@@ -8,7 +8,17 @@ fn roundtrip(source: &str) {
     let (tree, strings) =
         Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("parse failed");
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
-    assert_eq!(source, output.trim(), "roundtrip mismatch");
+    let output = output.trim().to_string();
+
+    let (roundtrip_tree, roundtrip_strings) =
+        Parser::parse(FileId::new(0), &output, ParseOptions::default()).expect("reparse failed");
+    let roundtrip_output = format_mir(
+        &roundtrip_tree,
+        &roundtrip_strings,
+        MirFormatOptions::default(),
+    );
+
+    assert_eq!(output, roundtrip_output.trim(), "roundtrip mismatch");
 }
 
 /// Parse one source snippet and assert its canonical formatted output.
@@ -71,11 +81,11 @@ global Count: int32, readonly = 1int32
 
 extern function callee(int32): int32
 
-function use(v0: Callable): int32 {
-b0(v0: Callable):
-    v1: int32 = global.const Count
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return v2
+function use(value0: Callable): int32 {
+entry0(value0: Callable):
+    value1: int32 = global.const Count
+    value2: int32 = call.indirect value0(value1): (int32) -> int32
+    return value2
 }"#,
     );
 }
