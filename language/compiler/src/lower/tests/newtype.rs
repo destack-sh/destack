@@ -27,10 +27,11 @@ function loadUser(id: UserId): UserId {
         r#"
 type UserId = newtype<int32>;
 
-function loadUser(v0: UserId): UserId {
-b0(v0: UserId):
-    return v0
-}"#,
+function loadUser(value0: UserId): UserId {
+entry0(value0: UserId):
+    return value0
+}
+"#,
     );
 }
 
@@ -64,15 +65,16 @@ function lookupUser(id: UserId): UserId {
         r#"
 type UserId = newtype<int32>;
 
-function lookupRepository(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function lookupRepository(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
 
-function lookupUser(v0: UserId): UserId {
-b0(v0: UserId):
-    return v0
-}"#,
+function lookupUser(value0: UserId): UserId {
+entry0(value0: UserId):
+    return value0
+}
+"#,
     );
 }
 
@@ -102,10 +104,11 @@ function normalizeRange(value: Range): Range {
 type Range#1 = (int32, int32);
 type Range = newtype<Range#1>;
 
-function normalizeRange(v0: Range): Range {
-b0(v0: Range):
-    return v0
-}"#,
+function normalizeRange(value0: Range): Range {
+entry0(value0: Range):
+    return value0
+}
+"#,
     );
 }
 
@@ -139,10 +142,11 @@ type Point {
 }
 type Location = newtype<Point>;
 
-function markLocation(v0: Location): Location {
-b0(v0: Location):
-    return v0
-}"#,
+function markLocation(value0: Location): Location {
+entry0(value0: Location):
+    return value0
+}
+"#,
     );
 }
 
@@ -171,11 +175,12 @@ function makeUserId(value: int32): UserId {
         r#"
 type UserId = newtype<int32>;
 
-function makeUserId(v0: int32): UserId {
-b0(v0: int32):
-    v1: UserId = cast.bit v0 -> UserId
-    return v1
-}"#,
+function makeUserId(value0: int32): UserId {
+entry0(value0: int32):
+    value1: UserId = cast.bit value0 -> UserId
+    return value1
+}
+"#,
     );
 }
 
@@ -205,12 +210,13 @@ function makeRange(start: int32, end: int32): Range {
 type Range#1 = (int32, int32);
 type Range = newtype<Range#1>;
 
-function makeRange(v0: int32, v1: int32): Range {
-b0(v0: int32, v1: int32):
-    v2: Range#1 = tuple Range#1 (v0, v1)
-    v3: Range = cast.bit v2 -> Range
-    return v3
-}"#,
+function makeRange(value0: int32, value1: int32): Range {
+entry0(value0: int32, value1: int32):
+    value2: Range#1 = tuple Range#1 (value0, value1)
+    value3: Range = cast.bit value2 -> Range
+    return value3
+}
+"#,
     );
 }
 
@@ -368,10 +374,11 @@ type User {
     flags: int32;
 }
 
-function readUserId(v0: User): UserId {
-b0(v0: User):
-    v1: UserId = field.get v0, 0
-    return v1
-}"#,
+function readUserId(value0: User): UserId {
+entry0(value0: User):
+    value1: UserId = field.get value0, 0
+    return value1
+}
+"#,
     );
 }

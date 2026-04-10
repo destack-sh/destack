@@ -68,17 +68,19 @@ function sumBox(value: int32): int32 {
 type Box {
     value: int32;
 }
-function sumBox(v0: int32): int32 {
-b0(v0: int32):
-    v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = managed.alloc Box
-    store v2, v1
-    v3: Box = load v2
-    v4: int32 = field.get v3, 0
-    v5: int32 = 1int32
-    v6: int32 = int.add v4, v5
-    return v6
-}"#,
+
+function sumBox(value0: int32): int32 {
+entry0(value0: int32):
+    value1: Box = struct Box (value0)
+    value2: ref<Box, managed, readonly> = managed.alloc Box
+    store value2, value1
+    value3: Box = load value2
+    value4: int32 = field.get value3, 0
+    value5: int32 = 1int32
+    value6: int32 = int.add value4, value5
+    return value6
+}
+"#,
     );
 
     // assert the runtime output
@@ -124,24 +126,32 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
+type Struct0 {
+    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    packetSize: int32;
+}
+
 global PacketHeader#vtable: ref?<void, raw, readonly, addressSpace(global)>[2], readonly = zeroInit
 global MessageHeader#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-function readPacketSize(v0: int32): int32 {
-b0(v0: int32):
-    v1: ref<ref?<void, raw, readonly, addressSpace(global)>[2], raw, readonly, addressSpace(global)> = global.address PacketHeader#vtable
-    v2: ref<void, raw, readonly, addressSpace(global)> = cast.bit v1 -> ref<void, raw, readonly, addressSpace(global)>
-    v3: { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 } = struct { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 } (v2, v0)
-    v4: ref<{ vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }, managed, readonly> = managed.alloc { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }
-    store v4, v3
-    v5: { vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 } = load v4
-    v6: int32 = field.get v5, 1
-    return v6
+
+function readPacketSize(value0: int32): int32 {
+entry0(value0: int32):
+    value1: ref<ref?<void, raw, readonly, addressSpace(global)>[2], raw, readonly, addressSpace(global)> = global.address PacketHeader#vtable
+    value2: ref<void, raw, readonly, addressSpace(global)> = cast.bit value1 -> ref<void, raw, readonly, addressSpace(global)>
+    value3: Struct0 = struct Struct0 (value2, value0)
+    value4: ref<Struct0, managed, readonly> = managed.alloc Struct0
+    store value4, value3
+    value5: Struct0 = load value4
+    value6: int32 = field.get value5, 1
+    return value6
 }
-function MessageHeader.ping(v0: ref<{ vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }, managed, readonly>): int32 {
-b0(v0: ref<{ vtable: ref<void, raw, readonly, addressSpace(global)>, packetSize: int32 }, managed, readonly>):
-    v1: int32 = 1int32
-    return v1
-}"#,
+
+function MessageHeader.ping(value0: ref<Struct0, managed, readonly>): int32 {
+entry0(value0: ref<Struct0, managed, readonly>):
+    value1: int32 = 1int32
+    return value1
+}
+"#,
     );
 }
 
@@ -294,23 +304,28 @@ type Dog {
     name: int32;
     breed: int32;
 }
+
 global Animal#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
 global Dog#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-function useDog(v0: ref<Dog, managed, readonly>): int32 {
-b0(v0: ref<Dog, managed, readonly>):
-    v1: int32 = call.virtual v0, Dog, 2(v0): (ref<Dog, managed, readonly>) -> int32
-    return v1
+
+function useDog(value0: ref<Dog, managed, readonly>): int32 {
+entry0(value0: ref<Dog, managed, readonly>):
+    value1: int32 = call.virtual value0, Dog, 2(value0): (ref<Dog, managed, readonly>) -> int32
+    return value1
 }
-function Animal.speak(v0: ref<Animal, managed, readonly>): int32 {
-b0(v0: ref<Animal, managed, readonly>):
-    v1: int32 = 1int32
-    return v1
+
+function Animal.speak(value0: ref<Animal, managed, readonly>): int32 {
+entry0(value0: ref<Animal, managed, readonly>):
+    value1: int32 = 1int32
+    return value1
 }
-function Dog.speak(v0: ref<Dog, managed, readonly>): int32 {
-b0(v0: ref<Dog, managed, readonly>):
-    v1: int32 = 2int32
-    return v1
-}"#,
+
+function Dog.speak(value0: ref<Dog, managed, readonly>): int32 {
+entry0(value0: ref<Dog, managed, readonly>):
+    value1: int32 = 2int32
+    return value1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -370,28 +385,34 @@ class Car extends Vehicle {
 type Vehicle {
     vtable: ref<void, raw, readonly, addressSpace(global)>;
 }
+
 global Vehicle#vtable: ref?<void, raw, readonly, addressSpace(global)>[4], readonly = zeroInit
 global Car#vtable: ref?<void, raw, readonly, addressSpace(global)>[5], readonly = zeroInit
-function Vehicle.start(v0: ref<Vehicle, managed, readonly>): int32 {
-b0(v0: ref<Vehicle, managed, readonly>):
-    v1: int32 = 1int32
-    return v1
+
+function Vehicle.start(value0: ref<Vehicle, managed, readonly>): int32 {
+entry0(value0: ref<Vehicle, managed, readonly>):
+    value1: int32 = 1int32
+    return value1
 }
-function Vehicle.stop(v0: ref<Vehicle, managed, readonly>): int32 {
-b0(v0: ref<Vehicle, managed, readonly>):
-    v1: int32 = 2int32
-    return v1
+
+function Vehicle.stop(value0: ref<Vehicle, managed, readonly>): int32 {
+entry0(value0: ref<Vehicle, managed, readonly>):
+    value1: int32 = 2int32
+    return value1
 }
-function Car.start(v0: ref<Vehicle, managed, readonly>): int32 {
-b0(v0: ref<Vehicle, managed, readonly>):
-    v1: int32 = 3int32
-    return v1
+
+function Car.start(value0: ref<Vehicle, managed, readonly>): int32 {
+entry0(value0: ref<Vehicle, managed, readonly>):
+    value1: int32 = 3int32
+    return value1
 }
-function Car.honk(v0: ref<Vehicle, managed, readonly>): int32 {
-b0(v0: ref<Vehicle, managed, readonly>):
-    v1: int32 = 4int32
-    return v1
-}"#,
+
+function Car.honk(value0: ref<Vehicle, managed, readonly>): int32 {
+entry0(value0: ref<Vehicle, managed, readonly>):
+    value1: int32 = 4int32
+    return value1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -463,23 +484,28 @@ type FileLogger {
     logLevel: int32;
     fileMode: int32;
 }
+
 global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
 global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-function callLogger(v0: ref<Logger, managed, readonly>): int32 {
-b0(v0: ref<Logger, managed, readonly>):
-    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
-    return v1
+
+function callLogger(value0: ref<Logger, managed, readonly>): int32 {
+entry0(value0: ref<Logger, managed, readonly>):
+    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
+    return value1
 }
-function Logger.log(v0: ref<Logger, managed, readonly>): int32 {
-b0(v0: ref<Logger, managed, readonly>):
-    v1: int32 = 1int32
-    return v1
+
+function Logger.log(value0: ref<Logger, managed, readonly>): int32 {
+entry0(value0: ref<Logger, managed, readonly>):
+    value1: int32 = 1int32
+    return value1
 }
-function FileLogger.log(v0: ref<FileLogger, managed, readonly>): int32 {
-b0(v0: ref<FileLogger, managed, readonly>):
-    v1: int32 = 2int32
-    return v1
-}"#,
+
+function FileLogger.log(value0: ref<FileLogger, managed, readonly>): int32 {
+entry0(value0: ref<FileLogger, managed, readonly>):
+    value1: int32 = 2int32
+    return value1
+}
+"#,
     );
 
     // inspect call metadata
@@ -528,23 +554,28 @@ function callLogger(base: Logger): int32 {
 type Logger {
     vtable: ref<void, raw, readonly, addressSpace(global)>;
 }
+
 global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
 global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-function callLogger(v0: ref<Logger, managed, readonly>): int32 {
-b0(v0: ref<Logger, managed, readonly>):
-    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
-    return v1
+
+function callLogger(value0: ref<Logger, managed, readonly>): int32 {
+entry0(value0: ref<Logger, managed, readonly>):
+    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
+    return value1
 }
-function Logger.log(v0: ref<Logger, managed, readonly>): int32 {
-b0(v0: ref<Logger, managed, readonly>):
-    v1: int32 = 1int32
-    return v1
+
+function Logger.log(value0: ref<Logger, managed, readonly>): int32 {
+entry0(value0: ref<Logger, managed, readonly>):
+    value1: int32 = 1int32
+    return value1
 }
-function FileLogger.log(v0: ref<Logger, managed, readonly>): int32 {
-b0(v0: ref<Logger, managed, readonly>):
-    v1: int32 = 2int32
-    return v1
-}"#,
+
+function FileLogger.log(value0: ref<Logger, managed, readonly>): int32 {
+entry0(value0: ref<Logger, managed, readonly>):
+    value1: int32 = 2int32
+    return value1
+}
+"#,
     );
 }
 

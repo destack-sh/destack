@@ -32,12 +32,13 @@ function statusValue(): int32 {
 type Status = newtype<int32>;
 
 function statusValue(): int32 {
-b0:
-    v0: int32 = 4int32
-    v1: Status = cast.bit v0 -> Status
-    v2: int32 = cast.bit v1 -> int32
-    return v2
-}"#,
+entry0:
+    value0: int32 = 4int32
+    value1: Status = cast.bit value0 -> Status
+    value2: int32 = cast.bit value1 -> int32
+    return value2
+}
+"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "statusValue", &[], Value::int32(4));
@@ -101,11 +102,11 @@ function flavorValue(): string {
 type Flavor = newtype<ref<String, managed, readonly>>;
 
 function flavorValue(): ref<String, managed, readonly> {
-b0:
-    v0: ref<String, managed, readonly> = global.const stringLiteralSour
-    v1: Flavor = cast.bit v0 -> Flavor
-    v2: ref<String, managed, readonly> = cast.bit v1 -> ref<String, managed, readonly>
-    return v2
+entry0:
+    value0: ref<String, managed, readonly> = global.const stringLiteralSour
+    value1: Flavor = cast.bit value0 -> Flavor
+    value2: ref<String, managed, readonly> = cast.bit value1 -> ref<String, managed, readonly>
+    return value2
 }"#,
     );
 
@@ -152,22 +153,23 @@ function checkStatic(): boolean {
 type Status = newtype<int32>;
 
 function checkStatic(): boolean {
-b0:
-    v0: int32 = 1int32
-    v1: Status = cast.bit v0 -> Status
-    v2: boolean = call Status.isActive(v1): (Status) -> boolean
-    return v2
+entry0:
+    value0: int32 = 1int32
+    value1: Status = cast.bit value0 -> Status
+    value2: boolean = call Status.isActive(value1): (Status) -> boolean
+    return value2
 }
 
-function Status.isActive(v0: Status): boolean {
-b0(v0: Status):
-    v1: int32 = cast.bit v0 -> int32
-    v2: int32 = 1int32
-    v3: Status = cast.bit v2 -> Status
-    v4: int32 = cast.bit v3 -> int32
-    v5: boolean = int.eq v1, v4
-    return v5
-}"#,
+function Status.isActive(value0: Status): boolean {
+entry0(value0: Status):
+    value1: int32 = cast.bit value0 -> int32
+    value2: int32 = 1int32
+    value3: Status = cast.bit value2 -> Status
+    value4: int32 = cast.bit value3 -> int32
+    value5: boolean = int.eq value1, value4
+    return value5
+}
+"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "checkStatic", &[], Value::bool(true));
@@ -206,22 +208,23 @@ function checkInstance(): boolean {
 type Status = newtype<int32>;
 
 function checkInstance(): boolean {
-b0:
-    v0: int32 = 1int32
-    v1: Status = cast.bit v0 -> Status
-    v2: boolean = call Status.isActive(v1): (Status) -> boolean
-    return v2
+entry0:
+    value0: int32 = 1int32
+    value1: Status = cast.bit value0 -> Status
+    value2: boolean = call Status.isActive(value1): (Status) -> boolean
+    return value2
 }
 
-function Status.isActive(v0: Status): boolean {
-b0(v0: Status):
-    v1: int32 = cast.bit v0 -> int32
-    v2: int32 = 1int32
-    v3: Status = cast.bit v2 -> Status
-    v4: int32 = cast.bit v3 -> int32
-    v5: boolean = int.eq v1, v4
-    return v5
-}"#,
+function Status.isActive(value0: Status): boolean {
+entry0(value0: Status):
+    value1: int32 = cast.bit value0 -> int32
+    value2: int32 = 1int32
+    value3: Status = cast.bit value2 -> Status
+    value4: int32 = cast.bit value3 -> int32
+    value5: boolean = int.eq value1, value4
+    return value5
+}
+"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "checkInstance", &[], Value::bool(true));
@@ -260,11 +263,12 @@ type Status = newtype<int32>;
 global Status.Default: Status, readonly = 1int32
 
 function defaultValue(): int32 {
-b0:
-    v0: Status = global.const Status.Default
-    v1: int32 = cast.bit v0 -> int32
-    return v1
-}"#,
+entry0:
+    value0: Status = global.const Status.Default
+    value1: int32 = cast.bit value0 -> int32
+    return value1
+}
+"#,
     );
 
     test.assert_mir_function_output(module_id, "native", "defaultValue", &[], Value::int32(1));

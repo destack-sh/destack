@@ -22,11 +22,12 @@ function add(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function add(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
-}"#,
+function add(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#,
     );
 
     test.assert_mir_function_output(

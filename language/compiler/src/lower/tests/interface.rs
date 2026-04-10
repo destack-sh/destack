@@ -42,11 +42,12 @@ type Circle {
 
 extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
 
-function Circle.draw(v0: Circle): int32 {
-b0(v0: Circle):
-    v1: int32 = field.get v0, 0
-    return v1
-}"#,
+function Circle.draw(value0: Circle): int32 {
+entry0(value0: Circle):
+    value1: int32 = field.get value0, 0
+    return value1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -103,11 +104,12 @@ type Circle {
 
 extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
 
-function Circle.draw(v0: Circle): int32 {
-b0(v0: Circle):
-    v1: int32 = field.get v0, 0
-    return v1
-}"#,
+function Circle.draw(value0: Circle): int32 {
+entry0(value0: Circle):
+    value1: int32 = field.get value0, 0
+    return value1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -288,26 +290,28 @@ struct Widget implements Shape, Paint {
         module_id,
         "native",
         r#"
+type Closure0 = closure() -> int32;
 type Widget {
     width: int32;
     color: int32;
 }
 
-extern function Shape.area({ area: closure() -> int32, width: int32 }): int32
+extern function Shape.area({ area: Closure0, width: int32 }): int32
 
-extern function Paint.paint({ paint: closure() -> int32, color: int32 }): int32
+extern function Paint.paint({ paint: Closure0, color: int32 }): int32
 
-function Widget.area(v0: Widget): int32 {
-b0(v0: Widget):
-    v1: int32 = field.get v0, 0
-    return v1
+function Widget.area(value0: Widget): int32 {
+entry0(value0: Widget):
+    value1: int32 = field.get value0, 0
+    return value1
 }
 
-function Widget.paint(v0: Widget): int32 {
-b0(v0: Widget):
-    v1: int32 = field.get v0, 1
-    return v1
-}"#,
+function Widget.paint(value0: Widget): int32 {
+entry0(value0: Widget):
+    value1: int32 = field.get value0, 1
+    return value1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -417,17 +421,17 @@ type Drawable#object { draw: Drawable#method:draw#function, color: int32 }
 
 extern function Drawable.draw(Drawable#object): int32
 
-function useDrawable(v0: Drawable): int32 {
-b0(v0: Drawable):
-    v1: ref<void, managed, readonly> = field.get v0, 0
-    v2: int32 = call.interface v0, Drawable#object, 2(v1): (Drawable#object) -> int32
-    return v2
+function useDrawable(value0: Drawable): int32 {
+entry0(value0: Drawable):
+    value1: ref<void, managed, readonly> = field.get value0, 0
+    value2: int32 = call.interface value0, Drawable#object, 2(value1): (Drawable#object) -> int32
+    return value2
 }
 
-function Circle.draw(v0: Circle): int32 {
-b0(v0: Circle):
-    v1: int32 = field.get v0, 0
-    return v1
+function Circle.draw(value0: Circle): int32 {
+entry0(value0: Circle):
+    value1: int32 = field.get value0, 0
+    return value1
 }
         "#,
     );
@@ -485,23 +489,24 @@ type Sprite {
 
 extern function Renderable.draw({ draw: closure() -> int32 }): int32
 
-function castRenderable(v0: int32): Renderable {
-b0(v0: int32):
-    v1: Sprite = struct Sprite (v0)
-    v2: ref<Sprite, managed, readonly> = managed.alloc Sprite
-    store v2, v1
-    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
-    v4: uint64 = 0uint64
-    v5: usize = cast.bit v4 -> usize
-    v6: Renderable = struct Renderable (v3, v5)
-    return v6
+function castRenderable(value0: int32): Renderable {
+entry0(value0: int32):
+    value1: Sprite = struct Sprite (value0)
+    value2: ref<Sprite, managed, readonly> = managed.alloc Sprite
+    store value2, value1
+    value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
+    value4: uint64 = 0uint64
+    value5: usize = cast.bit value4 -> usize
+    value6: Renderable = struct Renderable (value3, value5)
+    return value6
 }
 
-function Sprite.draw(v0: Sprite): int32 {
-b0(v0: Sprite):
-    v1: int32 = field.get v0, 0
-    return v1
-}"#,
+function Sprite.draw(value0: Sprite): int32 {
+entry0(value0: Sprite):
+    value1: int32 = field.get value0, 0
+    return value1
+}
+"#,
     );
 }
 
