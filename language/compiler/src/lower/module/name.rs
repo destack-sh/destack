@@ -25,16 +25,8 @@ const ARRAY_METADATA_SUFFIX: &str = "#array";
 const POINTER_METADATA_SUFFIX: &str = "#pointer";
 /// Suffix for class reference metadata names.
 const REFERENCE_METADATA_SUFFIX: &str = "#reference";
-/// Suffix for parameter context in union metadata names.
-const UNION_PARAMETER_SUFFIX: &str = "#parameter:";
-/// Suffix for field context in union metadata names.
-const UNION_FIELD_SUFFIX: &str = "#field:";
-/// Suffix for method context in union metadata names.
-const UNION_METHOD_SUFFIX: &str = "#method:";
 /// Suffix for return types in union metadata names.
-const UNION_RETURN_SUFFIX: &str = "#return";
-/// Suffix for local bindings in union metadata names.
-const UNION_LOCAL_SUFFIX: &str = "#let:";
+const UNION_RETURN_SUFFIX: &str = ".return";
 /// Prefix for intrinsic metadata names.
 const INTRINSIC_METADATA_PREFIX: &str = "intrinsic:";
 /// Prefix for scalar literal metadata names.
@@ -107,11 +99,6 @@ impl ModuleLowerer<'_> {
         // skip if metadata already exists
         if let Some(name) = self.builder.tree().metadata.layout.display_name(mir_type) {
             return Ok(name);
-        }
-
-        // unwrap type-as-value nodes to reuse the underlying metadata name
-        if let dir::Type::Value { value } = dir_type {
-            return self.metadata_name_for_type(*value, mir_type, anchor);
         }
 
         // use nominal naming when the type resolves to a symbol
@@ -208,7 +195,7 @@ impl ModuleLowerer<'_> {
             let this_name = self
                 .metadata_base_name_for_type(*this_parameter)
                 .unwrap_or_else(|| "unknown".to_string());
-            name.push_str("#this.");
+            name.push_str(".this.");
             name.push_str(&this_name);
         }
 
@@ -217,7 +204,7 @@ impl ModuleLowerer<'_> {
             let param_name = self
                 .metadata_base_name_for_type(*parameter)
                 .unwrap_or_else(|| "unknown".to_string());
-            name.push_str("#param.");
+            name.push('.');
             name.push_str(&param_name);
         }
 
@@ -225,7 +212,7 @@ impl ModuleLowerer<'_> {
         let return_name = return_type
             .and_then(|return_type| self.metadata_base_name_for_type(return_type))
             .unwrap_or_else(|| "void".to_string());
-        name.push_str("#return.");
+        name.push_str(".to.");
         name.push_str(&return_name);
 
         Some(name)
@@ -470,15 +457,18 @@ impl ModuleLowerer<'_> {
 
         // parameter name
         if let Some(parameter_name) = context.parameter_name {
-            name.push_str(&format!("{UNION_PARAMETER_SUFFIX}{parameter_name}"));
+            name.push('.');
+            name.push_str(&parameter_name);
         }
         // field name
         else if let Some(field_name) = context.field_name {
-            name.push_str(&format!("{UNION_FIELD_SUFFIX}{field_name}"));
+            name.push('.');
+            name.push_str(&field_name);
         }
         // method name
         else if let Some(method_name) = context.method_name {
-            name.push_str(&format!("{UNION_METHOD_SUFFIX}{method_name}"));
+            name.push('.');
+            name.push_str(&method_name);
             // return marker
             if context.is_return_type {
                 name.push_str(UNION_RETURN_SUFFIX);
@@ -490,7 +480,8 @@ impl ModuleLowerer<'_> {
         }
         // local name
         else if let Some(declarator_name) = context.declarator_name {
-            name.push_str(&format!("{UNION_LOCAL_SUFFIX}{declarator_name}"));
+            name.push_str(".local.");
+            name.push_str(&declarator_name);
         }
 
         // type suffix

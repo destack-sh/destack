@@ -6,7 +6,7 @@ use crate::lower::r#type::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayo
 use crate::{LowerError, LowerResult, ModuleLowerer};
 
 // suffix for function environment metadata names
-const FUNCTION_ENVIRONMENT_METADATA_SUFFIX: &str = "#environment";
+const FUNCTION_ENVIRONMENT_METADATA_SUFFIX: &str = "#env";
 const EMPTY_FUNCTION_ENVIRONMENT_METADATA_NAME: &str = "EmptyFunctionEnvironment";
 
 /// A lowered function environment layout.
@@ -102,7 +102,7 @@ impl ModuleLowerer<'_> {
         let metadata_name = self
             .symbol_path_name(symbol)
             .map(|name| format!("{name}{FUNCTION_ENVIRONMENT_METADATA_SUFFIX}"))
-            .unwrap_or_else(|| format!("environment#{}", symbol.local_id.id));
+            .unwrap_or_else(|| format!("env.{}", symbol.local_id.id));
         let metadata_name = self.builder.intern(&metadata_name);
         self.builder
             .tree_mut()

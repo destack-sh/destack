@@ -129,17 +129,21 @@ function logicalAnd(a: boolean, b: boolean): boolean {
         module_id,
         "native",
         r#"
-function logicalAnd(v0: boolean, v1: boolean): boolean {
-b0(v0: boolean, v1: boolean):
-    branch v0, b2, b1
-b1:
-    v2: boolean = false
-    jump b3(v2)
-b2:
-    jump b3(v1)
-b3(v3: boolean):
-    return v3
-}"#,
+function logicalAnd(value0: boolean, value1: boolean): boolean {
+entry0(value0: boolean, value1: boolean):
+    branch value0, block2, block1
+
+block1:
+    value2: boolean = false
+    jump block3(value2)
+
+block2:
+    jump block3(value1)
+
+block3(value3: boolean):
+    return value3
+}
+"#,
     );
 }
 
@@ -164,17 +168,21 @@ function logicalOr(a: boolean, b: boolean): boolean {
         module_id,
         "native",
         r#"
-function logicalOr(v0: boolean, v1: boolean): boolean {
-b0(v0: boolean, v1: boolean):
-    branch v0, b1, b2
-b1:
-    v2: boolean = true
-    jump b3(v2)
-b2:
-    jump b3(v1)
-b3(v3: boolean):
-    return v3
-}"#,
+function logicalOr(value0: boolean, value1: boolean): boolean {
+entry0(value0: boolean, value1: boolean):
+    branch value0, block1, block2
+
+block1:
+    value2: boolean = true
+    jump block3(value2)
+
+block2:
+    jump block3(value1)
+
+block3(value3: boolean):
+    return value3
+}
+"#,
     );
 }
 
