@@ -669,16 +669,12 @@ extern function readOnly(): void"#;
         let join_block = function.blocks[3];
         let call_inst = test.instructions_in_block(join_block)[0];
         let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call {
-            memory_effect,
-            call_behavior,
-            ..
-        } = instruction
-        else {
+        let mir::Instruction::Call { call, .. } = instruction else {
             panic!("expected call instruction");
         };
-        *memory_effect = Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY));
-        *call_behavior = Some(mir::CallBehavior::none());
+
+        call.memory_effect = Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY));
+        call.behavior = Some(mir::CallBehavior::none());
 
         test.run_pass(&LoadPre);
         test.assert_output(expected);

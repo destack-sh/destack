@@ -4210,35 +4210,26 @@ b0:
                     check_edge(*resume, resume_arguments, &mut mismatches);
                 }
                 mir::Terminator::Invoke {
-                    function: _,
-                    arguments: _,
-                    signature: _,
                     normal_target,
                     normal_arguments,
                     unwind_target,
                     unwind_arguments,
+                    ..
                 } => {
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
                 }
                 mir::Terminator::InvokeIndirect {
-                    callee: _,
-                    arguments: _,
-                    signature: _,
                     normal_target,
                     normal_arguments,
                     unwind_target,
                     unwind_arguments,
+                    ..
                 } => {
                     check_edge(*normal_target, normal_arguments, &mut mismatches);
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
                 }
                 mir::Terminator::InvokeVirtual {
-                    receiver: _,
-                    arguments: _,
-                    declaring_type: _,
-                    slot_id: _,
-                    signature: _,
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -4249,11 +4240,6 @@ b0:
                     check_edge(*unwind_target, unwind_arguments, &mut mismatches);
                 }
                 mir::Terminator::InvokeInterface {
-                    receiver: _,
-                    arguments: _,
-                    declaring_type: _,
-                    slot_id: _,
-                    signature: _,
                     normal_target,
                     normal_arguments,
                     unwind_target,
@@ -4425,48 +4411,10 @@ b0:
                         ));
                     }
                 }
-                mir::Terminator::Invoke {
-                    function: _,
-                    arguments: _,
-                    signature: _,
-                    normal_target: _,
-                    normal_arguments: _,
-                    unwind_target: _,
-                    unwind_arguments: _,
-                }
-                | mir::Terminator::InvokeIndirect {
-                    callee: _,
-                    arguments: _,
-                    signature: _,
-                    normal_target: _,
-                    normal_arguments: _,
-                    unwind_target: _,
-                    unwind_arguments: _,
-                }
-                | mir::Terminator::InvokeVirtual {
-                    receiver: _,
-                    arguments: _,
-                    declaring_type: _,
-                    slot_id: _,
-                    signature: _,
-                    normal_target: _,
-                    normal_arguments: _,
-                    unwind_target: _,
-                    unwind_arguments: _,
-                    ..
-                }
-                | mir::Terminator::InvokeInterface {
-                    receiver: _,
-                    arguments: _,
-                    declaring_type: _,
-                    slot_id: _,
-                    signature: _,
-                    normal_target: _,
-                    normal_arguments: _,
-                    unwind_target: _,
-                    unwind_arguments: _,
-                    ..
-                }
+                mir::Terminator::Invoke { .. }
+                | mir::Terminator::InvokeIndirect { .. }
+                | mir::Terminator::InvokeVirtual { .. }
+                | mir::Terminator::InvokeInterface { .. }
                 | mir::Terminator::Throw { value: _ } => {
                     for value in block.terminator.uses() {
                         if !defined_values.contains(&value) {

@@ -961,8 +961,8 @@ b0:
         let function = test.tree.get(function_id);
         let behavior = function.call_behavior.clone();
 
-        assert!(behavior.allocates);
-        assert!(behavior.frees);
+        assert!(behavior.allocation.allocate.is_some());
+        assert!(behavior.allocation.free.is_some());
     }
 
     /// Call metadata is populated from callee summaries.
@@ -1019,7 +1019,7 @@ b0(v0: int32):
         let caller = test.tree.get(caller_id);
         let behavior = caller.call_behavior.clone();
 
-        assert!(!behavior.noreturn);
+        assert_ne!(behavior.return_behavior, mir::ReturnBehavior::NoReturn);
     }
 
     /// Tail calls to noreturn callees propagate noreturn.
@@ -1042,7 +1042,7 @@ b0:
         let caller = test.tree.get(caller_id);
         let behavior = caller.call_behavior.clone();
 
-        assert!(behavior.noreturn);
+        assert_eq!(behavior.return_behavior, mir::ReturnBehavior::NoReturn);
     }
 
     /// Unknown indirect calls produce unknown memory effects.

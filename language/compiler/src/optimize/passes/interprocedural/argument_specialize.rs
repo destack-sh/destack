@@ -449,6 +449,7 @@ fn clone_function(
     for block_id in &original.blocks {
         let block = tree.get(*block_id);
         let new_block = mir::Block {
+            name: None,
             parameters: block.parameters.clone(),
             instructions: Vec::new(),
             terminator: block.terminator.clone(),

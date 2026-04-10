@@ -810,6 +810,7 @@ fn clone_callee_blocks(
 
         // create the empty cloned block
         let new_block = mir::Block {
+            name: None,
             parameters: new_params,
             instructions: Vec::new(),
             terminator: original.terminator.clone(),

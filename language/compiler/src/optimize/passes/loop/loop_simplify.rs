@@ -279,6 +279,7 @@ fn insert_preheader(
     // preheader unconditionally jumps to header, forwarding its parameters
     let preheader_args: Vec<mir::Value> = preheader_params.iter().map(|p| p.value).collect();
     let preheader = mir::Block {
+        name: None,
         parameters: preheader_params.clone(),
         instructions: vec![],
         terminator: mir::Terminator::Jump {
@@ -487,6 +488,7 @@ fn merge_latches(
     // merged latch jumps to header, forwarding its parameters
     let latch_args: Vec<mir::Value> = latch_params.iter().map(|p| p.value).collect();
     let new_latch = mir::Block {
+        name: None,
         parameters: latch_params,
         instructions: vec![],
         terminator: mir::Terminator::Jump {
@@ -542,6 +544,7 @@ fn insert_dedicated_exit(
     // dedicated exit jumps to original exit, forwarding its parameters
     let dedicated_args: Vec<mir::Value> = dedicated_params.iter().map(|p| p.value).collect();
     let dedicated_exit = mir::Block {
+        name: None,
         parameters: dedicated_params,
         instructions: vec![],
         terminator: mir::Terminator::Jump {
