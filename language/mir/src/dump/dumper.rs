@@ -357,6 +357,10 @@ impl<'a> Dumper<'a> {
         self.write_indent();
 
         match inst {
+            Instruction::Error => {
+                self.write_colored("<error instruction>", Color::BrightRed);
+            }
+
             Instruction::Const { destination, value } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = ");
@@ -1658,6 +1662,10 @@ impl<'a> Dumper<'a> {
     fn dump_terminator(&mut self, term: &Terminator) {
         self.write_indent();
         match term {
+            Terminator::Error => {
+                self.write_colored("<error terminator>", Color::BrightRed);
+            }
+
             Terminator::Return { value } => {
                 self.write_colored("return", Color::Red);
                 if let Some(v) = value {

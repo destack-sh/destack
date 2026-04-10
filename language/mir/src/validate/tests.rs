@@ -67,6 +67,29 @@ fn test_validate_rejects_local_not_in_function() {
     assert_eq!(error.to_string(), expected);
 }
 
+/// Recovered MIR syntax markers are not valid MIR.
+#[test]
+fn test_reject_recovered_parse_nodes() {
+    let source = r#"function broken(): void {
+b0:
+    value0: int32 = int.add
+
+b1:
+    return
+}"#;
+
+    let (tree, _, diagnostics) =
+        Parser::parse_recovering(FileId::new(0), source, ParseOptions::default());
+
+    assert_eq!(diagnostics.len(), 1);
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate()
+        .expect_err("expected validation failure");
+    assert_eq!(error.to_string(), "recovered MIR instruction is not valid");
+}
+
 /// Reject duplicate value definitions.
 #[test]
 fn test_reject_duplicate_value_definitions() {

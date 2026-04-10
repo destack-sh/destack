@@ -1,11 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_core::{ImmutableStringPool, StringPool};
-use destack_source::{FileId, Span};
+use destack_source::{
+    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileId, NodeSpanType, Span,
+};
 
 use crate::validate::Validator;
 use crate::{
-    Block, Field, Function, Global, LocalNodeId, NodeTree, Type, Value, finalize_function_names,
+    Block, Field, Function, Global, LocalNodeId, Node, NodeTree, Type, Value,
+    finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -40,6 +43,8 @@ pub struct Parser<'a> {
     pub(super) strings: StringPool,
     /// The source file id for spans.
     pub(super) file_id: FileId,
+    /// The diagnostics produced while parsing.
+    pub(super) diagnostics: DiagnosticCollector,
     /// Map from function names to their ids (for forward references).
     pub(super) function_map: HashMap<String, LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
@@ -81,6 +86,7 @@ impl<'a> Parser<'a> {
             tree,
             strings: StringPool::new(),
             file_id,
+            diagnostics: DiagnosticCollector::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
             type_alias_map: HashMap::new(),
@@ -103,31 +109,59 @@ impl<'a> Parser<'a> {
         source: &str,
         options: ParseOptions,
     ) -> ParseResult<(NodeTree, ImmutableStringPool)> {
-        let mut parser = Parser::new(file_id, source, options);
-        parser.parse_module()?;
+        let (tree, strings, diagnostics) = Self::parse_recovering(file_id, source, options);
 
-        // finalize generated MIR names before validation
-        let function_ids: Vec<_> = parser
+        // fail strictly when parse diagnostics were emitted
+        if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+            let diagnostics = diagnostics.iter();
+            let diagnostic = diagnostics
+                .first()
+                .expect("error diagnostics must contain at least one entry");
+            return Err(ParseError::from_diagnostic(diagnostic));
+        }
+
+        // validate the finished tree
+        let validator = Validator::new(&tree);
+        validator.validate().map_err(|error| {
+            let position = error
+                .anchor()
+                .and_then(|anchor| tree.get_span_by_id(anchor.node.id))
+                .map(|span| span.start as usize)
+                .unwrap_or(0);
+            ParseError::new(error.to_string(), position)
+        })?;
+
+        Ok((tree, strings))
+    }
+
+    /// Parse MIR text into partial MIR plus shared diagnostics.
+    pub fn parse_recovering(
+        file_id: FileId,
+        source: &str,
+        options: ParseOptions,
+    ) -> (NodeTree, ImmutableStringPool, DiagnosticCollection) {
+        let mut parser = Parser::new(file_id, source, options);
+        parser.parse_module_recovering();
+
+        parser.finalize_generated_names();
+
+        let diagnostics = parser.diagnostics.take_collection();
+        let strings = parser.strings.into_immutable();
+
+        (parser.tree, strings, diagnostics)
+    }
+
+    /// Finalize generated names for every parsed function.
+    fn finalize_generated_names(&mut self) {
+        let function_ids: Vec<_> = self
             .tree
             .iter_nodes::<Function>()
             .map(|(function_id, _)| function_id)
             .collect();
+
         for function_id in function_ids {
-            finalize_function_names(&mut parser.tree, &mut parser.strings, function_id);
+            finalize_function_names(&mut self.tree, &mut self.strings, function_id);
         }
-
-        // validate the finished tree
-        let validator = Validator::new(&parser.tree);
-        validator.validate().map_err(|error| {
-            let position = error
-                .anchor()
-                .and_then(|anchor| parser.tree.get_span_by_id(anchor.node.id))
-                .map(|span| span.start as usize)
-                .unwrap_or_else(|| parser.pos());
-            ParseError::new(error.to_string(), position)
-        })?;
-
-        Ok((parser.tree, parser.strings.into_immutable()))
     }
 
     /// Get current position for error reporting.
@@ -140,6 +174,17 @@ impl<'a> Parser<'a> {
         let start = u32::try_from(start).unwrap_or(u32::MAX);
         let length = u32::try_from(length).unwrap_or(0);
         Span::at(self.file_id, start, length)
+    }
+
+    /// Build a span for one parsed range.
+    pub(super) fn span_between(&self, start: usize, end: usize) -> Span {
+        self.span_at(start, end.saturating_sub(start))
+    }
+
+    /// Build a span from one parse start to the last consumed token.
+    pub(super) fn span_from_parse_start(&self, start: usize) -> Span {
+        let end = self.last_consumed_token_end().unwrap_or(start);
+        self.span_between(start, end)
     }
 
     /// Build a span for a token.
@@ -203,11 +248,7 @@ impl<'a> Parser<'a> {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end(&format!("{ty:?}"), self.pos()))?;
         if token.ty != ty {
-            return Err(ParseError::unexpected(
-                &format!("{ty:?}"),
-                token.ty,
-                token.start,
-            ));
+            return Err(ParseError::unexpected_token(&format!("{ty:?}"), token));
         }
         // return current token, then advance
         let pos = self.pos;
@@ -253,13 +294,41 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Ok((text, start))
             }
-            _ => Err(ParseError::unexpected("opcode", token.ty, token.start)),
+            _ => Err(ParseError::unexpected_token("opcode", token)),
         }
     }
 
     /// Get the text of the current token.
     pub(super) fn span_str(&self) -> &'a str {
         self.peek().map(|t| t.text).unwrap_or("")
+    }
+
+    /// Return the exclusive end of the last consumed non trivia token.
+    pub(super) fn last_consumed_token_end(&self) -> Option<usize> {
+        let mut index = self.pos;
+        while index > 0 {
+            index -= 1;
+            let token = &self.tokens[index];
+            if !token.ty.is_trivia() {
+                return Some(token.start + token.text.len());
+            }
+        }
+
+        None
+    }
+
+    /// Apply one ordered segment span list to one MIR node.
+    pub(super) fn set_segment_spans<T>(&mut self, id: LocalNodeId<T>, segment_spans: &[Span])
+    where
+        T: Node,
+    {
+        // ordered source parts
+        for (index, span) in segment_spans.iter().copied().enumerate() {
+            let segment_index = u16::try_from(index)
+                .unwrap_or_else(|_| panic!("too many segment spans for node {}", id.id));
+            self.tree
+                .set_side_span(id, NodeSpanType::Segment(segment_index), span);
+        }
     }
 
     /// Parse a symbol name after `@`.
@@ -304,6 +373,18 @@ impl<'a> Parser<'a> {
         self.value_name_map.clear();
         self.next_value_id = 0;
         self.parsed_block_count = 0;
+    }
+
+    /// Skip raw trivia tokens except newline.
+    pub(super) fn skip_raw_trivia_except_newline(&mut self) {
+        while self.pos < self.tokens.len() {
+            let token = &self.tokens[self.pos];
+            if !token.ty.is_trivia() || token.ty == TokenType::Newline {
+                break;
+            }
+
+            self.pos += 1;
+        }
     }
 
     /// Return whether the current token starts a value definition.

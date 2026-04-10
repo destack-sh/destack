@@ -1,3 +1,5 @@
+use destack_source::NodeSpanType;
+
 use crate::{
     AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
     Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias, TypedValue,
@@ -9,49 +11,80 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 impl<'a> Parser<'a> {
-    /// Parse a module.
-    pub(super) fn parse_module(&mut self) -> ParseResult<()> {
+    /// Parse one module with top level recovery.
+    pub(super) fn parse_module_recovering(&mut self) {
         // forward declarations
         self.register_placeholders();
 
         // items
         while !self.peek_token(TokenType::End) {
-            let attributes = self.parse_attributes()?;
+            let recovery_pos = self.pos;
+            if let Err(error) = self.parse_module_item() {
+                self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                self.try_recover_to_item(recovery_pos);
+            }
+        }
+    }
 
-            // linkage
-            let linkage = if self.peek_token(TokenType::Extern) {
-                self.bump();
-                Linkage::Import
-            } else if self.peek_token(TokenType::Export) {
-                self.bump();
-                Linkage::Export
-            } else {
-                Linkage::Local
-            };
+    /// Parse one module item.
+    fn parse_module_item(&mut self) -> ParseResult<()> {
+        let attributes = self.parse_attributes()?;
 
-            // item grammar
-            if self.peek_token(TokenType::Type) {
-                if linkage != Linkage::Local {
-                    return Err(ParseError::new(
-                        "type aliases cannot be extern or export",
-                        self.pos(),
-                    ));
-                }
+        // linkage
+        let linkage = if self.peek_token(TokenType::Extern) {
+            self.bump();
+            Linkage::Import
+        } else if self.peek_token(TokenType::Export) {
+            self.bump();
+            Linkage::Export
+        } else {
+            Linkage::Local
+        };
 
-                self.parse_type_alias(attributes)?;
-            } else if self.peek_token(TokenType::Global) {
-                self.parse_global(linkage, attributes)?;
-            } else if self.peek_token(TokenType::Function) {
-                self.parse_function(linkage, attributes)?;
-            } else {
+        // item grammar
+        if self.peek_token(TokenType::Type) {
+            if linkage != Linkage::Local {
                 return Err(ParseError::new(
-                    "expected 'type', 'function', or 'global'",
+                    "type aliases cannot be extern or export",
                     self.pos(),
                 ));
             }
+
+            self.parse_type_alias(attributes)?;
+        } else if self.peek_token(TokenType::Global) {
+            self.parse_global(linkage, attributes)?;
+        } else if self.peek_token(TokenType::Function) {
+            self.parse_function(linkage, attributes)?;
+        } else {
+            return Err(ParseError::new(
+                "expected 'type', 'function', or 'global'",
+                self.pos(),
+            ));
         }
 
         Ok(())
+    }
+
+    /// Recover to the next top level item boundary.
+    fn try_recover_to_item(&mut self, recovery_pos: usize) {
+        // make forward progress before scanning for the next item
+        if self.pos == recovery_pos {
+            self.bump();
+        }
+
+        while !self.peek_token(TokenType::End) {
+            if self.peek_token(TokenType::At)
+                || self.peek_token(TokenType::Extern)
+                || self.peek_token(TokenType::Export)
+                || self.peek_token(TokenType::Type)
+                || self.peek_token(TokenType::Global)
+                || self.peek_token(TokenType::Function)
+            {
+                return;
+            }
+
+            self.bump();
+        }
     }
 
     /// Pre register forward referenced item names.
@@ -311,6 +344,8 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<Attribute>,
     ) -> ParseResult<LocalNodeId<TypeAlias>> {
+        let item_start = self.pos();
+
         // alias header
         self.eat_token(TokenType::Type)?;
 
@@ -338,7 +373,7 @@ impl<'a> Parser<'a> {
         if !self.peek_token(TokenType::OpenBrace) {
             self.eat_token(TokenType::Equals)?;
         }
-        let ty = self.parse_type()?;
+        let (ty, type_span) = self.parse_type_part()?;
 
         // record alias
         let name_id = self.strings.intern(&name);
@@ -347,7 +382,10 @@ impl<'a> Parser<'a> {
             ty: placeholder_id,
         };
         let id = self.tree.insert(alias);
-        self.tree.set_text_span(id, name_span);
+        self.tree
+            .set_text_span(id, self.span_from_parse_start(item_start));
+        self.tree.set_main_span(id, name_span);
+        self.tree.set_side_span(id, NodeSpanType::Type, type_span);
         self.tree
             .metadata
             .layout
@@ -385,6 +423,8 @@ impl<'a> Parser<'a> {
         linkage: Linkage,
         attributes: Vec<Attribute>,
     ) -> ParseResult<LocalNodeId<Global>> {
+        let item_start = self.pos();
+
         // global header
         self.eat_token(TokenType::Global)?;
 
@@ -394,7 +434,7 @@ impl<'a> Parser<'a> {
 
         // type
         self.eat_token(TokenType::Colon)?;
-        let ty = self.parse_type()?;
+        let (ty, type_span) = self.parse_type_part()?;
 
         // trailing mutability
         let mut mutability = Mutability::Mutable;
@@ -420,7 +460,10 @@ impl<'a> Parser<'a> {
             initializer,
         };
         let id = self.tree.insert(global);
-        self.tree.set_text_span(id, name_span);
+        self.tree
+            .set_text_span(id, self.span_from_parse_start(item_start));
+        self.tree.set_main_span(id, name_span);
+        self.tree.set_side_span(id, NodeSpanType::Type, type_span);
         self.global_map.insert(name, id);
 
         // optional declaration terminator

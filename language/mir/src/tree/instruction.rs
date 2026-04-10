@@ -69,6 +69,9 @@ pub enum CallDispatchKind {
 /// Each instruction produces at most one value via the `destination` field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Instruction {
+    /// Recovered invalid instruction syntax.
+    Error,
+
     // constants
     /// Load a constant value.
     Const {
@@ -868,6 +871,7 @@ impl Instruction {
     /// Get the destination value defined by this instruction (if any).
     pub fn destination(&self) -> Option<Value> {
         match self {
+            Instruction::Error => None,
             Instruction::Const { destination, .. } => Some(*destination),
             Instruction::Binary { destination, .. } => Some(*destination),
             Instruction::Unary { destination, .. } => Some(*destination),
@@ -948,6 +952,7 @@ impl Instruction {
     /// in NodeTree's argument buffer and must be fetched via `NodeTree::get_arguments()`.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
+            Instruction::Error => smallvec![],
             Instruction::Const { .. } => smallvec![],
             Instruction::Binary { left, right, .. } => smallvec![*left, *right],
             Instruction::Unary { argument, .. } => smallvec![*argument],

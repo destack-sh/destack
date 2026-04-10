@@ -102,6 +102,13 @@ pub enum ValidateError {
         /// The anchor for this error.
         anchor: ValidateAnchor,
     },
+    /// Recovered parse-only MIR was passed to the normal validator.
+    RecoveredSyntaxNode {
+        /// The recovered node kind.
+        kind: &'static str,
+        /// The anchor for this error.
+        anchor: ValidateAnchor,
+    },
     /// A value definition is missing a type entry.
     MissingValueType {
         /// The value missing a type.
@@ -253,6 +260,7 @@ impl ValidateError {
             | ValidateError::DuplicateValueDefinition { anchor, .. }
             | ValidateError::MissingValueName { anchor, .. }
             | ValidateError::DuplicateValueName { anchor, .. }
+            | ValidateError::RecoveredSyntaxNode { anchor, .. }
             | ValidateError::MissingValueType { anchor, .. }
             | ValidateError::InvalidNodeReference { anchor, .. }
             | ValidateError::LocalReferenceNotInFunction { anchor, .. }
@@ -312,6 +320,9 @@ impl fmt::Display for ValidateError {
             }
             ValidateError::DuplicateValueName { .. } => {
                 write!(f, "duplicate MIR value name")
+            }
+            ValidateError::RecoveredSyntaxNode { kind, .. } => {
+                write!(f, "recovered MIR {kind} is not valid")
             }
             ValidateError::MissingValueType { value, .. } => {
                 write!(f, "missing type for value v{}", value.id())

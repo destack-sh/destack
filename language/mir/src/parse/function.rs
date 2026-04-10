@@ -1,5 +1,7 @@
 use destack_source::Span;
 
+use destack_source::NodeSpanType;
+
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block, Call,
     CallBehavior, CheckConstraint, CheckTarget, ExecutionModel, ExecutionStage, Function,
@@ -142,6 +144,8 @@ impl<'a> Parser<'a> {
         linkage: Linkage,
         attributes: Vec<Attribute>,
     ) -> ParseResult<LocalNodeId<Function>> {
+        let function_start = self.pos();
+
         // function keyword and name
         self.eat_token(TokenType::Function)?;
 
@@ -160,6 +164,7 @@ impl<'a> Parser<'a> {
             self.resolve_function_attributes(&attributes)?;
 
         // parameters
+        let signature_start = self.pos();
         let parameters = self.parse_function_parameters(linkage)?;
         let parameter_names = parameters
             .iter()
@@ -168,7 +173,8 @@ impl<'a> Parser<'a> {
 
         // return type
         self.eat_token(TokenType::Colon)?;
-        let return_type = self.parse_type()?;
+        let (return_type, return_type_span) = self.parse_type_part()?;
+        let signature_span = self.span_between(signature_start, return_type_span.end as usize);
 
         // extern function body
         if linkage.is_import() {
@@ -204,7 +210,11 @@ impl<'a> Parser<'a> {
             };
 
             // update the placeholder with the parsed signature
-            self.tree.set_text_span(function_id, name_span);
+            self.tree
+                .set_text_span(function_id, self.span_from_parse_start(function_start));
+            self.tree.set_main_span(function_id, name_span);
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Type, signature_span);
             *self.tree.get_mut(function_id) = function;
             self.current_function = None;
 
@@ -222,7 +232,11 @@ impl<'a> Parser<'a> {
         // seed signature data before mutating the placeholder
         let name_id = self.strings.intern(&name);
         let id = function_id;
-        self.tree.set_text_span(id, name_span);
+        self.tree
+            .set_text_span(id, self.span_from_parse_start(function_start));
+        self.tree.set_main_span(id, name_span);
+        self.tree
+            .set_side_span(id, NodeSpanType::Type, signature_span);
         let value_types = self.seed_value_types(&parameters);
 
         // populate signature fields
@@ -249,8 +263,15 @@ impl<'a> Parser<'a> {
         // locals
         let mut locals = Vec::new();
         while self.peek_token(TokenType::Local) {
-            let local = self.parse_local()?;
-            locals.push(local);
+            let recovery_pos = self.pos();
+            match self.parse_local() {
+                Ok(local) => locals.push(local),
+                Err(error) => {
+                    self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                    self.try_recover_to_block(recovery_pos);
+                    break;
+                }
+            }
         }
 
         // predeclare symbolic block labels so references can resolve forward
@@ -258,10 +279,17 @@ impl<'a> Parser<'a> {
 
         // blocks
         let mut blocks = Vec::new();
-        while self.is_block_label_start() {
-            let block = self.parse_block()?;
-            blocks.push(block);
-            self.parsed_block_count += 1;
+        while !self.peek_token(TokenType::CloseBrace) && !self.peek_token(TokenType::End) {
+            // block headers
+            if self.is_block_label_start() {
+                blocks.push(self.parse_block_recovering());
+                continue;
+            }
+
+            // stray body tokens
+            let error = ParseError::new("expected block label", self.pos());
+            self.diagnostics.insert(error.to_diagnostic(self.file_id));
+            self.try_recover_to_block(self.pos());
         }
 
         // resolve body references
@@ -284,6 +312,8 @@ impl<'a> Parser<'a> {
         function.next_value_id = function.value_types.len() as u32;
 
         self.current_function = None;
+        self.tree
+            .set_text_span(id, self.span_from_parse_start(function_start));
 
         // record attributes
         if !attributes.is_empty() {
@@ -460,19 +490,25 @@ impl<'a> Parser<'a> {
 
     /// Parse a local variable declaration.
     fn parse_local(&mut self) -> ParseResult<LocalNodeId<Local>> {
+        // whole declaration
+        let local_start = self.pos();
+
         self.eat_token(TokenType::Local)?;
 
         // local reference
         let local_token = self.eat_token(TokenType::LocalReference)?;
-        let _local_idx: u32 = local_token
-            .text
+        let local_name_text = local_token.text.to_string();
+        let local_name_start = local_token.start;
+        let local_name_length = local_token.text.len();
+        let local_span = self.span_at(local_name_start, local_name_length);
+        let _local_idx: u32 = local_name_text
             .strip_prefix("local")
             .and_then(|s| s.parse().ok())
-            .ok_or_else(|| ParseError::invalid("local reference", local_token.start))?;
+            .ok_or_else(|| ParseError::invalid("local reference", local_name_start))?;
 
         // local type
         self.eat_token(TokenType::Colon)?;
-        let ty = self.parse_type()?;
+        let (ty, type_span) = self.parse_type_part()?;
 
         // local annotations
         let mut ownership = Ownership::Owned;
@@ -497,11 +533,19 @@ impl<'a> Parser<'a> {
 
         // record the local
         let local = Local::new(ty, mutability, ownership);
-        Ok(self.tree.insert(local))
+        let local_id = self.tree.insert(local);
+        self.tree
+            .set_text_span(local_id, self.span_from_parse_start(local_start));
+        self.tree.set_main_span(local_id, local_span);
+        self.tree
+            .set_side_span(local_id, NodeSpanType::Type, type_span);
+
+        Ok(local_id)
     }
 
     /// Parse a basic block into its predeclared block id.
     fn parse_block(&mut self) -> ParseResult<LocalNodeId<Block>> {
+        let block_start = self.pos();
         let Some(&block_id) = self.predeclared_blocks.get(self.parsed_block_count) else {
             panic!(
                 "missing predeclared block for parsed block {}",
@@ -562,6 +606,7 @@ impl<'a> Parser<'a> {
         // block contents
         let mut instructions = Vec::new();
         let mut terminator = None;
+        let mut is_broken = false;
 
         while !self.is_block_label_start()
             && !self.peek_token(TokenType::CloseBrace)
@@ -587,14 +632,42 @@ impl<'a> Parser<'a> {
                         || self.peek_token(TokenType::InvokeVirtual)
                         || self.peek_token(TokenType::InvokeInterface)))
             {
-                let parsed_terminator = self.parse_terminator()?;
-                terminator = Some(parsed_terminator);
+                let recovery_pos = self.pos();
+                match self.parse_terminator() {
+                    Ok(parsed_terminator) => {
+                        terminator = Some(parsed_terminator);
+                    }
+                    Err(error) => {
+                        self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                        self.try_recover_to_block(recovery_pos);
+                        terminator = Some(Terminator::Error);
+                        is_broken = true;
+                    }
+                }
                 break;
             }
 
             // instruction
-            let inst = self.eat_instruction()?;
-            instructions.push(inst);
+            let recovery_pos = self.pos();
+            match self.eat_instruction() {
+                Ok(inst) => instructions.push(inst),
+                Err(error) => {
+                    self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                    let error_start = error.position;
+                    let continue_block = self.try_recover_in_block(recovery_pos);
+                    let error_end = self.pos();
+                    let error_span =
+                        self.span_at(error_start, error_end.saturating_sub(error_start));
+                    let error_instruction = self.tree.insert(Instruction::Error);
+                    self.tree.set_text_span(error_instruction, error_span);
+                    instructions.push(error_instruction);
+                    is_broken = true;
+
+                    if !continue_block {
+                        break;
+                    }
+                }
+            }
         }
 
         // finalize block
@@ -602,13 +675,116 @@ impl<'a> Parser<'a> {
             name: block_name,
             parameters,
             instructions,
-            terminator: terminator.unwrap_or(Terminator::Unreachable),
+            terminator: terminator.unwrap_or(if is_broken {
+                Terminator::Error
+            } else {
+                Terminator::Unreachable
+            }),
         };
 
         *self.tree.get_mut(block_id) = block;
-        self.tree.set_text_span(block_id, block_span);
+        self.tree
+            .set_text_span(block_id, self.span_from_parse_start(block_start));
+        self.tree.set_main_span(block_id, block_span);
 
         Ok(block_id)
+    }
+
+    /// Parse one block and recover to the next block boundary on failure.
+    fn parse_block_recovering(&mut self) -> LocalNodeId<Block> {
+        let block_id = self.current_predeclared_block_id();
+        let recovery_pos = self.pos();
+
+        let parsed_block = match self.parse_block() {
+            Ok(block_id) => block_id,
+            Err(error) => {
+                self.diagnostics.insert(error.to_diagnostic(self.file_id));
+                self.try_recover_to_block(recovery_pos);
+
+                let error_start = error.position;
+                let error_end = self.pos();
+                let error_span = self.span_at(error_start, error_end.saturating_sub(error_start));
+                let block = Block {
+                    name: None,
+                    parameters: Vec::new(),
+                    instructions: Vec::new(),
+                    terminator: Terminator::Error,
+                };
+
+                *self.tree.get_mut(block_id) = block;
+                self.tree.set_text_span(block_id, error_span);
+
+                block_id
+            }
+        };
+
+        self.parsed_block_count += 1;
+        parsed_block
+    }
+
+    /// Return the predeclared block id for the current source position.
+    fn current_predeclared_block_id(&self) -> LocalNodeId<Block> {
+        self.predeclared_blocks
+            .get(self.parsed_block_count)
+            .copied()
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing predeclared block for parsed block {}",
+                    self.parsed_block_count
+                )
+            })
+    }
+
+    /// Recover to the next block boundary in the current function body.
+    fn try_recover_to_block(&mut self, recovery_pos: usize) {
+        // make forward progress before scanning for the next block
+        if self.pos() == recovery_pos {
+            self.bump();
+        }
+
+        while !self.peek_token(TokenType::CloseBrace) && !self.peek_token(TokenType::End) {
+            if self.is_block_label_start() {
+                return;
+            }
+
+            self.bump();
+        }
+    }
+
+    /// Recover within one block and return whether the block can continue.
+    fn try_recover_in_block(&mut self, recovery_pos: usize) -> bool {
+        // make forward progress before scanning the line
+        if self.pos() == recovery_pos && self.pos < self.tokens.len() {
+            self.pos += 1;
+        }
+
+        while self.pos < self.tokens.len() {
+            self.skip_raw_trivia_except_newline();
+
+            if self.peek_token(TokenType::CloseBrace)
+                || self.peek_token(TokenType::End)
+                || self.is_block_label_start()
+            {
+                return false;
+            }
+
+            let Some(token) = self.tokens.get(self.pos) else {
+                return false;
+            };
+
+            if token.ty == TokenType::Newline {
+                self.pos += 1;
+                self.skip_raw_trivia_except_newline();
+
+                return !(self.peek_token(TokenType::CloseBrace)
+                    || self.peek_token(TokenType::End)
+                    || self.is_block_label_start());
+            }
+
+            self.pos += 1;
+        }
+
+        false
     }
 
     /// Return whether the current block header is the entry block parameter mirror.

@@ -1,3 +1,5 @@
+use destack_source::Span;
+
 use crate::{
     AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,
     TensorDimension, TensorLayout, Type, Value,
@@ -9,6 +11,26 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 impl<'a> Parser<'a> {
+    /// Parse a type expression and return its enclosing span.
+    pub(super) fn parse_type_part(&mut self) -> ParseResult<(LocalNodeId<Type>, Span)> {
+        let type_start = self.pos();
+        let ty = self.parse_type()?;
+        let span = self.span_from_parse_start(type_start);
+
+        Ok((ty, span))
+    }
+
+    /// Parse a type expression and append its span as one source segment.
+    pub(super) fn parse_type_segment(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<LocalNodeId<Type>> {
+        let (ty, span) = self.parse_type_part()?;
+        segment_spans.push(span);
+
+        Ok(ty)
+    }
+
     /// Check if a token can start a type in a value position.
     pub(super) fn peek_type(&self, token_ty: TokenType) -> bool {
         matches!(

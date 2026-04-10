@@ -1,4 +1,4 @@
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
@@ -16,6 +16,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         match self {
+            Instruction::Error => Err(FormatError::SyntaxError {
+                message: "cannot format recovered MIR instruction",
+            }),
+
             Instruction::Const { destination, value } => {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space(), value])
