@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId, SymbolSpace,
-    SymbolTable, SymbolType,
+    LocalSymbolId, NodeTree, NodeType, Path, ProvenanceReason, Scope, ScopeKind, StaticKey,
+    StringId, SymbolSpace, SymbolTable, SymbolType,
 };
 use destack_workspace::workspace::{Module, ProfileId};
 
@@ -24,6 +24,7 @@ impl Compiler {
             expression_id.into_any(),
             original_scope,
             Some(expression_id.into_any()),
+            Some(ProvenanceReason::Resolved),
         );
         tree.insert(root_node_id, root_expr);
         let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
@@ -54,6 +55,7 @@ impl Compiler {
                     expression_id.into_any(),
                     original_scope,
                     Some(expression_id.into_any()),
+                    Some(ProvenanceReason::Resolved),
                 );
                 tree.insert(new_node_id, member_expression);
                 current_id = LocalNodeId::new(new_node_id.id);

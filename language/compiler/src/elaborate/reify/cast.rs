@@ -241,10 +241,13 @@ impl Compiler {
         // move the reference into a new value node
         let expression = state.tree.get(expression_id).clone();
         let scope = state.tree.get_scope(expression_id);
-        let value_expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let value_expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            expression_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Reified),
+        );
         let value_expression_id = state.tree.insert_as_owner(value_expression_id, expression);
         state.types.set_inferred_type(
             value_expression_id.into_global_any(state.ctx.module_id),
@@ -252,10 +255,13 @@ impl Compiler {
         );
 
         // build the target type expression
-        let target_expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let target_expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            expression_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Reified),
+        );
         let target_expression = match state.types.get_type(target_type_id) {
             Type::TypeLiteral { value } => Expression::TypeLiteral {
                 value: value.clone(),
@@ -293,6 +299,7 @@ impl Compiler {
                 expression_id.into_any(),
                 scope,
                 None,
+                Some(dir::ProvenanceReason::Reified),
             );
             let cast_expression_id = state
                 .tree
@@ -1251,10 +1258,13 @@ impl Compiler {
 
         // build the target type expression
         let scope = state.tree.get_scope(origin_id);
-        let target_expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let target_expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Reified),
+        );
         let target_expression = match state.types.get_type(target_type_id) {
             Type::TypeLiteral { value } => Expression::TypeLiteral {
                 value: value.clone(),
@@ -1280,10 +1290,13 @@ impl Compiler {
         );
 
         // insert the cast expression
-        let cast_expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let cast_expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Reified),
+        );
         let cast_expression_id = state.tree.insert_as_owner(
             cast_expression_id,
             Expression::Cast {
@@ -1298,10 +1311,13 @@ impl Compiler {
             target_type_id,
         );
         if self.options.elaborate_parenthesize_casts {
-            let parenthesized_id =
-                state
-                    .tree
-                    .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+            let parenthesized_id = state.tree.reserve_from(
+                NodeType::Expression,
+                origin_id.into_any(),
+                scope,
+                None,
+                Some(dir::ProvenanceReason::Reified),
+            );
             let parenthesized_id = state.tree.insert_as_owner(
                 parenthesized_id,
                 Expression::Parenthesized {
@@ -1655,6 +1671,7 @@ impl Compiler {
                 origin_id.into_any(),
                 state.tree.get_scope(origin_id),
                 None,
+                Some(dir::ProvenanceReason::Reified),
             );
             let entry_argument_id = state.tree.insert_as_owner(
                 entry_argument_id,
@@ -1672,6 +1689,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let entries_array_id = state.tree.insert_as_owner(
             entries_array_id,
@@ -1695,6 +1713,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let left_id = state.tree.insert_as_owner(
             left_id,
@@ -1711,6 +1730,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let entries_argument_id = self.argument_for_value(state, origin_id, entries_array_id);
         let call_id = state.tree.insert_as_owner(
@@ -1904,6 +1924,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let left_id = state.tree.insert_as_owner(
             left_id,
@@ -1920,6 +1941,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let value_argument_id = self.argument_for_value(state, origin_id, value_id);
         let call_id = state.tree.insert_as_owner(
@@ -2211,6 +2233,7 @@ impl Compiler {
                     origin_id.into_any(),
                     state.tree.get_scope(origin_id),
                     None,
+                    Some(dir::ProvenanceReason::Reified),
                 );
                 let key_expression_id = state.tree.insert_as_owner(
                     key_expression_id,
@@ -2254,6 +2277,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let key_argument_id = state.tree.insert_as_owner(
             key_argument_id,
@@ -2267,6 +2291,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let value_argument_id = state.tree.insert_as_owner(
             value_argument_id,
@@ -2282,6 +2307,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         let tuple_expression_id = state.tree.insert_as_owner(
             tuple_expression_id,
@@ -2363,6 +2389,7 @@ impl Compiler {
             origin_id.into_any(),
             state.tree.get_scope(origin_id),
             None,
+            Some(dir::ProvenanceReason::Reified),
         );
         state.tree.insert_as_owner(
             argument_id,

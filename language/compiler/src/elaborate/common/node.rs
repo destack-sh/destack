@@ -53,10 +53,13 @@ impl Compiler {
         // during elaborate rewrites, slice 4 should replace this with finer-grained builders
 
         // clone the expression node in the requested scope
-        let cloned_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let cloned_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let cloned_id = state.tree.insert_as_owner(cloned_id, expression.clone());
 
         // copy inferred type and resolution metadata
@@ -132,9 +135,13 @@ impl Compiler {
         )?;
 
         // insert the local reference expression
-        let reference_id = state
-            .tree
-            .reserve_from(NodeType::Expression, origin_id, scope, None);
+        let reference_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id,
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let reference_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             reference_id,
             Expression::LocalReference {
@@ -168,10 +175,13 @@ impl Compiler {
         value: Option<LocalNodeId<Expression>>,
     ) -> LocalNodeId<Expression> {
         // create the binding pattern
-        let pattern_id =
-            state
-                .tree
-                .reserve_from(NodeType::Pattern, origin_id.into_any(), scope, None);
+        let pattern_id = state.tree.reserve_from(
+            NodeType::Pattern,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let pattern_id: LocalNodeId<Pattern> = state.tree.insert_as_owner(
             pattern_id,
             Pattern::Binding {
@@ -183,10 +193,13 @@ impl Compiler {
         );
 
         // create the declarator
-        let declarator_id =
-            state
-                .tree
-                .reserve_from(NodeType::Declarator, origin_id.into_any(), scope, None);
+        let declarator_id = state.tree.reserve_from(
+            NodeType::Declarator,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let declarator_id: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             declarator_id,
             Declarator {
@@ -205,10 +218,13 @@ impl Compiler {
             export: None,
             symbol,
         };
-        let let_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let let_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let let_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             let_id,
             Expression::Let {

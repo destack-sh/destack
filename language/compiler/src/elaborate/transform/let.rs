@@ -154,9 +154,13 @@ impl Compiler {
         scope: LocalScope,
     ) -> LocalNodeId<Pattern> {
         // allocate and insert the wildcard pattern
-        let pattern_id = state
-            .tree
-            .reserve_from(NodeType::Pattern, if_id.into_any(), scope, None);
+        let pattern_id = state.tree.reserve_from(
+            NodeType::Pattern,
+            if_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         state.tree.insert_as_owner(pattern_id, Pattern::Wildcard)
     }
 
@@ -171,9 +175,13 @@ impl Compiler {
     ) -> LocalNodeId<MatchCase> {
         // allocate and insert the match case
         let scope = state.tree.get_scope(if_id);
-        let case_id = state
-            .tree
-            .reserve_from(NodeType::MatchCase, if_id.into_any(), scope, None);
+        let case_id = state.tree.reserve_from(
+            NodeType::MatchCase,
+            if_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         state.tree.insert_as_owner(
             case_id,
             MatchCase::Expression {
@@ -195,9 +203,13 @@ impl Compiler {
         scope: LocalScope,
     ) -> LocalNodeId<Expression> {
         // allocate the empty block
-        let block_id = state
-            .tree
-            .reserve_from(NodeType::Block, if_id.into_any(), scope, None);
+        let block_id = state.tree.reserve_from(
+            NodeType::Block,
+            if_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
@@ -208,10 +220,13 @@ impl Compiler {
         );
 
         // wrap the block as an expression
-        let block_expr_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, if_id.into_any(), scope, None);
+        let block_expr_id = state.tree.reserve_from(
+            NodeType::Expression,
+            if_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let block_expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block { block });

@@ -14,10 +14,13 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         // insert a boolean scalar literal expression
-        let literal_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let literal_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expression_id = state.tree.insert_as_owner(
             literal_id,
             Expression::ScalarLiteral {

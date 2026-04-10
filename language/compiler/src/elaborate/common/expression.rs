@@ -25,10 +25,13 @@ impl Compiler {
         };
 
         // insert the type expression node
-        let expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expression_id = state.tree.insert_as_owner(expression_id, expression);
 
         // annotate with Type::Value(type_id)
@@ -51,10 +54,13 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         // insert one type literal expression
-        let literal_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let literal_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let literal_id = state.tree.insert_as_owner(
             literal_id,
             Expression::TypeLiteral {
@@ -84,10 +90,13 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         // insert one binary expression
-        let expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expression_id = state.tree.insert_as_owner(
             expression_id,
             Expression::Binary {
@@ -112,10 +121,13 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         // insert one type check expression
-        let expression_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
         let expression_id = state.tree.insert_as_owner(
             expression_id,
             Expression::TypeBinary {

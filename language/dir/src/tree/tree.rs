@@ -9,7 +9,7 @@ use crate::{
     Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, Documentation,
     EnumField, Expression, FunctionMode, IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter,
-    Pattern, PatternField, Property, WhereClause,
+    Pattern, PatternField, Property, Provenance, ProvenanceId, ProvenanceReason, WhereClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -50,8 +50,8 @@ pub struct NodeTree {
     /// The scopes by node id. Index is the global node id.
     /// (Main data is in SymbolTable, but indexed here for efficiency since *every* node needs a scope.)
     scopes_by_node_id: Vec<(LocalScopeId, LocalScopeMark)>,
-    /// The AST node ids of all nodes. Index is the global node id.
-    source_id_by_node_id: Vec<u32>,
+    /// Provenance metadata for all nodes.
+    provenance: Provenance,
     /// The alias node id by AST node id.
     alias_node_id_by_source_id: HashMap<u32, u32>,
     /// The alias node id by DIR node id.
@@ -105,7 +105,10 @@ impl NodeTree {
 
             parent_id_by_node_id: Vec::with_capacity(capacity),
             scopes_by_node_id: Vec::with_capacity(capacity),
-            source_id_by_node_id: Vec::with_capacity(capacity),
+            provenance: Provenance {
+                provenance_by_node_id: Vec::with_capacity(capacity),
+                ..Provenance::default()
+            },
             alias_node_id_by_source_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
             annotations_by_node_id: HashMap::new(),
@@ -139,7 +142,8 @@ impl NodeTree {
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        self.source_id_by_node_id.push(ast_node_id);
+        let provenance_id = self.provenance.create_source(ast_node_id);
+        self.provenance.provenance_by_node_id.push(provenance_id);
         self.alias_node_id_by_source_id
             .insert(ast_node_id, global_id);
 
@@ -153,6 +157,7 @@ impl NodeTree {
         dir_node_id: LocalNodeIdAny,
         scope: (LocalScopeId, LocalScopeMark),
         parent_id: Option<LocalNodeIdAny>,
+        reason: Option<ProvenanceReason>,
     ) -> LocalNodeIdAny {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
@@ -162,8 +167,12 @@ impl NodeTree {
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        let source_id = self.source_id_by_node_id[dir_node_id.id as usize];
-        self.source_id_by_node_id.push(source_id);
+        let parent_provenance = self.provenance.provenance_by_node_id[dir_node_id.id as usize];
+        let source_id = self.provenance.source_id(parent_provenance);
+        let provenance_id = self
+            .provenance
+            .create_derived(source_id, parent_provenance, reason);
+        self.provenance.provenance_by_node_id.push(provenance_id);
         self.alias_node_id_by_node_id
             .insert(dir_node_id.id, global_id);
 
@@ -277,7 +286,7 @@ impl NodeTree {
         let original = self.get(id).clone();
 
         // preserve original at new ID
-        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), scope, None);
+        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), scope, None, None);
         let preserved_id: LocalNodeId<T> = self.insert(preserved_id, original);
 
         // preserved originals exist for alias lookup, not active tree traversal
@@ -1002,13 +1011,20 @@ impl NodeTree {
     /// Get the AST id of a node by its DIR node id.
     #[inline]
     pub fn get_source(&self, node_id: u32) -> u32 {
-        self.source_id_by_node_id[node_id as usize]
+        let provenance_id = self.provenance.provenance_by_node_id[node_id as usize];
+        self.provenance.source_id(provenance_id)
+    }
+
+    /// Get the provenance id of one node by its DIR node id.
+    #[inline]
+    pub fn get_provenance(&self, node_id: u32) -> ProvenanceId {
+        self.provenance.provenance_by_node_id[node_id as usize]
     }
 
     /// Return true when the node id exists in this tree.
     #[inline]
     pub fn has_node_id(&self, node_id: u32) -> bool {
-        (node_id as usize) < self.source_id_by_node_id.len()
+        (node_id as usize) < self.provenance.provenance_by_node_id.len()
     }
 
     /// Get the DIR node id by its AST id.

@@ -1,4 +1,6 @@
-use destack_dir::{AssignOperator, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType};
+use destack_dir::{
+    AssignOperator, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType, ProvenanceReason,
+};
 
 use crate::Compiler;
 
@@ -22,8 +24,13 @@ impl Compiler {
                 let binary_operator = assign_operator_to_binary(operator);
 
                 // Binary: left <op> right
-                let binary_id =
-                    tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+                let binary_id = tree.reserve_from(
+                    NodeType::Expression,
+                    expression_id.into_any(),
+                    scope,
+                    None,
+                    Some(ProvenanceReason::Desugared),
+                );
                 let binary_id: LocalNodeId<Expression> = tree.insert(
                     binary_id,
                     Expression::Binary {
@@ -46,8 +53,13 @@ impl Compiler {
             // AwaitMaybe -> Maybe with Await expression
             Expression::AwaitMaybe { expression } => {
                 // Await: await expression
-                let await_id =
-                    tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+                let await_id = tree.reserve_from(
+                    NodeType::Expression,
+                    expression_id.into_any(),
+                    scope,
+                    None,
+                    Some(ProvenanceReason::Desugared),
+                );
                 let await_id: LocalNodeId<Expression> =
                     tree.insert(await_id, Expression::Await { expression });
 
