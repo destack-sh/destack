@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use destack_source::{NodeSpanType, Span};
+
 use crate::{
     ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Function,
     Instruction, InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope,
@@ -17,17 +19,23 @@ use super::token::TokenType;
 impl<'a> Parser<'a> {
     /// Parse an instruction.
     pub(super) fn eat_instruction(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
+        // whole instruction
+        let instruction_start = self.pos();
+
         // optional destination
         let mut destination = None;
         let mut destination_type = None;
-        let mut instruction_span = None;
+        let mut destination_span = None;
+        let mut destination_type_span = None;
         if self.is_value_definition_start() {
-            let (parsed_destination, parsed_type, parsed_span) = self.parse_typed_destination()?;
+            let (parsed_destination, parsed_type, parsed_span, parsed_type_span) =
+                self.parse_typed_destination_parts()?;
             self.record_value_type(parsed_destination, parsed_type);
             self.eat_token(TokenType::Equals)?;
             destination = Some(parsed_destination);
             destination_type = Some(parsed_type);
-            instruction_span = Some(parsed_span);
+            destination_span = Some(parsed_span);
+            destination_type_span = Some(parsed_type_span);
         }
 
         // destination driven literal sugar
@@ -44,7 +52,13 @@ impl<'a> Parser<'a> {
                     elements,
                 };
                 let id = self.tree.insert(instruction);
-                self.tree.set_text_span(id, instruction_span.unwrap());
+                self.apply_instruction_spans(
+                    id,
+                    self.span_from_parse_start(instruction_start),
+                    destination_span,
+                    destination_type_span,
+                    &[],
+                );
                 return Ok(id);
             }
 
@@ -61,10 +75,19 @@ impl<'a> Parser<'a> {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
                 let id = self.tree.insert(instruction);
-                self.tree.set_text_span(id, instruction_span.unwrap());
+                self.apply_instruction_spans(
+                    id,
+                    self.span_from_parse_start(instruction_start),
+                    destination_span,
+                    destination_type_span,
+                    &[],
+                );
                 return Ok(id);
             }
         }
+
+        // ordered source parts
+        let mut segment_spans = Vec::new();
 
         // opcode
         let opcode = self
@@ -73,7 +96,7 @@ impl<'a> Parser<'a> {
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
         let (opcode_text, opcode_start) = self.eat_opcode()?;
         let opcode_span = self.span_for_token(&opcode);
-        let instruction_span = instruction_span.unwrap_or(opcode_span);
+        segment_spans.push(opcode_span);
 
         // reject destinations on void instructions
         if destination.is_some()
@@ -103,31 +126,31 @@ impl<'a> Parser<'a> {
         let instruction = match opcode_text {
             // local operations
             "local.set" => {
-                let local = self.parse_local_ref()?;
+                let local = self.parse_local_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::LocalSet { local, value }
             }
 
             // memory side effects
             "store" => {
-                let pointer = self.parse_value()?;
+                let pointer = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Store { pointer, value }
             }
             "raw.drop" => {
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::RawDrop { value }
             }
             "stack.drop" => {
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::StackDrop { value }
             }
             "atomic.store" => {
-                let pointer = self.parse_value()?;
+                let pointer = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 let (ordering, scope, memory_scope, semantics) =
                     self.parse_atomic_attributes(true)?;
                 Instruction::AtomicStore {
@@ -158,17 +181,17 @@ impl<'a> Parser<'a> {
                 }
             }
             "assume" => {
-                let condition = self.parse_value()?;
+                let condition = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Assume { condition }
             }
 
             // tensor side effects
             "tensor.store" => {
-                let view = self.parse_value()?;
+                let view = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let indices = self.parse_value_bracket_list()?;
+                let indices = self.parse_value_bracket_list_segments(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 let indices = self.tree.add_arguments(&indices);
                 Instruction::TensorStore {
                     view,
@@ -177,21 +200,22 @@ impl<'a> Parser<'a> {
                 }
             }
             "tensor.fill" => {
-                let view = self.parse_value()?;
+                let view = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::TensorFill { view, value }
             }
             "tensor.copy" => {
-                let target = self.parse_value()?;
+                let target = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
-                let source = self.parse_value()?;
+                let source = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::TensorCopy { target, source }
             }
 
             // calls and intrinsics
             "call" => {
-                let (function, arguments, signature) = self.parse_direct_call_target()?;
+                let (function, arguments, signature) =
+                    self.parse_direct_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
 
                 Instruction::Call {
@@ -202,7 +226,7 @@ impl<'a> Parser<'a> {
             }
             "call.virtual" => {
                 let (receiver, declaring_type, slot_id, arguments, signature) =
-                    self.parse_virtual_call_target()?;
+                    self.parse_virtual_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallVirtual {
                     destination,
@@ -215,7 +239,7 @@ impl<'a> Parser<'a> {
             }
             "call.interface" => {
                 let (receiver, declaring_type, slot_id, arguments, signature) =
-                    self.parse_interface_call_target()?;
+                    self.parse_interface_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallInterface {
                     destination,
@@ -227,7 +251,8 @@ impl<'a> Parser<'a> {
                 }
             }
             "call.indirect" => {
-                let (callee, arguments, signature) = self.parse_indirect_call_target()?;
+                let (callee, arguments, signature) =
+                    self.parse_indirect_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallIndirect {
                     destination,
@@ -237,7 +262,7 @@ impl<'a> Parser<'a> {
             }
             _ if opcode_text.starts_with("intrinsic.") => {
                 let intrinsic = self.parse_intrinsic_name(opcode_text, opcode_start)?;
-                let arguments = self.parse_call_arguments()?;
+                let arguments = self.parse_call_argument_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::Intrinsic {
                     destination,
@@ -248,7 +273,7 @@ impl<'a> Parser<'a> {
 
             // allocation side effects
             "raw.free" => {
-                let pointer = self.parse_value()?;
+                let pointer = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::RawFree { pointer }
             }
 
@@ -265,9 +290,9 @@ impl<'a> Parser<'a> {
                     // binary ops
                     _ if opcode_text.parse::<BinaryOperator>().is_ok() => {
                         let operator = opcode_text.parse().unwrap();
-                        let left = self.parse_value()?;
+                        let left = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let right = self.parse_value()?;
+                        let right = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Binary {
                             destination,
                             operator,
@@ -279,7 +304,7 @@ impl<'a> Parser<'a> {
                     // unary ops
                     _ if opcode_text.parse::<UnaryOperator>().is_ok() => {
                         let operator = opcode_text.parse().unwrap();
-                        let argument = self.parse_value()?;
+                        let argument = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Unary {
                             destination,
                             operator,
@@ -290,9 +315,9 @@ impl<'a> Parser<'a> {
                     // cast ops
                     _ if opcode_text.parse::<CastOperator>().is_ok() => {
                         let operator = opcode_text.parse().unwrap();
-                        let argument = self.parse_value()?;
+                        let argument = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Arrow)?;
-                        let to_type = self.parse_type()?;
+                        let to_type = self.parse_type_segment(&mut segment_spans)?;
                         Instruction::Cast {
                             destination,
                             operator,
@@ -303,11 +328,11 @@ impl<'a> Parser<'a> {
 
                     // selection
                     "select" => {
-                        let condition = self.parse_value()?;
+                        let condition = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let then_value = self.parse_value()?;
+                        let then_value = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let else_value = self.parse_value()?;
+                        let else_value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Select {
                             destination,
                             condition,
@@ -318,11 +343,11 @@ impl<'a> Parser<'a> {
 
                     // local operations
                     "local.get" => {
-                        let local = self.parse_local_ref()?;
+                        let local = self.parse_local_segment(&mut segment_spans)?;
                         Instruction::LocalGet { destination, local }
                     }
                     "local.address" => {
-                        let local = self.parse_local_ref()?;
+                        let local = self.parse_local_segment(&mut segment_spans)?;
                         Instruction::LocalAddr {
                             destination,
                             local,
@@ -332,7 +357,7 @@ impl<'a> Parser<'a> {
 
                     // global operations
                     "global.address" => {
-                        let global = self.parse_global_reference()?;
+                        let global = self.parse_global_segment(&mut segment_spans)?;
                         Instruction::GlobalAddr {
                             destination,
                             global,
@@ -340,23 +365,23 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "global.const" => {
-                        let global = self.parse_global_reference()?;
+                        let global = self.parse_global_segment(&mut segment_spans)?;
                         Instruction::GlobalConst {
                             destination,
                             global,
                         }
                     }
                     "function.address" => {
-                        let function = self.parse_function_reference()?;
+                        let function = self.parse_function_segment(&mut segment_spans)?;
                         Instruction::FunctionAddr {
                             destination,
                             function,
                         }
                     }
                     "function.bind" => {
-                        let function = self.parse_function_reference()?;
+                        let function = self.parse_function_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let environment = self.parse_value()?;
+                        let environment = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Closure {
                             destination,
                             function,
@@ -367,7 +392,7 @@ impl<'a> Parser<'a> {
 
                     // memory operations
                     "load" => {
-                        let pointer = self.parse_value()?;
+                        let pointer = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Load {
                             destination,
                             pointer,
@@ -377,9 +402,9 @@ impl<'a> Parser<'a> {
 
                     // aggregate operations
                     "field.get" => {
-                        let aggregate = self.parse_value()?;
+                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_literal()? as u32;
+                        let index = self.parse_int_segment(&mut segment_spans)? as u32;
                         Instruction::FieldGet {
                             destination,
                             aggregate,
@@ -387,9 +412,9 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "field.address" => {
-                        let aggregate = self.parse_value()?;
+                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_literal()? as u32;
+                        let index = self.parse_int_segment(&mut segment_spans)? as u32;
                         Instruction::FieldAddr {
                             destination,
                             aggregate,
@@ -398,11 +423,11 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "field.set" => {
-                        let aggregate = self.parse_value()?;
+                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_literal()? as u32;
+                        let index = self.parse_int_segment(&mut segment_spans)? as u32;
                         self.eat_token(TokenType::Comma)?;
-                        let value = self.parse_value()?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::FieldSet {
                             destination,
                             aggregate,
@@ -411,9 +436,9 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "element.get" => {
-                        let array = self.parse_value()?;
+                        let array = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value()?;
+                        let index = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::ElementGet {
                             destination,
                             array,
@@ -421,9 +446,9 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "element.address" => {
-                        let array = self.parse_value()?;
+                        let array = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value()?;
+                        let index = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::ElementAddr {
                             destination,
                             array,
@@ -432,11 +457,11 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "element.set" => {
-                        let array = self.parse_value()?;
+                        let array = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value()?;
+                        let index = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let value = self.parse_value()?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::ElementSet {
                             destination,
                             array,
@@ -445,8 +470,8 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "struct" => {
-                        let ty = self.parse_type()?;
-                        let fields = self.parse_call_arguments()?;
+                        let ty = self.parse_type_segment(&mut segment_spans)?;
+                        let fields = self.parse_call_argument_segments(&mut segment_spans)?;
                         let fields = self.tree.add_arguments(&fields);
                         Instruction::Struct {
                             destination,
@@ -455,8 +480,8 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "tuple" => {
-                        let ty = self.parse_type()?;
-                        let elements = self.parse_call_arguments()?;
+                        let ty = self.parse_type_segment(&mut segment_spans)?;
+                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
                         let elements = self.tree.add_arguments(&elements);
                         Instruction::Tuple {
                             destination,
@@ -466,13 +491,13 @@ impl<'a> Parser<'a> {
                     }
                     // vector operations
                     "vector.splat" => {
-                        let value = self.parse_value()?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::VectorSplat { destination, value }
                     }
                     "vector.extract" => {
-                        let vector = self.parse_value()?;
+                        let vector = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value()?;
+                        let index = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::VectorExtract {
                             destination,
                             vector,
@@ -480,11 +505,11 @@ impl<'a> Parser<'a> {
                         }
                     }
                     "vector.insert" => {
-                        let vector = self.parse_value()?;
+                        let vector = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value()?;
+                        let index = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let value = self.parse_value()?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::VectorInsert {
                             destination,
                             vector,
@@ -917,9 +942,9 @@ impl<'a> Parser<'a> {
                     }
                     _ if opcode_text.starts_with("atomic.rmw.") => {
                         let operator = self.parse_atomic_rmw_operator(opcode_text, opcode_start)?;
-                        let pointer = self.parse_value()?;
+                        let pointer = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let value = self.parse_value()?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
                         let (ordering, scope, memory_scope, semantics) =
                             self.parse_atomic_attributes(true)?;
                         Instruction::AtomicRmw {
@@ -946,9 +971,43 @@ impl<'a> Parser<'a> {
 
         // record the instruction
         let instruction_id = self.tree.insert(instruction);
-        self.tree.set_text_span(instruction_id, instruction_span);
+        self.apply_instruction_spans(
+            instruction_id,
+            self.span_from_parse_start(instruction_start),
+            destination_span,
+            destination_type_span,
+            &segment_spans,
+        );
         Ok(instruction_id)
     }
+
+    /// Apply syntax spans to one parsed instruction.
+    fn apply_instruction_spans(
+        &mut self,
+        instruction_id: LocalNodeId<Instruction>,
+        instruction_span: Span,
+        main_span: Option<Span>,
+        type_span: Option<Span>,
+        segment_spans: &[Span],
+    ) {
+        // enclosing span
+        self.tree.set_text_span(instruction_id, instruction_span);
+
+        // focal span
+        if let Some(main_span) = main_span.or_else(|| segment_spans.first().copied()) {
+            self.tree.set_main_span(instruction_id, main_span);
+        }
+
+        // destination type
+        if let Some(type_span) = type_span {
+            self.tree
+                .set_side_span(instruction_id, NodeSpanType::Type, type_span);
+        }
+
+        // ordered source parts
+        self.set_segment_spans(instruction_id, segment_spans);
+    }
+
     /// Parse a bracketed list of values.
     fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<Value>> {
         // open the list
@@ -964,6 +1023,25 @@ impl<'a> Parser<'a> {
         }
 
         // close the list
+        self.eat_token(TokenType::CloseBracket)?;
+        Ok(values)
+    }
+
+    /// Parse a bracketed list of values and append each element as one source segment.
+    fn parse_value_bracket_list_segments(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<Vec<Value>> {
+        self.eat_token(TokenType::OpenBracket)?;
+        let mut values = Vec::new();
+
+        while !self.peek_token(TokenType::CloseBracket) {
+            values.push(self.parse_value_segment(segment_spans)?);
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
         self.eat_token(TokenType::CloseBracket)?;
         Ok(values)
     }
@@ -1557,9 +1635,18 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_direct_call_target(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>, LocalNodeId<Type>)> {
-        let function = self.parse_function_reference()?;
-        let arguments = self.parse_call_arguments()?;
-        let signature = self.parse_required_call_signature()?;
+        let mut segment_spans = Vec::new();
+        self.parse_direct_call_target_segments(&mut segment_spans)
+    }
+
+    /// Parse one direct call target and arguments with source segments.
+    pub(super) fn parse_direct_call_target_segments(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>, LocalNodeId<Type>)> {
+        let function = self.parse_function_segment(segment_spans)?;
+        let arguments = self.parse_call_argument_segments(segment_spans)?;
+        let signature = self.parse_required_call_signature_segment(segment_spans)?;
         Ok((function, arguments, signature))
     }
 
@@ -1573,13 +1660,28 @@ impl<'a> Parser<'a> {
         Vec<Value>,
         LocalNodeId<Type>,
     )> {
-        let receiver = self.parse_value()?;
+        let mut segment_spans = Vec::new();
+        self.parse_virtual_call_target_segments(&mut segment_spans)
+    }
+
+    /// Parse one virtual call target and signature with source segments.
+    pub(super) fn parse_virtual_call_target_segments(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<(
+        Value,
+        LocalNodeId<Type>,
+        VtableSlotId,
+        Vec<Value>,
+        LocalNodeId<Type>,
+    )> {
+        let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let declaring_type = self.parse_type()?;
+        let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
-        let arguments = self.parse_call_arguments()?;
-        let signature = self.parse_required_call_signature()?;
+        let slot_id = VtableSlotId::new(self.parse_int_segment(segment_spans)? as u32);
+        let arguments = self.parse_call_argument_segments(segment_spans)?;
+        let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
         Ok((receiver, declaring_type, slot_id, arguments, signature))
     }
@@ -1594,13 +1696,28 @@ impl<'a> Parser<'a> {
         Vec<Value>,
         LocalNodeId<Type>,
     )> {
-        let receiver = self.parse_value()?;
+        let mut segment_spans = Vec::new();
+        self.parse_interface_call_target_segments(&mut segment_spans)
+    }
+
+    /// Parse one interface call target and signature with source segments.
+    pub(super) fn parse_interface_call_target_segments(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<(
+        Value,
+        LocalNodeId<Type>,
+        InterfaceSlotId,
+        Vec<Value>,
+        LocalNodeId<Type>,
+    )> {
+        let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let declaring_type = self.parse_type()?;
+        let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
-        let arguments = self.parse_call_arguments()?;
-        let signature = self.parse_required_call_signature()?;
+        let slot_id = InterfaceSlotId::new(self.parse_int_segment(segment_spans)? as u32);
+        let arguments = self.parse_call_argument_segments(segment_spans)?;
+        let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
         Ok((receiver, declaring_type, slot_id, arguments, signature))
     }
@@ -1609,15 +1726,28 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_indirect_call_target(
         &mut self,
     ) -> ParseResult<(Value, Vec<Value>, LocalNodeId<Type>)> {
-        let callee = self.parse_value()?;
-        let arguments = self.parse_call_arguments()?;
-        let signature = self.parse_required_call_signature()?;
+        let mut segment_spans = Vec::new();
+        self.parse_indirect_call_target_segments(&mut segment_spans)
+    }
+
+    /// Parse one indirect call target and signature with source segments.
+    pub(super) fn parse_indirect_call_target_segments(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<(Value, Vec<Value>, LocalNodeId<Type>)> {
+        let callee = self.parse_value_segment(segment_spans)?;
+        let arguments = self.parse_call_argument_segments(segment_spans)?;
+        let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
         Ok((callee, arguments, signature))
     }
 
     /// Parse one required call signature.
-    fn parse_required_call_signature(&mut self) -> ParseResult<LocalNodeId<Type>> {
+    fn parse_required_call_signature_segment(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<LocalNodeId<Type>> {
+        let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
         self.eat_token(TokenType::OpenParen)?;
 
@@ -1632,6 +1762,8 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseParen)?;
         self.eat_token(TokenType::Arrow)?;
         let result = self.parse_type()?;
+        let signature_span = self.span_from_parse_start(signature_start);
+        segment_spans.push(signature_span);
 
         Ok(self.intern_type(Type::FunctionPointer { parameters, result }))
     }

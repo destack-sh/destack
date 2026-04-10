@@ -1,3 +1,5 @@
+use destack_source::Span;
+
 use crate::{Constant, Intrinsic, LocalNodeId, MemoryRegionSet, Type};
 
 use super::error::{ParseError, ParseResult};
@@ -220,6 +222,34 @@ impl<'a> Parser<'a> {
         digits
             .parse()
             .map_err(|_| ParseError::invalid("integer", token.start))
+    }
+
+    /// Parse an integer literal and return its span.
+    pub(super) fn parse_int_literal_part(&mut self) -> ParseResult<(i64, Span)> {
+        let token = self.eat_token(TokenType::IntLiteral)?;
+        let token_start = token.start;
+        let token_text = token.text.to_string();
+        let token_length = token.text.len();
+        let span = self.span_at(token_start, token_length);
+
+        // strip type suffix and parse
+        let digits: String = token_text
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '-')
+            .collect();
+        let value = digits
+            .parse()
+            .map_err(|_| ParseError::invalid("integer", token_start))?;
+
+        Ok((value, span))
+    }
+
+    /// Parse an integer literal and append its span as one source segment.
+    pub(super) fn parse_int_segment(&mut self, segment_spans: &mut Vec<Span>) -> ParseResult<i64> {
+        let (value, span) = self.parse_int_literal_part()?;
+        segment_spans.push(span);
+
+        Ok(value)
     }
 
     /// Parse a primitive type from string.

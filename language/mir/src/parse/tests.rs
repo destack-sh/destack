@@ -1,6 +1,8 @@
 use crate::parse::{ParseOptions, Parser};
-use crate::{MirFormatOptions, TypeAlias, format_mir};
-use destack_source::FileId;
+use crate::{
+    Function, Global, Instruction, Local, MirFormatOptions, Terminator, TypeAlias, format_mir,
+};
+use destack_source::{DiagnosticSeverity, FileId, NodeSpanType, Span};
 
 /// Test parsing and re-formatting produces the same output.
 fn roundtrip(source: &str) {
@@ -250,6 +252,325 @@ b3(v3: int32):
     return v3
 }"#,
     );
+}
+
+/// Recovering parse returns partial MIR and shared diagnostics after a syntax error.
+#[test]
+fn test_parse_recovering_collects_diagnostics() {
+    let source = r#"
+function good(): void {
+b0:
+    return
+}
+
+global Broken int32 = 0int32
+
+function later(): void {
+b0:
+    return
+}
+"#;
+
+    let (tree, _, diagnostics) =
+        Parser::parse_recovering(FileId::new(0), source, ParseOptions::default());
+
+    // one parse error
+    assert_eq!(diagnostics.len(), 1);
+    assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
+    let diagnostics = diagnostics.iter();
+    let diagnostic = diagnostics.first().unwrap();
+    let length = diagnostic
+        .primary_span
+        .span
+        .end
+        .saturating_sub(diagnostic.primary_span.span.start);
+    assert_eq!(length, "int32".len() as u32);
+
+    // later items still parse
+    assert_eq!(tree.iter_nodes::<crate::Function>().count(), 2);
+}
+
+/// Recovering parse keeps later blocks after a broken instruction line.
+#[test]
+fn test_parse_recovering_keeps_later_blocks_after_instruction_error() {
+    let source = r#"
+function broken(): void {
+b0:
+    value0: int32 = int.add
+
+b1:
+    return
+}
+"#;
+
+    let (tree, _, diagnostics) =
+        Parser::parse_recovering(FileId::new(0), source, ParseOptions::default());
+    let (function_id, function) = tree.iter_nodes::<crate::Function>().next().unwrap();
+
+    // one parse error
+    assert_eq!(diagnostics.len(), 1);
+    assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
+
+    // later blocks still stay attached to the function
+    assert_eq!(function.blocks.len(), 2);
+
+    // broken blocks keep explicit recovery markers
+    let first_block = tree.get(function.blocks[0]);
+    assert!(matches!(first_block.terminator, Terminator::Error));
+    assert_eq!(first_block.instructions.len(), 1);
+    assert!(matches!(
+        tree.get(first_block.instructions[0]),
+        Instruction::Error
+    ));
+
+    // later blocks still parse normally
+    let second_block = tree.get(function.blocks[1]);
+    assert!(matches!(second_block.terminator, Terminator::Return { .. }));
+
+    let _ = function_id;
+}
+
+/// Recovering parse keeps later blocks after a broken terminator line.
+#[test]
+fn test_parse_recovering_keeps_later_blocks_after_terminator_error() {
+    let source = r#"
+function broken(): void {
+b0:
+    check
+
+b1:
+    return
+}
+"#;
+
+    let (tree, _, diagnostics) =
+        Parser::parse_recovering(FileId::new(0), source, ParseOptions::default());
+    let (_, function) = tree.iter_nodes::<crate::Function>().next().unwrap();
+
+    // one parse error
+    assert_eq!(diagnostics.len(), 1);
+    assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
+
+    // later blocks still stay attached to the function
+    assert_eq!(function.blocks.len(), 2);
+
+    // broken terminators become explicit recovery markers
+    let first_block = tree.get(function.blocks[0]);
+    assert!(matches!(first_block.terminator, Terminator::Error));
+
+    // later blocks still parse normally
+    let second_block = tree.get(function.blocks[1]);
+    assert!(matches!(second_block.terminator, Terminator::Return { .. }));
+}
+
+/// Parsed MIR records main spans for item and block names.
+#[test]
+fn test_parse_records_main_spans_for_named_nodes() {
+    let source = r#"
+type Callable = closure() -> void
+
+global Count: int32, readonly = 1int32
+
+function use(): void {
+entry0:
+    return
+}
+"#;
+
+    let (tree, _) =
+        Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("parse failed");
+
+    let (type_alias_id, _) = tree.iter_nodes::<TypeAlias>().next().unwrap();
+    let (global_id, _) = tree.iter_nodes::<Global>().next().unwrap();
+    let (function_id, function) = tree.iter_nodes::<Function>().next().unwrap();
+    let block_id = function.blocks[0];
+
+    // item names
+    assert_eq!(
+        tree.get_main_span(type_alias_id),
+        Some(span_for_text(source, "Callable"))
+    );
+    assert_eq!(
+        tree.get_main_span(global_id),
+        Some(span_for_text(source, "Count"))
+    );
+    assert_eq!(
+        tree.get_main_span(function_id),
+        Some(span_for_text(source, "use"))
+    );
+
+    // block label
+    assert_eq!(
+        tree.get_main_span(block_id),
+        Some(span_for_text(source, "entry0"))
+    );
+
+    // item type spans
+    assert_eq!(
+        tree.get_side_span(type_alias_id, NodeSpanType::Type),
+        Some(span_for_text(source, "closure() -> void"))
+    );
+    assert_eq!(
+        tree.get_side_span(global_id, NodeSpanType::Type),
+        Some(span_for_text_in(
+            source,
+            "global Count: int32, readonly = 1int32",
+            "int32"
+        ))
+    );
+    assert_eq!(
+        tree.get_side_span(function_id, NodeSpanType::Type),
+        Some(span_for_text(source, "(): void"))
+    );
+
+    // enclosing nodes
+    assert_eq!(
+        tree.get_span(type_alias_id),
+        Some(span_for_text(source, "type Callable = closure() -> void"))
+    );
+    assert_eq!(
+        tree.get_span(global_id),
+        Some(span_for_text(
+            source,
+            "global Count: int32, readonly = 1int32"
+        ))
+    );
+    assert_eq!(
+        tree.get_span(function_id),
+        Some(span_for_text(
+            source,
+            "function use(): void {\nentry0:\n    return\n}"
+        ))
+    );
+    assert_eq!(
+        tree.get_span(block_id),
+        Some(span_for_text(source, "entry0:\n    return"))
+    );
+}
+
+/// Parsed MIR records instruction ownership and side spans.
+#[test]
+fn test_parse_records_instruction_spans() {
+    let source = r#"
+function use(input0: int32): int32 {
+entry0(input0: int32):
+    result1: int32 = int.add input0, input0
+    return result1
+}
+"#;
+
+    let (tree, _) =
+        Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("parse failed");
+
+    let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
+    let block = tree.get(function.blocks[0]);
+    let instruction_id = block.instructions[0];
+
+    // instruction ownership
+    assert_eq!(
+        tree.get_span(instruction_id),
+        Some(span_for_text(
+            source,
+            "result1: int32 = int.add input0, input0"
+        ))
+    );
+
+    // instruction side spans
+    assert_eq!(
+        tree.get_main_span(instruction_id),
+        Some(span_for_text(source, "result1"))
+    );
+    assert_eq!(
+        tree.get_side_span(instruction_id, NodeSpanType::Type),
+        Some(span_for_text_in(
+            source,
+            "result1: int32 = int.add input0, input0",
+            "int32"
+        ))
+    );
+    assert_eq!(
+        tree.get_side_span(instruction_id, NodeSpanType::Segment(0)),
+        Some(span_for_text_in(
+            source,
+            "result1: int32 = int.add input0, input0",
+            "int.add"
+        ))
+    );
+    assert_eq!(
+        tree.get_side_span(instruction_id, NodeSpanType::Segment(1)),
+        Some(span_for_text_in(
+            source,
+            "result1: int32 = int.add input0, input0",
+            "input0"
+        ))
+    );
+    assert_eq!(
+        tree.get_side_span(instruction_id, NodeSpanType::Segment(2)),
+        Some(span_for_text_in_after(
+            source,
+            "result1: int32 = int.add input0, input0",
+            "input0",
+            1
+        ))
+    );
+}
+
+/// Parsed MIR records local declaration spans.
+#[test]
+fn test_parse_records_local_spans() {
+    let source = r#"
+function use(): void {
+    local local0: int32
+
+entry0:
+    return
+}
+"#;
+
+    let (tree, _) =
+        Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("parse failed");
+    let (local_id, _) = tree.iter_nodes::<Local>().next().unwrap();
+
+    // local declaration
+    assert_eq!(
+        tree.get_span(local_id),
+        Some(span_for_text(source, "local local0: int32"))
+    );
+    assert_eq!(
+        tree.get_main_span(local_id),
+        Some(span_for_text(source, "local0"))
+    );
+    assert_eq!(
+        tree.get_side_span(local_id, NodeSpanType::Type),
+        Some(span_for_text_in(source, "local local0: int32", "int32"))
+    );
+}
+
+fn span_for_text(source: &str, text: &str) -> Span {
+    let start = source.find(text).unwrap() as u32;
+    Span::at(FileId::new(0), start, text.len() as u32)
+}
+
+fn span_for_text_in(source: &str, scope: &str, text: &str) -> Span {
+    let scope_start = source.find(scope).unwrap();
+    let text_start = scope.find(text).unwrap();
+    let start = (scope_start + text_start) as u32;
+    Span::at(FileId::new(0), start, text.len() as u32)
+}
+
+fn span_for_text_in_after(source: &str, scope: &str, text: &str, occurrence: usize) -> Span {
+    let scope_start = source.find(scope).unwrap();
+    let mut from = 0usize;
+    let mut local_start = None;
+
+    for _ in 0..=occurrence {
+        let next = scope[from..].find(text).unwrap();
+        local_start = Some(from + next);
+        from = from + next + text.len();
+    }
+
+    let start = (scope_start + local_start.unwrap()) as u32;
+    Span::at(FileId::new(0), start, text.len() as u32)
 }
 
 /// Roundtrip parsing supports check terminators and assume instructions.
