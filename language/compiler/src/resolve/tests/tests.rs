@@ -1,5 +1,6 @@
 use destack_artifact::{EmitFormat, Runtime};
 use destack_source::ModuleId;
+use destack_workspace::Profile;
 
 pub(super) use crate::{TestProgram, assert_node, assert_string};
 
@@ -18,7 +19,7 @@ impl TestProgram {
         key.runtime = runtime;
         key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
 
-        let profile_id = self.compiler.remember_profile_key(key);
+        let profile_id = Profile::id_for_key(&key);
         self.default_profile_override = Some(profile_id);
     }
 

@@ -31,13 +31,10 @@ use destack_source::{
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
-    AmbientSnapshot, BoundsCheckPolicy, BoundsCheckPolicy, BundleFormat, BundleFormat, BundleMode,
-    BundleMode, CacheMode, CacheMode, Change, Change, CheckFailurePolicy, CheckFailurePolicy,
-    DivisionCheckPolicy, DivisionCheckPolicy, Edit, Edit, EsTarget, EsTarget, Module, Module,
-    Package, Package, Profile, Profile, ProfileId, ProfileId, Ref, Ref, Repository, Repository,
-    Revision, Revision, ShiftCheckPolicy, ShiftCheckPolicy, SourceMapMode, SourceMapMode, Target,
-    Target, TargetDiscovery, TargetDiscovery, TargetGeneratedCodeOptions,
-    TargetGeneratedCodeOptions, TargetGeneratedCodePreset, TargetGeneratedCodePreset,
+    AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
+    CheckFailurePolicy, DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId,
+    Ref, Repository, Revision, ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery,
+    TargetGeneratedCodeOptions, TargetGeneratedCodePreset,
 };
 use serde_json::{Value as JsonValue, json};
 
@@ -1689,8 +1686,7 @@ impl TestProgram {
         name: &str,
         configure: impl FnOnce(&mut Target),
     ) {
-        let module_ref = self.program.module_descriptor(module);
-        let package_id = module_ref.package_id;
+        let package_id = module.package_id;
         let target_id = self.target_id(package_id, name);
         let target = self
             .program
@@ -1721,8 +1717,7 @@ impl TestProgram {
 
     /// Enqueue Lower task for a module.
     pub fn lower_module(&self, module: ModuleId, target: &str) {
-        let module_ref = self.program.module_descriptor(module);
-        let package_id = module_ref.package_id;
+        let package_id = module.package_id;
         let target_id = self.target_id(package_id, target);
         self.add_target(module, target);
 
@@ -1755,8 +1750,7 @@ impl TestProgram {
 
     /// Enqueue Optimize task for a module.
     pub fn optimize_module(&self, module: ModuleId, target: &str) {
-        let module_ref = self.program.module_descriptor(module);
-        let package_id = module_ref.package_id;
+        let package_id = module.package_id;
         let target_id = self.target_id(package_id, target);
         let profile = self
             .program
