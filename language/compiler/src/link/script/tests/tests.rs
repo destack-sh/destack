@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::compile::TaskPhase;
+use crate::compile::CompilePhase;
 use crate::link::{OutputId, ScriptLinker};
 
 use super::super::plan::OutputKind;
@@ -429,7 +429,7 @@ impl TestProgram {
         self.run(ArtifactKey::package_output(package_id, target_id));
 
         // linker tests should stay free of linker phase diagnostics
-        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
+        self.check_no_diagnostics_for_phases(&[CompilePhase::Link]);
 
         let output = self.package_output(package_id, name);
 
@@ -534,7 +534,7 @@ impl TestProgram {
         self.run(ArtifactKey::package_output(package_id, target_id));
 
         // linker tests should stay free of linker phase diagnostics
-        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
+        self.check_no_diagnostics_for_phases(&[CompilePhase::Link]);
 
         let output = self.package_output(package_id, name);
         self.linked_script_target(package_id, &output)
@@ -558,7 +558,7 @@ impl TestProgram {
         self.run(ArtifactKey::package_output(package_id, target_id));
 
         // linker tests should stay free of linker phase diagnostics
-        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
+        self.check_no_diagnostics_for_phases(&[CompilePhase::Link]);
 
         self.package_output(package_id, name)
     }
@@ -597,7 +597,7 @@ impl TestProgram {
         self.run(ArtifactKey::package_output(package_id, target_id.clone()));
 
         // linker tests should stay free of linker phase diagnostics
-        self.check_no_diagnostics_for_phases(&[TaskPhase::Link]);
+        self.check_no_diagnostics_for_phases(&[CompilePhase::Link]);
 
         let package = self.program.package_descriptor(package_id);
         let package_dir = package

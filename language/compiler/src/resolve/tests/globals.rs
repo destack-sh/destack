@@ -350,7 +350,7 @@ fn test_select_global_symbol_table_uses_profile_target_without_default() {
         .select_global_symbol_table(test.current_revision(), module_id, js_profile)
         .expect("expected profile target selection to avoid default-target error");
 
-    assert_eq!(roots, vec![module_id]);
+    assert_eq!(roots, vec![module_id].into());
 }
 
 /// Report an explicit error when multiple targets map to the same profile.
@@ -420,7 +420,7 @@ fn test_select_global_symbol_table_prefers_default_target_with_ambiguous_profile
         .select_global_symbol_table(test.current_revision(), module_id, js_profile)
         .expect("expected default target to disambiguate profile matches");
 
-    assert_eq!(roots, vec![module_id]);
+    assert_eq!(roots, vec![module_id].into());
 }
 
 /// Error when default target does not belong to the matching profile target set.
