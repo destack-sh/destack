@@ -49,7 +49,7 @@ fn test_validate_rejects_local_not_in_function() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -460,7 +460,7 @@ fn test_reject_duplicate_instruction_id() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction, assume, assume],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -475,6 +475,41 @@ fn test_reject_duplicate_instruction_id() {
         .validate_function(function_id)
         .expect_err("expected validation failure");
     let expected = format!("duplicate instruction id inst{}", assume.id);
+    assert_eq!(error.to_string(), expected);
+}
+
+/// Reject duplicate terminator ids within a function.
+#[test]
+fn test_reject_duplicate_terminator_id() {
+    let mut tree = NodeTree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("dup_terminator");
+
+    let void_type = tree.insert_type(Type::Void);
+    let shared_terminator = tree.insert(Terminator::Return { value: None });
+    let entry_block = tree.insert(Block {
+        name: None,
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: shared_terminator,
+    });
+    let second_block = tree.insert(Block {
+        name: None,
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: shared_terminator,
+    });
+
+    let mut function = Function::local(name, Vec::new(), void_type, entry_block);
+    function.blocks = vec![entry_block, second_block];
+    function.entry = Some(entry_block);
+    let function_id = tree.insert(function);
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
+    let expected = format!("duplicate terminator id term{}", shared_terminator.id);
     assert_eq!(error.to_string(), expected);
 }
 
@@ -494,11 +529,12 @@ fn test_reject_debug_binding_empty_range() {
         destination: Value::new(0),
         value: Constant::int32(1),
     });
+    let terminator_id = tree.insert(Terminator::Return { value: None });
     let block_id = tree.insert(Block {
         name: Some(pool.intern("entry0")),
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: terminator_id,
     });
 
     let mut function = Function::local(name, Vec::new(), void_type, block_id);
@@ -588,7 +624,7 @@ fn test_reject_duplicate_local_id() {
         name: None,
         parameters: Vec::new(),
         instructions: Vec::new(),
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -614,11 +650,12 @@ fn test_reject_function_return_type_wrong_node_kind() {
     let name = pool.intern("bad_return_type");
 
     let void_type = tree.insert_type(Type::Void);
+    let terminator_id = tree.insert(Terminator::Return { value: None });
     let block_id = tree.insert(Block {
         name: None,
         parameters: Vec::new(),
         instructions: Vec::new(),
-        terminator: Terminator::Return { value: None },
+        terminator: terminator_id,
     });
 
     let mut function = Function::local(name, Vec::new(), void_type, block_id);
@@ -648,11 +685,12 @@ fn test_reject_function_environment_type_wrong_node_kind() {
     let name = pool.intern("bad_environment_type");
 
     let void_type = tree.insert_type(Type::Void);
+    let terminator_id = tree.insert(Terminator::Return { value: None });
     let block_id = tree.insert(Block {
         name: None,
         parameters: Vec::new(),
         instructions: Vec::new(),
-        terminator: Terminator::Return { value: None },
+        terminator: terminator_id,
     });
 
     let mut function = Function::local(name, Vec::new(), void_type, block_id);
@@ -698,7 +736,7 @@ fn test_reject_argument_slice_out_of_bounds() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -744,7 +782,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -795,7 +833,7 @@ fn test_reject_pure_effect_with_suspend() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -846,7 +884,7 @@ fn test_reject_pure_effect_with_unwind() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -1084,7 +1122,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
@@ -1134,7 +1172,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
         name: None,
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: Terminator::Return { value: None },
+        terminator: tree.insert(Terminator::Return { value: None }),
     };
     let block_id = tree.insert(block);
 
