@@ -729,7 +729,7 @@ impl AssignOperator {
     }
 }
 
-/// An InfixOperator is an umbrella for either a binary or assignment operator.
+/// An infix operator umbrella for binary, type-binary, and assignment operators.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InfixOperator {
     /// A binary operator.
