@@ -16,7 +16,9 @@ pub struct TypeMappedParameter {
 /// A type modifier for mapped types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeModifier {
-    /// Add a modifier (like `readonly` or `?`).
+    /// The plain modifier without an explicit sign.
+    Present,
+    /// Add a modifier with an explicit `+` sign.
     Add,
     /// Remove a modifier (like `-readonly` or `-?`).
     Remove,

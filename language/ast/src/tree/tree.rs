@@ -382,6 +382,21 @@ impl NodeTree {
         self.source_map.get_main(node_id)
     }
 
+    /// Get the semantic head span for a node.
+    #[inline]
+    pub fn get_head_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_side(node_id.id, NodeSpanType::Head)
+    }
+
+    /// Get the semantic head span for a node by its id.
+    #[inline]
+    pub fn get_head_span_by_id(&self, node_id: u32) -> Option<Span> {
+        self.source_map.get_side(node_id, NodeSpanType::Head)
+    }
+
     /// Set the main span for a node (identifier span for declarations, etc).
     #[inline]
     pub fn set_main_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
@@ -389,6 +404,16 @@ impl NodeTree {
         T: Node,
     {
         self.source_map.set_main(node_id.id, span);
+    }
+
+    /// Set the semantic head span for a node.
+    #[inline]
+    pub fn set_head_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map
+            .set_side(node_id.id, NodeSpanType::Head, span);
     }
 
     /// Set a side span for a node.
