@@ -258,9 +258,10 @@ fn run_loop_versioning(
 
         // remap cloned terminators to cloned blocks
         for &cloned_id in block_map.values() {
-            let mut block = tree.get(cloned_id).clone();
-            terminator_remap(&mut block.terminator, &block_map, &value_map);
-            tree.replace(cloned_id, block);
+            let block = tree.get(cloned_id);
+            let mut terminator = tree.get(block.terminator).clone();
+            terminator_remap(&mut terminator, &block_map, &value_map);
+            tree.replace(block.terminator, terminator);
         }
 
         // remove bounds checks in the cloned loop
@@ -279,13 +280,14 @@ fn run_loop_versioning(
         let mut preheader_block = tree.get(preheader).clone();
         preheader_block.instructions.extend(guard_instructions);
         preheader_block.instructions.push(fast_guard);
-        preheader_block.terminator = mir::Terminator::Branch {
+        let preheader_terminator = mir::Terminator::Branch {
             condition: tree.get(fast_guard).destination().unwrap(),
             then_target: fast_header,
             then_arguments: preheader_args.clone(),
             else_target: header,
             else_arguments: preheader_args.clone(),
         };
+        tree.replace(preheader_block.terminator, preheader_terminator);
         tree.replace(preheader, preheader_block);
 
         // append cloned blocks
@@ -324,7 +326,8 @@ fn find_preheader(
     // confirm the predecessor jumps directly to the header
     let preheader = outside_preds.pop()?;
     let preheader_block = tree.get(preheader);
-    let arguments = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let arguments = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
         _ => return None,
     };
@@ -341,12 +344,13 @@ fn guard_from_header(
 ) -> Option<GuardInfo> {
     // read the header terminator
     let header_block = tree.get(header);
+    let header_terminator = tree.get(header_block.terminator);
     let mir::Terminator::Branch {
         condition,
         then_target,
         else_target: _,
         ..
-    } = &header_block.terminator
+    } = header_terminator
     else {
         return None;
     };
@@ -426,7 +430,8 @@ fn bounds_check_in_loop(
     // scan loop blocks for a matching bounds check
     for &block_id in &lp.blocks {
         let block = tree.get(block_id);
-        let mir::Terminator::Check { constraint, .. } = &block.terminator else {
+        let terminator = tree.get(block.terminator);
+        let mir::Terminator::Check { constraint, .. } = terminator else {
             continue;
         };
 
@@ -487,7 +492,8 @@ fn insert_preheader_guard(
 ) -> Option<mir::LocalNodeId<mir::Instruction>> {
     // verify the preheader still jumps to the header
     let preheader_block = tree.get(preheader);
-    let target_args = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let target_args = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
         _ => return None,
     };
@@ -586,13 +592,14 @@ fn strip_bounds_checks(
 ) {
     // strip matching bounds checks in cloned blocks
     for &cloned_id in block_map.values() {
-        let mut block = tree.get(cloned_id).clone();
+        let block = tree.get(cloned_id).clone();
+        let terminator = tree.get(block.terminator).clone();
         let mir::Terminator::Check {
             constraint,
             success,
             failure: _,
             ..
-        } = &block.terminator
+        } = &terminator
         else {
             continue;
         };
@@ -614,10 +621,11 @@ fn strip_bounds_checks(
         }
 
         // replace the check with the success edge
-        block.terminator = mir::Terminator::Jump {
+        let new_terminator = mir::Terminator::Jump {
             target: success.target,
             arguments: success.arguments.clone(),
         };
+        tree.replace(block.terminator, new_terminator);
         tree.replace(cloned_id, block);
     }
 }

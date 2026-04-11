@@ -394,7 +394,8 @@ impl ReachabilityCache {
 
                 // enqueue successors for traversal
                 let block = tree.get(block_id);
-                for successor in block.terminator.successors() {
+                let terminator = tree.get(block.terminator);
+                for successor in terminator.successors() {
                     if visited.contains(&successor) {
                         continue;
                     }
@@ -432,7 +433,8 @@ struct BoundsCheckCandidate {
 fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::NodeTree) -> bool {
     // only accept blocks that end in one fatal trap
     let block = tree.get(block_id);
-    block.instructions.is_empty() && matches!(block.terminator, mir::Terminator::Trap { .. })
+    let terminator = tree.get(block.terminator);
+    block.instructions.is_empty() && matches!(terminator, mir::Terminator::Trap { .. })
 }
 
 /// Replace a block's terminator with a jump.
@@ -443,11 +445,12 @@ fn replace_terminator_with_jump(
     arguments: &[mir::Value],
 ) {
     // overwrite the terminator with a jump
-    let block = tree.get_mut(block_id);
-    block.terminator = mir::Terminator::Jump {
+    let block = tree.get(block_id);
+    let terminator = mir::Terminator::Jump {
         target,
         arguments: arguments.to_vec(),
     };
+    tree.replace(block.terminator, terminator);
 }
 
 /// Extract a bounds check candidate from a block terminator.
@@ -456,7 +459,8 @@ fn bounds_check_candidate(
     tree: &mir::NodeTree,
 ) -> Option<BoundsCheckCandidate> {
     // inspect the terminator for check patterns
-    let terminator = tree.get(block_id).terminator.clone();
+    let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator).clone();
     match terminator {
         mir::Terminator::Branch {
             condition,
@@ -639,7 +643,8 @@ fn constraints_for_edge(
     reachability: &mut ReachabilityCache,
 ) -> Vec<BoundsConstraint> {
     // derive truth value for this edge
-    let terminator = &tree.get(block_id).terminator;
+    let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator);
     match terminator {
         mir::Terminator::Branch {
             condition,

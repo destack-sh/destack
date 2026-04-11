@@ -108,7 +108,8 @@ fn run_loop_simplify(
                     .iter()
                     .filter(|&&eb| {
                         let block = tree.get(eb);
-                        block.terminator.successors().contains(&exit_block)
+                        let terminator = tree.get(block.terminator);
+                        terminator.successors().contains(&exit_block)
                     })
                     .copied()
                     .collect();
@@ -230,7 +231,8 @@ fn needs_preheader(
     if outside_preds.len() == 1 {
         let pred = *outside_preds[0];
         let pred_block = tree.get(pred);
-        if pred_block.terminator.successors().len() > 1 {
+        let pred_terminator = tree.get(pred_block.terminator);
+        if pred_terminator.successors().len() > 1 {
             return true;
         }
     }
@@ -278,14 +280,15 @@ fn insert_preheader(
 
     // preheader unconditionally jumps to header, forwarding its parameters
     let preheader_args: Vec<mir::Value> = preheader_params.iter().map(|p| p.value).collect();
+    let preheader_terminator = tree.insert(mir::Terminator::Jump {
+        target: header,
+        arguments: preheader_args,
+    });
     let preheader = mir::Block {
         name: None,
         parameters: preheader_params.clone(),
         instructions: vec![],
-        terminator: mir::Terminator::Jump {
-            target: header,
-            arguments: preheader_args,
-        },
+        terminator: preheader_terminator,
     };
     let preheader_id = tree.insert(preheader);
     function.blocks.push(preheader_id);
@@ -299,8 +302,9 @@ fn insert_preheader(
         }
 
         let block = tree.get(block_id);
-        if let Some(new_terminator) = redirect_terminator(&block.terminator, header, preheader_id) {
-            tree.get_mut(block_id).terminator = new_terminator;
+        let terminator = tree.get(block.terminator);
+        if let Some(new_terminator) = redirect_terminator(terminator, header, preheader_id) {
+            tree.replace(block.terminator, new_terminator);
             redirected = true;
         }
     }
@@ -487,14 +491,15 @@ fn merge_latches(
 
     // merged latch jumps to header, forwarding its parameters
     let latch_args: Vec<mir::Value> = latch_params.iter().map(|p| p.value).collect();
+    let latch_terminator = tree.insert(mir::Terminator::Jump {
+        target: header,
+        arguments: latch_args,
+    });
     let new_latch = mir::Block {
         name: None,
         parameters: latch_params,
         instructions: vec![],
-        terminator: mir::Terminator::Jump {
-            target: header,
-            arguments: latch_args,
-        },
+        terminator: latch_terminator,
     };
     let new_latch_id = tree.insert(new_latch);
     function.blocks.push(new_latch_id);
@@ -502,10 +507,9 @@ fn merge_latches(
     // redirect all original latches to the new merged latch
     for &latch_id in latches {
         let latch_block = tree.get(latch_id);
-        if let Some(new_terminator) =
-            redirect_terminator(&latch_block.terminator, header, new_latch_id)
-        {
-            tree.get_mut(latch_id).terminator = new_terminator;
+        let latch_terminator = tree.get(latch_block.terminator);
+        if let Some(new_terminator) = redirect_terminator(latch_terminator, header, new_latch_id) {
+            tree.replace(latch_block.terminator, new_terminator);
         }
     }
 
@@ -543,14 +547,15 @@ fn insert_dedicated_exit(
 
     // dedicated exit jumps to original exit, forwarding its parameters
     let dedicated_args: Vec<mir::Value> = dedicated_params.iter().map(|p| p.value).collect();
+    let dedicated_terminator = tree.insert(mir::Terminator::Jump {
+        target: exit_block,
+        arguments: dedicated_args,
+    });
     let dedicated_exit = mir::Block {
         name: None,
         parameters: dedicated_params,
         instructions: vec![],
-        terminator: mir::Terminator::Jump {
-            target: exit_block,
-            arguments: dedicated_args,
-        },
+        terminator: dedicated_terminator,
     };
     let dedicated_id = tree.insert(dedicated_exit);
     function.blocks.push(dedicated_id);
@@ -559,10 +564,11 @@ fn insert_dedicated_exit(
     let mut redirected = false;
     for &exiting_id in exiting_blocks {
         let exiting_block = tree.get(exiting_id);
+        let exiting_terminator = tree.get(exiting_block.terminator);
         if let Some(new_terminator) =
-            redirect_terminator(&exiting_block.terminator, exit_block, dedicated_id)
+            redirect_terminator(exiting_terminator, exit_block, dedicated_id)
         {
-            tree.get_mut(exiting_id).terminator = new_terminator;
+            tree.replace(exiting_block.terminator, new_terminator);
             redirected = true;
         }
     }

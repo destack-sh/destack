@@ -338,10 +338,11 @@ fn compute_local_liveness(
         // update blocks in reverse order for faster convergence
         for &block_id in function.blocks.iter().rev() {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
 
             // live_out is union of successor live_in sets
             let mut new_live_out: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
-            for successor in block.terminator.successors() {
+            for successor in terminator.successors() {
                 if let Some(successor_live_in) = live_in.get(&successor) {
                     new_live_out.extend(successor_live_in.iter().copied());
                 }
@@ -487,17 +488,18 @@ fn rename_variables(
 
         // update terminator to pass block arguments to successors
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator).clone();
         let new_terminator = update_terminator_arguments(
-            &block.terminator,
+            &terminator,
             block_id,
             block_params,
             &value_stacks,
             &substitutions,
         );
 
-        if new_terminator != block.terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
+        if new_terminator != terminator {
+            let new_block = block.clone();
+            tree.replace(block.terminator, new_terminator);
             tree.replace(block_id, new_block);
         }
 
@@ -535,10 +537,11 @@ fn rename_variables(
 
         // apply substitutions to terminator
         let block = tree.get(block_id);
-        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
-        if new_terminator != block.terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
+        let terminator = tree.get(block.terminator).clone();
+        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
+        if new_terminator != terminator {
+            let new_block = block.clone();
+            tree.replace(block.terminator, new_terminator);
             tree.replace(block_id, new_block);
         }
     }
@@ -585,6 +588,9 @@ fn update_terminator_arguments(
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> Terminator {
     match terminator {
+        Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         Terminator::Jump { target, arguments } => {
             let new_args = extend_arguments(
                 *target,

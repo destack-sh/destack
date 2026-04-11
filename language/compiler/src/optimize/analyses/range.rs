@@ -420,7 +420,8 @@ impl RangeAnalysis {
 
                     // add successors to worklist
                     let block = tree.get(block_id);
-                    for succ in block.terminator.successors() {
+                    let terminator = tree.get(block.terminator);
+                    for succ in terminator.successors() {
                         if !in_worklist.contains(&succ) {
                             worklist.push_back(succ);
                             in_worklist.insert(succ);
@@ -542,10 +543,9 @@ fn resolve_block_param_ranges(
         };
 
         // collect arguments for this edge
-        let args = match terminator_arguments_for_successor_checked(
-            &tree.get(pred).terminator,
-            block_id,
-        ) {
+        let pred_block = tree.get(pred);
+        let pred_terminator = tree.get(pred_block.terminator);
+        let args = match terminator_arguments_for_successor_checked(pred_terminator, block_id) {
             SuccessorArguments::Missing => continue,
             SuccessorArguments::Conflict => {
                 states.fill(ParamRangeState::Overdefined);

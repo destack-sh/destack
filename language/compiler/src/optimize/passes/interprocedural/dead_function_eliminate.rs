@@ -214,8 +214,8 @@ fn unknown_call_constraints(
             }
         }
 
-        if let Some(constraint) = call_constraint_from_terminator(tree, block_id, &block.terminator)
-        {
+        let terminator = tree.get(block.terminator);
+        if let Some(constraint) = call_constraint_from_terminator(tree, block_id, terminator) {
             constraints.push(constraint);
         }
     }

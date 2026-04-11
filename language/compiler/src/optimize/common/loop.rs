@@ -43,13 +43,14 @@ pub fn loop_guard_branch(
 ) -> Option<LoopGuardBranch> {
     // read the header terminator
     let header_block = tree.get(header);
+    let header_terminator = tree.get(header_block.terminator);
     let mir::Terminator::Branch {
         then_target,
         then_arguments,
         else_target,
         else_arguments,
         ..
-    } = &header_block.terminator
+    } = header_terminator
     else {
         return None;
     };
@@ -150,7 +151,8 @@ pub fn loop_preheader(
 
     // read the preheader terminator
     let preheader_block = tree.get(preheader);
-    let arguments = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let arguments = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
         _ => return None,
     };
@@ -173,10 +175,12 @@ pub fn control_instructions_for_latch(
         let instruction = tree.get(*instruction_id);
         control_values.extend(instruction.uses());
     }
-    control_values.extend(terminator_used_values(&header_block.terminator));
+    let header_terminator = tree.get(header_block.terminator);
+    control_values.extend(terminator_used_values(header_terminator));
 
     let latch_block = tree.get(latch);
-    if let mir::Terminator::Jump { arguments, .. } = &latch_block.terminator {
+    let latch_terminator = tree.get(latch_block.terminator);
+    if let mir::Terminator::Jump { arguments, .. } = latch_terminator {
         control_values.extend(arguments.iter().copied());
     }
 

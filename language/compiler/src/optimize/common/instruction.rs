@@ -24,6 +24,10 @@ fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir
 pub fn instruction_is_pure(instruction: &Instruction) -> bool {
     // classify instructions by purity
     match instruction {
+        Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
+
         // pure computations
         Instruction::Const { .. }
         | Instruction::Binary { .. }
@@ -187,6 +191,10 @@ pub fn instruction_is_borrow_address(instruction: &Instruction) -> bool {
 pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
     // classify instructions by side effects
     match instruction {
+        Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
+
         // pure computations, no side effects
         Instruction::Const { .. }
         | Instruction::Binary { .. }
@@ -416,6 +424,7 @@ pub fn instruction_collect_used_values(
     // scan blocks for instruction and terminator uses
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // collect uses from instructions
         for &instruction_id in &block.instructions {
@@ -435,7 +444,7 @@ pub fn instruction_collect_used_values(
         }
 
         // collect uses from terminator
-        for value in block.terminator.uses() {
+        for value in terminator.uses() {
             used.insert(value);
         }
     }
@@ -461,6 +470,9 @@ pub fn instruction_substitute_uses(
 
     // rebuild the instruction with substituted operands
     match instruction {
+        mir::Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
         mir::Instruction::Binary {
             destination,
             operator,
@@ -1598,7 +1610,8 @@ pub fn apply_substitutions_in_function(
         // snapshot block contents
         let block = tree.get(block_id).clone();
         let instruction_ids = block.instructions.clone();
-        let terminator = block.terminator.clone();
+        let terminator_id = block.terminator;
+        let terminator = tree.get(terminator_id).clone();
 
         // rebuild instructions with substitutions and removals
         let mut new_instructions = Vec::with_capacity(instruction_ids.len());
@@ -1635,8 +1648,8 @@ pub fn apply_substitutions_in_function(
         if new_instructions.len() != block.instructions.len() || new_terminator != terminator {
             let mut new_block = block;
             new_block.instructions = new_instructions;
-            new_block.terminator = new_terminator;
             tree.replace(block_id, new_block);
+            tree.replace(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -1694,7 +1707,8 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
         }
 
         // terminator uses
-        for use_value in block.terminator.uses() {
+        let terminator = tree.get(block.terminator);
+        for use_value in terminator.uses() {
             use_blocks.entry(use_value).or_default().push(block_id);
         }
     }
@@ -1944,6 +1958,9 @@ pub fn instruction_map(
 
     // rebuild the instruction with remapped values
     match instruction {
+        mir::Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
             value: value.clone(),
@@ -2663,6 +2680,9 @@ pub fn instruction_map_with_locals(
 
     // remap each instruction variant
     match instruction {
+        mir::Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
             value: value.clone(),
@@ -3396,6 +3416,9 @@ pub fn terminator_remap(
 
     // remap terminator fields
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Jump { target, arguments } => {
             remap_target(target);
             remap_args(arguments);

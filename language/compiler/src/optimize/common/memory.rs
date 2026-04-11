@@ -158,7 +158,11 @@ pub fn collect_non_escaping_stack_allocs(
         }
 
         // scan terminators for escaping values
-        match &block.terminator {
+        let terminator = tree.get(block.terminator);
+        match terminator {
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached optimizer");
+            }
             mir::Terminator::Return { value: Some(value) } => {
                 record_stack_escape(
                     *value,
@@ -540,8 +544,9 @@ pub(crate) fn collect_block_param_defs(
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
-        match &block.terminator {
+        match terminator {
             mir::Terminator::Jump { target, arguments } => {
                 add_param_defs(&mut defs, *target, arguments, tree);
             }

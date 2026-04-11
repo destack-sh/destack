@@ -13,6 +13,9 @@ use crate::optimize::common::{
 /// This includes branch conditions, return values, and block arguments.
 pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
     match term {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Return { value: Some(v) } => *v == value,
         mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => false,
         mir::Terminator::Jump { arguments, .. } => arguments.contains(&value),
@@ -110,6 +113,9 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
 /// conditions, return values, and block arguments.
 pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
     match term {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Return { value: Some(v) } => vec![*v],
         mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => vec![],
         mir::Terminator::Jump { arguments, .. } => arguments.clone(),
@@ -348,7 +354,8 @@ pub fn collect_reachable_blocks(
     // bfs over successors
     while let Some(block) = worklist.pop_front() {
         let block_data = tree.get(block);
-        for successor in block_data.terminator.successors() {
+        let terminator = tree.get(block_data.terminator);
+        for successor in terminator.successors() {
             if visited.insert(successor) {
                 worklist.push_back(successor);
             }
@@ -433,11 +440,12 @@ pub fn append_successor_arguments(
     successor: mir::LocalNodeId<mir::Block>,
     extra_args: &[mir::Value],
 ) {
-    // clone the block for terminator updates
-    let mut block = tree.get(block_id).clone();
+    // clone the terminator for updates
+    let terminator_id = tree.get(block_id).terminator;
+    let terminator = tree.get(terminator_id).clone();
 
     // compute an updated terminator when this edge targets the successor
-    let new_terminator = match &mut block.terminator {
+    let new_terminator = match &terminator {
         mir::Terminator::Jump { target, arguments } if *target == successor => {
             let mut new_args = arguments.clone();
             new_args.extend(extra_args.iter().copied());
@@ -542,13 +550,12 @@ pub fn append_successor_arguments(
                 resume_arguments: new_resume,
             }
         }
-        _ => block.terminator.clone(),
+        _ => terminator.clone(),
     };
 
     // write back only when arguments changed
-    if new_terminator != block.terminator {
-        block.terminator = new_terminator;
-        tree.replace(block_id, block);
+    if new_terminator != terminator {
+        tree.replace(terminator_id, new_terminator);
     }
 }
 
@@ -570,7 +577,8 @@ pub fn ensure_edge_block(
 ) -> mir::LocalNodeId<mir::Block> {
     // skip edges that do not require splitting
     let pred_block = tree.get(predecessor);
-    let pred_multi = successor_count(pred_block) > 1;
+    let pred_terminator = tree.get(pred_block.terminator);
+    let pred_multi = successor_count(pred_terminator) > 1;
     let succ_multi = cfg.predecessors(successor).len() > 1;
     let should_split = match policy {
         EdgeSplitPolicy::CriticalOnly => pred_multi && succ_multi,
@@ -586,17 +594,17 @@ pub fn ensure_edge_block(
     }
 
     // extract the successor arguments for this edge
-    let args = match terminator_arguments_for_successor_checked(&pred_block.terminator, successor) {
+    let args = match terminator_arguments_for_successor_checked(pred_terminator, successor) {
         SuccessorArguments::Consistent(args) => args.to_vec(),
         _ => return predecessor,
     };
 
     // build the new edge block
-    let mut edge_block = mir::Block::new();
-    edge_block.terminator = mir::Terminator::Jump {
+    let edge_terminator = tree.insert(mir::Terminator::Jump {
         target: successor,
         arguments: args,
-    };
+    });
+    let edge_block = mir::Block::new(edge_terminator);
     let edge_block_id = tree.insert(edge_block);
     insert_block_after(function, predecessor, edge_block_id);
 
@@ -610,11 +618,11 @@ pub fn ensure_edge_block(
     }
 }
 
-/// Count the unique successors for a block.
-fn successor_count(block: &mir::Block) -> usize {
+/// Count the unique successors for a terminator.
+fn successor_count(terminator: &mir::Terminator) -> usize {
     // track unique successors
     let mut unique = HashSet::new();
-    for successor in block.terminator.successors() {
+    for successor in terminator.successors() {
         unique.insert(successor);
     }
 
@@ -646,10 +654,11 @@ fn redirect_successor_to_edge(
     tree: &mut mir::NodeTree,
 ) -> bool {
     // clone the terminator for updates
-    let mut block = tree.get(block_id).clone();
+    let terminator_id = tree.get(block_id).terminator;
+    let terminator = tree.get(terminator_id).clone();
 
     // build a new terminator that targets the edge block
-    let new_terminator = match &block.terminator {
+    let new_terminator = match &terminator {
         mir::Terminator::Jump { target, .. } if *target == successor => mir::Terminator::Jump {
             target: edge_block,
             arguments: Vec::new(),
@@ -777,9 +786,8 @@ fn redirect_successor_to_edge(
     };
 
     // update the terminator
-    if new_terminator != block.terminator {
-        block.terminator = new_terminator;
-        tree.replace(block_id, block);
+    if new_terminator != terminator {
+        tree.replace(terminator_id, new_terminator);
         true
     } else {
         false
@@ -814,10 +822,10 @@ impl BlockParamForwarding {
 
             for &pred in cfg.predecessors(block_id) {
                 // read arguments for the predecessor edge
-                let successor_args = terminator_arguments_for_successor_checked(
-                    &tree.get(pred).terminator,
-                    block_id,
-                );
+                let pred_block = tree.get(pred);
+                let pred_terminator = tree.get(pred_block.terminator);
+                let successor_args =
+                    terminator_arguments_for_successor_checked(pred_terminator, block_id);
 
                 let args = match successor_args {
                     SuccessorArguments::Consistent(args) => args,
@@ -924,7 +932,8 @@ pub fn apply_substitutions_in_dominated_blocks(
         // snapshot block instructions and terminator
         let block = tree.get(block_id).clone();
         let instruction_ids = block.instructions.clone();
-        let terminator = block.terminator.clone();
+        let terminator_id = block.terminator;
+        let terminator = tree.get(terminator_id).clone();
 
         // rewrite instructions in place
         for instruction_id in instruction_ids {
@@ -945,9 +954,9 @@ pub fn apply_substitutions_in_dominated_blocks(
 
         // replace the terminator when it changes
         if new_terminator != terminator {
-            let mut new_block = block;
-            new_block.terminator = new_terminator;
+            let new_block = block;
             tree.replace(block_id, new_block);
+            tree.replace(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -1061,7 +1070,11 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
     }
 
     // collect uses from the terminator
-    match &block.terminator {
+    let terminator = tree.get(block.terminator);
+    match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Jump { arguments, .. } => {
             // record jump arguments
             uses.extend(arguments.iter().copied());
@@ -1223,6 +1236,7 @@ pub fn resolve_edge_value(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     predecessor: &mir::Block,
+    tree: &mir::NodeTree,
     param_indices: &HashMap<mir::Value, usize>,
 ) -> Option<mir::Value> {
     // map block parameters to predecessor arguments
@@ -1231,7 +1245,8 @@ pub fn resolve_edge_value(
     };
 
     // read arguments for the predecessor edge
-    let args = match terminator_arguments_for_successor_checked(&predecessor.terminator, block_id) {
+    let predecessor_terminator = tree.get(predecessor.terminator);
+    let args = match terminator_arguments_for_successor_checked(predecessor_terminator, block_id) {
         SuccessorArguments::Consistent(args) => args,
         _ => return None,
     };
@@ -1297,19 +1312,17 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
     for &block_id in &function.blocks {
         // read the block
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // block must have no instructions to be threadable
         if !block.instructions.is_empty() {
             continue;
         }
 
-        match &block.terminator {
+        match terminator {
             mir::Terminator::Jump { target, arguments } => {
                 if block.parameters.is_empty() && arguments.is_empty() {
-                    threadable.insert(
-                        block_id,
-                        ThreadableBlock::Terminator(block.terminator.clone()),
-                    );
+                    threadable.insert(block_id, ThreadableBlock::Terminator(terminator.clone()));
                 } else if block_is_passthrough_jump(block, arguments) {
                     threadable.insert(block_id, ThreadableBlock::Forward { target: *target });
                 }
@@ -1318,10 +1331,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable => {
                 if block.parameters.is_empty() {
-                    threadable.insert(
-                        block_id,
-                        ThreadableBlock::Terminator(block.terminator.clone()),
-                    );
+                    threadable.insert(block_id, ThreadableBlock::Terminator(terminator.clone()));
                 }
             }
             _ => {}
@@ -1338,8 +1348,9 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
     for &block_id in &function.blocks {
         // read the block
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
-        let new_terminator = match &block.terminator {
+        let new_terminator = match terminator {
             mir::Terminator::Jump { target, arguments } => {
                 let resolved = block_resolve_jump_target(*target, arguments, &threadable);
                 match resolved {
@@ -1519,9 +1530,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
 
         // update the terminator when it changes
         if let Some(terminator) = new_terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = terminator;
-            tree.replace(block_id, new_block);
+            tree.replace(block.terminator, terminator);
             changed = true;
         }
     }
@@ -1650,6 +1659,9 @@ pub fn terminator_substitute_uses(
     let substitute = |v: &mir::Value| -> mir::Value { *substitutions.get(v).unwrap_or(v) };
 
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|v| substitute(&v)),
         },

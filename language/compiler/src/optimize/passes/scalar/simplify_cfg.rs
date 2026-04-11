@@ -270,9 +270,11 @@ fn fold_branches(
     // fold branches with constant or range proven conditions
     for block_id in block_ids {
         let block = tree.get(block_id).clone();
+        let terminator_id = block.terminator;
+        let terminator = tree.get(terminator_id).clone();
         let exit_ranges = ranges.exit(block_id);
         let is_range_allowed = !loop_blocks.contains(&block_id);
-        match &block.terminator {
+        match &terminator {
             mir::Terminator::Branch {
                 condition,
                 then_target,
@@ -303,9 +305,9 @@ fn fold_branches(
                         (*else_target, else_arguments.clone())
                     };
 
-                    let mut new_block = block.clone();
-                    new_block.terminator = mir::Terminator::Jump { target, arguments };
+                    let new_block = block.clone();
                     tree.replace(block_id, new_block);
+                    tree.replace(terminator_id, mir::Terminator::Jump { target, arguments });
                     changed = true;
                 }
             }
@@ -327,9 +329,9 @@ fn fold_branches(
                         (failure.target, failure.arguments.clone())
                     };
 
-                    let mut new_block = block.clone();
-                    new_block.terminator = mir::Terminator::Jump { target, arguments };
+                    let new_block = block.clone();
                     tree.replace(block_id, new_block);
+                    tree.replace(terminator_id, mir::Terminator::Jump { target, arguments });
                     changed = true;
                 }
             }
@@ -371,8 +373,8 @@ fn fold_branches(
                             cases,
                             is_boolean_value,
                         ) {
-                            new_block.terminator = lowered;
                             tree.replace(block_id, new_block);
+                            tree.replace(terminator_id, lowered);
                             changed = true;
                             continue;
                         }
@@ -388,12 +390,12 @@ fn fold_branches(
                             range_value,
                         ) {
                             new_block.instructions.extend(new_instructions);
-                            new_block.terminator = lowered;
+                            tree.replace(terminator_id, lowered);
                         } else {
-                            new_block.terminator = new_terminator;
+                            tree.replace(terminator_id, new_terminator);
                         }
                     } else {
-                        new_block.terminator = new_terminator;
+                        tree.replace(terminator_id, new_terminator);
                     }
                     tree.replace(block_id, new_block);
                     changed = true;
@@ -408,9 +410,9 @@ fn fold_branches(
                     cases,
                     is_boolean_value,
                 ) {
-                    let mut new_block = block.clone();
-                    new_block.terminator = new_terminator;
+                    let new_block = block.clone();
                     tree.replace(block_id, new_block);
+                    tree.replace(terminator_id, new_terminator);
                     changed = true;
                     continue;
                 }
@@ -427,8 +429,8 @@ fn fold_branches(
                 ) {
                     let mut new_block = block.clone();
                     new_block.instructions.extend(new_instructions);
-                    new_block.terminator = new_terminator;
                     tree.replace(block_id, new_block);
+                    tree.replace(terminator_id, new_terminator);
                     changed = true;
                 }
             }
@@ -465,7 +467,9 @@ fn thread_edge_conditions(
         }
 
         let block = tree.get(block_id);
-        let new_terminator = match &block.terminator {
+        let terminator_id = block.terminator;
+        let terminator = tree.get(terminator_id);
+        let new_terminator = match terminator {
             mir::Terminator::Branch {
                 condition,
                 then_target,
@@ -550,9 +554,7 @@ fn thread_edge_conditions(
 
         // update block terminator when changes were made
         if let Some(terminator) = new_terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = terminator;
-            tree.replace(block_id, new_block);
+            tree.replace(terminator_id, terminator);
             changed = true;
         }
     }
@@ -614,9 +616,10 @@ fn resolve_edge_target(
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // fetch the edge target block
     let block = tree.get(target);
+    let terminator = tree.get(block.terminator);
 
     // require an empty or condition only block
-    if !is_threadable_condition_block(block, &block.terminator, tree, value_use_counts) {
+    if !is_threadable_condition_block(block, terminator, tree, value_use_counts) {
         return None;
     }
 
@@ -644,7 +647,7 @@ fn resolve_edge_target(
     apply_block_param_ranges_for_edge(block, arguments, &edge_ranges, &mut target_ranges);
 
     // resolve the target terminator
-    let resolved = match &block.terminator {
+    let resolved = match terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
@@ -1447,7 +1450,8 @@ fn function_has_remappable_return_edges(
     // scan blocks for return targets that can be remapped
     for &block_id in &function.blocks {
         // read the terminator for the current block
-        let terminator = &tree.get(block_id).terminator;
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // inspect terminator targets
         match terminator {
@@ -1559,6 +1563,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
     // scan blocks for empty return and unreachable terminators
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // skip blocks with instructions
         if !block.instructions.is_empty() {
@@ -1566,7 +1571,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
         }
 
         // classify empty terminators
-        match &block.terminator {
+        match terminator {
             mir::Terminator::Return { value } => {
                 // skip returns that do not match the function signature
                 if is_void_return && value.is_some() {
@@ -1622,19 +1627,18 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
 
     // build a canonical return block
     let canonical_return = if is_void_return {
-        let block = mir::Block::new();
-        let mut block = block;
-        block.terminator = mir::Terminator::Return { value: None };
+        let terminator = tree.insert(mir::Terminator::Return { value: None });
+        let block = mir::Block::new(terminator);
         let canonical_id = tree.insert(block);
         function.blocks.push(canonical_id);
         canonical_id
     } else {
         let return_value = function.next_typed_value(function.return_type);
         let param = mir::TypedValue::new(return_value, function.return_type);
-        let mut block = mir::Block::with_parameters(vec![param]);
-        block.terminator = mir::Terminator::Return {
+        let terminator = tree.insert(mir::Terminator::Return {
             value: Some(return_value),
-        };
+        });
+        let block = mir::Block::with_parameters(vec![param], terminator);
         let canonical_id = tree.insert(block);
         function.blocks.push(canonical_id);
         canonical_id
@@ -1650,19 +1654,19 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
     // rewrite terminators to target the canonical return block
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        let mut new_block = block.clone();
+        let terminator_id = block.terminator;
+        let terminator = tree.get(block.terminator);
 
         let new_terminator = rewrite_return_targets(
-            &block.terminator,
+            terminator,
             &return_blocks,
             canonical_return,
             is_void_return,
             &mut kept_returns,
         );
 
-        if new_terminator != block.terminator {
-            new_block.terminator = new_terminator;
-            tree.replace(block_id, new_block);
+        if new_terminator != *terminator {
+            tree.replace(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -1670,7 +1674,8 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
     // recompute referenced return blocks
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        for successor in block.terminator.successors() {
+        let terminator = tree.get(block.terminator);
+        for successor in terminator.successors() {
             if return_ids.contains(&successor) {
                 referenced_returns.insert(successor);
             }
@@ -1924,12 +1929,12 @@ fn remap_block_targets(
 
         // remap terminator targets in place
         let block = tree.get(block_id);
-        let mut new_block = block.clone();
-        let mut new_terminator = new_block.terminator.clone();
+        let new_block = block.clone();
+        let mut new_terminator = tree.get(new_block.terminator).clone();
         terminator_remap(&mut new_terminator, redirects, &value_map);
 
-        if new_terminator != new_block.terminator {
-            new_block.terminator = new_terminator;
+        if new_terminator != *tree.get(new_block.terminator) {
+            tree.replace(new_block.terminator, new_terminator);
             tree.replace(block_id, new_block);
             changed = true;
         }
@@ -1946,7 +1951,8 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
     // simplify terminators with identical targets
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        let new_terminator = match &block.terminator {
+        let terminator = tree.get(block.terminator);
+        let new_terminator = match terminator {
             mir::Terminator::Branch {
                 then_target,
                 then_arguments,
@@ -2006,9 +2012,7 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
         };
 
         if let Some(new_terminator) = new_terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
-            tree.replace(block_id, new_block);
+            tree.replace(block.terminator, new_terminator);
             changed = true;
         }
     }
@@ -2027,13 +2031,14 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
     for block_id in block_ids {
         // read the block
         let block = tree.get(block_id).clone();
+        let terminator = tree.get(block.terminator).clone();
         let mir::Terminator::Branch {
             condition,
             then_target,
             then_arguments,
             else_target,
             else_arguments,
-        } = &block.terminator
+        } = terminator
         else {
             continue;
         };
@@ -2064,7 +2069,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
             let destination = function.next_typed_value_like(*then_arg);
             let instruction = mir::Instruction::Select {
                 destination,
-                condition: *condition,
+                condition,
                 then_value: *then_arg,
                 else_value: *else_arg,
             };
@@ -2080,10 +2085,11 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
         }
 
         // replace the branch with a jump to the shared target
-        new_block.terminator = mir::Terminator::Jump {
-            target: *then_target,
+        let new_terminator = mir::Terminator::Jump {
+            target: then_target,
             arguments: new_arguments,
         };
+        tree.replace(new_block.terminator, new_terminator);
         tree.replace(block_id, new_block);
         changed = true;
     }
@@ -2119,11 +2125,12 @@ fn tail_duplicate_blocks(
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        for successor in block.terminator.successors() {
+        let terminator = tree.get(block.terminator);
+        for successor in terminator.successors() {
             *predecessor_counts.entry(successor).or_insert(0) += 1;
         }
 
-        if let mir::Terminator::Jump { target, arguments } = &block.terminator {
+        if let mir::Terminator::Jump { target, arguments } = terminator {
             jump_predecessors
                 .entry(*target)
                 .or_default()
@@ -2192,8 +2199,9 @@ fn tail_duplicate_blocks(
         }
 
         // only duplicate simple terminators
+        let terminator = tree.get(block.terminator).clone();
         if !matches!(
-            block.terminator,
+            terminator,
             mir::Terminator::Return { .. } | mir::Terminator::Jump { .. }
         ) {
             continue;
@@ -2273,12 +2281,12 @@ fn tail_duplicate_blocks(
             }
 
             // clone the terminator with remapped values
-            let new_terminator = terminator_substitute_uses(&block.terminator, &value_map);
+            let new_terminator = terminator_substitute_uses(&terminator, &value_map);
 
             // create the duplicated block
-            let mut new_block = mir::Block::new();
+            let new_terminator_id = tree.insert(new_terminator);
+            let mut new_block = mir::Block::new(new_terminator_id);
             new_block.instructions = new_instructions;
-            new_block.terminator = new_terminator;
 
             // insert the duplicated block
             let new_block_id = tree.insert(new_block);
@@ -2286,11 +2294,12 @@ fn tail_duplicate_blocks(
 
             // rewrite the predecessor jump to target the duplicated block
             let pred_block = tree.get(pred.pred).clone();
-            let mut updated_pred = pred_block.clone();
-            updated_pred.terminator = mir::Terminator::Jump {
+            let updated_pred = pred_block.clone();
+            let new_pred_terminator = mir::Terminator::Jump {
                 target: new_block_id,
                 arguments: Vec::new(),
             };
+            tree.replace(updated_pred.terminator, new_pred_terminator);
             tree.replace(pred.pred, updated_pred);
             changed = true;
         }
@@ -2416,10 +2425,11 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // record unique successors for the block
         let mut unique_successors = HashSet::new();
-        for successor in block.terminator.successors() {
+        for successor in terminator.successors() {
             unique_successors.insert(successor);
         }
 
@@ -2451,7 +2461,7 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
 
         // read the block
         let block = tree.get(block_id).clone();
-        let terminator = block.terminator.clone();
+        let terminator = tree.get(block.terminator).clone();
 
         // rewrite terminator edges when they are critical
         let new_terminator = match &terminator {
@@ -2604,9 +2614,7 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
 
         // update the terminator when it changes
         if let Some(new_terminator) = new_terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
-            tree.replace(block_id, new_block);
+            tree.replace(block.terminator, new_terminator);
             changed = true;
         }
     }
@@ -2654,11 +2662,11 @@ fn split_critical_edge_target(
     }
 
     // build the split block
-    let mut new_block = mir::Block::with_parameters(new_parameters);
-    new_block.terminator = mir::Terminator::Jump {
+    let new_terminator = tree.insert(mir::Terminator::Jump {
         target,
         arguments: new_arguments,
-    };
+    });
+    let new_block = mir::Block::with_parameters(new_parameters, new_terminator);
 
     // insert the block and record it for reuse
     let new_block_id = tree.insert(new_block);
@@ -2687,7 +2695,8 @@ fn merge_blocks(
     for &block_id in &function.blocks {
         predecessor_count.entry(block_id).or_insert(0);
         let block = tree.get(block_id);
-        for successor in block.terminator.successors() {
+        let terminator = tree.get(block.terminator);
+        for successor in terminator.successors() {
             *predecessor_count.entry(successor).or_insert(0) += 1;
         }
     }
@@ -2707,7 +2716,8 @@ fn merge_blocks(
             // extract info from block without holding borrow
             let (target, arguments, block_clone) = {
                 let block = tree.get(block_id);
-                let mir::Terminator::Jump { target, arguments } = &block.terminator else {
+                let terminator = tree.get(block.terminator);
+                let mir::Terminator::Jump { target, arguments } = terminator else {
                     continue;
                 };
                 (*target, arguments.clone(), block.clone())
@@ -2772,12 +2782,13 @@ fn merge_blocks(
                 let target_block = tree.get(target);
                 (
                     target_block.instructions.clone(),
-                    target_block.terminator.clone(),
+                    tree.get(target_block.terminator).clone(),
                 )
             };
 
-            // merge: append target's instructions to our block, take target's terminator
+            // merge: append target's instructions and replace our terminator
             let mut new_block = block_clone;
+            let terminator_id = new_block.terminator;
 
             // copy and substitute instructions from target
             for instruction_id in target_instructions {
@@ -2786,10 +2797,8 @@ fn merge_blocks(
                 new_block.instructions.push(new_id);
             }
 
-            // substitute and take target's terminator
-            new_block.terminator = target_terminator;
-
             tree.replace(block_id, new_block);
+            tree.replace(terminator_id, target_terminator);
 
             // mark target as merged away
             merged_away.insert(target);
@@ -2830,7 +2839,8 @@ fn eliminate_unreachable_blocks(
         }
 
         let block = tree.get(block_id);
-        for successor in block.terminator.successors() {
+        let terminator = tree.get(block.terminator);
+        for successor in terminator.successors() {
             if !reachable.contains(&successor) {
                 worklist.push(successor);
             }

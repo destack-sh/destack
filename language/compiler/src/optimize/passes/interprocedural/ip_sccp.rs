@@ -411,7 +411,9 @@ fn return_state_for_function(
     // scan return terminators
     for block_id in &function.blocks {
         let block = tree.get(*block_id);
-        let mir::Terminator::Return { value } = block.terminator else {
+        let terminator = tree.get(block.terminator);
+
+        let mir::Terminator::Return { value } = terminator else {
             continue;
         };
 
@@ -421,7 +423,7 @@ fn return_state_for_function(
         };
 
         // resolve the return constant at the block exit
-        let Some(constant) = constants.constant_at_exit(*block_id, value) else {
+        let Some(constant) = constants.constant_at_exit(*block_id, *value) else {
             return LatticeConstant::Overdefined;
         };
 
@@ -591,6 +593,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
 
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
@@ -625,7 +628,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             }
 
             // record call terminators
-            match &block.terminator {
+            match terminator {
                 mir::Terminator::Invoke {
                     function: callee,
                     call,

@@ -138,25 +138,32 @@ fn run_loop_peel(
 
         // remap cloned terminators to cloned blocks
         for &cloned_id in block_map.values() {
-            let mut block = tree.get(cloned_id).clone();
-            terminator_remap(&mut block.terminator, &block_map, &value_map);
+            let block = tree.get(cloned_id).clone();
+            let terminator_id = block.terminator;
+            let mut terminator = tree.get(terminator_id).clone();
+            terminator_remap(&mut terminator, &block_map, &value_map);
             tree.replace(cloned_id, block);
+            tree.replace(terminator_id, terminator);
         }
 
         // redirect preheader to the peeled iteration
-        let mut preheader_block = tree.get(preheader).clone();
-        preheader_block.terminator = mir::Terminator::Jump {
+        let preheader_block = tree.get(preheader).clone();
+        let preheader_terminator = mir::Terminator::Jump {
             target: cloned_header,
             arguments: preheader_args,
         };
         tree.replace(preheader, preheader_block);
+        tree.replace(tree.get(preheader).terminator, preheader_terminator);
 
         // redirect cloned backedge to original header
-        let mut cloned_latch_block = tree.get(cloned_latch).clone();
-        if !redirect_backedge(&mut cloned_latch_block, cloned_header, lp.header) {
+        let cloned_latch_block = tree.get(cloned_latch).clone();
+        let cloned_latch_terminator_id = cloned_latch_block.terminator;
+        let mut cloned_latch_terminator = tree.get(cloned_latch_terminator_id).clone();
+        if !redirect_backedge(&mut cloned_latch_terminator, cloned_header, lp.header) {
             continue;
         }
         tree.replace(cloned_latch, cloned_latch_block);
+        tree.replace(cloned_latch_terminator_id, cloned_latch_terminator);
 
         // append cloned blocks to the function
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
@@ -200,7 +207,8 @@ fn find_preheader(
 
     // require a direct jump to the header
     let preheader_block = tree.get(preheader);
-    let arguments = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let arguments = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
         _ => return None,
     };
@@ -210,12 +218,12 @@ fn find_preheader(
 
 /// Redirect a cloned backedge to the original header.
 fn redirect_backedge(
-    block: &mut mir::Block,
+    terminator: &mut mir::Terminator,
     cloned_header: mir::LocalNodeId<mir::Block>,
     original_header: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // redirect the cloned backedge toward the original header
-    match &block.terminator {
+    match terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
@@ -235,7 +243,7 @@ fn redirect_backedge(
                 return false;
             }
 
-            block.terminator = mir::Terminator::Branch {
+            *terminator = mir::Terminator::Branch {
                 condition: *condition,
                 then_target: new_then,
                 then_arguments: then_arguments.clone(),
@@ -260,7 +268,7 @@ fn redirect_backedge(
                 return false;
             }
 
-            block.terminator = mir::Terminator::Check {
+            *terminator = mir::Terminator::Check {
                 constraint: constraint.clone(),
                 success: mir::CheckTarget {
                     target: success_target,

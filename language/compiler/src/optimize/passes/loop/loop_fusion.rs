@@ -442,7 +442,8 @@ fn guard_info(
 ) -> Option<GuardInfo> {
     // resolve the guard condition
     let header_block = tree.get(header);
-    let condition = match &header_block.terminator {
+    let header_terminator = tree.get(header_block.terminator);
+    let condition = match header_terminator {
         mir::Terminator::Branch { condition, .. } => *condition,
         _ => return None,
     };
@@ -539,7 +540,8 @@ fn induction_step(
 ) -> Option<i64> {
     // locate the latch jump argument
     let latch_block = tree.get(latch);
-    let mir::Terminator::Jump { arguments, .. } = &latch_block.terminator else {
+    let latch_terminator = tree.get(latch_block.terminator);
+    let mir::Terminator::Jump { arguments, .. } = latch_terminator else {
         return None;
     };
 
@@ -848,21 +850,22 @@ fn apply_fusion(
     tree.replace(candidate.first.latch, latch_block);
 
     // update loop1 header exit to loop2 exit
-    let mut header_block = tree.get(candidate.first.header).clone();
+    let header_block = tree.get(candidate.first.header).clone();
+    let header_terminator = tree.get(header_block.terminator).clone();
     let mir::Terminator::Branch {
         condition,
         then_target,
         then_arguments,
         else_target,
         else_arguments,
-    } = &header_block.terminator
+    } = &header_terminator
     else {
         return false;
     };
 
     // rewrite the exit target
     let in_loop_is_then = *then_target == candidate.first.latch;
-    header_block.terminator = if in_loop_is_then {
+    let new_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
             then_target: *then_target,
@@ -880,6 +883,7 @@ fn apply_fusion(
         }
     };
     tree.replace(candidate.first.header, header_block);
+    tree.replace(tree.get(candidate.first.header).terminator, new_terminator);
 
     // drop loop2 blocks from the function
     let mut to_remove = HashSet::new();

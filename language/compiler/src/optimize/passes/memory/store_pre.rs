@@ -437,11 +437,18 @@ fn collect_edge_insertions(
                 ptr,
                 store.block,
                 predecessor_block,
+                tree,
                 param_indices,
             )?),
             None => None,
         };
-        let value = resolve_edge_value(store.value, store.block, predecessor_block, param_indices)?;
+        let value = resolve_edge_value(
+            store.value,
+            store.block,
+            predecessor_block,
+            tree,
+            param_indices,
+        )?;
 
         // ensure the pointer value is available on this edge
         if let Some(ptr) = pointer

@@ -117,9 +117,10 @@ fn run_code_hoisting(
     for block_id in block_ids {
         // load block data
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // require a conditional branch
-        let (then_block, else_block, then_arguments, else_arguments) = match &block.terminator {
+        let (then_block, else_block, then_arguments, else_arguments) = match terminator {
             mir::Terminator::Branch {
                 then_target,
                 else_target,

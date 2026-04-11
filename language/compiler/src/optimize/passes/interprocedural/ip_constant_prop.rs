@@ -165,6 +165,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
 
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
@@ -193,7 +194,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                 }
             }
 
-            match &block.terminator {
+            match terminator {
                 mir::Terminator::Invoke { function, call, .. } => {
                     data.direct_calls
                         .entry(*function)

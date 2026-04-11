@@ -161,8 +161,9 @@ fn find_if_convert_candidate(
 ) -> Option<IfConvertCandidate> {
     // read header terminator
     let header_block = tree.get(header);
+    let header_terminator = tree.get(header_block.terminator);
     let (condition, then_block, else_block, then_arguments, else_arguments) =
-        match &header_block.terminator {
+        match header_terminator {
             mir::Terminator::Branch {
                 condition,
                 then_target,
@@ -197,8 +198,10 @@ fn find_if_convert_candidate(
     // read side blocks and require a common merge
     let then_block_data = tree.get(then_block);
     let else_block_data = tree.get(else_block);
+    let then_terminator = tree.get(then_block_data.terminator);
+    let else_terminator = tree.get(else_block_data.terminator);
 
-    let merge_block = match (&then_block_data.terminator, &else_block_data.terminator) {
+    let merge_block = match (then_terminator, else_terminator) {
         (mir::Terminator::Jump { target, .. }, mir::Terminator::Jump { target: other, .. })
             if target == other =>
         {
@@ -277,10 +280,12 @@ fn apply_if_convert(
     clone_block_instructions(tree, &else_block, &else_value_map, &mut new_instructions);
 
     // read merge arguments
-    let Some(then_merge_args) = jump_arguments(&then_block) else {
+    let then_terminator = tree.get(then_block.terminator);
+    let Some(then_merge_args) = jump_arguments(then_terminator) else {
         return false;
     };
-    let Some(else_merge_args) = jump_arguments(&else_block) else {
+    let else_terminator = tree.get(else_block.terminator);
+    let Some(else_merge_args) = jump_arguments(else_terminator) else {
         return false;
     };
     if then_merge_args.len() != else_merge_args.len() {
@@ -325,11 +330,12 @@ fn apply_if_convert(
     // update header block
     let mut header = tree.get(candidate.header).clone();
     header.instructions = new_instructions;
-    header.terminator = mir::Terminator::Jump {
+    let new_terminator = mir::Terminator::Jump {
         target: candidate.merge_block,
         arguments: select_args,
     };
     tree.replace(candidate.header, header);
+    tree.replace(tree.get(candidate.header).terminator, new_terminator);
 
     true
 }
@@ -478,8 +484,8 @@ fn instructions_speculatable(
 }
 
 /// Read jump arguments from a block terminator.
-fn jump_arguments(block: &mir::Block) -> Option<Vec<mir::Value>> {
-    match &block.terminator {
+fn jump_arguments(terminator: &mir::Terminator) -> Option<Vec<mir::Value>> {
+    match terminator {
         mir::Terminator::Jump { arguments, .. } => Some(arguments.clone()),
         _ => None,
     }

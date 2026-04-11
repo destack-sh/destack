@@ -174,7 +174,8 @@ where
 
                 // add successors to worklist
                 let block = tree.get(block_id);
-                for succ in block.terminator.successors() {
+                let terminator = tree.get(block.terminator);
+                for succ in terminator.successors() {
                     if !in_worklist.contains(&succ) {
                         worklist.push_back(succ);
                         in_worklist.insert(succ);
@@ -225,8 +226,9 @@ where
     // initialize exit blocks (return/unreachable terminators)
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         if matches!(
-            block.terminator,
+            terminator,
             mir::Terminator::Return { .. }
                 | mir::Terminator::Throw { .. }
                 | mir::Terminator::Trap { .. }
@@ -256,6 +258,7 @@ where
         in_worklist.remove(&block_id);
 
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // compute exit state by merging successor entries
         let new_exit = if result.block_exit.contains_key(&block_id) {
@@ -263,7 +266,7 @@ where
             let mut merged = result.block_exit.get(&block_id).unwrap().clone();
 
             // also merge with successor entries
-            for succ in block.terminator.successors() {
+            for succ in terminator.successors() {
                 if let Some(succ_entry) = result.block_entry.get(&succ) {
                     merged = merged.meet(succ_entry);
                 }
@@ -272,7 +275,7 @@ where
         }
         // compute from successors only
         else {
-            let successors: Vec<_> = block.terminator.successors().into_iter().collect();
+            let successors: Vec<_> = terminator.successors().into_iter().collect();
             if successors.is_empty() {
                 continue;
             }

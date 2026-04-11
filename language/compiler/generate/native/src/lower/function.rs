@@ -148,7 +148,9 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // check terminator for direct callees
-            match &block.terminator {
+            let terminator = self.tree.get(block.terminator);
+
+            match terminator {
                 mir::Terminator::Invoke { function, .. }
                 | mir::Terminator::TailCall { function, .. }
                     if !self.function_ref_map.contains_key(function) =>
@@ -293,7 +295,8 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // lower terminator
-        self.lower_terminator(&mir_block.terminator, builder, value_map, block_map)?;
+        let terminator = self.tree.get(mir_block.terminator);
+        self.lower_terminator(terminator, builder, value_map, block_map)?;
 
         Ok(())
     }
@@ -319,6 +322,9 @@ impl<'a> FunctionLowerer<'a> {
             ))
         };
         match instruction {
+            mir::Instruction::Error => {
+                panic!("recovered MIR instruction reached native lowering");
+            }
             // const: const or fconst (type-specific immediate load)
             mir::Instruction::Const { destination, value } => {
                 // turn null into null pointer
@@ -1087,6 +1093,9 @@ impl<'a> FunctionLowerer<'a> {
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
     ) -> CodegenCraneliftResult<()> {
         match terminator {
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached native lowering");
+            }
             // return: function exit with optional value
             mir::Terminator::Return { value } => {
                 if let Some(value) = value {

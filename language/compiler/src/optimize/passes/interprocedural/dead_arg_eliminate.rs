@@ -173,7 +173,8 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             }
 
             // record call terminators
-            match &block.terminator {
+            let terminator = tree.get(block.terminator);
+            match terminator {
                 mir::Terminator::Invoke { function, .. } => {
                     data.direct_calls
                         .entry(*function)
@@ -325,7 +326,9 @@ fn update_call_sites(
             }
             DirectCallSite::Terminator(block_id) => {
                 let block = tree.get_mut(block_id);
-                match &block.terminator {
+                let terminator_id = block.terminator;
+                let terminator = tree.get(terminator_id).clone();
+                match &terminator {
                     mir::Terminator::Invoke {
                         function,
                         call,
@@ -338,7 +341,7 @@ fn update_call_sites(
                         let mut new_call = call.clone();
                         new_call.arguments = remap.filter_by_index(&call.arguments);
 
-                        block.terminator = mir::Terminator::Invoke {
+                        let new_terminator = mir::Terminator::Invoke {
                             function: *function,
                             call: new_call,
                             normal_target: *normal_target,
@@ -346,16 +349,18 @@ fn update_call_sites(
                             unwind_target: *unwind_target,
                             unwind_arguments: unwind_arguments.clone(),
                         };
+                        tree.replace(terminator_id, new_terminator);
                     }
                     mir::Terminator::TailCall { function, call } => {
                         // filter the argument list
                         let mut new_call = call.clone();
                         new_call.arguments = remap.filter_by_index(&call.arguments);
 
-                        block.terminator = mir::Terminator::TailCall {
+                        let new_terminator = mir::Terminator::TailCall {
                             function: *function,
                             call: new_call,
                         };
+                        tree.replace(terminator_id, new_terminator);
                     }
                     _ => {}
                 }

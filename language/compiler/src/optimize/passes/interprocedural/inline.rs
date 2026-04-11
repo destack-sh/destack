@@ -847,7 +847,11 @@ fn split_block_for_inline(
     }
 
     // build the continuation block
-    let mut continuation_block = mir::Block::new();
+    let continuation_terminator = tree.insert(mir::Terminator::Trap {
+        kind: mir::TrapKind::Abort,
+        payload: None,
+    });
+    let mut continuation_block = mir::Block::new(continuation_terminator);
     let mut result_value = None;
 
     // allocate a continuation parameter when a value is returned
@@ -867,7 +871,7 @@ fn split_block_for_inline(
         return None;
     }
     // preserve the original terminator for the continuation
-    let original_terminator = block.terminator.clone();
+    let original_terminator = tree.get(block.terminator).clone();
 
     // build jump arguments for the inlined entry block
     let mut entry_arguments = Vec::new();
@@ -877,15 +881,17 @@ fn split_block_for_inline(
     }
 
     // replace the call with a jump to the inlined entry
-    block.terminator = mir::Terminator::Jump {
+    let jump_terminator = mir::Terminator::Jump {
         target: inline_entry,
         arguments: entry_arguments,
     };
+    tree.replace(block.terminator, jump_terminator);
     tree.replace(block_id, block);
 
     // finish the continuation block
     continuation_block.instructions = after_instructions;
-    continuation_block.terminator = original_terminator;
+    tree.replace(continuation_terminator, original_terminator);
+
     // insert the continuation block into the caller
     let continuation_id = tree.insert(continuation_block);
     caller.blocks.push(continuation_id);
@@ -917,9 +923,11 @@ fn substitute_value_in_function(
             remap_instruction_memory_accesses(tree, *instruction_id, &substitutions);
         }
 
-        let mut updated_block = block.clone();
-        updated_block.terminator = terminator_substitute_uses(&block.terminator, &substitutions);
-        tree.replace(*block_id, updated_block);
+        let terminator = tree.get(block.terminator).clone();
+        let updated_terminator = terminator_substitute_uses(&terminator, &substitutions);
+        if updated_terminator != terminator {
+            tree.replace(block.terminator, updated_terminator);
+        }
     }
 }
 
@@ -938,7 +946,7 @@ fn remap_inline_blocks(
         let new_block_id = block_map[block_id];
         let original_block = tree.get(*block_id);
         let original_instructions = original_block.instructions.clone();
-        let original_terminator = original_block.terminator.clone();
+        let original_terminator = tree.get(original_block.terminator).clone();
         let mut new_block = tree.get(new_block_id).clone();
 
         // clone instructions with remapped values
@@ -986,8 +994,12 @@ fn remap_inline_blocks(
 
         // remap the terminator and commit the new block body
         new_block.instructions = new_instructions;
-        new_block.terminator = original_terminator;
-        terminator_remap(&mut new_block.terminator, block_map, value_map);
+        tree.replace(new_block.terminator, original_terminator);
+
+        let mut remapped_terminator = tree.get(new_block.terminator).clone();
+        terminator_remap(&mut remapped_terminator, block_map, value_map);
+        tree.replace(new_block.terminator, remapped_terminator);
+
         tree.replace(new_block_id, new_block);
     }
 }
@@ -1002,8 +1014,9 @@ fn rewrite_inlined_returns(
     // rewrite return terminators to jump to the continuation
     for &new_block_id in block_map.values() {
         // skip blocks that do not return
-        let mut block = tree.get(new_block_id).clone();
-        let mir::Terminator::Return { value } = block.terminator else {
+        let block = tree.get(new_block_id).clone();
+        let terminator = tree.get(block.terminator).clone();
+        let mir::Terminator::Return { value } = terminator else {
             continue;
         };
 
@@ -1014,10 +1027,11 @@ fn rewrite_inlined_returns(
         }
 
         // replace the return with a jump to the continuation
-        block.terminator = mir::Terminator::Jump {
+        let new_terminator = mir::Terminator::Jump {
             target: continuation,
             arguments,
         };
+        tree.replace(block.terminator, new_terminator);
         tree.replace(new_block_id, block);
     }
 }
@@ -1027,8 +1041,9 @@ fn has_tail_calls(tree: &mir::NodeTree, function: &mir::Function) -> bool {
     // scan terminators for tail call forms
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         if matches!(
-            block.terminator,
+            terminator,
             mir::Terminator::TailCall { .. } | mir::Terminator::TailCallIndirect { .. }
         ) {
             return true;
@@ -1104,10 +1119,11 @@ fn function_cost_for(tree: &mir::NodeTree, function: &mir::Function) -> Function
             }
         }
 
-        cost.cost = cost.cost.saturating_add(terminator_cost(&block.terminator));
+        let terminator = tree.get(block.terminator);
+        cost.cost = cost.cost.saturating_add(terminator_cost(terminator));
 
         if matches!(
-            block.terminator,
+            terminator,
             mir::Terminator::TailCall { .. } | mir::Terminator::TailCallIndirect { .. }
         ) {
             cost.calls += 1;
@@ -1338,6 +1354,9 @@ fn inline_scc_budgets(
 /// Compute the cost for a single instruction.
 fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64 {
     match instruction {
+        mir::Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
         mir::Instruction::Const { .. }
         | mir::Instruction::Binary { .. }
         | mir::Instruction::Unary { .. }
@@ -1428,6 +1447,9 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
 /// Compute the cost of a terminator.
 fn terminator_cost(terminator: &mir::Terminator) -> u64 {
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Throw { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,

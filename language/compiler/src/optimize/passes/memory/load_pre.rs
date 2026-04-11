@@ -410,8 +410,13 @@ fn collect_edge_insertions(
     for &predecessor in predecessors {
         // resolve the edge pointer
         let predecessor_block = tree.get(predecessor);
-        let pointer =
-            resolve_edge_value(load.pointer, load.block, predecessor_block, param_indices)?;
+        let pointer = resolve_edge_value(
+            load.pointer,
+            load.block,
+            predecessor_block,
+            tree,
+            param_indices,
+        )?;
 
         // ensure the pointer value is available on this edge
         if !value_available_in_block(pointer, predecessor, def_blocks, function_params, domtree) {

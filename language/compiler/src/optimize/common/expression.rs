@@ -422,6 +422,10 @@ pub fn expression_key_from_instruction(
     tree: &mir::NodeTree,
 ) -> Option<ExpressionKey> {
     match instruction {
+        mir::Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
+
         // binary operations
         mir::Instruction::Binary {
             operator,

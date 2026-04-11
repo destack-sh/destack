@@ -350,9 +350,11 @@ fn run_induction_simplify(
     for &block_id in &function.blocks {
         // read the current block
         let block = tree.get(block_id);
+        let terminator_id = block.terminator;
+        let terminator = tree.get(terminator_id).clone();
 
         // rewrite terminator uses
-        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
 
         // drop removed parameter arguments
         let new_terminator = remove_arguments_at_indices(&new_terminator, &removed_indices);
@@ -366,11 +368,11 @@ fn run_induction_simplify(
             .collect();
 
         // replace blocks that changed
-        if new_terminator != block.terminator || new_parameters.len() != block.parameters.len() {
+        if new_terminator != terminator || new_parameters.len() != block.parameters.len() {
             let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
             new_block.parameters = new_parameters;
             tree.replace(block_id, new_block);
+            tree.replace(terminator_id, new_terminator);
         }
     }
 
@@ -639,7 +641,9 @@ fn param_signature(
     // collect argument values from each predecessor
     let mut arguments = Vec::new();
     for &pred in cfg.predecessors(header) {
-        let args = terminator_arguments_for_successor(&tree.get(pred).terminator, header);
+        let pred_block = tree.get(pred);
+        let pred_terminator = tree.get(pred_block.terminator);
+        let args = terminator_arguments_for_successor(pred_terminator, header);
         let arg = *args.get(param_index)?;
         let arg = forwarding.resolve(arg);
         arguments.push((pred, arg));

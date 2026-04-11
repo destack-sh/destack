@@ -281,7 +281,8 @@ fn outline_cold_edges(
         }
 
         // inspect successor edges for cold targets
-        let terminator = &tree.get(block_id).terminator;
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         for successor in terminator.successors() {
             if !cold_blocks.contains(&successor) {
                 continue;
@@ -334,7 +335,7 @@ fn duplicate_hot_edges(
     let scale = policy.scaling_policy();
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        let terminator = &block.terminator;
+        let terminator = tree.get(block.terminator);
 
         let mut record_edge = |edge_kind: mir::EdgeKind,
                                target: mir::LocalNodeId<mir::Block>,
@@ -413,8 +414,9 @@ fn duplicate_hot_edges(
         }
 
         // require simple terminators
+        let block_terminator = tree.get(block.terminator);
         if !matches!(
-            block.terminator,
+            block_terminator,
             mir::Terminator::Return { .. } | mir::Terminator::Jump { .. }
         ) {
             continue;
@@ -500,30 +502,27 @@ fn duplicate_hot_edges(
             }
 
             // clone the terminator with remapped values
-            let new_terminator = terminator_substitute_uses(&block.terminator, &value_map);
+            let block_terminator = tree.get(block.terminator);
+            let new_terminator = terminator_substitute_uses(block_terminator, &value_map);
 
             // create the duplicated block
-            let mut new_block = mir::Block::new();
+            let new_terminator_id = tree.insert(new_terminator);
+            let mut new_block = mir::Block::new(new_terminator_id);
             new_block.instructions = new_instructions;
-            new_block.terminator = new_terminator;
 
             let new_block_id = tree.insert(new_block);
             insert_block_after(function, pred.pred, new_block_id);
 
             // rewrite the predecessor edge to the duplicated block
             let pred_block = tree.get(pred.pred).clone();
-            let Some(updated) = rewrite_hot_edge_target(
-                &pred_block.terminator,
-                pred.edge_kind,
-                target,
-                new_block_id,
-            ) else {
+            let pred_terminator = tree.get(pred_block.terminator);
+            let Some(updated) =
+                rewrite_hot_edge_target(pred_terminator, pred.edge_kind, target, new_block_id)
+            else {
                 continue;
             };
 
-            let mut updated_pred = pred_block;
-            updated_pred.terminator = updated;
-            tree.replace(pred.pred, updated_pred);
+            tree.replace(pred_block.terminator, updated);
 
             // track hot block counts for layout ordering
             let new_count = if pred.count > 0 {
@@ -724,7 +723,9 @@ fn select_hot_successor(
     reachable: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> Option<mir::LocalNodeId<mir::Block>> {
     // scan successors for the hottest candidate
-    let terminator = &tree.get(block).terminator;
+    let block_id = block;
+    let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator);
     let mut best: Option<(u64, u64, mir::LocalNodeId<mir::Block>)> = None;
 
     for successor in terminator.successors() {
@@ -739,7 +740,7 @@ fn select_hot_successor(
         }
 
         // compute edge and block weights
-        let edge_key = (block, successor);
+        let edge_key = (block_id, successor);
         let weight = edge_weights.get(&edge_key).copied().unwrap_or(0);
         let count = block_counts.get(&successor).copied().unwrap_or(0);
 
@@ -784,7 +785,8 @@ fn compute_edge_weights(
     // compute a weight per edge using profile data when possible
     for &block_id in &function.blocks {
         // read terminator edge list
-        let terminator = &tree.get(block_id).terminator;
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         for (edge_key, target) in terminator_edges(block_id, terminator) {
             // prefer explicit edge profiles
             let edge_weight = if let Some(edge_profile) = profile.edge_profile(&edge_key) {

@@ -85,7 +85,11 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
     // collect predecessors and their arguments
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        match &block.terminator {
+        let terminator = tree.get(block.terminator);
+        match terminator {
+            Terminator::Error => {
+                panic!("recovered MIR terminator reached optimizer");
+            }
             Terminator::Jump { target, arguments } => {
                 predecessors
                     .get_mut(target)
@@ -310,7 +314,8 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
     // apply substitutions to terminators and parameters
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+        let terminator = tree.get(block.terminator).clone();
+        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
         let new_terminator = remove_arguments_at_indices(&new_terminator, &removed_indices);
         let new_parameters: Vec<_> = block
             .parameters
@@ -326,14 +331,14 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
             .collect();
 
         // replace blocks when terminators or parameters change
-        if new_terminator != block.terminator
+        if new_terminator != terminator
             || new_parameters.len() != block.parameters.len()
             || new_instructions.len() != block.instructions.len()
         {
             let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
             new_block.parameters = new_parameters;
             new_block.instructions = new_instructions;
+            tree.replace(block.terminator, new_terminator);
             tree.replace(block_id, new_block);
         }
     }

@@ -68,7 +68,8 @@ impl FunctionPass for GuardEliminate {
         let mut changed = false;
         for &block_id in &function.blocks {
             // read the terminator
-            let terminator = tree.get(block_id).terminator.clone();
+            let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator).clone();
             let mir::Terminator::Check {
                 constraint,
                 success,
@@ -117,12 +118,11 @@ fn replace_check_with_jump(
 ) {
     // build a jump terminator replacement
     let block = tree.get(block_id);
-    let mut new_block = block.clone();
-    new_block.terminator = mir::Terminator::Jump {
+    let new_terminator = mir::Terminator::Jump {
         target,
         arguments: arguments.to_vec(),
     };
-    tree.replace(block_id, new_block);
+    tree.replace(block.terminator, new_terminator);
 }
 
 #[cfg(test)]

@@ -176,8 +176,8 @@ impl FunctionPass for LifetimeCheck {
                 let block = tree.get(block_id);
                 for &pred_id in cfg.predecessors(block_id) {
                     let pred_block = tree.get(pred_id);
-                    let arguments =
-                        terminator_arguments_for_successor(&pred_block.terminator, block_id);
+                    let pred_terminator = tree.get(pred_block.terminator);
+                    let arguments = terminator_arguments_for_successor(pred_terminator, block_id);
                     for (param, arg) in block.parameters.iter().zip(arguments) {
                         let origin = state.value_origin(*arg);
                         state.merge_value_origin(param.value, origin);
@@ -207,7 +207,9 @@ impl FunctionPass for LifetimeCheck {
         let target_id = *ctx.target_id();
         for (block_id, state) in &result.block_exit {
             let block = tree.get(*block_id);
-            let Terminator::Return { value: Some(value) } = &block.terminator else {
+            let terminator = tree.get(block.terminator);
+
+            let Terminator::Return { value: Some(value) } = terminator else {
                 continue;
             };
 
@@ -362,6 +364,10 @@ fn apply_instruction_effects(
     call_targets: &CallTargetAnalysis,
 ) {
     match instruction {
+        Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
+
         // constants and arithmetic results do not borrow
         Instruction::Const { destination, .. }
         | Instruction::Binary { destination, .. }

@@ -303,7 +303,8 @@ fn run_constant_fold(
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
-            let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+            let terminator = tree.get(block.terminator).clone();
+            let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
             let new_instructions: Vec<_> = block
                 .instructions
                 .iter()
@@ -312,12 +313,10 @@ fn run_constant_fold(
                 .collect();
 
             // rewrite blocks when instructions or terminators change
-            if new_terminator != block.terminator
-                || new_instructions.len() != block.instructions.len()
-            {
+            if new_terminator != terminator || new_instructions.len() != block.instructions.len() {
                 let mut new_block = block.clone();
-                new_block.terminator = new_terminator;
                 new_block.instructions = new_instructions;
+                tree.replace(block.terminator, new_terminator);
                 tree.replace(block_id, new_block);
             }
         }
@@ -343,9 +342,10 @@ fn fold_terminators(
     // scan blocks for foldable terminators
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         let exit_constants = constants.exit(block_id);
 
-        let new_terminator = match &block.terminator {
+        let new_terminator = match terminator {
             mir::Terminator::Branch {
                 condition,
                 then_target,
@@ -400,9 +400,7 @@ fn fold_terminators(
 
         // update the terminator when a constant fold applies
         if let Some(new_terminator) = new_terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
-            tree.replace(block_id, new_block);
+            tree.replace(block.terminator, new_terminator);
             changed = true;
         }
     }

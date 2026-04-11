@@ -548,6 +548,7 @@ impl CallGraph {
 
             for block_id in &function.blocks {
                 let block = tree.get(*block_id);
+                let terminator = tree.get(block.terminator);
 
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
@@ -562,7 +563,7 @@ impl CallGraph {
                 }
 
                 if let Some(callsite) =
-                    CallSite::from_terminator(function_id, *block_id, &block.terminator, tree)
+                    CallSite::from_terminator(function_id, *block_id, terminator, tree)
                 {
                     graph.insert_callsite(callsite);
                 }
@@ -1041,10 +1042,11 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
                         insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
                     }
 
+                    let terminator = tree.get(block.terminator);
                     if let Some(callsite) = SymbolCallSite::from_terminator(
                         module_id,
                         *block_id,
-                        &block.terminator,
+                        terminator,
                         &symbols_by_function,
                         tree,
                     ) {

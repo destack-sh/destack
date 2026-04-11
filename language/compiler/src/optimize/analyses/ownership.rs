@@ -428,6 +428,10 @@ impl OwnershipAnalysis {
         let at = MoveLocation::Instruction(inst_id);
 
         match inst {
+            Instruction::Error => {
+                panic!("recovered MIR instruction reached optimizer");
+            }
+
             // raw.drop/stack.drop/raw.free always consume
             Instruction::RawDrop { value } => {
                 state.mark_moved_with_source(*value, at);
@@ -813,6 +817,10 @@ impl OwnershipAnalysis {
         let at = MoveLocation::Terminator(block_id);
 
         match terminator {
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached optimizer");
+            }
+
             mir::Terminator::Return { value } => {
                 if let Some(v) = value
                     && !self.value_is_copy(*v, tree)
@@ -1085,7 +1093,7 @@ impl OwnershipAnalysis {
                 process_terminator(
                     &mut state,
                     block_id,
-                    &block.terminator,
+                    tree.get(block.terminator),
                     tree,
                     &value_types_clone,
                 );
@@ -1099,7 +1107,8 @@ impl OwnershipAnalysis {
                 if exit_changed {
                     result.block_exit.insert(block_id, state);
 
-                    for succ in block.terminator.successors() {
+                    let terminator = tree.get(block.terminator);
+                    for succ in terminator.successors() {
                         if !in_worklist.contains(&succ) {
                             worklist.push_back(succ);
                             in_worklist.insert(succ);
@@ -1230,6 +1239,10 @@ fn process_instruction(
     let at = MoveLocation::Instruction(inst_id);
 
     match inst {
+        Instruction::Error => {
+            panic!("recovered MIR instruction reached optimizer");
+        }
+
         // raw.drop/stack.drop/raw.free always consume
         Instruction::RawDrop { value } => {
             state.mark_moved_with_source(*value, at);
@@ -1595,6 +1608,10 @@ fn process_terminator(
     let at = MoveLocation::Terminator(block_id);
 
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
+
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
                 state.mark_moved_if_not_copy_with_source(*v, at, tree, value_types);
@@ -1710,10 +1727,15 @@ fn predecessor_arguments(
     target: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
 ) -> Vec<&[Value]> {
-    let terminator = &tree.get(predecessor).terminator;
+    let block = tree.get(predecessor);
+    let terminator = tree.get(block.terminator);
     let mut arguments = Vec::new();
 
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
+
         mir::Terminator::Jump {
             target: dest,
             arguments: args,

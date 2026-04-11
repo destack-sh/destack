@@ -271,7 +271,8 @@ fn build_value_use_maps(
             }
 
             // collect terminator uses
-            for value in block.terminator.uses() {
+            let terminator = tree.get(block.terminator);
+            for value in terminator.uses() {
                 terminator_uses.insert(value);
             }
         }
@@ -393,8 +394,8 @@ fn collect_written_globals(
             }
 
             // detect call terminators that may write memory
-            let terminator_arguments =
-                terminator_write_arguments(tree, block_id, &block.terminator);
+            let terminator = tree.get(block.terminator);
+            let terminator_arguments = terminator_write_arguments(tree, block_id, terminator);
             if let Some(arguments) = terminator_arguments
                 && any_argument_global_values(&arguments, &definitions, addr_info, tree)
             {
@@ -635,7 +636,9 @@ fn terminator_write_arguments(
         | mir::Terminator::InvokeInterface { receiver, call, .. }
         | mir::Terminator::TailCallVirtual { receiver, call, .. }
         | mir::Terminator::TailCallInterface { receiver, call, .. } => {
-            let declared_target = tree.get(block_id).terminator.call_declared_target();
+            let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
+            let declared_target = terminator.call_declared_target();
 
             let may_write = declared_target
                 .map(|function| function_memory_writes_from_tree(tree, function))

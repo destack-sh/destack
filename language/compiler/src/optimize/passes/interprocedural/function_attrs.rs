@@ -375,7 +375,8 @@ fn compute_function_summary(
         }
 
         // record terminator level effects
-        match &block.terminator {
+        let terminator = tree.get(block.terminator);
+        match terminator {
             mir::Terminator::Return { .. } => {
                 has_return = true;
             }
@@ -631,7 +632,9 @@ fn call_effects_for_dynamic_terminator(
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> (mir::MemoryEffect, mir::CallBehavior) {
     // use the declared target when present
-    let declared_target = tree.get(block_id).terminator.call_declared_target();
+    let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator);
+    let declared_target = terminator.call_declared_target();
 
     let Some(callee) = declared_target else {
         return (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown());
