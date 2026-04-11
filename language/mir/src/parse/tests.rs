@@ -316,7 +316,10 @@ b1:
 
     // broken blocks keep explicit recovery markers
     let first_block = tree.get(function.blocks[0]);
-    assert!(matches!(first_block.terminator, Terminator::Error));
+    assert!(matches!(
+        tree.get(first_block.terminator),
+        Terminator::Error
+    ));
     assert_eq!(first_block.instructions.len(), 1);
     assert!(matches!(
         tree.get(first_block.instructions[0]),
@@ -325,7 +328,10 @@ b1:
 
     // later blocks still parse normally
     let second_block = tree.get(function.blocks[1]);
-    assert!(matches!(second_block.terminator, Terminator::Return { .. }));
+    assert!(matches!(
+        tree.get(second_block.terminator),
+        Terminator::Return { .. }
+    ));
 
     let _ = function_id;
 }
@@ -356,11 +362,17 @@ b1:
 
     // broken terminators become explicit recovery markers
     let first_block = tree.get(function.blocks[0]);
-    assert!(matches!(first_block.terminator, Terminator::Error));
+    assert!(matches!(
+        tree.get(first_block.terminator),
+        Terminator::Error
+    ));
 
     // later blocks still parse normally
     let second_block = tree.get(function.blocks[1]);
-    assert!(matches!(second_block.terminator, Terminator::Return { .. }));
+    assert!(matches!(
+        tree.get(second_block.terminator),
+        Terminator::Return { .. }
+    ));
 }
 
 /// Parsed MIR records main spans for item and block names.
@@ -512,6 +524,20 @@ entry0(input0: int32):
             "input0",
             1
         ))
+    );
+
+    let terminator_id = block.terminator;
+
+    // terminator ownership
+    assert_eq!(
+        tree.get_span(terminator_id),
+        Some(span_for_text(source, "return result1"))
+    );
+
+    // terminator side spans
+    assert_eq!(
+        tree.get_main_span(terminator_id),
+        Some(span_for_text(source, "return"))
     );
 }
 
