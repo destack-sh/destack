@@ -155,7 +155,9 @@ fn run_store_sink(
 
     // evaluate candidates for sinking
     for candidate in candidates {
-        let successors = tree.get(candidate.block).terminator.successors();
+        let block = tree.get(candidate.block);
+        let terminator = tree.get(block.terminator);
+        let successors = terminator.successors();
 
         // require multiple successors
         if successors.len() < 2 {
@@ -273,7 +275,8 @@ fn collect_store_candidates(
             }
 
             // require a sinkable terminator
-            if !terminator_allows_sinking(&block.terminator) {
+            let terminator = tree.get(block.terminator);
+            if !terminator_allows_sinking(terminator) {
                 continue;
             }
 
@@ -401,7 +404,9 @@ fn successor_reaches_use(
             return true;
         }
 
-        for &successor in tree.get(block).terminator.successors().iter() {
+        let block = tree.get(block);
+        let terminator = tree.get(block.terminator);
+        for &successor in terminator.successors().iter() {
             if visited.insert(successor) {
                 queue.push_back(successor);
             }

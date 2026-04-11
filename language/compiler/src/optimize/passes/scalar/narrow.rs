@@ -156,12 +156,13 @@ fn run_narrow(
         }
 
         // narrow terminator operands for bounds checks
-        let mut new_terminator = block.terminator.clone();
+        let terminator = tree.get(block.terminator).clone();
+        let mut new_terminator = terminator.clone();
         if let mir::Terminator::Check {
             constraint,
             success,
             failure,
-        } = &block.terminator
+        } = &terminator
         {
             let mut updated_constraint = constraint.clone();
             let mut updated = false;
@@ -207,10 +208,10 @@ fn run_narrow(
         }
 
         // update the block when instruction or terminator changed
-        if new_instructions != block.instructions || new_terminator != block.terminator {
+        if new_instructions != block.instructions || new_terminator != terminator {
             let mut updated_block = block;
             updated_block.instructions = new_instructions;
-            updated_block.terminator = new_terminator;
+            tree.replace(updated_block.terminator, new_terminator);
             tree.replace(block_id, updated_block);
             changed = true;
         }

@@ -841,7 +841,8 @@ fn header_argument_from_pred(
 ) -> Option<mir::Value> {
     // collect predecessor arguments for the header edge
     let pred_block = tree.get(pred);
-    let args = terminator_arguments_for_successor(&pred_block.terminator, header);
+    let pred_terminator = tree.get(pred_block.terminator);
+    let args = terminator_arguments_for_successor(pred_terminator, header);
 
     args.get(param_index).copied()
 }

@@ -357,11 +357,13 @@ fn clone_function_as_impl(
         }
 
         // create new block (terminator block refs fixed up later)
+        let new_terminator = tree.get(old_block.terminator).clone();
+        let new_terminator_id = tree.insert(new_terminator);
         let new_block = mir::Block {
             name: None,
             parameters: old_block.parameters.clone(),
             instructions: new_instructions,
-            terminator: old_block.terminator.clone(),
+            terminator: new_terminator_id,
         };
         let new_block_id = tree.insert(new_block);
         block_map.insert(old_block_id, new_block_id);
@@ -370,10 +372,9 @@ fn clone_function_as_impl(
     // fix up terminators to use new block IDs
     for &new_block_id in block_map.values() {
         let block = tree.get(new_block_id).clone();
-        let fixed_terminator = remap_terminator_blocks(&block.terminator, &block_map);
-        let mut updated = block;
-        updated.terminator = fixed_terminator;
-        tree.replace(new_block_id, updated);
+        let terminator = tree.get(block.terminator);
+        let fixed_terminator = remap_terminator_blocks(terminator, &block_map);
+        tree.replace(block.terminator, fixed_terminator);
     }
 
     // create impl function
@@ -410,6 +411,9 @@ fn remap_terminator_blocks(
     >,
 ) -> mir::Terminator {
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Jump { target, arguments } => mir::Terminator::Jump {
             target: block_map.get(target).copied().unwrap_or(*target),
             arguments: arguments.clone(),
@@ -654,14 +658,15 @@ fn rewrite_as_wrapper(
     let call_id = tree.insert(call_instr);
 
     // create new entry block with just: const, call, return
-    let entry = tree.get(entry_block);
+    let entry = tree.get(entry_block).clone();
+    let entry_terminator = tree.insert(mir::Terminator::Return {
+        value: Some(result_value),
+    });
     let new_entry = mir::Block {
         name: None,
         parameters: entry.parameters.clone(),
         instructions: vec![const_id, call_id],
-        terminator: mir::Terminator::Return {
-            value: Some(result_value),
-        },
+        terminator: entry_terminator,
     };
     tree.replace(entry_block, new_entry);
 
@@ -877,11 +882,12 @@ fn detect_accumulator_pattern(
     current_function_id: mir::LocalNodeId<mir::Function>,
 ) -> Option<AccumulatorPattern> {
     let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator);
 
     // must end with return of a value
     let mir::Terminator::Return {
         value: Some(returned_value),
-    } = &block.terminator
+    } = terminator
     else {
         return None;
     };
@@ -1015,9 +1021,10 @@ fn find_base_case_blocks(
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // must end with return
-        let mir::Terminator::Return { value } = &block.terminator else {
+        let mir::Terminator::Return { value } = terminator else {
             continue;
         };
 
@@ -1124,7 +1131,7 @@ fn transform_accumulator_block(
     let block = tree.get(pattern.block_id);
     let mut new_block = block.clone();
     new_block.instructions = new_instructions;
-    new_block.terminator = new_terminator;
+    tree.replace(new_block.terminator, new_terminator);
     tree.replace(pattern.block_id, new_block);
 
     // old instructions become orphaned (not referenced by any block)
@@ -1145,9 +1152,10 @@ fn transform_base_case_block(
 ) {
     // clone block first to avoid borrow conflicts
     let block = tree.get(block_id).clone();
+    let terminator = tree.get(block.terminator);
     let mir::Terminator::Return {
         value: Some(original_value),
-    } = &block.terminator
+    } = terminator
     else {
         return;
     };
@@ -1155,10 +1163,11 @@ fn transform_base_case_block(
 
     if is_identity {
         // just return the accumulator
-        let mut new_block = block;
-        new_block.terminator = mir::Terminator::Return {
+        let new_block = block;
+        let new_terminator = mir::Terminator::Return {
             value: Some(acc_value),
         };
+        tree.replace(new_block.terminator, new_terminator);
         tree.replace(block_id, new_block);
     } else {
         // return OP(acc, original_value)
@@ -1175,9 +1184,10 @@ fn transform_base_case_block(
 
         let mut new_block = block;
         new_block.instructions.push(combine_id);
-        new_block.terminator = mir::Terminator::Return {
+        let new_terminator = mir::Terminator::Return {
             value: Some(result_val),
         };
+        tree.replace(new_block.terminator, new_terminator);
         tree.replace(block_id, new_block);
     }
 }
@@ -1193,9 +1203,10 @@ fn transform_self_recursive_tail_call(
     tree: &mut mir::NodeTree,
 ) -> bool {
     let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator);
 
     // must end with a return
-    let returned_value = match &block.terminator {
+    let returned_value = match terminator {
         mir::Terminator::Return { value } => *value,
         _ => return false,
     };
@@ -1248,7 +1259,7 @@ fn transform_self_recursive_tail_call(
 
     let mut new_block = block.clone();
     new_block.instructions = new_instructions;
-    new_block.terminator = new_terminator;
+    tree.replace(new_block.terminator, new_terminator);
     tree.replace(block_id, new_block);
 
     true
@@ -1266,9 +1277,10 @@ fn transform_sibling_tail_call(
     tree: &mut mir::NodeTree,
 ) -> bool {
     let block = tree.get(block_id);
+    let terminator = tree.get(block.terminator);
 
     // must end with a return
-    let returned_value = match &block.terminator {
+    let returned_value = match terminator {
         mir::Terminator::Return { value } => *value,
         _ => return false,
     };
@@ -1319,7 +1331,7 @@ fn transform_sibling_tail_call(
 
             let mut new_block = block.clone();
             new_block.instructions = new_instructions;
-            new_block.terminator = new_terminator;
+            tree.replace(new_block.terminator, new_terminator);
             tree.replace(block_id, new_block);
 
             true
@@ -1357,7 +1369,7 @@ fn transform_sibling_tail_call(
 
             let mut new_block = block.clone();
             new_block.instructions = new_instructions;
-            new_block.terminator = new_terminator;
+            tree.replace(new_block.terminator, new_terminator);
             tree.replace(block_id, new_block);
 
             true

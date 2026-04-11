@@ -234,7 +234,8 @@ fn build_candidate(
 
     // require the latch to jump to the header
     let latch_block = tree.get(latch);
-    match &latch_block.terminator {
+    let latch_terminator = tree.get(latch_block.terminator);
+    match latch_terminator {
         mir::Terminator::Jump { target, arguments } => {
             if *target != lp.header {
                 return None;
@@ -586,9 +587,12 @@ fn apply_distribution(
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
-            let mut block = tree.get(cloned_id).clone();
-            terminator_remap(&mut block.terminator, &block_map, &value_map);
+            let block = tree.get(cloned_id).clone();
+            let terminator_id = block.terminator;
+            let mut terminator = tree.get(terminator_id).clone();
+            terminator_remap(&mut terminator, &block_map, &value_map);
             tree.replace(cloned_id, block);
+            tree.replace(terminator_id, terminator);
         }
 
         // insert cloned blocks into the function
@@ -636,12 +640,13 @@ fn apply_distribution(
     }
 
     // update the preheader to enter the first header
-    let mut preheader_block = tree.get(candidate.preheader).clone();
-    preheader_block.terminator = mir::Terminator::Jump {
+    let preheader_block = tree.get(candidate.preheader).clone();
+    let new_terminator = mir::Terminator::Jump {
         target: loop_instances[0].header,
         arguments: candidate.preheader_args.clone(),
     };
     tree.replace(candidate.preheader, preheader_block);
+    tree.replace(tree.get(candidate.preheader).terminator, new_terminator);
 
     true
 }
@@ -711,14 +716,15 @@ fn update_header_exit(
     in_loop_is_then: bool,
 ) -> bool {
     // read the header branch terminator
-    let mut header_block = tree.get(header).clone();
+    let header_block = tree.get(header).clone();
+    let header_terminator = tree.get(header_block.terminator).clone();
     let mir::Terminator::Branch {
         then_target,
         then_arguments,
         else_target,
         else_arguments,
         condition,
-    } = &header_block.terminator
+    } = &header_terminator
     else {
         return false;
     };
@@ -732,7 +738,7 @@ fn update_header_exit(
     };
 
     // rewrite the header terminator
-    header_block.terminator = if in_loop_is_then {
+    let new_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
             then_target: *then_target,
@@ -752,6 +758,7 @@ fn update_header_exit(
 
     // store the rewritten terminator
     tree.replace(header, header_block);
+    tree.replace(tree.get(header).terminator, new_terminator);
     true
 }
 

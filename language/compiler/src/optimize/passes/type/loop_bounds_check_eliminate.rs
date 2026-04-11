@@ -275,7 +275,8 @@ fn run_loop_bounds_check_eliminate(
 
         // scan loop blocks for check terminators
         for &block_id in &lp.blocks {
-            let terminator = tree.get(block_id).terminator.clone();
+            let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator).clone();
             let (constraint, success) = match terminator {
                 mir::Terminator::Check {
                     constraint,
@@ -369,6 +370,7 @@ fn collect_loop_guards(
     for &block_id in &lp.exiting_blocks {
         // read the exiting block
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // collect bounds from check terminators when available
         if let mir::Terminator::Check {
@@ -376,7 +378,7 @@ fn collect_loop_guards(
             success,
             failure,
             ..
-        } = &block.terminator
+        } = terminator
             && let mir::CheckConstraint::Bounds {
                 index,
                 length,
@@ -408,7 +410,7 @@ fn collect_loop_guards(
         }
 
         // extract the in loop guard condition
-        let Some((condition, guard_is_true)) = guard_condition(block.terminator.clone(), lp) else {
+        let Some((condition, guard_is_true)) = guard_condition(terminator.clone(), lp) else {
             continue;
         };
 
@@ -880,11 +882,12 @@ fn replace_terminator_with_jump(
     arguments: &[mir::Value],
 ) {
     // overwrite the terminator with a jump
-    let block = tree.get_mut(block_id);
-    block.terminator = mir::Terminator::Jump {
+    let block = tree.get(block_id);
+    let terminator = mir::Terminator::Jump {
         target,
         arguments: arguments.to_vec(),
     };
+    tree.replace(block.terminator, terminator);
 }
 
 #[cfg(test)]

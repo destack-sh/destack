@@ -213,10 +213,11 @@ pub fn apply_constant_parameters(
         }
 
         // rewrite terminator operands
-        let block = tree.get_mut(block_id);
-        let updated = terminator_substitute_uses(&block.terminator, &substitutions);
-        if block.terminator != updated {
-            block.terminator = updated;
+        let terminator_id = tree.get(block_id).terminator;
+        let terminator = tree.get(terminator_id).clone();
+        let updated = terminator_substitute_uses(&terminator, &substitutions);
+        if terminator != updated {
+            tree.replace(terminator_id, updated);
         }
     }
 

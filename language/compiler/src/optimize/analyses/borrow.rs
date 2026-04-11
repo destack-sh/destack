@@ -472,8 +472,8 @@ impl BorrowAnalysis {
                 let mut param_sources = vec![Vec::new(); block.parameters.len()];
                 for &pred_id in cfg.predecessors(block_id) {
                     let pred_block = tree.get(pred_id);
-                    let arguments =
-                        terminator_arguments_for_successor(&pred_block.terminator, block_id);
+                    let pred_terminator = tree.get(pred_block.terminator);
+                    let arguments = terminator_arguments_for_successor(pred_terminator, block_id);
                     for (index, arg) in arguments.iter().enumerate() {
                         if let Some(slot) = param_sources.get_mut(index) {
                             slot.push(*arg);
@@ -529,8 +529,8 @@ impl BorrowAnalysis {
             let mut param_sources = vec![Vec::new(); block.parameters.len()];
             for &pred_id in cfg.predecessors(block_id) {
                 let pred_block = tree.get(pred_id);
-                let arguments =
-                    terminator_arguments_for_successor(&pred_block.terminator, block_id);
+                let pred_terminator = tree.get(pred_block.terminator);
+                let arguments = terminator_arguments_for_successor(pred_terminator, block_id);
                 for (index, arg) in arguments.iter().enumerate() {
                     if let Some(slot) = param_sources.get_mut(index) {
                         slot.push(*arg);

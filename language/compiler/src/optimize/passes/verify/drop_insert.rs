@@ -101,7 +101,8 @@ fn run_drop_insert(
         }
 
         // check for values live-out that need drops at block exit (e.g., before return)
-        if let mir::Terminator::Return { value: ret_val } = &block.terminator {
+        let terminator = tree.get(block.terminator);
+        if let mir::Terminator::Return { value: ret_val } = terminator {
             // check live-in values
             for &value in liveness.live_in(block_id) {
                 // check if value is used in return; if not, drop before return
@@ -329,7 +330,8 @@ fn find_death_point(
 
     // if value is used in terminator, we can't drop in this block
     let block = tree.get(block_id);
-    if crate::optimize::terminator_uses(&block.terminator, value) {
+    let terminator = tree.get(block.terminator);
+    if crate::optimize::terminator_uses(terminator, value) {
         return None;
     }
 

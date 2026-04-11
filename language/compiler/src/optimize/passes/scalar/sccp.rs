@@ -387,10 +387,13 @@ impl<'a> SccpState<'a> {
     fn process_terminator(&mut self, block_id: mir::LocalNodeId<mir::Block>) {
         // read terminator
         let block = self.tree.get(block_id);
-        let terminator = &block.terminator;
+        let terminator = self.tree.get(block.terminator);
 
         // mark edges based on terminator kind
         match terminator {
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached optimizer");
+            }
             mir::Terminator::Jump { target, arguments } => {
                 self.mark_edge_executable(block_id, *target, arguments);
             }
@@ -959,7 +962,8 @@ fn apply_sccp_result(
         // snapshot instruction ids and terminator
         let (instruction_ids, terminator) = {
             let block = tree.get(block_id);
-            (block.instructions.clone(), block.terminator.clone())
+            let terminator = tree.get(block.terminator).clone();
+            (block.instructions.clone(), terminator)
         };
 
         // fold instruction results
@@ -997,7 +1001,8 @@ fn apply_sccp_result(
         if let Some(new_terminator) = fold_constant_terminator(&terminator, result)
             && new_terminator != terminator
         {
-            tree.get_mut(block_id).terminator = new_terminator;
+            let terminator_id = tree.get(block_id).terminator;
+            tree.replace(terminator_id, new_terminator);
             cfg_changed = true;
         }
     }
@@ -1111,9 +1116,11 @@ fn function_substitute_constant_uses(
     // rewrite constants in every block
     for &block_id in &function.blocks {
         // snapshot instructions and terminator
-        let (instruction_ids, terminator) = {
+        let (instruction_ids, terminator_id, terminator) = {
             let block = tree.get(block_id);
-            (block.instructions.clone(), block.terminator.clone())
+            let terminator_id = block.terminator;
+            let terminator = tree.get(terminator_id).clone();
+            (block.instructions.clone(), terminator_id, terminator)
         };
 
         // rewrite instruction uses
@@ -1141,7 +1148,7 @@ fn function_substitute_constant_uses(
 
         // update terminator when rewritten
         if new_terminator != terminator {
-            tree.get_mut(block_id).terminator = new_terminator;
+            tree.replace(terminator_id, new_terminator);
             changed = true;
         }
     }

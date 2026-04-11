@@ -435,7 +435,8 @@ fn analyze_uses(
             }
 
             // check terminator uses
-            if terminator_uses(&block.terminator, value) {
+            let terminator = tree.get(block.terminator);
+            if terminator_uses(terminator, value) {
                 // value used in terminator, escapes
                 return None;
             }
@@ -791,8 +792,10 @@ fn apply_substitutions(
         }
 
         // substitute in terminator
-        let block = tree.get_mut(block_id);
-        block.terminator = terminator_substitute_uses(&block.terminator, substitutions);
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator).clone();
+        let new_terminator = terminator_substitute_uses(&terminator, substitutions);
+        tree.replace(block.terminator, new_terminator);
     }
 }
 

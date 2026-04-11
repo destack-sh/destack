@@ -342,7 +342,8 @@ fn incoming_edge_counts(
     // scan blocks for profiled edges
     for &block_id in &function.blocks {
         // read the terminator edges for this block
-        let terminator = &tree.get(block_id).terminator;
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         let edges = terminator_edges(block_id, terminator);
 
         // accumulate edge counts for each successor
@@ -373,6 +374,9 @@ pub fn terminator_edges(
     terminator: &mir::Terminator,
 ) -> Vec<(mir::EdgeKey, mir::LocalNodeId<mir::Block>)> {
     match terminator {
+        mir::Terminator::Error => {
+            panic!("recovered MIR terminator reached optimizer");
+        }
         mir::Terminator::Jump { target, .. } => {
             vec![(
                 mir::EdgeKey::new(source, mir::EdgeKind::Jump, *target),

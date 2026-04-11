@@ -159,8 +159,8 @@ fn find_rotation_candidate(
     }
 
     // header must end with conditional branch
-    let (condition, then_target, then_args, else_target, else_args) = match &header_block.terminator
-    {
+    let header_terminator = tree.get(header_block.terminator);
+    let (condition, then_target, then_args, else_target, else_args) = match header_terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
@@ -243,7 +243,8 @@ fn rotate_loop(
 
     // get arguments passed to header from preheader and latch
     let preheader_block = tree.get(candidate.preheader);
-    let preheader_args = match &preheader_block.terminator {
+    let preheader_current_terminator = tree.get(preheader_block.terminator);
+    let preheader_args = match preheader_current_terminator {
         mir::Terminator::Jump { target, arguments } if *target == candidate.header => {
             arguments.clone()
         }
@@ -251,7 +252,8 @@ fn rotate_loop(
     };
 
     let latch_block = tree.get(candidate.latch);
-    let latch_args = match &latch_block.terminator {
+    let latch_current_terminator = tree.get(latch_block.terminator);
+    let latch_args = match latch_current_terminator {
         mir::Terminator::Jump { target, arguments } if *target == candidate.header => {
             arguments.clone()
         }
@@ -302,9 +304,12 @@ fn rotate_loop(
         }
     };
 
-    let mut preheader = tree.get(candidate.preheader).clone();
-    preheader.terminator = preheader_terminator;
+    let preheader = tree.get(candidate.preheader).clone();
     tree.replace(candidate.preheader, preheader);
+    tree.replace(
+        tree.get(candidate.preheader).terminator,
+        preheader_terminator,
+    );
 
     // update latch: jump -> rotated branch
     let latch_body_args = remap_args(&candidate.body_arguments, &latch_value_map);
@@ -329,9 +334,9 @@ fn rotate_loop(
         }
     };
 
-    let mut latch = tree.get(candidate.latch).clone();
-    latch.terminator = latch_terminator;
+    let latch = tree.get(candidate.latch).clone();
     tree.replace(candidate.latch, latch);
+    tree.replace(tree.get(candidate.latch).terminator, latch_terminator);
 
     // header is now unreachable, SimplifyCfg will remove it
 

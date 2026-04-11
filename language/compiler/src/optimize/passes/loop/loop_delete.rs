@@ -213,7 +213,8 @@ fn find_deletable_loop(
         }
 
         // check terminator uses
-        for used_value in block.terminator.uses() {
+        let terminator = tree.get(block.terminator);
+        for used_value in terminator.uses() {
             if loop_defined_values.contains(&used_value) {
                 return None;
             }
@@ -236,10 +237,10 @@ fn find_constant_exit(
     constants: &ConstantPropagation,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     let header_block = tree.get(lp.header);
+    let header_terminator = tree.get(header_block.terminator);
 
     // extract condition and targets from header terminator
-    let (condition, then_target, then_args, else_target, else_args) = match &header_block.terminator
-    {
+    let (condition, then_target, then_args, else_target, else_args) = match header_terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
@@ -298,9 +299,10 @@ fn preheader_to_header_args(
     tree: &mir::NodeTree,
 ) -> Option<Vec<mir::Value>> {
     let preheader_block = tree.get(preheader);
+    let preheader_terminator = tree.get(preheader_block.terminator);
 
     // find the terminator path that leads to the header
-    match &preheader_block.terminator {
+    match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => Some(arguments.clone()),
         mir::Terminator::Branch {
             then_target,
@@ -345,12 +347,13 @@ fn delete_loop(
     candidate: &DeleteCandidate,
 ) {
     // update preheader to jump directly to exit
-    let mut preheader = tree.get(candidate.preheader).clone();
-    preheader.terminator = mir::Terminator::Jump {
+    let preheader = tree.get(candidate.preheader).clone();
+    let new_terminator = mir::Terminator::Jump {
         target: candidate.exit_block,
         arguments: candidate.exit_arguments.clone(),
     };
     tree.replace(candidate.preheader, preheader);
+    tree.replace(tree.get(candidate.preheader).terminator, new_terminator);
 
     // remove loop blocks from function (they're now unreachable)
     function

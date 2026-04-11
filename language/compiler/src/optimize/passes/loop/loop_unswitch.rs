@@ -350,7 +350,8 @@ fn find_unswitchable_loop(
 
     // get preheader to header arguments
     let preheader_block = tree.get(preheader);
-    let preheader_to_header_args = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let preheader_to_header_args = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
         _ => return None,
     };
@@ -383,25 +384,26 @@ fn find_unswitchable_loop(
 
     for &block_id in &sorted_blocks {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // must have a branch terminator
-        let (condition, then_target, then_arguments, else_target, else_arguments) =
-            match &block.terminator {
-                mir::Terminator::Branch {
-                    condition,
-                    then_target,
-                    then_arguments,
-                    else_target,
-                    else_arguments,
-                } => (
-                    *condition,
-                    *then_target,
-                    then_arguments.clone(),
-                    *else_target,
-                    else_arguments.clone(),
-                ),
-                _ => continue,
-            };
+        let (condition, then_target, then_arguments, else_target, else_arguments) = match terminator
+        {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => (
+                *condition,
+                *then_target,
+                then_arguments.clone(),
+                *else_target,
+                else_arguments.clone(),
+            ),
+            _ => continue,
+        };
 
         // condition must be loop invariant after header parameter rewrite
         let condition_value = header_param_rewrites
@@ -566,10 +568,10 @@ fn collect_header_param_rewrites(
         let mut is_invariant = true;
         for &pred in cfg.predecessors(lp.header) {
             // read arguments flowing into the header
-            let args = match terminator_arguments_for_successor_checked(
-                &tree.get(pred).terminator,
-                lp.header,
-            ) {
+            let pred_block = tree.get(pred);
+            let pred_terminator = tree.get(pred_block.terminator);
+            let args = match terminator_arguments_for_successor_checked(pred_terminator, lp.header)
+            {
                 SuccessorArguments::Consistent(args) => args,
                 SuccessorArguments::Missing | SuccessorArguments::Conflict => {
                     return HashMap::new();
@@ -617,15 +619,16 @@ fn unswitch_loop(
     let cloned_branch_block = block_map[&candidate.branch_block];
 
     // modify original branch block: always take the "then" branch
-    let mut branch_block = tree.get(candidate.branch_block).clone();
-    branch_block.terminator = mir::Terminator::Jump {
+    let branch_block = tree.get(candidate.branch_block).clone();
+    let branch_terminator = mir::Terminator::Jump {
         target: candidate.then_target,
         arguments: candidate.then_arguments.clone(),
     };
+    tree.replace(branch_block.terminator, branch_terminator);
     tree.replace(candidate.branch_block, branch_block);
 
     // modify cloned branch block: always take the "else" branch
-    let mut cloned = tree.get(cloned_branch_block).clone();
+    let cloned = tree.get(cloned_branch_block).clone();
     let else_target = if candidate.loop_blocks.contains(&candidate.else_target) {
         block_map[&candidate.else_target]
     } else {
@@ -636,10 +639,11 @@ fn unswitch_loop(
         .iter()
         .map(|v| *value_map.get(v).unwrap_or(v))
         .collect();
-    cloned.terminator = mir::Terminator::Jump {
+    let cloned_terminator = mir::Terminator::Jump {
         target: else_target,
         arguments: else_arguments,
     };
+    tree.replace(cloned.terminator, cloned_terminator);
     tree.replace(cloned_branch_block, cloned);
 
     // modify preheader: branch based on condition
@@ -659,13 +663,14 @@ fn unswitch_loop(
     } else {
         candidate.condition
     };
-    preheader.terminator = mir::Terminator::Branch {
+    let preheader_terminator = mir::Terminator::Branch {
         condition: condition_value,
         then_target: candidate.header,
         then_arguments: candidate.preheader_to_header_args.clone(),
         else_target: cloned_header,
         else_arguments: candidate.preheader_to_header_args.clone(),
     };
+    tree.replace(preheader.terminator, preheader_terminator);
     tree.replace(candidate.preheader, preheader);
 
     // remap terminators in cloned blocks (except the branch block which we already handled)
@@ -674,9 +679,10 @@ fn unswitch_loop(
             continue;
         }
 
-        let mut block = tree.get(cloned_id).clone();
-        terminator_remap(&mut block.terminator, &block_map, &value_map);
-        tree.replace(cloned_id, block);
+        let block = tree.get(cloned_id);
+        let mut terminator = tree.get(block.terminator).clone();
+        terminator_remap(&mut terminator, &block_map, &value_map);
+        tree.replace(block.terminator, terminator);
     }
 
     // add cloned blocks to function (sorted for deterministic output)

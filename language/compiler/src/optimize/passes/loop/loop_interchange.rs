@@ -241,16 +241,18 @@ fn build_interchange_candidate(
     }
 
     // require latch jump terminators
+    let outer_latch_terminator = tree.get(tree.get(outer_latch).terminator);
     if !matches!(
-        tree.get(outer_latch).terminator,
-        mir::Terminator::Jump { target, .. } if target == outer.header
+        outer_latch_terminator,
+        mir::Terminator::Jump { target, .. } if *target == outer.header
     ) {
         return None;
     }
 
+    let inner_latch_terminator = tree.get(tree.get(inner_latch).terminator);
     if !matches!(
-        tree.get(inner_latch).terminator,
-        mir::Terminator::Jump { target, .. } if target == inner.header
+        inner_latch_terminator,
+        mir::Terminator::Jump { target, .. } if *target == inner.header
     ) {
         return None;
     }
@@ -350,29 +352,34 @@ fn loops_are_read_only(
 /// Apply loop interchange to a candidate.
 fn apply_interchange(tree: &mut mir::NodeTree, candidate: &InterchangeCandidate) -> bool {
     // update the outer preheader to jump to the inner header
-    let mut preheader_block = tree.get(candidate.outer_preheader).clone();
-    preheader_block.terminator = mir::Terminator::Jump {
+    let preheader_block = tree.get(candidate.outer_preheader).clone();
+    let preheader_terminator = mir::Terminator::Jump {
         target: candidate.inner_header,
         arguments: candidate.inner_header_args.clone(),
     };
     tree.replace(candidate.outer_preheader, preheader_block);
+    tree.replace(
+        tree.get(candidate.outer_preheader).terminator,
+        preheader_terminator,
+    );
 
     // update the inner header to branch to the outer header
-    let mut inner_header_block = tree.get(candidate.inner_header).clone();
+    let inner_header_block = tree.get(candidate.inner_header).clone();
+    let inner_header_terminator = tree.get(inner_header_block.terminator).clone();
     let mir::Terminator::Branch {
         condition,
         then_target,
         then_arguments: _,
         else_target: _,
         else_arguments: _,
-    } = &inner_header_block.terminator
+    } = &inner_header_terminator
     else {
         return false;
     };
 
     // rewrite the inner header terminator
     let in_loop_is_then = *then_target == candidate.inner_latch;
-    inner_header_block.terminator = if in_loop_is_then {
+    let new_inner_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
             then_target: candidate.outer_header,
@@ -390,23 +397,28 @@ fn apply_interchange(tree: &mut mir::NodeTree, candidate: &InterchangeCandidate)
         }
     };
     tree.replace(candidate.inner_header, inner_header_block);
+    tree.replace(
+        tree.get(candidate.inner_header).terminator,
+        new_inner_terminator,
+    );
 
     // update the outer header to exit to the inner latch
-    let mut outer_header_block = tree.get(candidate.outer_header).clone();
+    let outer_header_block = tree.get(candidate.outer_header).clone();
+    let outer_header_terminator = tree.get(outer_header_block.terminator).clone();
     let mir::Terminator::Branch {
         condition,
         then_target,
         then_arguments: _,
         else_target: _,
         else_arguments: _,
-    } = &outer_header_block.terminator
+    } = &outer_header_terminator
     else {
         return false;
     };
 
     // rewrite the outer header terminator
     let in_loop_is_then = *then_target == candidate.inner_header;
-    outer_header_block.terminator = if in_loop_is_then {
+    let new_outer_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
             then_target: candidate.outer_latch,
@@ -424,6 +436,10 @@ fn apply_interchange(tree: &mut mir::NodeTree, candidate: &InterchangeCandidate)
         }
     };
     tree.replace(candidate.outer_header, outer_header_block);
+    tree.replace(
+        tree.get(candidate.outer_header).terminator,
+        new_outer_terminator,
+    );
 
     true
 }

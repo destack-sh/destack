@@ -116,7 +116,8 @@ fn run_correlated_value_prop(
     for &block_id in &function.blocks {
         // read the terminator to find a branch or check
         let block = tree.get(block_id);
-        let (condition, then_target, else_target) = match &block.terminator {
+        let terminator = tree.get(block.terminator);
+        let (condition, then_target, else_target) = match terminator {
             mir::Terminator::Branch {
                 condition,
                 then_target,

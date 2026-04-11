@@ -264,7 +264,8 @@ impl ValueUses {
             }
 
             // scan terminator uses
-            for value in block.terminator.uses() {
+            let terminator = tree.get(block.terminator);
+            for value in terminator.uses() {
                 uses.entry(value).or_default().insert(block_id);
             }
         }
@@ -340,12 +341,16 @@ impl<'a> CandidateContext<'a> {
             let latch = lp.latches[0];
 
             // ensure preheader and latch reach the header
-            if !terminator_has_successor(&self.tree.get(preheader).terminator, lp.header) {
+            let preheader_block = self.tree.get(preheader);
+            let preheader_terminator = self.tree.get(preheader_block.terminator);
+            if !terminator_has_successor(preheader_terminator, lp.header) {
                 continue;
             }
 
             // ensure the latch has a back edge to the header
-            if !terminator_has_successor(&self.tree.get(latch).terminator, lp.header) {
+            let latch_block = self.tree.get(latch);
+            let latch_terminator = self.tree.get(latch_block.terminator);
+            if !terminator_has_successor(latch_terminator, lp.header) {
                 continue;
             }
 
@@ -576,15 +581,15 @@ fn run_loop_strength_reduce(
     for &block_id in &function.blocks {
         // read the current block
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator).clone();
 
         // rewrite terminator uses
-        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
 
         // replace blocks that changed
-        if new_terminator != block.terminator {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
-            tree.replace(block_id, new_block);
+        if new_terminator != terminator {
+            let terminator_id = block.terminator;
+            tree.replace(terminator_id, new_terminator);
         }
     }
 
@@ -663,22 +668,24 @@ fn apply_candidates_for_loop(
 
     // compute updated latch terminator
     let latch_block = tree.get(latch).clone();
+    let latch_current_terminator = tree.get(latch_block.terminator);
 
     // collect latch arguments in header parameter order
     let latch_args: Vec<_> = plan_items.iter().map(|item| item.next_value).collect();
     let Some(latch_terminator) =
-        append_arguments_for_successor(&latch_block.terminator, header, &latch_args)
+        append_arguments_for_successor(latch_current_terminator, header, &latch_args)
     else {
         return Vec::new();
     };
 
     // compute updated preheader terminator
     let preheader_block = tree.get(preheader).clone();
+    let preheader_current_terminator = tree.get(preheader_block.terminator).clone();
 
     // collect preheader arguments in header parameter order
     let preheader_args: Vec<_> = plan_items.iter().map(|item| item.start_value).collect();
     let Some(preheader_terminator) =
-        append_arguments_for_successor(&preheader_block.terminator, header, &preheader_args)
+        append_arguments_for_successor(&preheader_current_terminator, header, &preheader_args)
     else {
         return Vec::new();
     };
@@ -708,14 +715,12 @@ fn apply_candidates_for_loop(
     }
 
     // install latch terminator
-    latch_block.terminator = latch_terminator;
+    tree.replace(latch_block.terminator, latch_terminator);
     tree.replace(latch, latch_block);
 
     // install preheader terminator
-    if preheader_terminator != preheader_block.terminator {
-        let mut new_preheader = preheader_block;
-        new_preheader.terminator = preheader_terminator;
-        tree.replace(preheader, new_preheader);
+    if preheader_terminator != preheader_current_terminator {
+        tree.replace(preheader_block.terminator, preheader_terminator);
     }
 
     // return substitutions

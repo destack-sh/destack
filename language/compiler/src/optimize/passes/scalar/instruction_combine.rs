@@ -401,7 +401,9 @@ fn run_instruction_combine(
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
-            let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+            let terminator_id = block.terminator;
+            let terminator = tree.get(terminator_id).clone();
+            let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
             let filtered: Vec<_> = block
                 .instructions
                 .iter()
@@ -410,11 +412,11 @@ fn run_instruction_combine(
                 .collect();
 
             // replace the block when terminators or instructions change
-            if new_terminator != block.terminator || filtered.len() != block.instructions.len() {
+            if new_terminator != terminator || filtered.len() != block.instructions.len() {
                 let mut new_block = block.clone();
-                new_block.terminator = new_terminator;
                 new_block.instructions = filtered;
                 tree.replace(block_id, new_block);
+                tree.replace(terminator_id, new_terminator);
             }
         }
     }

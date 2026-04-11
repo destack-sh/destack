@@ -190,7 +190,8 @@ impl ConstantPropagation {
 
                     // enqueue successors
                     let block = tree.get(block_id);
-                    for succ in block.terminator.successors() {
+                    let terminator = tree.get(block.terminator);
+                    for succ in terminator.successors() {
                         if in_worklist.insert(succ) {
                             worklist.push_back(succ);
                         }
@@ -340,10 +341,9 @@ fn resolve_block_param_constants(
         };
 
         // collect arguments for this edge
-        let args = match terminator_arguments_for_successor_checked(
-            &tree.get(pred).terminator,
-            block_id,
-        ) {
+        let pred_block = tree.get(pred);
+        let pred_terminator = tree.get(pred_block.terminator);
+        let args = match terminator_arguments_for_successor_checked(pred_terminator, block_id) {
             SuccessorArguments::Missing => continue,
             SuccessorArguments::Conflict => {
                 states.fill(ParamState::Overdefined);

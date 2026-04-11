@@ -500,11 +500,11 @@ fn clone_function(
     // remap terminators with new block ids
     for block_id in &original.blocks {
         let new_block_id = block_map[block_id];
-        let mut new_block = tree.get(new_block_id).clone();
-        let mut terminator = new_block.terminator.clone();
+        let new_block = tree.get(new_block_id).clone();
+        let mut terminator = tree.get(new_block.terminator).clone();
         terminator_remap(&mut terminator, &block_map, &value_map);
-        new_block.terminator = terminator;
         tree.replace(new_block_id, new_block);
+        tree.replace(tree.get(new_block_id).terminator, terminator);
     }
 
     // build the new function

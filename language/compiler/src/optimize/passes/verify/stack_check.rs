@@ -530,7 +530,7 @@ fn run_stack_check(
             }
 
             // propagate to successors via jump arguments
-            state.apply_terminator_effects(&block.terminator, tree);
+            state.apply_terminator_effects(tree.get(block.terminator), tree);
 
             state
         },
@@ -568,13 +568,9 @@ fn run_stack_check(
         }
 
         // check terminator
+        let terminator = tree.get(block.terminator);
         current_state.check_terminator_escapes(
-            block_id,
-            &block.terminator,
-            liveness,
-            &module_id,
-            &target_id,
-            context,
+            block_id, terminator, liveness, &module_id, &target_id, context,
         );
     }
 }

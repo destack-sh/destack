@@ -229,13 +229,15 @@ fn eliminate_common_subexpressions_in_block(
 
     // apply substitutions to terminator
     let block = tree.get(block_id);
-    let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+    let terminator_id = block.terminator;
+    let terminator = tree.get(block.terminator).clone();
+    let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
 
     // update block: remove redundant instructions and update terminator
     let mut new_block = block.clone();
     new_block.instructions.retain(|id| !to_remove.contains(id));
-    new_block.terminator = new_terminator;
     tree.replace(block_id, new_block);
+    tree.replace(terminator_id, new_terminator);
 
     true
 }

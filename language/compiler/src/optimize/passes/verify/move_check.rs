@@ -183,7 +183,12 @@ impl<'a> MoveCheckContext<'a> {
             }
 
             // check terminator uses
-            self.check_terminator_uses(&current_state, block_id, &block.terminator, context);
+            self.check_terminator_uses(
+                &current_state,
+                block_id,
+                self.tree.get(block.terminator),
+                context,
+            );
         }
     }
 
@@ -377,6 +382,9 @@ impl<'a> MoveCheckContext<'a> {
                 for &arg in &call.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
+            }
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached optimizer");
             }
         }
     }

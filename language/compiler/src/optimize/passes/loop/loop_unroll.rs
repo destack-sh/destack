@@ -633,8 +633,9 @@ fn find_unroll_candidate(
     // identify the exiting block and guard branch
     let exiting_block = lp.exiting_blocks[0];
     let exiting = tree.get(exiting_block);
+    let exiting_terminator = tree.get(exiting.terminator);
 
-    let (condition, in_loop_is_then, _loop_successor, exit_block) = match exiting.terminator {
+    let (condition, in_loop_is_then, _loop_successor, exit_block) = match exiting_terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
@@ -648,9 +649,9 @@ fn find_unroll_candidate(
             }
 
             if then_in_loop {
-                (condition, true, then_target, else_target)
+                (*condition, true, *then_target, *else_target)
             } else {
-                (condition, false, else_target, then_target)
+                (*condition, false, *else_target, *then_target)
             }
         }
         _ => return None,
@@ -659,10 +660,11 @@ fn find_unroll_candidate(
     // find the latch and validate its backedge
     let latch = lp.latches[0];
     let latch_block = tree.get(latch);
-    if !latch_block.terminator.successors().contains(&lp.header) {
+    let latch_terminator = tree.get(latch_block.terminator);
+    if !latch_terminator.successors().contains(&lp.header) {
         return None;
     }
-    let _latch_arguments = terminator_arguments_for_successor(&latch_block.terminator, lp.header);
+    let _latch_arguments = terminator_arguments_for_successor(latch_terminator, lp.header);
 
     // require guard either in header or latch
     let guard_at_latch = exiting_block == latch;
@@ -691,7 +693,8 @@ fn find_unroll_candidate(
             .iter()
             .map(|param| param.value)
             .collect();
-        let (exit_args, _) = guard_exit_arguments(exiting, in_loop_is_then)?;
+        let exiting_terminator = tree.get(exiting.terminator);
+        let (exit_args, _) = guard_exit_arguments(exiting_terminator, in_loop_is_then)?;
         if exit_args != header_params {
             return None;
         }
@@ -810,28 +813,28 @@ fn find_jam_candidate(
     // identify the outer guard and exit blocks
     let outer_header = outer.header;
     let outer_block = tree.get(outer_header);
-    let (outer_condition, outer_in_loop_is_then, outer_in_loop_target) =
-        match outer_block.terminator {
-            mir::Terminator::Branch {
-                condition,
-                then_target,
-                else_target,
-                ..
-            } => {
-                let then_in_loop = outer.blocks.contains(&then_target);
-                let else_in_loop = outer.blocks.contains(&else_target);
-                if then_in_loop == else_in_loop {
-                    return None;
-                }
-
-                if then_in_loop {
-                    (condition, true, then_target)
-                } else {
-                    (condition, false, else_target)
-                }
+    let outer_terminator = tree.get(outer_block.terminator);
+    let (outer_condition, outer_in_loop_is_then, outer_in_loop_target) = match outer_terminator {
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            else_target,
+            ..
+        } => {
+            let then_in_loop = outer.blocks.contains(&then_target);
+            let else_in_loop = outer.blocks.contains(&else_target);
+            if then_in_loop == else_in_loop {
+                return None;
             }
-            _ => return None,
-        };
+
+            if then_in_loop {
+                (*condition, true, *then_target)
+            } else {
+                (*condition, false, *else_target)
+            }
+        }
+        _ => return None,
+    };
 
     // resolve the inner preheader if needed
     let inner_header = inner.header;
@@ -839,8 +842,9 @@ fn find_jam_candidate(
         None
     } else {
         let preheader_block = tree.get(outer_in_loop_target);
-        match preheader_block.terminator {
-            mir::Terminator::Jump { target, .. } if target == inner_header => {
+        let preheader_terminator = tree.get(preheader_block.terminator);
+        match preheader_terminator {
+            mir::Terminator::Jump { target, .. } if *target == inner_header => {
                 Some(outer_in_loop_target)
             }
             _ => return None,
@@ -854,16 +858,18 @@ fn find_jam_candidate(
 
     // require the outer latch to jump back to the header
     let latch_block = tree.get(outer_latch);
-    match latch_block.terminator {
-        mir::Terminator::Jump { target, .. } if target == outer_header => {}
+    let latch_terminator = tree.get(latch_block.terminator);
+    match latch_terminator {
+        mir::Terminator::Jump { target, .. } if *target == outer_header => {}
         _ => return None,
     }
 
     // require the inner latch to jump back to the header
     let inner_latch = inner.latches[0];
     let inner_latch_block = tree.get(inner_latch);
-    match inner_latch_block.terminator {
-        mir::Terminator::Jump { target, .. } if target == inner_header => {}
+    let inner_latch_terminator = tree.get(inner_latch_block.terminator);
+    match inner_latch_terminator {
+        mir::Terminator::Jump { target, .. } if *target == inner_header => {}
         _ => return None,
     }
 
@@ -876,7 +882,8 @@ fn find_jam_candidate(
         forwarding,
     )?;
     let inner_block = tree.get(inner_header);
-    let (inner_condition, inner_in_loop_is_then) = match inner_block.terminator {
+    let inner_terminator = tree.get(inner_block.terminator);
+    let (inner_condition, inner_in_loop_is_then) = match inner_terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
@@ -894,11 +901,11 @@ fn find_jam_candidate(
             } else {
                 then_target
             };
-            if exit_target != inner_exit {
+            if *exit_target != inner_exit {
                 return None;
             }
 
-            (condition, then_in_loop)
+            (*condition, then_in_loop)
         }
         _ => return None,
     };
@@ -924,8 +931,9 @@ fn find_jam_candidate(
 
     // locate the inner header parameter that carries the outer induction
     let entry_block = inner_preheader.unwrap_or(outer_header);
-    let entry_args =
-        terminator_arguments_for_successor(&tree.get(entry_block).terminator, inner_header);
+    let entry_block_data = tree.get(entry_block);
+    let entry_terminator = tree.get(entry_block_data.terminator);
+    let entry_args = terminator_arguments_for_successor(entry_terminator, inner_header);
     let outer_entry_index = entry_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(outer_guard.induction))?;
@@ -936,8 +944,9 @@ fn find_jam_candidate(
         .value;
 
     // locate the outer latch parameter carrying the induction
-    let exit_args =
-        terminator_arguments_for_successor(&tree.get(inner_header).terminator, inner_exit);
+    let inner_header_block = tree.get(inner_header);
+    let inner_header_terminator = tree.get(inner_header_block.terminator);
+    let exit_args = terminator_arguments_for_successor(inner_header_terminator, inner_exit);
     let outer_latch_index = exit_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(inner_outer_param))?;
@@ -1139,7 +1148,8 @@ fn outer_step_from_latch(
 ) -> Option<i128> {
     // read the latch argument for the induction parameter
     let latch_block = tree.get(latch);
-    let args = terminator_arguments_for_successor(&latch_block.terminator, header);
+    let latch_terminator = tree.get(latch_block.terminator);
+    let args = terminator_arguments_for_successor(latch_terminator, header);
     let update_value = *args.get(param_index)?;
     let update_value = forwarding.resolve(update_value);
     let induction = forwarding.resolve(induction);
@@ -1212,7 +1222,9 @@ fn trip_count_from_header(
     }
 
     // read the starting induction argument
-    let args = terminator_arguments_for_successor(&tree.get(entry_pred).terminator, header);
+    let entry_block = tree.get(entry_pred);
+    let entry_terminator = tree.get(entry_block.terminator);
+    let args = terminator_arguments_for_successor(entry_terminator, header);
     let start_value = *args.get(param_index)?;
     let start_const = constant_value_for(start_value, function, tree, forwarding)?;
     let bound_const = constant_value_for(guard.bound, function, tree, forwarding)?;
@@ -1311,8 +1323,9 @@ fn inner_body_is_jammable(
         }
 
         // check terminator uses
+        let terminator = tree.get(block.terminator);
         if !inner_uses_are_safe(
-            &block.terminator.uses(),
+            &terminator.uses(),
             inner,
             Some(inner_induction),
             Some(inner_outer_param),
@@ -1608,7 +1621,8 @@ fn find_jam_preheader(
 
     // require a direct jump to the header
     let preheader_block = tree.get(preheader);
-    let arguments = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let arguments = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == candidate.outer_header => {
             arguments.clone()
         }
@@ -1641,9 +1655,10 @@ fn peel_jam_remainder(
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
-            let mut block = tree.get(cloned_id).clone();
-            terminator_remap(&mut block.terminator, &block_map, &value_map);
-            tree.replace(cloned_id, block);
+            let block = tree.get(cloned_id);
+            let mut terminator = tree.get(block.terminator).clone();
+            terminator_remap(&mut terminator, &block_map, &value_map);
+            tree.replace(block.terminator, terminator);
         }
 
         // insert cloned blocks into the function
@@ -1664,12 +1679,12 @@ fn peel_jam_remainder(
     let Some(first_iteration) = peeled_iterations.first() else {
         return true;
     };
-    let mut preheader_block = tree.get(preheader).clone();
-    preheader_block.terminator = mir::Terminator::Jump {
+    let preheader_block = tree.get(preheader);
+    let preheader_terminator = mir::Terminator::Jump {
         target: first_iteration.header,
         arguments: preheader_args,
     };
-    tree.replace(preheader, preheader_block);
+    tree.replace(preheader_block.terminator, preheader_terminator);
 
     // chain peeled iterations together
     for (index, iteration) in peeled_iterations.iter().enumerate() {
@@ -1681,7 +1696,7 @@ fn peel_jam_remainder(
         };
 
         let mut latch_block = tree.get(iteration.latch).clone();
-        let updated = rewrite_latch_to_jump(&mut latch_block, iteration.header, next_header);
+        let updated = rewrite_latch_to_jump(tree, &mut latch_block, iteration.header, next_header);
         if !updated {
             return false;
         }
@@ -1710,10 +1725,10 @@ fn inner_update_info(
 ) -> Option<InnerUpdateInfo> {
     // find the update value passed to the header
     let latch_block = tree.get(candidate.inner_latch);
-    let update_value =
-        terminator_arguments_for_successor(&latch_block.terminator, candidate.inner_header)
-            .get(candidate.inner_param_index)
-            .copied()?;
+    let latch_terminator = tree.get(latch_block.terminator);
+    let update_value = terminator_arguments_for_successor(latch_terminator, candidate.inner_header)
+        .get(candidate.inner_param_index)
+        .copied()?;
 
     // locate the defining instruction
     let update_instruction = *def_map.get(&update_value)?;
@@ -1807,9 +1822,10 @@ fn rewrite_outer_latch_step(
     };
 
     let mut latch_block = tree.get(candidate.outer_latch).clone();
+    let latch_terminator = tree.get(latch_block.terminator);
 
     // read the current induction value from the latch arguments
-    let mut arguments = match &latch_block.terminator {
+    let mut arguments = match latch_terminator {
         mir::Terminator::Jump { target, arguments } if *target == candidate.outer_header => {
             arguments.clone()
         }
@@ -1843,10 +1859,11 @@ fn rewrite_outer_latch_step(
 
     arguments[candidate.outer_param_index] = updated_value;
 
-    latch_block.terminator = mir::Terminator::Jump {
+    let new_terminator = mir::Terminator::Jump {
         target: candidate.outer_header,
         arguments,
     };
+    tree.replace(latch_block.terminator, new_terminator);
 
     tree.replace(candidate.outer_latch, latch_block);
 
@@ -2111,9 +2128,10 @@ fn unroll_loop(
 
         // remap terminators to cloned targets
         for &cloned_id in block_map.values() {
-            let mut block = tree.get(cloned_id).clone();
-            terminator_remap(&mut block.terminator, &block_map, &value_map);
-            tree.replace(cloned_id, block);
+            let block = tree.get(cloned_id);
+            let mut terminator = tree.get(block.terminator).clone();
+            terminator_remap(&mut terminator, &block_map, &value_map);
+            tree.replace(block.terminator, terminator);
         }
 
         // add cloned blocks to the function
@@ -2143,6 +2161,7 @@ fn unroll_loop(
         // update the latch terminator
         let mut latch_block = tree.get(iteration.latch).clone();
         let updated = rewrite_latch_block(
+            tree,
             &mut latch_block,
             candidate,
             iteration,
@@ -2187,9 +2206,10 @@ fn peel_remainder(
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
-            let mut block = tree.get(cloned_id).clone();
-            terminator_remap(&mut block.terminator, &block_map, &value_map);
-            tree.replace(cloned_id, block);
+            let block = tree.get(cloned_id);
+            let mut terminator = tree.get(block.terminator).clone();
+            terminator_remap(&mut terminator, &block_map, &value_map);
+            tree.replace(block.terminator, terminator);
         }
 
         // insert cloned blocks into the function
@@ -2210,12 +2230,12 @@ fn peel_remainder(
     let Some(first_iteration) = peeled_iterations.first() else {
         return true;
     };
-    let mut preheader_block = tree.get(preheader).clone();
-    preheader_block.terminator = mir::Terminator::Jump {
+    let preheader_block = tree.get(preheader);
+    let preheader_terminator = mir::Terminator::Jump {
         target: first_iteration.header,
         arguments: preheader_args,
     };
-    tree.replace(preheader, preheader_block);
+    tree.replace(preheader_block.terminator, preheader_terminator);
 
     // chain peeled iterations together
     for (index, iteration) in peeled_iterations.iter().enumerate() {
@@ -2227,7 +2247,7 @@ fn peel_remainder(
         };
 
         let mut latch_block = tree.get(iteration.latch).clone();
-        let updated = rewrite_latch_to_jump(&mut latch_block, iteration.header, next_header);
+        let updated = rewrite_latch_to_jump(tree, &mut latch_block, iteration.header, next_header);
         if !updated {
             return false;
         }
@@ -2266,7 +2286,8 @@ fn find_preheader(
 
     // require a direct jump to the header
     let preheader_block = tree.get(preheader);
-    let arguments = match &preheader_block.terminator {
+    let preheader_terminator = tree.get(preheader_block.terminator);
+    let arguments = match preheader_terminator {
         mir::Terminator::Jump { target, arguments } if *target == candidate.header => {
             arguments.clone()
         }
@@ -2278,28 +2299,32 @@ fn find_preheader(
 
 /// Rewrite a latch to unconditionally jump to the next header.
 fn rewrite_latch_to_jump(
+    tree: &mut mir::NodeTree,
     block: &mut mir::Block,
     header: mir::LocalNodeId<mir::Block>,
     next_header: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // locate the loop backedge arguments
-    let latch_has_edge = block.terminator.successors().contains(&header);
+    let terminator = tree.get(block.terminator).clone();
+    let latch_has_edge = terminator.successors().contains(&header);
     if !latch_has_edge {
         return false;
     }
-    let latch_args = terminator_arguments_for_successor(&block.terminator, header);
+    let latch_args = terminator_arguments_for_successor(&terminator, header);
 
     // replace the latch terminator with a jump
-    block.terminator = mir::Terminator::Jump {
+    let new_terminator = mir::Terminator::Jump {
         target: next_header,
         arguments: latch_args.to_vec(),
     };
+    tree.replace(block.terminator, new_terminator);
 
     true
 }
 
 /// Rewrite an exiting block for a specific unrolled iteration.
 fn rewrite_latch_block(
+    tree: &mut mir::NodeTree,
     block: &mut mir::Block,
     candidate: &UnrollCandidate,
     iteration: &UnrollIteration,
@@ -2307,12 +2332,14 @@ fn rewrite_latch_block(
     mode: UnrollMode,
     is_last: bool,
 ) -> bool {
+    let terminator = tree.get(block.terminator).clone();
+
     // extract latch arguments
-    let latch_has_edge = block.terminator.successors().contains(&iteration.header);
+    let latch_has_edge = terminator.successors().contains(&iteration.header);
     if !latch_has_edge {
         return false;
     }
-    let latch_args = terminator_arguments_for_successor(&block.terminator, iteration.header);
+    let latch_args = terminator_arguments_for_successor(&terminator, iteration.header);
 
     // handle non last iterations
     if !is_last {
@@ -2321,10 +2348,11 @@ fn rewrite_latch_block(
         };
 
         // redirect to the next iteration header
-        block.terminator = mir::Terminator::Jump {
+        let new_terminator = mir::Terminator::Jump {
             target: next.header,
             arguments: latch_args.to_vec(),
         };
+        tree.replace(block.terminator, new_terminator);
 
         return true;
     }
@@ -2333,7 +2361,7 @@ fn rewrite_latch_block(
     if matches!(mode, UnrollMode::Full { .. }) {
         // resolve exit arguments for this iteration
         let exit_arguments = if candidate.guard_at_latch {
-            let Some((exit_args, _)) = guard_exit_arguments(block, candidate.in_loop_is_then)
+            let Some((exit_args, _)) = guard_exit_arguments(&terminator, candidate.in_loop_is_then)
             else {
                 return false;
             };
@@ -2342,27 +2370,28 @@ fn rewrite_latch_block(
             latch_args.to_vec()
         };
 
-        block.terminator = mir::Terminator::Jump {
+        let new_terminator = mir::Terminator::Jump {
             target: candidate.exit_block,
             arguments: exit_arguments,
         };
+        tree.replace(block.terminator, new_terminator);
 
         return true;
     }
 
     // handle partial unroll with header guards
     if !candidate.guard_at_latch {
-        block.terminator = mir::Terminator::Jump {
+        let new_terminator = mir::Terminator::Jump {
             target: candidate.header,
             arguments: latch_args.to_vec(),
         };
+        tree.replace(block.terminator, new_terminator);
 
         return true;
     }
 
     // handle partial unroll last iteration by redirecting the guard
-    let mut updated = block.clone();
-    let (condition, then_arguments, else_arguments) = match updated.terminator {
+    let (condition, then_arguments, else_arguments) = match terminator {
         mir::Terminator::Branch {
             condition,
             then_arguments,
@@ -2378,14 +2407,14 @@ fn rewrite_latch_block(
         (candidate.exit_block, candidate.header)
     };
 
-    updated.terminator = mir::Terminator::Branch {
+    let new_terminator = mir::Terminator::Branch {
         condition,
         then_target,
         then_arguments,
         else_target,
         else_arguments,
     };
-    *block = updated;
+    tree.replace(block.terminator, new_terminator);
 
     true
 }
@@ -2740,11 +2769,11 @@ impl ValueDefinitions {
 
 /// Extract exit arguments for a guard terminator.
 fn guard_exit_arguments(
-    block: &mir::Block,
+    terminator: &mir::Terminator,
     in_loop_is_then: bool,
 ) -> Option<(Vec<mir::Value>, Vec<mir::Value>)> {
     // branch is required for unroll
-    let (then_arguments, else_arguments) = match &block.terminator {
+    let (then_arguments, else_arguments) = match terminator {
         mir::Terminator::Branch {
             then_arguments,
             else_arguments,
