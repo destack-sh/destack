@@ -40,6 +40,8 @@ impl<'tree> Validator<'tree> {
         // block bodies
         for &block_id in &function.blocks {
             let block = self.tree.get(block_id);
+            let terminator_id = block.terminator;
+            let terminator = self.tree.get(block.terminator);
 
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
@@ -55,7 +57,8 @@ impl<'tree> Validator<'tree> {
             self.validate_terminator(
                 function,
                 block_id,
-                &block.terminator,
+                terminator_id,
+                terminator,
                 &block_ids,
                 &block_order,
                 &defined_values,
@@ -180,6 +183,7 @@ impl<'tree> Validator<'tree> {
         let mut block_ids = HashSet::new();
         let mut block_order = HashMap::new();
         let mut seen_instructions = HashSet::new();
+        let mut seen_terminators = HashSet::new();
 
         for (index, &block_id) in function.blocks.iter().enumerate() {
             self.ensure_node_type(NodeType::Block, block_id.id, ValidateAnchor::node(block_id))?;
@@ -194,6 +198,18 @@ impl<'tree> Validator<'tree> {
             block_order.insert(block_id, index);
 
             let block = self.tree.get(block_id);
+            self.ensure_node_type(
+                NodeType::Terminator,
+                block.terminator.id,
+                ValidateAnchor::node(block_id),
+            )?;
+
+            if !seen_terminators.insert(block.terminator) {
+                return Err(ValidateError::DuplicateTerminatorId {
+                    terminator_id: block.terminator,
+                    anchor: ValidateAnchor::node(block_id),
+                });
+            }
 
             // block parameters
             if block_id != entry {

@@ -552,6 +552,7 @@ impl<'a> Parser<'a> {
                 self.parsed_block_count
             );
         };
+        let terminator_id = self.tree.get(block_id).terminator;
 
         // block header
         let (block_span, block_name) = {
@@ -606,6 +607,8 @@ impl<'a> Parser<'a> {
         // block contents
         let mut instructions = Vec::new();
         let mut terminator = None;
+        let mut terminator_span = None;
+        let mut terminator_main_span = None;
         let mut is_broken = false;
 
         while !self.is_block_label_start()
@@ -633,13 +636,22 @@ impl<'a> Parser<'a> {
                         || self.peek_token(TokenType::InvokeInterface)))
             {
                 let recovery_pos = self.pos();
+                let main_token = self.peek().cloned();
                 match self.parse_terminator() {
                     Ok(parsed_terminator) => {
+                        terminator_span = Some(self.span_from_parse_start(recovery_pos));
+                        terminator_main_span =
+                            main_token.as_ref().map(|token| self.span_for_token(token));
                         terminator = Some(parsed_terminator);
                     }
                     Err(error) => {
                         self.diagnostics.insert(error.to_diagnostic(self.file_id));
                         self.try_recover_to_block(recovery_pos);
+                        terminator_span = Some(
+                            self.span_at(error.position, self.pos().saturating_sub(error.position)),
+                        );
+                        terminator_main_span =
+                            main_token.as_ref().map(|token| self.span_for_token(token));
                         terminator = Some(Terminator::Error);
                         is_broken = true;
                     }
@@ -671,21 +683,32 @@ impl<'a> Parser<'a> {
         }
 
         // finalize block
+        let parsed_terminator = terminator.unwrap_or(if is_broken {
+            Terminator::Error
+        } else {
+            Terminator::Unreachable
+        });
+
         let block = Block {
             name: block_name,
             parameters,
             instructions,
-            terminator: terminator.unwrap_or(if is_broken {
-                Terminator::Error
-            } else {
-                Terminator::Unreachable
-            }),
+            terminator: terminator_id,
         };
 
+        *self.tree.get_mut(terminator_id) = parsed_terminator;
         *self.tree.get_mut(block_id) = block;
         self.tree
             .set_text_span(block_id, self.span_from_parse_start(block_start));
         self.tree.set_main_span(block_id, block_span);
+
+        if let Some(terminator_span) = terminator_span {
+            self.tree.set_text_span(terminator_id, terminator_span);
+        }
+
+        if let Some(terminator_main_span) = terminator_main_span {
+            self.tree.set_main_span(terminator_id, terminator_main_span);
+        }
 
         Ok(block_id)
     }
@@ -693,6 +716,7 @@ impl<'a> Parser<'a> {
     /// Parse one block and recover to the next block boundary on failure.
     fn parse_block_recovering(&mut self) -> LocalNodeId<Block> {
         let block_id = self.current_predeclared_block_id();
+        let terminator_id = self.tree.get(block_id).terminator;
         let recovery_pos = self.pos();
 
         let parsed_block = match self.parse_block() {
@@ -708,11 +732,13 @@ impl<'a> Parser<'a> {
                     name: None,
                     parameters: Vec::new(),
                     instructions: Vec::new(),
-                    terminator: Terminator::Error,
+                    terminator: terminator_id,
                 };
 
+                *self.tree.get_mut(terminator_id) = Terminator::Error;
                 *self.tree.get_mut(block_id) = block;
                 self.tree.set_text_span(block_id, error_span);
+                self.tree.set_text_span(terminator_id, error_span);
 
                 block_id
             }
@@ -1440,7 +1466,8 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            let block_id = self.tree.insert(Block::new());
+            let terminator_id = self.tree.insert(Terminator::Unreachable);
+            let block_id = self.tree.insert(Block::new(terminator_id));
             self.predeclared_blocks.push(block_id);
 
             match token.ty {

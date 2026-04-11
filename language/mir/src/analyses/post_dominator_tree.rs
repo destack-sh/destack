@@ -124,7 +124,9 @@ impl PostDominatorTree {
         // terminators with no successors
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
-            if block.terminator.successors().is_empty() {
+            let terminator = tree.get(block.terminator);
+
+            if terminator.successors().is_empty() {
                 exits.insert(block_id);
             }
         }

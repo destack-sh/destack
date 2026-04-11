@@ -1,9 +1,9 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType, Type,
-    TypeAlias, walk_block, walk_field, walk_function, walk_global, walk_instruction, walk_local,
-    walk_type, walk_type_alias,
+    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
+    Terminator, Type, TypeAlias, walk_block, walk_field, walk_function, walk_global,
+    walk_instruction, walk_local, walk_terminator, walk_type, walk_type_alias,
 };
 
 /// Options for the NodeVisitor.
@@ -39,6 +39,16 @@ pub trait NodeVisitor {
         instruction: &Instruction,
     ) {
         walk_instruction(self, tree, id, instruction);
+    }
+
+    /// Visit a Terminator.
+    fn visit_terminator(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Terminator>,
+        terminator: &Terminator,
+    ) {
+        walk_terminator(self, tree, id, terminator);
     }
 
     /// Visit a Local.

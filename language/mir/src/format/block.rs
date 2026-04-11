@@ -33,7 +33,7 @@ impl<'a> FormatMirNode<'a, Block> for Block {
 
         // instructions (indented)
         let instructions = self.instructions.clone();
-        let terminator = self.terminator.clone();
+        let terminator_id = self.terminator;
 
         write!(
             f,
@@ -49,12 +49,23 @@ impl<'a> FormatMirNode<'a, Block> for Block {
                     }
 
                     // terminator
-                    format_terminator(&terminator, f)?;
+                    let terminator = tree.get(terminator_id);
+                    terminator.format_node(terminator_id, f)?;
 
                     Ok(())
                 }
             ))]
         )
+    }
+}
+
+impl<'a> FormatMirNode<'a, Terminator> for Terminator {
+    fn format_node(
+        &self,
+        _id: LocalNodeId<Terminator>,
+        f: &mut MirFormatter<'a, '_>,
+    ) -> FormatResult<()> {
+        format_terminator(self, f)
     }
 }
 

@@ -30,8 +30,9 @@ impl DenseControlFlow {
         for &block in &function.blocks {
             let index = block_index[&block];
             let block_data = tree.get(block);
+            let terminator = tree.get(block_data.terminator);
 
-            for successor in block_data.terminator.successors() {
+            for successor in terminator.successors() {
                 let successor_index = block_index[&successor];
                 successors[index].push(successor_index);
             }

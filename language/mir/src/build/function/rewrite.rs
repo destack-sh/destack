@@ -38,9 +38,12 @@ impl<'a> FunctionBuilder<'a> {
         }
 
         // update parameters and terminator
+        let terminator_id = self.tree.get(block).terminator;
         let block_data = self.tree.get_mut(block);
         Self::replace_values_in_parameters(&mut block_data.parameters, from, to);
-        Self::replace_value_in_terminator(&mut block_data.terminator, from, to);
+
+        let terminator = self.tree.get_mut(terminator_id);
+        Self::replace_value_in_terminator(terminator, from, to);
     }
 
     /// Replace a value in an instruction.

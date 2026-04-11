@@ -13,6 +13,8 @@ pub enum NodeType {
     Block,
     /// An instruction.
     Instruction,
+    /// A block terminator.
+    Terminator,
     /// A local variable (stack slot).
     Local,
     /// A type.
@@ -33,6 +35,7 @@ impl NodeType {
             NodeType::Function => "function",
             NodeType::Block => "block",
             NodeType::Instruction => "instruction",
+            NodeType::Terminator => "terminator",
             NodeType::Local => "local",
             NodeType::Type => "type",
             NodeType::TypeAlias => "type_alias",

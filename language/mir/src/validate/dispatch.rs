@@ -34,7 +34,9 @@ impl<'a> Validator<'a> {
 
         // dynamic call terminators
         for (block_id, block) in self.tree.iter_nodes::<crate::Block>() {
-            match &block.terminator {
+            let terminator = self.tree.get(block.terminator);
+
+            match terminator {
                 Terminator::InvokeVirtual {
                     declared_target,
                     call,
