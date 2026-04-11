@@ -1869,7 +1869,7 @@ b0(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[3] = [v0, v1, v2]
+    v3: int32[3] = array int32[3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = element.get v3, v4
     return v5
@@ -1878,7 +1878,7 @@ b0(v0: int32, v1: int32, v2: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[3] = [v0, v1, v2]
+    v3: int32[3] = array int32[3] (v0, v1, v2)
     v4: int64 = 1int64
     return v1
 }"#;
@@ -1894,7 +1894,7 @@ b0(v0: int32, v1: int32, v2: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int64): int32 {
 b0(v0: int32, v1: int32, v2: int64):
-    v3: int32[2] = [v0, v1]
+    v3: int32[2] = array int32[2] (v0, v1)
     v4: int32 = element.get v3, v2
     return v4
 }"#;
@@ -2050,7 +2050,7 @@ b0(v0: int32[3], v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[2] = [v0, v1]
+    v3: int32[2] = array int32[2] (v0, v1)
     v4: int64 = 0int64
     v5: int32[2] = element.set v3, v4, v2
     v6: int64 = 1int64
@@ -2061,7 +2061,7 @@ b0(v0: int32, v1: int32, v2: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[2] = [v0, v1]
+    v3: int32[2] = array int32[2] (v0, v1)
     v4: int64 = 0int64
     v5: int32[2] = element.set v3, v4, v2
     v6: int64 = 1int64
@@ -2095,7 +2095,7 @@ b0(v0: int32[3], v1: int32, v2: int64, v3: int64):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32[2] = [v0, v1]
+    v2: int32[2] = array int32[2] (v0, v1)
     v3: int64 = -1int64
     v4: int32 = element.get v2, v3
     return v4
@@ -2231,7 +2231,7 @@ b0(v0: Point):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32[2] = [v0, v1]
+    v2: int32[2] = array int32[2] (v0, v1)
     v3: int64 = 10int64
     v4: int32 = element.get v2, v3
     return v4

@@ -10,7 +10,7 @@ b0(v0: int64):
     v3: int64 = 3int64
     v4: Triple = struct Triple (v1, v2, v3)
     v5: (int64, int64) = tuple (int64, int64) (v1, v3)
-    v6: int64[4] = [v1, v2, v3, v2]
+    v6: int64[4] = array int64[4] (v1, v2, v3, v2)
     v7: int64 = 0int64
     jump b1(v7, v4, v5, v6)
 b1(v8: int64, v9: Triple, v10: (int64, int64), v11: int64[4]):

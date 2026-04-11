@@ -1289,7 +1289,7 @@ b0:
     v0: ref<int32[2], raw, addressSpace(stack)> = stack.alloc int32[2]
     v1: int32 = 10int32
     v2: int32 = 20int32
-    v3: int32[2] = [v1, v2]
+    v3: int32[2] = array int32[2] (v1, v2)
     store v0, v3
     v4: int32[2] = load v0
     v5: int64 = 1int64
@@ -1303,7 +1303,7 @@ b0:
     v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
     v2: int32 = 10int32
     v3: int32 = 20int32
-    v4: int32[2] = [v2, v3]
+    v4: int32[2] = array int32[2] (v2, v3)
     v5: int64 = 0int64
     v6: int32 = element.get v4, v5
     store v1, v6
@@ -1312,7 +1312,7 @@ b0:
     store v0, v8
     v9: int32 = load v1
     v10: int32 = load v0
-    v11: int32[2] = [v9, v10]
+    v11: int32[2] = array int32[2] (v9, v10)
     v12: int64 = 1int64
     v13: int32 = element.get v11, v12
     return v13

@@ -1019,7 +1019,7 @@ b0:
 function test(): ref<int32, owned>[1] {
 b0:
     v0: ref<int32, managed> = managed.alloc int32
-    v1: ref<int32, owned>[1] = [v0]
+    v1: ref<int32, owned>[1] = array ref<int32, owned>[1] (v0)
     raw.drop v0
     return v1
 }"#;
