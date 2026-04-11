@@ -42,26 +42,6 @@ impl<'a> Parser<'a> {
         if let Some(destination) = destination
             && let Some(destination_type) = destination_type
         {
-            // array literal
-            if self.peek_token(TokenType::OpenBracket) {
-                let elements = self.parse_value_bracket_list()?;
-                let elements = self.tree.add_arguments(&elements);
-                let instruction = Instruction::Array {
-                    destination,
-                    ty: destination_type,
-                    elements,
-                };
-                let id = self.tree.insert(instruction);
-                self.apply_instruction_spans(
-                    id,
-                    self.span_from_parse_start(instruction_start),
-                    destination_span,
-                    destination_type_span,
-                    &[],
-                );
-                return Ok(id);
-            }
-
             // direct constant literal
             if let Some(token) = self.peek()
                 && (matches!(
@@ -484,6 +464,16 @@ impl<'a> Parser<'a> {
                         let elements = self.parse_call_argument_segments(&mut segment_spans)?;
                         let elements = self.tree.add_arguments(&elements);
                         Instruction::Tuple {
+                            destination,
+                            ty,
+                            elements,
+                        }
+                    }
+                    "array" => {
+                        let ty = self.parse_type_segment(&mut segment_spans)?;
+                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
+                        let elements = self.tree.add_arguments(&elements);
+                        Instruction::Array {
                             destination,
                             ty,
                             elements,
@@ -981,7 +971,7 @@ impl<'a> Parser<'a> {
         Ok(instruction_id)
     }
 
-    /// Apply syntax spans to one parsed instruction.
+    /// Apply source ownership spans to one parsed instruction.
     fn apply_instruction_spans(
         &mut self,
         instruction_id: LocalNodeId<Instruction>,
@@ -1008,13 +998,11 @@ impl<'a> Parser<'a> {
         self.set_segment_spans(instruction_id, segment_spans);
     }
 
-    /// Parse a bracketed list of values.
+    /// Parse a bracketed list of values and append each element as one source segment.
     fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<Value>> {
-        // open the list
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
-        // read values
         while !self.peek_token(TokenType::CloseBracket) {
             values.push(self.parse_value()?);
             if !self.eat_token_maybe(TokenType::Comma) {
@@ -1022,7 +1010,6 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // close the list
         self.eat_token(TokenType::CloseBracket)?;
         Ok(values)
     }

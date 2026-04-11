@@ -1111,7 +1111,7 @@ entry0:
     value0: int32 = 1int32
     value1: int32 = 2int32
     value2: int32 = 3int32
-    value3: int32[3] = [value0, value1, value2]
+    value3: int32[3] = array int32[3] (value0, value1, value2)
     return value3
 }";
     assert_eq!(output, expected);

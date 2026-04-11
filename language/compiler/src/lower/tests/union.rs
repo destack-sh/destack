@@ -209,7 +209,7 @@ entry0(value0: Circle):
     value2: ref<usize[1], raw, addressSpace(stack)> = stack.alloc usize[1]
     value3: uint64 = 0uint64
     value4: usize = cast.bit value3 -> usize
-    value5: usize[1] = [value4]
+    value5: usize[1] = array usize[1] (value4)
     store value2, value5
     value6: ref<Circle, raw, addressSpace(stack)> = cast.bit value2 -> ref<Circle, raw, addressSpace(stack)>
     store value6, value0
@@ -408,7 +408,7 @@ entry0:
     value0: uint8 = 1uint8
     value1: uint64 = 0uint64
     value2: usize = cast.bit value1 -> usize
-    value3: usize[1] = [value2]
+    value3: usize[1] = array usize[1] (value2)
     value4: makeNull.return#union = struct makeNull.return#union (value0, value3)
     return value4
 }
@@ -454,7 +454,7 @@ entry0:
     value0: uint8 = 2uint8
     value1: uint64 = 0uint64
     value2: usize = cast.bit value1 -> usize
-    value3: usize[1] = [value2]
+    value3: usize[1] = array usize[1] (value2)
     value4: makeUndefined.return#union = struct makeUndefined.return#union (value0, value3)
     return value4
 }

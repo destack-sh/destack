@@ -506,13 +506,24 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::Array {
                 destination,
+                ty,
                 elements,
-                ..
             } => {
                 format_typed_destination(*destination, f)?;
-                write!(f, [space(), token("="), space()])?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("array"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
                 let args = f.context().tree.get_arguments(*elements);
-                format_value_bracket_list(args, f)
+                format_value_list(args, f)
             }
 
             Instruction::VectorSplat { destination, value } => {

@@ -1643,7 +1643,7 @@ b0:
     v0: int32 = 10int32
     v1: int32 = 20int32
     v2: int32 = 30int32
-    v3: int32[3] = [v0, v1, v2]
+    v3: int32[3] = array int32[3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = element.get v3, v4
     return v5
@@ -1654,7 +1654,7 @@ b0:
     v0: int32 = 10int32
     v1: int32 = 20int32
     v2: int32 = 30int32
-    v3: int32[3] = [v0, v1, v2]
+    v3: int32[3] = array int32[3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = 20int32
     return v5
@@ -1674,7 +1674,7 @@ b0:
     v0: int32 = 1int32
     v1: int32 = 2int32
     v2: int32 = 3int32
-    v3: int32[3] = [v0, v1, v2]
+    v3: int32[3] = array int32[3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = 9int32
     v6: int32[3] = element.set v3, v4, v5
@@ -1687,7 +1687,7 @@ b0:
     v0: int32 = 1int32
     v1: int32 = 2int32
     v2: int32 = 3int32
-    v3: int32[3] = [v0, v1, v2]
+    v3: int32[3] = array int32[3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = 9int32
     v6: int32[3] = element.set v3, v4, v5

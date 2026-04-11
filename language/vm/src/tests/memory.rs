@@ -291,7 +291,7 @@ b0(v0: int64):
     v1: int32 = 10int32
     v2: int32 = 20int32
     v3: int32 = 30int32
-    v4: int32[3] = [v1, v2, v3]
+    v4: int32[3] = array int32[3] (v1, v2, v3)
     v5: int32 = element.get v4, v0
     return v5
 }"#;
@@ -357,7 +357,7 @@ b0(v0: int64, v1: int32):
     v2: int32 = 10int32
     v3: int32 = 20int32
     v4: int32 = 30int32
-    v5: int32[3] = [v2, v3, v4]
+    v5: int32[3] = array int32[3] (v2, v3, v4)
     v6: int32[3] = element.set v5, v0, v1
     v7: int32 = element.get v5, v0
     v8: int32 = element.get v6, v0
