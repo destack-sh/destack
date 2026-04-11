@@ -38,13 +38,6 @@ pub enum ExpectedOutput {
     None,
     /// Compare output against a plain text file.
     PlainFile(PathBuf),
-    /// Compare output against one prettier jest snapshot case.
-    PrettierSnapshot {
-        /// The snapshot fixture path relative to the suite tests directory.
-        path: PathBuf,
-        /// The snapshot export key to extract.
-        key: String,
-    },
     /// Compare output against oxfmt style snapshot file sections.
     OxfmtSnapshot(PathBuf),
 }

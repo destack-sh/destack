@@ -18,10 +18,6 @@ struct Args {
     #[arg(long)]
     suite_filter: Option<String>,
 
-    /// Run Prettier formatter suite.
-    #[arg(long)]
-    prettier: bool,
-
     /// Run oxfmt formatter suite.
     #[arg(long)]
     oxfmt: bool,
@@ -35,10 +31,7 @@ fn main() -> ExitCode {
     let args = Args::parse();
     let mut test_options = args.test;
     test_options.continue_after_timeout = true;
-    let selection = FormatterConformanceSelection {
-        prettier: args.prettier,
-        oxfmt: args.oxfmt,
-    };
+    let selection = FormatterConformanceSelection { oxfmt: args.oxfmt };
     let suite = FormatterConformanceSuite::new(
         selection,
         test_options.update_known_failures,

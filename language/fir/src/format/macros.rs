@@ -57,7 +57,7 @@ macro_rules! format {
 ///   complexity if used in nested structures.
 ///
 /// ## Behavior
-/// This IR is similar to Prettier's `conditionalGroup`. The printer measures each variant, except the [`MostExpanded`], in [`Flat`] mode
+/// This IR is similar to the `conditionalGroup` node used by other formatter IRs. The printer measures each variant, except the [`MostExpanded`], in [`Flat`] mode
 /// to find the first variant that fits and prints this variant in [`Flat`] mode. If no variant fits, then
 /// the printer falls back to printing the [`MostExpanded`] variant in [`Expanded`] mode.
 ///

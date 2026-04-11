@@ -1,8 +1,7 @@
 # formatter
 
 Code formatter for Destack, TypeScript, JavaScript, JSX, and TSX.
-The primary correctness target for the shared JS and TS surface is `oxc_formatter`.
-Prettier compatibility is a secondary target and should follow OXC where the two disagree.
+The correctness target for the shared JS and TS surface is `oxc_formatter`.
 
 Unsupported legacy or non-strict syntax belongs in conformance status files instead of formatter heuristics.
 Destack-only syntax should fit into the same structural model rather than inventing separate policy when an OXC-shaped analogue exists.
@@ -42,7 +41,7 @@ The current audit artifacts are:
 ## Configuration
 
 The formatter exposes the standard workspace formatting controls for width, indentation, commas, quote style, bracket spacing, and related layout policy.
-Those options should influence formatting in the same places OXC and Prettier already allow, rather than creating new local branches.
+Those options should influence formatting in the same places OXC already allows, rather than creating new local branches.
 
 ## Testing
 
