@@ -382,7 +382,7 @@ impl<'a> Parser<'a> {
                         let function = self.parse_function_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let environment = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::Closure {
+                        Instruction::FunctionBind {
                             destination,
                             function,
                             environment,

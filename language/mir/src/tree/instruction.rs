@@ -184,8 +184,8 @@ pub enum Instruction {
         /// The function to take the address of.
         function: LocalNodeId<Function>,
     },
-    /// Construct a callable value for a function and one environment (function.bind).
-    Closure {
+    /// Bind one environment to a function and produce a callable value (function.bind).
+    FunctionBind {
         /// The SSA value to define with the callable value.
         destination: Value,
         /// The function to pair with the environment.
@@ -883,7 +883,7 @@ impl Instruction {
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
-            Instruction::Closure { destination, .. } => Some(*destination),
+            Instruction::FunctionBind { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
@@ -969,7 +969,7 @@ impl Instruction {
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::GlobalConst { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
-            Instruction::Closure { environment, .. } => smallvec![*environment],
+            Instruction::FunctionBind { environment, .. } => smallvec![*environment],
             Instruction::FunctionEnvironment { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],

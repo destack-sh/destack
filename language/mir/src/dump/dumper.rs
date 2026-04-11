@@ -480,7 +480,7 @@ impl<'a> Dumper<'a> {
                 self.write(" = function.address ");
                 self.write(&self.format_function_id(*function));
             }
-            Instruction::Closure {
+            Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
