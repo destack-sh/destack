@@ -554,7 +554,7 @@ fn infer_instruction_kind(
                 result: function.return_type,
             })
         }
-        mir::Instruction::Closure { destination, .. } => {
+        mir::Instruction::FunctionBind { destination, .. } => {
             let ty = value_type_for_value(*destination, value_types);
             Some(kind_from_type(tree, ty))
         }

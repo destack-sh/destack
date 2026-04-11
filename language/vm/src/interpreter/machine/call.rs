@@ -216,12 +216,12 @@ pub(crate) fn step_function_addr(
 }
 
 /// Build a callable value from one function and environment.
-pub(crate) fn step_function_value(
+pub(crate) fn step_function_bind(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let InstructionData::Closure {
+    let InstructionData::FunctionBind {
         dest,
         function,
         environment,

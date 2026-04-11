@@ -862,7 +862,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::GlobalConst { .. }
             | mir::Instruction::FunctionAddr { .. }
-            | mir::Instruction::Closure { .. }
+            | mir::Instruction::FunctionBind { .. }
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldGet { .. }

@@ -149,7 +149,7 @@ pub(crate) fn step_instruction(
         InstructionOperation::FieldStoreRaw => super::step_field_store_raw(state, block, pc),
         InstructionOperation::FieldStoreStack => super::step_field_store_stack(state, block, pc),
         InstructionOperation::FunctionAddr => super::step_function_addr(state, block, pc),
-        InstructionOperation::Closure => super::step_function_value(state, block, pc),
+        InstructionOperation::FunctionBind => super::step_function_bind(state, block, pc),
         InstructionOperation::FunctionEnvironment => {
             super::step_function_environment(state, block, pc)
         }

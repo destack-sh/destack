@@ -609,13 +609,13 @@ impl<'a> BlockLowerer<'a> {
                     function: function.id,
                 },
             },
-            mir::Instruction::Closure {
+            mir::Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
             } => Instruction {
-                operation: InstructionOperation::Closure,
-                data: InstructionData::Closure {
+                operation: InstructionOperation::FunctionBind,
+                data: InstructionData::FunctionBind {
                     dest: *destination,
                     function: function.id,
                     environment: *environment,
