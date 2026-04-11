@@ -9,8 +9,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Return from the function.
     pub fn return_(&mut self, return_value: Option<Value>) {
         let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Return {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Return {
             value: return_value,
         };
     }
@@ -19,8 +21,10 @@ impl<'a> FunctionBuilder<'a> {
     pub fn jump(&mut self, target_block: LocalNodeId<Block>) {
         let block = self.current_block();
         self.add_predecessor(block, target_block);
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Jump {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Jump {
             target: target_block,
             arguments: Vec::new(),
         };
@@ -36,8 +40,10 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.current_block();
         self.add_predecessor(block, then_block);
         self.add_predecessor(block, else_block);
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Branch {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Branch {
             condition: condition_value,
             then_target: then_block,
             then_arguments: Vec::new(),
@@ -56,8 +62,10 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.current_block();
         self.add_predecessor(block, success_block);
         self.add_predecessor(block, failure_block);
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Check {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Check {
             constraint,
             success: CheckTarget {
                 target: success_block,
@@ -73,15 +81,19 @@ impl<'a> FunctionBuilder<'a> {
     /// Throw a managed exception object.
     pub fn throw(&mut self, value: Value) {
         let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Throw { value };
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Throw { value };
     }
 
     /// Abort execution immediately.
     pub fn trap_abort(&mut self) {
         let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Trap {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Trap {
             kind: TrapKind::Abort,
             payload: None,
         };
@@ -90,8 +102,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Panic with a runtime payload.
     pub fn trap_panic(&mut self, payload: Value) {
         let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::Trap {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Trap {
             kind: TrapKind::Panic,
             payload: Some(payload),
         };
@@ -112,8 +126,10 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, normal_block);
         self.add_predecessor(block_id, unwind_block);
 
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::Invoke {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Invoke {
             function,
             call: Call::new(argument_values, signature),
             normal_target: normal_block,
@@ -138,8 +154,10 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, normal_block);
         self.add_predecessor(block_id, unwind_block);
 
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::InvokeIndirect {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::InvokeIndirect {
             callee,
             call: Call::new(argument_values, signature),
             normal_target: normal_block,
@@ -167,8 +185,10 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, normal_block);
         self.add_predecessor(block_id, unwind_block);
 
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::InvokeVirtual {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::InvokeVirtual {
             receiver,
             declaring_type,
             slot_id,
@@ -199,8 +219,10 @@ impl<'a> FunctionBuilder<'a> {
         self.add_predecessor(block_id, normal_block);
         self.add_predecessor(block_id, unwind_block);
 
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::InvokeInterface {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::InvokeInterface {
             receiver,
             declaring_type,
             slot_id,
@@ -223,8 +245,10 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::TailCall {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::TailCall {
             function,
             call: Call::new(argument_values, signature),
         };
@@ -243,8 +267,10 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::TailCallVirtual {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::TailCallVirtual {
             receiver,
             declaring_type,
             slot_id,
@@ -266,8 +292,10 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        let block = self.tree.get_mut(block_id);
-        block.terminator = Terminator::TailCallInterface {
+        let terminator_id = self.tree.get(block_id).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::TailCallInterface {
             receiver,
             declaring_type,
             slot_id,
@@ -286,8 +314,10 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block = self.current_block();
-        let block = self.tree.get_mut(block);
-        block.terminator = Terminator::TailCallIndirect {
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::TailCallIndirect {
             callee,
             call: Call::new(argument_values, signature),
         };

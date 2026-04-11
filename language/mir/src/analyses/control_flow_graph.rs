@@ -22,8 +22,9 @@ impl ControlFlowGraph {
         // compute predecessors from successor edges
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
 
-            for successor in block.terminator.successors() {
+            for successor in terminator.successors() {
                 if let Some(block_predecessors) = predecessors.get_mut(&successor) {
                     block_predecessors.push(block_id);
                 }

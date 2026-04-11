@@ -1,6 +1,6 @@
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
-    NodeVisitor, Type, TypeAlias,
+    NodeVisitor, Terminator, Type, TypeAlias,
 };
 
 /// Walk any node.
@@ -25,6 +25,11 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let id = LocalNodeId::new(node_id);
             let instruction = tree.get(id);
             visitor.visit_instruction(tree, id, instruction);
+        }
+        NodeType::Terminator => {
+            let id = LocalNodeId::new(node_id);
+            let terminator = tree.get(id);
+            visitor.visit_terminator(tree, id, terminator);
         }
         NodeType::Local => {
             let id = LocalNodeId::new(node_id);
@@ -85,6 +90,9 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
         let instruction = tree.get(*inst_id);
         visitor.visit_instruction(tree, *inst_id, instruction);
     }
+
+    let terminator = tree.get(block.terminator);
+    visitor.visit_terminator(tree, block.terminator, terminator);
 }
 
 /// Walk an Instruction.
@@ -95,6 +103,16 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
     _instruction: &Instruction,
 ) {
     visitor.visit_any(tree, NodeType::Instruction, id.id);
+}
+
+/// Walk a Terminator.
+pub fn walk_terminator<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<Terminator>,
+    _terminator: &Terminator,
+) {
+    visitor.visit_any(tree, NodeType::Terminator, id.id);
 }
 
 /// Walk a Local.

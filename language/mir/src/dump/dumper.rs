@@ -2355,6 +2355,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
         self.indent();
 
+        let terminator = tree.get(block.terminator);
+
         // instructions
         for inst_id in &block.instructions {
             let instruction = tree.get(*inst_id);
@@ -2362,7 +2364,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
 
         // terminator
-        self.dump_terminator(&block.terminator);
+        self.dump_terminator(terminator);
 
         self.dedent();
     }

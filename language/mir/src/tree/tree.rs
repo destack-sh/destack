@@ -10,7 +10,8 @@ use crate::{
     AddressSpace, ArgumentSlice, Attribute, Block, Field, Function, Global, Instruction,
     InterfaceDispatchShape, Itab, ItabId, Layout, LayoutId, LayoutMetadata, Local, LocalNodeId,
     ManagedReferenceRepresentation, Metadata, Mutability, Node, NodeType, ProvenanceId,
-    ProvenanceReason, ReferenceKind, Type, TypeAlias, TypeLineage, Value, Vtable, VtableId,
+    ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias, TypeLineage, Value, Vtable,
+    VtableId,
 };
 
 /// Approximate per-entry overhead for one hash-map entry.
@@ -43,6 +44,7 @@ pub struct NodeTree {
     pub(crate) functions: Arena<Function>,
     pub(crate) blocks: Arena<Block>,
     pub(crate) instructions: Arena<Instruction>,
+    pub(crate) terminators: Arena<Terminator>,
     pub(crate) locals: Arena<Local>,
     pub(crate) types: Arena<Type>,
     pub(crate) type_aliases: Arena<TypeAlias>,
@@ -66,6 +68,7 @@ impl Debug for NodeTree {
             .field("functions", &self.functions.len())
             .field("blocks", &self.blocks.len())
             .field("instructions", &self.instructions.len())
+            .field("terminators", &self.terminators.len())
             .field("locals", &self.locals.len())
             .field("types", &self.types.len())
             .field("type_aliases", &self.type_aliases.len())
@@ -99,6 +102,7 @@ impl NodeTree {
             functions: Arena::new(),
             blocks: Arena::new(),
             instructions: Arena::new(),
+            terminators: Arena::new(),
             locals: Arena::new(),
             types: Arena::new(),
             type_aliases: Arena::new(),
@@ -120,6 +124,7 @@ impl NodeTree {
         owned_bytes += self.functions.retained_bytes();
         owned_bytes += self.blocks.retained_bytes();
         owned_bytes += self.instructions.retained_bytes();
+        owned_bytes += self.terminators.retained_bytes();
         owned_bytes += self.locals.retained_bytes();
         owned_bytes += self.types.retained_bytes();
         owned_bytes += self.type_aliases.retained_bytes();
@@ -905,6 +910,7 @@ macro_rules! impl_node_tree {
 impl_node_tree!(Function, functions);
 impl_node_tree!(Block, blocks);
 impl_node_tree!(Instruction, instructions);
+impl_node_tree!(Terminator, terminators);
 impl_node_tree!(Local, locals);
 impl_node_tree!(Type, types);
 impl_node_tree!(TypeAlias, type_aliases);

@@ -14,7 +14,8 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a new basic block.
     pub fn block(&mut self) -> LocalNodeId<Block> {
-        let block = self.tree.insert(Block::new());
+        let terminator = self.tree.insert(Terminator::Unreachable);
+        let block = self.tree.insert(Block::new(terminator));
         self.blocks.push(block);
         self.predecessors.insert(block, Vec::new());
         block
@@ -240,8 +241,10 @@ impl<'a> FunctionBuilder<'a> {
         to_block: LocalNodeId<Block>,
         value: Value,
     ) {
-        let block_data = self.tree.get_mut(from_block);
-        match &mut block_data.terminator {
+        let terminator_id = self.tree.get(from_block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        match terminator {
             Terminator::Jump { target, arguments } if *target == to_block => {
                 arguments.push(value);
             }

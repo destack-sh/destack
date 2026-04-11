@@ -1,7 +1,8 @@
 use std::fmt;
 
 use crate::{
-    Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeType, Value,
+    Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeType, Terminator,
+    Value,
 };
 
 /// Anchor for a validation error.
@@ -80,6 +81,13 @@ pub enum ValidateError {
     DuplicateInstructionId {
         /// The duplicate instruction id.
         instruction_id: LocalNodeId<Instruction>,
+        /// The anchor for this error.
+        anchor: ValidateAnchor,
+    },
+    /// A terminator id is listed more than once.
+    DuplicateTerminatorId {
+        /// The duplicate terminator id.
+        terminator_id: LocalNodeId<Terminator>,
         /// The anchor for this error.
         anchor: ValidateAnchor,
     },
@@ -257,6 +265,7 @@ impl ValidateError {
             | ValidateError::DuplicateBlockName { anchor, .. }
             | ValidateError::DuplicateLocalId { anchor, .. }
             | ValidateError::DuplicateInstructionId { anchor, .. }
+            | ValidateError::DuplicateTerminatorId { anchor, .. }
             | ValidateError::DuplicateValueDefinition { anchor, .. }
             | ValidateError::MissingValueName { anchor, .. }
             | ValidateError::DuplicateValueName { anchor, .. }
@@ -311,6 +320,9 @@ impl fmt::Display for ValidateError {
             }
             ValidateError::DuplicateInstructionId { instruction_id, .. } => {
                 write!(f, "duplicate instruction id inst{}", instruction_id.id)
+            }
+            ValidateError::DuplicateTerminatorId { terminator_id, .. } => {
+                write!(f, "duplicate terminator id term{}", terminator_id.id)
             }
             ValidateError::DuplicateValueDefinition { value, .. } => {
                 write!(f, "duplicate value definition v{}", value.id())

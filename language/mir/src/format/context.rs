@@ -839,11 +839,13 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
 
     // record block parameter types
     for (_, block) in tree.iter_nodes::<Block>() {
+        let terminator = tree.get(block.terminator);
+
         for parameter in &block.parameters {
             record_type_use(tree, parameter.ty, &mut counts);
         }
 
-        match &block.terminator {
+        match terminator {
             Terminator::Invoke { call, .. }
             | Terminator::InvokeIndirect { call, .. }
             | Terminator::InvokeVirtual {
@@ -873,7 +875,7 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
             _ => {}
         }
 
-        match &block.terminator {
+        match terminator {
             Terminator::InvokeVirtual { declaring_type, .. }
             | Terminator::InvokeInterface { declaring_type, .. }
             | Terminator::TailCallVirtual { declaring_type, .. }

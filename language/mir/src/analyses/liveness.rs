@@ -53,6 +53,7 @@ impl FunctionLiveness {
         // per block facts
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
             let mut seen_value_defs = HashSet::new();
             let mut seen_local_defs = HashSet::new();
             let mut block_facts = BlockLivenessFacts::default();
@@ -86,7 +87,7 @@ impl FunctionLiveness {
             }
 
             // terminator uses
-            for used in block.terminator.uses() {
+            for used in terminator.uses() {
                 if !seen_value_defs.contains(&used) {
                     block_facts.value_use.insert(used);
                 }
@@ -197,6 +198,7 @@ impl FunctionLiveness {
         facts: &HashMap<LocalNodeId<Block>, BlockLivenessFacts>,
     ) -> bool {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
         let facts = facts
             .get(&block_id)
             .unwrap_or_else(|| panic!("missing liveness facts for block: {block_id:?}"));
@@ -205,7 +207,7 @@ impl FunctionLiveness {
         let mut next_value_live_out = HashSet::new();
         let mut next_local_live_out = HashSet::new();
 
-        for successor in block.terminator.successors() {
+        for successor in terminator.successors() {
             if let Some(successor_live_in) = liveness.value_live_in.get(&successor) {
                 next_value_live_out.extend(successor_live_in.iter().copied());
             }
@@ -334,6 +336,7 @@ impl FunctionLiveness {
         tree: &NodeTree,
     ) -> bool {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // later instructions
         for &instruction_id in block.instructions.iter().skip(instruction_index + 1) {
@@ -350,7 +353,7 @@ impl FunctionLiveness {
         }
 
         // terminator
-        if block.terminator.uses().contains(&value) {
+        if terminator.uses().contains(&value) {
             return true;
         }
 
@@ -365,6 +368,7 @@ impl FunctionLiveness {
         instruction_offset: usize,
     ) -> HashSet<Value> {
         let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
 
         // block entry
         if instruction_offset == 0 {
@@ -393,7 +397,7 @@ impl FunctionLiveness {
         }
 
         // terminator
-        for used in block.terminator.uses() {
+        for used in terminator.uses() {
             live.insert(used);
         }
 
