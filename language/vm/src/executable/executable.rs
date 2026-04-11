@@ -468,8 +468,9 @@ impl ExecutableBuilder {
         for block_id in block_ids {
             let yield_edge = {
                 let block = self.tree.get(block_id);
+                let terminator = self.tree.get(block.terminator);
 
-                match &block.terminator {
+                match terminator {
                     mir::Terminator::Yield {
                         resume,
                         resume_arguments,
@@ -498,8 +499,8 @@ impl ExecutableBuilder {
 
             let exceptional_call_edge = {
                 let block = self.tree.get(block_id);
-
-                match &block.terminator {
+                let terminator = self.tree.get(block.terminator);
+                match terminator {
                     mir::Terminator::Invoke {
                         normal_target,
                         normal_arguments,

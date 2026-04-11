@@ -24,13 +24,14 @@ impl<'a> BlockLowerer<'a> {
         instructions: &mut Vec<Instruction>,
         pool: &mut Pool,
     ) -> Option<Instruction> {
+        let terminator = self.tree.get(block.terminator);
         let mir::Terminator::Branch {
             condition,
             then_target,
             then_arguments,
             else_target,
             else_arguments,
-        } = &block.terminator
+        } = terminator
         else {
             return None;
         };
@@ -144,6 +145,9 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool,
     ) -> Instruction {
         match term {
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached VM lowering");
+            }
             mir::Terminator::Return { value } => Instruction {
                 operation: InstructionOperation::Return,
                 data: InstructionData::Return {

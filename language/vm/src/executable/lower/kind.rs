@@ -323,7 +323,9 @@ fn propagate_block_parameter_kinds(
 
     for block_id in mir_blocks {
         let block = tree.get(*block_id);
-        match &block.terminator {
+        let terminator = tree.get(block.terminator);
+
+        match terminator {
             mir::Terminator::Jump { target, arguments } => {
                 is_changed |= propagate_target_kind(tree, value_kind_map, *target, arguments);
             }
@@ -402,6 +404,9 @@ fn propagate_block_parameter_kinds(
                 is_changed |=
                     propagate_target_kind(tree, value_kind_map, *unwind_target, unwind_arguments);
             }
+            mir::Terminator::Error => {
+                panic!("recovered MIR terminator reached VM lowering");
+            }
             mir::Terminator::Return { .. }
             | mir::Terminator::Throw { .. }
             | mir::Terminator::Trap { .. }
@@ -453,6 +458,9 @@ fn infer_instruction_kind(
     value_types: &[mir::LocalNodeId<mir::Type>],
 ) -> Option<ValueKind> {
     match inst {
+        mir::Instruction::Error => {
+            panic!("recovered MIR instruction reached VM lowering");
+        }
         mir::Instruction::Const { destination, value } => {
             if matches!(value, mir::Constant::Null) {
                 let ty = value_type_for_value(*destination, value_types);
