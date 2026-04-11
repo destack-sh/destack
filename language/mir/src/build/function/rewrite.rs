@@ -68,7 +68,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::ManagedAlloc { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
-                Instruction::Closure { environment, .. } => {
+                Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
                 Instruction::FunctionEnvironment { .. } => {}

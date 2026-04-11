@@ -1171,7 +1171,7 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::Closure {
+            Instruction::FunctionBind {
                 destination,
                 function: target,
                 environment,

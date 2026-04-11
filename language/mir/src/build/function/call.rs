@@ -145,14 +145,14 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Construct a callable value for one function and environment.
-    pub fn function_value(
+    pub fn function_bind(
         &mut self,
         function: LocalNodeId<Function>,
         signature: LocalNodeId<Type>,
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::Closure {
+        self.insert_instruction(Instruction::FunctionBind {
             destination,
             function,
             environment,

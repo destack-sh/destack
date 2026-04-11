@@ -215,7 +215,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_function_reference(*function, f)
             }
-            Instruction::Closure {
+            Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
