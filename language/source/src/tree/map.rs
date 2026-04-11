@@ -383,6 +383,49 @@ impl NodeSourceMap {
             .map(|(key, _)| key)
     }
 
+    /// Find the innermost enclosing owner that fully contains a span.
+    pub fn find_innermost_enclosing_owner(&self, span: Span) -> Option<SourcePartKey> {
+        let end_inclusive = span.end.saturating_sub(1);
+
+        self.get_enclosing_spans(span.start, end_inclusive)
+            .into_iter()
+            .filter(|enclosing| {
+                enclosing.span.file == span.file
+                    && enclosing.span.start <= span.start
+                    && enclosing.span.end >= span.end
+            })
+            .min_by_key(|enclosing| enclosing.length)
+            .map(|enclosing| SourcePartKey::new(enclosing.idx, NodeSpanType::Enclosing))
+    }
+
+    /// Find the nearest enclosing owner that begins after a position.
+    pub fn find_nearest_enclosing_owner_after(
+        &self,
+        file: FileId,
+        position: u32,
+    ) -> Option<SourcePartKey> {
+        self.enclosing_spans
+            .iter()
+            .enumerate()
+            .filter(|(_, span)| span.file == file && span.start >= position)
+            .min_by_key(|(_, span)| (span.start - position, span.end - span.start))
+            .map(|(index, _)| SourcePartKey::new(index as u32, NodeSpanType::Enclosing))
+    }
+
+    /// Find the nearest enclosing owner that ends before a position.
+    pub fn find_nearest_enclosing_owner_before(
+        &self,
+        file: FileId,
+        position: u32,
+    ) -> Option<SourcePartKey> {
+        self.enclosing_spans
+            .iter()
+            .enumerate()
+            .filter(|(_, span)| span.file == file && span.end <= position)
+            .min_by_key(|(_, span)| (position - span.end, span.end - span.start))
+            .map(|(index, _)| SourcePartKey::new(index as u32, NodeSpanType::Enclosing))
+    }
+
     /// Get a side span or the enclosing span if no side span is set.
     #[inline]
     pub fn get_side_or_enclosing(&self, node_id: u32, span_type: NodeSpanType) -> Span {
