@@ -3301,7 +3301,7 @@
       ]
     },
     "FormatterJson": {
-      "description": "Formatter options (top-level, like Biome/Deno).\n\nField names use Prettier-compatible naming for familiarity.",
+      "description": "Formatter options (top-level, like Biome/Deno).\n\nField names use familiar formatter option naming.",
       "type": "object",
       "properties": {
         "lineEnding": {
@@ -3478,7 +3478,7 @@
       ]
     },
     "QuoteStyleJson": {
-      "description": "Quote style for JSON deserialization (Prettier: `singleQuote`).",
+      "description": "Quote style for JSON deserialization (`singleQuote`).",
       "oneOf": [
         {
           "description": "Use double quotes.",
@@ -3498,7 +3498,7 @@
       ]
     },
     "TrailingCommaJson": {
-      "description": "Trailing comma policy for JSON deserialization (Prettier: `trailingComma`).",
+      "description": "Trailing comma policy for JSON deserialization (`trailingComma`).",
       "oneOf": [
         {
           "description": "Trailing commas everywhere valid.",

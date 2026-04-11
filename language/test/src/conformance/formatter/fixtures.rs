@@ -28,7 +28,6 @@ pub(super) fn should_skip_fixture_file(path: &Path) -> bool {
 
     // ignore snapshot and helper files
     if file_name.ends_with(".snap")
-        || file_name.ends_with(".prettier-snap")
         || file_name.ends_with(".snap.md")
         || file_name.ends_with(".snap-original")
     {

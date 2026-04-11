@@ -1,1 +1,0 @@
-const fn = function(): %checks  {}

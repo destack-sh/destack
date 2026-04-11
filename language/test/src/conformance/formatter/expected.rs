@@ -14,13 +14,6 @@ pub(super) struct OxfmtExpectedCase {
     pub formatter_options: FormatterOptions,
 }
 
-/// Parsed prettier expectation data.
-#[derive(Debug, Clone)]
-pub(super) struct PrettierExpectedCase {
-    pub output: String,
-    pub formatter_options: FormatterOptions,
-}
-
 /// Load expected output content for a test case.
 pub(super) fn load_expected_output(
     root: &Path,
@@ -31,10 +24,6 @@ pub(super) fn load_expected_output(
         ExpectedOutput::PlainFile(path) => {
             let absolute_path = root.join(path);
             std::fs::read_to_string(absolute_path).ok()
-        }
-        ExpectedOutput::PrettierSnapshot { path, key } => {
-            load_prettier_expected_case(root, path, key, FormatterOptions::default())
-                .map(|case| case.output)
         }
         ExpectedOutput::OxfmtSnapshot(path) => {
             let absolute_path = root.join(path);
@@ -65,103 +54,10 @@ pub(super) fn load_oxfmt_expected_case(
     })
 }
 
-/// Load expected output and formatter options from one prettier snapshot fixture.
-pub(super) fn load_prettier_expected_case(
-    root: &Path,
-    path: &Path,
-    key: &str,
-    default_options: FormatterOptions,
-) -> Option<PrettierExpectedCase> {
-    let absolute_path = root.join(path);
-    let snapshot = std::fs::read_to_string(absolute_path).ok()?;
-    let (output, option_lines) = parse_prettier_snapshot_case(&snapshot, key)?;
-
-    let mut formatter_options = default_options;
-    for option_line in option_lines {
-        apply_prettier_options_line(&option_line, &mut formatter_options);
-    }
-
-    Some(PrettierExpectedCase {
-        output,
-        formatter_options,
-    })
-}
-
 /// Parse the output section from an oxfmt snapshot fixture.
 fn parse_oxfmt_snapshot_output(snapshot: &str) -> Option<String> {
     let (output, _) = parse_oxfmt_snapshot_variant(snapshot)?;
     Some(output)
-}
-
-/// Parse one prettier snapshot case by export key.
-fn parse_prettier_snapshot_case(snapshot: &str, key: &str) -> Option<(String, Vec<String>)> {
-    let body = parse_prettier_snapshot_template(snapshot, key)?;
-    let options_marker =
-        "====================================options=====================================\n";
-    let input_marker =
-        "=====================================input======================================\n";
-    let output_marker =
-        "=====================================output=====================================\n";
-    let end_marker =
-        "\n================================================================================";
-
-    let options_start = body.find(options_marker)? + options_marker.len();
-    let input_start = body[options_start..].find(input_marker)? + options_start;
-    let output_start = body[input_start + input_marker.len()..].find(output_marker)?
-        + input_start
-        + input_marker.len();
-    let output_start = output_start + output_marker.len();
-    let output_end = body[output_start..].find(end_marker)? + output_start;
-
-    let option_lines = body[options_start..input_start]
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-
-    let mut output = body[output_start..output_end].to_string();
-    if !output.is_empty() && !output.ends_with('\n') {
-        output.push('\n');
-    }
-
-    Some((output, option_lines))
-}
-
-/// Parse one prettier jest snapshot template literal by export key.
-fn parse_prettier_snapshot_template(snapshot: &str, key: &str) -> Option<String> {
-    let marker = format!("exports[`{key}`] = `");
-    let start = snapshot.find(&marker)? + marker.len();
-    let bytes = snapshot.as_bytes();
-    let mut index = start;
-    let mut is_escaped = false;
-
-    while index < snapshot.len() {
-        let byte = bytes[index];
-        if is_escaped {
-            is_escaped = false;
-            index += 1;
-            continue;
-        }
-
-        if byte == b'\\' {
-            is_escaped = true;
-            index += 1;
-            continue;
-        }
-
-        if byte == b'`' {
-            break;
-        }
-
-        index += 1;
-    }
-
-    if index >= snapshot.len() {
-        return None;
-    }
-
-    Some(unescape_prettier_snapshot_template(&snapshot[start..index]))
 }
 
 #[derive(Debug, Clone)]
@@ -361,98 +257,6 @@ fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) 
     }
 }
 
-/// Apply one prettier options line to formatter options.
-fn apply_prettier_options_line(options_line: &str, options: &mut FormatterOptions) {
-    let options_line = options_line.trim();
-    let Some((raw_key, raw_value)) = options_line.split_once(':') else {
-        return;
-    };
-
-    let key = raw_key.trim();
-    let value = clean_prettier_option_value(raw_value);
-    let value_string = strip_quotes(&value);
-
-    match key {
-        "parsers" => {}
-        "printWidth" => {
-            if let Ok(width) = value.parse::<u16>() {
-                options.line_width = width;
-            }
-        }
-        "tabWidth" => {
-            if let Ok(width) = value.parse::<u8>() {
-                options.indent_width = width;
-            }
-        }
-        "useTabs" => {
-            if let Some(use_tabs) = parse_bool(&value) {
-                options.indent_style = if use_tabs {
-                    IndentStyle::Tab
-                } else {
-                    IndentStyle::Space
-                };
-            }
-        }
-        "singleQuote" => {
-            if let Some(single_quote) = parse_bool(&value) {
-                options.quote_style = if single_quote {
-                    QuoteStyle::Single
-                } else {
-                    QuoteStyle::Double
-                };
-            }
-        }
-        "trailingComma" => {
-            options.trailing_comma = match value_string {
-                "all" => TrailingComma::All,
-                "es5" => TrailingComma::Es5,
-                "none" => TrailingComma::None,
-                _ => options.trailing_comma,
-            };
-        }
-        "bracketSpacing" => {
-            if let Some(bracket_spacing) = parse_bool(&value) {
-                options.bracket_spacing = bracket_spacing;
-            }
-        }
-        "arrowParens" => {
-            options.arrow_parentheses = match value_string {
-                "always" => ArrowParentheses::Always,
-                "avoid" => ArrowParentheses::Avoid,
-                _ => options.arrow_parentheses,
-            };
-        }
-        "quoteProps" => {
-            options.quote_property = match value_string {
-                "as-needed" => QuoteProperty::AsNeeded,
-                "consistent" => QuoteProperty::Consistent,
-                "preserve" => QuoteProperty::Preserve,
-                _ => options.quote_property,
-            };
-        }
-        "endOfLine" => {
-            options.line_ending = match value_string {
-                "lf" => LineEnding::LineFeed,
-                "crlf" => LineEnding::CarriageReturnLineFeed,
-                "cr" => LineEnding::CarriageReturn,
-                _ => options.line_ending,
-            };
-        }
-        "bracketSameLine" | "jsxBracketSameLine" => {
-            if let Some(bracket_same_line) = parse_bool(&value) {
-                options.bracket_same_line = bracket_same_line;
-            }
-        }
-        "singleAttributePerLine" => {
-            if let Some(single_attribute_per_line) = parse_bool(&value) {
-                options.single_attribute_per_line = single_attribute_per_line;
-            }
-        }
-        "semi" => {}
-        _ => {}
-    }
-}
-
 /// Return whether an oxfmt options line uses unsupported formatter behavior.
 fn has_unsupported_options(options_line: &str) -> bool {
     let options_line = options_line.trim();
@@ -510,49 +314,6 @@ fn strip_quotes(value: &str) -> &str {
     value
 }
 
-/// Clean one prettier options value suffix.
-fn clean_prettier_option_value(value: &str) -> String {
-    let value = value.trim();
-    let value = value.strip_suffix('|').map_or(value, str::trim_end);
-    let value = value
-        .split_once(" (default)")
-        .map_or(value, |(prefix, _)| prefix.trim_end());
-    value.trim().to_string()
-}
-
-/// Unescape one prettier jest snapshot template body.
-fn unescape_prettier_snapshot_template(template: &str) -> String {
-    let mut result = String::with_capacity(template.len());
-    let mut characters = template.chars();
-
-    while let Some(character) = characters.next() {
-        if character != '\\' {
-            result.push(character);
-            continue;
-        }
-
-        let Some(escaped) = characters.next() else {
-            result.push('\\');
-            break;
-        };
-
-        match escaped {
-            '`' => result.push('`'),
-            '\\' => result.push('\\'),
-            '$' => result.push('$'),
-            'n' => result.push('\n'),
-            'r' => result.push('\r'),
-            't' => result.push('\t'),
-            _ => {
-                result.push('\\');
-                result.push(escaped);
-            }
-        }
-    }
-
-    result
-}
-
 /// Return whether a line is a dashed separator.
 fn is_separator_line(line: &str) -> bool {
     line.len() >= 3 && line.chars().all(|character| character == '-')
@@ -561,9 +322,7 @@ fn is_separator_line(line: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_oxfmt_options_line, apply_prettier_options_line, parse_oxfmt_snapshot_output,
-        parse_oxfmt_snapshot_variant, parse_prettier_snapshot_case,
-        unescape_prettier_snapshot_template,
+        apply_oxfmt_options_line, parse_oxfmt_snapshot_output, parse_oxfmt_snapshot_variant,
     };
     use destack_source::IndentStyle;
     use destack_workspace::{
@@ -629,59 +388,5 @@ mod tests {
             options_line.as_deref(),
             Some("{ printWidth: 80, semi: true }")
         );
-    }
-
-    #[test]
-    fn test_parse_prettier_snapshot_case_extracts_output_and_options() {
-        let snapshot = r#"exports[`example.js format 1`] = `
-====================================options=====================================
-singleQuote: true
-                                                      printWidth: 80 (default) |
-=====================================input======================================
-const value = "hi";
-=====================================output=====================================
-const value = 'hi';
-
-================================================================================
-`;"#;
-        let (output, option_lines) = parse_prettier_snapshot_case(snapshot, "example.js format 1")
-            .expect("snapshot case should parse");
-
-        assert_eq!(output, "const value = 'hi';\n");
-        assert_eq!(
-            option_lines,
-            vec![
-                "singleQuote: true".to_string(),
-                "printWidth: 80 (default) |".to_string()
-            ]
-        );
-    }
-
-    #[test]
-    fn test_apply_prettier_options_line() {
-        let mut options = FormatterOptions::default();
-        apply_prettier_options_line("singleQuote: true", &mut options);
-        apply_prettier_options_line("printWidth: 80 (default) |", &mut options);
-        apply_prettier_options_line("tabWidth: 3", &mut options);
-        apply_prettier_options_line("useTabs: true", &mut options);
-        apply_prettier_options_line("trailingComma: \"none\"", &mut options);
-        apply_prettier_options_line("bracketSpacing: false", &mut options);
-        apply_prettier_options_line("arrowParens: \"avoid\"", &mut options);
-        apply_prettier_options_line("quoteProps: \"consistent\"", &mut options);
-
-        assert_eq!(options.line_width, 80);
-        assert_eq!(options.indent_width, 3);
-        assert_eq!(options.indent_style, IndentStyle::Tab);
-        assert_eq!(options.quote_style, QuoteStyle::Single);
-        assert_eq!(options.trailing_comma, TrailingComma::None);
-        assert!(!options.bracket_spacing);
-        assert_eq!(options.arrow_parentheses, ArrowParentheses::Avoid);
-        assert_eq!(options.quote_property, QuoteProperty::Consistent);
-    }
-
-    #[test]
-    fn test_unescape_prettier_snapshot_template() {
-        let output = unescape_prettier_snapshot_template("\\`value\\` and \\${answer}");
-        assert_eq!(output, "`value` and ${answer}");
     }
 }

@@ -3,13 +3,11 @@ use std::sync::Mutex;
 use crate::conformance::{suite_case, update_catalog_report_targets};
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 
-use super::{ConformanceSuiteResult, print_summary, run_oxfmt, run_prettier};
+use super::{ConformanceSuiteResult, print_summary, run_oxfmt};
 
 /// Selection of formatter conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FormatterConformanceSelection {
-    /// Run Prettier formatter suite.
-    pub prettier: bool,
     /// Run oxfmt formatter suite.
     pub oxfmt: bool,
 }
@@ -17,7 +15,7 @@ pub struct FormatterConformanceSelection {
 impl FormatterConformanceSelection {
     /// Return whether no explicit suite was selected.
     pub fn is_all_disabled(&self) -> bool {
-        !self.prettier && !self.oxfmt
+        !self.oxfmt
     }
 }
 
@@ -64,11 +62,6 @@ impl Suite for FormatterConformanceSuite {
 
         let mut cases = Vec::new();
 
-        // prettier
-        if run_all || self.selection.prettier {
-            cases.push(suite_case("formatter", "prettier"));
-        }
-
         // oxfmt
         if run_all || self.selection.oxfmt {
             cases.push(suite_case("formatter", "oxfmt"));
@@ -84,7 +77,6 @@ impl Suite for FormatterConformanceSuite {
         }
 
         let suite_result = match case.name.as_str() {
-            "prettier" => run_prettier(&suite_options, self.update_known_failures),
             "oxfmt" => run_oxfmt(&suite_options, self.update_known_failures),
             other => {
                 return CaseResult::Failed {

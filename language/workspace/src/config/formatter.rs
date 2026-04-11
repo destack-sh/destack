@@ -268,7 +268,7 @@ impl std::fmt::Display for ImportSortOrder {
 /// Formatter options.
 ///
 /// Controls code style decisions made by the formatter.
-/// Default values match Prettier's defaults for familiarity.
+/// Default values match the standard formatter defaults used by Destack.
 #[derive(Debug, Copy, Clone)]
 pub struct FormatterOptions {
     /// Line ending style (LF, CRLF, CR).
@@ -309,7 +309,7 @@ impl Default for FormatterOptions {
 }
 
 impl FormatterOptions {
-    /// Create options with default values matching Prettier.
+    /// Create options with the standard Destack defaults.
     pub fn new() -> Self {
         Self {
             // layout
@@ -456,7 +456,7 @@ impl From<IndentStyleJson> for IndentStyle {
     }
 }
 
-/// Quote style for JSON deserialization (Prettier: `singleQuote`).
+/// Quote style for JSON deserialization (`singleQuote`).
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -480,7 +480,7 @@ impl From<QuoteStyleJson> for QuoteStyle {
     }
 }
 
-/// Trailing comma policy for JSON deserialization (Prettier: `trailingComma`).
+/// Trailing comma policy for JSON deserialization (`trailingComma`).
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -588,7 +588,7 @@ impl From<ImportSortOrderJson> for ImportSortOrder {
 
 /// Formatter options (top-level, like Biome/Deno).
 ///
-/// Field names use Prettier-compatible naming for familiarity.
+/// Field names use familiar formatter option naming.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]

@@ -3,8 +3,8 @@
 Formatting Intermediate Representation for pretty-printing code-shaped text.
 FIR is the document model shared by formatter-style output paths across the language stack.
 
-The current FIR is based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter), which builds on the Rome formatter model and Prettier's grouping algorithm.
-The core idea still traces back to Wadler's ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf).
+The current FIR is based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter), which builds on the Rome formatter model and a width-aware grouping algorithm.
+The core idea still traces back to Wadler's classic pretty-printing work.
 
 ## Model
 

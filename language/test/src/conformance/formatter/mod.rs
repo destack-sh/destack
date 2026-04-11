@@ -2,7 +2,6 @@ mod expected;
 mod fixtures;
 mod format;
 mod oxfmt;
-mod prettier;
 mod suite;
 
 pub use super::{
@@ -11,5 +10,4 @@ pub use super::{
     run_conformance_driver, suite_fixtures_dir, suite_tests_dir, update_readme,
 };
 pub use oxfmt::{OxfmtSuite, run_oxfmt};
-pub use prettier::{PrettierSuite, run_prettier};
 pub use suite::{FormatterConformanceSelection, FormatterConformanceSuite};
