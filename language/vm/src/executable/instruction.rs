@@ -262,8 +262,8 @@ pub(crate) enum InstructionOperation {
     FieldStoreStack,
     /// Dispatch operation for `function_addr`.
     FunctionAddr,
-    /// Dispatch operation for `function_value`.
-    Closure,
+    /// Dispatch operation for `function_bind`.
+    FunctionBind,
     /// Dispatch operation for `function_environment`.
     FunctionEnvironment,
     /// Dispatch operation for `ge_const_int`.
@@ -752,8 +752,8 @@ pub(crate) enum InstructionData {
     /// Get a function pointer.
     FunctionAddr { dest: mir::Value, function: u32 },
 
-    /// Build a callable value from code and environment.
-    Closure {
+    /// Bind one environment to a function value.
+    FunctionBind {
         dest: mir::Value,
         function: u32,
         environment: mir::Value,
@@ -1396,7 +1396,7 @@ impl InstructionData {
             InstructionData::GlobalAddr { .. } => "global_addr",
             InstructionData::GlobalConst { .. } => "global_const",
             InstructionData::FunctionAddr { .. } => "function_addr",
-            InstructionData::Closure { .. } => "function_value",
+            InstructionData::FunctionBind { .. } => "function_bind",
             InstructionData::FunctionEnvironment { .. } => "function_environment",
             InstructionData::GlobalLoad { .. } => "global_load",
             InstructionData::GlobalStore { .. } => "global_store",

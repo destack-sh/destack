@@ -628,7 +628,7 @@ impl<'a> FunctionLowerer<'a> {
         let closure_value =
             self.state
                 .builder
-                .function_value(target_function, closure_type, env_value);
+                .function_bind(target_function, closure_type, env_value);
 
         Ok((closure_value, closure_type))
     }

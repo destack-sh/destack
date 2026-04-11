@@ -140,7 +140,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 // function value declarations
                 if let mir::Instruction::FunctionAddr { function, .. }
-                | mir::Instruction::Closure { function, .. } = inst
+                | mir::Instruction::FunctionBind { function, .. } = inst
                     && !self.function_ref_map.contains_key(function)
                 {
                     self.declare_function_ref(*function, target)?;
@@ -458,7 +458,7 @@ impl<'a> FunctionLowerer<'a> {
                 let address = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 value_map.insert(*destination, address);
             }
-            mir::Instruction::Closure {
+            mir::Instruction::FunctionBind {
                 destination,
                 function,
                 environment,

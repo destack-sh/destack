@@ -655,7 +655,7 @@ fn apply_instruction_effects(
         }
 
         // function values preserve the environment origin
-        Instruction::Closure {
+        Instruction::FunctionBind {
             destination,
             environment,
             ..

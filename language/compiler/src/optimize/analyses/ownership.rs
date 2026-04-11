@@ -555,7 +555,7 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
-            Instruction::Closure {
+            Instruction::FunctionBind {
                 destination,
                 environment,
                 ..
@@ -1359,7 +1359,7 @@ fn process_instruction(
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
-        Instruction::Closure {
+        Instruction::FunctionBind {
             destination,
             environment,
             ..
