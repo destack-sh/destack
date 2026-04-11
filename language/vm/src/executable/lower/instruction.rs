@@ -302,6 +302,9 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool,
     ) -> Instruction {
         match inst {
+            mir::Instruction::Error => {
+                panic!("recovered MIR instruction reached VM lowering");
+            }
             mir::Instruction::Const { destination, value } => {
                 let const_value = if matches!(value, mir::Constant::Null) {
                     let reference = reference_meta_for_type(

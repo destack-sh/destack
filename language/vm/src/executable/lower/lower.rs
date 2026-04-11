@@ -266,8 +266,10 @@ impl<'a> BlockLowerer<'a> {
             mir_instruction_offsets.push(inst_index as u32);
         }
 
+        let terminator = self.tree.get(self.block.terminator);
+
         let allow_compare_branch_fusion = decomposition.is_empty()
-            && match &self.block.terminator {
+            && match terminator {
                 mir::Terminator::Branch {
                     then_target,
                     else_target,
@@ -303,7 +305,7 @@ impl<'a> BlockLowerer<'a> {
             instructions.push(fused);
         } else {
             let requires_materialized_boundary = matches!(
-                self.block.terminator,
+                terminator,
                 mir::Terminator::Return { .. }
                     | mir::Terminator::Throw { .. }
                     | mir::Terminator::Trap { .. }
@@ -323,9 +325,8 @@ impl<'a> BlockLowerer<'a> {
                 decomposition.flush(&mut instructions, pool);
             }
 
-            let terminator =
-                self.lower_terminator(&self.block.terminator, decomposition.map(), pool);
-            instructions.push(terminator);
+            let lowered_terminator = self.lower_terminator(terminator, decomposition.map(), pool);
+            instructions.push(lowered_terminator);
         }
 
         mir_instruction_offsets.push((self.block.instructions.len() + 1) as u32);
@@ -397,6 +398,7 @@ fn compute_value_use_counts(
     // scan instructions and terminators for value uses
     for block_id in mir_blocks {
         let block = tree.get(*block_id);
+        let terminator = tree.get(block.terminator);
         for inst_id in &block.instructions {
             let inst = tree.get(*inst_id);
             for value in inst.uses() {
@@ -408,7 +410,7 @@ fn compute_value_use_counts(
                 }
             }
         }
-        for value in block.terminator.uses() {
+        for value in terminator.uses() {
             record_use(value);
         }
     }

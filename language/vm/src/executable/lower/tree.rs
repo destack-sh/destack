@@ -155,8 +155,9 @@ fn resume_target_block_set(
     // reserve the semantic resume targets
     for block_id in &function.blocks {
         let block = tree.get(*block_id);
+        let terminator = tree.get(block.terminator);
 
-        match &block.terminator {
+        match terminator {
             mir::Terminator::Yield { resume, .. } => {
                 block_set.insert(*resume);
             }

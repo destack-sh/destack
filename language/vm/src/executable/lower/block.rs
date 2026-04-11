@@ -38,7 +38,8 @@ impl BlockOrder {
 
             // enqueue successor blocks
             let mir_block = tree.get(block_id);
-            match &mir_block.terminator {
+            let terminator = tree.get(mir_block.terminator);
+            match terminator {
                 mir::Terminator::Jump { target, .. } => {
                     queue.push(*target);
                 }
@@ -87,6 +88,9 @@ impl BlockOrder {
                 } => {
                     queue.push(*normal_target);
                     queue.push(*unwind_target);
+                }
+                mir::Terminator::Error => {
+                    panic!("recovered MIR terminator reached VM lowering");
                 }
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Throw { .. }
