@@ -1,5 +1,8 @@
+use destack_source::Span;
+use serde::{Deserialize, Serialize};
+
 /// Token type for MIR text format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TokenType {
     // keywords
     /// `extern`
@@ -180,20 +183,29 @@ impl TokenType {
     }
 }
 
-/// A token with its source text.
-#[derive(Debug, Clone)]
-pub struct Token<'a> {
-    /// The token type.
+/// One parsed MIR token.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Token {
+    /// The token kind.
     pub ty: TokenType,
-    /// The source text of the token.
-    pub text: &'a str,
-    /// Start position in the source.
+    /// The exact source span of the token text.
+    pub span: Span,
+    /// The start byte offset of the token text.
     pub start: usize,
 }
 
-impl<'a> Token<'a> {
-    /// Create a new token.
-    pub fn new(ty: TokenType, text: &'a str, start: usize) -> Self {
-        Self { ty, text, start }
+impl Token {
+    /// Create one parsed token.
+    pub fn new(ty: TokenType, span: Span) -> Self {
+        Self {
+            ty,
+            span,
+            start: span.start as usize,
+        }
+    }
+
+    /// Return whether this token is trivia.
+    pub fn is_trivia(&self) -> bool {
+        self.ty.is_trivia()
     }
 }

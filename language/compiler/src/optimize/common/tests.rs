@@ -46,6 +46,7 @@ impl TestProgram {
     pub(crate) fn new(source: &str) -> Self {
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+                .validate()
                 .expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 

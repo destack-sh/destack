@@ -1,8 +1,8 @@
 use destack_source::Span;
 
 use crate::{
-    AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type, Value,
+    AddressSpace, Attribute, Copyability, Field, FieldSpan, LocalNodeId, Mutability, ReferenceKind,
+    TensorDimension, TensorLayout, Type, TypeDeclarationSpans, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -10,7 +10,7 @@ use super::key::{FieldKey, TypeKey};
 use super::parser::Parser;
 use super::token::TokenType;
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Parse a type expression and return its enclosing span.
     pub(super) fn parse_type_part(&mut self) -> ParseResult<(LocalNodeId<Type>, Span)> {
         let type_start = self.pos();
@@ -58,7 +58,11 @@ impl<'a> Parser<'a> {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("type", self.pos()))?;
-            (token.ty, token.start, token.text)
+            (
+                token.ty,
+                token.start,
+                self.tree.source_text(token.span).to_string(),
+            )
         };
 
         // primitive or composite type
@@ -72,10 +76,10 @@ impl<'a> Parser<'a> {
                 Type::Boolean
             }
             TokenType::Identifier | TokenType::TypeName => {
-                if let Some(primitive) = self.parse_primitive_type(token_text) {
+                if let Some(primitive) = self.parse_primitive_type(&token_text) {
                     self.bump();
                     primitive
-                } else if let Some(alias_id) = self.type_alias_map.get(token_text).copied() {
+                } else if let Some(alias_id) = self.type_alias_map.get(&token_text).copied() {
                     self.bump();
 
                     // alias postfixes
@@ -125,7 +129,7 @@ impl<'a> Parser<'a> {
                 let element = self.parse_type()?;
                 self.eat_token(TokenType::Comma)?;
                 let token = self.eat_token(TokenType::IntLiteral)?;
-                let token_text = token.text;
+                let token_text = self.tree.source_text(token.span).to_string();
                 let lanes = token_text.parse().map_err(|_| {
                     ParseError::invalid(&format!("vector lane count '{token_text}'"), token.start)
                 })?;
@@ -194,62 +198,7 @@ impl<'a> Parser<'a> {
                 Type::Closure { signature }
             }
             TokenType::OpenBrace => {
-                self.bump();
-                let mut fields = Vec::new();
-                while !self.peek_token(TokenType::CloseBrace) {
-                    // field attributes
-                    let attributes = self.parse_attributes()?;
-
-                    let mut name = None;
-                    if self.peek_token(TokenType::At)
-                        && self
-                            .peek_nth_token(1)
-                            .is_some_and(|token| token.ty == TokenType::Identifier)
-                        && self
-                            .peek_nth_token(2)
-                            .is_some_and(|token| token.ty == TokenType::Colon)
-                    {
-                        // allow synthetic field names like @tag and @payload
-                        self.eat_token(TokenType::At)?;
-                        let name_text = {
-                            let name_token = self.eat_token(TokenType::Identifier)?;
-                            name_token.text.to_string()
-                        };
-                        self.eat_token(TokenType::Colon)?;
-                        let name_text = format!("@{name_text}");
-                        name = Some(self.strings.intern(&name_text));
-                    } else if self.peek_token(TokenType::Identifier)
-                        && let Some(next_token) = self.peek_nth_token(1)
-                        && next_token.ty == TokenType::Colon
-                    {
-                        let name_text = {
-                            let name_token = self.eat_token(TokenType::Identifier)?;
-                            name_token.text.to_string()
-                        };
-                        self.eat_token(TokenType::Colon)?;
-                        name = Some(self.strings.intern(&name_text));
-                    }
-                    let ty = self.parse_type()?;
-
-                    let field = Field { name, ty };
-                    fields.push(self.intern_field(field, attributes));
-                    if self.eat_token_maybe(TokenType::Semicolon)
-                        || self.eat_token_maybe(TokenType::Comma)
-                    {
-                        continue;
-                    }
-                    if self.peek_token(TokenType::CloseBrace) {
-                        break;
-                    }
-                    return Err(ParseError::invalid("';' or '}'", self.pos()));
-                }
-                self.eat_token(TokenType::CloseBrace)?;
-                let struct_type = Type::Struct {
-                    fields,
-                    copyability: Copyability::default(),
-                };
-                let type_id = self.intern_type(struct_type);
-                self.record_layout_for_type(type_id)?;
+                let (type_id, _, _) = self.parse_struct_type()?;
                 return Ok(type_id);
             }
             _ => {
@@ -277,6 +226,112 @@ impl<'a> Parser<'a> {
         }
 
         Ok(type_id)
+    }
+
+    /// Parse one struct type and retain field declaration spans.
+    pub(super) fn parse_struct_type(
+        &mut self,
+    ) -> ParseResult<(LocalNodeId<Type>, Vec<FieldSpan>, TypeDeclarationSpans)> {
+        let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
+        let open_brace_start = open_brace_token.start;
+        let open_brace_length = self.tree.source_text(open_brace_token.span).len();
+        let open_brace_span = self.span_at(open_brace_start, open_brace_length);
+
+        let mut fields = Vec::new();
+        let mut field_spans = Vec::new();
+
+        while !self.peek_token(TokenType::CloseBrace) {
+            let field_start = self.pos();
+
+            // field attributes
+            let (attributes, attribute_spans) = self.parse_attributes()?;
+
+            // field name
+            let mut name = None;
+            let mut name_span = None;
+            if self.peek_token(TokenType::At)
+                && self
+                    .peek_nth_token(1)
+                    .is_some_and(|token| token.ty == TokenType::Identifier)
+                && self
+                    .peek_nth_token(2)
+                    .is_some_and(|token| token.ty == TokenType::Colon)
+            {
+                self.eat_token(TokenType::At)?;
+                let name_token = self.eat_token(TokenType::Identifier)?;
+                let name_start = name_token.start;
+                let name_text = self.tree.source_text(name_token.span).to_string();
+                let name_length = name_text.len() + 1;
+                let display_name = format!("@{name_text}");
+                let span = self.span_at(name_start, name_length);
+                self.eat_token(TokenType::Colon)?;
+                name = Some(self.strings.intern(&display_name));
+                name_span = Some(span);
+            } else if self.peek_token(TokenType::Identifier)
+                && let Some(next_token) = self.peek_nth_token(1)
+                && next_token.ty == TokenType::Colon
+            {
+                let name_token = self.eat_token(TokenType::Identifier)?;
+                let name_start = name_token.start;
+                let name_text = self.tree.source_text(name_token.span).to_string();
+                let name_length = name_text.len();
+                let span = self.span_at(name_start, name_length);
+                self.eat_token(TokenType::Colon)?;
+                name = Some(self.strings.intern(&name_text));
+                name_span = Some(span);
+            }
+
+            // field type
+            let (ty, type_span) = self.parse_type_part()?;
+
+            // field node
+            let field = Field { name, ty };
+            fields.push(self.intern_field(field, attributes));
+
+            // field delimiter
+            if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
+            {
+                let field_span = self.span_from_parse_start(field_start);
+                field_spans.push(FieldSpan::new(
+                    field_span,
+                    attribute_spans,
+                    name_span,
+                    type_span,
+                ));
+                continue;
+            }
+
+            if self.peek_token(TokenType::CloseBrace) {
+                let field_span = self.span_from_parse_start(field_start);
+                field_spans.push(FieldSpan::new(
+                    field_span,
+                    attribute_spans,
+                    name_span,
+                    type_span,
+                ));
+                break;
+            }
+
+            return Err(ParseError::invalid("';' or '}'", self.pos()));
+        }
+
+        let close_brace_token = self.eat_token(TokenType::CloseBrace)?;
+        let close_brace_start = close_brace_token.start;
+        let close_brace_length = self.tree.source_text(close_brace_token.span).len();
+        let close_brace_span = self.span_at(close_brace_start, close_brace_length);
+
+        let struct_type = Type::Struct {
+            fields,
+            copyability: Copyability::default(),
+        };
+        let type_id = self.intern_type(struct_type);
+        self.record_layout_for_type(type_id)?;
+
+        Ok((
+            type_id,
+            field_spans,
+            TypeDeclarationSpans::new(None, Some(open_brace_span), Some(close_brace_span)),
+        ))
     }
 
     /// Parse a reference type.
@@ -344,7 +399,7 @@ impl<'a> Parser<'a> {
         let kind_token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("reference kind", self.pos()))?;
-        let kind_text = kind_token.text;
+        let kind_text = self.tree.source_text(kind_token.span);
         let kind = match kind_token.ty {
             TokenType::Ownership | TokenType::Identifier => match kind_text {
                 "managed" => ReferenceKind::Managed,
@@ -393,7 +448,7 @@ impl<'a> Parser<'a> {
                     .peek()
                     .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
                 let token_start = token.start;
-                let text = token.text.to_string();
+                let text = self.tree.source_text(token.span).to_string();
                 address_space = match token.ty {
                     TokenType::Identifier | TokenType::Global | TokenType::Local => {
                         match text.as_str() {
@@ -462,7 +517,7 @@ impl<'a> Parser<'a> {
                 }
                 TokenType::Identifier => {
                     let ident = self.eat_token(TokenType::Identifier)?;
-                    if ident.text != "dynamic" {
+                    if self.tree.source_text(ident.span) != "dynamic" {
                         return Err(ParseError::invalid("tensor shape dimension", ident.start));
                     }
                     shape.push(TensorDimension::Dynamic);
@@ -486,7 +541,7 @@ impl<'a> Parser<'a> {
     /// Parse a grouped tensor layout clause.
     fn parse_tensor_layout_group(&mut self) -> ParseResult<TensorLayout> {
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != "layout" {
+        if self.tree.source_text(token.span) != "layout" {
             return Err(ParseError::invalid("layout group", token.start));
         }
         self.eat_token(TokenType::OpenParen)?;
@@ -498,7 +553,7 @@ impl<'a> Parser<'a> {
     /// Parse a tensor layout specifier.
     fn parse_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
         let token = self.eat_token(TokenType::Identifier)?;
-        match token.text {
+        match self.tree.source_text(token.span) {
             "rowMajor" => Ok(TensorLayout::RowMajor),
             "columnMajor" => Ok(TensorLayout::ColumnMajor),
             "strided" => {

@@ -16,6 +16,55 @@ use super::key::{FieldKey, TypeKey};
 use super::lexer::Lexer;
 use super::token::{Token, TokenType};
 
+/// The result of parsing one MIR source file.
+#[derive(Debug)]
+pub struct ParsedMir {
+    /// The parsed MIR tree.
+    pub tree: NodeTree,
+    /// The parsed string pool.
+    pub strings: ImmutableStringPool,
+    /// The collected parse diagnostics.
+    pub diagnostics: DiagnosticCollection,
+}
+
+impl ParsedMir {
+    /// Return the parsed tree, strings, and diagnostics.
+    pub fn into_parts(self) -> (NodeTree, ImmutableStringPool, DiagnosticCollection) {
+        (self.tree, self.strings, self.diagnostics)
+    }
+
+    /// Return the parsed MIR when no parse errors were emitted.
+    pub fn validate(self) -> ParseResult<(NodeTree, ImmutableStringPool)> {
+        let Self {
+            tree,
+            strings,
+            diagnostics,
+        } = self;
+
+        // fail strictly when parse diagnostics were emitted
+        if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+            let diagnostics = diagnostics.iter();
+            let diagnostic = diagnostics
+                .first()
+                .expect("error diagnostics must contain at least one entry");
+            return Err(ParseError::from_diagnostic(diagnostic));
+        }
+
+        // validate the finished tree
+        let validator = Validator::new(&tree);
+        validator.validate().map_err(|error| {
+            let position = error
+                .anchor()
+                .and_then(|anchor| tree.get_span_by_id(anchor.node.id))
+                .map(|span| span.start as usize)
+                .unwrap_or(0);
+            ParseError::new(error.to_string(), position)
+        })?;
+
+        Ok((tree, strings))
+    }
+}
+
 /// Options for the MIR parser.
 #[derive(Debug, Clone)]
 pub struct ParseOptions {
@@ -32,9 +81,7 @@ impl Default for ParseOptions {
 
 /// Parser for MIR text format.
 #[derive(Debug)]
-pub struct Parser<'a> {
-    /// The tokens to parse.
-    pub(super) tokens: Vec<Token<'a>>,
+pub struct Parser {
     /// Current position in the tokens.
     pub(super) pos: usize,
     /// The node tree being built.
@@ -74,14 +121,14 @@ pub struct Parser<'a> {
 }
 
 #[allow(clippy::type_complexity)]
-impl<'a> Parser<'a> {
+impl Parser {
     /// Create a new parser for a specific file.
-    pub fn new(file_id: FileId, source: &'a str, options: ParseOptions) -> Self {
-        let tokens = Lexer::lex(source);
-        let mut tree = NodeTree::new();
+    pub fn new(file_id: FileId, source: &str, options: ParseOptions) -> Self {
+        let mut tree =
+            NodeTree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
         tree.set_pointer_bytes(options.pointer_bytes);
+
         Self {
-            tokens,
             pos: 0,
             tree,
             strings: StringPool::new(),
@@ -103,52 +150,24 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse MIR text into a NodeTree and string pool.
-    pub fn parse(
-        file_id: FileId,
-        source: &str,
-        options: ParseOptions,
-    ) -> ParseResult<(NodeTree, ImmutableStringPool)> {
-        let (tree, strings, diagnostics) = Self::parse_recovering(file_id, source, options);
-
-        // fail strictly when parse diagnostics were emitted
-        if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-            let diagnostics = diagnostics.iter();
-            let diagnostic = diagnostics
-                .first()
-                .expect("error diagnostics must contain at least one entry");
-            return Err(ParseError::from_diagnostic(diagnostic));
-        }
-
-        // validate the finished tree
-        let validator = Validator::new(&tree);
-        validator.validate().map_err(|error| {
-            let position = error
-                .anchor()
-                .and_then(|anchor| tree.get_span_by_id(anchor.node.id))
-                .map(|span| span.start as usize)
-                .unwrap_or(0);
-            ParseError::new(error.to_string(), position)
-        })?;
-
-        Ok((tree, strings))
-    }
-
-    /// Parse MIR text into partial MIR plus shared diagnostics.
-    pub fn parse_recovering(
-        file_id: FileId,
-        source: &str,
-        options: ParseOptions,
-    ) -> (NodeTree, ImmutableStringPool, DiagnosticCollection) {
+    /// Parse MIR text and return the parsed source bundle.
+    pub fn parse(file_id: FileId, source: &str, options: ParseOptions) -> ParsedMir {
         let mut parser = Parser::new(file_id, source, options);
-        parser.parse_module_recovering();
 
+        // parse the semantic MIR
+        parser.parse_module();
+
+        // attach source comments after the node graph exists
+        parser.attach_comment_ownership();
+
+        // synthesize any generated function names
         parser.finalize_generated_names();
 
-        let diagnostics = parser.diagnostics.take_collection();
-        let strings = parser.strings.into_immutable();
-
-        (parser.tree, strings, diagnostics)
+        ParsedMir {
+            tree: parser.tree,
+            strings: parser.strings.into_immutable(),
+            diagnostics: parser.diagnostics.take_collection(),
+        }
     }
 
     /// Finalize generated names for every parsed function.
@@ -187,16 +206,13 @@ impl<'a> Parser<'a> {
         self.span_between(start, end)
     }
 
-    /// Build a span for a token.
-    pub(super) fn span_for_token(&self, token: &Token<'_>) -> Span {
-        self.span_at(token.start, token.text.len())
-    }
-
     /// Peek the current token (skipping trivia).
-    pub(super) fn peek(&self) -> Option<&Token<'a>> {
+    pub(super) fn peek(&self) -> Option<&Token> {
         let mut pos = self.pos;
-        while pos < self.tokens.len() {
-            let token = &self.tokens[pos];
+        let tokens = self.tree.tokens();
+
+        while pos < tokens.len() {
+            let token = &tokens[pos];
             if !token.ty.is_trivia() {
                 return Some(token);
             }
@@ -206,11 +222,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek the Nth non-trivia token, where 0 is the current token.
-    pub(super) fn peek_nth_token(&self, n: usize) -> Option<&Token<'a>> {
+    pub(super) fn peek_nth_token(&self, n: usize) -> Option<&Token> {
         let mut pos = self.pos;
         let mut seen = 0usize;
-        while pos < self.tokens.len() {
-            let token = &self.tokens[pos];
+        let tokens = self.tree.tokens();
+
+        while pos < tokens.len() {
+            let token = &tokens[pos];
             if !token.ty.is_trivia() {
                 if seen == n {
                     return Some(token);
@@ -224,15 +242,17 @@ impl<'a> Parser<'a> {
 
     /// Advance past the current token.
     pub(super) fn bump(&mut self) {
-        while self.pos < self.tokens.len() {
-            let is_trivia = self.tokens[self.pos].ty.is_trivia();
+        let tokens = self.tree.tokens();
+
+        while self.pos < tokens.len() {
+            let is_trivia = tokens[self.pos].ty.is_trivia();
             self.pos += 1;
             if !is_trivia {
                 break;
             }
         }
         // skip trailing trivia
-        while self.pos < self.tokens.len() && self.tokens[self.pos].ty.is_trivia() {
+        while self.pos < tokens.len() && tokens[self.pos].ty.is_trivia() {
             self.pos += 1;
         }
     }
@@ -243,7 +263,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Consume a token of the given type, or return an error.
-    pub(super) fn eat_token(&mut self, ty: TokenType) -> ParseResult<&Token<'a>> {
+    pub(super) fn eat_token(&mut self, ty: TokenType) -> ParseResult<Token> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end(&format!("{ty:?}"), self.pos()))?;
@@ -253,13 +273,15 @@ impl<'a> Parser<'a> {
         // return current token, then advance
         let pos = self.pos;
         self.bump();
+        let tokens = self.tree.tokens();
+
         // find the token we just consumed
         for i in pos..self.pos {
-            if !self.tokens[i].ty.is_trivia() {
-                return Ok(&self.tokens[i]);
+            if !tokens[i].ty.is_trivia() {
+                return Ok(tokens[i].clone());
             }
         }
-        Ok(&self.tokens[pos])
+        Ok(tokens[pos].clone())
     }
 
     /// Consume a token if it matches, returning true if consumed.
@@ -276,7 +298,7 @@ impl<'a> Parser<'a> {
     ///
     /// Opcodes can be identifiers or reserved opcode keywords that also have
     /// dedicated token kinds.
-    pub(super) fn eat_opcode(&mut self) -> ParseResult<(&'a str, usize)> {
+    pub(super) fn eat_opcode(&mut self) -> ParseResult<(String, usize)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
@@ -289,7 +311,7 @@ impl<'a> Parser<'a> {
             | TokenType::CallIndirect
             | TokenType::CallVirtual
             | TokenType::CallInterface => {
-                let text = token.text;
+                let text = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
                 Ok((text, start))
@@ -298,19 +320,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Get the text of the current token.
-    pub(super) fn span_str(&self) -> &'a str {
-        self.peek().map(|t| t.text).unwrap_or("")
-    }
-
     /// Return the exclusive end of the last consumed non trivia token.
     pub(super) fn last_consumed_token_end(&self) -> Option<usize> {
         let mut index = self.pos;
+        let tokens = self.tree.tokens();
+
         while index > 0 {
             index -= 1;
-            let token = &self.tokens[index];
+            let token = &tokens[index];
             if !token.ty.is_trivia() {
-                return Some(token.start + token.text.len());
+                return Some(token.span.end as usize);
             }
         }
 
@@ -334,7 +353,11 @@ impl<'a> Parser<'a> {
     /// Parse a symbol name after `@`.
     pub(super) fn parse_symbol_name(&mut self) -> ParseResult<(String, usize)> {
         let name_token = self.eat_token(TokenType::Identifier)?;
-        Ok((name_token.text.to_string(), name_token.start))
+        let name_span = name_token.span;
+        let name_start = name_token.span.start as usize;
+        let name = self.tree.source_text(name_span).to_string();
+
+        Ok((name, name_start))
     }
 
     /// Scan a symbol name without emitting errors.
@@ -344,7 +367,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let name = token.text.to_string();
+        let name = self.tree.source_text(token.span).to_string();
         self.bump();
         Some(name)
     }
@@ -377,8 +400,10 @@ impl<'a> Parser<'a> {
 
     /// Skip raw trivia tokens except newline.
     pub(super) fn skip_raw_trivia_except_newline(&mut self) {
-        while self.pos < self.tokens.len() {
-            let token = &self.tokens[self.pos];
+        let tokens = self.tree.tokens();
+
+        while self.pos < tokens.len() {
+            let token = &tokens[self.pos];
             if !token.ty.is_trivia() || token.ty == TokenType::Newline {
                 break;
             }
@@ -428,7 +453,8 @@ impl<'a> Parser<'a> {
         }
 
         let Some(raw_index) = self
-            .tokens
+            .tree
+            .tokens()
             .iter()
             .enumerate()
             .skip(self.pos)
@@ -438,7 +464,7 @@ impl<'a> Parser<'a> {
         };
 
         let mut saw_colon = false;
-        for token in self.tokens.iter().skip(raw_index + 1) {
+        for token in self.tree.tokens().iter().skip(raw_index + 1) {
             match token.ty {
                 TokenType::Newline | TokenType::End => break,
                 TokenType::Equals => return false,
@@ -452,7 +478,9 @@ impl<'a> Parser<'a> {
 
     /// Return whether the token at one raw index starts a line-local block label.
     pub(super) fn is_block_label_token(&self, token_index: usize) -> bool {
-        let Some(token) = self.tokens.get(token_index) else {
+        let tokens = self.tree.tokens();
+
+        let Some(token) = tokens.get(token_index) else {
             return false;
         };
 
@@ -460,7 +488,7 @@ impl<'a> Parser<'a> {
             return false;
         }
 
-        if self.tokens[..token_index]
+        if tokens[..token_index]
             .iter()
             .rev()
             .take_while(|token| token.ty != TokenType::Newline)
@@ -471,7 +499,7 @@ impl<'a> Parser<'a> {
 
         let mut saw_label_marker = false;
         let mut next_index = token_index + 1;
-        while let Some(next_token) = self.tokens.get(next_index) {
+        while let Some(next_token) = tokens.get(next_index) {
             match next_token.ty {
                 TokenType::Newline | TokenType::End => break,
                 TokenType::Equals => return false,
@@ -485,7 +513,3 @@ impl<'a> Parser<'a> {
         saw_label_marker
     }
 }
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;

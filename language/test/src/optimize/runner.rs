@@ -1132,6 +1132,7 @@ fn module_id_for_program(package_id: PackageId, name: &str) -> ModuleId {
 fn parse_mir_source(source: &str) -> Result<(mir::NodeTree, ImmutableStringPool), String> {
     // parse the source program
     mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .validate()
         .map_err(|error| format!("failed to parse mir: {error}"))
 }
 
@@ -2202,7 +2203,9 @@ fn run_matrix_case(
 ) -> Option<String> {
     // parse the source program
     let (mut tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default()).ok()?;
+        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
+            .validate()
+            .ok()?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();
@@ -2440,7 +2443,9 @@ fn diagnose_mismatch(
 ) -> Option<String> {
     // parse the source program
     let (mut tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default()).ok()?;
+        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
+            .validate()
+            .ok()?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();

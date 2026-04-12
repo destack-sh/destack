@@ -3285,6 +3285,7 @@ fn normalize_mir_text_with_options(
         mir_text,
         mir::parse::ParseOptions::default(),
     )
+    .validate()
     .unwrap_or_else(|error| panic!("{label} mir parse failed: {error}"));
 
     format_mir(&tree, &strings, options)

@@ -21,6 +21,7 @@ fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate 
             pointer_bytes: storage.native_pointer_bytes,
         },
     )
+    .validate()
     .expect("failed to parse MIR");
 
     // keep the helper honest: parse must produce the requested layout directly
@@ -595,6 +596,7 @@ b0(v0: (int32,)):
 }"#;
 
     let err = Parser::parse(FileId::new(0), mir, ParseOptions::default())
+        .validate()
         .expect_err("expected parse failure");
 
     assert_eq!(
@@ -828,8 +830,9 @@ fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
         "\nfunction noop(): void {\nb0:\n    return\n}",
     ]
     .concat();
-    let (mut tree, strings) =
-        Parser::parse(FileId::new(0), &mir, ParseOptions::default()).expect("failed to parse MIR");
+    let (mut tree, strings) = Parser::parse(FileId::new(0), &mir, ParseOptions::default())
+        .validate()
+        .expect("failed to parse MIR");
 
     // keep raw MIR tests explicit about the well known String contract
     stamp_well_known_string_type_for_tests(&mut tree, &strings);
@@ -901,8 +904,9 @@ b0:
 }"#,
     ]
     .concat();
-    let (mut tree, strings) =
-        Parser::parse(FileId::new(0), &mir, ParseOptions::default()).expect("failed to parse MIR");
+    let (mut tree, strings) = Parser::parse(FileId::new(0), &mir, ParseOptions::default())
+        .validate()
+        .expect("failed to parse MIR");
     stamp_well_known_string_type_for_tests(&mut tree, &strings);
     let other_layout_id = tree
         .iter_nodes::<TypeAlias>()

@@ -297,12 +297,10 @@ impl TestRuntime {
 
 /// Build the minimal MIR module required for one VM binding test isolate.
 fn test_vm_isolate_module() -> (NodeTree, ImmutableStringPool) {
-    let (mut tree, strings) = Parser::parse(
-        FileId::new(0),
-        vm::STRING_TYPE_ALIAS,
-        ParseOptions::default(),
-    )
-    .expect("runtime vm test isolate should parse");
+    let (mut tree, strings) =
+        Parser::parse(FileId::new(0), vm::STRING_TYPE_ALIAS, ParseOptions::default())
+            .validate()
+            .expect("runtime vm test isolate should parse");
 
     // keep runtime VM tests explicit about the well known String contract
     let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {

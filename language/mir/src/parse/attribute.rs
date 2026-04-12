@@ -1,3 +1,5 @@
+use destack_source::Span;
+
 use crate::{Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, FloatValue};
 
 use super::error::{ParseError, ParseResult};
@@ -5,17 +7,22 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 #[allow(clippy::type_complexity)]
-impl<'a> Parser<'a> {
-    /// Parse an attribute list prefix.
-    pub(super) fn parse_attributes(&mut self) -> ParseResult<Vec<Attribute>> {
+impl Parser {
+    /// Parse an attribute list prefix and retain each attribute span.
+    pub(super) fn parse_attributes(&mut self) -> ParseResult<(Vec<Attribute>, Vec<Span>)> {
         // attribute blocks
         let mut attributes = Vec::new();
+        let mut spans = Vec::new();
+
         while self.peek_token(TokenType::At) {
+            let attribute_start = self.pos();
             let attribute = self.parse_attribute()?;
+            let attribute_span = self.span_from_parse_start(attribute_start);
             attributes.push(attribute);
+            spans.push(attribute_span);
         }
 
-        Ok(attributes)
+        Ok((attributes, spans))
     }
 
     /// Parse a single attribute.
@@ -25,7 +32,7 @@ impl<'a> Parser<'a> {
 
         // name and arguments
         let name_token = self.eat_token(TokenType::Identifier)?;
-        let name_text = name_token.text.to_string();
+        let name_text = self.tree.source_text(name_token.span).to_string();
         let name = self.strings.intern(&name_text);
 
         // optional argument payload
@@ -56,7 +63,7 @@ impl<'a> Parser<'a> {
             let mut pairs = Vec::new();
             loop {
                 let key_token = self.eat_token(TokenType::Identifier)?;
-                let key_text = key_token.text.to_string();
+                let key_text = self.tree.source_text(key_token.span).to_string();
                 let key = self.strings.intern(&key_text);
                 self.eat_token(TokenType::Equals)?;
                 let value = self.parse_attribute_value()?;
@@ -95,7 +102,7 @@ impl<'a> Parser<'a> {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("attribute value", self.pos()))?;
         let token_ty = token.ty;
-        let token_text = token.text.to_string();
+        let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
         // type values

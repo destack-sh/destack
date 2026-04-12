@@ -6,12 +6,13 @@ use destack_core::Arena;
 use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
+use crate::parse::Token;
 use crate::{
-    AddressSpace, ArgumentSlice, Attribute, Block, Field, Function, Global, Instruction,
-    InterfaceDispatchShape, Itab, ItabId, Layout, LayoutId, LayoutMetadata, Local, LocalNodeId,
-    ManagedReferenceRepresentation, Metadata, Mutability, Node, NodeType, ProvenanceId,
-    ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias, TypeLineage, Value, Vtable,
-    VtableId,
+    AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
+    FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, ItabId, Layout,
+    LayoutId, LayoutMetadata, Local, LocalNodeId, ManagedReferenceRepresentation, Metadata,
+    Mutability, Node, NodeType, ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type,
+    TypeAlias, TypeDeclarationSpans, TypeLineage, TypedValueSpan, Value, Vtable, VtableId,
 };
 
 /// Approximate per-entry overhead for one hash-map entry.
@@ -37,8 +38,26 @@ pub struct NodeTree {
     pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// Maps global node id → attached attributes.
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
-    /// Source spans for parsed MIR syntax ownership.
+    /// Source spans for parsed MIR node ownership.
     pub source_map: NodeSourceMap,
+    /// The parsed MIR source text.
+    pub(crate) source_text: String,
+    /// The full parsed token stream.
+    pub(crate) tokens: Vec<Token>,
+    /// Leading comment spans keyed by global node id.
+    pub(crate) leading_comment_spans_by_node_id: Vec<Option<Span>>,
+    /// Parsed attribute spans keyed by global node id.
+    pub(crate) attribute_spans_by_node_id: HashMap<u32, Vec<Span>>,
+    /// Parsed declaration keyword spans keyed by global node id.
+    pub(crate) keyword_spans_by_node_id: HashMap<u32, Span>,
+    /// Parsed function parameter spans keyed by global node id.
+    pub(crate) function_parameter_spans_by_node_id: HashMap<u32, Vec<TypedValueSpan>>,
+    /// Parsed function header spans keyed by global node id.
+    pub(crate) function_header_spans_by_node_id: HashMap<u32, FunctionHeaderSpans>,
+    /// Parsed type field spans keyed by global node id.
+    pub(crate) type_field_spans_by_node_id: HashMap<u32, Vec<FieldSpan>>,
+    /// Parsed type declaration spans keyed by global node id.
+    pub(crate) type_declaration_spans_by_node_id: HashMap<u32, TypeDeclarationSpans>,
 
     // node arenas
     pub(crate) functions: Arena<Function>,
@@ -74,6 +93,7 @@ impl Debug for NodeTree {
             .field("type_aliases", &self.type_aliases.len())
             .field("fields", &self.fields.len())
             .field("globals", &self.globals.len())
+            .field("tokens", &self.tokens.len())
             .finish()
     }
 }
@@ -98,6 +118,15 @@ impl NodeTree {
             node_type_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
             source_map: NodeSourceMap::with_capacity(capacity),
+            source_text: String::new(),
+            tokens: Vec::new(),
+            leading_comment_spans_by_node_id: Vec::new(),
+            attribute_spans_by_node_id: HashMap::new(),
+            keyword_spans_by_node_id: HashMap::new(),
+            function_parameter_spans_by_node_id: HashMap::new(),
+            function_header_spans_by_node_id: HashMap::new(),
+            type_field_spans_by_node_id: HashMap::new(),
+            type_declaration_spans_by_node_id: HashMap::new(),
 
             functions: Arena::new(),
             blocks: Arena::new(),
@@ -114,6 +143,14 @@ impl NodeTree {
         }
     }
 
+    /// Create a new node tree with parsed source data.
+    pub(crate) fn with_parsed_source(source_text: String, tokens: Vec<Token>) -> Self {
+        let mut tree = Self::new();
+        tree.source_text = source_text;
+        tree.tokens = tokens;
+        tree
+    }
+
     /// Return the owned bytes for this MIR node tree.
     pub fn owned_bytes(&self) -> usize {
         let mut owned_bytes = size_of::<Self>();
@@ -121,6 +158,15 @@ impl NodeTree {
         owned_bytes += self.node_type_by_node_id.capacity() * size_of::<NodeType>();
         owned_bytes += hash_map_bytes(&self.attributes_by_node_id);
         owned_bytes += size_of::<NodeSourceMap>();
+        owned_bytes += self.source_text.capacity();
+        owned_bytes += self.tokens.capacity() * size_of::<Token>();
+        owned_bytes += self.leading_comment_spans_by_node_id.capacity() * size_of::<Option<Span>>();
+        owned_bytes += hash_map_bytes(&self.attribute_spans_by_node_id);
+        owned_bytes += hash_map_bytes(&self.keyword_spans_by_node_id);
+        owned_bytes += hash_map_bytes(&self.function_parameter_spans_by_node_id);
+        owned_bytes += hash_map_bytes(&self.function_header_spans_by_node_id);
+        owned_bytes += hash_map_bytes(&self.type_field_spans_by_node_id);
+        owned_bytes += hash_map_bytes(&self.type_declaration_spans_by_node_id);
         owned_bytes += self.functions.retained_bytes();
         owned_bytes += self.blocks.retained_bytes();
         owned_bytes += self.instructions.retained_bytes();
@@ -752,7 +798,7 @@ impl NodeTree {
         self.source_map.set(id.id, span);
     }
 
-    /// Get the main syntax span for a MIR node when present.
+    /// Get the main source span for a MIR node when present.
     #[inline]
     pub fn get_main_span<T>(&self, id: LocalNodeId<T>) -> Option<Span>
     where
@@ -761,13 +807,13 @@ impl NodeTree {
         self.source_map.get_main(id.id)
     }
 
-    /// Get the main syntax span for a MIR node by raw id.
+    /// Get the main source span for a MIR node by raw id.
     #[inline]
     pub fn get_main_span_by_id(&self, id: u32) -> Option<Span> {
         self.source_map.get_main(id)
     }
 
-    /// Set the main syntax span for a MIR node.
+    /// Set the main source span for a MIR node.
     #[inline]
     pub fn set_main_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
     where
@@ -798,6 +844,223 @@ impl NodeTree {
         T: Node,
     {
         self.source_map.set_side(id.id, span_type, span);
+    }
+
+    /// Return the leading comments for one node.
+    pub fn leading_comments<T>(&self, id: LocalNodeId<T>) -> Vec<CommentSpan>
+    where
+        T: Node,
+    {
+        let span = self.leading_comment_span(id);
+        self.comments_in_span(span)
+    }
+
+    /// Return the leading comment span for one node.
+    pub(crate) fn leading_comment_span<T>(&self, id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.leading_comment_spans_by_node_id
+            .get(id.id as usize)
+            .copied()
+            .flatten()
+    }
+
+    /// Set the leading comment span for one raw node id.
+    pub(crate) fn set_leading_comment_span_by_id(&mut self, id: u32, span: Span) {
+        let index = id as usize;
+
+        if index >= self.leading_comment_spans_by_node_id.len() {
+            self.leading_comment_spans_by_node_id
+                .resize(index + 1, None);
+        }
+
+        self.leading_comment_spans_by_node_id[index] = Some(span);
+    }
+
+    /// Return all parsed tokens.
+    pub(crate) fn tokens(&self) -> &[Token] {
+        &self.tokens
+    }
+
+    /// Return one source slice for the provided span.
+    pub(crate) fn source_text(&self, span: Span) -> &str {
+        let start = span.start as usize;
+        let end = span.end as usize;
+
+        &self.source_text[start..end]
+    }
+
+    /// Return the comments between two byte offsets.
+    pub(crate) fn comments_between(&self, start: u32, end: u32) -> Vec<CommentSpan> {
+        self.comments_in_bounds(start, end)
+    }
+
+    /// Return the first inline comment between two byte offsets.
+    pub(crate) fn inline_comment_between(&self, start: u32, end: u32) -> Option<CommentSpan> {
+        let mut saw_newline = false;
+
+        // find the first comment before the first newline
+        for token in self.tokens() {
+            if token.span.end <= start {
+                continue;
+            }
+
+            if token.span.start >= end {
+                break;
+            }
+
+            // inline comments must stay before the first newline
+            if token.ty == crate::parse::TokenType::Newline {
+                saw_newline = true;
+            }
+
+            if token.ty == crate::parse::TokenType::Comment && !saw_newline {
+                return Some(CommentSpan::new(token.span, self.source_text(token.span)));
+            }
+        }
+
+        None
+    }
+
+    /// Return the parsed attribute spans for one node.
+    pub fn attribute_spans<T>(&self, id: LocalNodeId<T>) -> &[Span]
+    where
+        T: Node,
+    {
+        self.attribute_spans_by_node_id
+            .get(&id.id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Set the parsed attribute spans for one node.
+    pub fn set_attribute_spans<T>(&mut self, id: LocalNodeId<T>, spans: Vec<Span>)
+    where
+        T: Node,
+    {
+        if spans.is_empty() {
+            self.attribute_spans_by_node_id.remove(&id.id);
+        } else {
+            self.attribute_spans_by_node_id.insert(id.id, spans);
+        }
+    }
+
+    /// Return the parsed declaration keyword span for one node.
+    pub fn keyword_span<T>(&self, id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.keyword_spans_by_node_id.get(&id.id).copied()
+    }
+
+    /// Set the parsed declaration keyword span for one node.
+    pub fn set_keyword_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.keyword_spans_by_node_id.insert(id.id, span);
+    }
+
+    /// Return the parsed function parameter spans for one function.
+    pub fn function_parameter_spans(&self, id: LocalNodeId<Function>) -> &[TypedValueSpan] {
+        self.function_parameter_spans_by_node_id
+            .get(&id.id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Set the parsed function parameter spans for one function.
+    pub fn set_function_parameter_spans(
+        &mut self,
+        id: LocalNodeId<Function>,
+        spans: Vec<TypedValueSpan>,
+    ) {
+        if spans.is_empty() {
+            self.function_parameter_spans_by_node_id.remove(&id.id);
+        } else {
+            self.function_parameter_spans_by_node_id
+                .insert(id.id, spans);
+        }
+    }
+
+    /// Return the parsed function header spans for one function.
+    pub fn function_header_spans(&self, id: LocalNodeId<Function>) -> Option<&FunctionHeaderSpans> {
+        self.function_header_spans_by_node_id.get(&id.id)
+    }
+
+    /// Set the parsed function header spans for one function.
+    pub fn set_function_header_spans(
+        &mut self,
+        id: LocalNodeId<Function>,
+        spans: FunctionHeaderSpans,
+    ) {
+        self.function_header_spans_by_node_id.insert(id.id, spans);
+    }
+
+    /// Return the parsed field spans for one type alias.
+    pub fn type_field_spans(&self, id: LocalNodeId<TypeAlias>) -> &[FieldSpan] {
+        self.type_field_spans_by_node_id
+            .get(&id.id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Set the parsed field spans for one type alias.
+    pub fn set_type_field_spans(&mut self, id: LocalNodeId<TypeAlias>, spans: Vec<FieldSpan>) {
+        if spans.is_empty() {
+            self.type_field_spans_by_node_id.remove(&id.id);
+        } else {
+            self.type_field_spans_by_node_id.insert(id.id, spans);
+        }
+    }
+
+    /// Return the parsed type declaration spans for one type alias.
+    pub fn type_declaration_spans(
+        &self,
+        id: LocalNodeId<TypeAlias>,
+    ) -> Option<&TypeDeclarationSpans> {
+        self.type_declaration_spans_by_node_id.get(&id.id)
+    }
+
+    /// Set the parsed type declaration spans for one type alias.
+    pub fn set_type_declaration_spans(
+        &mut self,
+        id: LocalNodeId<TypeAlias>,
+        spans: TypeDeclarationSpans,
+    ) {
+        self.type_declaration_spans_by_node_id.insert(id.id, spans);
+    }
+
+    /// Return the comments covered by one span.
+    fn comments_in_span(&self, span: Option<Span>) -> Vec<CommentSpan> {
+        let Some(span) = span else {
+            return Vec::new();
+        };
+
+        self.comments_in_bounds(span.start, span.end)
+    }
+
+    /// Return the comments covered by one byte range.
+    fn comments_in_bounds(&self, start: u32, end: u32) -> Vec<CommentSpan> {
+        let mut comments = Vec::new();
+
+        // collect comments in source order
+        for token in &self.tokens {
+            if token.span.end <= start {
+                continue;
+            }
+
+            if token.span.start >= end {
+                break;
+            }
+
+            if token.ty == crate::parse::TokenType::Comment {
+                comments.push(CommentSpan::new(token.span, self.source_text(token.span)));
+            }
+        }
+
+        comments
     }
 
     /// Iterate over all nodes of a given type.

@@ -42,11 +42,11 @@ impl ParseError {
     }
 
     /// Create an "unexpected token" error for one concrete token.
-    pub fn unexpected_token(expected: &str, token: &Token<'_>) -> Self {
+    pub fn unexpected_token(expected: &str, token: &Token) -> Self {
         Self::new_with_length(
             format!("expected {expected}, got {:?}", token.ty),
-            token.start,
-            token.text.len(),
+            token.span.start as usize,
+            token.span.end.saturating_sub(token.span.start) as usize,
         )
     }
 
