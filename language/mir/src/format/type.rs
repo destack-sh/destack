@@ -2,10 +2,12 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
+
 use crate::{
-    AddressSpace, Attribute, Field, FormatMirNode, LocalNodeId, MirFormatter, Mutability,
-    ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias, format_attribute_inline,
-    format_attribute_lines,
+    AddressSpace, Attribute, Field, FieldSpan, FormatMirNode, LocalNodeId, MirFormatContext,
+    MirFormatter, Mutability, ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias,
+    TypeDeclarationSpans, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -25,48 +27,35 @@ pub(super) fn format_type_expanded<'a>(
 pub(super) fn format_type_declaration<'a>(
     name: &str,
     attributes: &[Attribute],
+    alias_id: Option<LocalNodeId<TypeAlias>>,
     type_id: LocalNodeId<Type>,
     ty: &Type,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    if !attributes.is_empty() {
-        format_attribute_lines(attributes, f)?;
+    // declaration attributes
+    if let Some(alias_id) = alias_id {
+        let tree = f.context().tree;
+        let attributes = tree.attributes(alias_id);
+
+        if !attributes.is_empty() {
+            if let Some(keyword_span) = tree.keyword_span(alias_id) {
+                write_attributes_before_anchor(
+                    attributes,
+                    tree.attribute_spans(alias_id),
+                    keyword_span.start,
+                    tree,
+                    f,
+                )?;
+            } else {
+                write_attributes(attributes, f)?;
+            }
+        }
+    } else if !attributes.is_empty() {
+        write_attributes(attributes, f)?;
     }
 
     match ty {
-        Type::Struct { fields, .. } => {
-            write!(f, [token("type"), space(), text(name), space(), token("{")])?;
-
-            if fields.is_empty() {
-                return write!(f, [space(), token("}")]);
-            }
-
-            let field_ids = fields.clone();
-            write!(f, [hard_line_break()])?;
-            write!(
-                f,
-                [block_indent(&format_with(
-                    |f: &mut Formatter<'_, crate::MirFormatContext<'a>>| {
-                        for (index, field_id) in field_ids.iter().enumerate() {
-                            if index > 0 {
-                                write!(f, [hard_line_break()])?;
-                            }
-
-                            let field = f.context().tree.get(*field_id);
-                            let field_attributes = f.context().tree.attributes(*field_id);
-                            if !field_attributes.is_empty() {
-                                format_attribute_lines(field_attributes, f)?;
-                            }
-
-                            format_struct_field(field, f)?;
-                        }
-
-                        Ok(())
-                    }
-                ))]
-            )?;
-            write!(f, [hard_line_break(), token("}")])
-        }
+        Type::Struct { fields, .. } => format_struct_type_declaration(name, alias_id, fields, f),
         _ => {
             write!(
                 f,
@@ -83,6 +72,113 @@ pub(super) fn format_type_declaration<'a>(
             write!(f, [token(";")])
         }
     }
+}
+
+/// Format one struct type declaration.
+fn format_struct_type_declaration<'a>(
+    name: &str,
+    alias_id: Option<LocalNodeId<TypeAlias>>,
+    fields: &[LocalNodeId<Field>],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("type"), space(), text(name), space(), token("{")])?;
+
+    if fields.is_empty() {
+        return write!(f, [space(), token("}")]);
+    }
+
+    let tree = f.context().tree;
+    let field_ids = fields.to_vec();
+    let field_spans = alias_id
+        .map(|alias_id| tree.type_field_spans(alias_id).to_vec())
+        .unwrap_or_default();
+    let declaration_spans =
+        alias_id.and_then(|alias_id| tree.type_declaration_spans(alias_id).cloned());
+
+    write!(f, [hard_line_break()])?;
+    write!(
+        f,
+        [block_indent(&format_with(
+            |f: &mut Formatter<'_, MirFormatContext<'a>>| {
+                format_struct_fields(&field_ids, &field_spans, declaration_spans.as_ref(), f)
+            }
+        ))]
+    )?;
+    write!(f, [hard_line_break(), token("}")])
+}
+
+/// Format the fields of one struct type declaration.
+fn format_struct_fields<'a>(
+    field_ids: &[LocalNodeId<Field>],
+    field_spans: &[FieldSpan],
+    declaration_spans: Option<&TypeDeclarationSpans>,
+    f: &mut Formatter<'_, MirFormatContext<'a>>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // comments before the first field
+    if let Some(declaration_spans) = declaration_spans
+        && let Some(open_brace_span) = declaration_spans.open_brace
+        && let Some(first_field_span) = field_spans.first()
+    {
+        write_comments_before(tree, open_brace_span.end, first_field_span.span.start, f)?;
+    }
+
+    for (index, field_id) in field_ids.iter().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+
+        // comments between fields
+        if let Some(previous_field_span) = index
+            .checked_sub(1)
+            .and_then(|previous_index| field_spans.get(previous_index))
+            && let Some(field_span) = field_spans.get(index)
+        {
+            write_comments_before(tree, previous_field_span.span.end, field_span.span.start, f)?;
+        }
+
+        format_struct_field_entry(*field_id, field_spans.get(index), f)?;
+    }
+
+    // comments before the closing brace
+    if let Some(declaration_spans) = declaration_spans
+        && let Some(last_field_span) = field_spans.last()
+        && let Some(close_brace_span) = declaration_spans.close_brace
+    {
+        write_comments_before(tree, last_field_span.span.end, close_brace_span.start, f)?;
+    }
+
+    Ok(())
+}
+
+/// Format one struct field entry.
+fn format_struct_field_entry<'a>(
+    field_id: LocalNodeId<Field>,
+    field_span: Option<&FieldSpan>,
+    f: &mut Formatter<'_, MirFormatContext<'a>>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+    let field = tree.get(field_id);
+    let field_attributes = tree.attributes(field_id);
+
+    // field attributes
+    if !field_attributes.is_empty() {
+        let field_span =
+            field_span.unwrap_or_else(|| panic!("missing field span for {field_id:?}"));
+        let field_head_start = field_span.name_span.unwrap_or(field_span.type_span).start;
+
+        write_attributes_before_anchor(
+            field_attributes,
+            &field_span.attribute_spans,
+            field_head_start,
+            tree,
+            f,
+        )?;
+    }
+
+    // field body
+    format_struct_field(field, f)
 }
 
 fn format_type_inner<'a>(
@@ -192,7 +288,7 @@ fn format_type_inner<'a>(
                 let field = f.context().tree.get(*field_id);
                 let attributes = f.context().tree.attributes(*field_id);
                 if !attributes.is_empty() {
-                    format_attribute_inline(attributes, f)?;
+                    write_inline_attributes(attributes, f)?;
                     write!(f, [space()])?;
                 }
                 if let Some(name) = field.name {
@@ -374,7 +470,7 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
         let name = f.context().strings.get(self.name);
         let name = f.context().format_alias_name(name);
         let ty = f.context().tree.get(self.ty);
-        format_type_declaration(&name, attributes, self.ty, ty, f)
+        format_type_declaration(&name, attributes, Some(id), self.ty, ty, f)
     }
 }
 

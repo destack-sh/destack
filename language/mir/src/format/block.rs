@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     Block, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter, Terminator,
-    TrapKind, Value,
+    TrapKind, Value, write_comments_after, write_inline_comment_after, write_node_leading_comments,
 };
 
 impl<'a> FormatMirNode<'a, Block> for Block {
@@ -40,17 +40,44 @@ impl<'a> FormatMirNode<'a, Block> for Block {
             [block_indent(&format_with(
                 |f: &mut Formatter<'_, MirFormatContext<'a>>| {
                     let tree = f.context().tree;
+                    let block_span = tree.get_span(id);
+                    let terminator_span = tree.get_span(terminator_id);
 
                     // instructions
-                    for inst_id in &instructions {
+                    for (index, inst_id) in instructions.iter().enumerate() {
+                        write_node_leading_comments(tree, *inst_id, f)?;
                         let inst = tree.get(*inst_id);
                         inst.format_node(*inst_id, f)?;
+                        let instruction_span = tree.get_span(*inst_id);
+                        let next_boundary = instructions
+                            .get(index + 1)
+                            .and_then(|next_id| tree.get_span(*next_id))
+                            .map(|span| span.start)
+                            .or_else(|| terminator_span.map(|span| span.start));
+
+                        if let (Some(instruction_span), Some(next_boundary)) =
+                            (instruction_span, next_boundary)
+                        {
+                            write_inline_comment_after(
+                                tree,
+                                instruction_span.end,
+                                next_boundary,
+                                f,
+                            )?;
+                        }
+
                         write!(f, [hard_line_break()])?;
                     }
 
                     // terminator
                     let terminator = tree.get(terminator_id);
+                    write_node_leading_comments(tree, terminator_id, f)?;
                     terminator.format_node(terminator_id, f)?;
+
+                    if let (Some(terminator_span), Some(block_span)) = (terminator_span, block_span)
+                    {
+                        write_comments_after(tree, terminator_span.end, block_span.end, f)?;
+                    }
 
                     Ok(())
                 }

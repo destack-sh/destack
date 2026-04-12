@@ -1,25 +1,62 @@
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::Span;
 
-use crate::{Attribute, AttributeArgs, AttributeValue, MirFormatter};
+use crate::{
+    Attribute, AttributeArgs, AttributeValue, MirFormatter, NodeTree, write_comments_before,
+};
 
-/// Format a list of attributes as standalone lines.
-pub fn format_attribute_lines<'a>(
+/// Write a list of attributes as standalone lines.
+pub(crate) fn write_attributes<'a>(
     attributes: &[Attribute],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     // render each attribute on its own line
     for attribute in attributes {
-        format_attribute(attribute, f)?;
+        write_attribute(attribute, f)?;
         write!(f, [hard_line_break()])?;
     }
 
     Ok(())
 }
 
-/// Format a list of attributes inline.
-pub fn format_attribute_inline<'a>(
+/// Write attributes and their intervening comments before one anchor.
+pub(crate) fn write_attributes_before_anchor<'a>(
+    attributes: &[Attribute],
+    attribute_spans: &[Span],
+    anchor_start: u32,
+    tree: &NodeTree,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    if attribute_spans.len() != attributes.len() {
+        write_attributes(attributes, f)?;
+        return Ok(());
+    }
+
+    let mut previous_end = None;
+
+    for (index, attribute) in attributes.iter().enumerate() {
+        let attribute_span = attribute_spans[index];
+
+        if let Some(previous_end) = previous_end {
+            write_comments_before(tree, previous_end, attribute_span.start, f)?;
+        }
+
+        write_attribute(attribute, f)?;
+        write!(f, [hard_line_break()])?;
+        previous_end = Some(attribute_span.end);
+    }
+
+    if let Some(previous_end) = previous_end {
+        write_comments_before(tree, previous_end, anchor_start, f)?;
+    }
+
+    Ok(())
+}
+
+/// Write a list of attributes inline.
+pub(crate) fn write_inline_attributes<'a>(
     attributes: &[Attribute],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
@@ -29,14 +66,14 @@ pub fn format_attribute_inline<'a>(
             write!(f, [space()])?;
         }
 
-        format_attribute(attribute, f)?;
+        write_attribute(attribute, f)?;
     }
 
     Ok(())
 }
 
-/// Format a single attribute.
-pub fn format_attribute<'a>(
+/// Write a single attribute.
+pub(crate) fn write_attribute<'a>(
     attribute: &Attribute,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
@@ -49,7 +86,7 @@ pub fn format_attribute<'a>(
         AttributeArgs::None => {}
         AttributeArgs::Value(value) => {
             write!(f, [token("(")])?;
-            format_attribute_value(value, f)?;
+            write_attribute_value(value, f)?;
             write!(f, [token(")")])?;
         }
         AttributeArgs::Values(values) => {
@@ -59,7 +96,7 @@ pub fn format_attribute<'a>(
                     write!(f, [token(","), space()])?;
                 }
 
-                format_attribute_value(value, f)?;
+                write_attribute_value(value, f)?;
             }
             write!(f, [token(")")])?;
         }
@@ -72,7 +109,7 @@ pub fn format_attribute<'a>(
 
                 let key = f.context().strings.get(pair.key);
                 write!(f, [text(key), token("=")])?;
-                format_attribute_value(&pair.value, f)?;
+                write_attribute_value(&pair.value, f)?;
             }
             write!(f, [token(")")])?;
         }
@@ -81,8 +118,8 @@ pub fn format_attribute<'a>(
     Ok(())
 }
 
-/// Format a single attribute value.
-pub fn format_attribute_value<'a>(
+/// Write a single attribute value.
+pub(crate) fn write_attribute_value<'a>(
     value: &AttributeValue,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
@@ -110,7 +147,7 @@ pub fn format_attribute_value<'a>(
                     write!(f, [token(","), space()])?;
                 }
 
-                format_attribute_value(value, f)?;
+                write_attribute_value(value, f)?;
             }
             write!(f, [token("]")])
         }
