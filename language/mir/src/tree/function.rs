@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
-    NodeTree, NodeType, PointerAttribute, Type, TypedValue, Value,
+    NodeTree, NodeType, Parameter, PointerAttribute, Type, TypeReference, Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -201,8 +201,8 @@ pub struct Function {
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
 
-    /// Function parameters as typed SSA values.
-    pub parameters: Vec<TypedValue>,
+    /// Function parameters as typed SSA slots.
+    pub parameters: Vec<Parameter>,
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
     /// Pointer attributes for parameters, indexed by parameter position.
@@ -210,20 +210,20 @@ pub struct Function {
 
     /// Optional explicit SSA value names keyed by value id.
     pub value_names: Vec<Option<StringId>>,
-    /// SSA value types by value id.
-    pub value_types: Vec<LocalNodeId<Type>>,
+    /// SSA value types keyed by value id.
+    pub value_types: Vec<Option<LocalNodeId<Type>>>,
     /// Counter for allocating unique SSA value IDs.
     pub(crate) next_value_id: u32,
 
     /// The return type.
-    pub return_type: LocalNodeId<Type>,
+    pub return_type: TypeReference,
     /// Lifetime bounds for the return value.
     pub return_lifetime: Lifetime,
     /// Pointer attribute for the return value.
     pub return_attribute: PointerAttribute,
 
     /// The hidden environment type for this function when present.
-    pub environment: Option<LocalNodeId<Type>>,
+    pub environment: Option<TypeReference>,
     /// Local variables (stack-allocated slots for mutable bindings).
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
@@ -255,18 +255,58 @@ impl Node for Function {
 }
 
 impl Function {
-    /// Create a local function declaration without a body.
-    pub fn declare(
+    /// Build parameter-derived SSA tables.
+    fn parameter_state(parameters: &[Parameter]) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
+        // derive the next value id from concrete parameters
+        let next_value_id = parameters
+            .iter()
+            .filter_map(|parameter| match parameter.value {
+                ValueReference::Value(value) => Some(value.0 + 1),
+                ValueReference::Missing | ValueReference::Error => None,
+            })
+            .max()
+            .unwrap_or(0);
+
+        // initialize the type table with the next value id
+        let mut value_types = vec![None; next_value_id as usize];
+
+        // record concrete parameter types by value id
+        for parameter in parameters {
+            let ValueReference::Value(value) = parameter.value else {
+                continue;
+            };
+            let TypeReference::Type(ty) = parameter.ty else {
+                continue;
+            };
+
+            let index = value.0 as usize;
+            let slot = &mut value_types[index];
+
+            // idempotent duplicates are okay
+            if slot.is_some_and(|existing| existing != ty) {
+                panic!("value {value:?} has mismatched parameter types");
+            }
+
+            *slot = Some(ty);
+        }
+
+        (next_value_id, value_types)
+    }
+
+    /// Create one function from its signature facts.
+    fn with_signature(
         name: StringId,
-        parameters: Vec<TypedValue>,
-        return_type: LocalNodeId<Type>,
+        parameters: Vec<Parameter>,
+        return_type: TypeReference,
+        linkage: Linkage,
+        entry: Option<LocalNodeId<Block>>,
     ) -> Self {
-        // seed parameter attributes
+        // seed parameter-derived state
         let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         let parameter_names = vec![None; parameters.len()];
-        let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
-        let value_types = Self::seed_value_types(&parameters, next_value_id);
+        let (next_value_id, value_types) = Self::parameter_state(&parameters);
 
+        // function body and signature
         Self {
             name,
             parameters,
@@ -280,7 +320,7 @@ impl Function {
             allocation_size: None,
             parameter_attributes,
             return_attribute: PointerAttribute::default(),
-            linkage: Linkage::Local,
+            linkage,
             allocation: AllocationMode::Any,
             suspension: None,
             execution_model: None,
@@ -289,97 +329,34 @@ impl Function {
             environment: None,
             locals: Vec::new(),
             blocks: Vec::new(),
-            entry: None,
+            entry,
             next_value_id,
         }
+    }
+
+    /// Create a local function declaration without a body.
+    pub fn declare(name: StringId, parameters: Vec<Parameter>, return_type: TypeReference) -> Self {
+        Self::with_signature(name, parameters, return_type, Linkage::Local, None)
     }
 
     /// Create a new local (private) function with the given signature.
     pub fn local(
         name: StringId,
-        parameters: Vec<TypedValue>,
-        return_type: LocalNodeId<Type>,
+        parameters: Vec<Parameter>,
+        return_type: TypeReference,
         entry: LocalNodeId<Block>,
     ) -> Self {
-        // seed parameter attributes
-        let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
-        let parameter_names = vec![None; parameters.len()];
-
-        // compute the next value id from parameters
-        let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
-        let value_types = Self::seed_value_types(&parameters, next_value_id);
-
-        // construct the function
-        Self {
-            name,
-            parameters,
-            parameter_names,
-            value_names: vec![None; next_value_id as usize],
-            value_types,
-            return_type,
-            return_lifetime: Lifetime::Inferred,
-            memory_effect: MemoryEffect::unknown(),
-            call_behavior: CallBehavior::unknown(),
-            allocation_size: None,
-            parameter_attributes,
-            return_attribute: PointerAttribute::default(),
-            linkage: Linkage::Local,
-            allocation: AllocationMode::Any,
-            suspension: None,
-            execution_model: None,
-            execution_stage: None,
-            workgroup_size: None,
-            environment: None,
-            locals: Vec::new(),
-            blocks: Vec::new(),
-            entry: Some(entry),
-            next_value_id,
-        }
+        Self::with_signature(name, parameters, return_type, Linkage::Local, Some(entry))
     }
 
     /// Create an imported function declaration (no body).
-    pub fn import(
-        name: StringId,
-        parameters: Vec<TypedValue>,
-        return_type: LocalNodeId<Type>,
-    ) -> Self {
-        // seed parameter attributes
-        let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
-        let parameter_names = vec![None; parameters.len()];
-        let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
-        let value_types = Self::seed_value_types(&parameters, next_value_id);
-
-        // construct the imported function
-        Self {
-            name,
-            parameters,
-            parameter_names,
-            value_names: vec![None; next_value_id as usize],
-            value_types,
-            return_type,
-            return_lifetime: Lifetime::Inferred,
-            memory_effect: MemoryEffect::unknown(),
-            call_behavior: CallBehavior::unknown(),
-            allocation_size: None,
-            parameter_attributes,
-            return_attribute: PointerAttribute::default(),
-            linkage: Linkage::Import,
-            allocation: AllocationMode::Any,
-            suspension: None,
-            execution_model: None,
-            execution_stage: None,
-            workgroup_size: None,
-            environment: None,
-            locals: Vec::new(),
-            blocks: Vec::new(),
-            entry: None,
-            next_value_id,
-        }
+    pub fn import(name: StringId, parameters: Vec<Parameter>, return_type: TypeReference) -> Self {
+        Self::with_signature(name, parameters, return_type, Linkage::Import, None)
     }
 
     /// Get the type for an SSA value.
     pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
-        self.value_types.get(value.0 as usize).copied()
+        self.value_types.get(value.0 as usize).copied().flatten()
     }
 
     /// Get the explicit name for an SSA value when one exists.
@@ -398,46 +375,26 @@ impl Function {
 
     /// Record the type for an SSA value.
     pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
-        // append at the end is okay
+        // grow sparse side tables as needed
         let index = value.0 as usize;
-        if index == self.value_types.len() {
-            self.value_types.push(ty);
-            if index == self.value_names.len() {
-                self.value_names.push(None);
-            }
-            return;
+        if index >= self.value_types.len() {
+            self.value_types.resize(index + 1, None);
+        }
+
+        if index >= self.value_names.len() {
+            self.value_names.resize(index + 1, None);
         }
 
         // idempotent set is okay
-        if index < self.value_types.len() {
-            let existing = self.value_types[index];
-            if existing == ty {
-                return;
+        if let Some(existing) = self.value_types[index] {
+            if existing != ty {
+                panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
             }
 
-            panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+            return;
         }
 
-        panic!("value type index {index} exceeds next value id");
-    }
-
-    /// Seed the value type table from typed parameters.
-    fn seed_value_types(parameters: &[TypedValue], next_value_id: u32) -> Vec<LocalNodeId<Type>> {
-        // initialize the type table with the next value id
-        let mut value_types = Vec::with_capacity(next_value_id as usize);
-        let mut ordered: Vec<_> = parameters.iter().collect();
-        ordered.sort_by_key(|param| param.value.0);
-
-        // populate parameter types by their value ids
-        for (expected, param) in ordered.into_iter().enumerate() {
-            if param.value.0 as usize != expected {
-                panic!("missing value type for v{expected}");
-            }
-
-            value_types.push(param.ty);
-        }
-
-        value_types
+        self.value_types[index] = Some(ty);
     }
 
     /// Set the return lifetime and return self (builder pattern).
@@ -497,19 +454,25 @@ impl Function {
 
         // function parameters
         for param in &self.parameters {
-            max_id = max_id.max(param.value.0);
+            if let ValueReference::Value(value) = param.value {
+                max_id = max_id.max(value.0);
+            }
         }
 
         // block parameters and instruction destinations
         for &block_id in &self.blocks {
             let block = tree.get(block_id);
             for param in &block.parameters {
-                max_id = max_id.max(param.value.0);
+                if let ValueReference::Value(value) = param.value {
+                    max_id = max_id.max(value.0);
+                }
             }
             for &instr_id in &block.instructions {
-                if let Some(dest) = tree.get(instr_id).destination() {
-                    max_id = max_id.max(dest.0);
-                }
+                let Some(ValueReference::Value(value)) = tree.get(instr_id).destination() else {
+                    continue;
+                };
+
+                max_id = max_id.max(value.0);
             }
         }
 

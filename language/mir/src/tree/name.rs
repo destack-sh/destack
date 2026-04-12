@@ -1,6 +1,6 @@
 use destack_core::{StringId, StringPool};
 
-use crate::{Function, LocalNodeId, NodeTree, Value};
+use crate::{Function, LocalNodeId, NodeTree, Value, ValueReference};
 
 /// Finalize missing block and SSA value names for one function.
 pub(crate) fn finalize_function_names(
@@ -25,10 +25,15 @@ pub(crate) fn finalize_function_names(
 
     // function parameters
     for (parameter_index, parameter) in function.parameters.iter().enumerate() {
-        if tree.get(function_id).value_name(parameter.value).is_some() {
+        let ValueReference::Value(value) = parameter.value else {
+            continue;
+        };
+
+        if tree.get(function_id).value_name(value).is_some() {
             continue;
         }
 
+        // derive the generated-name prefix from the authored parameter name
         let prefix = function
             .parameter_names
             .get(parameter_index)
@@ -36,9 +41,10 @@ pub(crate) fn finalize_function_names(
             .map(|name| strings.get(name).to_string())
             .map(|name| identifier_prefix(&name))
             .unwrap_or_else(|| "value".to_string());
-        let name = strings.intern(&format!("{prefix}{}", parameter.value.0));
+
+        let name = strings.intern(&format!("{prefix}{}", value.0));
         let function = tree.get_mut(function_id);
-        set_value_name(function, parameter.value, name);
+        set_value_name(function, value, name);
     }
 
     // block parameters and instruction destinations
@@ -46,18 +52,22 @@ pub(crate) fn finalize_function_names(
         let block = tree.get(*block_id).clone();
 
         for parameter in &block.parameters {
-            if tree.get(function_id).value_name(parameter.value).is_some() {
+            let ValueReference::Value(value) = parameter.value else {
+                continue;
+            };
+
+            if tree.get(function_id).value_name(value).is_some() {
                 continue;
             }
 
-            let name = strings.intern(&format!("value{}", parameter.value.0));
+            let name = strings.intern(&format!("value{}", value.0));
             let function = tree.get_mut(function_id);
-            set_value_name(function, parameter.value, name);
+            set_value_name(function, value, name);
         }
 
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            let Some(destination) = instruction.destination() else {
+            let Some(ValueReference::Value(destination)) = instruction.destination() else {
                 continue;
             };
 

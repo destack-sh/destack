@@ -12,7 +12,7 @@ use crate::{
     FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, ItabId, Layout,
     LayoutId, LayoutMetadata, Local, LocalNodeId, ManagedReferenceRepresentation, Metadata,
     Mutability, Node, NodeType, ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type,
-    TypeAlias, TypeDeclarationSpans, TypeLineage, TypedValueSpan, Value, Vtable, VtableId,
+    TypeAlias, TypeDeclarationSpans, TypeLineage, TypedValueSpan, ValueReference, Vtable, VtableId,
 };
 
 /// Approximate per-entry overhead for one hash-map entry.
@@ -73,7 +73,7 @@ pub struct NodeTree {
     // externalized instruction arguments
     /// Flat buffer of instruction arguments (for Call, CallIndirect, Intrinsic).
     /// Instructions reference slices of this buffer via ArgumentSlice.
-    pub(crate) instruction_arguments: Vec<Value>,
+    pub(crate) instruction_arguments: Vec<ValueReference>,
 
     // metadata
     /// Structured MIR metadata domains.
@@ -176,7 +176,7 @@ impl NodeTree {
         owned_bytes += self.type_aliases.retained_bytes();
         owned_bytes += self.fields.retained_bytes();
         owned_bytes += self.globals.retained_bytes();
-        owned_bytes += self.instruction_arguments.capacity() * size_of::<Value>();
+        owned_bytes += self.instruction_arguments.capacity() * size_of::<ValueReference>();
         owned_bytes += self.metadata.layout.owned_bytes();
         owned_bytes += self.metadata.dispatch.owned_bytes();
         owned_bytes += self.metadata.debug.owned_bytes();
@@ -1087,7 +1087,7 @@ impl NodeTree {
     ///
     /// This is used when creating Call, CallIndirect, or Intrinsic instructions.
     #[inline]
-    pub fn add_arguments(&mut self, args: &[Value]) -> ArgumentSlice {
+    pub fn add_arguments(&mut self, args: &[ValueReference]) -> ArgumentSlice {
         let start = self.instruction_arguments.len() as u32;
         let count = args.len() as u16;
         self.instruction_arguments.extend_from_slice(args);
@@ -1096,7 +1096,7 @@ impl NodeTree {
 
     /// Get arguments from the arguments buffer by slice.
     #[inline]
-    pub fn get_arguments(&self, slice: ArgumentSlice) -> &[Value] {
+    pub fn get_arguments(&self, slice: ArgumentSlice) -> &[ValueReference] {
         let start = slice.start as usize;
         let end = start + slice.count as usize;
         &self.instruction_arguments[start..end]

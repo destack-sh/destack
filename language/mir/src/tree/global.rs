@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Constant, LocalNodeId, Mutability, Node, NodeType, Type};
+use crate::{Constant, Mutability, Node, NodeType, TypeReference};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -47,7 +47,7 @@ pub struct Global {
     /// Name for linking and debugging.
     pub name: StringId,
     /// The type of the global.
-    pub ty: LocalNodeId<Type>,
+    pub ty: TypeReference,
     /// Whether this global is mutable.
     pub mutability: Mutability,
     /// Linkage (local, export, or import).
@@ -64,7 +64,7 @@ impl Global {
     /// Create a new local (private) global.
     pub fn new(
         name: StringId,
-        ty: LocalNodeId<Type>,
+        ty: TypeReference,
         mutability: Mutability,
         init: GlobalInitializer,
     ) -> Self {
@@ -78,17 +78,17 @@ impl Global {
     }
 
     /// Create a mutable global (variable), local by default.
-    pub fn variable(name: StringId, ty: LocalNodeId<Type>, init: GlobalInitializer) -> Self {
+    pub fn variable(name: StringId, ty: TypeReference, init: GlobalInitializer) -> Self {
         Self::new(name, ty, Mutability::Mutable, init)
     }
 
     /// Create an immutable global (constant), local by default.
-    pub fn constant(name: StringId, ty: LocalNodeId<Type>, init: GlobalInitializer) -> Self {
+    pub fn constant(name: StringId, ty: TypeReference, init: GlobalInitializer) -> Self {
         Self::new(name, ty, Mutability::Immutable, init)
     }
 
     /// Create an imported global declaration (no initializer).
-    pub fn import(name: StringId, ty: LocalNodeId<Type>, mutability: Mutability) -> Self {
+    pub fn import(name: StringId, ty: TypeReference, mutability: Mutability) -> Self {
         Self {
             name,
             ty,

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{LocalNodeId, Node, NodeType};
+use crate::{LocalNodeId, Node, NodeType, TypeReference};
 
 /// Lifetime bounds for a returned borrowed value.
 ///
@@ -233,7 +233,7 @@ pub enum Type {
         /// The reference mutability.
         mutability: Mutability,
         /// The referenced type.
-        pointee: LocalNodeId<Type>,
+        pointee: TypeReference,
         /// Whether the reference can be null.
         is_nullable: bool,
     },
@@ -241,7 +241,7 @@ pub enum Type {
     /// Fixed-size array: `T[N]`.
     Array {
         /// The element type of the array.
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         /// The number of elements in the array.
         length: u64,
         /// Copyability of this array type.
@@ -250,7 +250,7 @@ pub enum Type {
     /// Tuple: `(T1, T2, ...)`.
     Tuple {
         /// The element types of the tuple.
-        elements: Vec<LocalNodeId<Type>>,
+        elements: Vec<TypeReference>,
         /// Copyability of this tuple type.
         copyability: Copyability,
     },
@@ -264,7 +264,7 @@ pub enum Type {
     /// Nominal newtype wrapping an inner type.
     Newtype {
         /// The wrapped inner type.
-        inner: LocalNodeId<Type>,
+        inner: TypeReference,
         /// Copyability of this newtype.
         copyability: Copyability,
     },
@@ -272,7 +272,7 @@ pub enum Type {
     /// Fixed-width SIMD vector.
     Vector {
         /// The element type.
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         /// The number of lanes.
         lanes: u32,
         /// Copyability of this vector type.
@@ -281,7 +281,7 @@ pub enum Type {
     /// Ranked tensor value with static or dynamic shape.
     Tensor {
         /// The element type.
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         /// The static shape.
         shape: Vec<TensorDimension>,
         /// The tensor layout.
@@ -298,7 +298,7 @@ pub enum Type {
         /// The view mutability.
         mutability: Mutability,
         /// The element type.
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         /// The static shape.
         shape: Vec<TensorDimension>,
         /// The tensor layout.
@@ -310,14 +310,14 @@ pub enum Type {
     /// Function pointer type.
     FunctionPointer {
         /// The parameters of the function.
-        parameters: Vec<LocalNodeId<Type>>,
+        parameters: Vec<TypeReference>,
         /// The result type of the function.
-        result: LocalNodeId<Type>,
+        result: TypeReference,
     },
     /// Callable closure value with code and environment.
     Closure {
         /// The bare function pointer signature.
-        signature: LocalNodeId<Type>,
+        signature: TypeReference,
     },
 }
 
@@ -541,7 +541,7 @@ pub struct Field {
     /// Name (optional).
     pub name: Option<StringId>,
     /// Type of the field.
-    pub ty: LocalNodeId<Type>,
+    pub ty: TypeReference,
 }
 
 impl Node for Field {
@@ -554,7 +554,7 @@ pub struct TypeAlias {
     /// Alias name (without the leading `@`).
     pub name: StringId,
     /// The aliased type.
-    pub ty: LocalNodeId<Type>,
+    pub ty: TypeReference,
 }
 
 impl Node for TypeAlias {

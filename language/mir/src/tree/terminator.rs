@@ -2,17 +2,17 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Block, Call, Function, InterfaceSlotId, LocalNodeId, Node, NodeType, Type,
-    Value, VtableSlotId,
+    BinaryOperator, Block, BlockReference, Call, Function, FunctionReference, IntegerReference,
+    InterfaceSlotId, Node, NodeType, TypeReference, ValueReference, VtableSlotId,
 };
 
-/// Target and arguments for a check edge.
+/// One control-flow edge target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CheckTarget {
+pub struct BlockTarget {
     /// The block to transfer control to.
-    pub target: LocalNodeId<Block>,
+    pub block: BlockReference,
     /// Arguments for the target block's parameters.
-    pub arguments: Vec<Value>,
+    pub arguments: Vec<ValueReference>,
 }
 
 /// Unrecoverable runtime termination kind.
@@ -30,28 +30,28 @@ pub enum CheckConstraint {
     /// Bounds check on an index into a collection.
     Bounds {
         /// The index being checked.
-        index: Value,
+        index: ValueReference,
         /// The length being checked against.
-        length: Value,
+        length: ValueReference,
         /// The collection being indexed.
-        collection: Value,
+        collection: ValueReference,
         /// Whether the index is treated as signed.
         is_signed: bool,
     },
     /// Null check on a reference.
     Null {
         /// The value being checked for null.
-        value: Value,
+        value: ValueReference,
     },
     /// Division by zero check.
     DivZero {
         /// The divisor being checked for zero.
-        divisor: Value,
+        divisor: ValueReference,
     },
     /// Shift amount range check.
     ShiftRange {
         /// The shift amount being checked.
-        value: Value,
+        value: ValueReference,
         /// The bit width of the shifted type.
         bit_width: u8,
         /// Whether the shift amount is signed.
@@ -60,7 +60,7 @@ pub enum CheckConstraint {
     /// Integer narrowing check.
     Narrow {
         /// The value being narrowed.
-        value: Value,
+        value: ValueReference,
         /// The target bit width.
         to_width: u8,
         /// Whether the narrowed value is signed.
@@ -71,45 +71,45 @@ pub enum CheckConstraint {
         /// The operator being checked.
         operator: BinaryOperator,
         /// The left operand.
-        left: Value,
+        left: ValueReference,
         /// The right operand.
-        right: Value,
+        right: ValueReference,
         /// Whether the overflow check is signed.
         is_signed: bool,
     },
     /// Runtime type descriptor check for a value.
     Type {
         /// The descriptor value being checked.
-        value: Value,
+        value: ValueReference,
         /// The expected dynamic type for this descriptor.
-        expected: LocalNodeId<Type>,
+        expected: TypeReference,
     },
     /// Union tag check for a discriminated union value.
     Union {
         /// The tag value being checked.
-        value: Value,
+        value: ValueReference,
         /// The expected tag index.
         expected: u64,
     },
     /// Dynamic receiver type check for a class or concrete receiver.
     ReceiverType {
         /// The receiver being checked.
-        receiver: Value,
+        receiver: ValueReference,
         /// The expected concrete receiver type.
-        expected: LocalNodeId<Type>,
+        expected: TypeReference,
     },
     /// Interface conformance check for a receiver.
     Implements {
         /// The receiver being checked.
-        receiver: Value,
+        receiver: ValueReference,
         /// The expected interface type.
-        expected: LocalNodeId<Type>,
+        expected: TypeReference,
     },
 }
 
 impl CheckConstraint {
     /// Get values used by this check kind.
-    pub fn uses(&self) -> SmallVec<[Value; 4]> {
+    pub fn uses(&self) -> SmallVec<[ValueReference; 4]> {
         // collect values referenced by the check kind
         match self {
             CheckConstraint::Bounds {
@@ -135,11 +135,9 @@ impl CheckConstraint {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SwitchCase {
     /// The matched case value.
-    pub value: i64,
+    pub value: IntegerReference,
     /// The target block for this case.
-    pub target: LocalNodeId<Block>,
-    /// Arguments for the target block's parameters.
-    pub arguments: Vec<Value>,
+    pub target: BlockTarget,
 }
 
 /// Block terminator node.
@@ -150,182 +148,156 @@ pub enum Terminator {
     /// Return from the function.
     Return {
         /// The value to return, or None for void functions.
-        value: Option<Value>,
+        value: Option<ValueReference>,
     },
     /// Unconditional jump to another block.
     Jump {
         /// The block to jump to.
-        target: LocalNodeId<Block>,
-        /// Arguments to pass to the target block's parameters.
-        arguments: Vec<Value>,
+        target: BlockTarget,
     },
     /// Conditional branch.
     Branch {
         /// The boolean condition to test.
-        condition: Value,
+        condition: ValueReference,
         /// The block to jump to if condition is true.
-        then_target: LocalNodeId<Block>,
-        /// Arguments for the then block's parameters.
-        then_arguments: Vec<Value>,
+        then_target: BlockTarget,
         /// The block to jump to if condition is false.
-        else_target: LocalNodeId<Block>,
-        /// Arguments for the else block's parameters.
-        else_arguments: Vec<Value>,
+        else_target: BlockTarget,
     },
     /// Runtime check with explicit success and failure edges.
     Check {
         /// Semantic constraint for the check.
         constraint: CheckConstraint,
         /// The block to jump to when the check succeeds.
-        success: CheckTarget,
+        success: BlockTarget,
         /// The block to jump to when the check fails.
-        failure: CheckTarget,
+        failure: BlockTarget,
     },
     /// Switch on an integer value.
     Switch {
         /// The integer value to switch on.
-        value: Value,
+        value: ValueReference,
         /// The block to jump to if no case matches.
-        default: LocalNodeId<Block>,
-        /// Arguments for the default block's parameters.
-        default_arguments: Vec<Value>,
+        default: BlockTarget,
         /// The cases to match against.
         cases: Vec<SwitchCase>,
     },
     /// Yield from a coroutine.
     Yield {
         /// The yielded value.
-        value: Value,
+        value: ValueReference,
         /// The block to resume at when the coroutine is continued.
-        resume: LocalNodeId<Block>,
-        /// Arguments to pass to the resume block's leading parameters.
-        resume_arguments: Vec<Value>,
+        resume: BlockTarget,
     },
     /// Direct call with explicit success and exception continuations.
     Invoke {
         /// The direct callee function.
-        function: LocalNodeId<Function>,
+        function: FunctionReference,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
         /// The success continuation block.
-        normal_target: LocalNodeId<Block>,
-        /// Arguments for the success continuation after the implicit result.
-        normal_arguments: Vec<Value>,
+        normal_target: BlockTarget,
         /// The exception continuation block.
-        unwind_target: LocalNodeId<Block>,
-        /// Arguments for the exception continuation after the implicit exception.
-        unwind_arguments: Vec<Value>,
+        unwind_target: BlockTarget,
     },
     /// Indirect call with explicit success and exception continuations.
     InvokeIndirect {
         /// The callable value to call.
-        callee: Value,
+        callee: ValueReference,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
         /// The success continuation block.
-        normal_target: LocalNodeId<Block>,
-        /// Arguments for the success continuation after the implicit result.
-        normal_arguments: Vec<Value>,
+        normal_target: BlockTarget,
         /// The exception continuation block.
-        unwind_target: LocalNodeId<Block>,
-        /// Arguments for the exception continuation after the implicit exception.
-        unwind_arguments: Vec<Value>,
+        unwind_target: BlockTarget,
     },
     /// Virtual call with explicit success and exception continuations.
     InvokeVirtual {
         /// The receiver value for dispatch.
-        receiver: Value,
+        receiver: ValueReference,
         /// The declaring type for this virtual call.
-        declaring_type: LocalNodeId<Type>,
+        declaring_type: TypeReference,
         /// The vtable slot id for the method.
         slot_id: VtableSlotId,
         /// The declared method target when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        declared_target: Option<FunctionReference>,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
         /// The success continuation block.
-        normal_target: LocalNodeId<Block>,
-        /// Arguments for the success continuation after the implicit result.
-        normal_arguments: Vec<Value>,
+        normal_target: BlockTarget,
         /// The exception continuation block.
-        unwind_target: LocalNodeId<Block>,
-        /// Arguments for the exception continuation after the implicit exception.
-        unwind_arguments: Vec<Value>,
+        unwind_target: BlockTarget,
     },
     /// Interface call with explicit success and exception continuations.
     InvokeInterface {
         /// The receiver value for dispatch.
-        receiver: Value,
+        receiver: ValueReference,
         /// The declaring interface type for this call.
-        declaring_type: LocalNodeId<Type>,
+        declaring_type: TypeReference,
         /// The interface slot id for the method.
         slot_id: InterfaceSlotId,
         /// The declared method target when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        declared_target: Option<FunctionReference>,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
         /// The success continuation block.
-        normal_target: LocalNodeId<Block>,
-        /// Arguments for the success continuation after the implicit result.
-        normal_arguments: Vec<Value>,
+        normal_target: BlockTarget,
         /// The exception continuation block.
-        unwind_target: LocalNodeId<Block>,
-        /// Arguments for the exception continuation after the implicit exception.
-        unwind_arguments: Vec<Value>,
+        unwind_target: BlockTarget,
     },
     /// Throw a managed exception object.
     Throw {
         /// The thrown exception payload.
-        value: Value,
+        value: ValueReference,
     },
     /// Unrecoverable runtime termination.
     Trap {
         /// The trap kind.
         kind: TrapKind,
         /// Optional trap payload.
-        payload: Option<Value>,
+        payload: Option<ValueReference>,
     },
     /// Unreachable code.
     Unreachable,
     /// Tail call to a function.
     TailCall {
         /// The function to tail call.
-        function: LocalNodeId<Function>,
+        function: FunctionReference,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
     },
     /// Tail call through a function pointer.
     TailCallIndirect {
         /// The callable value to tail call.
-        callee: Value,
+        callee: ValueReference,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
     },
     /// Tail call through a virtual dispatch slot.
     TailCallVirtual {
         /// The receiver value for dispatch.
-        receiver: Value,
+        receiver: ValueReference,
         /// The declaring type for this virtual call.
-        declaring_type: LocalNodeId<Type>,
+        declaring_type: TypeReference,
         /// The vtable slot id for the method.
         slot_id: VtableSlotId,
         /// The declared method target when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        declared_target: Option<FunctionReference>,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
     },
     /// Tail call through an interface dispatch slot.
     TailCallInterface {
         /// The receiver value for dispatch.
-        receiver: Value,
+        receiver: ValueReference,
         /// The declaring interface type for this call.
-        declaring_type: LocalNodeId<Type>,
+        declaring_type: TypeReference,
         /// The interface slot id for the method.
         slot_id: InterfaceSlotId,
         /// The declared method target when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        declared_target: Option<FunctionReference>,
         /// The shared call payload.
-        call: Call<Vec<Value>>,
+        call: Call<Vec<ValueReference>>,
     },
 }
 
@@ -357,7 +329,7 @@ impl Terminator {
     }
 
     /// Return the call signature when this terminator performs a call.
-    pub fn call_signature(&self) -> Option<LocalNodeId<Type>> {
+    pub fn call_signature(&self) -> Option<TypeReference> {
         match self {
             Terminator::Error => None,
             Terminator::Invoke { call, .. }
@@ -373,7 +345,7 @@ impl Terminator {
     }
 
     /// Return the declared target when this terminator performs a call.
-    pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
+    pub fn call_declared_target(&self) -> Option<FunctionReference> {
         match self {
             Terminator::Error => None,
             Terminator::Invoke { function, .. } | Terminator::TailCall { function, .. } => {
@@ -396,7 +368,7 @@ impl Terminator {
     }
 
     /// Get all successor block ids.
-    pub fn successors(&self) -> SmallVec<[LocalNodeId<Block>; 2]> {
+    pub fn successors(&self) -> SmallVec<[BlockReference; 2]> {
         match self {
             Terminator::Error => smallvec![],
             Terminator::Return { .. } => smallvec![],
@@ -408,12 +380,10 @@ impl Terminator {
             } => smallvec![*then_target, *else_target],
             Terminator::Check {
                 success, failure, ..
-            } => {
-                smallvec![success.target, failure.target]
-            }
+            } => smallvec![success.block, failure.block],
             Terminator::Switch { default, cases, .. } => {
                 let mut successors = smallvec![*default];
-                successors.extend(cases.iter().map(|case| case.target));
+                successors.extend(cases.iter().map(|case| case.target.block));
                 successors
             }
             Terminator::Yield { resume, .. } => smallvec![*resume],
@@ -436,7 +406,7 @@ impl Terminator {
                 normal_target,
                 unwind_target,
                 ..
-            } => smallvec![*normal_target, *unwind_target],
+            } => smallvec![normal_target.block, unwind_target.block],
             Terminator::Throw { .. } => smallvec![],
             Terminator::Trap { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
@@ -448,20 +418,20 @@ impl Terminator {
     }
 
     /// Get all SSA values used by this terminator.
-    pub fn uses(&self) -> SmallVec<[Value; 8]> {
+    pub fn uses(&self) -> SmallVec<[ValueReference; 8]> {
         match self {
             Terminator::Error => smallvec![],
             Terminator::Return { value } => value.iter().copied().collect(),
-            Terminator::Jump { arguments, .. } => arguments.iter().copied().collect(),
+            Terminator::Jump { target, .. } => target.arguments.iter().copied().collect(),
             Terminator::Branch {
                 condition,
-                then_arguments,
-                else_arguments,
+                then_target,
+                else_target,
                 ..
             } => {
                 let mut uses = smallvec![*condition];
-                uses.extend(then_arguments.iter().copied());
-                uses.extend(else_arguments.iter().copied());
+                uses.extend(then_target.arguments.iter().copied());
+                uses.extend(else_target.arguments.iter().copied());
                 uses
             }
             Terminator::Check {
@@ -472,79 +442,75 @@ impl Terminator {
                 let mut uses = constraint
                     .uses()
                     .into_iter()
-                    .collect::<SmallVec<[Value; 8]>>();
+                    .collect::<SmallVec<[ValueReference; 8]>>();
                 uses.extend(success.arguments.iter().copied());
                 uses.extend(failure.arguments.iter().copied());
                 uses
             }
             Terminator::Switch {
                 value,
-                default_arguments,
+                default,
                 cases,
                 ..
             } => {
                 let mut uses = smallvec![*value];
-                uses.extend(default_arguments.iter().copied());
+                uses.extend(default.arguments.iter().copied());
                 for case in cases {
-                    uses.extend(case.arguments.iter().copied());
+                    uses.extend(case.target.arguments.iter().copied());
                 }
                 uses
             }
-            Terminator::Yield {
-                value,
-                resume_arguments,
-                ..
-            } => {
+            Terminator::Yield { value, resume, .. } => {
                 let mut uses = smallvec![*value];
-                uses.extend(resume_arguments.iter().copied());
+                uses.extend(resume.arguments.iter().copied());
                 uses
             }
             Terminator::Invoke {
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 let mut uses = call
                     .arguments
                     .iter()
                     .copied()
-                    .collect::<SmallVec<[Value; 8]>>();
-                uses.extend(normal_arguments.iter().copied());
-                uses.extend(unwind_arguments.iter().copied());
+                    .collect::<SmallVec<[ValueReference; 8]>>();
+                uses.extend(normal_target.arguments.iter().copied());
+                uses.extend(unwind_target.arguments.iter().copied());
                 uses
             }
             Terminator::InvokeIndirect {
                 callee,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 let mut uses = smallvec![*callee];
                 uses.extend(call.arguments.iter().copied());
-                uses.extend(normal_arguments.iter().copied());
-                uses.extend(unwind_arguments.iter().copied());
+                uses.extend(normal_target.arguments.iter().copied());
+                uses.extend(unwind_target.arguments.iter().copied());
                 uses
             }
             Terminator::InvokeVirtual {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             }
             | Terminator::InvokeInterface {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 let mut uses = smallvec![*receiver];
                 uses.extend(call.arguments.iter().copied());
-                uses.extend(normal_arguments.iter().copied());
-                uses.extend(unwind_arguments.iter().copied());
+                uses.extend(normal_target.arguments.iter().copied());
+                uses.extend(unwind_target.arguments.iter().copied());
                 uses
             }
             Terminator::Throw { value } => smallvec![*value],
