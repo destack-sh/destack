@@ -32,6 +32,7 @@ fn parser_bench_worker_count() -> usize {
 }
 
 static PARSER_TIMINGS_PRINTED: AtomicBool = AtomicBool::new(false);
+#[cfg(feature = "timings")]
 static PARSER_SPECULATION_PRINTED: AtomicBool = AtomicBool::new(false);
 
 /// Return whether parser timing snapshots should be printed.
@@ -50,6 +51,7 @@ fn parser_timing_print_enabled_from_env() -> bool {
 }
 
 /// Return whether parser speculation counters should be printed.
+#[cfg(feature = "timings")]
 fn parser_speculation_print_enabled_from_env() -> bool {
     env::var("DESTACK_PARSE_PRINT_SPECULATION")
         .ok()

@@ -1,10 +1,9 @@
-use destack_ast::{
-    Comment, CommentContent, CommentKind, CommentNewlines, CommentPosition, TokenSpan, TokenType,
-};
+use destack_ast::{CommentContent, CommentKind, CommentNewlines, TokenSpan, TokenType};
+use destack_source::{NodeSourceMap, SourcePartKey};
 
-/// Snapshot of lexer trivia state for speculative lexing.
+/// Restore mark for lexer trivia during speculative lexing.
 #[derive(Debug, Copy, Clone)]
-pub(super) struct TriviaSnapshot {
+pub(super) struct TriviaMark {
     /// The number of comments already collected.
     comments_len: usize,
     /// The number of comments already assigned to a following token.
@@ -17,11 +16,11 @@ pub(super) struct TriviaSnapshot {
     previous_token_type: TokenType,
 }
 
-/// Lexer-time raw comment attachment.
+/// Live lexer trivia state.
 #[derive(Debug)]
 pub(super) struct Trivia {
     /// The collected comments in source order.
-    comments: Vec<Comment>,
+    comments: Vec<TriviaComment>,
     /// The number of comments already assigned to a following token.
     processed: usize,
     /// Whether a newline was seen since the last token.
@@ -30,6 +29,15 @@ pub(super) struct Trivia {
     saw_newline_for_comment: bool,
     /// The previous non-newline semantic token type.
     previous_token_type: TokenType,
+}
+
+/// Comment attachment direction before parser ownership resolution.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum TriviaCommentPlacement {
+    /// The comment belongs to the following structural owner.
+    Leading,
+    /// The comment belongs to the previous structural owner.
+    Trailing,
 }
 
 impl Trivia {
@@ -45,7 +53,7 @@ impl Trivia {
     }
 
     /// Return the collected comments.
-    pub(super) fn comments(&self) -> &[Comment] {
+    pub(super) fn comments(&self) -> &[TriviaComment] {
         &self.comments
     }
 
@@ -54,9 +62,9 @@ impl Trivia {
         !self.comments.is_empty()
     }
 
-    /// Snapshot the current trivia state.
-    pub(super) fn snapshot(&self) -> TriviaSnapshot {
-        TriviaSnapshot {
+    /// Capture one restore mark for the current trivia state.
+    pub(super) fn mark(&self) -> TriviaMark {
+        TriviaMark {
             comments_len: self.comments.len(),
             processed: self.processed,
             saw_newline: self.saw_newline,
@@ -65,13 +73,13 @@ impl Trivia {
         }
     }
 
-    /// Restore trivia state from one snapshot.
-    pub(super) fn restore(&mut self, snapshot: TriviaSnapshot) {
-        self.comments.truncate(snapshot.comments_len);
-        self.processed = snapshot.processed.min(self.comments.len());
-        self.saw_newline = snapshot.saw_newline;
-        self.saw_newline_for_comment = snapshot.saw_newline_for_comment;
-        self.previous_token_type = snapshot.previous_token_type;
+    /// Restore trivia state from one previously captured mark.
+    pub(super) fn restore(&mut self, mark: TriviaMark) {
+        self.comments.truncate(mark.comments_len);
+        self.processed = mark.processed.min(self.comments.len());
+        self.saw_newline = mark.saw_newline;
+        self.saw_newline_for_comment = mark.saw_newline_for_comment;
+        self.previous_token_type = mark.previous_token_type;
     }
 
     /// Truncate trivia after one byte position and reset the live boundary state.
@@ -125,8 +133,7 @@ impl Trivia {
 
         if self.processed < self.comments.len() {
             for comment in &mut self.comments[self.processed..] {
-                comment.position = CommentPosition::Leading;
-                comment.attached_to = token_span.span.start;
+                comment.placement = TriviaCommentPlacement::Leading;
             }
 
             self.processed = self.comments.len();
@@ -136,10 +143,15 @@ impl Trivia {
         self.saw_newline_for_comment = false;
     }
 
-    /// Record one raw comment and classify its token-local attachment.
+    /// Record one comment and classify its token-local attachment.
     fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, _source_text: &str) {
-        let mut comment = Comment::new(token_span.span, kind);
-        comment.position = CommentPosition::Trailing;
+        let mut comment = TriviaComment {
+            span: token_span.span,
+            kind,
+            placement: TriviaCommentPlacement::Trailing,
+            newlines: CommentNewlines::default(),
+            content: CommentContent::None,
+        };
         comment.newlines = CommentNewlines::from_bools(self.saw_newline_for_comment, false);
         comment.content = comment_content(token_span.token.ty);
 
@@ -172,7 +184,39 @@ impl Trivia {
     }
 }
 
-/// Return the structured content classification for one raw comment token.
+/// One lexer comment before structural parser attachment.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct TriviaComment {
+    /// The span of the comment, including delimiters.
+    pub span: destack_source::Span,
+    /// The kind of the comment.
+    pub kind: CommentKind,
+    /// The structural owner direction.
+    placement: TriviaCommentPlacement,
+    /// The newline shape around the comment.
+    pub newlines: CommentNewlines,
+    /// The structured comment content classification.
+    pub content: CommentContent,
+}
+
+impl TriviaComment {
+    /// Return the structural source owner for this comment.
+    pub(crate) fn attached_part(&self, source_map: &NodeSourceMap) -> Option<SourcePartKey> {
+        let enclosing_owner = source_map.find_innermost_enclosing_owner(self.span);
+        let directional_owner = match self.placement {
+            TriviaCommentPlacement::Leading => {
+                source_map.find_nearest_enclosing_owner_after(self.span.file, self.span.end)
+            }
+            TriviaCommentPlacement::Trailing => {
+                source_map.find_nearest_enclosing_owner_before(self.span.file, self.span.start)
+            }
+        };
+
+        enclosing_owner.or(directional_owner)
+    }
+}
+
+/// Return the structured content classification for one comment token.
 fn comment_content(token_type: TokenType) -> CommentContent {
     match token_type {
         TokenType::DocBlockComment => CommentContent::Jsdoc,

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_ast::{Keyword, LiteralType, Token, TokenSpan, TokenType};
 use destack_source::{File, FileId, LanguageType, Span};
 
-use super::trivia::{Trivia, TriviaSnapshot};
+use super::trivia::{Trivia, TriviaMark};
 
 use memchr::memchr;
 
@@ -121,7 +121,7 @@ pub struct Lexer {
     /// The language type for parsing behavior.
     #[allow(unused)]
     pub(super) language: LanguageType,
-    /// Lexer-time raw comment attachment.
+    /// Live lexer trivia state.
     pub(super) trivia: Trivia,
     /// Whether an `@` token was seen.
     pub(super) has_at: bool,
@@ -209,8 +209,8 @@ pub struct LexerSnapshot {
     pub(super) token_start: usize,
     /// The most recently consumed character.
     pub(super) prev: char,
-    /// The snapshot of lexer-time trivia state.
-    pub(super) trivia: TriviaSnapshot,
+    /// The trivia restore mark at snapshot time.
+    pub(super) trivia_mark: TriviaMark,
     /// Whether an `@` token has been observed.
     pub(super) has_at: bool,
     /// Whether the most recent side token at snapshot time had a line terminator.
@@ -379,7 +379,7 @@ impl Lexer {
             pos: self.pos,
             token_start: self.token_start,
             prev: self.prev,
-            trivia: self.trivia.snapshot(),
+            trivia_mark: self.trivia.mark(),
             has_at: self.has_at,
             last_side_token_had_line_terminator: self.last_side_token_had_line_terminator,
             tokens_len: self.tokens.len(),
@@ -412,7 +412,7 @@ impl Lexer {
         self.options.parentheses_depth = snapshot.parentheses_depth;
         self.options.allow_tree_literals = snapshot.allow_tree_literals;
         self.options.in_tree_attribute_value = snapshot.in_tree_attribute_value;
-        self.trivia.restore(snapshot.trivia);
+        self.trivia.restore(snapshot.trivia_mark);
         self.has_at = snapshot.has_at;
         self.last_side_token_had_line_terminator = snapshot.last_side_token_had_line_terminator;
         let old_tokens_len = self.tokens.len();

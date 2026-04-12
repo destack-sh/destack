@@ -5,6 +5,7 @@ use destack_source::Span;
 
 use super::lex::is_semantic;
 use super::lexer::{Lexer, SemanticTokenData};
+use super::trivia::TriviaComment;
 
 /// Return a keyword for an identifier when it can match keyword shape.
 #[inline]
@@ -73,9 +74,9 @@ impl Lexer {
         &self.side_tokens
     }
 
-    /// Return raw comments collected during lexing.
+    /// Return trivia comments collected during lexing.
     #[inline]
-    pub fn comments(&self) -> &[destack_ast::Comment] {
+    pub(crate) fn trivia_comments(&self) -> &[TriviaComment] {
         self.trivia.comments()
     }
 
@@ -491,7 +492,7 @@ impl Lexer {
         }
     }
 
-    /// Return true when any raw comments were collected.
+    /// Return true when any trivia comments were collected.
     #[inline]
     pub fn has_comment_tokens(&self) -> bool {
         self.trivia.has_comments()
