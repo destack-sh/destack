@@ -1,13 +1,31 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeId, Type};
+use crate::{IntegerReference, TypeReference};
+
+/// One identifier inside attribute syntax.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AttributeIdentifier {
+    /// One concrete identifier.
+    Identifier(StringId),
+    /// One required identifier that was omitted.
+    Missing,
+    /// One malformed identifier fragment.
+    Error,
+}
+
+impl AttributeIdentifier {
+    /// Create one concrete identifier.
+    pub fn identifier(identifier: StringId) -> Self {
+        Self::Identifier(identifier)
+    }
+}
 
 /// A metadata attribute attached to a MIR node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Attribute {
     /// The attribute name.
-    pub name: StringId,
+    pub name: AttributeIdentifier,
     /// The attribute arguments.
     pub args: AttributeArgs,
 }
@@ -29,7 +47,7 @@ pub enum AttributeArgs {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AttributeKeyValue {
     /// The argument name.
-    pub key: StringId,
+    pub key: AttributeIdentifier,
     /// The argument value.
     pub value: AttributeValue,
 }
@@ -59,11 +77,11 @@ impl FloatValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AttributeValue {
     /// An identifier value.
-    Identifier(StringId),
+    Identifier(AttributeIdentifier),
     /// A type value.
-    Type(LocalNodeId<Type>),
+    Type(TypeReference),
     /// An integer literal.
-    Integer(i64),
+    Integer(IntegerReference),
     /// A floating point literal.
     Float(FloatValue),
     /// A boolean literal.
@@ -72,4 +90,8 @@ pub enum AttributeValue {
     String(StringId),
     /// A list of values.
     List(Vec<AttributeValue>),
+    /// One required value that was omitted.
+    Missing,
+    /// One malformed value fragment.
+    Error,
 }

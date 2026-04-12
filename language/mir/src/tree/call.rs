@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSize, ArgumentAttribute, CallBehavior, LocalNodeId, MemoryEffect, PointerAttribute,
-    Type,
+    AllocationSize, ArgumentAttribute, CallBehavior, MemoryEffect, PointerAttribute, TypeReference,
 };
 
 /// Shared call facts for one call-like instruction or terminator.
@@ -11,7 +10,7 @@ pub struct Call<A> {
     /// The call arguments.
     pub arguments: A,
     /// The signature type for the callee.
-    pub signature: LocalNodeId<Type>,
+    pub signature: TypeReference,
     /// Optional memory effect summary for this call.
     pub memory_effect: Option<MemoryEffect>,
     /// Optional behavioral summary for this call.
@@ -26,7 +25,7 @@ pub struct Call<A> {
 
 impl<A> Call<A> {
     /// Create one call payload with default per-call facts.
-    pub fn new(arguments: A, signature: LocalNodeId<Type>) -> Self {
+    pub fn new(arguments: A, signature: TypeReference) -> Self {
         Self {
             arguments,
             signature,

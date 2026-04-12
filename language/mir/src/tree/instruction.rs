@@ -6,18 +6,19 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AllocationSize, ArgumentAttribute, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
-    CallBehavior, Constant, Function, Global, InterfaceSlotId, Intrinsic, Local, LocalNodeId,
-    MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType, PointerAttribute,
-    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, Value,
-    VectorConvertMode, VectorReduceOperator, VtableSlotId,
+    CallBehavior, Constant, Function, FunctionReference, Global, GlobalReference, InterfaceSlotId,
+    Intrinsic, Local, LocalNodeId, LocalReference, MemoryEffect, MemoryOrdering, MemoryScope,
+    MemorySemantics, Node, NodeType, PointerAttribute, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, TypeReference, UnaryOperator, ValueReference, VectorConvertMode,
+    VectorReduceOperator, VtableSlotId,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
 ///
-/// Used by aggregate, call, intrinsic, and tensor instructions to reference value lists.
-/// (This saves 16 bytes per instruction compared to using `Vec<Value>` inline.)
+/// Used by aggregate, call, intrinsic, and tensor instructions to reference value references.
+/// (This saves 16 bytes per instruction compared to using `Vec<ValueReference>` inline.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ArgumentSlice {
     /// Start index in the arguments buffer.
@@ -76,7 +77,7 @@ pub enum Instruction {
     /// Load a constant value.
     Const {
         /// The SSA value to define.
-        destination: Value,
+        destination: ValueReference,
         /// The constant value to load.
         value: Constant,
     },
@@ -85,35 +86,35 @@ pub enum Instruction {
     /// Binary operation (e.g., add, subtract, compare).
     Binary {
         /// The SSA value to define with the result.
-        destination: Value,
+        destination: ValueReference,
         /// The binary operator to apply.
         operator: BinaryOperator,
         /// The left-hand operand.
-        left: Value,
+        left: ValueReference,
         /// The right-hand operand.
-        right: Value,
+        right: ValueReference,
     },
     /// Unary operation (e.g., negate, not).
     Unary {
         /// The SSA value to define with the result.
-        destination: Value,
+        destination: ValueReference,
         /// The unary operator to apply.
         operator: UnaryOperator,
         /// The operand.
-        argument: Value,
+        argument: ValueReference,
     },
 
     // type conversions
     /// Cast between types (bitcast, truncate, extend, etc.).
     Cast {
         /// The SSA value to define with the converted result.
-        destination: Value,
+        destination: ValueReference,
         /// The cast operator to perform.
         operator: CastOperator,
         /// The value to cast.
-        argument: Value,
+        argument: ValueReference,
         /// The target type to cast to.
-        to_type: LocalNodeId<Type>,
+        to_type: TypeReference,
     },
 
     // conditional selection
@@ -124,38 +125,38 @@ pub enum Instruction {
     /// computed before the selection (no short-circuit evaluation).
     Select {
         /// The SSA value to define with the selected result.
-        destination: Value,
+        destination: ValueReference,
         /// The boolean condition (must be bool type).
-        condition: Value,
+        condition: ValueReference,
         /// The value returned if condition is true.
-        then_value: Value,
+        then_value: ValueReference,
         /// The value returned if condition is false.
-        else_value: Value,
+        else_value: ValueReference,
     },
 
     // local variables (local.get, local.set, local.address)
     /// Load from a local variable (stack slot).
     LocalGet {
         /// The SSA value to define with the loaded value.
-        destination: Value,
+        destination: ValueReference,
         /// The local variable to load from.
-        local: LocalNodeId<Local>,
+        local: LocalReference,
     },
     /// Get the address of a local variable (stack slot).
     LocalAddr {
         /// The SSA value to define with the local address.
-        destination: Value,
+        destination: ValueReference,
         /// The local variable to take the address of.
-        local: LocalNodeId<Local>,
+        local: LocalReference,
         /// The result type of the address.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Store to a local variable (stack slot).
     LocalSet {
         /// The local variable to store to.
-        local: LocalNodeId<Local>,
+        local: LocalReference,
         /// The value to store.
-        value: Value,
+        value: ValueReference,
     },
 
     // global variables (global.address, global.const)
@@ -163,40 +164,40 @@ pub enum Instruction {
     /// Returns a raw pointer that can be used with Load/Store.
     GlobalAddr {
         /// The SSA value to define with the pointer.
-        destination: Value,
+        destination: ValueReference,
         /// The global variable to get the address of.
-        global: LocalNodeId<Global>,
+        global: GlobalReference,
         /// The result type of the address.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Load the value of an immutable global constant.
     /// Returns the constant value directly.
     GlobalConst {
         /// The SSA value to define with the constant value.
-        destination: Value,
+        destination: ValueReference,
         /// The global constant to load.
-        global: LocalNodeId<Global>,
+        global: GlobalReference,
     },
     /// Get a function pointer for a function (function.address).
     FunctionAddr {
         /// The SSA value to define with the function pointer.
-        destination: Value,
+        destination: ValueReference,
         /// The function to take the address of.
-        function: LocalNodeId<Function>,
+        function: FunctionReference,
     },
     /// Bind one environment to a function and produce a callable value (function.bind).
     FunctionBind {
         /// The SSA value to define with the callable value.
-        destination: Value,
+        destination: ValueReference,
         /// The function to pair with the environment.
-        function: LocalNodeId<Function>,
+        function: FunctionReference,
         /// The environment value to capture in the callable.
-        environment: Value,
+        environment: ValueReference,
     },
     /// Load the hidden environment for the current function (function.environment).
     FunctionEnvironment {
         /// The SSA value to define with the hidden environment pointer.
-        destination: Value,
+        destination: ValueReference,
     },
     // memory (pointers)
     /// Load from a pointer (dereference).
@@ -204,93 +205,93 @@ pub enum Instruction {
     /// Optional memory access metadata is stored in `NodeTree::memory_table`.
     Load {
         /// The SSA value to define with the loaded value.
-        destination: Value,
+        destination: ValueReference,
         /// The pointer to load from.
-        pointer: Value,
+        pointer: ValueReference,
         /// The loaded value type.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Store to a pointer (write through pointer).
     ///
     /// Optional memory access metadata is stored in `NodeTree::memory_table`.
     Store {
         /// The pointer to store to.
-        pointer: Value,
+        pointer: ValueReference,
         /// The value to store.
-        value: Value,
+        value: ValueReference,
     },
 
     // aggregate operations (field.get, field.address, field.set, element.get, element.address, element.set)
     /// Extract a field from an aggregate value (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
-        destination: Value,
+        destination: ValueReference,
         /// The aggregate value to extract from.
-        aggregate: Value,
+        aggregate: ValueReference,
         /// The zero-based field index.
         index: u32,
     },
     /// Get the address of a field from an aggregate value (field.address).
     FieldAddr {
         /// The SSA value to define with the field address.
-        destination: Value,
+        destination: ValueReference,
         /// The aggregate value to get the field from.
-        aggregate: Value,
+        aggregate: ValueReference,
         /// The zero-based field index.
         index: u32,
         /// The result type of the address.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Insert a value into a struct or tuple field (field.set).
     FieldSet {
         /// The SSA value to define with the new aggregate.
-        destination: Value,
+        destination: ValueReference,
         /// The original aggregate value.
-        aggregate: Value,
+        aggregate: ValueReference,
         /// The zero-based field index to update.
         index: u32,
         /// The value to insert at the field.
-        value: Value,
+        value: ValueReference,
     },
     /// Extract an element from an array aggregate (element.get).
     ElementGet {
         /// The SSA value to define with the extracted element.
-        destination: Value,
+        destination: ValueReference,
         /// The array value to extract from.
-        array: Value,
+        array: ValueReference,
         /// The index of the element (runtime value).
-        index: Value,
+        index: ValueReference,
     },
     /// Get the address of an array element from an aggregate (element.address).
     ElementAddr {
         /// The SSA value to define with the element address.
-        destination: Value,
+        destination: ValueReference,
         /// The array value to get the element from.
-        array: Value,
+        array: ValueReference,
         /// The index of the element (runtime value).
-        index: Value,
+        index: ValueReference,
         /// The result type of the address.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Insert a value into an array element (element.set).
     ElementSet {
         /// The SSA value to define with the new array.
-        destination: Value,
+        destination: ValueReference,
         /// The original array value.
-        array: Value,
+        array: ValueReference,
         /// The index of the element to update (runtime value).
-        index: Value,
+        index: ValueReference,
         /// The value to insert at the index.
-        value: Value,
+        value: ValueReference,
     },
     /// Construct a struct from field values.
     ///
     /// Fields must be provided in layout order.
     Struct {
         /// The SSA value to define with the constructed struct.
-        destination: Value,
+        destination: ValueReference,
         /// The struct type to construct.
-        ty: LocalNodeId<Type>,
+        ty: TypeReference,
         /// The field values (stored in NodeTree's argument buffer).
         fields: ArgumentSlice,
     },
@@ -299,9 +300,9 @@ pub enum Instruction {
     /// Elements must be provided in order.
     Tuple {
         /// The SSA value to define with the constructed tuple.
-        destination: Value,
+        destination: ValueReference,
         /// The tuple type to construct.
-        ty: LocalNodeId<Type>,
+        ty: TypeReference,
         /// The element values (stored in NodeTree's argument buffer).
         elements: ArgumentSlice,
     },
@@ -310,9 +311,9 @@ pub enum Instruction {
     /// Elements must be provided in index order.
     Array {
         /// The SSA value to define with the constructed array.
-        destination: Value,
+        destination: ValueReference,
         /// The array type to construct.
-        ty: LocalNodeId<Type>,
+        ty: TypeReference,
         /// The element values (stored in NodeTree's argument buffer).
         elements: ArgumentSlice,
     },
@@ -321,159 +322,159 @@ pub enum Instruction {
     /// Broadcast a scalar to all vector lanes.
     VectorSplat {
         /// The SSA value to define with the vector result.
-        destination: Value,
+        destination: ValueReference,
         /// The scalar value to broadcast.
-        value: Value,
+        value: ValueReference,
     },
     /// Extract a lane from a vector.
     VectorExtract {
         /// The SSA value to define with the extracted lane.
-        destination: Value,
+        destination: ValueReference,
         /// The vector value to extract from.
-        vector: Value,
+        vector: ValueReference,
         /// The lane index to extract.
-        index: Value,
+        index: ValueReference,
     },
     /// Insert a lane into a vector.
     VectorInsert {
         /// The SSA value to define with the updated vector.
-        destination: Value,
+        destination: ValueReference,
         /// The original vector value.
-        vector: Value,
+        vector: ValueReference,
         /// The lane index to update.
-        index: Value,
+        index: ValueReference,
         /// The lane value to insert.
-        value: Value,
+        value: ValueReference,
     },
     /// Shuffle vector lanes using a constant mask.
     VectorShuffle {
         /// The SSA value to define with the shuffled result.
-        destination: Value,
+        destination: ValueReference,
         /// The left vector operand.
-        left: Value,
+        left: ValueReference,
         /// The right vector operand.
-        right: Value,
+        right: ValueReference,
         /// The shuffle mask indices.
         mask: Vec<u32>,
     },
     /// Select vector lanes based on a boolean mask.
     VectorSelect {
         /// The SSA value to define with the selected result.
-        destination: Value,
+        destination: ValueReference,
         /// The boolean mask vector.
-        mask: Value,
+        mask: ValueReference,
         /// The value returned if the mask lane is true.
-        then_value: Value,
+        then_value: ValueReference,
         /// The value returned if the mask lane is false.
-        else_value: Value,
+        else_value: ValueReference,
     },
     /// Reduce a vector to a scalar.
     VectorReduce {
         /// The SSA value to define with the reduced result.
-        destination: Value,
+        destination: ValueReference,
         /// The reduction operator to apply.
         operator: VectorReduceOperator,
         /// The vector value to reduce.
-        vector: Value,
+        vector: ValueReference,
     },
     /// Compare two vectors elementwise.
     ///
     /// The result is a vector of boolean lanes.
     VectorCompare {
         /// The SSA value to define with the comparison result.
-        destination: Value,
+        destination: ValueReference,
         /// The comparison operator to apply.
         operator: BinaryOperator,
         /// The left vector operand.
-        left: Value,
+        left: ValueReference,
         /// The right vector operand.
-        right: Value,
+        right: ValueReference,
     },
     /// Convert vector element types with an explicit mode.
     ///
     /// The result must have the same lane count as the input.
     VectorConvert {
         /// The SSA value to define with the converted vector.
-        destination: Value,
+        destination: ValueReference,
         /// The conversion mode to apply.
         mode: VectorConvertMode,
         /// The vector value to convert.
-        vector: Value,
+        vector: ValueReference,
     },
 
     // tensor operations (tensor.*)
     /// Load a tensor element from a tensor reference.
     TensorLoad {
         /// The SSA value to define with the loaded element.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor reference to load from.
-        view: Value,
+        view: ValueReference,
         /// The index values (stored in NodeTree's argument buffer).
         indices: ArgumentSlice,
     },
     /// Store a tensor element into a tensor reference.
     TensorStore {
         /// The tensor reference to store into.
-        view: Value,
+        view: ValueReference,
         /// The index values (stored in NodeTree's argument buffer).
         indices: ArgumentSlice,
         /// The value to store.
-        value: Value,
+        value: ValueReference,
     },
     /// Fill a tensor reference with a scalar value.
     TensorFill {
         /// The tensor reference to fill.
-        view: Value,
+        view: ValueReference,
         /// The scalar value to write.
-        value: Value,
+        value: ValueReference,
     },
     /// Copy elements from a source tensor reference into a destination tensor reference.
     TensorCopy {
         /// The destination tensor reference.
-        target: Value,
+        target: ValueReference,
         /// The source tensor reference.
-        source: Value,
+        source: ValueReference,
     },
     /// Reshape a tensor value into a new shape.
     TensorReshape {
         /// The SSA value to define with the reshaped tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor value to reshape.
-        tensor: Value,
+        tensor: ValueReference,
         /// The shape values (stored in NodeTree's argument buffer).
         shape: ArgumentSlice,
     },
     /// Broadcast a tensor into a larger shape.
     TensorBroadcast {
         /// The SSA value to define with the broadcasted tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor value to broadcast.
-        tensor: Value,
+        tensor: ValueReference,
         /// The operand dimensions mapped into the result.
         dimensions: Vec<u32>,
     },
     /// Permute tensor dimensions.
     TensorTranspose {
         /// The SSA value to define with the transposed tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor value to transpose.
-        tensor: Value,
+        tensor: ValueReference,
         /// The permutation of dimensions.
         permutation: Vec<u32>,
     },
     /// Refine a tensor type without changing its contents.
     TensorCast {
         /// The SSA value to define with the cast tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor value to cast.
-        tensor: Value,
+        tensor: ValueReference,
     },
     /// Create a view into a tensor reference.
     TensorView {
         /// The SSA value to define with the view result.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor reference to view.
-        view: Value,
+        view: ValueReference,
         /// The view arguments (offsets, sizes, strides) stored in NodeTree's argument buffer.
         arguments: ArgumentSlice,
         /// The number of offset values.
@@ -486,9 +487,9 @@ pub enum Instruction {
     /// Slice a tensor by offsets, sizes, and strides.
     TensorSlice {
         /// The SSA value to define with the sliced tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor value to slice.
-        tensor: Value,
+        tensor: ValueReference,
         /// The slice arguments (offsets, sizes, strides) stored in NodeTree's argument buffer.
         arguments: ArgumentSlice,
         /// The number of offset values.
@@ -501,9 +502,9 @@ pub enum Instruction {
     /// Pad a tensor with low, high, and interior padding.
     TensorPad {
         /// The SSA value to define with the padded tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor value to pad.
-        tensor: Value,
+        tensor: ValueReference,
         /// The padding arguments (low, high, interior) stored in NodeTree's argument buffer.
         arguments: ArgumentSlice,
         /// The number of low padding values.
@@ -513,12 +514,12 @@ pub enum Instruction {
         /// The number of interior padding values.
         interior_count: u16,
         /// The scalar padding value.
-        value: Value,
+        value: ValueReference,
     },
     /// Concatenate tensors along a dimension.
     TensorConcat {
         /// The SSA value to define with the concatenated tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The tensor operands stored in NodeTree's argument buffer.
         tensors: ArgumentSlice,
         /// The concatenation axis.
@@ -529,57 +530,57 @@ pub enum Instruction {
     /// The result is a tensor with boolean element type and matching shape.
     TensorCompare {
         /// The SSA value to define with the comparison result.
-        destination: Value,
+        destination: ValueReference,
         /// The comparison operator to apply.
         operator: BinaryOperator,
         /// The left tensor operand.
-        left: Value,
+        left: ValueReference,
         /// The right tensor operand.
-        right: Value,
+        right: ValueReference,
     },
     /// Select tensor elements based on a boolean mask.
     TensorSelect {
         /// The SSA value to define with the selected tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The boolean mask tensor.
-        mask: Value,
+        mask: ValueReference,
         /// The tensor returned if the mask element is true.
-        then_value: Value,
+        then_value: ValueReference,
         /// The tensor returned if the mask element is false.
-        else_value: Value,
+        else_value: ValueReference,
     },
     /// Reduce a tensor along axes with a fixed operator.
     TensorReduce {
         /// The SSA value to define with the reduced tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The reduction operator to apply.
         operator: TensorReduceOperator,
         /// The tensor value to reduce.
-        tensor: Value,
+        tensor: ValueReference,
         /// The initial value for the reduction.
-        initial: Value,
+        initial: ValueReference,
         /// The axes to reduce.
         axes: Vec<u32>,
     },
     /// Dot product of two tensors.
     TensorDot {
         /// The SSA value to define with the dot result.
-        destination: Value,
+        destination: ValueReference,
         /// The left operand.
-        left: Value,
+        left: ValueReference,
         /// The right operand.
-        right: Value,
+        right: ValueReference,
         /// The dot dimension numbers.
         dimensions: TensorDotDimensionNumbers,
     },
     /// Convolution between an input tensor and a kernel tensor.
     TensorConvolution {
         /// The SSA value to define with the convolution result.
-        destination: Value,
+        destination: ValueReference,
         /// The input tensor.
-        input: Value,
+        input: ValueReference,
         /// The kernel tensor.
-        kernel: Value,
+        kernel: ValueReference,
         /// The convolution dimension numbers.
         dimensions: TensorConvolutionDimensionNumbers,
         /// The convolution window parameters.
@@ -592,11 +593,11 @@ pub enum Instruction {
     /// Gather slices from a tensor based on indices.
     TensorGather {
         /// The SSA value to define with the gathered tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The operand tensor.
-        operand: Value,
+        operand: ValueReference,
         /// The indices tensor.
-        indices: Value,
+        indices: ValueReference,
         /// The gather dimension numbers.
         dimensions: TensorGatherDimensionNumbers,
         /// The slice sizes for each operand dimension.
@@ -605,13 +606,13 @@ pub enum Instruction {
     /// Scatter updates into a tensor based on indices.
     TensorScatter {
         /// The SSA value to define with the scatter result.
-        destination: Value,
+        destination: ValueReference,
         /// The operand tensor.
-        operand: Value,
+        operand: ValueReference,
         /// The indices tensor.
-        indices: Value,
+        indices: ValueReference,
         /// The updates tensor.
-        updates: Value,
+        updates: ValueReference,
         /// The scatter dimension numbers.
         dimensions: TensorScatterDimensionNumbers,
         /// The scatter update mode.
@@ -622,59 +623,59 @@ pub enum Instruction {
     /// The result must have the same shape as the input.
     TensorConvert {
         /// The SSA value to define with the converted tensor.
-        destination: Value,
+        destination: ValueReference,
         /// The conversion mode to apply.
         mode: TensorConvertMode,
         /// The tensor value to convert.
-        tensor: Value,
+        tensor: ValueReference,
     },
 
     // function calls (call, call.virtual, call.interface, call.indirect)
     /// Call a function directly.
     Call {
         /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         /// The function to call.
-        function: LocalNodeId<Function>,
+        function: FunctionReference,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
     /// Call a virtual method through a vtable slot.
     CallVirtual {
         /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         /// The receiver value for dispatch.
-        receiver: Value,
+        receiver: ValueReference,
         /// The declaring type for this virtual call.
-        declaring_type: LocalNodeId<Type>,
+        declaring_type: TypeReference,
         /// The vtable slot id for the method.
         slot_id: VtableSlotId,
         /// The declared method target when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
     /// Call an interface method through an itab slot.
     CallInterface {
         /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         /// The receiver value for dispatch.
-        receiver: Value,
+        receiver: ValueReference,
         /// The declaring interface type for this call.
-        declaring_type: LocalNodeId<Type>,
+        declaring_type: TypeReference,
         /// The itab slot id for the method.
         slot_id: InterfaceSlotId,
         /// The declared method target when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
     /// Call through a function pointer (call.indirect).
     CallIndirect {
         /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         /// The callable value to call.
-        callee: Value,
+        callee: ValueReference,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
@@ -684,23 +685,23 @@ pub enum Instruction {
     /// Returns a managed reference type (`ref<T, managed, ...>`).
     ManagedAlloc {
         /// The SSA value to define with the allocated reference.
-        destination: Value,
+        destination: ValueReference,
         /// The type of the struct to allocate.
-        layout: LocalNodeId<Type>,
+        layout: TypeReference,
         /// The result type of the allocation.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Allocate a managed array (managed.allocArray).
     /// Returns a managed reference type (`ref<T, managed, ...>`).
     ManagedAllocArray {
         /// The SSA value to define with the allocated reference.
-        destination: Value,
+        destination: ValueReference,
         /// The element type of the array.
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         /// The number of elements (runtime value).
-        length: Value,
+        length: ValueReference,
         /// The result type of the allocation.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
 
     // allocation (raw - manual memory management: raw.alloc, raw.free, raw.drop)
@@ -708,23 +709,23 @@ pub enum Instruction {
     /// Returns a raw or owned reference type. Caller must free with `raw.free` or `raw.drop`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
-        destination: Value,
+        destination: ValueReference,
         /// The type of the value to allocate.
-        layout: LocalNodeId<Type>,
+        layout: TypeReference,
         /// The result type of the allocation.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Free raw heap memory previously allocated with `raw.alloc` (raw.free).
     /// User-inserted for manual memory management (FFI, etc).
     RawFree {
         /// The pointer to free.
-        pointer: Value,
+        pointer: ValueReference,
     },
     /// Drop an owned heap value (raw.drop).
     /// Compiler-inserted at ownership end to run owned cleanup and deallocate heap memory.
     RawDrop {
         /// The value to drop.
-        value: Value,
+        value: ValueReference,
     },
 
     // allocation (stack, automatic, scoped to function: stack.alloc, stack.drop)
@@ -732,28 +733,28 @@ pub enum Instruction {
     /// Returns a raw stack reference type. Freed automatically when frame exits.
     StackAlloc {
         /// The SSA value to define with the stack pointer.
-        destination: Value,
+        destination: ValueReference,
         /// The type of the value to allocate.
-        layout: LocalNodeId<Type>,
+        layout: TypeReference,
         /// The result type of the allocation.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
     },
     /// Mark a stack value's lifetime as ended (stack.drop).
     /// Compiler-inserted for NLL owned cleanup. No deallocation (frame handles it).
     StackDrop {
         /// The value to drop.
-        value: Value,
+        value: ValueReference,
     },
 
     // atomic memory operations
     /// Load from memory atomically.
     AtomicLoad {
         /// The SSA value to define with the loaded result.
-        destination: Value,
+        destination: ValueReference,
         /// The pointer to load from.
-        pointer: Value,
+        pointer: ValueReference,
         /// The loaded value type.
-        result_type: LocalNodeId<Type>,
+        result_type: TypeReference,
         /// The memory ordering to apply.
         ordering: MemoryOrdering,
         /// The execution scope for the operation.
@@ -766,9 +767,9 @@ pub enum Instruction {
     /// Store to memory atomically.
     AtomicStore {
         /// The pointer to store to.
-        pointer: Value,
+        pointer: ValueReference,
         /// The value to store.
-        value: Value,
+        value: ValueReference,
         /// The memory ordering to apply.
         ordering: MemoryOrdering,
         /// The execution scope for the operation.
@@ -781,13 +782,13 @@ pub enum Instruction {
     /// Compare exchange one memory location atomically.
     AtomicCompareExchange {
         /// The SSA value to define with the old value and success flag.
-        destination: Value,
+        destination: ValueReference,
         /// The pointer to update.
-        pointer: Value,
+        pointer: ValueReference,
         /// The expected current value.
-        expected: Value,
+        expected: ValueReference,
         /// The replacement value.
-        new_value: Value,
+        new_value: ValueReference,
         /// Whether the compare exchange is weak.
         is_weak: bool,
         /// The memory ordering to apply.
@@ -802,13 +803,13 @@ pub enum Instruction {
     /// Apply one atomic read modify write operation.
     AtomicRmw {
         /// The SSA value to define with the old value.
-        destination: Value,
+        destination: ValueReference,
         /// The read modify write operator.
         operator: AtomicRmwOperator,
         /// The pointer to update.
-        pointer: Value,
+        pointer: ValueReference,
         /// The value argument for the operator.
-        value: Value,
+        value: ValueReference,
         /// The memory ordering to apply.
         ordering: MemoryOrdering,
         /// The execution scope for the operation.
@@ -843,7 +844,7 @@ pub enum Instruction {
     /// Assume a condition is true (UB if false).
     Assume {
         /// The condition to assume.
-        condition: Value,
+        condition: ValueReference,
     },
 
     // intrinsics
@@ -855,7 +856,7 @@ pub enum Instruction {
     /// - Are used for comptime evaluation, type reflection, and low-level ops
     Intrinsic {
         /// The SSA value to define with the result, if any.
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         /// The intrinsic to call.
         intrinsic: Intrinsic,
         /// The arguments to pass.
@@ -869,7 +870,7 @@ impl Node for Instruction {
 
 impl Instruction {
     /// Get the destination value defined by this instruction (if any).
-    pub fn destination(&self) -> Option<Value> {
+    pub fn destination(&self) -> Option<ValueReference> {
         match self {
             Instruction::Error => None,
             Instruction::Const { destination, .. } => Some(*destination),
@@ -950,7 +951,7 @@ impl Instruction {
     ///
     /// For Call, CallVirtual, CallInterface, CallIndirect, and Intrinsic, the arguments are stored externally
     /// in NodeTree's argument buffer and must be fetched via `NodeTree::get_arguments()`.
-    pub fn uses(&self) -> SmallVec<[Value; 4]> {
+    pub fn uses(&self) -> SmallVec<[ValueReference; 4]> {
         match self {
             Instruction::Error => smallvec![],
             Instruction::Const { .. } => smallvec![],
@@ -1116,7 +1117,7 @@ impl Instruction {
     }
 
     /// Return the signature type for call instructions.
-    pub fn call_signature(&self) -> Option<LocalNodeId<Type>> {
+    pub fn call_signature(&self) -> Option<TypeReference> {
         match self {
             Instruction::Call { call, .. }
             | Instruction::CallVirtual { call, .. }
@@ -1127,7 +1128,7 @@ impl Instruction {
     }
 
     /// Return the declared target for call instructions, when known.
-    pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
+    pub fn call_declared_target(&self) -> Option<FunctionReference> {
         match self {
             Instruction::Call { function, .. } => Some(*function),
             Instruction::CallVirtual {

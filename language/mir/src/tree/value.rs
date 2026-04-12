@@ -3,9 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::{LocalNodeId, Type};
 
 /// SSA value (virtual register).
-///
-/// Values are created by instructions and consumed by other instructions.
-/// Each value is defined exactly once.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Value(pub u32);
@@ -22,8 +19,7 @@ impl Value {
     }
 }
 
-/// An SSA value paired with its type.
-/// Used for function/block parameters where type information is needed.
+/// One SSA value with its type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypedValue {
     /// The SSA value.
@@ -44,14 +40,14 @@ impl TypedValue {
 pub enum Constant {
     /// Null reference constant.
     Null,
-    /// Boolean constant (true or false).
+    /// Boolean constant.
     Boolean {
         /// The boolean value.
         value: bool,
     },
     /// Signed integer constant.
     Int {
-        /// The value (sign-extended to 64 bits).
+        /// The value, sign-extended to 64 bits.
         value: i64,
         /// The bit width of the integer type.
         width: u8,
@@ -60,19 +56,19 @@ pub enum Constant {
     },
     /// Unsigned integer constant.
     UInt {
-        /// The value (zero-extended to 64 bits).
+        /// The value, zero-extended to 64 bits.
         value: u64,
         /// The bit width of the integer type.
         width: u8,
     },
     /// Floating point constant.
     Float {
-        /// The value stored as raw bits (use f32::from_bits or f64::from_bits).
+        /// The value stored as raw bits.
         bits: u64,
-        /// The bit width (32 or 64).
+        /// The bit width, 32 or 64.
         width: u8,
     },
-    /// Character constant (Unicode codepoint).
+    /// Character constant.
     Char {
         /// The character value.
         value: char,
@@ -171,7 +167,6 @@ impl Constant {
         Self::Boolean { value }
     }
 
-    /// Create a new string constant.
     /// Create a new character constant.
     pub fn char(value: char) -> Self {
         Self::Char { value }
