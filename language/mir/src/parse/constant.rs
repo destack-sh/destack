@@ -6,7 +6,7 @@ use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 use super::token::TokenType;
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Parse a constant.
     pub(super) fn parse_constant(&mut self) -> ParseResult<Constant> {
         // read the next token
@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("constant", self.pos()))?;
         let token_ty = token.ty;
-        let token_text = token.text.to_string();
+        let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
         // parse the literal
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("constant", self.pos()))?;
         let token_ty = token.ty;
-        let token_text = token.text.to_string();
+        let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
         let expected = self.tree.get(expected_type).clone();
 
@@ -211,9 +211,9 @@ impl<'a> Parser<'a> {
     /// Parse an integer literal (just the number, no type suffix).
     pub(super) fn parse_int_literal(&mut self) -> ParseResult<i64> {
         let token = self.eat_token(TokenType::IntLiteral)?;
+        let text = self.tree.source_text(token.span).to_string();
 
         // strip type suffix and parse
-        let text = token.text;
         let digits: String = text
             .chars()
             .take_while(|c| c.is_ascii_digit() || *c == '-')
@@ -228,8 +228,8 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_int_literal_part(&mut self) -> ParseResult<(i64, Span)> {
         let token = self.eat_token(TokenType::IntLiteral)?;
         let token_start = token.start;
-        let token_text = token.text.to_string();
-        let token_length = token.text.len();
+        let token_text = self.tree.source_text(token.span).to_string();
+        let token_length = token_text.len();
         let span = self.span_at(token_start, token_length);
 
         // strip type suffix and parse

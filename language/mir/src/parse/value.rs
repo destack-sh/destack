@@ -1,12 +1,12 @@
 use destack_source::Span;
 
-use crate::{Block, Function, Global, Local, LocalNodeId, Type, TypedValue, Value};
+use crate::{Block, Function, Global, Local, LocalNodeId, Type, TypedValue, TypedValueSpan, Value};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 use super::token::TokenType;
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Parse a value reference.
     pub(super) fn parse_value(&mut self) -> ParseResult<Value> {
         let (value, _) = self.parse_value_reference_part()?;
@@ -39,11 +39,11 @@ impl<'a> Parser<'a> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
-        let span = self.span_for_token(token);
+        let span = token.span;
 
         match token.ty {
             TokenType::Value => {
-                let text = token.text.to_string();
+                let text = self.tree.source_text(token.span).to_string();
                 self.bump();
 
                 let idx: u32 = text
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
                 Ok((Value::new(idx), span))
             }
             TokenType::Identifier => {
-                let name = token.text.to_string();
+                let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
 
@@ -100,11 +100,11 @@ impl<'a> Parser<'a> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value reference", self.pos()))?;
-        let span = self.span_for_token(token);
+        let span = token.span;
 
         match token.ty {
             TokenType::Value => {
-                let text = token.text.to_string();
+                let text = self.tree.source_text(token.span).to_string();
                 self.bump();
 
                 let idx: u32 = text
@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
                 Ok((Value::new(idx), span))
             }
             TokenType::Identifier => {
-                let name = token.text.to_string();
+                let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
 
@@ -145,11 +145,11 @@ impl<'a> Parser<'a> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("block reference", self.pos()))?;
-        let span = self.span_for_token(token);
+        let span = token.span;
 
         match token.ty {
             TokenType::BlockRefence => {
-                let text = token.text.to_string();
+                let text = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
 
@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
                     .ok_or_else(|| ParseError::new(format!("undefined block '{text}'"), start))
             }
             TokenType::Identifier => {
-                let name = token.text.to_string();
+                let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
                 self.block_name_map
@@ -187,8 +187,8 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_local_ref_part(&mut self) -> ParseResult<(LocalNodeId<Local>, Span)> {
         let token = self.eat_token(TokenType::LocalReference)?;
         let token_start = token.start;
-        let token_text = token.text.to_string();
-        let token_length = token.text.len();
+        let token_text = self.tree.source_text(token.span).to_string();
+        let token_length = token_text.len();
         let span = self.span_at(token_start, token_length);
         let idx: u32 = token_text
             .strip_prefix("local")
@@ -300,18 +300,25 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
-    /// Parse a comma-separated list of typed values.
-    pub(super) fn parse_typed_value_list(&mut self) -> ParseResult<Vec<TypedValue>> {
+    /// Parse a comma-separated list of typed values and their spans.
+    pub(super) fn parse_typed_values(
+        &mut self,
+    ) -> ParseResult<(Vec<TypedValue>, Vec<TypedValueSpan>)> {
         let mut values = Vec::new();
+        let mut spans = Vec::new();
         while self.is_value_definition_start() {
-            let (value, _) = self.parse_value_definition_part()?;
+            let value_start = self.pos();
+            let (value, name_span) = self.parse_value_definition_part()?;
             self.eat_token(TokenType::Colon)?;
-            let ty = self.parse_type()?;
+            let (ty, type_span) = self.parse_type_part()?;
+            let value_span = self.span_from_parse_start(value_start);
             values.push(TypedValue::new(value, ty));
+            spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
         }
-        Ok(values)
+
+        Ok((values, spans))
     }
 }

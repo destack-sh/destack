@@ -5,15 +5,16 @@ use destack_source::NodeSpanType;
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block, Call,
     CallBehavior, CheckConstraint, CheckTarget, ExecutionModel, ExecutionStage, Function,
-    Instruction, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Mutability, Ownership,
-    PointerAttribute, SwitchCase, Terminator, TrapKind, Type, TypedValue, Value,
+    FunctionHeaderSpans, Instruction, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect,
+    Mutability, Ownership, PointerAttribute, SwitchCase, Terminator, TrapKind, Type, TypedValue,
+    TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 use super::token::TokenType;
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Resolve attributes into function metadata.
     pub(super) fn resolve_function_attributes(
         &mut self,
@@ -141,13 +142,16 @@ impl<'a> Parser<'a> {
     /// Parse a function definition or declaration.
     pub(super) fn parse_function(
         &mut self,
+        item_start: usize,
         linkage: Linkage,
         attributes: Vec<Attribute>,
+        attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Function>> {
-        let function_start = self.pos();
-
         // function keyword and name
-        self.eat_token(TokenType::Function)?;
+        let keyword_token = self.eat_token(TokenType::Function)?;
+        let keyword_start = keyword_token.start;
+        let keyword_length = self.tree.source_text(keyword_token.span).len();
+        let keyword_span = self.span_at(keyword_start, keyword_length);
 
         // function name
         let (name, name_start) = self.parse_symbol_name()?;
@@ -165,14 +169,18 @@ impl<'a> Parser<'a> {
 
         // parameters
         let signature_start = self.pos();
-        let parameters = self.parse_function_parameters(linkage)?;
+        let (parameters, parameter_spans, open_paren_span, close_paren_span) =
+            self.parse_function_parameters(linkage)?;
         let parameter_names = parameters
             .iter()
             .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
             .collect::<Vec<_>>();
 
         // return type
-        self.eat_token(TokenType::Colon)?;
+        let return_colon_token = self.eat_token(TokenType::Colon)?;
+        let return_colon_start = return_colon_token.start;
+        let return_colon_length = self.tree.source_text(return_colon_token.span).len();
+        let return_colon_span = self.span_at(return_colon_start, return_colon_length);
         let (return_type, return_type_span) = self.parse_type_part()?;
         let signature_span = self.span_between(signature_start, return_type_span.end as usize);
 
@@ -211,10 +219,23 @@ impl<'a> Parser<'a> {
 
             // update the placeholder with the parsed signature
             self.tree
-                .set_text_span(function_id, self.span_from_parse_start(function_start));
+                .set_text_span(function_id, self.span_from_parse_start(item_start));
+            self.tree.set_keyword_span(function_id, keyword_span);
             self.tree.set_main_span(function_id, name_span);
             self.tree
                 .set_side_span(function_id, NodeSpanType::Type, signature_span);
+            self.tree.set_attribute_spans(function_id, attribute_spans);
+            self.tree
+                .set_function_parameter_spans(function_id, parameter_spans);
+            self.tree.set_function_header_spans(
+                function_id,
+                FunctionHeaderSpans::new(
+                    open_paren_span,
+                    close_paren_span,
+                    return_colon_span,
+                    None,
+                ),
+            );
             *self.tree.get_mut(function_id) = function;
             self.current_function = None;
 
@@ -233,10 +254,13 @@ impl<'a> Parser<'a> {
         let name_id = self.strings.intern(&name);
         let id = function_id;
         self.tree
-            .set_text_span(id, self.span_from_parse_start(function_start));
+            .set_text_span(id, self.span_from_parse_start(item_start));
+        self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree
             .set_side_span(id, NodeSpanType::Type, signature_span);
+        self.tree.set_attribute_spans(id, attribute_spans);
+        self.tree.set_function_parameter_spans(id, parameter_spans);
         let value_types = self.seed_value_types(&parameters);
 
         // populate signature fields
@@ -258,7 +282,19 @@ impl<'a> Parser<'a> {
         function.environment = environment_type;
 
         // body
-        self.eat_token(TokenType::OpenBrace)?;
+        let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
+        let open_brace_start = open_brace_token.start;
+        let open_brace_length = self.tree.source_text(open_brace_token.span).len();
+        let open_brace_span = self.span_at(open_brace_start, open_brace_length);
+        self.tree.set_function_header_spans(
+            id,
+            FunctionHeaderSpans::new(
+                open_paren_span,
+                close_paren_span,
+                return_colon_span,
+                Some(open_brace_span),
+            ),
+        );
 
         // locals
         let mut locals = Vec::new();
@@ -313,7 +349,7 @@ impl<'a> Parser<'a> {
 
         self.current_function = None;
         self.tree
-            .set_text_span(id, self.span_from_parse_start(function_start));
+            .set_text_span(id, self.span_from_parse_start(item_start));
 
         // record attributes
         if !attributes.is_empty() {
@@ -324,33 +360,54 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse one function parameter list.
-    fn parse_function_parameters(&mut self, linkage: Linkage) -> ParseResult<Vec<TypedValue>> {
-        self.eat_token(TokenType::OpenParen)?;
+    fn parse_function_parameters(
+        &mut self,
+        linkage: Linkage,
+    ) -> ParseResult<(Vec<TypedValue>, Vec<TypedValueSpan>, Span, Span)> {
+        let open_paren_token = self.eat_token(TokenType::OpenParen)?;
+        let open_paren_start = open_paren_token.start;
+        let open_paren_length = self.tree.source_text(open_paren_token.span).len();
+        let open_paren_span = self.span_at(open_paren_start, open_paren_length);
 
-        let parameters = if linkage.is_import() {
+        let (parameters, parameter_spans) = if linkage.is_import() {
             let mut parameter_types = Vec::new();
+            let mut parameter_spans = Vec::new();
             while !self.peek_token(TokenType::CloseParen) {
-                parameter_types.push(self.parse_type()?);
+                let parameter_start = self.pos();
+                let (ty, type_span) = self.parse_type_part()?;
+                let parameter_span = self.span_from_parse_start(parameter_start);
+                parameter_types.push(ty);
+                parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
             }
 
-            parameter_types
+            let parameters = parameter_types
                 .into_iter()
                 .enumerate()
                 .map(|(index, ty)| TypedValue {
                     value: Value::new(index as u32),
                     ty,
                 })
-                .collect()
+                .collect();
+
+            (parameters, parameter_spans)
         } else {
-            self.parse_typed_value_list()?
+            self.parse_typed_values()?
         };
 
-        self.eat_token(TokenType::CloseParen)?;
+        let close_paren_token = self.eat_token(TokenType::CloseParen)?;
+        let close_paren_start = close_paren_token.start;
+        let close_paren_length = self.tree.source_text(close_paren_token.span).len();
+        let close_paren_span = self.span_at(close_paren_start, close_paren_length);
 
-        Ok(parameters)
+        Ok((
+            parameters,
+            parameter_spans,
+            open_paren_span,
+            close_paren_span,
+        ))
     }
 
     /// Parse a workgroupSize attribute.
@@ -497,9 +554,9 @@ impl<'a> Parser<'a> {
 
         // local reference
         let local_token = self.eat_token(TokenType::LocalReference)?;
-        let local_name_text = local_token.text.to_string();
+        let local_name_text = self.tree.source_text(local_token.span).to_string();
         let local_name_start = local_token.start;
-        let local_name_length = local_token.text.len();
+        let local_name_length = local_name_text.len();
         let local_span = self.span_at(local_name_start, local_name_length);
         let _local_idx: u32 = local_name_text
             .strip_prefix("local")
@@ -516,7 +573,10 @@ impl<'a> Parser<'a> {
 
         // ownership
         if self.eat_token_maybe(TokenType::Comma) && self.peek_token(TokenType::Ownership) {
-            let text = self.span_str();
+            let text = self
+                .peek()
+                .map(|token| self.tree.source_text(token.span))
+                .unwrap_or("");
             ownership = match text {
                 "owned" => Ownership::Owned,
                 "borrowed" => Ownership::Borrowed,
@@ -559,7 +619,7 @@ impl<'a> Parser<'a> {
             let block_token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("block label", self.pos()))?;
-            let block_span = self.span_for_token(block_token);
+            let block_span = block_token.span;
 
             let block_name = match block_token.ty {
                 TokenType::BlockRefence => {
@@ -567,7 +627,7 @@ impl<'a> Parser<'a> {
                     None
                 }
                 TokenType::Identifier => {
-                    let name = block_token.text.to_string();
+                    let name = self.tree.source_text(block_token.span).to_string();
                     self.bump();
                     let name_id = self.strings.intern(&name);
                     Some(name_id)
@@ -589,7 +649,8 @@ impl<'a> Parser<'a> {
             let params = if self.is_entry_block_parameter_list() {
                 self.parse_entry_block_parameters()?
             } else {
-                self.parse_typed_value_list()?
+                let (params, _) = self.parse_typed_values()?;
+                params
             };
             self.eat_token(TokenType::CloseParen)?;
             params
@@ -640,8 +701,7 @@ impl<'a> Parser<'a> {
                 match self.parse_terminator() {
                     Ok(parsed_terminator) => {
                         terminator_span = Some(self.span_from_parse_start(recovery_pos));
-                        terminator_main_span =
-                            main_token.as_ref().map(|token| self.span_for_token(token));
+                        terminator_main_span = main_token.as_ref().map(|token| token.span);
                         terminator = Some(parsed_terminator);
                     }
                     Err(error) => {
@@ -650,8 +710,7 @@ impl<'a> Parser<'a> {
                         terminator_span = Some(
                             self.span_at(error.position, self.pos().saturating_sub(error.position)),
                         );
-                        terminator_main_span =
-                            main_token.as_ref().map(|token| self.span_for_token(token));
+                        terminator_main_span = main_token.as_ref().map(|token| token.span);
                         terminator = Some(Terminator::Error);
                         is_broken = true;
                     }
@@ -780,11 +839,11 @@ impl<'a> Parser<'a> {
     /// Recover within one block and return whether the block can continue.
     fn try_recover_in_block(&mut self, recovery_pos: usize) -> bool {
         // make forward progress before scanning the line
-        if self.pos() == recovery_pos && self.pos < self.tokens.len() {
+        if self.pos() == recovery_pos && self.pos < self.tree.tokens().len() {
             self.pos += 1;
         }
 
-        while self.pos < self.tokens.len() {
+        while self.pos < self.tree.tokens().len() {
             self.skip_raw_trivia_except_newline();
 
             if self.peek_token(TokenType::CloseBrace)
@@ -794,7 +853,7 @@ impl<'a> Parser<'a> {
                 return false;
             }
 
-            let Some(token) = self.tokens.get(self.pos) else {
+            let Some(token) = self.tree.tokens().get(self.pos) else {
                 return false;
             };
 
@@ -867,11 +926,11 @@ impl<'a> Parser<'a> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("entry block parameter", self.pos()))?;
-        let span = self.span_for_token(token);
+        let span = token.span;
 
         match token.ty {
             TokenType::Value => {
-                let text = token.text.to_string();
+                let text = self.tree.source_text(token.span).to_string();
                 self.bump();
 
                 let index: u32 = text
@@ -884,7 +943,7 @@ impl<'a> Parser<'a> {
                 Ok((Value::new(index), span))
             }
             TokenType::Identifier => {
-                let name = token.text.to_string();
+                let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
 
@@ -906,9 +965,10 @@ impl<'a> Parser<'a> {
     /// Return whether the current line contains call continuations.
     fn is_call_terminator_line(&self) -> bool {
         let mut token_index = self.pos;
+        let tokens = self.tree.tokens();
         let mut saw_arrow = false;
 
-        while let Some(token) = self.tokens.get(token_index) {
+        while let Some(token) = tokens.get(token_index) {
             if token.ty == TokenType::Newline || token.ty == TokenType::End {
                 break;
             }
@@ -1051,7 +1111,7 @@ impl<'a> Parser<'a> {
                 self.bump();
 
                 // abort has no payload
-                if trap_kind.text == "trap.abort" {
+                if self.tree.source_text(trap_kind.span) == "trap.abort" {
                     return Ok(Terminator::Trap {
                         kind: TrapKind::Abort,
                         payload: None,
@@ -1059,7 +1119,7 @@ impl<'a> Parser<'a> {
                 }
 
                 // panic carries a payload
-                if trap_kind.text == "trap.panic" {
+                if self.tree.source_text(trap_kind.span) == "trap.panic" {
                     let payload = self.parse_value()?;
                     return Ok(Terminator::Trap {
                         kind: TrapKind::Panic,
@@ -1175,7 +1235,7 @@ impl<'a> Parser<'a> {
         let kind_token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("check kind", self.pos()))?;
-        let kind_text = kind_token.text;
+        let kind_text = self.tree.source_text(kind_token.span).to_string();
         let kind_start = kind_token.start;
 
         match kind_token.ty {
@@ -1452,8 +1512,8 @@ impl<'a> Parser<'a> {
     fn predeclare_blocks(&mut self) -> ParseResult<()> {
         let mut token_index = self.pos;
 
-        while token_index < self.tokens.len() {
-            let Some(token) = self.tokens.get(token_index) else {
+        while token_index < self.tree.tokens().len() {
+            let Some(token) = self.tree.tokens().get(token_index).cloned() else {
                 break;
             };
 
@@ -1472,8 +1532,9 @@ impl<'a> Parser<'a> {
 
             match token.ty {
                 TokenType::BlockRefence => {
-                    let source_index = token
-                        .text
+                    let source_index = self
+                        .tree
+                        .source_text(token.span)
                         .strip_prefix('b')
                         .and_then(|text| text.parse::<u32>().ok())
                         .ok_or_else(|| ParseError::invalid("block label", token.start))?;
@@ -1484,7 +1545,10 @@ impl<'a> Parser<'a> {
                         .is_some()
                     {
                         return Err(ParseError::new(
-                            format!("duplicate block label '{}'", token.text),
+                            format!(
+                                "duplicate block label '{}'",
+                                self.tree.source_text(token.span)
+                            ),
                             token.start,
                         ));
                     }
@@ -1492,11 +1556,14 @@ impl<'a> Parser<'a> {
                 TokenType::Identifier => {
                     if self
                         .block_name_map
-                        .insert(token.text.to_string(), block_id)
+                        .insert(self.tree.source_text(token.span).to_string(), block_id)
                         .is_some()
                     {
                         return Err(ParseError::new(
-                            format!("duplicate block label '{}'", token.text),
+                            format!(
+                                "duplicate block label '{}'",
+                                self.tree.source_text(token.span)
+                            ),
                             token.start,
                         ));
                     }

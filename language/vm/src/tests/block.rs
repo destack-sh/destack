@@ -217,6 +217,7 @@ b0(v0: fn(int32) -> int32, v1: int32):
 }"#;
     // parse the MIR
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        .validate()
         .expect("failed to parse MIR");
 
     // find the @double function id
@@ -259,6 +260,7 @@ b0(v0: fn(int32) -> int32, v1: int32):
     return v2
 }"#;
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        .validate()
         .expect("failed to parse MIR");
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
@@ -337,6 +339,7 @@ b0(v0: int32, v1: fn(int32, int32) -> int32):
 
     // parse the MIR
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        .validate()
         .expect("failed to parse MIR");
 
     // find the @countdown function id

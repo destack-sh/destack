@@ -23,6 +23,7 @@ impl TestIsolate {
     /// Build one test isolate from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
         let (mut tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+            .validate()
             .expect("failed to parse MIR");
 
         // keep raw MIR tests explicit about the well known String contract

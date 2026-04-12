@@ -1044,6 +1044,7 @@ impl Program {
     /// Create an isolate for this program.
     pub fn isolate(&self) -> Isolate {
         let (tree, strings) = Parser::parse(FileId::new(0), self.source, ParseOptions::default())
+            .validate()
             .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
 
         // relax runtime limits for benchmarks
@@ -1059,6 +1060,7 @@ impl Program {
     /// Create an isolate with benchmark options applied.
     pub fn isolate_with_options(&self, bench_options: &BenchOptions) -> Isolate {
         let (tree, strings) = Parser::parse(FileId::new(0), self.source, ParseOptions::default())
+            .validate()
             .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
 
         // relax runtime limits for benchmarks

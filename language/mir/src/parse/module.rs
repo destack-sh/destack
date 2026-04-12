@@ -1,18 +1,18 @@
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
 
 use crate::{
     AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
-    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias, TypedValue,
-    Value,
+    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias,
+    TypeDeclarationSpans, TypedValue, Value,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 use super::token::TokenType;
 
-impl<'a> Parser<'a> {
-    /// Parse one module with top level recovery.
-    pub(super) fn parse_module_recovering(&mut self) {
+impl Parser {
+    /// Parse one module.
+    pub(super) fn parse_module(&mut self) {
         // forward declarations
         self.register_placeholders();
 
@@ -28,7 +28,8 @@ impl<'a> Parser<'a> {
 
     /// Parse one module item.
     fn parse_module_item(&mut self) -> ParseResult<()> {
-        let attributes = self.parse_attributes()?;
+        let item_start = self.pos();
+        let (attributes, attribute_spans) = self.parse_attributes()?;
 
         // linkage
         let linkage = if self.peek_token(TokenType::Extern) {
@@ -50,11 +51,11 @@ impl<'a> Parser<'a> {
                 ));
             }
 
-            self.parse_type_alias(attributes)?;
+            self.parse_type_alias(item_start, attributes, attribute_spans)?;
         } else if self.peek_token(TokenType::Global) {
-            self.parse_global(linkage, attributes)?;
+            self.parse_global(item_start, linkage, attributes, attribute_spans)?;
         } else if self.peek_token(TokenType::Function) {
-            self.parse_function(linkage, attributes)?;
+            self.parse_function(item_start, linkage, attributes, attribute_spans)?;
         } else {
             return Err(ParseError::new(
                 "expected 'type', 'function', or 'global'",
@@ -292,7 +293,7 @@ impl<'a> Parser<'a> {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
         let token_ty = token.ty;
-        let token_text = token.text.to_string();
+        let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
         match token_ty {
@@ -342,12 +343,15 @@ impl<'a> Parser<'a> {
     /// Parse a type alias definition.
     pub(super) fn parse_type_alias(
         &mut self,
+        item_start: usize,
         attributes: Vec<Attribute>,
+        attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<TypeAlias>> {
-        let item_start = self.pos();
-
         // alias header
-        self.eat_token(TokenType::Type)?;
+        let keyword_token = self.eat_token(TokenType::Type)?;
+        let keyword_start = keyword_token.start;
+        let keyword_length = self.tree.source_text(keyword_token.span).len();
+        let keyword_span = self.span_at(keyword_start, keyword_length);
 
         // alias name
         let (name, name_start) = self.parse_symbol_name()?;
@@ -370,10 +374,25 @@ impl<'a> Parser<'a> {
         };
 
         // alias target type
-        if !self.peek_token(TokenType::OpenBrace) {
-            self.eat_token(TokenType::Equals)?;
-        }
-        let (ty, type_span) = self.parse_type_part()?;
+        let (ty, type_span, field_spans, declaration_spans) =
+            if self.peek_token(TokenType::OpenBrace) {
+                let type_start = self.pos();
+                let (ty, field_spans, declaration_spans) = self.parse_struct_type()?;
+                let type_span = self.span_from_parse_start(type_start);
+                (ty, type_span, field_spans, declaration_spans)
+            } else {
+                let equals_token = self.eat_token(TokenType::Equals)?;
+                let equals_start = equals_token.start;
+                let equals_length = self.tree.source_text(equals_token.span).len();
+                let equals_span = self.span_at(equals_start, equals_length);
+                let (ty, type_span) = self.parse_type_part()?;
+                (
+                    ty,
+                    type_span,
+                    Vec::new(),
+                    TypeDeclarationSpans::new(Some(equals_span), None, None),
+                )
+            };
 
         // record alias
         let name_id = self.strings.intern(&name);
@@ -384,12 +403,16 @@ impl<'a> Parser<'a> {
         let id = self.tree.insert(alias);
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
+        self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree.set_side_span(id, NodeSpanType::Type, type_span);
         self.tree
             .metadata
             .layout
             .set_display_name(placeholder_id, name_id);
+        self.tree.set_attribute_spans(id, attribute_spans);
+        self.tree.set_type_field_spans(id, field_spans);
+        self.tree.set_type_declaration_spans(id, declaration_spans);
 
         if ty != placeholder_id {
             let resolved = self.tree.get(ty).clone();
@@ -420,13 +443,16 @@ impl<'a> Parser<'a> {
     /// Expect `[export|extern] global name: type[, readonly] [ = init]`.
     pub(super) fn parse_global(
         &mut self,
+        item_start: usize,
         linkage: Linkage,
         attributes: Vec<Attribute>,
+        attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Global>> {
-        let item_start = self.pos();
-
         // global header
-        self.eat_token(TokenType::Global)?;
+        let keyword_token = self.eat_token(TokenType::Global)?;
+        let keyword_start = keyword_token.start;
+        let keyword_length = self.tree.source_text(keyword_token.span).len();
+        let keyword_span = self.span_at(keyword_start, keyword_length);
 
         // global name
         let (name, name_start) = self.parse_symbol_name()?;
@@ -462,8 +488,10 @@ impl<'a> Parser<'a> {
         let id = self.tree.insert(global);
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
+        self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree.set_side_span(id, NodeSpanType::Type, type_span);
+        self.tree.set_attribute_spans(id, attribute_spans);
         self.global_map.insert(name, id);
 
         // optional declaration terminator
@@ -485,20 +513,20 @@ impl<'a> Parser<'a> {
 
         match token.ty {
             // zero initializer
-            TokenType::Identifier if token.text == "zeroInit" => {
+            TokenType::Identifier if self.tree.source_text(token.span) == "zeroInit" => {
                 self.bump();
                 Ok(GlobalInitializer::Zero)
             }
             // byte string literal
             TokenType::Identifier
-                if token.text == "b"
+                if self.tree.source_text(token.span) == "b"
                     && self
                         .peek_nth_token(1)
                         .is_some_and(|token| token.ty == TokenType::StringLiteral) =>
             {
                 self.eat_token(TokenType::Identifier)?;
                 let token = self.eat_token(TokenType::StringLiteral)?;
-                let token_text = token.text.to_string();
+                let token_text = self.tree.source_text(token.span).to_string();
                 let token_start = token.start;
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
@@ -507,7 +535,7 @@ impl<'a> Parser<'a> {
             }
             // string literal
             TokenType::StringLiteral => {
-                let token_text = token.text.to_string();
+                let token_text = self.tree.source_text(token.span).to_string();
                 let token_start = token.start;
                 self.bump();
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
@@ -516,7 +544,7 @@ impl<'a> Parser<'a> {
                 Ok(GlobalInitializer::String(value))
             }
             // scalar constant
-            TokenType::Identifier if token.text == "null" => {
+            TokenType::Identifier if self.tree.source_text(token.span) == "null" => {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))
             }

@@ -16,7 +16,7 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 #[allow(clippy::type_complexity)]
-impl<'a> Parser<'a> {
+impl Parser {
     /// Parse an instruction.
     pub(super) fn eat_instruction(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
         // whole instruction
@@ -50,7 +50,8 @@ impl<'a> Parser<'a> {
                         | TokenType::IntLiteral
                         | TokenType::FloatLiteral
                         | TokenType::CharLiteral
-                ) || (token.ty == TokenType::Identifier && token.text == "null"))
+                ) || (token.ty == TokenType::Identifier
+                    && self.tree.source_text(token.span) == "null"))
             {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
@@ -75,7 +76,8 @@ impl<'a> Parser<'a> {
             .cloned()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
         let (opcode_text, opcode_start) = self.eat_opcode()?;
-        let opcode_span = self.span_for_token(&opcode);
+        let opcode_text = opcode_text.as_str();
+        let opcode_span = opcode.span;
         segment_spans.push(opcode_span);
 
         // reject destinations on void instructions
@@ -1126,7 +1128,7 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token(TokenType::CloseParen) {
             let token = self.eat_token(TokenType::BoolLiteral)?;
-            let value = token.text == "true";
+            let value = self.tree.source_text(token.span) == "true";
             values.push(value);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -1172,7 +1174,7 @@ impl<'a> Parser<'a> {
     /// Parse one named group header like `name(`.
     fn eat_named_group(&mut self, name: &str) -> ParseResult<()> {
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != name {
+        if self.tree.source_text(token.span) != name {
             return Err(ParseError::invalid(name, token.start));
         }
 
@@ -1183,7 +1185,7 @@ impl<'a> Parser<'a> {
     fn parse_vector_reduce_operator(&mut self) -> ParseResult<VectorReduceOperator> {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
-        let operator = VectorReduceOperator::parse(token.text)
+        let operator = VectorReduceOperator::parse(self.tree.source_text(token.span))
             .ok_or_else(|| ParseError::invalid("vector reduce operator", token.start))?;
         Ok(operator)
     }
@@ -1192,7 +1194,7 @@ impl<'a> Parser<'a> {
     fn parse_vector_convert_mode(&mut self) -> ParseResult<VectorConvertMode> {
         // parse the mode token
         let token = self.eat_token(TokenType::Identifier)?;
-        let mode = VectorConvertMode::parse(token.text)
+        let mode = VectorConvertMode::parse(self.tree.source_text(token.span))
             .ok_or_else(|| ParseError::invalid("vector convert mode", token.start))?;
         Ok(mode)
     }
@@ -1201,7 +1203,7 @@ impl<'a> Parser<'a> {
     fn parse_tensor_convert_mode(&mut self) -> ParseResult<TensorConvertMode> {
         // parse the mode token
         let token = self.eat_token(TokenType::Identifier)?;
-        let mode = TensorConvertMode::parse(token.text)
+        let mode = TensorConvertMode::parse(self.tree.source_text(token.span))
             .ok_or_else(|| ParseError::invalid("tensor convert mode", token.start))?;
         Ok(mode)
     }
@@ -1210,7 +1212,7 @@ impl<'a> Parser<'a> {
     fn parse_tensor_reduce_operator(&mut self) -> ParseResult<TensorReduceOperator> {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
-        let operator = TensorReduceOperator::parse(token.text)
+        let operator = TensorReduceOperator::parse(self.tree.source_text(token.span))
             .ok_or_else(|| ParseError::invalid("tensor reduce operator", token.start))?;
         Ok(operator)
     }
@@ -1219,7 +1221,7 @@ impl<'a> Parser<'a> {
     fn parse_compare_operator(&mut self) -> ParseResult<BinaryOperator> {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
-        let operator = BinaryOperator::from_str(token.text)
+        let operator = BinaryOperator::from_str(self.tree.source_text(token.span))
             .map_err(|_| ParseError::invalid("comparison operator", token.start))?;
         Ok(operator)
     }
@@ -1232,12 +1234,12 @@ impl<'a> Parser<'a> {
         }
         self.eat_token(TokenType::Comma)?;
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != "mode" {
+        if self.tree.source_text(token.span) != "mode" {
             return Err(ParseError::invalid("mode", token.start));
         }
         self.eat_token(TokenType::OpenParen)?;
         let token = self.eat_token(TokenType::Identifier)?;
-        let mode_text = token.text.to_string();
+        let mode_text = self.tree.source_text(token.span).to_string();
         let mode_start = token.start;
         self.eat_token(TokenType::CloseParen)?;
         let mode = TensorScatterMode::parse(&mode_text)
@@ -1249,7 +1251,7 @@ impl<'a> Parser<'a> {
     fn parse_tensor_dot_dimensions(&mut self) -> ParseResult<TensorDotDimensionNumbers> {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != "dims" {
+        if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
         self.eat_token(TokenType::OpenParen)?;
@@ -1261,7 +1263,7 @@ impl<'a> Parser<'a> {
         let mut rhs_contracting = None;
         while !self.peek_token(TokenType::CloseParen) {
             let key_token = self.eat_token(TokenType::Identifier)?;
-            let key_text = key_token.text.to_string();
+            let key_text = self.tree.source_text(key_token.span).to_string();
             let key_start = key_token.start;
             let list = self.parse_u32_paren_list()?;
             match key_text.as_str() {
@@ -1299,7 +1301,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<TensorConvolutionDimensionNumbers> {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != "dims" {
+        if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
         self.eat_token(TokenType::OpenParen)?;
@@ -1316,7 +1318,7 @@ impl<'a> Parser<'a> {
         let mut output_spatial = None;
         while !self.peek_token(TokenType::CloseParen) {
             let key_token = self.eat_token(TokenType::Identifier)?;
-            match key_token.text {
+            match self.tree.source_text(key_token.span) {
                 "inputBatch" => {
                     self.eat_token(TokenType::OpenParen)?;
                     input_batch = Some(self.parse_int_as_u32()?);
@@ -1418,14 +1420,14 @@ impl<'a> Parser<'a> {
 
         if self.eat_token_maybe(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
-            if token.text != "window" {
+            if self.tree.source_text(token.span) != "window" {
                 return Err(ParseError::invalid("window", token.start));
             }
             self.eat_token(TokenType::OpenParen)?;
 
             while !self.peek_token(TokenType::CloseParen) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
-                match key_token.text {
+                match self.tree.source_text(key_token.span) {
                     "strides" => strides = Some(self.parse_u64_paren_list()?),
                     "paddingLow" => padding_low = Some(self.parse_u64_paren_list()?),
                     "paddingHigh" => padding_high = Some(self.parse_u64_paren_list()?),
@@ -1466,14 +1468,14 @@ impl<'a> Parser<'a> {
 
         if self.eat_token_maybe(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
-            if token.text != "groups" {
+            if self.tree.source_text(token.span) != "groups" {
                 return Err(ParseError::invalid("groups", token.start));
             }
             self.eat_token(TokenType::OpenParen)?;
 
             while !self.peek_token(TokenType::CloseParen) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
-                let key_text = key_token.text.to_string();
+                let key_text = self.tree.source_text(key_token.span).to_string();
                 let key_start = key_token.start;
                 let value = {
                     self.eat_token(TokenType::OpenParen)?;
@@ -1506,7 +1508,7 @@ impl<'a> Parser<'a> {
     fn parse_tensor_gather_dimensions(&mut self) -> ParseResult<TensorGatherDimensionNumbers> {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != "dims" {
+        if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
         self.eat_token(TokenType::OpenParen)?;
@@ -1518,7 +1520,7 @@ impl<'a> Parser<'a> {
         let mut index_vector_dim = None;
         while !self.peek_token(TokenType::CloseParen) {
             let key_token = self.eat_token(TokenType::Identifier)?;
-            match key_token.text {
+            match self.tree.source_text(key_token.span) {
                 "offsetDims" => offset_dims = Some(self.parse_u32_paren_list()?),
                 "collapsedSliceDims" => collapsed_slice_dims = Some(self.parse_u32_paren_list()?),
                 "startIndexMap" => start_index_map = Some(self.parse_u32_paren_list()?),
@@ -1557,7 +1559,7 @@ impl<'a> Parser<'a> {
     fn parse_tensor_scatter_dimensions(&mut self) -> ParseResult<TensorScatterDimensionNumbers> {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != "dims" {
+        if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
         self.eat_token(TokenType::OpenParen)?;
@@ -1569,7 +1571,7 @@ impl<'a> Parser<'a> {
         let mut index_vector_dim = None;
         while !self.peek_token(TokenType::CloseParen) {
             let key_token = self.eat_token(TokenType::Identifier)?;
-            match key_token.text {
+            match self.tree.source_text(key_token.span) {
                 "updateWindowDims" => update_window_dims = Some(self.parse_u32_paren_list()?),
                 "insertedWindowDims" => inserted_window_dims = Some(self.parse_u32_paren_list()?),
                 "scatterDimsToOperandDims" => {
@@ -1790,8 +1792,9 @@ impl<'a> Parser<'a> {
     /// Parse one memory ordering like `sequentiallyConsistent`.
     fn parse_memory_ordering(&mut self) -> ParseResult<MemoryOrdering> {
         let token_start = self.pos();
-        self.eat_token(TokenType::Identifier)?
-            .text
+        let token = self.eat_token(TokenType::Identifier)?;
+        self.tree
+            .source_text(token.span)
             .parse::<MemoryOrdering>()
             .map_err(|_| ParseError::invalid("memory ordering", token_start))
     }
@@ -1799,8 +1802,9 @@ impl<'a> Parser<'a> {
     /// Parse one atomic scope like `device`.
     fn parse_atomic_scope(&mut self) -> ParseResult<AtomicScope> {
         let token_start = self.pos();
-        self.eat_token(TokenType::Identifier)?
-            .text
+        let token = self.eat_token(TokenType::Identifier)?;
+        self.tree
+            .source_text(token.span)
             .parse::<AtomicScope>()
             .map_err(|_| ParseError::invalid("atomic scope", token_start))
     }
@@ -1808,8 +1812,9 @@ impl<'a> Parser<'a> {
     /// Parse one memory scope like `device`.
     fn parse_memory_scope(&mut self) -> ParseResult<MemoryScope> {
         let token_start = self.pos();
-        self.eat_token(TokenType::Identifier)?
-            .text
+        let token = self.eat_token(TokenType::Identifier)?;
+        self.tree
+            .source_text(token.span)
             .parse::<MemoryScope>()
             .map_err(|_| ParseError::invalid("memory scope", token_start))
     }
@@ -1841,7 +1846,7 @@ impl<'a> Parser<'a> {
                 ));
             }
 
-            let token_text = token.text.to_string();
+            let token_text = self.tree.source_text(token.span).to_string();
             let token_start = token.start;
             self.bump();
 

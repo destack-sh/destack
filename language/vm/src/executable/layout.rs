@@ -770,6 +770,7 @@ mod tests {
                 pointer_bytes: storage.native_pointer_bytes,
             },
         )
+        .validate()
         .expect("failed to parse MIR");
         tree.metadata.layout.storage = storage;
 

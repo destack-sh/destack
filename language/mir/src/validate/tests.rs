@@ -15,12 +15,15 @@ use super::Validator;
 /// Parse MIR source and return the parse error.
 fn parse_error(source: &str) -> ParseError {
     Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .validate()
         .expect_err("expected parse failure")
 }
 
 /// Parse MIR source and assert success.
 fn parse_ok(source: &str) {
-    Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("expected parse success");
+    Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .validate()
+        .expect("expected parse success");
 }
 
 /// Local references must resolve to locals declared on the function.
@@ -78,8 +81,8 @@ b1:
     return
 }"#;
 
-    let (tree, _, diagnostics) =
-        Parser::parse_recovering(FileId::new(0), source, ParseOptions::default());
+    let parsed = Parser::parse(FileId::new(0), source, ParseOptions::default());
+    let (tree, _, diagnostics) = parsed.into_parts();
 
     assert_eq!(diagnostics.len(), 1);
 

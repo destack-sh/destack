@@ -1,3 +1,5 @@
+use destack_source::{FileId, Span};
+
 use super::token::{Token, TokenType};
 
 /// Lexer for MIR text format.
@@ -16,11 +18,11 @@ impl<'a> Lexer<'a> {
     }
 
     /// Lex all tokens from the source.
-    pub fn lex(source: &'a str) -> Vec<Token<'a>> {
+    pub fn lex(file_id: FileId, source: &'a str) -> Vec<Token> {
         let mut lexer = Lexer::new(source);
         let mut tokens = Vec::new();
         loop {
-            let token = lexer.next_token();
+            let token = lexer.next_token(file_id);
             let is_end = token.ty == TokenType::End;
             tokens.push(token);
             if is_end {
@@ -66,11 +68,11 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get the next token.
-    fn next_token(&mut self) -> Token<'a> {
+    fn next_token(&mut self, file_id: FileId) -> Token {
         let start = self.pos;
 
         let Some(c) = self.advance() else {
-            return Token::new(TokenType::End, "", start);
+            return Token::new(TokenType::End, Span::at(file_id, start as u32, 0));
         };
 
         let ty = match c {
@@ -135,8 +137,9 @@ impl<'a> Lexer<'a> {
             _ => TokenType::Unknown,
         };
 
-        let text = &self.source[start..self.pos];
-        Token::new(ty, text, start)
+        let length = self.pos.saturating_sub(start);
+        let span = Span::at(file_id, start as u32, length as u32);
+        Token::new(ty, span)
     }
 
     /// Lex an identifier or keyword.
@@ -358,7 +361,7 @@ mod tests {
     #[test]
     fn test_lex_simple_function() {
         let source = "function function0(): void {";
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens.iter().map(|t| t.ty).collect();
         assert_eq!(
             types,
@@ -381,7 +384,7 @@ mod tests {
     #[test]
     fn test_lex_value_and_type() {
         let source = "v0: int32";
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens.iter().map(|t| t.ty).collect();
         assert_eq!(
             types,
@@ -398,7 +401,7 @@ mod tests {
     #[test]
     fn test_lex_instruction() {
         let source = "v2 = int.add v0, v1";
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens.iter().map(|t| t.ty).collect();
         assert_eq!(
             types,
@@ -421,7 +424,7 @@ mod tests {
     #[test]
     fn test_lex_int_literal() {
         let source = "42int32 -5int64 0uint8";
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens
             .iter()
             .filter(|t| !t.ty.is_trivia())
@@ -441,7 +444,7 @@ mod tests {
     #[test]
     fn test_lex_block_ref() {
         let source = "b0 b123";
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens
             .iter()
             .filter(|t| !t.ty.is_trivia())
@@ -460,7 +463,7 @@ mod tests {
     #[test]
     fn test_lex_string_literal() {
         let source = r#""hello" "world""#;
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens
             .iter()
             .filter(|t| !t.ty.is_trivia())
@@ -479,7 +482,7 @@ mod tests {
     #[test]
     fn test_lex_string_with_escapes() {
         let source = r#""hello\nworld" "tab\there""#;
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens
             .iter()
             .filter(|t| !t.ty.is_trivia())
@@ -498,7 +501,7 @@ mod tests {
     #[test]
     fn test_lex_char_literal() {
         let source = "'a' 'b' '\\n'";
-        let tokens = Lexer::lex(source);
+        let tokens = Lexer::lex(FileId::new(0), source);
         let types: Vec<_> = tokens
             .iter()
             .filter(|t| !t.ty.is_trivia())

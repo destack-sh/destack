@@ -5,7 +5,7 @@ use crate::parse::{ParseError, ParseResult, Parser};
 use crate::tree::compute_type_layout;
 use crate::{Field, LocalNodeId, Type};
 
-impl Parser<'_> {
+impl Parser {
     /// Record layout metadata for aggregate types parsed from MIR text.
     pub(super) fn record_layout_for_type(&mut self, type_id: LocalNodeId<Type>) -> ParseResult<()> {
         // skip if metadata already exists
