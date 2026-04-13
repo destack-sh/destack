@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, StringId};
 
-/// A Name is a regular, string, or numeric identifier.
+/// A name is a regular, string, or numeric identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Name {
-    /// A regular identifier (regular `x` or `someThing`).
+    /// A regular identifier.
     Identifier(StringId),
-    /// A string identifier (like `"Content-Type"`, only in certain contexts).
+    /// A string identifier.
     String(StringId),
-    /// A numeric identifier (like `123` or `2e308` as object key).
+    /// A numeric identifier.
     Number(StringId),
 }
 
@@ -18,25 +18,18 @@ impl Name {
     #[inline]
     pub fn string(&self) -> StringId {
         match self {
-            Name::Identifier(id) => *id,
-            Name::String(id) => *id,
-            Name::Number(id) => *id,
+            Name::Identifier(id) | Name::String(id) | Name::Number(id) => *id,
         }
     }
 }
 
-/// A Key is a name or a dynamic key.
+/// A key in value or type property position.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Key {
-    /// Name (like `x` or `someThing`).
+    /// A named key.
     Name(Name),
-    /// Private name (like `#x`).
+    /// A private key.
     Private(StringId),
-    /// Dynamic key (like `["Content-Type"]`).
+    /// A dynamic value-space key.
     Expression(LocalNodeId<Expression>),
-    /// Named dynamic key (like `[x: string]: any`).
-    NamedExpression {
-        name: StringId,
-        key: LocalNodeId<Expression>,
-    },
 }

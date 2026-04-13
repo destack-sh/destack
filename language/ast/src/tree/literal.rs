@@ -19,6 +19,8 @@ use crate::{Argument, LocalNodeId, StringId};
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ScalarLiteral {
+    /// Null value.
+    Null,
     /// Boolean value.
     Boolean(bool),
     /// Integer value.

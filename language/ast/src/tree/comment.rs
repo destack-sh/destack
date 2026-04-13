@@ -4,44 +4,7 @@ use std::fmt::Debug;
 use destack_source::{SourcePartKey, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType, TokenType};
-
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum AnnotationPosition {
-    /// Annotation inside the node (without next node to attach to, like in an empty block.)
-    BlockInfix,
-    /// Annotation preceding the node on previous lines (most common).
-    BlockPrefix,
-    /// Annotation after the node on a following line (only if prefix and infix are not possible).
-    BlockPostfix,
-    /// Annotation before the node on the same line (like infix comments).
-    LinePrefix,
-    /// Annotation after the node on the same line (like infix comments).
-    LinePostfix,
-    /// Annotations after the node on the same line with nothing after it.
-    LinePostfixBoundary,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Annotation {
-    /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
-    Decorator {
-        node: LocalNodeId<Decorator>,
-        position: AnnotationPosition,
-    },
-}
-
-impl Node for Annotation {
-    const TYPE: NodeType = NodeType::Annotation;
-}
-
-impl Annotation {
-    pub fn position(&self) -> AnnotationPosition {
-        match self {
-            Annotation::Decorator { position, .. } => *position,
-        }
-    }
-}
+use crate::TokenType;
 
 /// Indicates a line or block comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,24 +17,16 @@ pub enum CommentKind {
     MultiLineBlock,
 }
 
-/// Annotation content classification for one comment.
+/// Structured content classification for one comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CommentContent {
     /// No structured content classification.
     #[default]
     None,
-    /// A doc block comment with structured semantics.
+    /// A jsdoc-style comment.
     Jsdoc,
 }
 
-/// A Comment is a block or line-scoped free-floating comment.
-/// Like documentation, Comments are attached in a side tree outside of the main parse / tree.
-///
-/// Examples:
-/// ```
-/// // comment
-/// /* comment */
-/// ```
 /// Newline shape flags captured around one raw comment.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -114,6 +69,7 @@ impl CommentNewlines {
     }
 }
 
+/// A raw source comment attached through the source side table.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Comment {
     /// The span of the raw comment, including delimiters.
@@ -260,23 +216,4 @@ pub fn normalize_comment_payload<'a>(raw: &'a str) -> Cow<'a, str> {
     } else {
         Cow::Owned(trimmed.to_string())
     }
-}
-
-/// A Decorator is a block-scoped decorator annotation.
-/// It looks like a macro call and is prefixed to a block.
-///
-/// Examples:
-/// ```
-/// @foo
-/// @foo(1, 2, 3)
-/// @foo<T>()
-/// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Decorator {
-    /// The decorator expression.
-    pub expression: LocalNodeId<Expression>,
-}
-
-impl Node for Decorator {
-    const TYPE: NodeType = NodeType::Decorator;
 }
