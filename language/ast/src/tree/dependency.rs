@@ -14,6 +14,15 @@ pub enum DependencyMode {
     Namespace,
 }
 
+/// The export mode of a declaration or binding.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ExportMode {
+    /// Named export (`export const foo = 1`).
+    Named,
+    /// Default export (`export default foo`).
+    Default,
+}
+
 /// The type of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {

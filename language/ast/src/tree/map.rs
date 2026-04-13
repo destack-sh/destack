@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
-    Expression, LocalNodeId, MatchCase, Member, Node, NodeTree, NodeTreeImpl, NodeType,
-    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, WhereClause,
-    walk_any,
+    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
+    GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, Node, NodeTree,
+    NodeTreeImpl, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField,
+    Property, TypeExpression, TypeProperty, WhereClause, walk_any,
 };
 
 /// The NodeParentIndex is a side index of parent nodes into the AST NodeTree.
@@ -178,6 +178,16 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
+    fn visit_type_property(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<TypeProperty>,
+        _type_property: &TypeProperty,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
     fn visit_member(&mut self, _tree: &NodeTree, id: LocalNodeId<Member>, _member: &Member) {
         self.record_parent_for(id.id);
     }
@@ -213,6 +223,15 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
+    fn visit_generic_parameter(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<GenericParameter>,
+        _generic_parameter: &GenericParameter,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
     fn visit_parameter(
         &mut self,
         _tree: &NodeTree,
@@ -228,6 +247,16 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
         _tree: &NodeTree,
         id: LocalNodeId<Argument>,
         _argument: &Argument,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_generic_argument(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<GenericArgument>,
+        _generic_argument: &GenericArgument,
     ) {
         self.record_parent_for(id.id);
     }
@@ -268,21 +297,21 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
-    fn visit_annotation(
-        &mut self,
-        _tree: &NodeTree,
-        id: LocalNodeId<Annotation>,
-        _annotation: &Annotation,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
     fn visit_decorator(
         &mut self,
         _tree: &NodeTree,
         id: LocalNodeId<Decorator>,
         _decorator: &Decorator,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_type_expression(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<TypeExpression>,
+        _type_expression: &TypeExpression,
     ) {
         self.record_parent_for(id.id);
     }

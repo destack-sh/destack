@@ -2,58 +2,14 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    DeclarationDescriptor, DependencyItem, DependencyKind, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypePredicateSubject, TypeUnaryOperator,
-    UnaryOperator,
+    Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+    Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument,
+    ImportAttributeClause, ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase,
+    MatchKind, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
+    TemplateLiteral, TypeExpression, UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
-
-/// The source of an import declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ImportSource {
-    /// Standard import statement.
-    ImportStatement,
-    /// TypeScript triple-slash `reference path` directive.
-    ReferencePathDirective,
-    /// TypeScript triple-slash `reference types` directive.
-    ReferenceTypesDirective,
-    /// TypeScript triple-slash `reference lib` directive.
-    ReferenceLibDirective,
-    /// Legacy import-equals expression used by older lowerings.
-    ImportEquals,
-    /// Dynamic import call (`import("mod")`).
-    ImportCall,
-}
-
-/// The target of an import declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ImportTarget {
-    /// Static import target string (like `"foo"`).
-    String(StringId),
-    /// Dynamic import target expression (like `join(base, name)`).
-    Expression { target: LocalNodeId<Expression> },
-}
-
-/// The kind of one dependency attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DependencyAttributeClauseKind {
-    /// The standard `with` attribute clause keyword.
-    With,
-    /// The legacy `assert` attribute clause keyword.
-    Assert,
-}
-
-/// One dependency attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DependencyAttributeClause {
-    /// The clause introducer.
-    pub kind: DependencyAttributeClauseKind,
-    /// The attribute arguments inside the clause body.
-    pub arguments: Vec<LocalNodeId<Argument>>,
-}
 
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
@@ -94,7 +50,7 @@ pub enum Expression {
         kind: DependencyKind,
         target: ImportTarget,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
@@ -117,7 +73,7 @@ pub enum Expression {
         kind: DependencyKind,
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
     },
 
     /// Export the module namespace as a global name (declaration files only).
@@ -151,7 +107,8 @@ pub enum Expression {
     /// }
     Let {
         kind: LetKind,
-        descriptor: DeclarationDescriptor,
+        export: Option<ExportMode>,
+        ambient: Ambientness,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
@@ -165,7 +122,8 @@ pub enum Expression {
     /// ```
     Using {
         asynchrony: Asynchrony,
-        descriptor: DeclarationDescriptor,
+        export: Option<ExportMode>,
+        ambient: Ambientness,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
 
@@ -309,7 +267,7 @@ pub enum Expression {
     Try {
         try_expression: LocalNodeId<Expression>,
         catch_pattern: Option<LocalNodeId<Pattern>>,
-        catch_ty: Option<LocalNodeId<Expression>>,
+        catch_ty: Option<LocalNodeId<TypeExpression>>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
     },
@@ -414,7 +372,7 @@ pub enum Expression {
     /// Static qualified reference, optionally parameterized.
     QualifiedReference {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// Private identifier (JavaScript/TypeScript).
@@ -454,23 +412,6 @@ pub enum Expression {
     /// 0x1234
     /// ```
     ScalarLiteral(ScalarLiteral),
-
-    /// Type literal.
-    ///
-    /// Examples:
-    /// ```
-    /// !
-    /// $
-    /// _
-    /// undefined
-    /// void
-    /// null
-    /// int2
-    /// float64
-    /// boolean
-    /// Self
-    /// ```
-    TypeLiteral(TypeLiteral),
 
     /// Template expression. May include interpolation arguments.
     ///
@@ -546,7 +487,7 @@ pub enum Expression {
     /// some_module.MyUnion.OptionB { a: true }
     /// ```
     ObjectExpression {
-        ty: Option<LocalNodeId<Expression>>,
+        ty: Option<LocalNodeId<TypeExpression>>,
         properties: Vec<LocalNodeId<Property>>,
     },
 
@@ -579,6 +520,9 @@ pub enum Expression {
     /// ```
     Parenthesized { expression: LocalNodeId<Expression> },
 
+    /// Type syntax used as a runtime type value.
+    Type { value: LocalNodeId<TypeExpression> },
+
     /// Compile time evaluated expression.
     /// The body is evaluated at compile time and the result is embedded in the output.
     ///
@@ -591,29 +535,15 @@ pub enum Expression {
     /// ```
     Comptime { body: LocalNodeId<Expression> },
 
-    /// Type unary operation (prefix or postfix).
-    ///
-    /// Examples:
-    /// ```
-    /// type x
-    /// type (x + y)
-    /// newtype Foo
-    /// ```
-    TypeUnary {
-        operator: TypeUnaryOperator,
-        right: LocalNodeId<Expression>,
-    },
-
     /// TypeScript-style `as` assertion.
     ///
     /// Examples:
     /// ```
     /// value as Foo
-    /// value as const
     /// ```
     As {
         expression: LocalNodeId<Expression>,
-        type_annotation: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
     },
 
     /// TypeScript-style `satisfies` expression.
@@ -624,126 +554,7 @@ pub enum Expression {
     /// ```
     Satisfies {
         expression: LocalNodeId<Expression>,
-        type_annotation: LocalNodeId<Expression>,
-    },
-
-    /// TypeScript-style angle assertion.
-    ///
-    /// Examples:
-    /// ```
-    /// <Foo>value
-    /// ```
-    TypeAssertion {
-        type_annotation: LocalNodeId<Expression>,
-        expression: LocalNodeId<Expression>,
-    },
-
-    /// Type binary operation (infix).
-    ///
-    /// Examples:
-    /// ```
-    /// x is int32
-    /// x instanceof int32
-    /// x extends int32
-    /// x implements int32
-    /// ```
-    TypeBinary {
-        left: LocalNodeId<Expression>,
-        operator: TypeBinaryOperator,
-        right: LocalNodeId<Expression>,
-    },
-
-    /// Type conditional expression.
-    ///
-    /// Examples:
-    /// ```
-    /// T extends U ? X : Y
-    /// ```
-    TypeConditional {
-        left: LocalNodeId<Expression>,
-        right: LocalNodeId<Expression>,
-        then_type: LocalNodeId<Expression>,
-        else_type: LocalNodeId<Expression>,
-    },
-
-    /// Type mapped expression.
-    ///
-    /// Examples:
-    /// ```
-    /// { [K in keyof T]: T[K] }
-    /// { readonly [K in keyof T]-?: T[K] }
-    /// { [K in keyof T as `${K}`]: T[K] }
-    /// ```
-    TypeMapped {
-        parameter: TypeMappedParameter,
-        modifiers: TypeMappedModifiers,
-        value: LocalNodeId<Expression>,
-    },
-
-    /// Type index expression.
-    ///
-    /// Examples:
-    /// ```
-    /// T[K]
-    /// T[K][P]
-    /// ```
-    TypeIndex {
-        left: LocalNodeId<Expression>,
-        index: LocalNodeId<Expression>,
-    },
-
-    /// Type template literal expression.
-    ///
-    /// Examples:
-    /// ```
-    /// `${K}`
-    /// `foo-${Bar}`
-    /// ```
-    TypeTemplateLiteral {
-        strings: Vec<StringId>,
-        spans: Vec<LocalNodeId<Expression>>,
-    },
-
-    /// Type import expression.
-    ///
-    /// Examples:
-    /// ```
-    /// import("mod").Type
-    /// import("mod", { with: { "resolution-mode": "import" } }).Type
-    /// import("mod").Type<T>
-    /// ```
-    TypeImport {
-        target: LocalNodeId<Expression>,
-        arguments: Vec<LocalNodeId<Argument>>,
-        qualifier: Option<Path>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-
-    /// Type infer binding.
-    ///
-    /// Examples:
-    /// ```
-    /// infer T
-    /// infer T extends U
-    /// ```
-    TypeInfer {
-        name: StringId,
-        constraint: Option<LocalNodeId<Expression>>,
-    },
-
-    /// Type predicate expression.
-    ///
-    /// Examples:
-    /// ```
-    /// x is T
-    /// asserts x is T
-    /// asserts this is T
-    /// asserts x
-    /// ```
-    TypePredicate {
-        asserts: bool,
-        subject: TypePredicateSubject,
-        target: Option<LocalNodeId<Expression>>,
+        target_type: LocalNodeId<TypeExpression>,
     },
 
     /// Unary operation (prefix or postfix).
@@ -809,7 +620,7 @@ pub enum Expression {
     Member {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// Private member access.
@@ -822,7 +633,7 @@ pub enum Expression {
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// Index into a receiver expression.
@@ -850,7 +661,7 @@ pub enum Expression {
     /// ```
     Instantiation {
         left: LocalNodeId<Expression>,
-        static_arguments: Vec<LocalNodeId<Argument>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// A Call is call to a function OR an instantiation of a tuple type.
@@ -869,7 +680,7 @@ pub enum Expression {
     Call {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
 
@@ -884,7 +695,7 @@ pub enum Expression {
     /// ```
     New {
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
 
@@ -1211,130 +1022,9 @@ pub struct WhereClause {
     /// The target to constrain (like `T` in `T: int32`).
     pub left: StringId,
     /// The constraint type (like `int32` in `T: int32`).
-    pub right: LocalNodeId<Expression>,
+    pub right: LocalNodeId<TypeExpression>,
 }
 
 impl Node for WhereClause {
     const TYPE: NodeType = NodeType::WhereClause;
-}
-
-/// The style of a match expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum MatchKind {
-    /// Regular match expression (like `match <expr> { ... }`).
-    Match,
-    /// Switch expression with cases (like `switch <expr> { ... }`).
-    Switch,
-}
-
-/// A MatchSelector determines which case is selected in a match/switch expression.
-///
-/// For match expressions, this is a pattern with an optional guard.
-/// For switch expressions, this can also be `Default` (the `default:` case).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MatchSelector {
-    /// A pattern with an optional guard (e.g., `x if x > 0`).
-    Pattern {
-        pattern: LocalNodeId<Pattern>,
-        guard: Option<LocalNodeId<Expression>>,
-    },
-    /// The default case in a switch statement (`default:`).
-    Default,
-}
-
-impl MatchSelector {
-    /// Return true when this selector is the default arm.
-    pub fn is_default(&self) -> bool {
-        matches!(self, Self::Default)
-    }
-
-    /// Return true when this selector has a guard expression.
-    pub fn has_guard(&self) -> bool {
-        matches!(self, Self::Pattern { guard: Some(_), .. })
-    }
-
-    /// Return the pattern id for pattern selectors.
-    pub fn pattern_id(&self) -> Option<LocalNodeId<Pattern>> {
-        match self {
-            Self::Pattern { pattern, guard: _ } => Some(*pattern),
-            Self::Default => None,
-        }
-    }
-
-    /// Return the guard expression id for pattern selectors.
-    pub fn guard_expression_id(&self) -> Option<LocalNodeId<Expression>> {
-        match self {
-            Self::Pattern {
-                pattern: _,
-                guard: Some(guard_id),
-            } => Some(*guard_id),
-            Self::Pattern {
-                pattern: _,
-                guard: None,
-            }
-            | Self::Default => None,
-        }
-    }
-}
-
-/// A MatchCase is a match case inside a Match expression.
-///
-/// Examples:
-/// ```
-/// 2 => parse_int(2)
-/// (x, y) if x > y => {
-///     ...
-/// }
-/// default: { ... }
-/// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MatchCase {
-    /// A match case with an expression body.
-    Expression {
-        selector: MatchSelector,
-        body: LocalNodeId<Expression>,
-    },
-    /// A match case with a block body.
-    Block {
-        selector: MatchSelector,
-        body: LocalNodeId<Block>,
-    },
-}
-
-impl MatchCase {
-    /// Return the selector for this match case.
-    pub fn selector(&self) -> &MatchSelector {
-        match self {
-            Self::Expression { selector, body: _ } | Self::Block { selector, body: _ } => selector,
-        }
-    }
-}
-
-impl Node for MatchCase {
-    const TYPE: NodeType = NodeType::MatchCase;
-}
-
-/// A single variable declarator within a let/const/var statement.
-/// Each declarator has its own pattern, optional type, and optional initializer.
-///
-/// Examples:
-/// ```
-/// x           // just a binding
-/// x: int32    // binding with type
-/// x = 1       // binding with value
-/// x: int32 = 1  // binding with type and value
-/// (a, b) = tuple  // destructuring pattern
-/// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Declarator {
-    /// The pattern to bind (can be a simple identifier or destructuring pattern).
-    pub pattern: LocalNodeId<Pattern>,
-    /// Optional type annotation.
-    pub ty: Option<LocalNodeId<Expression>>,
-    /// Optional value expression.
-    pub value: Option<LocalNodeId<Expression>>,
-}
-
-impl Node for Declarator {
-    const TYPE: NodeType = NodeType::Declarator;
 }

@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
+use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, TypeExpression};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -43,15 +43,17 @@ pub enum Pattern {
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
     },
-    /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
+    /// Literal value or value-space path pattern.
     Expression { value: LocalNodeId<Expression> },
+    /// Type-space literal or reference pattern.
+    TypeExpression { value: LocalNodeId<TypeExpression> },
     /// Tuple pattern (like `(x, 0)`).
     Tuple {
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Tagged tuple pattern (like `Result.Success(_)` or `Point(x, y)`).
     TaggedTuple {
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array pattern (like `[1, 2, x]` or `[1, y, ..]`).
@@ -64,7 +66,7 @@ pub enum Pattern {
     },
     /// Tagged object pattern (like `Vector2 { x: 0, y, z: zed }`).
     TaggedObject {
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

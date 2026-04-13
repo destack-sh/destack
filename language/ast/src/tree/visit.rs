@@ -1,12 +1,13 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
-    Expression, LocalNodeId, MatchCase, Member, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Property, WhereClause, walk_annotation, walk_argument, walk_block,
-    walk_declaration, walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field,
-    walk_expression, walk_match_case, walk_member, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_where_clause,
+    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
+    GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, NodeTree, NodeType,
+    Parameter, Pattern, PatternField, Property, TypeExpression, TypeProperty, WhereClause,
+    walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
+    walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
+    walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_type_expression, walk_type_property, walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -32,6 +33,18 @@ pub trait NodeVisitor {
         destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 
+    /// Visit a TypeExpression.
+    fn visit_type_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeExpression>,
+        type_expression: &TypeExpression,
+    ) {
+        destack_core::ensure_sufficient_stack(|| {
+            walk_type_expression(self, tree, id, type_expression)
+        });
+    }
+
     /// Visit a Block.
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         walk_block(self, tree, id, block);
@@ -50,6 +63,16 @@ pub trait NodeVisitor {
     /// Visit a Property.
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         walk_property(self, tree, id, property);
+    }
+
+    /// Visit a TypeProperty.
+    fn visit_type_property(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeProperty>,
+        type_property: &TypeProperty,
+    ) {
+        walk_type_property(self, tree, id, type_property);
     }
 
     /// Visit a Member.
@@ -87,6 +110,16 @@ pub trait NodeVisitor {
         walk_dependency_item(self, tree, id, dependency_item);
     }
 
+    /// Visit a GenericParameter.
+    fn visit_generic_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<GenericParameter>,
+        generic_parameter: &GenericParameter,
+    ) {
+        walk_generic_parameter(self, tree, id, generic_parameter);
+    }
+
     /// Visit a Parameter.
     fn visit_parameter(
         &mut self,
@@ -100,6 +133,16 @@ pub trait NodeVisitor {
     /// Visit an Argument.
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
+    }
+
+    /// Visit a GenericArgument.
+    fn visit_generic_argument(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<GenericArgument>,
+        generic_argument: &GenericArgument,
+    ) {
+        walk_generic_argument(self, tree, id, generic_argument);
     }
 
     /// Visit a MatchCase.
@@ -135,16 +178,6 @@ pub trait NodeVisitor {
         pattern_field: &PatternField,
     ) {
         walk_pattern_field(self, tree, id, pattern_field);
-    }
-
-    /// Visit an Annotation.
-    fn visit_annotation(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
-    ) {
-        walk_annotation(self, tree, id, annotation);
     }
 
     /// Visit a Decorator.
@@ -205,6 +238,15 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Expression, id.id);
     }
 
+    fn visit_type_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeExpression>,
+        _type_expression: &TypeExpression,
+    ) {
+        self.visit_any(tree, NodeType::TypeExpression, id.id);
+    }
+
     fn visit_declaration(
         &mut self,
         tree: &NodeTree,
@@ -216,6 +258,15 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         self.visit_any(tree, NodeType::Property, id.id);
+    }
+
+    fn visit_type_property(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeProperty>,
+        _type_property: &TypeProperty,
+    ) {
+        self.visit_any(tree, NodeType::TypeProperty, id.id);
     }
 
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
@@ -240,6 +291,15 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
+    fn visit_generic_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<GenericParameter>,
+        _generic_parameter: &GenericParameter,
+    ) {
+        self.visit_any(tree, NodeType::GenericParameter, id.id);
+    }
+
     fn visit_parameter(
         &mut self,
         tree: &NodeTree,
@@ -251,6 +311,15 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
+    }
+
+    fn visit_generic_argument(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<GenericArgument>,
+        _generic_argument: &GenericArgument,
+    ) {
+        self.visit_any(tree, NodeType::GenericArgument, id.id);
     }
 
     fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
@@ -282,15 +351,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         declarator: &Declarator,
     ) {
         self.visit_any(tree, NodeType::Declarator, id.id);
-    }
-
-    fn visit_annotation(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
-    ) {
-        self.visit_any(tree, NodeType::Annotation, id.id);
     }
 
     fn visit_decorator(

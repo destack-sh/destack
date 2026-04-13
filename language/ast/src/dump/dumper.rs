@@ -320,6 +320,13 @@ impl Dump for bool {
     }
 }
 
+/// Dump a usize as a numeric value.
+impl Dump for usize {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(self.to_string(), Some(Color::Green));
+    }
+}
+
 /// Dump a u8 as a string.
 impl Dump for u8 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -396,6 +403,20 @@ impl Dump for StringId {
     }
 }
 
+/// Dump ambientness as a structured representation.
+impl Dump for Ambientness {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Ambientness::Ambient => {
+                dumper.object("Ambientness::Ambient").end();
+            }
+            Ambientness::Concrete => {
+                dumper.object("Ambientness::Concrete").end();
+            }
+        }
+    }
+}
+
 /// Dump an Identifier as a string.
 impl Dump for Name {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -422,25 +443,18 @@ impl Dump for Path {
 }
 
 impl_dump_display! {
-    AccessorKind,
-    AnnotationPosition,
     Asynchrony,
     AssignOperator,
-    AbstractionModifier,
-    BindingKind,
-    BindingOperator,
-    BindingAnchor,
     BlockFormat,
     BinaryOperator,
     CommentKind,
-    DeclarationAbstraction,
-    DeclarationKind,
     NamespaceKind,
     DependencyKind,
     DependencyMode,
+    ExportMode,
+    DecoratorPosition,
     EnumKind,
     ForEachKind,
-    FunctionAbstraction,
     FunctionCardinality,
     FunctionKind,
     FunctionMode,
@@ -458,7 +472,6 @@ impl_dump_display! {
     TypeKind,
     VarianceModifier,
     VarianceBound,
-    Timing,
     Visibility,
     YieldCardinality,
 }
@@ -499,27 +512,27 @@ impl Dump for ImportTarget {
     }
 }
 
-/// Dump a dependency attribute clause kind as a string.
-impl Dump for DependencyAttributeClauseKind {
+/// Dump an import attribute clause kind as a string.
+impl Dump for ImportAttributeClauseKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let name = match self {
-            DependencyAttributeClauseKind::With => "With",
-            DependencyAttributeClauseKind::Assert => "Assert",
+            ImportAttributeClauseKind::With => "With",
+            ImportAttributeClauseKind::Assert => "Assert",
         };
 
         dumper.write_str(name, Some(Color::White));
     }
 }
 
-/// Dump a dependency attribute clause as a structured representation.
-impl Dump for DependencyAttributeClause {
+/// Dump an import attribute clause as a structured representation.
+impl Dump for ImportAttributeClause {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let argument_ids: Vec<_> = self.arguments.iter().map(|argument| argument.id).collect();
+        let attribute_count = self.attributes.len() as u32;
 
         dumper
-            .object("DependencyAttributeClause")
+            .object("ImportAttributeClause")
             .field("kind", &self.kind)
-            .field("argument_ids", &argument_ids)
+            .field("attribute_count", &attribute_count)
             .end();
     }
 }
@@ -534,45 +547,13 @@ impl Dump for ImportAliasTarget {
                     .field("target", target)
                     .end();
             }
-            ImportAliasTarget::Path { value } => {
+            ImportAliasTarget::Path { path } => {
                 dumper
                     .object("ImportAliasTarget::Path")
-                    .field("value_id", &value.id)
+                    .field("path", path)
                     .end();
             }
         }
-    }
-}
-
-/// Dump a DeclarationDescriptor as a string.
-impl Dump for DeclarationDescriptor {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("DeclarationDescriptor")
-            .field("kind", &self.kind)
-            .field("abstraction", &self.abstraction)
-            .field_optional("name", &self.name)
-            .field_optional("export", &self.export)
-            .end();
-    }
-}
-
-/// Dump a BindingModifier as a structured representation.
-impl Dump for BindingModifier {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("BindingModifier")
-            .field_optional("kind", &self.kind)
-            .field_optional("declaration", &self.declaration)
-            .field_optional("abstraction", &self.abstraction)
-            .field_optional("variance", &self.variance)
-            .field_optional("anchor", &self.anchor)
-            .field_optional("mutability", &self.mutability)
-            .field_optional("visibility", &self.visibility)
-            .field_optional("operator", &self.operator)
-            .field_optional("accessor", &self.accessor)
-            .field_optional("timing", &self.timing)
-            .end();
     }
 }
 
@@ -589,27 +570,7 @@ impl Dump for Key {
             Key::Expression(_) => {
                 dumper.object("Key::Expression").end();
             }
-            Key::NamedExpression { name, key: _ } => {
-                dumper
-                    .object("Key::NamedExpression")
-                    .field("name", name)
-                    .end();
-            }
         }
-    }
-}
-
-/// Dump a Generics as a structured representation.
-impl Dump for Generics {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("Generics").end();
-    }
-}
-
-/// Dump a Heritage as a structured representation.
-impl Dump for Heritage {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("Heritage").end();
     }
 }
 
@@ -618,11 +579,14 @@ impl Dump for FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .object("FunctionSignature")
-            .field("abstraction", &self.abstraction)
+            .field("is_abstract", &self.is_abstract)
+            .field("is_override", &self.is_override)
             .field("asynchrony", &self.asynchrony)
             .field("cardinality", &self.cardinality)
             .field_optional("mode", &self.mode)
             .field("kind", &self.kind)
+            .field("generic_parameter_count", &self.generic_parameters.len())
+            .field("where_clause_count", &self.where_clauses.len())
             .field("has_this_parameter", &self.this_parameter.is_some())
             .end();
     }
@@ -660,6 +624,9 @@ impl Dump for FloatType {
 impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            ScalarLiteral::Null => {
+                dumper.object("ScalarLiteral::Null").end();
+            }
             ScalarLiteral::Boolean(value) => {
                 dumper.object("ScalarLiteral::Boolean").value(value).end();
             }
@@ -777,6 +744,43 @@ impl Dump for TypeLiteral {
     }
 }
 
+/// Dump a TypeModifier as a structured representation.
+impl Dump for TypeModifier {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TypeModifier::Present => {
+                dumper.object("TypeModifier::Present").end();
+            }
+            TypeModifier::Add => {
+                dumper.object("TypeModifier::Add").end();
+            }
+            TypeModifier::Remove => {
+                dumper.object("TypeModifier::Remove").end();
+            }
+            TypeModifier::None => {
+                dumper.object("TypeModifier::None").end();
+            }
+        }
+    }
+}
+
+/// Dump a TypePredicateSubject as a structured representation.
+impl Dump for TypePredicateSubject {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TypePredicateSubject::Identifier(name) => {
+                dumper
+                    .object("TypePredicateSubject::Identifier")
+                    .field("name", name)
+                    .end();
+            }
+            TypePredicateSubject::This => {
+                dumper.object("TypePredicateSubject::This").end();
+            }
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Nodes
 // ----------------------------------------------------------------------------
@@ -788,10 +792,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
-        let annotations = tree.get_annotations(id);
-        for annotation_id in annotations {
-            let annotation = tree.get(annotation_id);
-            self.visit_annotation(tree, annotation_id, annotation);
+        let decorators = tree.get_decorators(id);
+        for decorator_id in decorators {
+            let decorator = tree.get(decorator_id);
+            self.visit_decorator(tree, decorator_id, decorator);
         }
     }
 
@@ -848,23 +852,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Let {
                 kind,
                 mutability,
-                descriptor,
+                export,
+                ambient,
                 declarators: _,
             } => {
                 self.node("Expression::Let", _id.id)
                     .field("kind", kind)
                     .field("mutability", mutability)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("ambient", ambient)
                     .end();
             }
             Expression::Using {
                 asynchrony,
-                descriptor,
+                export,
+                ambient,
                 declarators: _,
             } => {
                 self.node("Expression::Using", _id.id)
                     .field("asynchrony", asynchrony)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("ambient", ambient)
                     .end();
             }
             Expression::If {
@@ -964,10 +972,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::QualifiedReference {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::QualifiedReference", _id.id)
-                    .value(path)
+                    .field("path", path)
                     .end();
             }
             Expression::PrivateIdentifier { name } => {
@@ -1002,11 +1010,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .value(value)
                     .end();
             }
-            Expression::TypeLiteral(value) => {
-                self.node("Expression::TypeLiteral", _id.id)
-                    .value(value)
-                    .end();
-            }
             Expression::ArrayExpression { elements: _ } => {
                 self.node("Expression::ArrayExpression", _id.id).end();
             }
@@ -1032,6 +1035,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
             }
+            Expression::Type { value: _ } => {
+                self.node("Expression::Type", _id.id).end();
+            }
             Expression::Comptime { body: _ } => {
                 self.node("Expression::Comptime", _id.id).end();
             }
@@ -1040,28 +1046,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeUnary { operator, right: _ } => {
-                self.node("Expression::TypeUnary", _id.id)
-                    .field("operator", operator)
-                    .end();
-            }
             Expression::As {
                 expression: _,
-                type_annotation: _,
+                target_type: _,
             } => {
                 self.node("Expression::As", _id.id).end();
             }
             Expression::Satisfies {
                 expression: _,
-                type_annotation: _,
+                target_type: _,
             } => {
                 self.node("Expression::Satisfies", _id.id).end();
-            }
-            Expression::TypeAssertion {
-                type_annotation: _,
-                expression: _,
-            } => {
-                self.node("Expression::TypeAssertion", _id.id).end();
             }
             Expression::ValueOf {
                 mutability,
@@ -1094,7 +1089,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Member {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::Member", _id.id)
                     .field("name", name)
@@ -1103,7 +1098,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::PrivateMember {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::PrivateMember", _id.id)
                     .field("name", name)
@@ -1120,13 +1115,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Instantiation {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::Instantiation", _id.id).end();
             }
             Expression::Call {
                 position,
-                static_arguments: _,
+                generic_arguments: _,
                 left: _,
                 dynamic_arguments: _,
             } => {
@@ -1136,7 +1131,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::New {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::New", _id.id).end();
@@ -1161,64 +1156,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Binary", _id.id)
                     .field("operator", operator)
-                    .end();
-            }
-            Expression::TypeBinary {
-                left: _,
-                operator,
-                right: _,
-            } => {
-                self.node("Expression::TypeBinary", _id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-            Expression::TypeConditional {
-                left: _,
-                right: _,
-                then_type: _,
-                else_type: _,
-            } => {
-                self.node("Expression::TypeConditional", _id.id).end();
-            }
-            Expression::TypeMapped {
-                parameter: _,
-                modifiers: _,
-                value: _,
-            } => {
-                self.node("Expression::TypeMapped", _id.id).end();
-            }
-            Expression::TypeIndex { left: _, index: _ } => {
-                self.node("Expression::TypeIndex", _id.id).end();
-            }
-            Expression::TypeTemplateLiteral {
-                strings: _,
-                spans: _,
-            } => {
-                self.node("Expression::TypeTemplateLiteral", _id.id).end();
-            }
-            Expression::TypeImport {
-                target: _,
-                arguments: _,
-                qualifier: _,
-                static_arguments: _,
-            } => {
-                self.node("Expression::TypeImport", _id.id).end();
-            }
-            Expression::TypeInfer {
-                name,
-                constraint: _,
-            } => {
-                self.node("Expression::TypeInfer", _id.id)
-                    .field("name", name)
-                    .end();
-            }
-            Expression::TypePredicate {
-                asserts,
-                subject: _,
-                target: _,
-            } => {
-                self.node("Expression::TypePredicate", _id.id)
-                    .field("asserts", asserts)
                     .end();
             }
             Expression::Assign {
@@ -1248,6 +1185,183 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
+    fn visit_type_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeExpression>,
+        type_expression: &TypeExpression,
+    ) {
+        match type_expression {
+            TypeExpression::Parenthesized { expression: _ } => {
+                self.node("TypeExpression::Parenthesized", id.id).end();
+            }
+            TypeExpression::ScalarLiteral { value } => {
+                self.node("TypeExpression::ScalarLiteral", id.id)
+                    .value(value)
+                    .end();
+            }
+            TypeExpression::Literal { value } => {
+                self.node("TypeExpression::Literal", id.id)
+                    .value(value)
+                    .end();
+            }
+            TypeExpression::Tuple { elements: _ } => {
+                self.node("TypeExpression::Tuple", id.id).end();
+            }
+            TypeExpression::Array { element: _ } => {
+                self.node("TypeExpression::Array", id.id).end();
+            }
+            TypeExpression::Object { properties: _ } => {
+                self.node("TypeExpression::Object", id.id).end();
+            }
+            TypeExpression::Declaration {
+                declaration: declaration_id,
+            } => {
+                self.node("TypeExpression::Declaration", id.id)
+                    .field("declaration_id", &declaration_id.id)
+                    .end();
+            }
+            TypeExpression::Reference {
+                path,
+                generic_arguments: _,
+            } => {
+                self.node("TypeExpression::Reference", id.id)
+                    .value(path)
+                    .end();
+            }
+            TypeExpression::Member {
+                left: _,
+                name,
+                generic_arguments: _,
+            } => {
+                self.node("TypeExpression::Member", id.id)
+                    .field("name", name)
+                    .end();
+            }
+            TypeExpression::Const => {
+                self.node("TypeExpression::Const", id.id).end();
+            }
+            TypeExpression::This => {
+                self.node("TypeExpression::This", id.id).end();
+            }
+            TypeExpression::Import {
+                target: _,
+                arguments: _,
+                qualifier,
+                generic_arguments: _,
+            } => {
+                self.node("TypeExpression::Import", id.id)
+                    .field_optional("qualifier", qualifier)
+                    .end();
+            }
+            TypeExpression::Readonly { target_type: _ } => {
+                self.node("TypeExpression::Readonly", id.id).end();
+            }
+            TypeExpression::KeyOf { target_type: _ } => {
+                self.node("TypeExpression::KeyOf", id.id).end();
+            }
+            TypeExpression::TypeOfValue { value: _ } => {
+                self.node("TypeExpression::TypeOfValue", id.id).end();
+            }
+            TypeExpression::Must { target_type: _ } => {
+                self.node("TypeExpression::Must", id.id).end();
+            }
+            TypeExpression::Not { target_type: _ } => {
+                self.node("TypeExpression::Not", id.id).end();
+            }
+            TypeExpression::ValueOf {
+                mutability,
+                variance,
+                target_type: _,
+            } => {
+                self.node("TypeExpression::ValueOf", id.id)
+                    .field("mutability", mutability)
+                    .field("variance", variance)
+                    .end();
+            }
+            TypeExpression::ReferenceOf {
+                mutability,
+                variance,
+                target_type: _,
+            } => {
+                self.node("TypeExpression::ReferenceOf", id.id)
+                    .field("mutability", mutability)
+                    .field("variance", variance)
+                    .end();
+            }
+            TypeExpression::PointerOf {
+                mutability,
+                target_type: _,
+            } => {
+                self.node("TypeExpression::PointerOf", id.id)
+                    .field("mutability", mutability)
+                    .end();
+            }
+            TypeExpression::Union { elements: _ } => {
+                self.node("TypeExpression::Union", id.id).end();
+            }
+            TypeExpression::Intersection { elements: _ } => {
+                self.node("TypeExpression::Intersection", id.id).end();
+            }
+            TypeExpression::Conditional {
+                left: _,
+                extends_type: _,
+                then_type: _,
+                else_type: _,
+            } => {
+                self.node("TypeExpression::Conditional", id.id).end();
+            }
+            TypeExpression::Mapped {
+                parameter: _,
+                readonly,
+                optional,
+                value: _,
+            } => {
+                self.node("TypeExpression::Mapped", id.id)
+                    .field("readonly", readonly)
+                    .field("optional", optional)
+                    .end();
+            }
+            TypeExpression::Index { left: _, index: _ } => {
+                self.node("TypeExpression::Index", id.id).end();
+            }
+            TypeExpression::TemplateLiteral {
+                strings: _,
+                spans: _,
+            } => {
+                self.node("TypeExpression::TemplateLiteral", id.id).end();
+            }
+            TypeExpression::Infer {
+                name,
+                constraint: _,
+            } => {
+                self.node("TypeExpression::Infer", id.id)
+                    .field("name", name)
+                    .end();
+            }
+            TypeExpression::Predicate {
+                asserts,
+                subject,
+                target: _,
+            } => {
+                self.node("TypeExpression::Predicate", id.id)
+                    .field("asserts", asserts)
+                    .field("subject", subject)
+                    .end();
+            }
+            TypeExpression::Missing => {
+                self.node("TypeExpression::Missing", id.id).end();
+            }
+            TypeExpression::Error => {
+                self.node("TypeExpression::Error", id.id).end();
+            }
+        }
+
+        self.with_depth(|dumper| {
+            walk_type_expression(dumper, tree, id, type_expression);
+        });
+    }
+
     fn visit_block(&mut self, _tree: &NodeTree, _id: LocalNodeId<Block>, block: &Block) {
         self.node("Block", _id.id)
             .field("format", &block.format)
@@ -1264,113 +1378,75 @@ impl<'a> NodeVisitor for Dumper<'a> {
         declaration: &Declaration,
     ) {
         match declaration {
-            Declaration::Global {
-                descriptor,
-                expressions: _,
-            } => {
+            Declaration::Global(declaration) => {
                 self.node("Declaration::Global", id.id)
-                    .field("descriptor", descriptor)
+                    .field("ambient", &declaration.ambient)
                     .end();
             }
-            Declaration::Namespace {
-                descriptor,
-                kind,
-                generics: _,
-                expressions: _,
-            } => {
+            Declaration::Namespace(declaration) => {
                 self.node("Declaration::Namespace", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("kind", &declaration.kind)
                     .end();
             }
-            Declaration::Type {
-                descriptor,
-                kind,
-                mutability,
-                static_parameters: _,
-                value: _,
-            } => {
+            Declaration::Type(declaration) => {
                 self.node("Declaration::Type", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field_optional("mutability", mutability)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("is_nominal", &declaration.is_nominal)
+                    .field_optional("mutability", &declaration.mutability)
                     .end();
             }
-            Declaration::ImportAlias {
-                descriptor,
-                kind,
-                target,
-            } => {
+            Declaration::ImportAlias(declaration) => {
                 self.node("Declaration::ImportAlias", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field("target", target)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("kind", &declaration.kind)
+                    .field("target", &declaration.target)
                     .end();
             }
-            Declaration::Struct {
-                descriptor,
-                generics: _,
-                heritage: _,
-                members: _,
-            } => {
+            Declaration::Struct(declaration) => {
                 self.node("Declaration::Struct", id.id)
-                    .field("descriptor", descriptor)
+                    .field("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
                     .end();
             }
-            Declaration::Class {
-                descriptor,
-                generics: _,
-                heritage: _,
-                members: _,
-            } => {
+            Declaration::Class(declaration) => {
                 self.node("Declaration::Class", id.id)
-                    .field("descriptor", descriptor)
+                    .field("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("is_abstract", &declaration.is_abstract)
                     .end();
             }
-            Declaration::Enum {
-                descriptor,
-                kind,
-                generics: _,
-                heritage: _,
-                fields: _,
-                members: _,
-            } => {
+            Declaration::Enum(declaration) => {
                 self.node("Declaration::Enum", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("kind", &declaration.kind)
                     .end();
             }
-            Declaration::Interface {
-                descriptor,
-                kind,
-                generics: _,
-                heritage: _,
-                members: _,
-            } => {
+            Declaration::Interface(declaration) => {
                 self.node("Declaration::Interface", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
+                    .field_optional("name", &declaration.name)
+                    .field("is_nominal", &declaration.is_nominal)
                     .end();
             }
-            Declaration::Extension {
-                descriptor,
-                generics: _,
-                target_type: _,
-                heritage: _,
-                members: _,
-            } => {
+            Declaration::Extension(declaration) => {
                 self.node("Declaration::Extension", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", &declaration.name)
                     .end();
             }
-            Declaration::Function {
-                descriptor,
-                signature,
-                body: _,
-            } => {
+            Declaration::Function(declaration) => {
                 self.node("Declaration::Function", id.id)
-                    .field("descriptor", descriptor)
-                    .field("signature", signature)
+                    .field_optional("name", &declaration.name)
+                    .field("signature", &declaration.signature)
                     .end();
             }
         }
@@ -1381,36 +1457,21 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
-            Property::Field {
-                modifiers,
-                key,
-                value: _,
-                default: _,
-            } => {
-                self.node("Property::Field", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("key", key)
-                    .end();
+            Property::Field { key, value: _ } => {
+                self.node("Property::Field", id.id).field("key", key).end();
             }
             Property::Method {
-                modifiers,
                 key,
                 signature,
                 body: _,
             } => {
                 self.node("Property::Method", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("key", key)
                     .field("signature", signature)
                     .end();
             }
-            Property::Spread {
-                modifiers,
-                value: _,
-            } => {
-                self.node("Property::Spread", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Property::Spread { value: _ } => {
+                self.node("Property::Spread", id.id).end();
             }
             Property::Error => {
                 self.node("Property::Error", id.id).end();
@@ -1424,67 +1485,102 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
         match member {
             Member::Type {
-                modifiers,
                 name: _,
-                static_parameters: _,
+                generic_parameters: _,
                 where_clauses: _,
-                ty: _,
+                declared_type: _,
                 value: _,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
             } => {
                 self.node("Member::Type", id.id)
-                    .field_optional("modifiers", modifiers)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_abstract", is_abstract)
+                    .field("is_override", is_override)
+                    .field("is_static", is_static)
                     .end();
             }
             Member::ComptimeConst {
-                modifiers,
                 name: _,
-                ty: _,
+                declared_type: _,
                 value: _,
+                visibility,
+                ambient,
+                is_static,
             } => {
                 self.node("Member::ComptimeConst", id.id)
-                    .field_optional("modifiers", modifiers)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_static", is_static)
                     .end();
             }
             Member::Field {
-                modifiers,
                 key,
-                value: _,
+                declared_type: _,
                 default: _,
+                is_optional,
+                is_readonly,
+                mutability,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_const_asserted,
+                is_accessor,
+                is_comptime,
             } => {
                 self.node("Member::Field", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("key", key)
+                    .field("is_optional", is_optional)
+                    .field("is_readonly", is_readonly)
+                    .field_optional("mutability", mutability)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_abstract", is_abstract)
+                    .field("is_override", is_override)
+                    .field("is_static", is_static)
+                    .field("is_const_asserted", is_const_asserted)
+                    .field("is_accessor", is_accessor)
+                    .field("is_comptime", is_comptime)
                     .end();
             }
             Member::Method {
-                modifiers,
                 key,
                 signature,
                 body: _,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_accessor,
+                is_comptime,
             } => {
                 self.node("Member::Method", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("key", key)
                     .field("signature", signature)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_abstract", is_abstract)
+                    .field("is_override", is_override)
+                    .field("is_static", is_static)
+                    .field("is_accessor", is_accessor)
+                    .field("is_comptime", is_comptime)
                     .end();
             }
-            Member::Embed {
-                modifiers,
-                value: _,
-            } => {
-                self.node("Member::Embed", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Member::Embed { value: _, .. } => {
+                self.node("Member::Embed", id.id).end();
             }
-            Member::StaticBlock { modifiers, body: _ } => {
-                self.node("Member::StaticBlock", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Member::StaticBlock { body: _ } => {
+                self.node("Member::StaticBlock", id.id).end();
             }
-            Member::ComptimeBlock { modifiers, body: _ } => {
-                self.node("Member::ComptimeBlock", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Member::ComptimeBlock { body: _ } => {
+                self.node("Member::ComptimeBlock", id.id).end();
             }
             Member::Error => {
                 self.node("Member::Error", id.id).end();
@@ -1561,44 +1657,34 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match param {
             Parameter::Named {
-                modifiers,
                 name,
-                ty: _,
+                declared_type: _,
                 default: _,
             } => {
-                self.node("Parameter::Scalar", _id.id)
-                    .field_optional("modifiers", modifiers)
+                self.node("Parameter::Named", _id.id)
                     .field("name", name)
                     .end();
             }
             Parameter::Pattern {
-                modifiers,
                 pattern: _,
-                ty: _,
+                declared_type: _,
                 default: _,
             } => {
-                self.node("Parameter::Pattern", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+                self.node("Parameter::Pattern", _id.id).end();
             }
             Parameter::VariadicNamed {
-                modifiers,
                 name,
-                ty: _,
+                declared_type: _,
             } => {
                 self.node("Parameter::VariadicNamed", _id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
             Parameter::VariadicPattern {
-                modifiers,
                 pattern: _,
-                ty: _,
+                declared_type: _,
             } => {
-                self.node("Parameter::VariadicPattern", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+                self.node("Parameter::VariadicPattern", _id.id).end();
             }
             Parameter::Error => {
                 self.node("Parameter::Error", _id.id).end();
@@ -1611,41 +1697,21 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, _tree: &NodeTree, _id: LocalNodeId<Argument>, arg: &Argument) {
         match arg {
-            Argument::Named {
-                modifiers,
-                name,
-                value: _,
-            } => {
+            Argument::Named { name, value: _ } => {
                 self.node("Argument::Named", _id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::Labeled {
-                modifiers,
-                label,
-                value: _,
-            } => {
+            Argument::Labeled { label, value: _ } => {
                 self.node("Argument::Labeled", _id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("label", label)
                     .end();
             }
-            Argument::Positional {
-                modifiers,
-                value: _,
-            } => {
-                self.node("Argument::Positional", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Argument::Positional { value: _ } => {
+                self.node("Argument::Positional", _id.id).end();
             }
-            Argument::Spread {
-                modifiers,
-                label,
-                value: _,
-            } => {
+            Argument::Spread { label, value: _ } => {
                 self.node("Argument::Spread", _id.id)
-                    .field_optional("modifiers", modifiers)
                     .field_optional("label", label)
                     .end();
             }
@@ -1737,6 +1803,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Expression { value: _ } => {
                 self.node("Pattern::Expression", _id.id).end();
             }
+            Pattern::TypeExpression { value: _ } => {
+                self.node("Pattern::TypeExpression", _id.id).end();
+            }
             Pattern::Tuple { fields: _ } => {
                 self.node("Pattern::Tuple", _id.id).end();
             }
@@ -1824,24 +1893,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_annotation(
-        &mut self,
-        _tree: &NodeTree,
-        _id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
-    ) {
-        match annotation {
-            Annotation::Decorator { node: _, position } => {
-                self.node("Annotation::Decorator", _id.id)
-                    .field("position", position)
-                    .end();
-            }
-        };
-        self.with_depth(|dumper| {
-            walk_annotation(dumper, _tree, _id, annotation);
-        });
-    }
-
     fn visit_decorator(
         &mut self,
         _tree: &NodeTree,
@@ -1850,6 +1901,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         self.node("Decorator", _id.id)
             .field("expression", &decorator.expression.id)
+            .field("position", &decorator.position)
             .end();
         self.with_depth(|dumper| {
             walk_decorator(dumper, _tree, _id, decorator);

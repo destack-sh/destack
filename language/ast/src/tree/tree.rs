@@ -5,9 +5,10 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, AnnotationPosition, Arena, Argument, Block, Comment, Declaration, Declarator,
-    Decorator, DependencyItem, EnumField, Expression, LocalNodeId, MatchCase, Member, Node,
-    NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
+    Arena, Argument, Block, Comment, Declaration, Declarator, Decorator, DecoratorPosition,
+    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
+    MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, TypeExpression,
+    TypeProperty, WhereClause,
 };
 
 /// Dense metadata for one global node id.
@@ -44,21 +45,24 @@ impl NodeIndexEntry {
     pub(crate) fn node_type(self) -> NodeType {
         match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
             0 => NodeType::Expression,
-            1 => NodeType::Block,
-            2 => NodeType::Declaration,
-            3 => NodeType::Property,
-            4 => NodeType::Member,
-            5 => NodeType::EnumField,
-            6 => NodeType::WhereClause,
-            7 => NodeType::DependencyItem,
-            8 => NodeType::Parameter,
-            9 => NodeType::Argument,
-            10 => NodeType::MatchCase,
-            11 => NodeType::Pattern,
-            12 => NodeType::PatternField,
-            13 => NodeType::Declarator,
-            14 => NodeType::Annotation,
-            15 => NodeType::Decorator,
+            1 => NodeType::TypeExpression,
+            2 => NodeType::Block,
+            3 => NodeType::Declaration,
+            4 => NodeType::Declarator,
+            5 => NodeType::Property,
+            6 => NodeType::TypeProperty,
+            7 => NodeType::Member,
+            8 => NodeType::EnumField,
+            9 => NodeType::WhereClause,
+            10 => NodeType::DependencyItem,
+            11 => NodeType::GenericParameter,
+            12 => NodeType::Parameter,
+            13 => NodeType::GenericArgument,
+            14 => NodeType::Argument,
+            15 => NodeType::MatchCase,
+            16 => NodeType::Pattern,
+            17 => NodeType::PatternField,
+            18 => NodeType::Decorator,
             _ => unreachable!("invalid node type tag in packed node index"),
         }
     }
@@ -72,12 +76,18 @@ pub struct NodeTreeMark {
     next_global_id: u32,
     /// The expression arena length.
     expressions_len: usize,
+    /// The type expression arena length.
+    type_expressions_len: usize,
     /// The block arena length.
     blocks_len: usize,
     /// The declaration arena length.
     declarations_len: usize,
+    /// The declarator arena length.
+    declarators_len: usize,
     /// The property arena length.
     properties_len: usize,
+    /// The type field arena length.
+    type_properties_len: usize,
     /// The member arena length.
     members_len: usize,
     /// The enum field arena length.
@@ -86,20 +96,20 @@ pub struct NodeTreeMark {
     where_clauses_len: usize,
     /// The dependency item arena length.
     dependency_items_len: usize,
+    /// The generic parameter arena length.
+    generic_parameters_len: usize,
     /// The parameter arena length.
     parameters_len: usize,
     /// The argument arena length.
     arguments_len: usize,
+    /// The generic argument arena length.
+    generic_arguments_len: usize,
     /// The match case arena length.
     match_cases_len: usize,
     /// The pattern arena length.
     patterns_len: usize,
     /// The pattern field arena length.
     pattern_fields_len: usize,
-    /// The declarator arena length.
-    declarators_len: usize,
-    /// The annotation arena length.
-    annotations_len: usize,
     /// The comment arena length.
     comments_len: usize,
     /// The decorator arena length.
@@ -121,29 +131,32 @@ pub struct NodeTree {
     pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by global node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
-    /// The annotations attached to nodes.
-    pub(crate) annotations_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Annotation>>>,
-    /// Whether annotation vectors are already globally sorted by start span.
-    pub(crate) annotations_are_sorted: bool,
+    /// The decorators attached to nodes.
+    pub(crate) decorators_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Decorator>>>,
+    /// Whether decorator vectors are already globally sorted by start span.
+    pub(crate) decorators_are_sorted: bool,
     /// The spans of the NodeTree.
     pub source_map: NodeSourceMap,
 
     // node arenas
     pub(crate) expressions: Arena<Expression>,
+    pub(crate) type_expressions: Arena<TypeExpression>,
     pub(crate) blocks: Arena<Block>,
     pub(crate) declarations: Arena<Declaration>,
+    pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
+    pub(crate) type_properties: Arena<TypeProperty>,
     pub(crate) members: Arena<Member>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
     pub(crate) dependency_items: Arena<DependencyItem>,
+    pub(crate) generic_parameters: Arena<GenericParameter>,
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
+    pub(crate) generic_arguments: Arena<GenericArgument>,
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
-    pub(crate) declarators: Arena<Declarator>,
-    pub(crate) annotations: Arena<Annotation>,
     pub(crate) comments: Vec<Comment>,
     pub(crate) decorators: Arena<Decorator>,
 }
@@ -174,27 +187,30 @@ impl NodeTree {
         Self {
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
-            annotations_by_node_id: FxHashMap::with_capacity_and_hasher(
+            decorators_by_node_id: FxHashMap::with_capacity_and_hasher(
                 capacity / 8,
                 Default::default(),
             ),
-            annotations_are_sorted: true,
+            decorators_are_sorted: true,
             source_map: NodeSourceMap::with_capacity(capacity),
             expressions: Arena::with(capacity),
+            type_expressions: Arena::with(capacity / 4),
             blocks: Arena::with(capacity / 8),
             declarations: Arena::with(capacity / 8),
+            declarators: Arena::with(capacity / 8),
             properties: Arena::with(capacity / 4),
+            type_properties: Arena::with(capacity / 4),
             members: Arena::with(capacity / 8),
             enum_fields: Arena::with(capacity / 16),
             where_clauses: Arena::with(capacity / 16),
             dependency_items: Arena::with(capacity / 16),
+            generic_parameters: Arena::with(capacity / 16),
             parameters: Arena::with(capacity / 8),
             arguments: Arena::with(capacity / 4),
+            generic_arguments: Arena::with(capacity / 4),
             match_cases: Arena::with(capacity / 16),
             patterns: Arena::with(capacity / 8),
             pattern_fields: Arena::with(capacity / 8),
-            declarators: Arena::with(capacity / 8),
-            annotations: Arena::with(capacity / 16),
             comments: Vec::with_capacity(capacity / 16),
             decorators: Arena::with(capacity / 16),
         }
@@ -259,20 +275,23 @@ impl NodeTree {
         NodeTreeMark {
             next_global_id: self.next_global_id,
             expressions_len: self.expressions.len(),
+            type_expressions_len: self.type_expressions.len(),
             blocks_len: self.blocks.len(),
             declarations_len: self.declarations.len(),
+            declarators_len: self.declarators.len(),
             properties_len: self.properties.len(),
+            type_properties_len: self.type_properties.len(),
             members_len: self.members.len(),
             enum_fields_len: self.enum_fields.len(),
             where_clauses_len: self.where_clauses.len(),
             dependency_items_len: self.dependency_items.len(),
+            generic_parameters_len: self.generic_parameters.len(),
             parameters_len: self.parameters.len(),
             arguments_len: self.arguments.len(),
+            generic_arguments_len: self.generic_arguments.len(),
             match_cases_len: self.match_cases.len(),
             patterns_len: self.patterns.len(),
             pattern_fields_len: self.pattern_fields.len(),
-            declarators_len: self.declarators.len(),
-            annotations_len: self.annotations.len(),
             comments_len: self.comments.len(),
             decorators_len: self.decorators.len(),
         }
@@ -287,31 +306,35 @@ impl NodeTree {
         self.next_global_id = mark.next_global_id;
 
         self.expressions.truncate(mark.expressions_len);
+        self.type_expressions.truncate(mark.type_expressions_len);
         self.blocks.truncate(mark.blocks_len);
         self.declarations.truncate(mark.declarations_len);
+        self.declarators.truncate(mark.declarators_len);
         self.properties.truncate(mark.properties_len);
+        self.type_properties.truncate(mark.type_properties_len);
         self.members.truncate(mark.members_len);
         self.enum_fields.truncate(mark.enum_fields_len);
         self.where_clauses.truncate(mark.where_clauses_len);
         self.dependency_items.truncate(mark.dependency_items_len);
+        self.generic_parameters
+            .truncate(mark.generic_parameters_len);
         self.parameters.truncate(mark.parameters_len);
         self.arguments.truncate(mark.arguments_len);
+        self.generic_arguments.truncate(mark.generic_arguments_len);
         self.match_cases.truncate(mark.match_cases_len);
         self.patterns.truncate(mark.patterns_len);
         self.pattern_fields.truncate(mark.pattern_fields_len);
-        self.declarators.truncate(mark.declarators_len);
-        self.annotations.truncate(mark.annotations_len);
         self.comments.truncate(mark.comments_len);
         self.decorators.truncate(mark.decorators_len);
 
-        // drop annotation links that point outside the restored node range
-        self.annotations_by_node_id
-            .retain(|target_id, annotation_ids| {
+        // drop decorator links that point outside the restored node range
+        self.decorators_by_node_id
+            .retain(|target_id, decorator_ids| {
                 if *target_id >= mark.next_global_id {
                     return false;
                 }
-                annotation_ids.retain(|annotation_id| annotation_id.id < mark.next_global_id);
-                !annotation_ids.is_empty()
+                decorator_ids.retain(|decorator_id| decorator_id.id < mark.next_global_id);
+                !decorator_ids.is_empty()
             });
     }
 
@@ -382,7 +405,7 @@ impl NodeTree {
         self.source_map.get_main(node_id)
     }
 
-    /// Get the semantic head span for a node.
+    /// Get the head span for a node.
     #[inline]
     pub fn get_head_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
     where
@@ -391,7 +414,7 @@ impl NodeTree {
         self.source_map.get_side(node_id.id, NodeSpanType::Head)
     }
 
-    /// Get the semantic head span for a node by its id.
+    /// Get the head span for a node by its id.
     #[inline]
     pub fn get_head_span_by_id(&self, node_id: u32) -> Option<Span> {
         self.source_map.get_side(node_id, NodeSpanType::Head)
@@ -406,7 +429,7 @@ impl NodeTree {
         self.source_map.set_main(node_id.id, span);
     }
 
-    /// Set the semantic head span for a node.
+    /// Set the head span for a node.
     #[inline]
     pub fn set_head_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
     where
@@ -452,15 +475,12 @@ impl NodeTree {
         spans
     }
 
-    /// Get the spans for annotation side nodes in one scan.
+    /// Get the spans for decorator side nodes in one scan.
     #[inline]
-    pub fn get_side_annotation_spans(&self) -> Vec<Span> {
+    pub fn get_side_decorator_spans(&self) -> Vec<Span> {
         let mut spans = Vec::new();
         for (idx, entry) in self.node_index_by_node_id.iter().enumerate() {
-            if matches!(
-                entry.node_type(),
-                NodeType::Annotation | NodeType::Decorator
-            ) {
+            if matches!(entry.node_type(), NodeType::Decorator) {
                 spans.push(self.source_map.get(idx as u32));
             }
         }
@@ -519,109 +539,90 @@ impl NodeTree {
             })
     }
 
-    /// Append a doc to a node by its global id.
+    /// Append a decorator to a node by its global id.
     #[inline]
-    pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
+    pub fn append_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
         debug_assert!(target_id < self.next_global_id);
 
         // keep vectors sorted by span order without paying a sort pass in the common case
-        let annotation_ids = self.annotations_by_node_id.entry(target_id).or_default();
-        if let Some(previous_annotation) = annotation_ids.last().copied() {
-            let previous_span = self.source_map.get(previous_annotation.id);
-            let current_span = self.source_map.get(annotation.id);
+        let decorator_ids = self.decorators_by_node_id.entry(target_id).or_default();
+        if let Some(previous_decorator) = decorator_ids.last().copied() {
+            let previous_span = self.source_map.get(previous_decorator.id);
+            let current_span = self.source_map.get(decorator.id);
             let is_in_non_decreasing_order = previous_span.start < current_span.start
                 || previous_span.start == current_span.start
                     && (previous_span.end < current_span.end
                         || previous_span.end == current_span.end
-                            && previous_annotation.id <= annotation.id);
+                            && previous_decorator.id <= decorator.id);
             if !is_in_non_decreasing_order {
-                self.annotations_are_sorted = false;
+                self.decorators_are_sorted = false;
             }
         }
 
-        annotation_ids.push(annotation);
+        decorator_ids.push(decorator);
     }
 
-    /// Append a decorator attachment to a node by its global id.
+    /// Whether there are any decorators attached to a node.
     #[inline]
-    pub fn append_decorator(
-        &mut self,
-        target_id: u32,
-        decorator: LocalNodeId<Decorator>,
-        position: AnnotationPosition,
-    ) -> LocalNodeId<Annotation> {
-        let annotation = self.insert(
-            Annotation::Decorator {
-                node: decorator,
-                position,
-            },
-            self.get_span(decorator),
-        );
-        self.append_annotation(target_id, annotation);
-        annotation
+    pub fn has_decorators(&self, node_id: u32) -> bool {
+        self.decorators_by_node_id.contains_key(&node_id)
     }
 
-    /// Whether there are any annotations attached to a node.
+    /// Has prefix decorators attached to a node.
     #[inline]
-    pub fn has_annotations(&self, node_id: u32) -> bool {
-        self.annotations_by_node_id.contains_key(&node_id)
-    }
-
-    /// Has prefix annotations attached to a node.
-    #[inline]
-    pub fn has_prefix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations_ref(node_id)
+    pub fn has_prefix_decorators(&self, node_id: u32) -> bool {
+        self.get_decorators_ref(node_id)
             .iter()
-            .any(|&annotation_id| {
-                let annotation = self.get(annotation_id);
-                annotation.position() == AnnotationPosition::BlockPrefix
-                    || annotation.position() == AnnotationPosition::LinePrefix
+            .any(|&decorator_id| {
+                let decorator = self.get(decorator_id);
+                decorator.position == DecoratorPosition::BlockPrefix
+                    || decorator.position == DecoratorPosition::LinePrefix
             })
     }
 
-    /// Has postfix annotations attached to a node.
+    /// Has postfix decorators attached to a node.
     #[inline]
-    pub fn has_postfix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations_ref(node_id)
+    pub fn has_postfix_decorators(&self, node_id: u32) -> bool {
+        self.get_decorators_ref(node_id)
             .iter()
-            .any(|&annotation_id| {
-                let annotation = self.get(annotation_id);
-                annotation.position() == AnnotationPosition::BlockPostfix
-                    || annotation.position() == AnnotationPosition::LinePostfix
-                    || annotation.position() == AnnotationPosition::LinePostfixBoundary
+            .any(|&decorator_id| {
+                let decorator = self.get(decorator_id);
+                decorator.position == DecoratorPosition::BlockPostfix
+                    || decorator.position == DecoratorPosition::LinePostfix
+                    || decorator.position == DecoratorPosition::LinePostfixBoundary
             })
     }
 
-    /// Has infix annotations attached to a node.
+    /// Has infix decorators attached to a node.
     #[inline]
-    pub fn has_infix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations_ref(node_id)
+    pub fn has_infix_decorators(&self, node_id: u32) -> bool {
+        self.get_decorators_ref(node_id)
             .iter()
-            .any(|&annotation_id| {
-                let annotation = self.get(annotation_id);
-                annotation.position() == AnnotationPosition::BlockInfix
+            .any(|&decorator_id| {
+                let decorator = self.get(decorator_id);
+                decorator.position == DecoratorPosition::BlockInfix
             })
     }
 
-    /// Get annotations attached to a node by reference.
+    /// Get decorators attached to a node by reference.
     #[inline]
-    pub fn get_annotations_ref(&self, node_id: u32) -> &[LocalNodeId<Annotation>] {
-        self.annotations_by_node_id
+    pub fn get_decorators_ref(&self, node_id: u32) -> &[LocalNodeId<Decorator>] {
+        self.decorators_by_node_id
             .get(&node_id)
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
 
-    /// Get annotations attached to a node.
+    /// Get decorators attached to a node.
     #[inline]
-    pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
-        self.get_annotations_ref(node_id).to_vec()
+    pub fn get_decorators(&self, node_id: u32) -> Vec<LocalNodeId<Decorator>> {
+        self.get_decorators_ref(node_id).to_vec()
     }
 
-    /// Get all annotations.
+    /// Get all decorators.
     #[inline]
-    pub fn get_all_annotations(&self) -> &FxHashMap<u32, Vec<LocalNodeId<Annotation>>> {
-        &self.annotations_by_node_id
+    pub fn get_all_decorators(&self) -> &FxHashMap<u32, Vec<LocalNodeId<Decorator>>> {
+        &self.decorators_by_node_id
     }
 
     /// Return all raw comments in source order.
@@ -642,16 +643,16 @@ impl NodeTree {
         self.comments.push(comment);
     }
 
-    /// Sort all annotations.
+    /// Sort all decorators.
     #[inline]
-    pub fn sort_annotations(&mut self) {
-        if self.annotations_are_sorted {
+    pub fn sort_decorators(&mut self) {
+        if self.decorators_are_sorted {
             return;
         }
 
         let source_map = &self.source_map;
-        for annotation_ids in self.annotations_by_node_id.values_mut() {
-            annotation_ids.sort_by(|left, right| {
+        for decorator_ids in self.decorators_by_node_id.values_mut() {
+            decorator_ids.sort_by(|left, right| {
                 let left_span = source_map.get(left.id);
                 let right_span = source_map.get(right.id);
                 left_span
@@ -662,70 +663,69 @@ impl NodeTree {
             });
         }
 
-        self.annotations_are_sorted = true;
+        self.decorators_are_sorted = true;
     }
 
-    /// Remap annotation target node ids in one linear pass.
+    /// Remap decorator target node ids in one linear pass.
     #[inline]
-    pub fn remap_annotation_targets(
+    pub fn remap_decorator_targets(
         &mut self,
-        mut remap: impl FnMut(u32, LocalNodeId<Annotation>, &Annotation, Span) -> u32,
+        mut remap: impl FnMut(u32, LocalNodeId<Decorator>, &Decorator, Span) -> u32,
     ) {
         // collect existing edges so target remaps can rewrite map keys safely
         let mut entries = Vec::new();
-        for (target_id, annotation_ids) in &self.annotations_by_node_id {
-            for &annotation_id in annotation_ids {
-                let annotation = self.get(annotation_id);
-                let annotation_span = self.source_map.get(annotation_id.id);
-                let remapped_target_id =
-                    remap(*target_id, annotation_id, annotation, annotation_span);
-                entries.push((remapped_target_id, annotation_id));
+        for (target_id, decorator_ids) in &self.decorators_by_node_id {
+            for &decorator_id in decorator_ids {
+                let decorator = self.get(decorator_id);
+                let decorator_span = self.source_map.get(decorator_id.id);
+                let remapped_target_id = remap(*target_id, decorator_id, decorator, decorator_span);
+                entries.push((remapped_target_id, decorator_id));
             }
         }
 
         // rebuild attachment map from remapped edges
-        self.annotations_by_node_id.clear();
-        self.annotations_are_sorted = true;
-        for (target_id, annotation_id) in entries {
-            self.append_annotation(target_id, annotation_id);
+        self.decorators_by_node_id.clear();
+        self.decorators_are_sorted = true;
+        for (target_id, decorator_id) in entries {
+            self.append_decorator(target_id, decorator_id);
         }
     }
 
-    /// Move matching annotations from one node id to another.
+    /// Move matching decorators from one node id to another.
     #[inline]
-    pub fn move_annotations_if(
+    pub fn move_decorators_if(
         &mut self,
         from_target_id: u32,
         to_target_id: u32,
-        mut should_move: impl FnMut(LocalNodeId<Annotation>, &Annotation, Span) -> bool,
+        mut should_move: impl FnMut(LocalNodeId<Decorator>, &Decorator, Span) -> bool,
     ) -> usize {
         if from_target_id == to_target_id {
             return 0;
         }
 
-        let Some(mut annotation_ids) = self.annotations_by_node_id.remove(&from_target_id) else {
+        let Some(mut decorator_ids) = self.decorators_by_node_id.remove(&from_target_id) else {
             return 0;
         };
 
-        let mut moved_annotation_ids = Vec::new();
-        annotation_ids.retain(|annotation_id| {
-            let annotation = self.get(*annotation_id);
-            let annotation_span = self.source_map.get(annotation_id.id);
-            if should_move(*annotation_id, annotation, annotation_span) {
-                moved_annotation_ids.push(*annotation_id);
+        let mut moved_decorator_ids = Vec::new();
+        decorator_ids.retain(|decorator_id| {
+            let decorator = self.get(*decorator_id);
+            let decorator_span = self.source_map.get(decorator_id.id);
+            if should_move(*decorator_id, decorator, decorator_span) {
+                moved_decorator_ids.push(*decorator_id);
                 return false;
             }
             true
         });
 
-        if !annotation_ids.is_empty() {
-            self.annotations_by_node_id
-                .insert(from_target_id, annotation_ids);
+        if !decorator_ids.is_empty() {
+            self.decorators_by_node_id
+                .insert(from_target_id, decorator_ids);
         }
 
-        let moved_count = moved_annotation_ids.len();
-        for annotation_id in moved_annotation_ids {
-            self.append_annotation(to_target_id, annotation_id);
+        let moved_count = moved_decorator_ids.len();
+        for decorator_id in moved_decorator_ids {
+            self.append_decorator(to_target_id, decorator_id);
         }
         moved_count
     }
@@ -777,19 +777,22 @@ macro_rules! impl_node_tree_stores {
 
 impl_node_tree_stores! {
     Expression => expressions,
+    TypeExpression => type_expressions,
     Block => blocks,
     Declaration => declarations,
+    Declarator => declarators,
     Property => properties,
+    TypeProperty => type_properties,
     Member => members,
     EnumField => enum_fields,
     WhereClause => where_clauses,
     DependencyItem => dependency_items,
+    GenericParameter => generic_parameters,
     Parameter => parameters,
     Argument => arguments,
+    GenericArgument => generic_arguments,
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
-    Declarator => declarators,
-    Annotation => annotations,
     Decorator => decorators,
 }

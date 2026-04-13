@@ -1,50 +1,58 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{BindingModifier, Expression, LocalNodeId, Name, Node, NodeType, Pattern, StringId};
+use crate::{
+    Expression, LocalNodeId, Node, NodeType, Pattern, StringId, TypeExpression, VarianceModifier,
+};
 
-/// A Parameter is a parameter to some construct.
-///
-/// Examples:
-/// ```
-/// x
-/// T
-/// x: int32
-/// y: (int32, boolean, Vector2)
-/// Validate: boolean = true
-/// z: int32 = 4
-/// _
-/// { x }
-/// { x }: MyType = Foo
-/// ..T
-/// ...x: int32[]
-/// ```
+/// A generic parameter in static parameter position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GenericParameter {
+    /// Type parameter.
+    Type {
+        name: StringId,
+        variance: Option<VarianceModifier>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<TypeExpression>>,
+    },
+    /// Value parameter.
+    Value {
+        name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<Expression>>,
+        is_comptime: bool,
+    },
+    /// Malformed generic parameter slot.
+    Error,
+}
+
+impl Node for GenericParameter {
+    const TYPE: NodeType = NodeType::GenericParameter;
+}
+
+/// A parameter to a callable construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Parameter {
-    /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
+    /// Named scalar parameter.
     Named {
-        modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<LocalNodeId<Expression>>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
+    /// Pattern parameter.
     Pattern {
-        modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Expression>>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Variadic parameter with a named binding (like `..T` or `...x: int32[]`).
+    /// Variadic named parameter.
     VariadicNamed {
-        modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<LocalNodeId<Expression>>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
     },
-    /// Variadic parameter with a pattern binding (like `...[x, y]`).
+    /// Variadic pattern parameter.
     VariadicPattern {
-        modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Expression>>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
     },
     /// Malformed parameter slot.
     Error,
@@ -54,42 +62,56 @@ impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
-/// An Argument is an argument to some construct.
-/// Named arguments are only valid in tree literals (JSX-like attributes).
-/// Labeled arguments are only valid in tuple types (TypeScript labeled tuple elements).
-/// All other arguments (dynamic arguments, static arguments, tuples) must be positional or spread.
-///
-/// Examples:
-/// ```
-/// false                              // positional
-/// foo()                              // positional
-/// ...args                            // spread
-/// <Component name="foo" />           // named in tree literal only
-/// [start: number, end: number]       // labeled in tuple type only
-/// ```
+/// A generic argument in static argument position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GenericArgument {
+    /// Type argument.
+    Type {
+        label: Option<StringId>,
+        value: LocalNodeId<TypeExpression>,
+    },
+    /// Value argument.
+    Value {
+        label: Option<StringId>,
+        value: LocalNodeId<Expression>,
+        is_comptime: bool,
+    },
+    /// Spread type argument.
+    SpreadType {
+        label: Option<StringId>,
+        value: LocalNodeId<TypeExpression>,
+    },
+    /// Spread value argument.
+    SpreadValue {
+        label: Option<StringId>,
+        value: LocalNodeId<Expression>,
+        is_comptime: bool,
+    },
+    /// Malformed generic argument slot.
+    Error,
+}
+
+impl Node for GenericArgument {
+    const TYPE: NodeType = NodeType::GenericArgument;
+}
+
+/// An argument to a runtime call or tree construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Argument {
-    /// Named argument (only valid in tree literals for JSX-like attributes).
+    /// Named argument.
     Named {
-        modifiers: Option<BindingModifier>,
-        name: Name,
+        name: StringId,
         value: LocalNodeId<Expression>,
     },
-    /// Labeled tuple element (only valid in tuple types, e.g., `[start: number, end: number]`).
-    /// (Labels are purely for documentation/tooling and don't affect type checking directly.)
+    /// Labeled argument.
     Labeled {
-        modifiers: Option<BindingModifier>,
         label: StringId,
         value: LocalNodeId<Expression>,
     },
-    /// Positional argument (like `1` or `foo()`).
-    Positional {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
-    },
-    /// Spread argument (like `...args` or `[...args: any[]]`).
+    /// Positional argument.
+    Positional { value: LocalNodeId<Expression> },
+    /// Spread argument.
     Spread {
-        modifiers: Option<BindingModifier>,
         label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },
