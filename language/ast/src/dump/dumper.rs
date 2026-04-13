@@ -1266,6 +1266,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             TypeExpression::Must { target_type: _ } => {
                 self.node("TypeExpression::Must", id.id).end();
             }
+            TypeExpression::AsComptime { target_type: _ } => {
+                self.node("TypeExpression::AsComptime", id.id).end();
+            }
             TypeExpression::Not { target_type: _ } => {
                 self.node("TypeExpression::Not", id.id).end();
             }
@@ -1385,7 +1388,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Namespace(declaration) => {
                 self.node("Declaration::Namespace", id.id)
-                    .field_optional("name", &declaration.name)
+                    .field("name", &declaration.name)
                     .field_optional("export", &declaration.export)
                     .field("ambient", &declaration.ambient)
                     .field("kind", &declaration.kind)
@@ -1393,7 +1396,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Type(declaration) => {
                 self.node("Declaration::Type", id.id)
-                    .field_optional("name", &declaration.name)
+                    .field("name", &declaration.name)
                     .field_optional("export", &declaration.export)
                     .field("ambient", &declaration.ambient)
                     .field("is_nominal", &declaration.is_nominal)
@@ -1402,7 +1405,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::ImportAlias(declaration) => {
                 self.node("Declaration::ImportAlias", id.id)
-                    .field_optional("name", &declaration.name)
+                    .field("name", &declaration.name)
                     .field_optional("export", &declaration.export)
                     .field("ambient", &declaration.ambient)
                     .field("kind", &declaration.kind)
@@ -1658,26 +1661,39 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match param {
             Parameter::Named {
                 name,
+                visibility,
+                is_readonly,
+                is_optional,
                 declared_type: _,
                 default: _,
             } => {
                 self.node("Parameter::Named", _id.id)
                     .field("name", name)
+                    .field("visibility", visibility)
+                    .field("is_readonly", is_readonly)
+                    .field("is_optional", is_optional)
                     .end();
             }
             Parameter::Pattern {
                 pattern: _,
+                is_optional,
                 declared_type: _,
                 default: _,
             } => {
-                self.node("Parameter::Pattern", _id.id).end();
+                self.node("Parameter::Pattern", _id.id)
+                    .field("is_optional", is_optional)
+                    .end();
             }
             Parameter::VariadicNamed {
                 name,
+                visibility,
+                is_readonly,
                 declared_type: _,
             } => {
                 self.node("Parameter::VariadicNamed", _id.id)
                     .field("name", name)
+                    .field("visibility", visibility)
+                    .field("is_readonly", is_readonly)
                     .end();
             }
             Parameter::VariadicPattern {
@@ -1692,6 +1708,39 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_parameter(dumper, _tree, _id, param);
+        });
+    }
+
+    fn visit_tuple_element(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<TupleElement>,
+        tuple_element: &TupleElement,
+    ) {
+        match tuple_element {
+            TupleElement::Element {
+                label,
+                value: _,
+                is_optional,
+                is_readonly,
+            } => {
+                self.node("TupleElement::Element", _id.id)
+                    .field_optional("label", label)
+                    .field("is_optional", is_optional)
+                    .field("is_readonly", is_readonly)
+                    .end();
+            }
+            TupleElement::Spread { label, value: _ } => {
+                self.node("TupleElement::Spread", _id.id)
+                    .field_optional("label", label)
+                    .end();
+            }
+            TupleElement::Error => {
+                self.node("TupleElement::Error", _id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_tuple_element(dumper, _tree, _id, tuple_element);
         });
     }
 

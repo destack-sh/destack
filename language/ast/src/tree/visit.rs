@@ -3,11 +3,12 @@
 use crate::{
     Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
     GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, NodeTree, NodeType,
-    Parameter, Pattern, PatternField, Property, TypeExpression, TypeProperty, WhereClause,
-    walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
+    Parameter, Pattern, PatternField, Property, TupleElement, TypeExpression, TypeProperty,
+    WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
     walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
     walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_type_expression, walk_type_property, walk_where_clause,
+    walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
+    walk_type_property, walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -143,6 +144,16 @@ pub trait NodeVisitor {
         generic_argument: &GenericArgument,
     ) {
         walk_generic_argument(self, tree, id, generic_argument);
+    }
+
+    /// Visit a TupleElement.
+    fn visit_tuple_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TupleElement>,
+        tuple_element: &TupleElement,
+    ) {
+        walk_tuple_element(self, tree, id, tuple_element);
     }
 
     /// Visit a MatchCase.
@@ -320,6 +331,15 @@ impl NodeVisitor for CapturingNodeVisitor {
         _generic_argument: &GenericArgument,
     ) {
         self.visit_any(tree, NodeType::GenericArgument, id.id);
+    }
+
+    fn visit_tuple_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TupleElement>,
+        _tuple_element: &TupleElement,
+    ) {
+        self.visit_any(tree, NodeType::TupleElement, id.id);
     }
 
     fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, pattern: &Pattern) {

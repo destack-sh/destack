@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, LocalNodeId, Node, NodeType, Pattern, StringId, TypeExpression, VarianceModifier,
+    Expression, LocalNodeId, Name, Node, NodeType, Pattern, StringId, TypeExpression,
+    VarianceModifier, Visibility,
 };
 
 /// A generic parameter in static parameter position.
@@ -35,18 +36,24 @@ pub enum Parameter {
     /// Named scalar parameter.
     Named {
         name: StringId,
+        visibility: Option<Visibility>,
+        is_readonly: bool,
+        is_optional: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Pattern parameter.
     Pattern {
         pattern: LocalNodeId<Pattern>,
+        is_optional: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Variadic named parameter.
     VariadicNamed {
         name: StringId,
+        visibility: Option<Visibility>,
+        is_readonly: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
     },
     /// Variadic pattern parameter.
@@ -65,28 +72,10 @@ impl Node for Parameter {
 /// A generic argument in static argument position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericArgument {
-    /// Type argument.
-    Type {
-        label: Option<StringId>,
-        value: LocalNodeId<TypeExpression>,
-    },
-    /// Value argument.
-    Value {
-        label: Option<StringId>,
-        value: LocalNodeId<Expression>,
-        is_comptime: bool,
-    },
-    /// Spread type argument.
-    SpreadType {
-        label: Option<StringId>,
-        value: LocalNodeId<TypeExpression>,
-    },
-    /// Spread value argument.
-    SpreadValue {
-        label: Option<StringId>,
-        value: LocalNodeId<Expression>,
-        is_comptime: bool,
-    },
+    /// Positional generic argument.
+    Positional { value: LocalNodeId<Expression> },
+    /// Spread generic argument.
+    Spread { value: LocalNodeId<Expression> },
     /// Malformed generic argument slot.
     Error,
 }
@@ -95,12 +84,35 @@ impl Node for GenericArgument {
     const TYPE: NodeType = NodeType::GenericArgument;
 }
 
+/// One tuple type element.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TupleElement {
+    /// One non-spread tuple element.
+    Element {
+        label: Option<StringId>,
+        value: LocalNodeId<TypeExpression>,
+        is_optional: bool,
+        is_readonly: bool,
+    },
+    /// One spread tuple element.
+    Spread {
+        label: Option<StringId>,
+        value: LocalNodeId<TypeExpression>,
+    },
+    /// Malformed tuple element slot.
+    Error,
+}
+
+impl Node for TupleElement {
+    const TYPE: NodeType = NodeType::TupleElement;
+}
+
 /// An argument to a runtime call or tree construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Argument {
     /// Named argument.
     Named {
-        name: StringId,
+        name: Name,
         value: LocalNodeId<Expression>,
     },
     /// Labeled argument.

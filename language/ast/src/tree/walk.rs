@@ -3,7 +3,7 @@ use crate::{
     ForEachBinding, FunctionSignature, GenericArgument, GenericParameter, IfCondition,
     ImportAliasTarget, ImportTarget, Key, LocalNodeId, LocalNodeIdAny, MatchCase, MatchSelector,
     Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
-    TemplateLiteral, TypeExpression, TypeProperty, WhereClause,
+    TemplateLiteral, TupleElement, TypeExpression, TypeProperty, WhereClause,
 };
 
 /// Walk any node.
@@ -78,6 +78,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::GenericArgument => {
             let type_argument = tree.generic_arguments.get(local_idx);
             walk_generic_argument(visitor, tree, LocalNodeId::new(node_id), type_argument);
+        }
+        NodeType::TupleElement => {
+            let tuple_element = tree.tuple_elements.get(local_idx);
+            walk_tuple_element(visitor, tree, LocalNodeId::new(node_id), tuple_element);
         }
         // --------------------------------------------------------------------
         // Matching
@@ -177,6 +181,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let type_argument = tree.get(type_argument_id);
             visitor.visit_generic_argument(tree, type_argument_id, type_argument);
         }
+        NodeType::TupleElement => {
+            let tuple_element_id = LocalNodeId::<TupleElement>::new(root.id);
+            let tuple_element = tree.get(tuple_element_id);
+            visitor.visit_tuple_element(tree, tuple_element_id, tuple_element);
+        }
         NodeType::MatchCase => {
             let match_case_id = LocalNodeId::<MatchCase>::new(root.id);
             let match_case = tree.get(match_case_id);
@@ -228,7 +237,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Tuple { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
-                visitor.visit_generic_argument(tree, *element_id, element);
+                visitor.visit_tuple_element(tree, *element_id, element);
             }
         }
         TypeExpression::Array { element } => {
@@ -291,6 +300,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Readonly { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Must { target_type }
+        | TypeExpression::AsComptime { target_type }
         | TypeExpression::Not { target_type }
         | TypeExpression::ValueOf {
             mutability: _,
@@ -447,15 +457,29 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::GenericArgument, id.id);
 
     match generic_argument {
-        GenericArgument::Type { value, .. } | GenericArgument::SpreadType { value, .. } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_expression);
-        }
-        GenericArgument::Value { value, .. } | GenericArgument::SpreadValue { value, .. } => {
+        GenericArgument::Positional { value } | GenericArgument::Spread { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
         GenericArgument::Error => {}
+    }
+}
+
+/// Walk the TupleElement.
+pub fn walk_tuple_element<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<TupleElement>,
+    tuple_element: &TupleElement,
+) {
+    visitor.visit_any(tree, NodeType::TupleElement, id.id);
+
+    match tuple_element {
+        TupleElement::Element { value, .. } | TupleElement::Spread { value, .. } => {
+            let value_type = tree.get(*value);
+            visitor.visit_type_expression(tree, *value, value_type);
+        }
+        TupleElement::Error => {}
     }
 }
 
@@ -1312,11 +1336,15 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             signature,
             body,
         } => {
-            walk_key(visitor, tree, key);
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
             walk_function_signature(visitor, tree, signature);
 
-            let expression = tree.get(*body);
-            visitor.visit_expression(tree, *body, expression);
+            if let Some(body) = body {
+                let expression = tree.get(*body);
+                visitor.visit_expression(tree, *body, expression);
+            }
         }
         Property::Spread { value } => {
             let value_expr = tree.get(*value);
@@ -1499,6 +1527,9 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     match parameter {
         Parameter::Named {
             name: _,
+            visibility: _,
+            is_readonly: _,
+            is_optional: _,
             declared_type,
             default,
         } => {
@@ -1513,6 +1544,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         }
         Parameter::Pattern {
             pattern,
+            is_optional: _,
             declared_type,
             default,
         } => {
@@ -1529,6 +1561,8 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         }
         Parameter::VariadicNamed {
             name: _,
+            visibility: _,
+            is_readonly: _,
             declared_type,
         } => {
             if let Some(declared_type) = declared_type {

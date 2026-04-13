@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, Argument, Block, Comment, Declaration, Declarator, Decorator, DecoratorPosition,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
-    MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, TypeExpression,
-    TypeProperty, WhereClause,
+    MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, TupleElement,
+    TypeExpression, TypeProperty, WhereClause,
 };
 
 /// Dense metadata for one global node id.
@@ -58,11 +58,12 @@ impl NodeIndexEntry {
             11 => NodeType::GenericParameter,
             12 => NodeType::Parameter,
             13 => NodeType::GenericArgument,
-            14 => NodeType::Argument,
-            15 => NodeType::MatchCase,
-            16 => NodeType::Pattern,
-            17 => NodeType::PatternField,
-            18 => NodeType::Decorator,
+            14 => NodeType::TupleElement,
+            15 => NodeType::Argument,
+            16 => NodeType::MatchCase,
+            17 => NodeType::Pattern,
+            18 => NodeType::PatternField,
+            19 => NodeType::Decorator,
             _ => unreachable!("invalid node type tag in packed node index"),
         }
     }
@@ -104,6 +105,8 @@ pub struct NodeTreeMark {
     arguments_len: usize,
     /// The generic argument arena length.
     generic_arguments_len: usize,
+    /// The tuple element arena length.
+    tuple_elements_len: usize,
     /// The match case arena length.
     match_cases_len: usize,
     /// The pattern arena length.
@@ -154,6 +157,7 @@ pub struct NodeTree {
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
     pub(crate) generic_arguments: Arena<GenericArgument>,
+    pub(crate) tuple_elements: Arena<TupleElement>,
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
@@ -208,6 +212,7 @@ impl NodeTree {
             parameters: Arena::with(capacity / 8),
             arguments: Arena::with(capacity / 4),
             generic_arguments: Arena::with(capacity / 4),
+            tuple_elements: Arena::with(capacity / 4),
             match_cases: Arena::with(capacity / 16),
             patterns: Arena::with(capacity / 8),
             pattern_fields: Arena::with(capacity / 8),
@@ -289,6 +294,7 @@ impl NodeTree {
             parameters_len: self.parameters.len(),
             arguments_len: self.arguments.len(),
             generic_arguments_len: self.generic_arguments.len(),
+            tuple_elements_len: self.tuple_elements.len(),
             match_cases_len: self.match_cases.len(),
             patterns_len: self.patterns.len(),
             pattern_fields_len: self.pattern_fields.len(),
@@ -321,6 +327,7 @@ impl NodeTree {
         self.parameters.truncate(mark.parameters_len);
         self.arguments.truncate(mark.arguments_len);
         self.generic_arguments.truncate(mark.generic_arguments_len);
+        self.tuple_elements.truncate(mark.tuple_elements_len);
         self.match_cases.truncate(mark.match_cases_len);
         self.patterns.truncate(mark.patterns_len);
         self.pattern_fields.truncate(mark.pattern_fields_len);
@@ -791,6 +798,7 @@ impl_node_tree_stores! {
     Parameter => parameters,
     Argument => arguments,
     GenericArgument => generic_arguments,
+    TupleElement => tuple_elements,
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
