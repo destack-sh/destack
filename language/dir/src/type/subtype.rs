@@ -1,7 +1,7 @@
 use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Parameter, WhereClause};
+use crate::{LocalNodeId, Parameter, TypeExpression, WhereClause};
 
 /// The polymorphism of some type or declaration.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, AdaptImage)]
@@ -21,17 +21,17 @@ impl Generics {
 
 /// The syntactic heritage of a type declaration (what the user wrote).
 ///
-/// Heritage stores expression node IDs that represent the extends/implements/embedded clauses.
-/// These expressions get resolved during the resolve phase like any other expressions.
+/// Heritage stores type-expression node IDs that represent the extends/implements/embedded clauses.
+/// These expressions get resolved during the resolve phase like any other type expressions.
 /// During analyze phase, the resolved symbols are extracted into `Lineage` (in TypeTable).
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, AdaptImage)]
 pub struct Heritage {
     /// The extends types of the declaration.
-    pub extends_types: Option<Vec<LocalNodeId<Expression>>>,
+    pub extends_types: Option<Vec<LocalNodeId<TypeExpression>>>,
     /// The implements types of the declaration.
-    pub implements_types: Option<Vec<LocalNodeId<Expression>>>,
+    pub implements_types: Option<Vec<LocalNodeId<TypeExpression>>>,
     /// The embedded types of the declaration.
-    pub embedded_types: Option<Vec<LocalNodeId<Expression>>>,
+    pub embedded_types: Option<Vec<LocalNodeId<TypeExpression>>>,
 }
 
 impl Heritage {

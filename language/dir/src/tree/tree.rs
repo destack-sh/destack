@@ -1,3 +1,4 @@
+use destack_core::StringId;
 use destack_source::AdaptImage;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
@@ -6,11 +7,19 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, Documentation,
-    EnumField, Expression, FunctionMode, IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter,
-    Pattern, PatternField, Property, Provenance, ProvenanceId, ProvenanceReason, WhereClause,
+    Arena, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
+    Expression, FunctionMode, GenericArgument, GenericParameter, IfCondition, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor,
+    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, Provenance, ProvenanceId,
+    ProvenanceReason, TypeExpression, TypeProperty, WhereClause,
 };
+
+/// Normalized semantic documentation attached to one DIR node.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+pub struct Documentation {
+    /// The normalized documentation text.
+    pub text: StringId,
+}
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
 #[derive(Clone, Serialize, Deserialize, AdaptImage)]
@@ -28,20 +37,24 @@ pub struct NodeTree {
 
     // node arenas
     pub(crate) expressions: Arena<Expression>,
+    pub(crate) type_expressions: Arena<TypeExpression>,
     pub(crate) blocks: Arena<Block>,
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
+    pub(crate) type_properties: Arena<TypeProperty>,
     pub(crate) members: Arena<Member>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
     pub(crate) dependency_items: Arena<DependencyItem>,
+    pub(crate) generic_parameters: Arena<GenericParameter>,
     pub(crate) parameters: Arena<Parameter>,
+    pub(crate) generic_arguments: Arena<GenericArgument>,
     pub(crate) arguments: Arena<Argument>,
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
-    pub(crate) annotations: Arena<Annotation>,
+    pub(crate) decorators: Arena<Decorator>,
 
     // node side data
     /// The parent node id by node id. Index is the global node id.
@@ -56,8 +69,8 @@ pub struct NodeTree {
     alias_node_id_by_source_id: HashMap<u32, u32>,
     /// The alias node id by DIR node id.
     alias_node_id_by_node_id: HashMap<u32, u32>,
-    /// The annotations attached to nodes.
-    annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
+    /// The decorators attached to nodes.
+    decorators_by_node_id: HashMap<u32, Vec<LocalNodeId<Decorator>>>,
     /// The normalized documentation attached to nodes.
     documentation_by_node_id: HashMap<u32, Documentation>,
     /// The node ids explicitly marked inactive.
@@ -88,20 +101,24 @@ impl NodeTree {
             node_type_by_node_id: Vec::with_capacity(capacity),
 
             expressions: Arena::new(),
+            type_expressions: Arena::new(),
             blocks: Arena::new(),
             declarations: Arena::new(),
             declarators: Arena::new(),
             properties: Arena::new(),
+            type_properties: Arena::new(),
             members: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
             dependency_items: Arena::new(),
+            generic_parameters: Arena::new(),
             parameters: Arena::new(),
+            generic_arguments: Arena::new(),
             arguments: Arena::new(),
             match_cases: Arena::new(),
             patterns: Arena::new(),
             pattern_fields: Arena::new(),
-            annotations: Arena::new(),
+            decorators: Arena::new(),
 
             parent_id_by_node_id: Vec::with_capacity(capacity),
             scopes_by_node_id: Vec::with_capacity(capacity),
@@ -111,7 +128,7 @@ impl NodeTree {
             },
             alias_node_id_by_source_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
-            annotations_by_node_id: HashMap::new(),
+            decorators_by_node_id: HashMap::new(),
             documentation_by_node_id: HashMap::new(),
             inactive_node_ids: HashSet::new(),
         }
@@ -409,6 +426,10 @@ impl NodeTree {
                 let typed_id = LocalNodeId::<Property>::new(node_id.id);
                 visitor.visit_property(self, typed_id, self.get(typed_id));
             }
+            NodeType::TypeProperty => {
+                let typed_id = LocalNodeId::<TypeProperty>::new(node_id.id);
+                visitor.visit_type_property(self, typed_id, self.get(typed_id));
+            }
             NodeType::Member => {
                 let typed_id = LocalNodeId::<Member>::new(node_id.id);
                 visitor.visit_member(self, typed_id, self.get(typed_id));
@@ -425,13 +446,25 @@ impl NodeTree {
                 let typed_id = LocalNodeId::<DependencyItem>::new(node_id.id);
                 visitor.visit_dependency_item(self, typed_id, self.get(typed_id));
             }
+            NodeType::GenericParameter => {
+                let typed_id = LocalNodeId::<GenericParameter>::new(node_id.id);
+                visitor.visit_generic_parameter(self, typed_id, self.get(typed_id));
+            }
             NodeType::Parameter => {
                 let typed_id = LocalNodeId::<Parameter>::new(node_id.id);
                 visitor.visit_parameter(self, typed_id, self.get(typed_id));
             }
+            NodeType::GenericArgument => {
+                let typed_id = LocalNodeId::<GenericArgument>::new(node_id.id);
+                visitor.visit_generic_argument(self, typed_id, self.get(typed_id));
+            }
             NodeType::Argument => {
                 let typed_id = LocalNodeId::<Argument>::new(node_id.id);
                 visitor.visit_argument(self, typed_id, self.get(typed_id));
+            }
+            NodeType::TypeExpression => {
+                let typed_id = LocalNodeId::<TypeExpression>::new(node_id.id);
+                visitor.visit_type_expression(self, typed_id, self.get(typed_id));
             }
             NodeType::MatchCase => {
                 let typed_id = LocalNodeId::<MatchCase>::new(node_id.id);
@@ -445,9 +478,9 @@ impl NodeTree {
                 let typed_id = LocalNodeId::<PatternField>::new(node_id.id);
                 visitor.visit_pattern_field(self, typed_id, self.get(typed_id));
             }
-            NodeType::Annotation => {
-                let typed_id = LocalNodeId::<Annotation>::new(node_id.id);
-                visitor.visit_annotation(self, typed_id, self.get(typed_id));
+            NodeType::Decorator => {
+                let typed_id = LocalNodeId::<Decorator>::new(node_id.id);
+                visitor.visit_decorator(self, typed_id, self.get(typed_id));
             }
         }
     }
@@ -515,6 +548,17 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
+            fn visit_type_property(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<TypeProperty>,
+                type_property: &TypeProperty,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_type_property(self, tree, id, type_property);
+                self.parent_stack.pop();
+            }
+
             fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
                 self.push_node(id.into_any());
                 crate::walk_member(self, tree, id, member);
@@ -554,6 +598,17 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
+            fn visit_generic_parameter(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<GenericParameter>,
+                generic_parameter: &GenericParameter,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_generic_parameter(self, tree, id, generic_parameter);
+                self.parent_stack.pop();
+            }
+
             fn visit_parameter(
                 &mut self,
                 tree: &NodeTree,
@@ -573,6 +628,28 @@ impl NodeTree {
             ) {
                 self.push_node(id.into_any());
                 crate::walk_argument(self, tree, id, argument);
+                self.parent_stack.pop();
+            }
+
+            fn visit_generic_argument(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<GenericArgument>,
+                generic_argument: &GenericArgument,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_generic_argument(self, tree, id, generic_argument);
+                self.parent_stack.pop();
+            }
+
+            fn visit_type_expression(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<TypeExpression>,
+                type_expression: &TypeExpression,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_type_expression(self, tree, id, type_expression);
                 self.parent_stack.pop();
             }
 
@@ -609,14 +686,14 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
-            fn visit_annotation(
+            fn visit_decorator(
                 &mut self,
                 tree: &NodeTree,
-                id: LocalNodeId<Annotation>,
-                annotation: &Annotation,
+                id: LocalNodeId<Decorator>,
+                decorator: &Decorator,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_annotation(self, tree, id, annotation);
+                crate::walk_decorator(self, tree, id, decorator);
                 self.parent_stack.pop();
             }
         }
@@ -769,16 +846,34 @@ impl NodeTree {
                 crate::walk_dependency_item
             );
             validate_visit!(
+                visit_generic_parameter,
+                GenericParameter,
+                NodeType::GenericParameter,
+                crate::walk_generic_parameter
+            );
+            validate_visit!(
                 visit_parameter,
                 Parameter,
                 NodeType::Parameter,
                 crate::walk_parameter
             );
             validate_visit!(
+                visit_generic_argument,
+                GenericArgument,
+                NodeType::GenericArgument,
+                crate::walk_generic_argument
+            );
+            validate_visit!(
                 visit_argument,
                 Argument,
                 NodeType::Argument,
                 crate::walk_argument
+            );
+            validate_visit!(
+                visit_type_expression,
+                TypeExpression,
+                NodeType::TypeExpression,
+                crate::walk_type_expression
             );
             validate_visit!(
                 visit_match_case,
@@ -799,10 +894,10 @@ impl NodeTree {
                 crate::walk_pattern_field
             );
             validate_visit!(
-                visit_annotation,
-                Annotation,
-                NodeType::Annotation,
-                crate::walk_annotation
+                visit_decorator,
+                Decorator,
+                NodeType::Decorator,
+                crate::walk_decorator
             );
         }
 
@@ -940,14 +1035,14 @@ impl NodeTree {
 
         match parent_declaration {
             // module style declaration bodies host statement sequences
-            Declaration::Function {
-                body, signature, ..
-            } => body.as_ref().is_some_and(|body_expression_id| {
-                body_expression_id.id == expression_id.id
-                    && self.function_body_is_statement_position(signature.mode)
-            }),
-            Declaration::Global { expressions, .. }
-            | Declaration::Namespace { expressions, .. } => expressions.contains(&expression_id),
+            Declaration::Function(declaration) => {
+                declaration.body.as_ref().is_some_and(|body_expression_id| {
+                    body_expression_id.id == expression_id.id
+                        && self.function_body_is_statement_position(declaration.signature.mode)
+                })
+            }
+            Declaration::Global(declaration) => declaration.expressions.contains(&expression_id),
+            Declaration::Namespace(declaration) => declaration.expressions.contains(&expression_id),
 
             // everything else treats child expressions as operands
             _ => false,
@@ -982,9 +1077,7 @@ impl NodeTree {
         let parent_property = self.get(parent_property_id);
 
         match parent_property {
-            Property::Method { body, .. } => body
-                .as_ref()
-                .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+            Property::Method { body, .. } => body.id == expression_id.id,
             _ => false,
         }
     }
@@ -1044,37 +1137,37 @@ impl NodeTree {
         self.scopes_by_node_id[node_id.id as usize]
     }
 
-    /// Append an annotation to a node by its global id.
+    /// Append a decorator to a node by its global id.
     #[inline]
-    pub fn append_annotation(
+    pub fn append_decorator(
         &mut self,
         target_id: LocalNodeIdAny,
-        annotation: LocalNodeId<Annotation>,
+        decorator: LocalNodeId<Decorator>,
     ) {
-        // track annotations for the target node
-        self.annotations_by_node_id
+        // track decorators for the target node
+        self.decorators_by_node_id
             .entry(target_id.id)
             .or_default()
-            .push(annotation);
+            .push(decorator);
 
-        // attach the annotation to its target for parent lookups
-        if annotation.id != target_id.id
-            && let Some(parent_slot) = self.parent_id_by_node_id.get_mut(annotation.id as usize)
+        // attach the decorator to its target for parent lookups
+        if decorator.id != target_id.id
+            && let Some(parent_slot) = self.parent_id_by_node_id.get_mut(decorator.id as usize)
         {
             *parent_slot = Some(target_id.id);
         }
     }
 
-    /// Whether there are any annotations attached to a node.
+    /// Whether there are any decorators attached to a node.
     #[inline]
-    pub fn has_annotations(&self, node_id: u32) -> bool {
-        self.annotations_by_node_id.contains_key(&node_id)
+    pub fn has_decorators(&self, node_id: u32) -> bool {
+        self.decorators_by_node_id.contains_key(&node_id)
     }
 
-    /// Get annotations attached to a node.
+    /// Get decorators attached to a node.
     #[inline]
-    pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
-        self.annotations_by_node_id
+    pub fn get_decorators(&self, node_id: u32) -> Vec<LocalNodeId<Decorator>> {
+        self.decorators_by_node_id
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
@@ -1143,14 +1236,18 @@ impl_node_tree_stores! {
     Declaration => declarations,
     Declarator => declarators,
     Property => properties,
+    TypeProperty => type_properties,
     Member => members,
     EnumField => enum_fields,
     WhereClause => where_clauses,
     DependencyItem => dependency_items,
+    GenericParameter => generic_parameters,
     Parameter => parameters,
+    GenericArgument => generic_arguments,
     Argument => arguments,
+    TypeExpression => type_expressions,
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
-    Annotation => annotations,
+    Decorator => decorators,
 }

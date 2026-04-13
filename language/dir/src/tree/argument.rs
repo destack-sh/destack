@@ -2,37 +2,76 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingModifier, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    LocalSymbolId, LocalTypeId, Node, NodeType, Pattern, StaticExpression, StringId,
+    Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId,
+    LocalTypeId, Node, NodeType, Pattern, StaticExpression, StringId, TypeExpression,
+    VarianceModifier,
 };
 
-/// A Parameter is a parameter to some construct.
+/// A generic parameter in static parameter position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub enum GenericParameter {
+    /// Type parameter.
+    Type {
+        name: StringId,
+        variance: Option<VarianceModifier>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<TypeExpression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Value parameter.
+    Value {
+        name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<Expression>>,
+        is_comptime: bool,
+        symbol: LocalSymbolId,
+    },
+    /// Malformed generic parameter slot.
+    Error { symbol: LocalSymbolId },
+}
+
+impl Node for GenericParameter {
+    const TYPE: NodeType = NodeType::GenericParameter;
+}
+
+impl GenericParameter {
+    /// Get the symbol of the generic parameter.
+    pub fn symbol(&self) -> LocalSymbolId {
+        match self {
+            GenericParameter::Type { symbol, .. }
+            | GenericParameter::Value { symbol, .. }
+            | GenericParameter::Error { symbol } => *symbol,
+        }
+    }
+}
+
+/// A parameter to a callable construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Parameter {
-    /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
+    /// Named scalar parameter.
     Named {
-        modifiers: Option<BindingModifier>,
         name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
-    /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
+    /// Pattern parameter.
     Pattern {
-        modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
-    /// Variadic parameter with a named binding (like `..T` or `...x: int32[]`).
+    /// Variadic named parameter.
     VariadicNamed {
-        modifiers: Option<BindingModifier>,
         name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         symbol: LocalSymbolId,
     },
-    /// Variadic parameter with a pattern binding (like `...[x, y]`).
+    /// Variadic pattern parameter.
     VariadicPattern {
-        modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         symbol: LocalSymbolId,
     },
     /// Malformed parameter slot.
@@ -44,67 +83,68 @@ impl Node for Parameter {
 }
 
 impl Parameter {
-    /// Get the modifiers of the parameter.
-    pub fn modifiers(&self) -> Option<&BindingModifier> {
-        match self {
-            Parameter::Named { modifiers, .. } => modifiers.as_ref(),
-            Parameter::Pattern { modifiers, .. } => modifiers.as_ref(),
-            Parameter::VariadicNamed { modifiers, .. } => modifiers.as_ref(),
-            Parameter::VariadicPattern { modifiers, .. } => modifiers.as_ref(),
-            Parameter::Error { .. } => None,
-        }
-    }
-
-    /// Report whether the parameter has a default value.
-    pub fn has_default(&self) -> bool {
-        match self {
-            Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => {
-                default.is_some()
-            }
-            Parameter::VariadicNamed { .. }
-            | Parameter::VariadicPattern { .. }
-            | Parameter::Error { .. } => false,
-        }
-    }
-
     /// Get the symbol of the parameter.
     pub fn symbol(&self) -> LocalSymbolId {
         match self {
-            Parameter::Named { symbol, .. } => *symbol,
-            Parameter::Pattern { symbol, .. } => *symbol,
-            Parameter::VariadicNamed { symbol, .. } => *symbol,
-            Parameter::VariadicPattern { symbol, .. } => *symbol,
-            Parameter::Error { symbol } => *symbol,
+            Parameter::Named { symbol, .. }
+            | Parameter::Pattern { symbol, .. }
+            | Parameter::VariadicNamed { symbol, .. }
+            | Parameter::VariadicPattern { symbol, .. }
+            | Parameter::Error { symbol } => *symbol,
         }
     }
 }
 
-/// An Argument is a named, positional, spread, or labeled argument.
-/// Parameter mapping (which parameter an argument maps to) is resolved
-/// as part of call resolution, not stored here.
+/// A generic argument in static argument position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub enum GenericArgument {
+    /// Type argument.
+    Type {
+        label: Option<StringId>,
+        value: LocalNodeId<TypeExpression>,
+    },
+    /// Value argument.
+    Value {
+        label: Option<StringId>,
+        value: LocalNodeId<Expression>,
+        is_comptime: bool,
+    },
+    /// Spread type argument.
+    SpreadType {
+        label: Option<StringId>,
+        value: LocalNodeId<TypeExpression>,
+    },
+    /// Spread value argument.
+    SpreadValue {
+        label: Option<StringId>,
+        value: LocalNodeId<Expression>,
+        is_comptime: bool,
+    },
+    /// Malformed generic argument slot.
+    Error,
+}
+
+impl Node for GenericArgument {
+    const TYPE: NodeType = NodeType::GenericArgument;
+}
+
+/// An argument to a runtime call or tree construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Argument {
-    /// Named argument (like `foo: 42` in tree literals).
+    /// Named argument.
     Named {
-        modifiers: Option<BindingModifier>,
         name: StringId,
         value: LocalNodeId<Expression>,
     },
-    /// Labeled tuple element (like `start: number` in `[start: number, end: number]`).
-    /// (Labels are purely for documentation/tooling and don't affect type checking directly.)
+    /// Labeled argument.
     Labeled {
-        modifiers: Option<BindingModifier>,
         label: StringId,
         value: LocalNodeId<Expression>,
     },
-    /// Positional argument (like `42` in `foo(42)`).
-    Positional {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
-    },
-    /// Spread argument (like `...args` or `[...args: any[]]`).
+    /// Positional argument.
+    Positional { value: LocalNodeId<Expression> },
+    /// Spread argument.
     Spread {
-        modifiers: Option<BindingModifier>,
         label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },
@@ -113,20 +153,15 @@ pub enum Argument {
 }
 
 impl Argument {
-    /// Get the value of the Argument.
+    /// Get the value of the argument.
     pub fn value(&self) -> LocalNodeId<Expression> {
         match self {
-            Argument::Named { value, .. } => *value,
-            Argument::Labeled { value, .. } => *value,
-            Argument::Positional { value, .. } => *value,
-            Argument::Spread { value, .. } => *value,
-            Argument::Error { value } => *value,
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value }
+            | Argument::Spread { value, .. }
+            | Argument::Error { value } => *value,
         }
-    }
-
-    /// Return whether the argument carries an explicit label.
-    pub fn is_named(&self) -> bool {
-        matches!(self, Argument::Named { .. } | Argument::Labeled { .. })
     }
 }
 
@@ -139,7 +174,7 @@ impl Node for Argument {
 /// This is a plain value type, not a tree node so we can pass it around directly.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum StaticArgument {
-    /// Unevaluated argument (needs compile-time evaluation).
+    /// Unevaluated argument.
     Unevaluated { node: GlobalNodeIdAny },
 
     /// Evaluated static argument.

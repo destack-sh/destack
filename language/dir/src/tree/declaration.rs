@@ -2,53 +2,19 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingAnchor, DependencyKind, DependencyMode, Expression, FunctionSignature, Generics,
-    GlobalSymbolId, Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name,
-    Node, NodeType, Parameter, StringId, TypeKind,
+    Ambientness, DependencyKind, ExportMode, Expression, FunctionSignature, GenericParameter,
+    GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node,
+    NodeType, Path, StringId, TypeExpression, WhereClause,
 };
 
-/// The kind of declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum DeclarationKind {
-    /// Declare.
-    Declaration,
-    /// Definition.
-    Definition,
-}
-
 /// The source keyword used for a namespace declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage, Default)]
 pub enum NamespaceKind {
     /// `namespace Foo {}`.
+    #[default]
     Namespace,
     /// `module Foo {}` or `module "foo" {}`.
     Module,
-}
-
-/// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum DeclarationAbstraction {
-    /// Abstract declaration.
-    Abstract,
-    /// Concrete declaration.
-    Concrete,
-}
-
-/// The meta data for a declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub struct DeclarationDescriptor {
-    /// The kind of declaration.
-    pub kind: DeclarationKind,
-    /// The abstraction level of the declaration.
-    pub abstraction: DeclarationAbstraction,
-    /// The anchor of the declaration.
-    pub anchor: BindingAnchor,
-    /// The name of the declaration.
-    pub name: Option<Name>,
-    /// The export type of the declaration.
-    pub export: Option<DependencyMode>,
-    /// The symbol of the declaration.
-    pub symbol: LocalSymbolId,
 }
 
 /// The target of an import-alias declaration.
@@ -57,225 +23,139 @@ pub enum ImportAliasTarget {
     /// A require-based alias target.
     Require { target: StringId },
     /// A qualified path alias target.
-    Path { value: LocalNodeId<Expression> },
+    Path { path: Path },
 }
 
-/// Declaration introduces a type or function into its scope.
+/// A global augmentation declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum Declaration {
-    /// Global augmentation declaration.
-    Global {
-        descriptor: DeclarationDescriptor,
-        scope: LocalScopeId,
-        expressions: Vec<LocalNodeId<Expression>>,
-    },
-    /// Namespace declaration.
-    Namespace {
-        descriptor: DeclarationDescriptor,
-        kind: NamespaceKind,
-        generics: Generics,
-        scope: LocalScopeId,
-        expressions: Vec<LocalNodeId<Expression>>,
-    },
-    /// Type alias declaration.
-    Type {
-        descriptor: DeclarationDescriptor,
-        kind: TypeKind,
-        mutability: Option<Mutability>,
-        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
-        value: LocalNodeId<Expression>,
-    },
-    /// Import-alias declaration (TypeScript `import A = B.C`).
-    ImportAlias {
-        descriptor: DeclarationDescriptor,
-        kind: DependencyKind,
-        target: ImportAliasTarget,
-    },
-    /// Struct declaration: nominal value type with fixed layout.
-    Struct {
-        descriptor: DeclarationDescriptor,
-        generics: Generics,
-        heritage: Heritage,
-        scope: LocalScopeId,
-        members: Vec<LocalNodeId<Member>>,
-    },
-    /// Class declaration with reference semantics.
-    Class {
-        descriptor: DeclarationDescriptor,
-        self_symbol: Option<LocalSymbolId>,
-        generics: Generics,
-        heritage: Heritage,
-        scope: LocalScopeId,
-        members: Vec<LocalNodeId<Member>>,
-    },
-    /// Enum declaration.
-    Enum {
-        descriptor: DeclarationDescriptor,
-        kind: EnumKind,
-        generics: Generics,
-        heritage: Heritage,
-        scope: LocalScopeId,
-        fields: Vec<LocalNodeId<EnumField>>,
-        members: Vec<LocalNodeId<Member>>,
-    },
-    /// Interface declaration.
-    Interface {
-        descriptor: DeclarationDescriptor,
-        kind: TypeKind,
-        generics: Generics,
-        heritage: Heritage,
-        scope: LocalScopeId,
-        members: Vec<LocalNodeId<Member>>,
-    },
-    /// Function declaration. Nested declarations are lifted from the body.
-    Function {
-        descriptor: DeclarationDescriptor,
-        self_symbol: Option<LocalSymbolId>,
-        signature: FunctionSignature,
-        scope: LocalScopeId,
-        body: Option<LocalNodeId<Expression>>,
-    },
-    /// Extension declaration.
-    Extension {
-        descriptor: DeclarationDescriptor,
-        generics: Generics,
-        target_type: LocalNodeId<Expression>,
-        target_symbol: Option<GlobalSymbolId>,
-        heritage: Heritage,
-        scope: LocalScopeId,
-        members: Vec<LocalNodeId<Member>>,
-    },
+pub struct GlobalDeclaration {
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The expressions inside the global augmentation body.
+    pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
-impl Node for Declaration {
-    const TYPE: NodeType = NodeType::Declaration;
+/// A namespace declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct NamespaceDeclaration {
+    /// The namespace name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The source namespace keyword.
+    pub kind: NamespaceKind,
+    /// The generic parameters of the namespace.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the namespace.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The expressions inside the namespace body.
+    pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
-impl Declaration {
-    /// Get the name of this kind of declaration.
-    pub fn kind_name(&self) -> &'static str {
-        match self {
-            Declaration::Global { .. } => "global",
-            Declaration::Namespace { kind, .. } => match kind {
-                NamespaceKind::Namespace => "namespace",
-                NamespaceKind::Module => "module",
-            },
-            Declaration::Type { .. } => "type",
-            Declaration::ImportAlias { .. } => "import alias",
-            Declaration::Struct { .. } => "struct",
-            Declaration::Class { .. } => "class",
-            Declaration::Enum { .. } => "enum",
-            Declaration::Interface { .. } => "interface",
-            Declaration::Function { .. } => "function",
-            Declaration::Extension { .. } => "extension",
-        }
-    }
+/// A type declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct TypeDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is nominal.
+    pub is_nominal: bool,
+    /// The optional mutability qualifier.
+    pub mutability: Option<Mutability>,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the declaration.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The declared type expression.
+    pub value: LocalNodeId<TypeExpression>,
+}
 
-    /// Get the descriptor of the declaration.
-    pub fn descriptor(&self) -> &DeclarationDescriptor {
-        match self {
-            Declaration::Global { descriptor, .. } => descriptor,
-            Declaration::Namespace { descriptor, .. } => descriptor,
-            Declaration::Type { descriptor, .. } => descriptor,
-            Declaration::ImportAlias { descriptor, .. } => descriptor,
-            Declaration::Struct { descriptor, .. } => descriptor,
-            Declaration::Class { descriptor, .. } => descriptor,
-            Declaration::Enum { descriptor, .. } => descriptor,
-            Declaration::Interface { descriptor, .. } => descriptor,
-            Declaration::Function { descriptor, .. } => descriptor,
-            Declaration::Extension { descriptor, .. } => descriptor,
-        }
-    }
+/// An import-alias declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct ImportAliasDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The import alias dependency kind.
+    pub kind: DependencyKind,
+    /// The alias target.
+    pub target: ImportAliasTarget,
+}
 
-    /// Get the symbol of the declaration.
-    pub fn symbol(&self) -> LocalSymbolId {
-        self.descriptor().symbol
-    }
+/// A struct declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct StructDeclaration {
+    /// The declared name.
+    pub name: Name,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the declaration.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The implemented interfaces.
+    pub implements_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The embedded types.
+    pub embedded_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The struct members.
+    pub members: Vec<LocalNodeId<Member>>,
+}
 
-    /// Get the symbol that owns the declaration name when one exists.
-    pub fn name_symbol(&self) -> LocalSymbolId {
-        match self {
-            Declaration::Class {
-                self_symbol: Some(self_symbol),
-                ..
-            }
-            | Declaration::Function {
-                self_symbol: Some(self_symbol),
-                ..
-            } => *self_symbol,
-            _ => self.symbol(),
-        }
-    }
-
-    /// Get the scope of the declaration.
-    /// Returns None for Declaration::Type which has no scope.
-    pub fn scope(&self) -> Option<LocalScopeId> {
-        match self {
-            Declaration::Global { scope, .. } => Some(*scope),
-            Declaration::Namespace { scope, .. } => Some(*scope),
-            Declaration::Type { .. } | Declaration::ImportAlias { .. } => None,
-            Declaration::Struct { scope, .. } => Some(*scope),
-            Declaration::Class { scope, .. } => Some(*scope),
-            Declaration::Enum { scope, .. } => Some(*scope),
-            Declaration::Interface { scope, .. } => Some(*scope),
-            Declaration::Function { scope, .. } => Some(*scope),
-            Declaration::Extension { scope, .. } => Some(*scope),
-        }
-    }
-
-    /// Get the member ids for structured declarations.
-    pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
-        match self {
-            Declaration::Struct { members, .. }
-            | Declaration::Class { members, .. }
-            | Declaration::Enum { members, .. }
-            | Declaration::Interface { members, .. }
-            | Declaration::Extension { members, .. } => Some(members),
-            Declaration::Global { .. }
-            | Declaration::Namespace { .. }
-            | Declaration::Type { .. }
-            | Declaration::ImportAlias { .. }
-            | Declaration::Function { .. } => None,
-        }
-    }
-
-    /// Get the heritage block for declarations that carry one.
-    pub fn heritage(&self) -> Option<&Heritage> {
-        match self {
-            Declaration::Struct { heritage, .. }
-            | Declaration::Class { heritage, .. }
-            | Declaration::Enum { heritage, .. }
-            | Declaration::Interface { heritage, .. }
-            | Declaration::Extension { heritage, .. } => Some(heritage),
-            Declaration::Global { .. }
-            | Declaration::Namespace { .. }
-            | Declaration::Type { .. }
-            | Declaration::ImportAlias { .. }
-            | Declaration::Function { .. } => None,
-        }
-    }
-
-    /// Get the static parameters of the declaration.
-    #[inline]
-    pub fn static_parameters(&self) -> Option<&Vec<LocalNodeId<Parameter>>> {
-        match self {
-            Declaration::Function { signature, .. } => signature
-                .generics
-                .as_ref()
-                .and_then(|g| g.static_parameters.as_ref()),
-            Declaration::Namespace { generics, .. }
-            | Declaration::Struct { generics, .. }
-            | Declaration::Class { generics, .. }
-            | Declaration::Interface { generics, .. }
-            | Declaration::Enum { generics, .. }
-            | Declaration::Extension { generics, .. } => generics.static_parameters.as_ref(),
-            Declaration::Type {
-                static_parameters, ..
-            } => static_parameters.as_ref(),
-            Declaration::ImportAlias { .. } => None,
-            Declaration::Global { .. } => None,
-        }
-    }
+/// A class declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct ClassDeclaration {
+    /// The declared name.
+    pub name: Name,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The optional symbol for `self`.
+    pub self_symbol: Option<LocalSymbolId>,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the declaration is abstract.
+    pub is_abstract: bool,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the declaration.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The extended class.
+    pub extends_type: Option<LocalNodeId<TypeExpression>>,
+    /// The implemented interfaces.
+    pub implements_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The class members.
+    pub members: Vec<LocalNodeId<Member>>,
 }
 
 /// The kind of an enum declaration.
@@ -288,15 +168,238 @@ pub enum EnumKind {
     Const,
 }
 
-/// An enum field is a named field of an enum declaration.
+/// An enum declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct EnumDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The enum kind.
+    pub kind: EnumKind,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the declaration.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The implemented interfaces.
+    pub implements_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The enum fields.
+    pub fields: Vec<LocalNodeId<EnumField>>,
+    /// The enum members.
+    pub members: Vec<LocalNodeId<Member>>,
+}
+
+/// An interface declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct InterfaceDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// Whether the interface is nominal.
+    pub is_nominal: bool,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the declaration.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The extended interfaces.
+    pub extends_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The interface members.
+    pub members: Vec<LocalNodeId<Member>>,
+}
+
+/// A function declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct FunctionDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The optional symbol for `self`.
+    pub self_symbol: Option<LocalSymbolId>,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The function signature.
+    pub signature: FunctionSignature,
+    /// The optional function body.
+    pub body: Option<LocalNodeId<Expression>>,
+}
+
+/// An extension declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct ExtensionDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the declaration.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The extended target type.
+    pub target_type: LocalNodeId<TypeExpression>,
+    /// The resolved target symbol.
+    pub target_symbol: Option<GlobalSymbolId>,
+    /// The implemented interfaces.
+    pub implements_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The extension members.
+    pub members: Vec<LocalNodeId<Member>>,
+}
+
+/// Declaration introduces a type or function into its scope.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub enum Declaration {
+    /// Global augmentation declaration.
+    Global(GlobalDeclaration),
+    /// Namespace declaration.
+    Namespace(NamespaceDeclaration),
+    /// Type declaration.
+    Type(TypeDeclaration),
+    /// Import-alias declaration.
+    ImportAlias(ImportAliasDeclaration),
+    /// Struct declaration.
+    Struct(StructDeclaration),
+    /// Class declaration.
+    Class(ClassDeclaration),
+    /// Enum declaration.
+    Enum(EnumDeclaration),
+    /// Interface declaration.
+    Interface(InterfaceDeclaration),
+    /// Extension declaration.
+    Extension(ExtensionDeclaration),
+    /// Function declaration.
+    Function(FunctionDeclaration),
+}
+
+impl Node for Declaration {
+    const TYPE: NodeType = NodeType::Declaration;
+}
+
+impl Declaration {
+    /// Get the name of this kind of declaration.
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            Declaration::Global(_) => "global",
+            Declaration::Namespace(declaration) => match declaration.kind {
+                NamespaceKind::Namespace => "namespace",
+                NamespaceKind::Module => "module",
+            },
+            Declaration::Type(_) => "type",
+            Declaration::ImportAlias(_) => "import alias",
+            Declaration::Struct(_) => "struct",
+            Declaration::Class(_) => "class",
+            Declaration::Enum(_) => "enum",
+            Declaration::Interface(_) => "interface",
+            Declaration::Extension(_) => "extension",
+            Declaration::Function(_) => "function",
+        }
+    }
+
+    /// Get the declaration symbol.
+    pub fn symbol(&self) -> LocalSymbolId {
+        match self {
+            Declaration::Global(declaration) => declaration.symbol,
+            Declaration::Namespace(declaration) => declaration.symbol,
+            Declaration::Type(declaration) => declaration.symbol,
+            Declaration::ImportAlias(declaration) => declaration.symbol,
+            Declaration::Struct(declaration) => declaration.symbol,
+            Declaration::Class(declaration) => declaration.symbol,
+            Declaration::Enum(declaration) => declaration.symbol,
+            Declaration::Interface(declaration) => declaration.symbol,
+            Declaration::Extension(declaration) => declaration.symbol,
+            Declaration::Function(declaration) => declaration.symbol,
+        }
+    }
+
+    /// Get the symbol that owns the declaration name when one exists.
+    pub fn name_symbol(&self) -> LocalSymbolId {
+        match self {
+            Declaration::Class(ClassDeclaration {
+                self_symbol: Some(self_symbol),
+                ..
+            })
+            | Declaration::Function(FunctionDeclaration {
+                self_symbol: Some(self_symbol),
+                ..
+            }) => *self_symbol,
+            _ => self.symbol(),
+        }
+    }
+
+    /// Get the declaration scope when one exists.
+    pub fn scope(&self) -> Option<LocalScopeId> {
+        match self {
+            Declaration::Global(declaration) => Some(declaration.scope),
+            Declaration::Namespace(declaration) => Some(declaration.scope),
+            Declaration::Type(declaration) => Some(declaration.scope),
+            Declaration::ImportAlias(_) => None,
+            Declaration::Struct(declaration) => Some(declaration.scope),
+            Declaration::Class(declaration) => Some(declaration.scope),
+            Declaration::Enum(declaration) => Some(declaration.scope),
+            Declaration::Interface(declaration) => Some(declaration.scope),
+            Declaration::Extension(declaration) => Some(declaration.scope),
+            Declaration::Function(declaration) => Some(declaration.scope),
+        }
+    }
+
+    /// Get the member ids for structured declarations.
+    pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
+        match self {
+            Declaration::Struct(declaration) => Some(&declaration.members),
+            Declaration::Class(declaration) => Some(&declaration.members),
+            Declaration::Enum(declaration) => Some(&declaration.members),
+            Declaration::Interface(declaration) => Some(&declaration.members),
+            Declaration::Extension(declaration) => Some(&declaration.members),
+            Declaration::Function(_) => None,
+            _ => None,
+        }
+    }
+
+    /// Get the generic parameters of the declaration.
+    pub fn generic_parameters(&self) -> Option<&[LocalNodeId<GenericParameter>]> {
+        match self {
+            Declaration::Namespace(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Type(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Struct(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Class(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Enum(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Interface(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Extension(declaration) => Some(&declaration.generic_parameters),
+            Declaration::Function(declaration) => Some(&declaration.signature.generic_parameters),
+            Declaration::Global(_) | Declaration::ImportAlias(_) => None,
+        }
+    }
+}
+
+/// An enum field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct EnumField {
     /// The name of the enum field.
-    pub name: StringId,
-    /// The value of the enum field.
+    pub name: Name,
+    /// The default value of the enum field.
     pub value: Option<LocalNodeId<Expression>>,
-    /// The symbol of the enum field.
-    pub symbol: LocalSymbolId,
 }
 
 impl Node for EnumField {

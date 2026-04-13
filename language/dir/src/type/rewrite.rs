@@ -1,6 +1,6 @@
 use crate::{
-    LocalTypeId, StaticArgument, StaticExpression, StaticProperty, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeMappedParameter, TypeTable,
+    LocalTypeId, MappedTypeParameter, StaticArgument, StaticExpression, StaticProperty, Type,
+    TypeElement, TypeField, TypeIndexSignature, TypeTable,
 };
 
 /// Options for type rewriters.
@@ -558,8 +558,8 @@ fn rewrite_type_id_option<V: TypeRewriter + ?Sized>(
 fn rewrite_type_mapped_parameter<V: TypeRewriter + ?Sized>(
     rewriter: &mut V,
     types: &mut TypeTable,
-    parameter: &TypeMappedParameter,
-) -> (TypeMappedParameter, bool) {
+    parameter: &MappedTypeParameter,
+) -> (MappedTypeParameter, bool) {
     let mapped_constraint = rewriter.rewrite_type_id(types, parameter.constraint);
     let (mapped_remap, remap_changed) =
         rewrite_type_id_option(rewriter, types, parameter.key_remap);
@@ -568,7 +568,7 @@ fn rewrite_type_mapped_parameter<V: TypeRewriter + ?Sized>(
         (parameter.clone(), false)
     } else {
         (
-            TypeMappedParameter {
+            MappedTypeParameter {
                 name: parameter.name,
                 symbol: parameter.symbol,
                 constraint: mapped_constraint,
@@ -862,7 +862,6 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
     match property {
         StaticProperty::Unevaluated { .. } => (property.clone(), false),
         StaticProperty::Field {
-            modifiers,
             key,
             value,
             default,
@@ -882,7 +881,6 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
             } else {
                 (
                     StaticProperty::Field {
-                        modifiers: *modifiers,
                         key: *key,
                         value: mapped_value,
                         default: mapped_default,
@@ -893,7 +891,6 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
             }
         }
         StaticProperty::Method {
-            modifiers,
             key,
             signature,
             body,
@@ -906,7 +903,6 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
             } else {
                 (
                     StaticProperty::Method {
-                        modifiers: *modifiers,
                         key: *key,
                         signature: signature.clone(),
                         body: mapped_body,

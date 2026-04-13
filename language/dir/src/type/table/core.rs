@@ -517,32 +517,35 @@ fn hash_float_type(float_type: FloatType, hasher: &mut impl Hasher) {
 /// Hash one scalar literal into the provided hasher.
 fn hash_scalar_literal(literal: &ScalarLiteral, hasher: &mut impl Hasher) {
     match literal {
-        ScalarLiteral::Boolean(value) => {
+        ScalarLiteral::Null => {
             0u8.hash(hasher);
-            value.hash(hasher);
         }
-        ScalarLiteral::Integer(value) => {
+        ScalarLiteral::Boolean(value) => {
             1u8.hash(hasher);
             value.hash(hasher);
         }
-        ScalarLiteral::Bigint(value) => {
+        ScalarLiteral::Integer(value) => {
             2u8.hash(hasher);
             value.hash(hasher);
         }
-        ScalarLiteral::Float(value) => {
+        ScalarLiteral::Bigint(value) => {
             3u8.hash(hasher);
+            value.hash(hasher);
+        }
+        ScalarLiteral::Float(value) => {
+            4u8.hash(hasher);
             value.to_bits().hash(hasher);
         }
         ScalarLiteral::Character(value) => {
-            4u8.hash(hasher);
-            value.hash(hasher);
-        }
-        ScalarLiteral::String(value) => {
             5u8.hash(hasher);
             value.hash(hasher);
         }
-        ScalarLiteral::RegexString { content, flags } => {
+        ScalarLiteral::String(value) => {
             6u8.hash(hasher);
+            value.hash(hasher);
+        }
+        ScalarLiteral::RegexString { content, flags } => {
+            7u8.hash(hasher);
             content.hash(hasher);
             flags.hash(hasher);
         }

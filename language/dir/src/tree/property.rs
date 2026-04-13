@@ -2,8 +2,9 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DeclarationKind, DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalSymbolId,
-    Mutability, Node, NodeType, Parameter, StaticExpression, StringId, Visibility, WhereClause,
+    Ambientness, Expression, FunctionSignature, GenericParameter, Key, LocalNodeId, LocalSymbolId,
+    Mutability, Node, NodeType, StaticExpression, StringId, TypeExpression, Visibility,
+    WhereClause,
 };
 
 /// Static property in some static context.
@@ -11,21 +12,19 @@ use crate::{
 /// This is a plain value type, not a tree node, so that we can pass it around directly.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum StaticProperty {
-    /// Unevaluated property (needs compile-time evaluation).
+    /// Unevaluated property.
     Unevaluated { node: LocalNodeId<Property> },
 
-    /// Evaluated static field (like `x: int32`).
+    /// Evaluated static field.
     Field {
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
+        key: Key,
         value: StaticExpression,
         default: Option<StaticExpression>,
         symbol: LocalSymbolId,
     },
-    /// Evaluated static member function (like `foo()` or `<T>(): T`).
+    /// Evaluated static member function.
     Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
+        key: Key,
         signature: FunctionSignature,
         body: StaticExpression,
         symbol: LocalSymbolId,
@@ -38,97 +37,22 @@ impl StaticProperty {
         match self {
             StaticProperty::Unevaluated { .. } => false,
             StaticProperty::Field { value, default, .. } => {
-                value.is_evaluated() && default.as_ref().is_none_or(|d| d.is_evaluated())
+                value.is_evaluated() && default.as_ref().is_none_or(|value| value.is_evaluated())
             }
             StaticProperty::Method { body, .. } => body.is_evaluated(),
         }
     }
 }
 
-/// The type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum BindingKind {
-    /// Definite binding (like `x: int32`).
-    Must,
-    /// Maybe binding (like `x?: int32`).
-    Maybe,
-}
-
-/// The abstraction modifier of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum AbstractionModifier {
-    /// Abstract binding.
-    Abstract,
-    /// Override binding.
-    Override,
-    /// Abstract override binding.
-    AbstractOverride,
-}
-
-/// Variance annotation for type parameters.
+/// Variance annotation for generic parameters.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum VarianceModifier {
-    /// Contravariant type parameter.
+    /// Contravariant parameter.
     In,
-    /// Covariant type parameter.
+    /// Covariant parameter.
     Out,
-    /// Invariant type parameter.
+    /// Invariant parameter.
     InOut,
-}
-
-/// The anchor of a binding (static or instance).
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum BindingAnchor {
-    /// Static container (static in relation to the container).
-    Static,
-    /// Instance container (whatever contains the declaration).
-    Instance,
-}
-
-/// The operator to apply to the binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum BindingOperator {
-    /// Apply `as const` to the value of the binding.
-    AsConst,
-}
-
-/// The accessor kind of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum AccessorKind {
-    /// Auto-accessor (generates getter/setter).
-    Accessor,
-}
-
-/// The evaluation timing of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum Timing {
-    /// Must be evaluated at compile time.
-    Comptime,
-}
-
-/// The modifiers of a field-like item.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub struct BindingModifier {
-    /// The kind of the binding.
-    pub kind: Option<BindingKind>,
-    /// The declaration kind of the binding.
-    pub declaration: Option<DeclarationKind>,
-    /// The abstraction modifier of the binding.
-    pub abstraction: Option<AbstractionModifier>,
-    /// The variance of a type parameter.
-    pub variance: Option<VarianceModifier>,
-    /// The anchor of the binding.
-    pub anchor: Option<BindingAnchor>,
-    /// The mutability of the field.
-    pub mutability: Option<Mutability>,
-    /// The visibility of the field.
-    pub visibility: Option<Visibility>,
-    /// The operator to apply to the binding.
-    pub operator: Option<BindingOperator>,
-    /// The accessor kind of the binding.
-    pub accessor: Option<AccessorKind>,
-    /// The evaluation timing of the binding.
-    pub timing: Option<Timing>,
 }
 
 /// The mode of a function.
@@ -146,30 +70,24 @@ pub enum FunctionMode {
     Call,
 }
 
-/// A Property is a property of a variant type (may be a field or method).
-/// `symbol` is the declaration symbol for this property.
-/// For object literals, field resolution (to expected type's field) is in ResolutionTable.
+/// A property of an object-like literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Property {
-    /// Named field (like `x: int32`).
+    /// Named field.
     Field {
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
-        value: Option<LocalNodeId<Expression>>,
-        default: Option<LocalNodeId<Expression>>,
+        key: Key,
+        value: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
-    /// Named member function (like `foo()` or `<T>(): T`).
+    /// Named member function.
     Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
+        key: Key,
         signature: FunctionSignature,
-        body: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
-    /// Spread property (like `...a`).
+    /// Spread property.
     Spread {
-        modifiers: Option<BindingModifier>,
         value: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
@@ -181,58 +99,80 @@ impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 }
 
-/// A Member is a member of a object-like declaration.
+/// A member of a declaration body.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Member {
-    /// Associated type alias (like `type Item = T`).
+    /// Associated type alias.
     Type {
-        modifiers: Option<BindingModifier>,
         name: StringId,
-        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
-        where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
-        ty: Option<LocalNodeId<Expression>>,
-        value: Option<LocalNodeId<Expression>>,
+        generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+        where_clauses: Vec<LocalNodeId<WhereClause>>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        value: Option<LocalNodeId<TypeExpression>>,
+        visibility: Option<Visibility>,
+        ambient: Ambientness,
+        is_abstract: bool,
+        is_override: bool,
+        is_static: bool,
         symbol: LocalSymbolId,
     },
-    /// Associated compile-time constant (like `comptime const Width: number = 8`).
+    /// Associated compile-time constant.
     ComptimeConst {
-        modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<LocalNodeId<Expression>>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
+        visibility: Option<Visibility>,
+        ambient: Ambientness,
+        is_static: bool,
         symbol: LocalSymbolId,
     },
-    /// Named field (like `x: int32`).
+    /// Named field.
     Field {
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
-        value: Option<LocalNodeId<Expression>>,
+        key: Key,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
+        is_optional: bool,
+        is_readonly: bool,
+        mutability: Option<Mutability>,
+        visibility: Option<Visibility>,
+        ambient: Ambientness,
+        is_abstract: bool,
+        is_override: bool,
+        is_static: bool,
+        is_const_asserted: bool,
+        is_accessor: bool,
+        is_comptime: bool,
         symbol: LocalSymbolId,
     },
-    /// Named member function (like `foo()` or `<T>(): T`).
+    /// Named member function.
     Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
+        key: Option<Key>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
+        visibility: Option<Visibility>,
+        ambient: Ambientness,
+        is_abstract: bool,
+        is_override: bool,
+        is_static: bool,
+        is_accessor: bool,
+        is_comptime: bool,
         symbol: LocalSymbolId,
     },
-    /// Type embedding (like `...Base`), includes all members from the embedded type.
+    /// Type embedding.
     Embed {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
+        value: LocalNodeId<TypeExpression>,
+        visibility: Option<Visibility>,
+        ambient: Ambientness,
+        is_static: bool,
         symbol: LocalSymbolId,
     },
-    /// Static initialization block (like `static { ... }`).
+    /// Static initialization block.
     StaticBlock {
-        modifiers: Option<BindingModifier>,
         body: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
-    /// Comptime block (like `comptime { ... }`).
+    /// Comptime block.
     ComptimeBlock {
-        modifiers: Option<BindingModifier>,
         body: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
@@ -244,28 +184,23 @@ impl Member {
     /// Get the symbol of the member.
     pub fn symbol(&self) -> LocalSymbolId {
         match self {
-            Member::Type { symbol, .. } => *symbol,
-            Member::ComptimeConst { symbol, .. } => *symbol,
-            Member::Field { symbol, .. } => *symbol,
-            Member::Method { symbol, .. } => *symbol,
-            Member::Embed { symbol, .. } => *symbol,
-            Member::StaticBlock { symbol, .. } => *symbol,
-            Member::ComptimeBlock { symbol, .. } => *symbol,
-            Member::Error { symbol } => *symbol,
+            Member::Type { symbol, .. }
+            | Member::ComptimeConst { symbol, .. }
+            | Member::Field { symbol, .. }
+            | Member::Method { symbol, .. }
+            | Member::Embed { symbol, .. }
+            | Member::StaticBlock { symbol, .. }
+            | Member::ComptimeBlock { symbol, .. }
+            | Member::Error { symbol } => *symbol,
         }
     }
 
-    /// Get the key of the member (name or dynamic key).
-    pub fn key(&self) -> Option<&DynamicKey> {
+    /// Get the key of the member when one exists.
+    pub fn key(&self) -> Option<&Key> {
         match self {
-            Member::Type { .. } => None,
-            Member::ComptimeConst { .. } => None,
-            Member::Field { key, .. } => key.as_ref(),
+            Member::Field { key, .. } => Some(key),
             Member::Method { key, .. } => key.as_ref(),
-            Member::Embed { .. } => None,
-            Member::StaticBlock { .. } => None,
-            Member::ComptimeBlock { .. } => None,
-            Member::Error { .. } => None,
+            _ => None,
         }
     }
 }
