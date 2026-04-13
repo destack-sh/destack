@@ -256,7 +256,9 @@ impl Node for Function {
 
 impl Function {
     /// Build parameter-derived SSA tables.
-    fn parameter_state(parameters: &[Parameter]) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
+    pub(crate) fn parameter_state(
+        parameters: &[Parameter],
+    ) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
         // derive the next value id from concrete parameters
         let next_value_id = parameters
             .iter()

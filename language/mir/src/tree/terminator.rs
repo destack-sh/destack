@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Block, BlockReference, Call, Function, FunctionReference, IntegerReference,
-    InterfaceSlotId, Node, NodeType, TypeReference, ValueReference, VtableSlotId,
+    BinaryOperator, BlockReference, Call, FunctionReference, IntegerReference, InterfaceSlotId,
+    Node, NodeType, TypeReference, ValueReference, VtableSlotId,
 };
 
 /// One control-flow edge target.
@@ -372,21 +372,21 @@ impl Terminator {
         match self {
             Terminator::Error => smallvec![],
             Terminator::Return { .. } => smallvec![],
-            Terminator::Jump { target, .. } => smallvec![*target],
+            Terminator::Jump { target, .. } => smallvec![target.block],
             Terminator::Branch {
                 then_target,
                 else_target,
                 ..
-            } => smallvec![*then_target, *else_target],
+            } => smallvec![then_target.block, else_target.block],
             Terminator::Check {
                 success, failure, ..
             } => smallvec![success.block, failure.block],
             Terminator::Switch { default, cases, .. } => {
-                let mut successors = smallvec![*default];
+                let mut successors = smallvec![default.block];
                 successors.extend(cases.iter().map(|case| case.target.block));
                 successors
             }
-            Terminator::Yield { resume, .. } => smallvec![*resume],
+            Terminator::Yield { resume, .. } => smallvec![resume.block],
             Terminator::Invoke {
                 normal_target,
                 unwind_target,
