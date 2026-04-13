@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 use destack_mir::{
-    BinaryOperator, CastOperator, Constant, Global, Intrinsic, LocalNodeId, NodeTree, Type,
-    UnaryOperator,
+    BinaryOperator, CastOperator, Constant, Intrinsic, LocalNodeId, NodeTree, Type, UnaryOperator,
 };
 
 use super::{
@@ -62,10 +61,14 @@ pub fn constant_type_of(constant: &Constant) -> ConstantType {
 /// Check whether a constant type matches a MIR type.
 pub fn constant_matches_type(
     constant_type: ConstantType,
-    destination_type: LocalNodeId<Type>,
+    destination_type: impl Into<mir::TypeReference>,
     pointer_width_bits: u16,
     tree: &NodeTree,
 ) -> bool {
+    let Some(destination_type) = destination_type.into().ty() else {
+        return false;
+    };
+
     match (constant_type, tree.get(destination_type)) {
         (ConstantType::Null, Type::Reference { is_nullable, .. })
         | (ConstantType::Null, Type::TensorReference { is_nullable, .. }) => *is_nullable,
@@ -111,8 +114,8 @@ pub fn constant_for_value(
 
 /// Resolve constant arguments for a parameter list.
 pub fn constant_arguments_for_parameters(
-    arguments: &[mir::Value],
-    parameters: &[mir::TypedValue],
+    arguments: &[mir::ValueReference],
+    parameters: &[mir::Parameter],
     constants: &impl ConstantLookup,
     pointer_width_bits: u16,
     tree: &mir::NodeTree,
@@ -125,7 +128,8 @@ pub fn constant_arguments_for_parameters(
     // collect constant arguments in order
     let mut resolved = Vec::with_capacity(arguments.len());
     for (argument, parameter) in arguments.iter().zip(parameters.iter()) {
-        let constant = constants.get_constant(*argument).and_then(|constant| {
+        let argument = argument.value()?;
+        let constant = constants.get_constant(argument).and_then(|constant| {
             let constant_type = constant_type_of(constant);
             if constant_matches_type(constant_type, parameter.ty, pointer_width_bits, tree) {
                 Some(constant.clone())
@@ -163,8 +167,13 @@ pub fn apply_constant_parameters(
         };
 
         // allocate a new constant value
-        let destination = function.next_typed_value(param.ty);
-        substitutions.insert(param.value, destination);
+        let Some(parameter) = param.typed_value() else {
+            continue;
+        };
+
+        let destination = function.next_typed_value(parameter.ty);
+        let parameter_value = parameter.value;
+        substitutions.insert(parameter_value, destination);
         new_instructions.push((destination, constant.clone()));
     }
 
@@ -179,7 +188,7 @@ pub fn apply_constant_parameters(
 
         for (destination, constant) in &new_instructions {
             let instruction_id = tree.insert(mir::Instruction::Const {
-                destination: *destination,
+                destination: (*destination).into(),
                 value: constant.clone(),
             });
             new_instruction_ids.push(instruction_id);
@@ -357,7 +366,12 @@ pub fn constant_all_ones_like(template: &Constant) -> Constant {
 }
 
 /// Read a scalar constant from an immutable global.
-pub fn constant_from_global(global: LocalNodeId<Global>, tree: &NodeTree) -> Option<Constant> {
+pub fn constant_from_global(
+    global: impl Into<mir::GlobalReference>,
+    tree: &NodeTree,
+) -> Option<Constant> {
+    let global = global.into().global()?;
+
     // read global definition
     let global = tree.get(global);
     if global.is_mutable() {
@@ -384,11 +398,13 @@ pub enum ConstantTree {
 
 /// Read a constant tree from an immutable global initializer.
 pub fn constant_tree_from_global(
-    global: LocalNodeId<Global>,
+    global: impl Into<mir::GlobalReference>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> Option<ConstantTree> {
+    let global = global.into().global()?;
+
     // read global definition
     let global = tree.get(global);
     if global.is_mutable() {
@@ -661,11 +677,15 @@ fn mask_to_width(value: u64, width: u8) -> u64 {
 /// Build a constant tree from a global initializer.
 fn constant_tree_from_initializer(
     initializer: &mir::GlobalInitializer,
-    ty: LocalNodeId<Type>,
+    ty: impl Into<mir::TypeReference>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
+    let Some(ty) = ty.into().ty() else {
+        return ConstantTree::Unknown;
+    };
+
     // map initializer kind
     match initializer {
         mir::GlobalInitializer::Zero => {
@@ -689,9 +709,13 @@ fn constant_tree_from_initializer(
 /// Build a scalar constant tree when the type is compatible.
 fn constant_tree_from_scalar(
     constant: &Constant,
-    ty: LocalNodeId<Type>,
+    ty: impl Into<mir::TypeReference>,
     tree: &NodeTree,
 ) -> ConstantTree {
+    let Some(ty) = ty.into().ty() else {
+        return ConstantTree::Unknown;
+    };
+
     // read type
     let ty = tree.get(ty);
 
@@ -709,11 +733,15 @@ fn constant_tree_from_scalar(
 
 /// Build a zero constant tree for the given type.
 fn constant_tree_from_zero(
-    ty: LocalNodeId<Type>,
+    ty: impl Into<mir::TypeReference>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
+    let Some(ty) = ty.into().ty() else {
+        return ConstantTree::Unknown;
+    };
+
     // read type
     let ty = tree.get(ty);
 
@@ -823,10 +851,14 @@ fn constant_tree_from_zero(
 /// Build a constant tree from a byte initializer when possible.
 fn constant_tree_from_bytes(
     bytes: &[u8],
-    ty: LocalNodeId<Type>,
+    ty: impl Into<mir::TypeReference>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
 ) -> ConstantTree {
+    let Some(ty) = ty.into().ty() else {
+        return ConstantTree::Unknown;
+    };
+
     // read array type
     let Type::Array {
         element, length, ..
@@ -846,10 +878,14 @@ fn constant_tree_from_bytes(
     }
 
     // require 8 bit integer element type
+    let Some(element) = element.ty() else {
+        return ConstantTree::Unknown;
+    };
+
     let Type::Int {
         width,
         is_signed: signed,
-    } = tree.get(*element)
+    } = tree.get(element)
     else {
         return ConstantTree::Unknown;
     };
@@ -889,11 +925,15 @@ fn constant_tree_from_bytes(
 /// Build a constant tree from an aggregate initializer.
 fn constant_tree_from_aggregate_initializer(
     elements: &[mir::GlobalInitializer],
-    ty: LocalNodeId<Type>,
+    ty: impl Into<mir::TypeReference>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
+    let Some(ty) = ty.into().ty() else {
+        return ConstantTree::Unknown;
+    };
+
     // map aggregate initializer to type shape
     match tree.get(ty) {
         Type::Array {

@@ -805,7 +805,7 @@ impl<'a> FunctionLowerer<'a> {
                 // update the aggregate value
                 let current = self.binding_value(binding);
                 let reference_pointee = match self.state.builder.tree().get(binding.ty) {
-                    mir::Type::Reference { pointee, .. } => Some(*pointee),
+                    mir::Type::Reference { pointee, .. } => pointee.ty(),
                     _ => None,
                 };
                 if let Some(pointee) = reference_pointee {

@@ -108,7 +108,9 @@ fn run_dead_arg_eliminate(tree: &mut mir::NodeTree) -> bool {
         }
 
         let function = tree.get(function_id);
-        let signature = SignatureKey::from_function(tree, function);
+        let Some(signature) = SignatureKey::from_function(tree, function) else {
+            continue;
+        };
 
         // skip functions that might be called indirectly
         if call_data.indirect_signatures.contains(&signature) {
@@ -155,9 +157,10 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                 if let Some(dispatch) = instruction.call_dispatch_kind() {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call { function, .. } = instruction
+                        && let Some(function) = function.function()
                     {
                         data.direct_calls
-                            .entry(*function)
+                            .entry(function)
                             .or_default()
                             .push(DirectCallSite::Instruction(instruction_id));
                         continue;
@@ -176,8 +179,12 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             let terminator = tree.get(block.terminator);
             match terminator {
                 mir::Terminator::Invoke { function, .. } => {
+                    let Some(function) = function.function() else {
+                        continue;
+                    };
+
                     data.direct_calls
-                        .entry(*function)
+                        .entry(function)
                         .or_default()
                         .push(DirectCallSite::Terminator(block_id));
                 }
@@ -190,8 +197,12 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                     }
                 }
                 mir::Terminator::TailCall { function, .. } => {
+                    let Some(function) = function.function() else {
+                        continue;
+                    };
+
                     data.direct_calls
-                        .entry(*function)
+                        .entry(function)
                         .or_default()
                         .push(DirectCallSite::Terminator(block_id));
                 }
@@ -226,7 +237,11 @@ fn unused_parameter_indices(function: &mir::Function, tree: &mir::NodeTree) -> V
             continue;
         }
 
-        if !use_def.use_blocks.contains_key(&param.value) {
+        let Some(value) = param.value.value() else {
+            continue;
+        };
+
+        if !use_def.use_blocks.contains_key(&value) {
             unused.push(index);
         }
     }
@@ -246,7 +261,7 @@ fn apply_parameter_removals(
         unused
             .iter()
             .filter_map(|index| function.parameters.get(*index))
-            .map(|param| param.value)
+            .filter_map(|param| param.value.value())
             .collect()
     };
 
@@ -262,7 +277,11 @@ fn apply_parameter_removals(
             .remap_return_lifetime(&function.return_lifetime)
             .unwrap_or(mir::Lifetime::Inferred);
         function.allocation_size = remap.remap_allocation_size(function.allocation_size);
-        function.entry.expect("defined function has entry block")
+        let Some(entry_id) = function.entry else {
+            return;
+        };
+
+        entry_id
     };
 
     // update entry block parameters to match the new signature
@@ -306,7 +325,8 @@ fn update_call_sites(
                 let signature = if unused.is_empty() {
                     call.signature
                 } else {
-                    *signature_type.get_or_insert_with(|| build_signature_type(function_id, tree))
+                    (*signature_type.get_or_insert_with(|| build_signature_type(function_id, tree)))
+                        .into()
                 };
 
                 // update the call instruction with the new argument slice
@@ -333,9 +353,7 @@ fn update_call_sites(
                         function,
                         call,
                         normal_target,
-                        normal_arguments,
                         unwind_target,
-                        unwind_arguments,
                     } => {
                         // filter the argument list
                         let mut new_call = call.clone();
@@ -344,10 +362,8 @@ fn update_call_sites(
                         let new_terminator = mir::Terminator::Invoke {
                             function: *function,
                             call: new_call,
-                            normal_target: *normal_target,
-                            normal_arguments: normal_arguments.clone(),
-                            unwind_target: *unwind_target,
-                            unwind_arguments: unwind_arguments.clone(),
+                            normal_target: normal_target.clone(),
+                            unwind_target: unwind_target.clone(),
                         };
                         tree.replace(terminator_id, new_terminator);
                     }

@@ -352,7 +352,12 @@ fn find_unswitchable_loop(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let preheader_to_header_args = match preheader_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
+        mir::Terminator::Jump { target } if target.block.block() == Some(header) => target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()?,
         _ => return None,
     };
 
@@ -392,15 +397,23 @@ fn find_unswitchable_loop(
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => (
-                *condition,
-                *then_target,
-                then_arguments.clone(),
-                *else_target,
-                else_arguments.clone(),
+                condition.value()?,
+                then_target.block.block()?,
+                then_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(|argument| argument.value())
+                    .collect::<Option<Vec<_>>>()?,
+                else_target.block.block()?,
+                else_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(|argument| argument.value())
+                    .collect::<Option<Vec<_>>>()?,
             ),
             _ => continue,
         };
@@ -471,7 +484,9 @@ fn collect_base_invariant_values(
 
     // function parameters
     for param in &function.parameters {
-        invariant.insert(param.value);
+        if let Some(value) = param.value.value() {
+            invariant.insert(value);
+        }
     }
 
     // values from blocks outside the loop
@@ -482,12 +497,14 @@ fn collect_base_invariant_values(
 
         let block = tree.get(block_id);
         for param in &block.parameters {
-            invariant.insert(param.value);
+            if let Some(value) = param.value.value() {
+                invariant.insert(value);
+            }
         }
 
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 invariant.insert(destination);
             }
         }
@@ -519,7 +536,11 @@ fn try_hoist_invariant_condition(
 
     // require all operands to be invariant under rewrite
     let all_invariant = instruction.uses().iter().all(|value| {
-        let mapped = header_param_rewrites.get(value).copied().unwrap_or(*value);
+        let Some(value) = value.value() else {
+            return false;
+        };
+
+        let mapped = header_param_rewrites.get(&value).copied().unwrap_or(value);
         invariant_values.contains(&mapped)
     });
     if !all_invariant {
@@ -557,6 +578,9 @@ fn collect_header_param_rewrites(
     // build rewrite mapping for invariant parameters
     let mut rewrites = HashMap::new();
     for (index, param) in header_block.parameters.iter().enumerate() {
+        let Some(param_value) = param.value.value() else {
+            return HashMap::new();
+        };
         let preheader_arg = preheader_args[index];
 
         // require invariant preheader argument
@@ -587,8 +611,8 @@ fn collect_header_param_rewrites(
             let arg = args[index];
 
             // detect arguments that differ from invariant candidates
-            let is_preheader_match = arg == preheader_arg;
-            let is_param_match = arg == param.value;
+            let is_preheader_match = arg.value() == Some(preheader_arg);
+            let is_param_match = arg.value() == Some(param_value);
             if !is_preheader_match && !is_param_match {
                 is_invariant = false;
                 break;
@@ -597,7 +621,7 @@ fn collect_header_param_rewrites(
 
         // record invariant rewrite
         if is_invariant {
-            rewrites.insert(param.value, preheader_arg);
+            rewrites.insert(param_value, preheader_arg);
         }
     }
 
@@ -621,8 +645,15 @@ fn unswitch_loop(
     // modify original branch block: always take the "then" branch
     let branch_block = tree.get(candidate.branch_block).clone();
     let branch_terminator = mir::Terminator::Jump {
-        target: candidate.then_target,
-        arguments: candidate.then_arguments.clone(),
+        target: mir::BlockTarget {
+            block: candidate.then_target.into(),
+            arguments: candidate
+                .then_arguments
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+        },
     };
     tree.replace(branch_block.terminator, branch_terminator);
     tree.replace(candidate.branch_block, branch_block);
@@ -640,8 +671,10 @@ fn unswitch_loop(
         .map(|v| *value_map.get(v).unwrap_or(v))
         .collect();
     let cloned_terminator = mir::Terminator::Jump {
-        target: else_target,
-        arguments: else_arguments,
+        target: mir::BlockTarget {
+            block: else_target.into(),
+            arguments: else_arguments.into_iter().map(Into::into).collect(),
+        },
     };
     tree.replace(cloned.terminator, cloned_terminator);
     tree.replace(cloned_branch_block, cloned);
@@ -664,11 +697,25 @@ fn unswitch_loop(
         candidate.condition
     };
     let preheader_terminator = mir::Terminator::Branch {
-        condition: condition_value,
-        then_target: candidate.header,
-        then_arguments: candidate.preheader_to_header_args.clone(),
-        else_target: cloned_header,
-        else_arguments: candidate.preheader_to_header_args.clone(),
+        condition: condition_value.into(),
+        then_target: mir::BlockTarget {
+            block: candidate.header.into(),
+            arguments: candidate
+                .preheader_to_header_args
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+        },
+        else_target: mir::BlockTarget {
+            block: cloned_header.into(),
+            arguments: candidate
+                .preheader_to_header_args
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+        },
     };
     tree.replace(preheader.terminator, preheader_terminator);
     tree.replace(candidate.preheader, preheader);

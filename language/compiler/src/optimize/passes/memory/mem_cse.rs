@@ -257,16 +257,20 @@ fn def_kind_for_instruction(
     instruction: &mir::Instruction,
 ) -> Option<DefKind> {
     match instruction {
-        mir::Instruction::Store { value, .. } => Some(DefKind::Store { value: *value }),
-        mir::Instruction::LocalSet { value, .. } => Some(DefKind::LocalSet { value: *value }),
+        mir::Instruction::Store { value, .. } => Some(DefKind::Store {
+            value: value.value()?,
+        }),
+        mir::Instruction::LocalSet { value, .. } => Some(DefKind::LocalSet {
+            value: value.value()?,
+        }),
         mir::Instruction::Intrinsic {
             intrinsic: mir::Intrinsic::Memset,
             arguments,
             ..
         } => {
             let args = tree.get_arguments(*arguments);
-            let value = *args.get(1)?;
-            let size = *args.get(2)?;
+            let value = args.get(1)?.value()?;
+            let size = args.get(2)?.value()?;
             Some(DefKind::Memset { value, size })
         }
         mir::Instruction::Intrinsic {
@@ -275,8 +279,8 @@ fn def_kind_for_instruction(
             ..
         } => {
             let args = tree.get_arguments(*arguments);
-            let source = *args.get(1)?;
-            let size = *args.get(2)?;
+            let source = args.get(1)?.value()?;
+            let size = args.get(2)?.value()?;
             Some(DefKind::Memcpy { source, size })
         }
         mir::Instruction::Intrinsic {
@@ -285,8 +289,8 @@ fn def_kind_for_instruction(
             ..
         } => {
             let args = tree.get_arguments(*arguments);
-            let source = *args.get(1)?;
-            let size = *args.get(2)?;
+            let source = args.get(1)?.value()?;
+            let size = args.get(2)?.value()?;
             Some(DefKind::Memmove { source, size })
         }
         _ => None,

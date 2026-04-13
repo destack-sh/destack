@@ -104,7 +104,7 @@ struct EdgePredecessor {
     /// The edge kind from the predecessor.
     edge_kind: mir::EdgeKind,
     /// Arguments passed to the target block.
-    arguments: Vec<mir::Value>,
+    arguments: Vec<mir::ValueReference>,
     /// Profile count for this edge.
     count: u64,
 }
@@ -284,6 +284,10 @@ fn outline_cold_edges(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors() {
+            let Some(successor) = successor.block() else {
+                continue;
+            };
+
             if !cold_blocks.contains(&successor) {
                 continue;
             }
@@ -338,16 +342,20 @@ fn duplicate_hot_edges(
         let terminator = tree.get(block.terminator);
 
         let mut record_edge = |edge_kind: mir::EdgeKind,
-                               target: mir::LocalNodeId<mir::Block>,
-                               arguments: &[mir::Value]| {
-            let edge = mir::EdgeKey::new(block_id, edge_kind, target);
+                               target: &mir::BlockTarget,
+                               arguments: &[mir::ValueReference]| {
+            let Some(target_block) = target.block.block() else {
+                return;
+            };
+
+            let edge = mir::EdgeKey::new(block_id, edge_kind, target_block);
             let count = profile
                 .edge_profile(&edge)
                 .map(|edge| scaled_profile_count(edge.count, profile.source, &scale))
                 .unwrap_or(0);
 
             predecessors
-                .entry(target)
+                .entry(target_block)
                 .or_default()
                 .push(EdgePredecessor {
                     pred: block_id,
@@ -358,32 +366,30 @@ fn duplicate_hot_edges(
         };
 
         match terminator {
-            mir::Terminator::Jump { target, arguments } => {
-                record_edge(mir::EdgeKind::Jump, *target, arguments);
+            mir::Terminator::Jump { target } => {
+                record_edge(mir::EdgeKind::Jump, target, &target.arguments);
             }
             mir::Terminator::Branch {
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
                 ..
             } => {
-                record_edge(mir::EdgeKind::BranchThen, *then_target, then_arguments);
-                record_edge(mir::EdgeKind::BranchElse, *else_target, else_arguments);
+                record_edge(
+                    mir::EdgeKind::BranchThen,
+                    then_target,
+                    &then_target.arguments,
+                );
+                record_edge(
+                    mir::EdgeKind::BranchElse,
+                    else_target,
+                    &else_target.arguments,
+                );
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                record_edge(
-                    mir::EdgeKind::CheckSuccess,
-                    success.target,
-                    &success.arguments,
-                );
-                record_edge(
-                    mir::EdgeKind::CheckFailure,
-                    failure.target,
-                    &failure.arguments,
-                );
+                record_edge(mir::EdgeKind::CheckSuccess, success, &success.arguments);
+                record_edge(mir::EdgeKind::CheckFailure, failure, &failure.arguments);
             }
             _ => {}
         }
@@ -482,7 +488,14 @@ fn duplicate_hot_edges(
             // build value map for parameters and new instruction values
             let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
             for (param, arg) in block.parameters.iter().zip(pred.arguments.iter()) {
-                value_map.insert(param.value, *arg);
+                let Some(parameter) = param.value.value() else {
+                    continue;
+                };
+                let Some(argument) = arg.value() else {
+                    continue;
+                };
+
+                value_map.insert(parameter, argument);
             }
 
             // clone instructions with remapped values
@@ -490,7 +503,8 @@ fn duplicate_hot_edges(
             for instruction_id in &block.instructions {
                 let instruction = tree.get(*instruction_id).clone();
 
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction.destination().and_then(|value| value.value())
+                {
                     let new_destination = function.next_typed_value_like(destination);
                     value_map.insert(destination, new_destination);
                 }
@@ -618,37 +632,43 @@ fn rewrite_hot_edge_target(
         ..
     } = terminator
         && matches!(edge_kind, mir::EdgeKind::Jump)
-        && *jump_target == target
+        && jump_target.block.block() == Some(target)
     {
         return Some(mir::Terminator::Jump {
-            target: new_target,
-            arguments: Vec::new(),
+            target: mir::BlockTarget {
+                block: new_target.into(),
+                arguments: Vec::new(),
+            },
         });
     }
 
     if let mir::Terminator::Branch {
         condition,
         then_target,
-        then_arguments,
         else_target,
-        else_arguments,
     } = terminator
     {
         return match edge_kind {
-            mir::EdgeKind::BranchThen if *then_target == target => Some(mir::Terminator::Branch {
-                condition: *condition,
-                then_target: new_target,
-                then_arguments: Vec::new(),
-                else_target: *else_target,
-                else_arguments: else_arguments.clone(),
-            }),
-            mir::EdgeKind::BranchElse if *else_target == target => Some(mir::Terminator::Branch {
-                condition: *condition,
-                then_target: *then_target,
-                then_arguments: then_arguments.clone(),
-                else_target: new_target,
-                else_arguments: Vec::new(),
-            }),
+            mir::EdgeKind::BranchThen if then_target.block.block() == Some(target) => {
+                Some(mir::Terminator::Branch {
+                    condition: *condition,
+                    then_target: mir::BlockTarget {
+                        block: new_target.into(),
+                        arguments: Vec::new(),
+                    },
+                    else_target: else_target.clone(),
+                })
+            }
+            mir::EdgeKind::BranchElse if else_target.block.block() == Some(target) => {
+                Some(mir::Terminator::Branch {
+                    condition: *condition,
+                    then_target: then_target.clone(),
+                    else_target: mir::BlockTarget {
+                        block: new_target.into(),
+                        arguments: Vec::new(),
+                    },
+                })
+            }
             _ => None,
         };
     }
@@ -661,9 +681,9 @@ fn rewrite_hot_edge_target(
     } = terminator
     {
         return match edge_kind {
-            mir::EdgeKind::CheckSuccess if success.target == target => {
+            mir::EdgeKind::CheckSuccess if success.block.block() == Some(target) => {
                 let mut updated_success = success.clone();
-                updated_success.target = new_target;
+                updated_success.block = new_target.into();
                 updated_success.arguments = Vec::new();
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
@@ -671,9 +691,9 @@ fn rewrite_hot_edge_target(
                     failure: failure.clone(),
                 })
             }
-            mir::EdgeKind::CheckFailure if failure.target == target => {
+            mir::EdgeKind::CheckFailure if failure.block.block() == Some(target) => {
                 let mut updated_failure = failure.clone();
-                updated_failure.target = new_target;
+                updated_failure.block = new_target.into();
                 updated_failure.arguments = Vec::new();
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
@@ -729,6 +749,10 @@ fn select_hot_successor(
     let mut best: Option<(u64, u64, mir::LocalNodeId<mir::Block>)> = None;
 
     for successor in terminator.successors() {
+        let Some(successor) = successor.block() else {
+            continue;
+        };
+
         // skip successors already placed or marked cold
         if placed.contains(&successor) || cold_blocks.contains(&successor) {
             continue;

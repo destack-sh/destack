@@ -81,38 +81,48 @@ impl OwnershipMap {
     }
 
     /// Get the ownership state for a value.
-    pub fn get(&self, value: Value) -> Option<&OwnershipState> {
+    pub fn get(&self, value: impl Into<mir::ValueReference>) -> Option<&OwnershipState> {
+        let value = value.into().value()?;
         self.values.get(&value)
     }
 
     /// Check if a value is owned (usable).
-    pub fn is_owned(&self, value: Value) -> bool {
-        self.values
-            .get(&value)
+    pub fn is_owned(&self, value: impl Into<mir::ValueReference>) -> bool {
+        self.get(value)
             .map(|s| matches!(s, OwnershipState::Owned))
             .unwrap_or(true) // unknown values are assumed owned
     }
 
     /// Check if a value is moved.
-    pub fn is_moved(&self, value: Value) -> bool {
-        self.values
-            .get(&value)
-            .map(|s| s.is_moved())
-            .unwrap_or(false)
+    pub fn is_moved(&self, value: impl Into<mir::ValueReference>) -> bool {
+        self.get(value).is_some_and(|s| s.is_moved())
     }
 
     /// Mark a value as owned.
-    pub fn mark_owned(&mut self, value: Value) {
+    pub fn mark_owned(&mut self, value: impl Into<mir::ValueReference>) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.values.insert(value, OwnershipState::Owned);
     }
 
     /// Mark a value as moved.
-    pub fn mark_moved(&mut self, value: Value, at: MoveLocation) {
+    pub fn mark_moved(&mut self, value: impl Into<mir::ValueReference>, at: MoveLocation) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.values.insert(value, OwnershipState::Moved { at });
     }
 
     /// Mark a value as moved and propagate to the source local when tracked.
-    pub fn mark_moved_with_source(&mut self, value: Value, at: MoveLocation) {
+    pub fn mark_moved_with_source(
+        &mut self,
+        value: impl Into<mir::ValueReference>,
+        at: MoveLocation,
+    ) {
+        let value = value.into();
         self.mark_moved(value, at.clone());
         if let Some(local) = self.origin_for_value(value) {
             self.mark_local_moved(local, at);
@@ -122,23 +132,39 @@ impl OwnershipMap {
     /// Mark a value as moved when it is not copy and propagate to locals.
     pub fn mark_moved_if_not_copy_with_source(
         &mut self,
-        value: Value,
+        value: impl Into<mir::ValueReference>,
         at: MoveLocation,
         tree: &mir::NodeTree,
         value_types: &ValueTypeMap,
     ) {
+        let value = value.into();
+
         if !value_is_copy(value, tree, value_types) {
             self.mark_moved_with_source(value, at);
         }
     }
 
     /// Get the origin local for a value, if known.
-    pub fn origin_for_value(&self, value: Value) -> Option<mir::LocalNodeId<mir::Local>> {
-        self.origins.get(&value).copied()
+    pub fn origin_for_value(
+        &self,
+        value: impl Into<mir::ValueReference>,
+    ) -> Option<mir::LocalReference> {
+        let value = value.into().value()?;
+        self.origins.get(&value).copied().map(Into::into)
     }
 
     /// Set the origin local for a value.
-    pub fn set_origin(&mut self, value: Value, origin: Option<mir::LocalNodeId<mir::Local>>) {
+    pub fn set_origin(
+        &mut self,
+        value: impl Into<mir::ValueReference>,
+        origin: Option<mir::LocalReference>,
+    ) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
+        let origin = origin.and_then(|origin| origin.local());
+
         if let Some(local) = origin {
             self.origins.insert(value, local);
         } else {
@@ -147,33 +173,48 @@ impl OwnershipMap {
     }
 
     /// Get the ownership state for a local.
-    pub fn local_state(&self, local: mir::LocalNodeId<mir::Local>) -> Option<&OwnershipState> {
+    pub fn local_state(&self, local: impl Into<mir::LocalReference>) -> Option<&OwnershipState> {
+        let local = local.into().local()?;
         self.locals.get(&local)
     }
 
     /// Check if a local is owned (usable).
-    pub fn local_is_owned(&self, local: mir::LocalNodeId<mir::Local>) -> bool {
+    pub fn local_is_owned(&self, local: impl Into<mir::LocalReference>) -> bool {
         self.locals
-            .get(&local)
+            .get(&match local.into().local() {
+                Some(local) => local,
+                None => return true,
+            })
             .map(|s| matches!(s, OwnershipState::Owned))
             .unwrap_or(true) // unknown locals are assumed owned
     }
 
     /// Check if a local is moved.
-    pub fn local_is_moved(&self, local: mir::LocalNodeId<mir::Local>) -> bool {
+    pub fn local_is_moved(&self, local: impl Into<mir::LocalReference>) -> bool {
         self.locals
-            .get(&local)
+            .get(&match local.into().local() {
+                Some(local) => local,
+                None => return false,
+            })
             .map(|s| s.is_moved())
             .unwrap_or(false)
     }
 
     /// Mark a local as owned.
-    pub fn mark_local_owned(&mut self, local: mir::LocalNodeId<mir::Local>) {
+    pub fn mark_local_owned(&mut self, local: impl Into<mir::LocalReference>) {
+        let Some(local) = local.into().local() else {
+            return;
+        };
+
         self.locals.insert(local, OwnershipState::Owned);
     }
 
     /// Mark a local as moved.
-    pub fn mark_local_moved(&mut self, local: mir::LocalNodeId<mir::Local>, at: MoveLocation) {
+    pub fn mark_local_moved(&mut self, local: impl Into<mir::LocalReference>, at: MoveLocation) {
+        let Some(local) = local.into().local() else {
+            return;
+        };
+
         self.locals
             .insert(local, OwnershipState::Moved { at: at.clone() });
 
@@ -304,12 +345,15 @@ impl OwnershipAnalysis {
     }
 
     /// Get the type of a value.
-    pub fn value_type(&self, value: Value) -> mir::LocalNodeId<Type> {
+    pub fn value_type(&self, value: impl Into<mir::ValueReference>) -> mir::LocalNodeId<Type> {
         self.value_types.require_value_type(value)
     }
 
     /// Get the type of a value.
-    pub fn require_value_type(&self, value: Value) -> mir::LocalNodeId<Type> {
+    pub fn require_value_type(
+        &self,
+        value: impl Into<mir::ValueReference>,
+    ) -> mir::LocalNodeId<Type> {
         self.value_type(value)
     }
 
@@ -321,14 +365,14 @@ impl OwnershipAnalysis {
     /// Return the pointee type for a pointer value when known.
     pub fn pointee_type(
         &self,
-        pointer: Value,
+        pointer: impl Into<mir::ValueReference>,
         tree: &mir::NodeTree,
     ) -> Option<mir::LocalNodeId<Type>> {
         let type_id = self.require_value_type(pointer);
         let ty = tree.get(type_id);
         match ty {
-            Type::Reference { pointee, .. } => Some(*pointee),
-            Type::TensorReference { element, .. } => Some(*element),
+            Type::Reference { pointee, .. } => pointee.ty(),
+            Type::TensorReference { element, .. } => element.ty(),
             _ => None,
         }
     }
@@ -379,7 +423,11 @@ impl OwnershipAnalysis {
     }
 
     /// Check if a value has copy semantics.
-    pub fn value_is_copy(&self, value: Value, tree: &mir::NodeTree) -> bool {
+    pub fn value_is_copy(
+        &self,
+        value: impl Into<mir::ValueReference>,
+        tree: &mir::NodeTree,
+    ) -> bool {
         // resolve the value type
         let ty_id = self.require_value_type(value);
 
@@ -390,10 +438,12 @@ impl OwnershipAnalysis {
     fn set_origin_for_destination(
         &self,
         state: &mut OwnershipMap,
-        destination: Value,
-        origin: Option<mir::LocalNodeId<mir::Local>>,
+        destination: impl Into<mir::ValueReference>,
+        origin: Option<mir::LocalReference>,
         tree: &mir::NodeTree,
     ) {
+        let destination = destination.into();
+
         if !self.value_is_copy(destination, tree) {
             state.set_origin(destination, origin);
         } else {
@@ -828,22 +878,19 @@ impl OwnershipAnalysis {
                     state.mark_moved_with_source(*v, at);
                 }
             }
-            mir::Terminator::Jump { arguments, .. } => {
-                for &arg in arguments {
+            mir::Terminator::Jump { target } => {
+                for &arg in &target.arguments {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
-            mir::Terminator::Yield {
-                value,
-                resume_arguments,
-                ..
-            } => {
+            mir::Terminator::Yield { value, resume } => {
                 if !self.value_is_copy(*value, tree) {
                     state.mark_moved_with_source(*value, at.clone());
                 }
-                for &arg in resume_arguments {
+
+                for &arg in &resume.arguments {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
                     }
@@ -851,15 +898,15 @@ impl OwnershipAnalysis {
             }
             mir::Terminator::Invoke {
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 for &arg in call
                     .arguments
                     .iter()
-                    .chain(normal_arguments.iter())
-                    .chain(unwind_arguments.iter())
+                    .chain(normal_target.arguments.iter())
+                    .chain(unwind_target.arguments.iter())
                 {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
@@ -869,8 +916,8 @@ impl OwnershipAnalysis {
             mir::Terminator::InvokeIndirect {
                 callee,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 if !self.value_is_copy(*callee, tree) {
@@ -879,8 +926,8 @@ impl OwnershipAnalysis {
                 for &arg in call
                     .arguments
                     .iter()
-                    .chain(normal_arguments.iter())
-                    .chain(unwind_arguments.iter())
+                    .chain(normal_target.arguments.iter())
+                    .chain(unwind_target.arguments.iter())
                 {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
@@ -890,15 +937,15 @@ impl OwnershipAnalysis {
             mir::Terminator::InvokeVirtual {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             }
             | mir::Terminator::InvokeInterface {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 if !self.value_is_copy(*receiver, tree) {
@@ -907,8 +954,8 @@ impl OwnershipAnalysis {
                 for &arg in call
                     .arguments
                     .iter()
-                    .chain(normal_arguments.iter())
-                    .chain(unwind_arguments.iter())
+                    .chain(normal_target.arguments.iter())
+                    .chain(unwind_target.arguments.iter())
                 {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
@@ -1038,7 +1085,7 @@ impl OwnershipAnalysis {
                 new_entry.mark_owned(param.value);
 
                 // determine origin from all predecessor edges
-                let mut origin: Option<mir::LocalNodeId<mir::Local>> = None;
+                let mut origin: Option<mir::LocalReference> = None;
                 let mut initialized = false;
 
                 for &pred in cfg.predecessors(block_id) {
@@ -1109,6 +1156,10 @@ impl OwnershipAnalysis {
 
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors() {
+                        let Some(succ) = succ.block() else {
+                            continue;
+                        };
+
                         if !in_worklist.contains(&succ) {
                             worklist.push_back(succ);
                             in_worklist.insert(succ);
@@ -1160,11 +1211,15 @@ fn collect_allocation_kinds(
             let inst = tree.get(inst_id);
             match inst {
                 Instruction::StackAlloc { destination, .. } => {
-                    stack_allocated.insert(*destination);
+                    if let Some(destination) = destination.value() {
+                        stack_allocated.insert(destination);
+                    }
                 }
                 Instruction::ManagedAlloc { destination, .. }
                 | Instruction::ManagedAllocArray { destination, .. } => {
-                    managed_allocated.insert(*destination);
+                    if let Some(destination) = destination.value() {
+                        managed_allocated.insert(destination);
+                    }
                 }
                 _ => {}
             }
@@ -1175,7 +1230,11 @@ fn collect_allocation_kinds(
 }
 
 /// Check if a value has copy semantics.
-fn value_is_copy(value: Value, tree: &mir::NodeTree, value_types: &ValueTypeMap) -> bool {
+fn value_is_copy(
+    value: impl Into<mir::ValueReference>,
+    tree: &mir::NodeTree,
+    value_types: &ValueTypeMap,
+) -> bool {
     let type_id = value_types.require_value_type(value);
     let ty = tree.get(type_id);
     match ty {
@@ -1216,11 +1275,13 @@ fn value_is_copy(value: Value, tree: &mir::NodeTree, value_types: &ValueTypeMap)
 /// Set the origin for a destination value when it is move-only.
 fn set_origin_if_move_only(
     state: &mut OwnershipMap,
-    destination: Value,
-    origin: Option<mir::LocalNodeId<mir::Local>>,
+    destination: impl Into<mir::ValueReference>,
+    origin: Option<mir::LocalReference>,
     tree: &mir::NodeTree,
     value_types: &ValueTypeMap,
 ) {
+    let destination = destination.into();
+
     if !value_is_copy(destination, tree, value_types) {
         state.set_origin(destination, origin);
     } else {
@@ -1617,32 +1678,29 @@ fn process_terminator(
                 state.mark_moved_if_not_copy_with_source(*v, at, tree, value_types);
             }
         }
-        mir::Terminator::Jump { arguments, .. } => {
-            for &arg in arguments {
+        mir::Terminator::Jump { target } => {
+            for &arg in &target.arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume_arguments,
-            ..
-        } => {
+        mir::Terminator::Yield { value, resume } => {
             state.mark_moved_if_not_copy_with_source(*value, at.clone(), tree, value_types);
-            for &arg in resume_arguments {
+
+            for &arg in &resume.arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
         mir::Terminator::Invoke {
             call,
-            normal_arguments,
-            unwind_arguments,
+            normal_target,
+            unwind_target,
             ..
         } => {
             for &arg in call
                 .arguments
                 .iter()
-                .chain(normal_arguments.iter())
-                .chain(unwind_arguments.iter())
+                .chain(normal_target.arguments.iter())
+                .chain(unwind_target.arguments.iter())
             {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
@@ -1650,16 +1708,16 @@ fn process_terminator(
         mir::Terminator::InvokeIndirect {
             callee,
             call,
-            normal_arguments,
-            unwind_arguments,
+            normal_target,
+            unwind_target,
             ..
         } => {
             state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
             for &arg in call
                 .arguments
                 .iter()
-                .chain(normal_arguments.iter())
-                .chain(unwind_arguments.iter())
+                .chain(normal_target.arguments.iter())
+                .chain(unwind_target.arguments.iter())
             {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
@@ -1667,23 +1725,23 @@ fn process_terminator(
         mir::Terminator::InvokeVirtual {
             receiver,
             call,
-            normal_arguments,
-            unwind_arguments,
+            normal_target,
+            unwind_target,
             ..
         }
         | mir::Terminator::InvokeInterface {
             receiver,
             call,
-            normal_arguments,
-            unwind_arguments,
+            normal_target,
+            unwind_target,
             ..
         } => {
             state.mark_moved_if_not_copy_with_source(*receiver, at.clone(), tree, value_types);
             for &arg in call
                 .arguments
                 .iter()
-                .chain(normal_arguments.iter())
-                .chain(unwind_arguments.iter())
+                .chain(normal_target.arguments.iter())
+                .chain(unwind_target.arguments.iter())
             {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
@@ -1726,7 +1784,7 @@ fn predecessor_arguments(
     predecessor: mir::LocalNodeId<mir::Block>,
     target: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
-) -> Vec<&[Value]> {
+) -> Vec<&[mir::ValueReference]> {
     let block = tree.get(predecessor);
     let terminator = tree.get(block.terminator);
     let mut arguments = Vec::new();
@@ -1736,95 +1794,77 @@ fn predecessor_arguments(
             panic!("recovered MIR terminator reached optimizer");
         }
 
-        mir::Terminator::Jump {
-            target: dest,
-            arguments: args,
-        } => {
-            if *dest == target {
-                arguments.push(args.as_slice());
+        mir::Terminator::Jump { target: edge } => {
+            if edge.block.block() == Some(target) {
+                arguments.push(edge.arguments.as_slice());
             }
         }
         mir::Terminator::Branch {
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
             ..
         } => {
-            if *then_target == target {
-                arguments.push(then_arguments.as_slice());
+            if then_target.block.block() == Some(target) {
+                arguments.push(then_target.arguments.as_slice());
             }
-            if *else_target == target {
-                arguments.push(else_arguments.as_slice());
+
+            if else_target.block.block() == Some(target) {
+                arguments.push(else_target.arguments.as_slice());
             }
         }
         mir::Terminator::Check {
             success, failure, ..
         } => {
-            if success.target == target {
+            if success.block.block() == Some(target) {
                 arguments.push(success.arguments.as_slice());
             }
-            if failure.target == target {
+
+            if failure.block.block() == Some(target) {
                 arguments.push(failure.arguments.as_slice());
             }
         }
-        mir::Terminator::Switch {
-            default,
-            default_arguments,
-            cases,
-            ..
-        } => {
-            if *default == target {
-                arguments.push(default_arguments.as_slice());
+        mir::Terminator::Switch { default, cases, .. } => {
+            if default.block.block() == Some(target) {
+                arguments.push(default.arguments.as_slice());
             }
+
             for case in cases {
-                if case.target == target {
-                    arguments.push(case.arguments.as_slice());
+                if case.target.block.block() == Some(target) {
+                    arguments.push(case.target.arguments.as_slice());
                 }
             }
         }
-        mir::Terminator::Yield {
-            resume,
-            resume_arguments,
-            ..
-        } => {
-            if *resume == target {
-                arguments.push(resume_arguments.as_slice());
+        mir::Terminator::Yield { resume, .. } => {
+            if resume.block.block() == Some(target) {
+                arguments.push(resume.arguments.as_slice());
             }
         }
         mir::Terminator::Invoke {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeIndirect {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeVirtual {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeInterface {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         } => {
-            if *normal_target == target {
-                arguments.push(normal_arguments.as_slice());
+            if normal_target.block.block() == Some(target) {
+                arguments.push(normal_target.arguments.as_slice());
             }
-            if *unwind_target == target {
-                arguments.push(unwind_arguments.as_slice());
+
+            if unwind_target.block.block() == Some(target) {
+                arguments.push(unwind_target.arguments.as_slice());
             }
         }
         mir::Terminator::Return { .. }

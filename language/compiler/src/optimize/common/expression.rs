@@ -111,7 +111,18 @@ impl<'a> ValueEquivalence<'a> {
     }
 
     /// Return true when two values are provably equivalent.
-    pub fn equivalent(&mut self, left: mir::Value, right: mir::Value) -> bool {
+    pub fn equivalent(
+        &mut self,
+        left: impl Into<mir::ValueReference>,
+        right: impl Into<mir::ValueReference>,
+    ) -> bool {
+        let Some(left) = left.into().value() else {
+            return false;
+        };
+        let Some(right) = right.into().value() else {
+            return false;
+        };
+
         // handle direct identity
         if left == right {
             return true;
@@ -199,19 +210,27 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
+                let (Some(left_arg), Some(right_arg), Some(right_left), Some(right_right)) = (
+                    left_arg.value(),
+                    right_arg.value(),
+                    right_left.value(),
+                    right_right.value(),
+                ) else {
+                    return false;
+                };
+
                 if left_op != right_op {
                     return false;
                 }
 
                 if !binary_operator_is_commutative(*left_op) {
-                    return self.equivalent(*left_arg, *right_left)
-                        && self.equivalent(*right_arg, *right_right);
+                    return self.equivalent(left_arg, right_left)
+                        && self.equivalent(right_arg, right_right);
                 }
 
-                (self.equivalent(*left_arg, *right_left)
-                    && self.equivalent(*right_arg, *right_right))
-                    || (self.equivalent(*left_arg, *right_right)
-                        && self.equivalent(*right_arg, *right_left))
+                (self.equivalent(left_arg, right_left) && self.equivalent(right_arg, right_right))
+                    || (self.equivalent(left_arg, right_right)
+                        && self.equivalent(right_arg, right_left))
             }
             (
                 mir::Instruction::Unary {
@@ -224,7 +243,14 @@ impl<'a> ValueEquivalence<'a> {
                     argument: right_arg,
                     ..
                 },
-            ) => left_op == right_op && self.equivalent(*left_arg, *right_arg),
+            ) => {
+                let (Some(left_arg), Some(right_arg)) = (left_arg.value(), right_arg.value())
+                else {
+                    return false;
+                };
+
+                left_op == right_op && self.equivalent(left_arg, right_arg)
+            }
             (
                 mir::Instruction::Cast {
                     operator: left_op,
@@ -243,9 +269,16 @@ impl<'a> ValueEquivalence<'a> {
                     return false;
                 }
 
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
-                left_key == right_key && self.equivalent(*left_arg, *right_arg)
+                let (Some(left_key), Some(right_key), Some(left_arg), Some(right_arg)) = (
+                    self.type_key(*left_type),
+                    self.type_key(*right_type),
+                    left_arg.value(),
+                    right_arg.value(),
+                ) else {
+                    return false;
+                };
+
+                left_key == right_key && self.equivalent(left_arg, right_arg)
             }
             (
                 mir::Instruction::Select {
@@ -261,9 +294,28 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                self.equivalent(*left_cond, *right_cond)
-                    && self.equivalent(*left_then, *right_then)
-                    && self.equivalent(*left_else, *right_else)
+                let (
+                    Some(left_cond),
+                    Some(right_cond),
+                    Some(left_then),
+                    Some(right_then),
+                    Some(left_else),
+                    Some(right_else),
+                ) = (
+                    left_cond.value(),
+                    right_cond.value(),
+                    left_then.value(),
+                    right_then.value(),
+                    left_else.value(),
+                    right_else.value(),
+                )
+                else {
+                    return false;
+                };
+
+                self.equivalent(left_cond, right_cond)
+                    && self.equivalent(left_then, right_then)
+                    && self.equivalent(left_else, right_else)
             }
             (
                 mir::Instruction::FieldGet {
@@ -288,7 +340,15 @@ impl<'a> ValueEquivalence<'a> {
                     index: right_index,
                     ..
                 },
-            ) => left_index == right_index && self.equivalent(*left_aggregate, *right_aggregate),
+            ) => {
+                let (Some(left_aggregate), Some(right_aggregate)) =
+                    (left_aggregate.value(), right_aggregate.value())
+                else {
+                    return false;
+                };
+
+                left_index == right_index && self.equivalent(left_aggregate, right_aggregate)
+            }
             (
                 mir::Instruction::ElementGet {
                     array: left_array,
@@ -313,8 +373,16 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                self.equivalent(*left_array, *right_array)
-                    && self.equivalent(*left_index, *right_index)
+                let (Some(left_array), Some(right_array), Some(left_index), Some(right_index)) = (
+                    left_array.value(),
+                    right_array.value(),
+                    left_index.value(),
+                    right_index.value(),
+                ) else {
+                    return false;
+                };
+
+                self.equivalent(left_array, right_array) && self.equivalent(left_index, right_index)
             }
             (
                 mir::Instruction::Struct {
@@ -328,8 +396,12 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
+                let (Some(left_key), Some(right_key)) =
+                    (self.type_key(*left_type), self.type_key(*right_type))
+                else {
+                    return false;
+                };
+
                 left_key == right_key && self.arguments_equivalent(*left_fields, *right_fields)
             }
             (
@@ -356,8 +428,12 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
+                let (Some(left_key), Some(right_key)) =
+                    (self.type_key(*left_type), self.type_key(*right_type))
+                else {
+                    return false;
+                };
+
                 left_key == right_key && self.arguments_equivalent(*left_elements, *right_elements)
             }
             _ => false,
@@ -378,17 +454,23 @@ impl<'a> ValueEquivalence<'a> {
         left_args
             .iter()
             .zip(right_args.iter())
-            .all(|(left, right)| self.equivalent(*left, *right))
+            .all(|(left, right)| match (left.value(), right.value()) {
+                (Some(left), Some(right)) => self.equivalent(left, right),
+                _ => false,
+            })
     }
 
-    fn type_key(&mut self, ty: mir::LocalNodeId<mir::Type>) -> TypeKey {
+    fn type_key(&mut self, ty: impl Into<mir::TypeReference>) -> Option<TypeKey> {
+        let ty = ty.into().ty()?;
+
         if let Some(existing) = self.type_keys.get(&ty) {
-            return existing.clone();
+            return Some(existing.clone());
         }
 
         let key = TypeKey::from_type(ty, self.tree);
         self.type_keys.insert(ty, key.clone());
-        key
+
+        Some(key)
     }
 
     fn constant_pair(
@@ -433,11 +515,15 @@ pub fn expression_key_from_instruction(
             right,
             ..
         } => {
+            let (Some(left), Some(right)) = (left.value(), right.value()) else {
+                return None;
+            };
+
             // canonicalize commutative ops so (v1 + v0) matches (v0 + v1)
             let (left, right) = if binary_operator_is_commutative(*operator) && right.0 < left.0 {
-                (*right, *left)
+                (right, left)
             } else {
-                (*left, *right)
+                (left, right)
             };
             Some(ExpressionKey::Binary {
                 operator: *operator,
@@ -451,7 +537,7 @@ pub fn expression_key_from_instruction(
             operator, argument, ..
         } => Some(ExpressionKey::Unary {
             operator: *operator,
-            argument: *argument,
+            argument: argument.value()?,
         }),
 
         // cast operations
@@ -461,10 +547,10 @@ pub fn expression_key_from_instruction(
             to_type,
             ..
         } => {
-            let type_key = TypeKey::from_type(*to_type, tree);
+            let type_key = TypeKey::from_type(to_type.ty()?, tree);
             Some(ExpressionKey::Cast {
                 operator: *operator,
-                argument: *argument,
+                argument: argument.value()?,
                 to_type: type_key,
             })
         }
@@ -476,9 +562,9 @@ pub fn expression_key_from_instruction(
             else_value,
             ..
         } => Some(ExpressionKey::Select {
-            condition: *condition,
-            then_value: *then_value,
-            else_value: *else_value,
+            condition: condition.value()?,
+            then_value: then_value.value()?,
+            else_value: else_value.value()?,
         }),
         mir::Instruction::VectorSelect {
             mask,
@@ -486,9 +572,9 @@ pub fn expression_key_from_instruction(
             else_value,
             ..
         } => Some(ExpressionKey::Select {
-            condition: *mask,
-            then_value: *then_value,
-            else_value: *else_value,
+            condition: mask.value()?,
+            then_value: then_value.value()?,
+            else_value: else_value.value()?,
         }),
         mir::Instruction::TensorSelect {
             mask,
@@ -496,29 +582,29 @@ pub fn expression_key_from_instruction(
             else_value,
             ..
         } => Some(ExpressionKey::Select {
-            condition: *mask,
-            then_value: *then_value,
-            else_value: *else_value,
+            condition: mask.value()?,
+            then_value: then_value.value()?,
+            else_value: else_value.value()?,
         }),
 
         // field access (pure, no side effects)
         mir::Instruction::FieldGet {
             aggregate, index, ..
         } => Some(ExpressionKey::FieldGet {
-            aggregate: *aggregate,
+            aggregate: aggregate.value()?,
             index: *index,
         }),
 
         // element access (pure if no bounds check side effects)
         mir::Instruction::ElementGet { array, index, .. } => Some(ExpressionKey::ElementGet {
-            array: *array,
-            index: *index,
+            array: array.value()?,
+            index: index.value()?,
         }),
 
         // global constant (immutable, pure)
-        mir::Instruction::GlobalConst { global, .. } => {
-            Some(ExpressionKey::GlobalConst { global: *global })
-        }
+        mir::Instruction::GlobalConst { global, .. } => Some(ExpressionKey::GlobalConst {
+            global: global.global()?,
+        }),
 
         // constants are not CSE'd by expression keys (handled by constant folding)
         // mir::Constant doesn't implement Hash/Eq, and constant deduplication

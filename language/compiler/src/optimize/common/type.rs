@@ -16,6 +16,8 @@ use super::ValueTypeMap;
 /// self-contained and can be hashed/compared without access to the node tree.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TypeKey {
+    /// Non concrete type structure.
+    NonConcrete,
     /// The void/unit type.
     Void,
     /// Boolean type.
@@ -102,6 +104,15 @@ impl TypeKey {
         Self::from_type_inner(type_id, tree, &mut visiting)
     }
 
+    /// Build a type key from a recoverable MIR type reference.
+    pub fn from_type_reference(type_id: mir::TypeReference, tree: &mir::NodeTree) -> Self {
+        let Some(type_id) = type_id.ty() else {
+            return TypeKey::NonConcrete;
+        };
+
+        Self::from_type(type_id, tree)
+    }
+
     fn from_type_inner(
         type_id: mir::LocalNodeId<mir::Type>,
         tree: &mir::NodeTree,
@@ -140,7 +151,7 @@ impl TypeKey {
                 kind: *kind,
                 address_space: *address_space,
                 mutability: *mutability,
-                pointee: Box::new(Self::from_type_inner(*pointee, tree, visiting)),
+                pointee: Box::new(Self::from_type_reference(*pointee, tree)),
                 is_nullable: *is_nullable,
             },
 
@@ -149,7 +160,7 @@ impl TypeKey {
                 length,
                 copyability,
             } => TypeKey::Array {
-                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                element: Box::new(Self::from_type_reference(*element, tree)),
                 length: *length,
                 copyability: *copyability,
             },
@@ -160,7 +171,7 @@ impl TypeKey {
             } => {
                 let elements = elements
                     .iter()
-                    .map(|element| Self::from_type_inner(*element, tree, visiting))
+                    .map(|element| Self::from_type_reference(*element, tree))
                     .collect();
                 TypeKey::Tuple {
                     elements,
@@ -176,7 +187,7 @@ impl TypeKey {
                     .iter()
                     .map(|field_id| {
                         let field = tree.get(*field_id);
-                        let field_ty = Self::from_type_inner(field.ty, tree, visiting);
+                        let field_ty = Self::from_type_reference(field.ty, tree);
                         (field.name, field_ty)
                     })
                     .collect();
@@ -187,7 +198,7 @@ impl TypeKey {
             }
 
             mir::Type::Newtype { inner, copyability } => TypeKey::Newtype {
-                inner: Box::new(Self::from_type_inner(*inner, tree, visiting)),
+                inner: Box::new(Self::from_type_reference(*inner, tree)),
                 copyability: *copyability,
             },
 
@@ -196,7 +207,7 @@ impl TypeKey {
                 lanes,
                 copyability,
             } => TypeKey::Vector {
-                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                element: Box::new(Self::from_type_reference(*element, tree)),
                 lanes: *lanes,
                 copyability: *copyability,
             },
@@ -207,7 +218,7 @@ impl TypeKey {
                 layout,
                 copyability,
             } => TypeKey::Tensor {
-                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                element: Box::new(Self::from_type_reference(*element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
                 copyability: *copyability,
@@ -225,7 +236,7 @@ impl TypeKey {
                 kind: *kind,
                 address_space: *address_space,
                 mutability: *mutability,
-                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                element: Box::new(Self::from_type_reference(*element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
                 is_nullable: *is_nullable,
@@ -234,15 +245,15 @@ impl TypeKey {
             mir::Type::FunctionPointer { parameters, result } => {
                 let parameters = parameters
                     .iter()
-                    .map(|param| Self::from_type_inner(*param, tree, visiting))
+                    .map(|param| Self::from_type_reference(*param, tree))
                     .collect();
                 TypeKey::FunctionPointer {
                     parameters,
-                    result: Box::new(Self::from_type_inner(*result, tree, visiting)),
+                    result: Box::new(Self::from_type_reference(*result, tree)),
                 }
             }
             mir::Type::Closure { signature } => TypeKey::Closure {
-                signature: Box::new(Self::from_type_inner(*signature, tree, visiting)),
+                signature: Box::new(Self::from_type_reference(*signature, tree)),
             },
         };
 
@@ -254,7 +265,8 @@ impl TypeKey {
     pub fn is_scalar(&self) -> bool {
         matches!(
             self,
-            TypeKey::Void
+            TypeKey::NonConcrete
+                | TypeKey::Void
                 | TypeKey::Boolean
                 | TypeKey::Int { .. }
                 | TypeKey::Isize
@@ -404,7 +416,7 @@ fn types_are_equal_inner(
                 && a1 == a2
                 && m1 == m2
                 && n1 == n2
-                && types_are_equal_inner(*p1, *p2, tree, visiting)
+                && type_references_are_equal(*p1, *p2, tree, visiting)
         }
 
         // arrays: compare element type and length
@@ -419,7 +431,7 @@ fn types_are_equal_inner(
                 length: l2,
                 copyability: c2,
             },
-        ) => c1 == c2 && l1 == l2 && types_are_equal_inner(*e1, *e2, tree, visiting),
+        ) => c1 == c2 && l1 == l2 && type_references_are_equal(*e1, *e2, tree, visiting),
 
         // tuples: compare element types
         (
@@ -437,7 +449,7 @@ fn types_are_equal_inner(
                 && e1
                     .iter()
                     .zip(e2.iter())
-                    .all(|(a, b)| types_are_equal_inner(*a, *b, tree, visiting))
+                    .all(|(a, b)| type_references_are_equal(*a, *b, tree, visiting))
         }
 
         // structs: compare field types
@@ -457,7 +469,7 @@ fn types_are_equal_inner(
                     let field_a = tree.get(*a);
                     let field_b = tree.get(*b);
                     field_a.name == field_b.name
-                        && types_are_equal_inner(field_a.ty, field_b.ty, tree, visiting)
+                        && type_references_are_equal(field_a.ty, field_b.ty, tree, visiting)
                 })
         }
 
@@ -471,7 +483,7 @@ fn types_are_equal_inner(
                 inner: i2,
                 copyability: c2,
             },
-        ) => c1 == c2 && types_are_equal_inner(*i1, *i2, tree, visiting),
+        ) => c1 == c2 && type_references_are_equal(*i1, *i2, tree, visiting),
 
         // function pointers: compare parameter and result types
         (
@@ -488,13 +500,13 @@ fn types_are_equal_inner(
                 && p1
                     .iter()
                     .zip(p2.iter())
-                    .all(|(a, b)| types_are_equal_inner(*a, *b, tree, visiting))
-                && types_are_equal_inner(*r1, *r2, tree, visiting)
+                    .all(|(a, b)| type_references_are_equal(*a, *b, tree, visiting))
+                && type_references_are_equal(*r1, *r2, tree, visiting)
         }
 
         // function values: compare signatures
         (mir::Type::Closure { signature: s1 }, mir::Type::Closure { signature: s2 }) => {
-            types_are_equal_inner(*s1, *s2, tree, visiting)
+            type_references_are_equal(*s1, *s2, tree, visiting)
         }
 
         // different type variants are never equal
@@ -503,6 +515,20 @@ fn types_are_equal_inner(
 
     visiting.remove(&(a, b));
     result
+}
+
+/// Check if two type references resolve to equal concrete types.
+fn type_references_are_equal(
+    left: mir::TypeReference,
+    right: mir::TypeReference,
+    tree: &mir::NodeTree,
+    visiting: &mut HashSet<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)>,
+) -> bool {
+    match (left.ty(), right.ty()) {
+        (Some(left), Some(right)) => types_are_equal_inner(left, right, tree, visiting),
+        (None, None) => left == right,
+        _ => false,
+    }
 }
 
 #[cfg(test)]

@@ -75,11 +75,23 @@ struct BorrowOriginMap {
 }
 
 impl BorrowOriginMap {
-    fn value_origin(&self, value: Value) -> BorrowOriginSet {
+    fn value_origin(&self, value: impl Into<mir::ValueReference>) -> BorrowOriginSet {
+        let Some(value) = value.into().value() else {
+            return BorrowOriginSet::default();
+        };
+
         self.values.get(&value).cloned().unwrap_or_default()
     }
 
-    fn set_value_origin(&mut self, value: Value, origins: BorrowOriginSet) {
+    fn set_value_origin(
+        &mut self,
+        value: impl Into<mir::ValueReference>,
+        origins: BorrowOriginSet,
+    ) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         // update value origin tracking
         if origins.is_empty() {
             self.values.remove(&value);
@@ -88,17 +100,37 @@ impl BorrowOriginMap {
         }
     }
 
-    fn merge_value_origin(&mut self, value: Value, origins: BorrowOriginSet) {
+    fn merge_value_origin(
+        &mut self,
+        value: impl Into<mir::ValueReference>,
+        origins: BorrowOriginSet,
+    ) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         // accumulate origin tracking
         let entry = self.values.entry(value).or_default();
         entry.union_with(&origins);
     }
 
-    fn local_origin(&self, local: mir::LocalNodeId<mir::Local>) -> BorrowOriginSet {
+    fn local_origin(&self, local: impl Into<mir::LocalReference>) -> BorrowOriginSet {
+        let Some(local) = local.into().local() else {
+            return BorrowOriginSet::default();
+        };
+
         self.locals.get(&local).cloned().unwrap_or_default()
     }
 
-    fn set_local_origin(&mut self, local: mir::LocalNodeId<mir::Local>, origins: BorrowOriginSet) {
+    fn set_local_origin(
+        &mut self,
+        local: impl Into<mir::LocalReference>,
+        origins: BorrowOriginSet,
+    ) {
+        let Some(local) = local.into().local() else {
+            return;
+        };
+
         // update local origin tracking
         if origins.is_empty() {
             self.locals.remove(&local);
@@ -139,7 +171,10 @@ impl FunctionPass for LifetimeCheck {
         let return_lifetime = function.return_lifetime.clone();
 
         // warn on annotations for non borrowed returns
-        let return_type = tree.get(function.return_type);
+        let Some(return_type) = function.return_type.ty() else {
+            return AnalysisPreservation::all();
+        };
+        let return_type = tree.get(return_type);
         if !type_contains_borrowed_refs(return_type, tree) {
             if !matches!(return_lifetime, mir::Lifetime::Inferred)
                 && let Some(block_id) = function.blocks.first()
@@ -276,7 +311,10 @@ fn build_entry_state(function: &mir::Function, tree: &mir::NodeTree) -> BorrowOr
     // seed parameter origins for borrowed parameters
     let mut state = BorrowOriginMap::default();
     for (index, param) in function.parameters.iter().enumerate() {
-        let param_type = tree.get(param.ty);
+        let Some(param_type) = param.ty.ty() else {
+            continue;
+        };
+        let param_type = tree.get(param_type);
         if !type_contains_borrowed_refs(param_type, tree) {
             continue;
         }
@@ -292,17 +330,18 @@ fn build_entry_state(function: &mir::Function, tree: &mir::NodeTree) -> BorrowOr
 
 fn field_type_for_value(
     tree: &mir::NodeTree,
-    aggregate_type: mir::LocalNodeId<Type>,
+    aggregate_type: impl Into<mir::TypeReference>,
     index: u32,
 ) -> Option<mir::LocalNodeId<Type>> {
     // resolve field types for aggregates
+    let aggregate_type = aggregate_type.into().ty()?;
     let aggregate = tree.get(aggregate_type);
     match aggregate {
-        Type::Struct { fields, .. } => fields.get(index as usize).map(|field_id| {
+        Type::Struct { fields, .. } => fields.get(index as usize).and_then(|field_id| {
             let field = tree.get(*field_id);
-            field.ty
+            field.ty.ty()
         }),
-        Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
+        Type::Tuple { elements, .. } => elements.get(index as usize).and_then(|ty| ty.ty()),
         Type::Newtype { inner, .. } => field_type_for_value(tree, *inner, index),
         _ => None,
     }
@@ -310,42 +349,53 @@ fn field_type_for_value(
 
 fn element_type_for_value(
     tree: &mir::NodeTree,
-    array_type: mir::LocalNodeId<Type>,
+    array_type: impl Into<mir::TypeReference>,
 ) -> Option<mir::LocalNodeId<Type>> {
     // resolve element types for arrays
+    let array_type = array_type.into().ty()?;
     let array_type = tree.get(array_type);
     match array_type {
-        Type::Array { element, .. } => Some(*element),
+        Type::Array { element, .. } => element.ty(),
         Type::Newtype { inner, .. } => element_type_for_value(tree, *inner),
         _ => None,
     }
 }
 
-fn value_contains_borrowed_refs(value: Value, tree: &mir::NodeTree, types: &ValueTypeMap) -> bool {
+fn value_contains_borrowed_refs(
+    value: impl Into<mir::ValueReference>,
+    tree: &mir::NodeTree,
+    types: &ValueTypeMap,
+) -> bool {
     // resolve the value type
-    let ty_id = types.require_value_type(value);
+    let Some(ty_id) = types.value_type(value) else {
+        return true;
+    };
     let ty = tree.get(ty_id);
     type_contains_borrowed_refs(ty, tree)
 }
 
 fn local_contains_borrowed_refs(
-    local: mir::LocalNodeId<mir::Local>,
+    local: impl Into<mir::LocalReference>,
     tree: &mir::NodeTree,
     types: &ValueTypeMap,
 ) -> bool {
     // resolve the local type
-    let ty_id = types.require_local_type(local);
+    let Some(ty_id) = types.local_type(local) else {
+        return true;
+    };
     let ty = tree.get(ty_id);
     type_contains_borrowed_refs(ty, tree)
 }
 
 fn assign_origin_if_borrowed(
     state: &mut BorrowOriginMap,
-    destination: Value,
+    destination: impl Into<mir::ValueReference>,
     origins: BorrowOriginSet,
     tree: &mir::NodeTree,
     types: &ValueTypeMap,
 ) {
+    let destination = destination.into();
+
     // track origins only for borrowed results
     if value_contains_borrowed_refs(destination, tree, types) {
         state.set_value_origin(destination, origins);
@@ -798,15 +848,26 @@ fn apply_instruction_effects(
             ty,
             fields,
         } => {
-            let struct_type = tree.get(*ty);
+            let Some(struct_type) = ty.ty() else {
+                assign_origin_if_borrowed(
+                    state,
+                    *destination,
+                    BorrowOriginSet::default(),
+                    tree,
+                    types,
+                );
+                return;
+            };
+            let struct_type = tree.get(struct_type);
             let field_values = tree.get_arguments(*fields);
 
             let mut origins = BorrowOriginSet::default();
             if let Type::Struct { fields, .. } = struct_type {
                 for (field_id, value) in fields.iter().zip(field_values) {
                     let field = tree.get(*field_id);
-                    let field_ty = tree.get(field.ty);
-                    if type_contains_borrowed_refs(field_ty, tree) {
+                    if field.ty.ty().is_none_or(|field_ty| {
+                        type_contains_borrowed_refs(tree.get(field_ty), tree)
+                    }) {
                         origins.union_with(&state.value_origin(*value));
                     }
                 }
@@ -825,14 +886,25 @@ fn apply_instruction_effects(
             ty,
             elements,
         } => {
-            let tuple_type = tree.get(*ty);
+            let Some(tuple_type) = ty.ty() else {
+                assign_origin_if_borrowed(
+                    state,
+                    *destination,
+                    BorrowOriginSet::default(),
+                    tree,
+                    types,
+                );
+                return;
+            };
+            let tuple_type = tree.get(tuple_type);
             let values = tree.get_arguments(*elements);
 
             let mut origins = BorrowOriginSet::default();
             if let Type::Tuple { elements, .. } = tuple_type {
                 for (element_type, value) in elements.iter().zip(values) {
-                    let element_ty = tree.get(*element_type);
-                    if type_contains_borrowed_refs(element_ty, tree) {
+                    if element_type.ty().is_none_or(|element_ty| {
+                        type_contains_borrowed_refs(tree.get(element_ty), tree)
+                    }) {
                         origins.union_with(&state.value_origin(*value));
                     }
                 }
@@ -851,13 +923,24 @@ fn apply_instruction_effects(
             ty,
             elements,
         } => {
-            let array_type = tree.get(*ty);
+            let Some(array_type) = ty.ty() else {
+                assign_origin_if_borrowed(
+                    state,
+                    *destination,
+                    BorrowOriginSet::default(),
+                    tree,
+                    types,
+                );
+                return;
+            };
+            let array_type = tree.get(array_type);
             let values = tree.get_arguments(*elements);
 
             let mut origins = BorrowOriginSet::default();
             if let Type::Array { element, .. } = array_type {
-                let element_ty = tree.get(*element);
-                if type_contains_borrowed_refs(element_ty, tree) {
+                if element.ty().is_none_or(|element_ty| {
+                    type_contains_borrowed_refs(tree.get(element_ty), tree)
+                }) {
                     for value in values {
                         origins.union_with(&state.value_origin(*value));
                     }
@@ -878,15 +961,19 @@ fn apply_instruction_effects(
             call,
             ..
         } => {
-            let signature_type = tree.get(call.signature);
             let return_contains_borrow =
-                signature_return_contains_borrowed_refs(signature_type, tree);
-            let origins = origins_for_call(
-                *function,
-                tree.get_arguments(call.arguments),
-                state,
-                lifetime_analysis,
-                return_contains_borrow,
+                signature_return_contains_borrowed_refs(call.signature, tree);
+            let origins = function.function().map_or_else(
+                || BorrowOriginSet::from_origin(BorrowOrigin::Unknown),
+                |function| {
+                    origins_for_call(
+                        function,
+                        tree.get_arguments(call.arguments),
+                        state,
+                        lifetime_analysis,
+                        return_contains_borrow,
+                    )
+                },
             );
 
             assign_origin_if_borrowed(state, *dest, origins, tree, types);
@@ -903,9 +990,8 @@ fn apply_instruction_effects(
             call,
             ..
         } => {
-            let signature_type = tree.get(call.signature);
             let return_contains_borrow =
-                signature_return_contains_borrowed_refs(signature_type, tree);
+                signature_return_contains_borrowed_refs(call.signature, tree);
             let origins =
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     origins_for_targets(
@@ -917,7 +1003,7 @@ fn apply_instruction_effects(
                     )
                 } else {
                     origins_for_signature(
-                        signature_type,
+                        call.signature,
                         tree,
                         tree.get_arguments(call.arguments),
                         state,
@@ -934,9 +1020,8 @@ fn apply_instruction_effects(
             call,
             ..
         } => {
-            let signature_type = tree.get(call.signature);
             let return_contains_borrow =
-                signature_return_contains_borrowed_refs(signature_type, tree);
+                signature_return_contains_borrowed_refs(call.signature, tree);
             let origins =
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     origins_for_targets(
@@ -948,7 +1033,7 @@ fn apply_instruction_effects(
                     )
                 } else {
                     origins_for_signature(
-                        signature_type,
+                        call.signature,
                         tree,
                         tree.get_arguments(call.arguments),
                         state,
@@ -1013,7 +1098,7 @@ fn apply_instruction_effects(
 
 fn origins_for_call(
     function_id: mir::LocalNodeId<mir::Function>,
-    arguments: &[Value],
+    arguments: &[mir::ValueReference],
     state: &BorrowOriginMap,
     lifetime_analysis: &LifetimeAnalysis,
     return_contains_borrow: bool,
@@ -1043,7 +1128,7 @@ fn origins_for_call(
 
 fn origins_for_targets(
     targets: &[mir::LocalNodeId<mir::Function>],
-    arguments: &[Value],
+    arguments: &[mir::ValueReference],
     state: &BorrowOriginMap,
     lifetime_analysis: &LifetimeAnalysis,
     return_contains_borrow: bool,
@@ -1065,9 +1150,9 @@ fn origins_for_targets(
 }
 
 fn origins_for_signature(
-    signature_type: &Type,
+    signature_type: mir::TypeReference,
     tree: &mir::NodeTree,
-    arguments: &[Value],
+    arguments: &[mir::ValueReference],
     state: &BorrowOriginMap,
     return_contains_borrow: bool,
 ) -> BorrowOriginSet {

@@ -236,11 +236,11 @@ fn build_candidate(
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
     match latch_terminator {
-        mir::Terminator::Jump { target, arguments } => {
-            if *target != lp.header {
+        mir::Terminator::Jump { target } => {
+            if target.block.block()? != lp.header {
                 return None;
             }
-            if arguments.len() != tree.get(lp.header).parameters.len() {
+            if target.arguments.len() != tree.get(lp.header).parameters.len() {
                 return None;
             }
         }
@@ -338,8 +338,8 @@ fn collect_store_groups(
         // collect store anchors
         let instruction = tree.get(instruction_id);
         let (pointer, value) = match instruction {
-            mir::Instruction::Store { pointer, value } => (Some(*pointer), *value),
-            mir::Instruction::LocalSet { value, .. } => (None, *value),
+            mir::Instruction::Store { pointer, value } => (Some(pointer.value()?), value.value()?),
+            mir::Instruction::LocalSet { value, .. } => (None, value.value()?),
             _ => continue,
         };
 
@@ -466,7 +466,12 @@ fn collect_group_instructions(
         }
 
         // enqueue operand uses
-        worklist.extend(instruction.uses());
+        worklist.extend(
+            instruction
+                .uses()
+                .into_iter()
+                .filter_map(|value| value.value()),
+        );
     }
 
     Some(instructions)
@@ -642,8 +647,15 @@ fn apply_distribution(
     // update the preheader to enter the first header
     let preheader_block = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {
-        target: loop_instances[0].header,
-        arguments: candidate.preheader_args.clone(),
+        target: mir::BlockTarget {
+            block: loop_instances[0].header.into(),
+            arguments: candidate
+                .preheader_args
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+        },
     };
     tree.replace(candidate.preheader, preheader_block);
     tree.replace(tree.get(candidate.preheader).terminator, new_terminator);
@@ -720,9 +732,7 @@ fn update_header_exit(
     let header_terminator = tree.get(header_block.terminator).clone();
     let mir::Terminator::Branch {
         then_target,
-        then_arguments,
         else_target,
-        else_arguments,
         condition,
     } = &header_terminator
     else {
@@ -732,27 +742,27 @@ fn update_header_exit(
     // select the exit target and arguments
     let exit_target = next_header.unwrap_or(exit_block);
     let exit_arguments = if next_header.is_some() {
-        preheader_args.to_vec()
+        preheader_args.iter().copied().map(Into::into).collect()
     } else {
         Vec::new()
+    };
+    let exit_target = mir::BlockTarget {
+        block: exit_target.into(),
+        arguments: exit_arguments,
     };
 
     // rewrite the header terminator
     let new_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: *then_target,
-            then_arguments: then_arguments.clone(),
+            then_target: then_target.clone(),
             else_target: exit_target,
-            else_arguments: exit_arguments,
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
             then_target: exit_target,
-            then_arguments: exit_arguments,
-            else_target: *else_target,
-            else_arguments: else_arguments.clone(),
+            else_target: else_target.clone(),
         }
     };
 

@@ -164,15 +164,23 @@ fn find_rotation_candidate(
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => (
-            *condition,
-            *then_target,
-            then_arguments.clone(),
-            *else_target,
-            else_arguments.clone(),
+            condition.value()?,
+            then_target.block.block()?,
+            then_target
+                .arguments
+                .iter()
+                .copied()
+                .map(|argument| argument.value())
+                .collect::<Option<Vec<_>>>()?,
+            else_target.block.block()?,
+            else_target
+                .arguments
+                .iter()
+                .copied()
+                .map(|argument| argument.value())
+                .collect::<Option<Vec<_>>>()?,
         ),
         _ => return None,
     };
@@ -196,10 +204,14 @@ fn find_rotation_candidate(
     // all header params must be passed to body, otherwise uses of header params
     // in the body would become invalid after rotation (body would no longer be
     // dominated by header)
-    let header_params: std::collections::HashSet<_> =
-        header_block.parameters.iter().map(|p| p.value).collect();
+    let header_params: Vec<_> = header_block
+        .parameters
+        .iter()
+        .map(|param| param.value.value())
+        .collect::<Option<_>>()?;
+    let header_param_set: std::collections::HashSet<_> = header_params.iter().copied().collect();
     let passed_to_body: std::collections::HashSet<_> = body_arguments.iter().copied().collect();
-    if !header_params.is_subset(&passed_to_body) {
+    if !header_param_set.is_subset(&passed_to_body) {
         return None;
     }
 
@@ -239,14 +251,31 @@ fn rotate_loop(
     candidate: &RotationCandidate,
 ) -> bool {
     let header_block = tree.get(candidate.header).clone();
-    let header_params = header_block.parameters.clone();
+    let Some(header_params): Option<Vec<_>> = header_block
+        .parameters
+        .iter()
+        .map(|param| param.value.value())
+        .collect()
+    else {
+        return false;
+    };
 
     // get arguments passed to header from preheader and latch
     let preheader_block = tree.get(candidate.preheader);
     let preheader_current_terminator = tree.get(preheader_block.terminator);
     let preheader_args = match preheader_current_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == candidate.header => {
-            arguments.clone()
+        mir::Terminator::Jump { target } if target.block.block() == Some(candidate.header) => {
+            let Some(arguments) = target
+                .arguments
+                .iter()
+                .copied()
+                .map(|argument| argument.value())
+                .collect::<Option<Vec<_>>>()
+            else {
+                return false;
+            };
+
+            arguments
         }
         _ => return false,
     };
@@ -254,8 +283,18 @@ fn rotate_loop(
     let latch_block = tree.get(candidate.latch);
     let latch_current_terminator = tree.get(latch_block.terminator);
     let latch_args = match latch_current_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == candidate.header => {
-            arguments.clone()
+        mir::Terminator::Jump { target } if target.block.block() == Some(candidate.header) => {
+            let Some(arguments) = target
+                .arguments
+                .iter()
+                .copied()
+                .map(|argument| argument.value())
+                .collect::<Option<Vec<_>>>()
+            else {
+                return false;
+            };
+
+            arguments
         }
         _ => return false,
     };
@@ -264,13 +303,13 @@ fn rotate_loop(
     let preheader_value_map: HashMap<mir::Value, mir::Value> = header_params
         .iter()
         .zip(preheader_args.iter())
-        .map(|(p, a)| (p.value, *a))
+        .map(|(param, arg)| (*param, *arg))
         .collect();
 
     let latch_value_map: HashMap<mir::Value, mir::Value> = header_params
         .iter()
         .zip(latch_args.iter())
-        .map(|(p, a)| (p.value, *a))
+        .map(|(param, arg)| (*param, *arg))
         .collect();
 
     let remap = |v: mir::Value, map: &HashMap<mir::Value, mir::Value>| -> mir::Value {
@@ -288,19 +327,27 @@ fn rotate_loop(
 
     let preheader_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
-            condition: preheader_condition,
-            then_target: candidate.body_block,
-            then_arguments: remapped_body_args,
-            else_target: candidate.exit_block,
-            else_arguments: remapped_exit_args,
+            condition: preheader_condition.into(),
+            then_target: mir::BlockTarget {
+                block: candidate.body_block.into(),
+                arguments: remapped_body_args.into_iter().map(Into::into).collect(),
+            },
+            else_target: mir::BlockTarget {
+                block: candidate.exit_block.into(),
+                arguments: remapped_exit_args.into_iter().map(Into::into).collect(),
+            },
         }
     } else {
         mir::Terminator::Branch {
-            condition: preheader_condition,
-            then_target: candidate.exit_block,
-            then_arguments: remapped_exit_args,
-            else_target: candidate.body_block,
-            else_arguments: remapped_body_args,
+            condition: preheader_condition.into(),
+            then_target: mir::BlockTarget {
+                block: candidate.exit_block.into(),
+                arguments: remapped_exit_args.into_iter().map(Into::into).collect(),
+            },
+            else_target: mir::BlockTarget {
+                block: candidate.body_block.into(),
+                arguments: remapped_body_args.into_iter().map(Into::into).collect(),
+            },
         }
     };
 
@@ -318,19 +365,27 @@ fn rotate_loop(
 
     let latch_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
-            condition: latch_condition,
-            then_target: candidate.body_block,
-            then_arguments: latch_body_args,
-            else_target: candidate.exit_block,
-            else_arguments: latch_exit_args,
+            condition: latch_condition.into(),
+            then_target: mir::BlockTarget {
+                block: candidate.body_block.into(),
+                arguments: latch_body_args.into_iter().map(Into::into).collect(),
+            },
+            else_target: mir::BlockTarget {
+                block: candidate.exit_block.into(),
+                arguments: latch_exit_args.into_iter().map(Into::into).collect(),
+            },
         }
     } else {
         mir::Terminator::Branch {
-            condition: latch_condition,
-            then_target: candidate.exit_block,
-            then_arguments: latch_exit_args,
-            else_target: candidate.body_block,
-            else_arguments: latch_body_args,
+            condition: latch_condition.into(),
+            then_target: mir::BlockTarget {
+                block: candidate.exit_block.into(),
+                arguments: latch_exit_args.into_iter().map(Into::into).collect(),
+            },
+            else_target: mir::BlockTarget {
+                block: candidate.body_block.into(),
+                arguments: latch_body_args.into_iter().map(Into::into).collect(),
+            },
         }
     };
 

@@ -228,11 +228,21 @@ fn find_splittable_allocations_core(
                 result_type,
             } = inst
             {
-                let reference_spec = match ReferenceSpec::from_type(tree.get(*result_type)) {
+                let Some(result_type) = result_type.ty() else {
+                    continue;
+                };
+                let Some(layout) = layout.ty() else {
+                    continue;
+                };
+                let Some(destination) = destination.value() else {
+                    continue;
+                };
+
+                let reference_spec = match ReferenceSpec::from_type(tree.get(result_type)) {
                     Some(spec) => spec,
                     None => continue,
                 };
-                let ty = tree.get(*layout);
+                let ty = tree.get(layout);
 
                 // check if this is a splittable aggregate type
                 let element_types = match get_element_types(ty, tree, max_array_elements) {
@@ -241,7 +251,7 @@ fn find_splittable_allocations_core(
                 };
 
                 // analyze uses to determine if splittable
-                let uses = match analyze_uses(*destination, function, tree, constants) {
+                let uses = match analyze_uses(destination, function, tree, constants) {
                     Some(uses) => uses,
                     None => continue,
                 };
@@ -255,7 +265,7 @@ fn find_splittable_allocations_core(
 
                 candidates.push(SplitCandidate {
                     alloc_instruction: inst_id,
-                    layout: *layout,
+                    layout,
                     reference_spec,
                     element_types,
                     uses: uses.uses,
@@ -289,9 +299,9 @@ fn get_element_types(
                 .iter()
                 .map(|&field_id| {
                     let field = tree.get(field_id);
-                    field.ty
+                    field.ty.ty()
                 })
-                .collect();
+                .collect::<Option<_>>()?;
 
             Some(types)
         }
@@ -301,7 +311,11 @@ fn get_element_types(
             copyability: _,
         } => {
             // collect element types without recursive flattening
-            Some(elements.clone())
+            elements
+                .iter()
+                .copied()
+                .map(|element| element.ty())
+                .collect::<Option<_>>()
         }
 
         mir::Type::Array {
@@ -315,7 +329,7 @@ fn get_element_types(
             }
 
             // create element types for each array element
-            let types = vec![*element; *length as usize];
+            let types = vec![element.ty()?; *length as usize];
 
             Some(types)
         }
@@ -359,15 +373,19 @@ fn analyze_uses(
                         aggregate,
                         index,
                         ..
-                    } if *aggregate == value => {
+                    } if aggregate.value() == Some(value) => {
+                        let Some(destination) = destination.value() else {
+                            return None;
+                        };
+
                         uses.push(UseInfo {
                             instruction: inst_id,
                             index: *index as usize,
-                            destination: *destination,
+                            destination,
                         });
 
                         // the field address itself might be used
-                        worklist.push(*destination);
+                        worklist.push(destination);
                     }
 
                     // element address: supported if index is constant
@@ -376,21 +394,29 @@ fn analyze_uses(
                         array,
                         index,
                         ..
-                    } if *array == value => {
+                    } if array.value() == Some(value) => {
+                        let Some(index) = index.value() else {
+                            return None;
+                        };
+
                         // check if index is a constant
-                        let const_index = resolve_constant_index(*index, block_id, constants)?;
+                        let const_index = resolve_constant_index(index, block_id, constants)?;
+                        let Some(destination) = destination.value() else {
+                            return None;
+                        };
+
                         uses.push(UseInfo {
                             instruction: inst_id,
                             index: const_index,
-                            destination: *destination,
+                            destination,
                         });
 
                         // the element address itself might be used
-                        worklist.push(*destination);
+                        worklist.push(destination);
                     }
 
                     // loads and stores are allowed, base pointer uses are recorded
-                    mir::Instruction::Load { pointer, .. } if *pointer == value => {
+                    mir::Instruction::Load { pointer, .. } if pointer.value() == Some(value) => {
                         if instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
@@ -399,7 +425,7 @@ fn analyze_uses(
                         }
                     }
 
-                    mir::Instruction::Store { pointer, .. } if *pointer == value => {
+                    mir::Instruction::Store { pointer, .. } if pointer.value() == Some(value) => {
                         if instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
@@ -416,7 +442,7 @@ fn analyze_uses(
                         // arguments are stored externally, access via argument_slice
                         if let Some(arg_slice) = inst.argument_slice() {
                             for &arg in tree.get_arguments(arg_slice) {
-                                if arg == value {
+                                if arg.value() == Some(value) {
                                     // value escapes through call
                                     return None;
                                 }
@@ -426,7 +452,11 @@ fn analyze_uses(
 
                     // any other use of the allocation value escapes
                     _ => {
-                        if inst.uses().contains(&value) {
+                        if inst
+                            .uses()
+                            .into_iter()
+                            .any(|used| used.value() == Some(value))
+                        {
                             // this value escapes, can't split
                             return None;
                         }
@@ -496,7 +526,7 @@ fn split_allocation(
             kind: candidate.reference_spec.kind,
             address_space: candidate.reference_spec.address_space,
             mutability: candidate.reference_spec.mutability,
-            pointee: elem_type,
+            pointee: elem_type.into(),
             is_nullable: candidate.reference_spec.is_nullable,
         });
         let new_value = function.next_typed_value(result_type);
@@ -504,9 +534,9 @@ fn split_allocation(
 
         // create the new StackAlloc instruction
         let new_inst = mir::Instruction::StackAlloc {
-            destination: new_value,
-            layout: elem_type,
-            result_type,
+            destination: new_value.into(),
+            layout: elem_type.into(),
+            result_type: result_type.into(),
         };
 
         // insert at the start of the entry block (after existing allocs)
@@ -606,7 +636,16 @@ fn rewrite_base_load(
             destination,
             pointer,
             ..
-        } => (*destination, *pointer),
+        } => {
+            let Some(destination) = destination.value() else {
+                return Vec::new();
+            };
+            let Some(pointer) = pointer.value() else {
+                return Vec::new();
+            };
+
+            (destination, pointer)
+        }
         _ => panic!("sroa base load rewrite expects a load instruction"),
     };
 
@@ -621,9 +660,9 @@ fn rewrite_base_load(
         let element_type = candidate.element_types[index];
         let element_value = function.next_typed_value(element_type);
         let load_inst = mir::Instruction::Load {
-            destination: element_value,
-            pointer: element_pointer,
-            result_type: element_type,
+            destination: element_value.into(),
+            pointer: element_pointer.into(),
+            result_type: element_type.into(),
         };
         let load_id = tree.insert(load_inst);
         new_instructions.push(load_id);
@@ -649,7 +688,13 @@ fn rewrite_base_store(
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // extract stored value
     let stored_value = match tree.get(instruction_id) {
-        mir::Instruction::Store { value, .. } => *value,
+        mir::Instruction::Store { value, .. } => {
+            let Some(value) = value.value() else {
+                return Vec::new();
+            };
+
+            value
+        }
         _ => panic!("sroa base store rewrite expects a store instruction"),
     };
 
@@ -672,9 +717,9 @@ fn rewrite_base_store(
             new_instructions.push(index_inst);
 
             let element_get = mir::Instruction::ElementGet {
-                destination: element_value,
-                array: stored_value,
-                index: index_value,
+                destination: element_value.into(),
+                array: stored_value.into(),
+                index: index_value.into(),
             };
             let element_get_id = tree.insert(element_get);
             new_instructions.push(element_get_id);
@@ -683,8 +728,8 @@ fn rewrite_base_store(
         // handle struct or tuple extraction using field indices
         if !is_array {
             let field_get = mir::Instruction::FieldGet {
-                destination: element_value,
-                aggregate: stored_value,
+                destination: element_value.into(),
+                aggregate: stored_value.into(),
                 index: index as u32,
             };
             let field_get_id = tree.insert(field_get);
@@ -693,8 +738,8 @@ fn rewrite_base_store(
 
         // store scalar into the split allocation slot
         let store_inst = mir::Instruction::Store {
-            pointer: element_pointer,
-            value: element_value,
+            pointer: element_pointer.into(),
+            value: element_value.into(),
         };
         let store_id = tree.insert(store_inst);
         new_instructions.push(store_id);
@@ -711,23 +756,24 @@ fn build_aggregate_instruction(
     element_values: &[mir::Value],
 ) -> mir::Instruction {
     // prepare aggregate arguments and layout
-    let arguments = tree.add_arguments(element_values);
+    let arguments: Vec<_> = element_values.iter().copied().map(Into::into).collect();
+    let arguments = tree.add_arguments(&arguments);
     let layout_type = tree.get(layout);
 
     match layout_type {
         mir::Type::Struct { .. } => mir::Instruction::Struct {
-            destination,
-            ty: layout,
+            destination: destination.into(),
+            ty: layout.into(),
             fields: arguments,
         },
         mir::Type::Tuple { .. } => mir::Instruction::Tuple {
-            destination,
-            ty: layout,
+            destination: destination.into(),
+            ty: layout.into(),
             elements: arguments,
         },
         mir::Type::Array { .. } => mir::Instruction::Array {
-            destination,
-            ty: layout,
+            destination: destination.into(),
+            ty: layout.into(),
             elements: arguments,
         },
         _ => panic!("sroa base load expects an aggregate layout type"),
@@ -758,7 +804,7 @@ fn insert_index_constant(
         is_signed: true,
     };
     let inst = mir::Instruction::Const {
-        destination,
+        destination: destination.into(),
         value: constant,
     };
     let inst_id = tree.insert(inst);

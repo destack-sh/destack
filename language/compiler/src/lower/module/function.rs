@@ -1095,7 +1095,15 @@ impl ModuleLowerer<'_> {
 
             // select the layout type
             let layout_type = match function_lowerer.state.builder.tree().get(this_ty) {
-                mir::Type::Reference { pointee, .. } => *pointee,
+                mir::Type::Reference { pointee, .. } => {
+                    pointee
+                        .ty()
+                        .ok_or_else(|| LowerError::UnsupportedConstruct {
+                            node,
+                            message: "constructor receiver pointee type is not concrete"
+                                .to_string(),
+                        })?
+                }
                 _ => this_ty,
             };
 

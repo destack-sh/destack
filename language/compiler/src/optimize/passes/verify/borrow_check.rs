@@ -684,7 +684,10 @@ impl<'a> BorrowCheckContext<'a> {
             ResolvedLifetime::Parameters(param_indices) => {
                 // determine mutability from callee's return type
                 let callee = self.tree.get(callee_id);
-                let return_ty = self.tree.get(callee.return_type);
+                let Some(return_type) = callee.return_type.ty() else {
+                    return;
+                };
+                let return_ty = self.tree.get(return_type);
                 let is_mutable = return_ty.is_mutable_borrowed_reference();
 
                 for param_idx in param_indices {
@@ -849,7 +852,7 @@ fn expire_dead_borrows(
                 let is_block_param = block
                     .parameters
                     .iter()
-                    .any(|param| param.value == borrow.reference);
+                    .any(|param| param.value.value() == Some(borrow.reference));
                 !liveness.is_live_in(block_id, borrow.reference) && !is_block_param
             } else {
                 // check if value is dead after previous instruction
@@ -885,19 +888,23 @@ fn check_instruction(
             result_type,
             ..
         } => {
-            if !checker.is_borrowed_reference_type(*result_type) {
+            let Some(result_type) = result_type.ty() else {
+                return;
+            };
+            let Some(destination) = destination.value() else {
+                return;
+            };
+            let Some(aggregate) = aggregate.value() else {
+                return;
+            };
+
+            if !checker.is_borrowed_reference_type(result_type) {
                 return;
             }
 
             // derive mutability from reference type
-            let is_mutable = checker.mutability_from_reference_type(*result_type);
-            checker.check_new_borrow(
-                *destination,
-                *aggregate,
-                is_mutable,
-                instruction_id,
-                context,
-            );
+            let is_mutable = checker.mutability_from_reference_type(result_type);
+            checker.check_new_borrow(destination, aggregate, is_mutable, instruction_id, context);
         }
 
         // element.address creates a borrow of the array
@@ -907,29 +914,53 @@ fn check_instruction(
             result_type,
             ..
         } => {
-            if !checker.is_borrowed_reference_type(*result_type) {
+            let Some(result_type) = result_type.ty() else {
+                return;
+            };
+            let Some(destination) = destination.value() else {
+                return;
+            };
+            let Some(array) = array.value() else {
+                return;
+            };
+
+            if !checker.is_borrowed_reference_type(result_type) {
                 return;
             }
 
             // derive mutability from reference type
-            let is_mutable = checker.mutability_from_reference_type(*result_type);
-            checker.check_new_borrow(*destination, *array, is_mutable, instruction_id, context);
+            let is_mutable = checker.mutability_from_reference_type(result_type);
+            checker.check_new_borrow(destination, array, is_mutable, instruction_id, context);
         }
 
         // store: moves value, invalidates borrows
         Instruction::Store { pointer, value } => {
+            let Some(value) = value.value() else {
+                return;
+            };
+            let Some(pointer) = pointer.value() else {
+                return;
+            };
+
             // check if value being stored has active borrows (move-while-borrowed)
-            checker.check_move_while_borrowed(*value, instruction_id, context);
+            checker.check_move_while_borrowed(value, instruction_id, context);
             // storing invalidates other borrows of the same location
-            checker.check_mutation_through_reference(*pointer, instruction_id, context);
+            checker.check_mutation_through_reference(pointer, instruction_id, context);
         }
 
         // local.set mutates the local
         Instruction::LocalSet { local, value } => {
+            let Some(value) = value.value() else {
+                return;
+            };
+            let Some(local) = local.local() else {
+                return;
+            };
+
             // check if the value being set has active borrows
-            checker.check_move_while_borrowed(*value, instruction_id, context);
+            checker.check_move_while_borrowed(value, instruction_id, context);
             // check if the local is currently borrowed (mutation through borrow)
-            checker.check_local_set_while_borrowed(*local, instruction_id, context);
+            checker.check_local_set_while_borrowed(local, instruction_id, context);
         }
 
         // local.get loads a value without creating a borrow
@@ -941,29 +972,51 @@ fn check_instruction(
             local,
             result_type,
         } => {
+            let Some(result_type) = result_type.ty() else {
+                return;
+            };
+            let Some(destination) = destination.value() else {
+                return;
+            };
+            let Some(local) = local.local() else {
+                return;
+            };
+
             // only references participate in borrow checking
-            if !checker.is_borrowed_reference_type(*result_type) {
+            if !checker.is_borrowed_reference_type(result_type) {
                 return;
             }
 
-            let is_mutable = checker.mutability_from_reference_type(*result_type);
-            checker.check_local_borrow_conflict(*local, is_mutable, instruction_id, context);
-            checker.add_local_borrow(*destination, *local, is_mutable, instruction_id);
+            let is_mutable = checker.mutability_from_reference_type(result_type);
+            checker.check_local_borrow_conflict(local, is_mutable, instruction_id, context);
+            checker.add_local_borrow(destination, local, is_mutable, instruction_id);
         }
 
         // raw.drop invalidates any borrows from this value
         Instruction::RawDrop { value } => {
-            checker.check_drop_while_borrowed(*value, instruction_id, context);
+            let Some(value) = value.value() else {
+                return;
+            };
+
+            checker.check_drop_while_borrowed(value, instruction_id, context);
         }
 
         // stack.drop invalidates any borrows from this value
         Instruction::StackDrop { value } => {
-            checker.check_drop_while_borrowed(*value, instruction_id, context);
+            let Some(value) = value.value() else {
+                return;
+            };
+
+            checker.check_drop_while_borrowed(value, instruction_id, context);
         }
 
         // raw.free invalidates borrows
         Instruction::RawFree { pointer } => {
-            checker.check_drop_while_borrowed(*pointer, instruction_id, context);
+            let Some(pointer) = pointer.value() else {
+                return;
+            };
+
+            checker.check_drop_while_borrowed(pointer, instruction_id, context);
         }
 
         // load through a reference
@@ -980,11 +1033,19 @@ fn check_instruction(
         } => {
             let args = checker.tree.get_arguments(call.arguments);
             for &arg in args {
+                let Some(arg) = arg.value() else {
+                    continue;
+                };
+
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
-            if let Some(dest) = destination {
+            if let Some(dest) = destination.and_then(|value| value.value())
+                && let Some(function) = function.function()
+            {
+                let args: Vec<_> = args.iter().filter_map(|arg| arg.value()).collect();
+
                 // track borrows created by the call based on callee's lifetime bounds
-                checker.track_call_return_borrows(*dest, *function, args, instruction_id);
+                checker.track_call_return_borrows(dest, function, &args, instruction_id);
             }
         }
 
@@ -992,6 +1053,10 @@ fn check_instruction(
             // callee is used, not moved
             let args = checker.tree.get_arguments(call.arguments);
             for &arg in args {
+                let Some(arg) = arg.value() else {
+                    continue;
+                };
+
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
         }
@@ -999,24 +1064,40 @@ fn check_instruction(
             // callee is used, not moved
             let args = checker.tree.get_arguments(call.arguments);
             for &arg in args {
+                let Some(arg) = arg.value() else {
+                    continue;
+                };
+
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
         }
 
         // field.set moves value into aggregate
         Instruction::FieldSet { value, .. } => {
-            checker.check_move_while_borrowed(*value, instruction_id, context);
+            let Some(value) = value.value() else {
+                return;
+            };
+
+            checker.check_move_while_borrowed(value, instruction_id, context);
         }
 
         // element.set moves value into array
         Instruction::ElementSet { value, .. } => {
-            checker.check_move_while_borrowed(*value, instruction_id, context);
+            let Some(value) = value.value() else {
+                return;
+            };
+
+            checker.check_move_while_borrowed(value, instruction_id, context);
         }
 
         // struct/tuple/array construction moves all fields
         Instruction::Struct { fields, .. } => {
             let field_values = checker.tree.get_arguments(*fields);
             for &field in field_values {
+                let Some(field) = field.value() else {
+                    continue;
+                };
+
                 checker.check_move_while_borrowed(field, instruction_id, context);
             }
         }
@@ -1024,6 +1105,10 @@ fn check_instruction(
         Instruction::Tuple { elements, .. } => {
             let element_values = checker.tree.get_arguments(*elements);
             for &elem in element_values {
+                let Some(elem) = elem.value() else {
+                    continue;
+                };
+
                 checker.check_move_while_borrowed(elem, instruction_id, context);
             }
         }
@@ -1031,6 +1116,10 @@ fn check_instruction(
         Instruction::Array { elements, .. } => {
             let element_values = checker.tree.get_arguments(*elements);
             for &elem in element_values {
+                let Some(elem) = elem.value() else {
+                    continue;
+                };
+
                 checker.check_move_while_borrowed(elem, instruction_id, context);
             }
         }
@@ -1041,11 +1130,18 @@ fn check_instruction(
             argument,
             ..
         } => {
-            if !checker.is_borrowed_reference_value(*destination) {
+            let Some(destination) = destination.value() else {
+                return;
+            };
+            let Some(argument) = argument.value() else {
+                return;
+            };
+
+            if !checker.is_borrowed_reference_value(destination) {
                 return;
             }
 
-            checker.propagate_reference_borrows(*destination, *argument, instruction_id);
+            checker.propagate_reference_borrows(destination, argument, instruction_id);
         }
 
         // select between references merges borrow provenance
@@ -1055,13 +1151,23 @@ fn check_instruction(
             else_value,
             ..
         } => {
-            if !checker.is_borrowed_reference_value(*destination) {
+            let Some(destination) = destination.value() else {
+                return;
+            };
+            let Some(then_value) = then_value.value() else {
+                return;
+            };
+            let Some(else_value) = else_value.value() else {
+                return;
+            };
+
+            if !checker.is_borrowed_reference_value(destination) {
                 return;
             }
 
-            checker.propagate_reference_borrows(*destination, *then_value, instruction_id);
+            checker.propagate_reference_borrows(destination, then_value, instruction_id);
             if then_value != else_value {
-                checker.propagate_reference_borrows(*destination, *else_value, instruction_id);
+                checker.propagate_reference_borrows(destination, else_value, instruction_id);
             }
         }
 

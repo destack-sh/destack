@@ -119,7 +119,9 @@ fn run_interprocedural_constant_prop(tree: &mut mir::NodeTree, pointer_width_bit
         }
 
         let function = tree.get(function_id);
-        let signature = SignatureKey::from_function(tree, function);
+        let Some(signature) = SignatureKey::from_function(tree, function) else {
+            continue;
+        };
 
         // skip functions reachable through indirect calls
         if call_data.indirect_signatures.contains(&signature) {
@@ -174,9 +176,20 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call { function, call, .. } = instruction
                     {
-                        let arguments = tree.get_arguments(call.arguments).to_vec();
+                        let Some(function) = function.function() else {
+                            continue;
+                        };
+                        let Some(arguments) = tree
+                            .get_arguments(call.arguments)
+                            .iter()
+                            .map(|value| value.value())
+                            .collect::<Option<Vec<_>>>()
+                        else {
+                            continue;
+                        };
+
                         data.direct_calls
-                            .entry(*function)
+                            .entry(function)
                             .or_default()
                             .push(DirectCallArgs {
                                 caller: caller_id,
@@ -187,6 +200,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
                     if let Some(signature) = instruction
                         .call_signature()
+                        .and_then(|signature| signature.ty())
                         .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
                     {
                         data.indirect_signatures.insert(signature);
@@ -196,36 +210,64 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
             match terminator {
                 mir::Terminator::Invoke { function, call, .. } => {
+                    let Some(function) = function.function() else {
+                        continue;
+                    };
+                    let Some(arguments) = call
+                        .arguments
+                        .iter()
+                        .map(|value| value.value())
+                        .collect::<Option<Vec<_>>>()
+                    else {
+                        continue;
+                    };
+
                     data.direct_calls
-                        .entry(*function)
+                        .entry(function)
                         .or_default()
                         .push(DirectCallArgs {
                             caller: caller_id,
-                            arguments: call.arguments.clone(),
+                            arguments,
                         });
                 }
                 mir::Terminator::InvokeIndirect { call, .. }
                 | mir::Terminator::InvokeVirtual { call, .. }
                 | mir::Terminator::InvokeInterface { call, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
-                    {
+                    let Some(signature) = call.signature.ty() else {
+                        continue;
+                    };
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
                         data.indirect_signatures.insert(signature);
                     }
                 }
                 mir::Terminator::TailCall { function, call, .. } => {
+                    let Some(function) = function.function() else {
+                        continue;
+                    };
+                    let Some(arguments) = call
+                        .arguments
+                        .iter()
+                        .map(|value| value.value())
+                        .collect::<Option<Vec<_>>>()
+                    else {
+                        continue;
+                    };
+
                     data.direct_calls
-                        .entry(*function)
+                        .entry(function)
                         .or_default()
                         .push(DirectCallArgs {
                             caller: caller_id,
-                            arguments: call.arguments.clone(),
+                            arguments,
                         });
                 }
                 mir::Terminator::TailCallIndirect { call, .. }
                 | mir::Terminator::TailCallVirtual { call, .. }
                 | mir::Terminator::TailCallInterface { call, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
-                    {
+                    let Some(signature) = call.signature.ty() else {
+                        continue;
+                    };
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
                         data.indirect_signatures.insert(signature);
                     }
                 }
@@ -294,7 +336,11 @@ fn constant_parameters(
 
             // validate the constant matches the parameter type
             let constant_type = constant_type_of(&constant);
-            if !constant_matches_type(constant_type, param.ty, pointer_width_bits, tree) {
+            let Some(parameter_type) = param.ty.ty() else {
+                candidate = None;
+                break;
+            };
+            if !constant_matches_type(constant_type, parameter_type, pointer_width_bits, tree) {
                 candidate = None;
                 break;
             }

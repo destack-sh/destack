@@ -381,7 +381,11 @@ fn compute_function_summary(
                 has_return = true;
             }
             mir::Terminator::Invoke { function, .. } => {
-                let (effect, behavior) = call_effects_for_direct_callee(*function, summaries);
+                let Some(function) = function.function() else {
+                    continue;
+                };
+
+                let (effect, behavior) = call_effects_for_direct_callee(function, summaries);
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
                 if !behavior.return_behavior.is_no_return() {
@@ -404,7 +408,11 @@ fn compute_function_summary(
             }
             mir::Terminator::Trap { .. } => {}
             mir::Terminator::TailCall { function, .. } => {
-                let (effect, behavior) = call_effects_for_direct_callee(*function, summaries);
+                let Some(function) = function.function() else {
+                    continue;
+                };
+
+                let (effect, behavior) = call_effects_for_direct_callee(function, summaries);
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
                 if !behavior.return_behavior.is_no_return() {
@@ -640,6 +648,10 @@ fn call_effects_for_dynamic_terminator(
         return (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown());
     };
 
+    let Some(callee) = callee.function() else {
+        return (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown());
+    };
+
     call_effects_for_direct_callee(callee, summaries)
 }
 
@@ -648,7 +660,7 @@ fn direct_callee_for_instruction(
     instruction: &mir::Instruction,
 ) -> Option<mir::LocalNodeId<mir::Function>> {
     match instruction {
-        mir::Instruction::Call { function, .. } => Some(*function),
+        mir::Instruction::Call { function, .. } => function.function(),
         _ => None,
     }
 }

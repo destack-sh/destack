@@ -1018,7 +1018,7 @@ impl<'a> ModuleLowerer<'a> {
 
             self.builder.tree_mut().insert(mir::TypeAlias {
                 name: name_id,
-                ty: mir_type,
+                ty: mir_type.into(),
             });
             existing_aliases.insert(name_id);
         }

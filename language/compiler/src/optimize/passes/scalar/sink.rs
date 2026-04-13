@@ -167,6 +167,9 @@ fn run_sink(
                 Some(d) => d,
                 None => continue,
             };
+            let Some(destination_value) = destination.value() else {
+                continue;
+            };
 
             // check that the value is not used in the terminator
             let terminator_uses: Vec<_> = terminator.uses().into_iter().collect();
@@ -177,7 +180,7 @@ fn run_sink(
             // check where the value is used
             let uses = use_def
                 .use_blocks
-                .get(&destination)
+                .get(&destination_value)
                 .map(|v| v.as_slice())
                 .unwrap_or(&[]);
             if uses.is_empty() {
@@ -195,7 +198,10 @@ fn run_sink(
                 }
 
                 // must be a successor
-                if !successors.contains(&use_block) {
+                if !successors
+                    .iter()
+                    .any(|successor| successor.block() == Some(use_block))
+                {
                     // used in a non successor block
                     // this can happen if the value flows through block parameters
                     target_successor = None;
@@ -237,14 +243,18 @@ fn run_sink(
             // verify the instruction's operands will still be available in the successor
             // (they must dominate the successor)
             let operands_ok = instruction.uses().iter().all(|&operand| {
-                if let Some(def_id) = definition_map.get(&operand)
+                let Some(operand_value) = operand.value() else {
+                    return false;
+                };
+
+                if let Some(def_id) = definition_map.get(&operand_value)
                     && instruction_blocks.get(def_id) == Some(&successor)
                 {
                     return false;
                 }
 
                 // check if operand is defined in a block that dominates successor
-                match use_def.def_block.get(&operand) {
+                match use_def.def_block.get(&operand_value) {
                     Some(&operand_block) => {
                         domtree.dominates(operand_block, successor)
                             || domtree.dominates(operand_block, block_id)
@@ -325,7 +335,11 @@ fn memory_read_can_sink(
     match instruction {
         mir::Instruction::Load { pointer, .. } => {
             // check for clobbering memory operations
-            let location = MemoryLocation::from_ptr(*pointer);
+            let Some(pointer) = pointer.value() else {
+                return false;
+            };
+
+            let location = MemoryLocation::from_ptr(pointer);
             for &later_id in &block.instructions[index + 1..] {
                 let later = tree.get(later_id);
                 if instruction_may_affect_memory(later) && alias.may_clobber(later_id, &location) {

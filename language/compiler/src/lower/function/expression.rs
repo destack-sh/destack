@@ -290,7 +290,11 @@ impl FunctionLowerer<'_> {
             // load through references before extracting the tag
             let union_value = match self.state.builder.tree().get(left_mir_type) {
                 mir::Type::Reference { pointee, .. } => {
-                    self.state.builder.load(left_value, *pointee)
+                    let pointee = pointee.ty().ok_or_else(|| {
+                        self.error(expression_id, "union reference pointee is not concrete")
+                    })?;
+
+                    self.state.builder.load(left_value, pointee)
                 }
                 _ => left_value,
             };
@@ -560,7 +564,7 @@ impl FunctionLowerer<'_> {
             .copyability()
             .combine(mir::Copyability::Trivial);
         let pair_type = self.state.builder.tree_mut().insert_type(mir::Type::Tuple {
-            elements: vec![result_type, bool_type],
+            elements: vec![result_type.into(), bool_type.into()],
             copyability: result_copyability,
         });
 
@@ -575,8 +579,8 @@ impl FunctionLowerer<'_> {
         // emit the overflow check
         let constraint = mir::CheckConstraint::Overflow {
             operator: constraint_operator,
-            left: left_value,
-            right: right_value,
+            left: left_value.into(),
+            right: right_value.into(),
             is_signed,
         };
         self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.integer_overflow)?;
@@ -609,7 +613,7 @@ impl FunctionLowerer<'_> {
 
         // build the div-zero check
         let constraint = mir::CheckConstraint::DivZero {
-            divisor: right_value,
+            divisor: right_value.into(),
         };
         self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.division_by_zero)?;
 
@@ -631,8 +635,8 @@ impl FunctionLowerer<'_> {
             };
             let constraint = mir::CheckConstraint::Overflow {
                 operator: mir::BinaryOperator::SignedDivide,
-                left: left_value,
-                right: right_value,
+                left: left_value.into(),
+                right: right_value.into(),
                 is_signed,
             };
             self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.division_overflow)?;
@@ -673,7 +677,7 @@ impl FunctionLowerer<'_> {
             message: "shift width exceeds check constraint limits".to_string(),
         })?;
         let constraint = mir::CheckConstraint::ShiftRange {
-            value: right_value,
+            value: right_value.into(),
             bit_width,
             is_signed: shift_signed,
         };

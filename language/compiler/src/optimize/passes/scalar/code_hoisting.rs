@@ -120,20 +120,40 @@ fn run_code_hoisting(
         let terminator = tree.get(block.terminator);
 
         // require a conditional branch
-        let (then_block, else_block, then_arguments, else_arguments) = match terminator {
+        let (then_target, else_target) = match terminator {
             mir::Terminator::Branch {
                 then_target,
                 else_target,
-                then_arguments,
-                else_arguments,
                 ..
-            } => (
-                *then_target,
-                *else_target,
-                then_arguments.clone(),
-                else_arguments.clone(),
-            ),
+            } => (then_target.clone(), else_target.clone()),
             _ => continue,
+        };
+
+        let Some(then_block) = then_target.block.block() else {
+            continue;
+        };
+        let Some(else_block) = else_target.block.block() else {
+            continue;
+        };
+
+        let Some(then_arguments) = then_target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()
+        else {
+            continue;
+        };
+
+        let Some(else_arguments) = else_target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()
+        else {
+            continue;
         };
 
         // reject degenerate branches
@@ -350,12 +370,20 @@ fn build_param_rewrites(
 
     // map then parameters to their incoming arguments
     for (then_param, then_arg) in then_block.parameters.iter().zip(then_arguments.iter()) {
-        then_rewrites.insert(then_param.value, *then_arg);
+        let Some(then_param) = then_param.value.value() else {
+            continue;
+        };
+
+        then_rewrites.insert(then_param, *then_arg);
     }
 
     // map else parameters to their incoming arguments
     for (else_param, else_arg) in else_block.parameters.iter().zip(else_arguments.iter()) {
-        else_rewrites.insert(else_param.value, *else_arg);
+        let Some(else_param) = else_param.value.value() else {
+            continue;
+        };
+
+        else_rewrites.insert(else_param, *else_arg);
     }
 
     (then_rewrites, else_rewrites)
@@ -371,6 +399,10 @@ fn instruction_operands_available(
 ) -> bool {
     // scan all operands
     for value in instruction.uses() {
+        let Some(value) = value.value() else {
+            return false;
+        };
+
         // skip values already hoisted into the header
         if hoisted_values.contains(&value) {
             continue;
@@ -445,7 +477,10 @@ fn build_expression_index(
         let instruction = tree.get(instruction_id).clone();
 
         // skip instructions without destinations
-        let Some(destination) = instruction.destination() else {
+        let Some(destination) = instruction
+            .destination()
+            .and_then(|destination| destination.value())
+        else {
             continue;
         };
 

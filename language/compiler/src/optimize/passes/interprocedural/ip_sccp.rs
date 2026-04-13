@@ -118,7 +118,7 @@ struct DirectCallSite {
     /// The call instruction when applicable.
     call_instruction: Option<mir::LocalNodeId<mir::Instruction>>,
     /// The arguments passed at the callsite.
-    arguments: Vec<mir::Value>,
+    arguments: Vec<mir::ValueReference>,
 }
 
 /// Collected callsite data for IPSCCP.
@@ -225,10 +225,12 @@ fn seed_function_states(
         // read the function signature
         let function = tree.get(*function_id);
         let signature = SignatureKey::from_function(tree, function);
+        let is_indirect = signature
+            .as_ref()
+            .is_some_and(|signature| call_data.indirect_signatures.contains(signature));
 
         // mark functions reachable from outside or indirectly as exposed
-        let is_exposed =
-            linkage.is_exported() || call_data.indirect_signatures.contains(&signature);
+        let is_exposed = linkage.is_exported() || signature.is_none() || is_indirect;
 
         // seed parameter lattices based on exposure
         let seed_state = if is_exposed {
@@ -400,8 +402,13 @@ fn return_state_for_function(
     tree: &mir::NodeTree,
     type_context: crate::optimize::TypeContext,
 ) -> LatticeConstant {
+    // require a concrete return type
+    let Some(return_type) = function.return_type.ty() else {
+        return LatticeConstant::Overdefined;
+    };
+
     // skip void returns
-    if matches!(tree.get(function.return_type), mir::Type::Void) {
+    if matches!(tree.get(return_type), mir::Type::Void) {
         return LatticeConstant::Overdefined;
     }
 
@@ -418,12 +425,12 @@ fn return_state_for_function(
         };
 
         // reject returns without a value
-        let Some(value) = value else {
+        let Some(value) = value.and_then(|value| value.value()) else {
             return LatticeConstant::Overdefined;
         };
 
         // resolve the return constant at the block exit
-        let Some(constant) = constants.constant_at_exit(*block_id, *value) else {
+        let Some(constant) = constants.constant_at_exit(*block_id, value) else {
             return LatticeConstant::Overdefined;
         };
 
@@ -431,7 +438,7 @@ fn return_state_for_function(
         let constant_type = constant_type_of(constant);
         if !constant_matches_type(
             constant_type,
-            function.return_type,
+            return_type,
             type_context.pointer_width_bits,
             tree,
         ) {
@@ -486,7 +493,11 @@ fn param_constants_for_function(
     for (param, param_state) in function.parameters.iter().zip(state.param_states.iter()) {
         // skip non constant parameter states
         if let LatticeConstant::Constant(constant) = param_state {
-            constants.insert(param.value, constant.clone());
+            let Some(value) = param.value.value() else {
+                continue;
+            };
+
+            constants.insert(value, constant.clone());
         }
     }
 
@@ -542,6 +553,9 @@ fn replace_constant_calls(
 
         // skip calls that do not produce a value
         let Some(destination) = destination else {
+            continue;
+        };
+        let Some(function) = function.function() else {
             continue;
         };
 
@@ -607,10 +621,14 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                             ..
                         } = instruction
                     {
+                        let Some(callee) = callee.function() else {
+                            continue;
+                        };
                         let arguments = tree.get_arguments(call.arguments).to_vec();
+
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
-                            callee: *callee,
+                            callee,
                             block: block_id,
                             call_instruction: Some(instruction_id),
                             arguments,
@@ -620,6 +638,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
                     if let Some(signature) = instruction
                         .call_signature()
+                        .and_then(|signature| signature.ty())
                         .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
                     {
                         data.indirect_signatures.insert(signature);
@@ -634,18 +653,26 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                     call,
                     ..
                 } => {
+                    let Some(callee) = callee.function() else {
+                        continue;
+                    };
+                    let arguments = call.arguments.clone();
+
                     data.callsites.push(DirectCallSite {
                         caller: caller_id,
-                        callee: *callee,
+                        callee,
                         block: block_id,
                         call_instruction: None,
-                        arguments: call.arguments.clone(),
+                        arguments,
                     });
                 }
                 mir::Terminator::InvokeIndirect { call, .. }
                 | mir::Terminator::InvokeVirtual { call, .. }
                 | mir::Terminator::InvokeInterface { call, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    if let Some(signature) = call
+                        .signature
+                        .ty()
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -655,18 +682,26 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                     call,
                     ..
                 } => {
+                    let Some(callee) = callee.function() else {
+                        continue;
+                    };
+                    let arguments = call.arguments.clone();
+
                     data.callsites.push(DirectCallSite {
                         caller: caller_id,
-                        callee: *callee,
+                        callee,
                         block: block_id,
                         call_instruction: None,
-                        arguments: call.arguments.clone(),
+                        arguments,
                     });
                 }
                 mir::Terminator::TailCallIndirect { call, .. }
                 | mir::Terminator::TailCallVirtual { call, .. }
                 | mir::Terminator::TailCallInterface { call, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    if let Some(signature) = call
+                        .signature
+                        .ty()
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
                     {
                         data.indirect_signatures.insert(signature);
                     }

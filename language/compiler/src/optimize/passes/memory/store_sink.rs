@@ -173,8 +173,12 @@ fn run_store_sink(
         // determine which successors need the store
         let mut needed = Vec::new();
         for successor in &successors {
-            if successor_reaches_use(tree, *successor, use_blocks) {
-                needed.push(*successor);
+            let Some(successor) = successor.block() else {
+                continue;
+            };
+
+            if successor_reaches_use(tree, successor, use_blocks) {
+                needed.push(successor);
             }
         }
 
@@ -242,10 +246,24 @@ fn collect_store_candidates(
             // select store instructions
             let (kind, pointer, local, value) = match tree.get(instruction_id) {
                 mir::Instruction::Store { pointer, value } => {
-                    (StoreKind::Store, Some(*pointer), None, *value)
+                    let Some(pointer) = pointer.value() else {
+                        continue;
+                    };
+                    let Some(value) = value.value() else {
+                        continue;
+                    };
+
+                    (StoreKind::Store, Some(pointer), None, value)
                 }
                 mir::Instruction::LocalSet { local, value } => {
-                    (StoreKind::LocalSet, None, Some(*local), *value)
+                    let Some(local) = local.local() else {
+                        continue;
+                    };
+                    let Some(value) = value.value() else {
+                        continue;
+                    };
+
+                    (StoreKind::LocalSet, None, Some(local), value)
                 }
                 _ => continue,
             };
@@ -406,7 +424,11 @@ fn successor_reaches_use(
 
         let block = tree.get(block);
         let terminator = tree.get(block.terminator);
-        for &successor in terminator.successors().iter() {
+        for successor in terminator.successors() {
+            let Some(successor) = successor.block() else {
+                continue;
+            };
+
             if visited.insert(successor) {
                 queue.push_back(successor);
             }
@@ -425,12 +447,12 @@ fn insert_store_for_candidate(
     // build the new store instruction
     let instruction = match candidate.kind {
         StoreKind::Store => mir::Instruction::Store {
-            pointer: candidate.pointer.expect("store pointer required"),
-            value: candidate.value,
+            pointer: candidate.pointer.expect("store pointer required").into(),
+            value: candidate.value.into(),
         },
         StoreKind::LocalSet => mir::Instruction::LocalSet {
-            local: candidate.local.expect("local target required"),
-            value: candidate.value,
+            local: candidate.local.expect("local target required").into(),
+            value: candidate.value.into(),
         },
     };
 

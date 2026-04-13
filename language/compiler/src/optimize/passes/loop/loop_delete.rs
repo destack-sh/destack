@@ -165,13 +165,17 @@ fn find_deletable_loop(
 
         // block parameters are loop-defined
         for param in &block.parameters {
-            loop_defined_values.insert(param.value);
+            let Some(value) = param.value.value() else {
+                continue;
+            };
+
+            loop_defined_values.insert(value);
         }
 
         // instruction destinations are loop-defined
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 loop_defined_values.insert(destination);
             }
         }
@@ -197,7 +201,10 @@ fn find_deletable_loop(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             for used_value in instruction.uses() {
-                if loop_defined_values.contains(&used_value) {
+                if used_value
+                    .value()
+                    .is_some_and(|value| loop_defined_values.contains(&value))
+                {
                     return None;
                 }
             }
@@ -205,7 +212,10 @@ fn find_deletable_loop(
             // check externalized arguments
             if let Some(args_slice) = instruction.argument_slice() {
                 for &arg in tree.get_arguments(args_slice) {
-                    if loop_defined_values.contains(&arg) {
+                    if arg
+                        .value()
+                        .is_some_and(|value| loop_defined_values.contains(&value))
+                    {
                         return None;
                     }
                 }
@@ -215,7 +225,10 @@ fn find_deletable_loop(
         // check terminator uses
         let terminator = tree.get(block.terminator);
         for used_value in terminator.uses() {
-            if loop_defined_values.contains(&used_value) {
+            if used_value
+                .value()
+                .is_some_and(|value| loop_defined_values.contains(&value))
+            {
                 return None;
             }
         }
@@ -244,15 +257,13 @@ fn find_constant_exit(
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => (
-            *condition,
-            *then_target,
-            then_arguments.clone(),
-            *else_target,
-            else_arguments.clone(),
+            condition.value()?,
+            then_target.block.block()?,
+            then_target.arguments.clone(),
+            else_target.block.block()?,
+            else_target.arguments.clone(),
         ),
         _ => return None,
     };
@@ -280,13 +291,18 @@ fn find_constant_exit(
     let preheader_args = preheader_to_header_args(preheader, lp.header, tree)?;
     let mut initial_values: HashMap<mir::Value, mir::Value> = HashMap::new();
     for (param, arg) in header_block.parameters.iter().zip(preheader_args.iter()) {
-        initial_values.insert(param.value, *arg);
+        let Some(parameter) = param.value.value() else {
+            continue;
+        };
+
+        initial_values.insert(parameter, *arg);
     }
 
     // resolve exit arguments using initial values
     let resolved_arguments: Vec<mir::Value> = taken_arguments
         .iter()
-        .map(|v| *initial_values.get(v).unwrap_or(v))
+        .filter_map(|value| value.value())
+        .map(|value| *initial_values.get(&value).unwrap_or(&value))
         .collect();
 
     Some((taken_target, resolved_arguments))
@@ -303,21 +319,37 @@ fn preheader_to_header_args(
 
     // find the terminator path that leads to the header
     match preheader_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == header => Some(arguments.clone()),
+        mir::Terminator::Jump { target } if target.block.block() == Some(header) => Some(
+            target
+                .arguments
+                .iter()
+                .filter_map(|value| value.value())
+                .collect(),
+        ),
         mir::Terminator::Branch {
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
             ..
         } => {
             // check then branch
-            if *then_target == header {
-                Some(then_arguments.clone())
+            if then_target.block.block() == Some(header) {
+                Some(
+                    then_target
+                        .arguments
+                        .iter()
+                        .filter_map(|value| value.value())
+                        .collect(),
+                )
             }
             // check else branch
-            else if *else_target == header {
-                Some(else_arguments.clone())
+            else if else_target.block.block() == Some(header) {
+                Some(
+                    else_target
+                        .arguments
+                        .iter()
+                        .filter_map(|value| value.value())
+                        .collect(),
+                )
             } else {
                 None
             }
@@ -326,12 +358,24 @@ fn preheader_to_header_args(
             success, failure, ..
         } => {
             // check success path
-            if success.target == header {
-                Some(success.arguments.clone())
+            if success.block.block() == Some(header) {
+                Some(
+                    success
+                        .arguments
+                        .iter()
+                        .filter_map(|value| value.value())
+                        .collect(),
+                )
             }
             // check failure path
-            else if failure.target == header {
-                Some(failure.arguments.clone())
+            else if failure.block.block() == Some(header) {
+                Some(
+                    failure
+                        .arguments
+                        .iter()
+                        .filter_map(|value| value.value())
+                        .collect(),
+                )
             } else {
                 None
             }
@@ -349,8 +393,15 @@ fn delete_loop(
     // update preheader to jump directly to exit
     let preheader = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {
-        target: candidate.exit_block,
-        arguments: candidate.exit_arguments.clone(),
+        target: mir::BlockTarget {
+            block: candidate.exit_block.into(),
+            arguments: candidate
+                .exit_arguments
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+        },
     };
     tree.replace(candidate.preheader, preheader);
     tree.replace(tree.get(candidate.preheader).terminator, new_terminator);

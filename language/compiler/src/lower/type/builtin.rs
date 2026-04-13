@@ -233,8 +233,12 @@ impl<'a> BuiltinTypeLayouts<'a> {
             let field_mir_type =
                 field_lowerer.lower_type(types, type_id, module_id, anchor, self.builder)?;
             let field_type = self.builder.tree().get(field_mir_type);
-            let (size, alignment) =
-                field_lowerer.size_and_align_of_type(field_type, self.builder.tree());
+            let (size, alignment) = field_lowerer
+                .size_and_align_of_type(field_type, self.builder.tree())
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "builtin layout requires concrete nested types".to_string(),
+                })?;
 
             // collect layout inputs
             field_inputs.push(FieldInput {

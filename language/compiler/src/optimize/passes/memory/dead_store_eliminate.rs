@@ -673,13 +673,16 @@ fn build_integer_constant_map(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if let mir::Instruction::Const { destination, value } = instruction {
+                let Some(destination) = destination.value() else {
+                    continue;
+                };
                 match value {
                     mir::Constant::Int { value, .. } => {
-                        constants.insert(*destination, *value);
+                        constants.insert(destination, *value);
                     }
                     mir::Constant::UInt { value, .. } => {
                         if let Ok(value) = i64::try_from(*value) {
-                            constants.insert(*destination, value);
+                            constants.insert(destination, value);
                         }
                     }
                     _ => {}

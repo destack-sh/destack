@@ -141,8 +141,8 @@ fn run_narrow(
                 instruction = mir::Instruction::Binary {
                     destination,
                     operator,
-                    left: new_left,
-                    right: new_right,
+                    left: new_left.into(),
+                    right: new_right.into(),
                 };
                 updated = true;
             }
@@ -188,8 +188,8 @@ fn run_narrow(
                 )
             {
                 updated_constraint = mir::CheckConstraint::Bounds {
-                    index: new_index,
-                    length: new_length,
+                    index: new_index.into(),
+                    length: new_length.into(),
                     collection: *collection,
                     is_signed: *is_signed,
                 };
@@ -256,11 +256,13 @@ fn required_integer_width(min: i128, max: i128, is_signed: bool, original_width:
 
 /// Return integer range and type details needed for narrowing.
 fn integer_info_for_value(
-    value: mir::Value,
+    value: mir::ValueReference,
     ranges: &RangeMap,
     value_types: &ValueTypeMap,
     tree: &mut mir::NodeTree,
 ) -> Option<IntegerInfo> {
+    let value = value.value()?;
+
     // fetch the integer range for this value
     let range = ranges.get(value)?;
     let ValueRange::Integer {
@@ -305,8 +307,8 @@ fn integer_info_for_value(
 /// Narrow a pair of operands when the range allows it.
 #[allow(clippy::too_many_arguments)]
 fn narrow_pair(
-    left: mir::Value,
-    right: mir::Value,
+    left: mir::ValueReference,
+    right: mir::ValueReference,
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
@@ -316,9 +318,12 @@ fn narrow_pair(
     ranges: &RangeMap,
     value_types: &ValueTypeMap,
 ) -> Option<(mir::Value, mir::Value)> {
+    let left = left.value()?;
+    let right = right.value()?;
+
     // compute range info for both operands
-    let left_info = integer_info_for_value(left, ranges, value_types, tree)?;
-    let right_info = integer_info_for_value(right, ranges, value_types, tree)?;
+    let left_info = integer_info_for_value(left.into(), ranges, value_types, tree)?;
+    let right_info = integer_info_for_value(right.into(), ranges, value_types, tree)?;
 
     // require compatible operand types
     if left_info.signed != right_info.signed
@@ -395,10 +400,10 @@ fn narrow_value_to_width(
     // insert a truncating cast before the use
     let destination = function.next_typed_value(ty_id);
     let cast = mir::Instruction::Cast {
-        destination,
+        destination: destination.into(),
         operator: mir::CastOperator::Truncate,
-        argument: value,
-        to_type: ty_id,
+        argument: value.into(),
+        to_type: ty_id.into(),
     };
     let cast_id = tree.insert(cast);
     new_instructions.push(cast_id);

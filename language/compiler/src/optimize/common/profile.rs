@@ -374,63 +374,99 @@ pub fn terminator_edges(
     terminator: &mir::Terminator,
 ) -> Vec<(mir::EdgeKey, mir::LocalNodeId<mir::Block>)> {
     match terminator {
-        mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
-        }
+        mir::Terminator::Error => Vec::new(),
         mir::Terminator::Jump { target, .. } => {
-            vec![(
-                mir::EdgeKey::new(source, mir::EdgeKind::Jump, *target),
-                *target,
-            )]
+            target.block.block().map_or_else(Vec::new, |target| {
+                vec![(
+                    mir::EdgeKey::new(source, mir::EdgeKind::Jump, target),
+                    target,
+                )]
+            })
         }
         mir::Terminator::Branch {
             then_target,
             else_target,
             ..
-        } => vec![
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::BranchThen, *then_target),
-                *then_target,
-            ),
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::BranchElse, *else_target),
-                *else_target,
-            ),
-        ],
-        mir::Terminator::Check {
-            success, failure, ..
-        } => vec![
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::CheckSuccess, success.target),
-                success.target,
-            ),
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::CheckFailure, failure.target),
-                failure.target,
-            ),
-        ],
-        mir::Terminator::Switch { default, cases, .. } => {
-            let mut edges = Vec::with_capacity(cases.len() + 1);
-            edges.push((
-                mir::EdgeKey::new(source, mir::EdgeKind::SwitchDefault, *default),
-                *default,
-            ));
-            for case in cases {
+        } => {
+            let mut edges = Vec::with_capacity(2);
+
+            // then edge
+            if let Some(target) = then_target.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(
-                        source,
-                        mir::EdgeKind::SwitchCase { value: case.value },
-                        case.target,
-                    ),
-                    case.target,
+                    mir::EdgeKey::new(source, mir::EdgeKind::BranchThen, target),
+                    target,
                 ));
             }
+
+            // else edge
+            if let Some(target) = else_target.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::BranchElse, target),
+                    target,
+                ));
+            }
+
             edges
         }
-        mir::Terminator::Yield { resume, .. } => vec![(
-            mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, *resume),
-            *resume,
-        )],
+        mir::Terminator::Check {
+            success, failure, ..
+        } => {
+            let mut edges = Vec::with_capacity(2);
+
+            // success edge
+            if let Some(target) = success.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::CheckSuccess, target),
+                    target,
+                ));
+            }
+
+            // failure edge
+            if let Some(target) = failure.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::CheckFailure, target),
+                    target,
+                ));
+            }
+
+            edges
+        }
+        mir::Terminator::Switch { default, cases, .. } => {
+            let mut edges = Vec::with_capacity(cases.len() + 1);
+
+            // default edge
+            if let Some(target) = default.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::SwitchDefault, target),
+                    target,
+                ));
+            }
+
+            // case edges
+            for case in cases {
+                let Some(value) = case.value.integer() else {
+                    continue;
+                };
+                let Some(target) = case.target.block.block() else {
+                    continue;
+                };
+
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::SwitchCase { value }, target),
+                    target,
+                ));
+            }
+
+            edges
+        }
+        mir::Terminator::Yield { resume, .. } => {
+            resume.block.block().map_or_else(Vec::new, |target| {
+                vec![(
+                    mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, target),
+                    target,
+                )]
+            })
+        }
         mir::Terminator::Invoke {
             normal_target,
             unwind_target,
@@ -450,16 +486,27 @@ pub fn terminator_edges(
             normal_target,
             unwind_target,
             ..
-        } => vec![
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::CallNormal, *normal_target),
-                *normal_target,
-            ),
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::CallUnwind, *unwind_target),
-                *unwind_target,
-            ),
-        ],
+        } => {
+            let mut edges = Vec::with_capacity(2);
+
+            // normal edge
+            if let Some(target) = normal_target.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::CallNormal, target),
+                    target,
+                ));
+            }
+
+            // unwind edge
+            if let Some(target) = unwind_target.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::CallUnwind, target),
+                    target,
+                ));
+            }
+
+            edges
+        }
         mir::Terminator::Return { .. }
         | mir::Terminator::Throw { .. }
         | mir::Terminator::Trap { .. }

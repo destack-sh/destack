@@ -85,7 +85,7 @@ impl FunctionPass for GuardEliminate {
             // rewrite the terminator when the outcome is known
             if let Some(is_true) = check_outcome {
                 let target = if is_true { &success } else { &failure };
-                replace_check_with_jump(tree, block_id, target.target, &target.arguments);
+                replace_check_with_jump(tree, block_id, target.clone());
                 changed = true;
             }
         }
@@ -113,15 +113,11 @@ impl FunctionPass for GuardEliminate {
 fn replace_check_with_jump(
     tree: &mut mir::NodeTree,
     block_id: mir::LocalNodeId<mir::Block>,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: mir::BlockTarget,
 ) {
     // build a jump terminator replacement
     let block = tree.get(block_id);
-    let new_terminator = mir::Terminator::Jump {
-        target,
-        arguments: arguments.to_vec(),
-    };
+    let new_terminator = mir::Terminator::Jump { target };
     tree.replace(block.terminator, new_terminator);
 }
 

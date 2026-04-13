@@ -418,6 +418,10 @@ fn process_block(
         // update availability based on instruction kind
         match instruction {
             mir::Instruction::Store { value, .. } | mir::Instruction::LocalSet { value, .. } => {
+                let Some(value) = value.value() else {
+                    continue;
+                };
+
                 // resolve the memory def access
                 let Some(def_access_id) = def_access_id(memory_ssa, instruction_id) else {
                     continue;
@@ -437,7 +441,7 @@ fn process_block(
                 available.insert(MemoryEntry {
                     clobber: def_access_id,
                     location: def_access.effect.location.clone(),
-                    value: *value,
+                    value,
                     location_set: def_access.effect.location_set,
                     address_spaces: def_access.effect.address_spaces.clone(),
                     alias_scopes: def_access.effect.alias_scopes.clone(),
@@ -447,6 +451,10 @@ fn process_block(
             }
 
             mir::Instruction::Load { destination, .. } => {
+                let Some(destination) = destination.value() else {
+                    continue;
+                };
+
                 // resolve the memory use access
                 let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
                     continue;
@@ -470,15 +478,15 @@ fn process_block(
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
-                    && can_substitute_value(*destination, existing, value_types, tree)
+                    && can_substitute_value(destination, existing, value_types, tree)
                 {
-                    substitutions.insert(*destination, existing);
+                    substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
                 } else {
                     available.insert(MemoryEntry {
                         clobber,
                         location: use_access.effect.location.clone(),
-                        value: *destination,
+                        value: destination,
                         location_set: use_access.effect.location_set,
                         address_spaces: use_access.effect.address_spaces.clone(),
                         alias_scopes: use_access.effect.alias_scopes.clone(),
@@ -489,6 +497,10 @@ fn process_block(
             }
 
             mir::Instruction::LocalGet { destination, .. } => {
+                let Some(destination) = destination.value() else {
+                    continue;
+                };
+
                 // resolve the memory use access
                 let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
                     continue;
@@ -512,15 +524,15 @@ fn process_block(
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
-                    && can_substitute_value(*destination, existing, value_types, tree)
+                    && can_substitute_value(destination, existing, value_types, tree)
                 {
-                    substitutions.insert(*destination, existing);
+                    substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
                 } else {
                     available.insert(MemoryEntry {
                         clobber,
                         location: use_access.effect.location.clone(),
-                        value: *destination,
+                        value: destination,
                         location_set: use_access.effect.location_set,
                         address_spaces: use_access.effect.address_spaces.clone(),
                         alias_scopes: use_access.effect.alias_scopes.clone(),

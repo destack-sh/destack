@@ -328,7 +328,7 @@ impl ModuleLowerer<'_> {
         // create and cache the canonical field node
         let field_id = self.builder.tree_mut().insert(mir::Field {
             name: Some(field_name),
-            ty: field_type,
+            ty: field_type.into(),
         });
         self.interface_dispatch_fields_by_member
             .insert(member_key, field_id);

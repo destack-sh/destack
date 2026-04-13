@@ -141,7 +141,12 @@ impl FunctionLowerer<'_> {
         // by reference: load the stored pointer, then load the pointee
         let reference_value = self.state.builder.load(field_addr, field.ty);
         let pointee = match self.state.builder.tree().get(field.ty) {
-            mir::Type::Reference { pointee, .. } => *pointee,
+            mir::Type::Reference { pointee, .. } => {
+                pointee.ty().ok_or_else(|| LowerError::Internal {
+                    module: self.context.module_id,
+                    message: "capture reference field pointee must be concrete".to_string(),
+                })?
+            }
             _ => {
                 return Err(LowerError::Internal {
                     module: self.context.module_id,
@@ -223,12 +228,12 @@ impl FunctionLowerer<'_> {
         // update the function metadata in the shared node tree
         let function = self.state.builder.tree_mut().get_mut(function_id);
         match function.environment {
-            Some(existing) if existing != env_type => {
+            Some(existing) if existing.ty() != Some(env_type) => {
                 return Err(self.error(expression_id, "mismatched function environment type"));
             }
             Some(_) => {}
             None => {
-                function.environment = Some(env_type);
+                function.environment = Some(env_type.into());
             }
         }
 

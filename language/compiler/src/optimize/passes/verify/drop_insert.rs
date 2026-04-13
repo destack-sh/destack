@@ -60,7 +60,7 @@ fn run_drop_insert(
             let instruction = tree.get(instruction_id);
 
             // check if any droppable value is defined here and dies before block exit
-            if let Some(dest) = instruction.destination()
+            if let Some(dest) = instruction.destination().and_then(|value| value.value())
                 && droppable.contains(&dest)
                 && !liveness.is_live_out(block_id, dest)
             {
@@ -106,7 +106,7 @@ fn run_drop_insert(
             // check live-in values
             for &value in liveness.live_in(block_id) {
                 // check if value is used in return; if not, drop before return
-                if droppable.contains(&value) && ret_val != &Some(value) {
+                if droppable.contains(&value) && ret_val != &Some(value.into()) {
                     drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
                         block: block_id,
                         value,
@@ -116,17 +116,21 @@ fn run_drop_insert(
 
             // also check block parameters (not live-in but need drops)
             for param in &block.parameters {
-                if droppable.contains(&param.value)
-                    && ret_val != &Some(param.value)
-                    && !liveness.is_live_out(block_id, param.value)
+                let Some(param_value) = param.value.value() else {
+                    continue;
+                };
+
+                if droppable.contains(&param_value)
+                    && ret_val != &Some(param_value.into())
+                    && !liveness.is_live_out(block_id, param_value)
                 {
                     // parameter dies in this block, find where or drop before return
                     let death_idx =
-                        find_death_point(block_id, 0, param.value, &instructions, tree, liveness);
+                        find_death_point(block_id, 0, param_value, &instructions, tree, liveness);
 
                     if let Some(after_idx) = death_idx {
                         if last_use_moves_value(
-                            param.value,
+                            param_value,
                             after_idx,
                             &instructions,
                             tree,
@@ -137,13 +141,13 @@ fn run_drop_insert(
                         drops_to_insert.push(DropInsertionPoint::AfterInstruction {
                             block: block_id,
                             instruction_index: after_idx,
-                            value: param.value,
+                            value: param_value,
                         });
                     } else {
                         // used only in terminator or no uses: drop before terminator
                         drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
                             block: block_id,
-                            value: param.value,
+                            value: param_value,
                         });
                     }
                 }
@@ -229,8 +233,12 @@ fn find_droppable_values_with_ownership(
     // check function parameters
     for param in &function.parameters {
         // drop only values that require explicit cleanup
-        if value_needs_drop(param.value, ownership, value_types, tree) {
-            droppable.insert(param.value);
+        let Some(param_value) = param.value.value() else {
+            continue;
+        };
+
+        if value_needs_drop(param_value, ownership, value_types, tree) {
+            droppable.insert(param_value);
         }
     }
 
@@ -240,8 +248,12 @@ fn find_droppable_values_with_ownership(
 
         // block parameters
         for param in &block.parameters {
-            if value_needs_drop(param.value, ownership, value_types, tree) {
-                droppable.insert(param.value);
+            let Some(param_value) = param.value.value() else {
+                continue;
+            };
+
+            if value_needs_drop(param_value, ownership, value_types, tree) {
+                droppable.insert(param_value);
             }
         }
 
@@ -249,7 +261,7 @@ fn find_droppable_values_with_ownership(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
 
-            if let Some(dest) = instruction.destination()
+            if let Some(dest) = instruction.destination().and_then(|value| value.value())
                 && value_needs_drop(dest, ownership, value_types, tree)
             {
                 droppable.insert(dest);
@@ -316,13 +328,13 @@ fn find_death_point(
         let instruction = tree.get(instruction_id);
 
         // check if this instruction uses the value
-        if instruction.uses().contains(&value) {
+        if instruction.uses().contains(&value.into()) {
             last_use_idx = Some(idx);
         }
 
         // check externalized arguments
         if let Some(arg_slice) = instruction.argument_slice()
-            && tree.get_arguments(arg_slice).contains(&value)
+            && tree.get_arguments(arg_slice).contains(&value.into())
         {
             last_use_idx = Some(idx);
         }
@@ -368,9 +380,13 @@ fn emit_drop_sequence(
 ) {
     // emit the drop instruction based on allocation kind
     let drop_instruction = if ownership.is_stack_allocated(value) {
-        Instruction::StackDrop { value }
+        Instruction::StackDrop {
+            value: value.into(),
+        }
     } else {
-        Instruction::RawDrop { value }
+        Instruction::RawDrop {
+            value: value.into(),
+        }
     };
     let drop_id = tree.insert(drop_instruction);
     instructions.push(drop_id);

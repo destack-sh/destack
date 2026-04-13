@@ -46,7 +46,7 @@ impl ScopedNoAliasAA {
         let noalias_params = function
             .parameters
             .iter()
-            .map(|p| Self::is_noalias_parameter(p, tree, strict_borrow_mode))
+            .map(|parameter| Self::is_noalias_parameter(parameter, tree, strict_borrow_mode))
             .collect();
 
         Self {
@@ -60,7 +60,7 @@ impl ScopedNoAliasAA {
 
     /// Check if a parameter has noalias semantics.
     fn is_noalias_parameter(
-        parameter: &mir::TypedValue,
+        parameter: &mir::Parameter,
         tree: &mir::NodeTree,
         strict: bool,
     ) -> bool {
@@ -69,6 +69,10 @@ impl ScopedNoAliasAA {
         }
 
         // check if the parameter type is a mutable borrow
+        let Some(parameter) = parameter.typed_value() else {
+            return false;
+        };
+
         let ty = tree.get(parameter.ty);
         ty.is_mutable_borrowed_reference()
     }

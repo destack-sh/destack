@@ -68,7 +68,13 @@ impl TypeLowerer {
                 continue;
             }
             let field_type = builder.tree().get(field_mir_type);
-            let (size, alignment) = self.size_and_align_of_type(field_type, builder.tree());
+            let (size, alignment) = self
+                .size_and_align_of_type(field_type, builder.tree())
+                .ok_or_else(|| LowerError::UnsupportedType {
+                    node,
+                    ty: field.ty.into_global(module_id),
+                    message: "aggregate layout requires concrete nested types".to_string(),
+                })?;
 
             field_inputs.push(FieldInput {
                 name,

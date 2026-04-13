@@ -113,9 +113,9 @@ struct IfConvertCandidate {
     /// The merge block.
     merge_block: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to the then block.
-    then_arguments: Vec<mir::Value>,
+    then_arguments: Vec<mir::ValueReference>,
     /// Arguments passed to the else block.
-    else_arguments: Vec<mir::Value>,
+    else_arguments: Vec<mir::ValueReference>,
 }
 
 /// Run if conversion and return true when changes were made.
@@ -167,15 +167,13 @@ fn find_if_convert_candidate(
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => (
-                *condition,
-                *then_target,
-                *else_target,
-                then_arguments.clone(),
-                else_arguments.clone(),
+                condition.value()?,
+                then_target.block.block()?,
+                else_target.block.block()?,
+                then_target.arguments.clone(),
+                else_target.arguments.clone(),
             ),
             _ => return None,
         };
@@ -202,10 +200,10 @@ fn find_if_convert_candidate(
     let else_terminator = tree.get(else_block_data.terminator);
 
     let merge_block = match (then_terminator, else_terminator) {
-        (mir::Terminator::Jump { target, .. }, mir::Terminator::Jump { target: other, .. })
-            if target == other =>
+        (mir::Terminator::Jump { target }, mir::Terminator::Jump { target: other })
+            if target.block == other.block =>
         {
-            *target
+            target.block.block()?
         }
         _ => return None,
     };
@@ -312,27 +310,36 @@ fn apply_if_convert(
     // build select values for merge arguments
     let mut select_args = Vec::with_capacity(then_merge_args.len());
     for (then_value, else_value) in then_merge_args.iter().zip(else_merge_args.iter()) {
-        let then_value = remap_value(*then_value, &then_value_map);
-        let else_value = remap_value(*else_value, &else_value_map);
+        let Some(then_value) = then_value.value() else {
+            return false;
+        };
+        let Some(else_value) = else_value.value() else {
+            return false;
+        };
+
+        let then_value = remap_value(then_value, &then_value_map);
+        let else_value = remap_value(else_value, &else_value_map);
 
         let destination = function.next_typed_value_like(then_value);
         let select = mir::Instruction::Select {
-            destination,
-            condition: candidate.condition,
-            then_value,
-            else_value,
+            destination: destination.into(),
+            condition: candidate.condition.into(),
+            then_value: then_value.into(),
+            else_value: else_value.into(),
         };
         let select_id = tree.insert(select);
         new_instructions.push(select_id);
-        select_args.push(destination);
+        select_args.push(destination.into());
     }
 
     // update header block
     let mut header = tree.get(candidate.header).clone();
     header.instructions = new_instructions;
     let new_terminator = mir::Terminator::Jump {
-        target: candidate.merge_block,
-        arguments: select_args,
+        target: mir::BlockTarget {
+            block: candidate.merge_block.into(),
+            arguments: select_args,
+        },
     };
     tree.replace(candidate.header, header);
     tree.replace(tree.get(candidate.header).terminator, new_terminator);
@@ -425,7 +432,7 @@ fn build_value_map(
     function: &mut mir::Function,
     tree: &mir::NodeTree,
     block: &mir::Block,
-    arguments: &[mir::Value],
+    arguments: &[mir::ValueReference],
 ) -> Option<HashMap<mir::Value, mir::Value>> {
     // validate parameter arity
     if block.parameters.len() != arguments.len() {
@@ -435,13 +442,16 @@ fn build_value_map(
     // map parameters to incoming arguments
     let mut value_map = HashMap::new();
     for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
-        value_map.insert(param.value, *arg);
+        value_map.insert(param.value.value()?, arg.value()?);
     }
 
     // map instruction destinations to fresh values
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(destination) = instruction.destination() {
+        if let Some(destination) = instruction
+            .destination()
+            .and_then(|destination| destination.value())
+        {
             let new_value = function.next_typed_value_like(destination);
             value_map.insert(destination, new_value);
         }
@@ -484,9 +494,9 @@ fn instructions_speculatable(
 }
 
 /// Read jump arguments from a block terminator.
-fn jump_arguments(terminator: &mir::Terminator) -> Option<Vec<mir::Value>> {
+fn jump_arguments(terminator: &mir::Terminator) -> Option<Vec<mir::ValueReference>> {
     match terminator {
-        mir::Terminator::Jump { arguments, .. } => Some(arguments.clone()),
+        mir::Terminator::Jump { target } => Some(target.arguments.clone()),
         _ => None,
     }
 }

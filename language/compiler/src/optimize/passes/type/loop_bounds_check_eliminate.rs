@@ -161,8 +161,12 @@ impl ValueDefinitions {
 
             // record block parameters
             for param in block.parameters.iter() {
+                let Some(value) = param.value.value() else {
+                    continue;
+                };
+
                 definitions.insert(
-                    param.value,
+                    value,
                     ValueDefinition {
                         kind: ValueDefinitionKind::Parameter,
                     },
@@ -172,7 +176,8 @@ impl ValueDefinitions {
             // record instruction destinations
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction.destination().and_then(|value| value.value())
+                {
                     definitions.insert(
                         destination,
                         ValueDefinition {
@@ -296,6 +301,12 @@ fn run_loop_bounds_check_eliminate(
             else {
                 continue;
             };
+            let Some(index) = index.value() else {
+                continue;
+            };
+            let Some(length) = length.value() else {
+                continue;
+            };
 
             // find a guard that implies the bounds check
             let mut guard_implies = false;
@@ -313,8 +324,8 @@ fn run_loop_bounds_check_eliminate(
                 let guard_index = affine_value_for_loop(guard.index, loop_index, scev, forwarding);
                 let guard_length =
                     affine_value_for_loop(guard.length, loop_index, scev, forwarding);
-                let check_index = affine_value_for_loop(*index, loop_index, scev, forwarding);
-                let check_length = affine_value_for_loop(*length, loop_index, scev, forwarding);
+                let check_index = affine_value_for_loop(index, loop_index, scev, forwarding);
+                let check_length = affine_value_for_loop(length, loop_index, scev, forwarding);
 
                 // require guard to imply the bounds
                 if !guard_implies_bounds(&guard_index, &guard_length, &check_index, &check_length) {
@@ -323,9 +334,9 @@ fn run_loop_bounds_check_eliminate(
 
                 // require non negative signed indices
                 if *is_signed
-                    && !index_non_negative(*index, block_id, ranges, forwarding)
+                    && !index_non_negative(index, block_id, ranges, forwarding)
                     && !index_non_negative_from_guards(
-                        *index,
+                        index,
                         block_id,
                         loop_index,
                         scev,
@@ -347,7 +358,7 @@ fn run_loop_bounds_check_eliminate(
             }
 
             // replace the check with an unconditional jump
-            replace_terminator_with_jump(tree, block_id, success.target, &success.arguments);
+            replace_terminator_with_jump(tree, block_id, success);
             changed = true;
         }
     }
@@ -386,14 +397,27 @@ fn collect_loop_guards(
                 ..
             } = constraint
         {
+            let Some(success) = success.block.block() else {
+                continue;
+            };
+            let Some(failure) = failure.block.block() else {
+                continue;
+            };
+            let Some(index) = index.value() else {
+                continue;
+            };
+            let Some(length) = length.value() else {
+                continue;
+            };
+
             // ensure the success edge stays inside the loop
-            let success_in_loop = lp.blocks.contains(&success.target);
-            let failure_in_loop = lp.blocks.contains(&failure.target);
+            let success_in_loop = lp.blocks.contains(&success);
+            let failure_in_loop = lp.blocks.contains(&failure);
             if success_in_loop != failure_in_loop && success_in_loop {
                 bounds.push(LoopGuard {
                     block: block_id,
-                    index: *index,
-                    length: *length,
+                    index,
+                    length,
                     is_signed: *is_signed,
                 });
 
@@ -401,7 +425,7 @@ fn collect_loop_guards(
                 if *is_signed {
                     non_negative.push(NonNegativeGuard {
                         block: block_id,
-                        value: *index,
+                        value: index,
                     });
                 }
 
@@ -474,7 +498,14 @@ fn guard_comparison(
         ..
     } = instruction
     {
-        return Some((*operator, *left, *right, guard_is_true));
+        let Some(left) = left.value() else {
+            return None;
+        };
+        let Some(right) = right.value() else {
+            return None;
+        };
+
+        return Some((*operator, left, right, guard_is_true));
     }
 
     // handle negated comparisons
@@ -484,7 +515,8 @@ fn guard_comparison(
         ..
     } = instruction
     {
-        let nested_definition = definitions.definition_for(*argument)?;
+        let argument = argument.value()?;
+        let nested_definition = definitions.definition_for(argument)?;
         let ValueDefinitionKind::Instruction { instruction } = nested_definition.kind else {
             return None;
         };
@@ -499,7 +531,14 @@ fn guard_comparison(
             return None;
         };
 
-        return Some((*operator, *left, *right, !guard_is_true));
+        let Some(left) = left.value() else {
+            return None;
+        };
+        let Some(right) = right.value() else {
+            return None;
+        };
+
+        return Some((*operator, left, right, !guard_is_true));
     }
 
     None
@@ -526,6 +565,16 @@ fn guard_condition(terminator: mir::Terminator, lp: &Loop) -> Option<(mir::Value
             else_target,
             ..
         } => {
+            let Some(condition) = condition.value() else {
+                return None;
+            };
+            let Some(then_target) = then_target.block.block() else {
+                return None;
+            };
+            let Some(else_target) = else_target.block.block() else {
+                return None;
+            };
+
             // determine which branch stays inside the loop
             let then_in_loop = lp.blocks.contains(&then_target);
             let else_in_loop = lp.blocks.contains(&else_target);
@@ -878,15 +927,11 @@ fn signed_range_min(value: mir::Value, ranges: &RangeMap) -> Option<i128> {
 fn replace_terminator_with_jump(
     tree: &mut mir::NodeTree,
     block_id: mir::LocalNodeId<mir::Block>,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: mir::BlockTarget,
 ) {
     // overwrite the terminator with a jump
     let block = tree.get(block_id);
-    let terminator = mir::Terminator::Jump {
-        target,
-        arguments: arguments.to_vec(),
-    };
+    let terminator = mir::Terminator::Jump { target };
     tree.replace(block.terminator, terminator);
 }
 

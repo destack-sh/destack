@@ -114,15 +114,12 @@ impl FunctionPass for BoundsCheckEliminate {
             // replace checks when the outcome is constant
             if let Some(truth_value) = check_truth {
                 // rewrite to the always taken edge
-                let (target, arguments) = if truth_value == candidate.in_bounds_truth {
-                    (candidate.in_bounds_target, &candidate.in_bounds_arguments)
+                let target = if truth_value == candidate.in_bounds_truth {
+                    candidate.in_bounds_target.clone()
                 } else {
-                    (
-                        candidate.out_of_bounds_target,
-                        &candidate.out_of_bounds_arguments,
-                    )
+                    candidate.out_of_bounds_target.clone()
                 };
-                replace_terminator_with_jump(tree, block_id, target, arguments);
+                replace_terminator_with_jump(tree, block_id, target);
                 changed = true;
                 continue;
             }
@@ -174,12 +171,7 @@ impl FunctionPass for BoundsCheckEliminate {
 
             // rewrite the check when constraints imply the bounds
             if constraints_imply {
-                replace_terminator_with_jump(
-                    tree,
-                    block_id,
-                    candidate.in_bounds_target,
-                    &candidate.in_bounds_arguments,
-                );
+                replace_terminator_with_jump(tree, block_id, candidate.in_bounds_target.clone());
                 changed = true;
             }
         }
@@ -236,8 +228,12 @@ impl ValueDefinitions {
             // record block parameter definitions
             let block = tree.get(block_id);
             for (index, param) in block.parameters.iter().enumerate() {
+                let Some(value) = param.value.value() else {
+                    continue;
+                };
+
                 definitions.insert(
-                    param.value,
+                    value,
                     ValueDefinition::Parameter {
                         block: block_id,
                         index,
@@ -248,7 +244,8 @@ impl ValueDefinitions {
             // record instruction definitions
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction.destination().and_then(|value| value.value())
+                {
                     definitions.insert(
                         destination,
                         ValueDefinition::Instruction {
@@ -396,6 +393,10 @@ impl ReachabilityCache {
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
                 for successor in terminator.successors() {
+                    let Some(successor) = successor.block() else {
+                        continue;
+                    };
+
                     if visited.contains(&successor) {
                         continue;
                     }
@@ -416,13 +417,9 @@ struct BoundsCheckCandidate {
     /// Condition value being checked.
     condition: Option<mir::Value>,
     /// Target when bounds are satisfied.
-    in_bounds_target: mir::LocalNodeId<mir::Block>,
-    /// Arguments passed to the in bounds target.
-    in_bounds_arguments: Vec<mir::Value>,
+    in_bounds_target: mir::BlockTarget,
     /// Target when bounds fail.
-    out_of_bounds_target: mir::LocalNodeId<mir::Block>,
-    /// Arguments passed to the out of bounds target.
-    out_of_bounds_arguments: Vec<mir::Value>,
+    out_of_bounds_target: mir::BlockTarget,
     /// Whether condition truth implies in bounds.
     in_bounds_truth: bool,
     /// Optional structured constraint for checks.
@@ -441,15 +438,11 @@ fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::NodeTree) -
 fn replace_terminator_with_jump(
     tree: &mut mir::NodeTree,
     block_id: mir::LocalNodeId<mir::Block>,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: mir::BlockTarget,
 ) {
     // overwrite the terminator with a jump
     let block = tree.get(block_id);
-    let terminator = mir::Terminator::Jump {
-        target,
-        arguments: arguments.to_vec(),
-    };
+    let terminator = mir::Terminator::Jump { target };
     tree.replace(block.terminator, terminator);
 }
 
@@ -465,42 +458,34 @@ fn bounds_check_candidate(
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             // consider only branches to trap blocks
-            let then_trap = is_trap_block(then_target, tree);
-            let else_trap = is_trap_block(else_target, tree);
+            let then_trap = then_target
+                .block
+                .block()
+                .is_some_and(|block| is_trap_block(block, tree));
+            let else_trap = else_target
+                .block
+                .block()
+                .is_some_and(|block| is_trap_block(block, tree));
             if !then_trap && !else_trap {
                 return None;
             }
 
             // assign in bounds and out of bounds edges
-            let (in_bounds_target, in_bounds_arguments, out_target, out_arguments, in_bounds_truth) =
-                if then_trap {
-                    (
-                        else_target,
-                        else_arguments,
-                        then_target,
-                        then_arguments,
-                        false,
-                    )
-                } else {
-                    (
-                        then_target,
-                        then_arguments,
-                        else_target,
-                        else_arguments,
-                        true,
-                    )
-                };
+            let Some(condition) = condition.value() else {
+                return None;
+            };
+            let (in_bounds_target, out_target, in_bounds_truth) = if then_trap {
+                (else_target, then_target, false)
+            } else {
+                (then_target, else_target, true)
+            };
             Some(BoundsCheckCandidate {
                 condition: Some(condition),
                 in_bounds_target,
-                in_bounds_arguments,
                 out_of_bounds_target: out_target,
-                out_of_bounds_arguments: out_arguments,
                 in_bounds_truth,
                 constraint: None,
             })
@@ -516,10 +501,8 @@ fn bounds_check_candidate(
             }
             Some(BoundsCheckCandidate {
                 condition: None,
-                in_bounds_target: success.target,
-                in_bounds_arguments: success.arguments,
-                out_of_bounds_target: failure.target,
-                out_of_bounds_arguments: failure.arguments,
+                in_bounds_target: success,
+                out_of_bounds_target: failure,
                 in_bounds_truth: true,
                 constraint: Some(constraint),
             })
@@ -616,8 +599,12 @@ fn constraints_from_assumes(
         let mir::Instruction::Assume { condition } = instruction else {
             continue;
         };
+        let Some(condition) = condition.value() else {
+            continue;
+        };
+
         let mut assume_constraints = constraints_for_condition(
-            *condition,
+            condition,
             true,
             block_id,
             definitions,
@@ -652,9 +639,19 @@ fn constraints_for_edge(
             else_target,
             ..
         } => {
+            let Some(condition) = condition.value() else {
+                return Vec::new();
+            };
+            let Some(then_target) = then_target.block.block() else {
+                return Vec::new();
+            };
+            let Some(else_target) = else_target.block.block() else {
+                return Vec::new();
+            };
+
             // check reachability for each successor
-            let then_reaches = reachability.can_reach(tree, *then_target, child);
-            let else_reaches = reachability.can_reach(tree, *else_target, child);
+            let then_reaches = reachability.can_reach(tree, then_target, child);
+            let else_reaches = reachability.can_reach(tree, else_target, child);
 
             // skip when both paths can reach the child
             if then_reaches == else_reaches {
@@ -664,7 +661,7 @@ fn constraints_for_edge(
             // select the path that reaches the child
             let truth_value = then_reaches;
             constraints_for_condition(
-                *condition,
+                condition,
                 truth_value,
                 block_id,
                 definitions,
@@ -679,9 +676,16 @@ fn constraints_for_edge(
             success,
             failure,
         } => {
+            let Some(success) = success.block.block() else {
+                return Vec::new();
+            };
+            let Some(failure) = failure.block.block() else {
+                return Vec::new();
+            };
+
             // check reachability for each successor
-            let success_reaches = reachability.can_reach(tree, success.target, child);
-            let failure_reaches = reachability.can_reach(tree, failure.target, child);
+            let success_reaches = reachability.can_reach(tree, success, child);
+            let failure_reaches = reachability.can_reach(tree, failure, child);
 
             // skip when both paths can reach the child
             if success_reaches == failure_reaches {
@@ -1084,22 +1088,28 @@ fn condition_truth_value(
                     ..
                 } => match operator {
                     mir::BinaryOperator::And => {
-                        let left_value = condition_truth_value(*left, ranges, definitions, tree)?;
-                        let right_value = condition_truth_value(*right, ranges, definitions, tree)?;
+                        let left = left.value()?;
+                        let right = right.value()?;
+                        let left_value = condition_truth_value(left, ranges, definitions, tree)?;
+                        let right_value = condition_truth_value(right, ranges, definitions, tree)?;
                         Some(left_value && right_value)
                     }
                     mir::BinaryOperator::Or => {
-                        let left_value = condition_truth_value(*left, ranges, definitions, tree)?;
-                        let right_value = condition_truth_value(*right, ranges, definitions, tree)?;
+                        let left = left.value()?;
+                        let right = right.value()?;
+                        let left_value = condition_truth_value(left, ranges, definitions, tree)?;
+                        let right_value = condition_truth_value(right, ranges, definitions, tree)?;
                         Some(left_value || right_value)
                     }
-                    _ => evaluate_comparison(*operator, *left, *right, ranges),
+                    _ => evaluate_comparison(*operator, left.value()?, right.value()?, ranges),
                 },
                 mir::Instruction::Unary {
                     operator: mir::UnaryOperator::Not,
                     argument,
                     ..
-                } => condition_truth_value(*argument, ranges, definitions, tree).map(|v| !v),
+                } => {
+                    condition_truth_value(argument.value()?, ranges, definitions, tree).map(|v| !v)
+                }
                 _ => None,
             }
         }
@@ -1165,10 +1175,12 @@ fn constraints_for_check_kind(
     else {
         return None;
     };
+    let index = index.value()?;
+    let length = length.value()?;
 
     // resolve bound keys and initialize constraints
-    let index_key = bound_key_for_value(*index, block_id, definitions, tree, constants, ranges);
-    let length_key = bound_key_for_value(*length, block_id, definitions, tree, constants, ranges);
+    let index_key = bound_key_for_value(index, block_id, definitions, tree, constants, ranges);
+    let length_key = bound_key_for_value(length, block_id, definitions, tree, constants, ranges);
     let mut constraints = Vec::new();
 
     // derive constraints based on the check outcome
@@ -1182,7 +1194,7 @@ fn constraints_for_check_kind(
         });
 
         // index >= 0 for signed in bounds
-        if *is_signed && let Some(zero_bound) = zero_bound_key_for_value(*index, ranges, *is_signed)
+        if *is_signed && let Some(zero_bound) = zero_bound_key_for_value(index, ranges, *is_signed)
         {
             constraints.push(BoundsConstraint {
                 value: index_key,
@@ -1236,7 +1248,7 @@ fn constraints_for_condition(
 
                         // collect constraints from both sides
                         let mut left_constraints = constraints_for_condition(
-                            *left,
+                            left.value()?,
                             true,
                             block_id,
                             definitions,
@@ -1246,7 +1258,7 @@ fn constraints_for_condition(
                         )
                         .unwrap_or_default();
                         let mut right_constraints = constraints_for_condition(
-                            *right,
+                            right.value()?,
                             true,
                             block_id,
                             definitions,
@@ -1268,7 +1280,7 @@ fn constraints_for_condition(
 
                         // collect constraints from both sides
                         let mut left_constraints = constraints_for_condition(
-                            *left,
+                            left.value()?,
                             false,
                             block_id,
                             definitions,
@@ -1278,7 +1290,7 @@ fn constraints_for_condition(
                         )
                         .unwrap_or_default();
                         let mut right_constraints = constraints_for_condition(
-                            *right,
+                            right.value()?,
                             false,
                             block_id,
                             definitions,
@@ -1300,7 +1312,7 @@ fn constraints_for_condition(
 
                         // resolve bound keys for both sides
                         let left_key = bound_key_for_value(
-                            *left,
+                            left.value()?,
                             block_id,
                             definitions,
                             tree,
@@ -1308,7 +1320,7 @@ fn constraints_for_condition(
                             ranges,
                         );
                         let right_key = bound_key_for_value(
-                            *right,
+                            right.value()?,
                             block_id,
                             definitions,
                             tree,
@@ -1340,7 +1352,7 @@ fn constraints_for_condition(
                     _ => {
                         // resolve bound keys for comparison
                         let left_key = bound_key_for_value(
-                            *left,
+                            left.value()?,
                             block_id,
                             definitions,
                             tree,
@@ -1348,7 +1360,7 @@ fn constraints_for_condition(
                             ranges,
                         );
                         let right_key = bound_key_for_value(
-                            *right,
+                            right.value()?,
                             block_id,
                             definitions,
                             tree,
@@ -1368,7 +1380,7 @@ fn constraints_for_condition(
                 } => {
                     // invert the truth value for not
                     constraints_for_condition(
-                        *argument,
+                        argument.value()?,
                         !truth_value,
                         block_id,
                         definitions,

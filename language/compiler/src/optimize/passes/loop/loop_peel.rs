@@ -149,8 +149,10 @@ fn run_loop_peel(
         // redirect preheader to the peeled iteration
         let preheader_block = tree.get(preheader).clone();
         let preheader_terminator = mir::Terminator::Jump {
-            target: cloned_header,
-            arguments: preheader_args,
+            target: mir::BlockTarget {
+                block: cloned_header.into(),
+                arguments: preheader_args.into_iter().map(Into::into).collect(),
+            },
         };
         tree.replace(preheader, preheader_block);
         tree.replace(tree.get(preheader).terminator, preheader_terminator);
@@ -209,7 +211,12 @@ fn find_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
+        mir::Terminator::Jump { target } if target.block.block()? == header => target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<_>>()?,
         _ => return None,
     };
 
@@ -227,28 +234,30 @@ fn redirect_backedge(
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
-            let mut new_then = *then_target;
-            let mut new_else = *else_target;
+            let mut new_then = then_target.block;
+            let mut new_else = else_target.block;
 
             // rewrite the backedge to the original header
-            if *then_target == cloned_header {
-                new_then = original_header;
-            } else if *else_target == cloned_header {
-                new_else = original_header;
+            if then_target.block == cloned_header.into() {
+                new_then = original_header.into();
+            } else if else_target.block == cloned_header.into() {
+                new_else = original_header.into();
             } else {
                 return false;
             }
 
             *terminator = mir::Terminator::Branch {
                 condition: *condition,
-                then_target: new_then,
-                then_arguments: then_arguments.clone(),
-                else_target: new_else,
-                else_arguments: else_arguments.clone(),
+                then_target: mir::BlockTarget {
+                    block: new_then,
+                    arguments: then_target.arguments.clone(),
+                },
+                else_target: mir::BlockTarget {
+                    block: new_else,
+                    arguments: else_target.arguments.clone(),
+                },
             };
         }
         mir::Terminator::Check {
@@ -256,26 +265,26 @@ fn redirect_backedge(
             success,
             failure,
         } => {
-            let mut success_target = success.target;
-            let mut failure_target = failure.target;
+            let mut success_target = success.block;
+            let mut failure_target = failure.block;
 
             // rewrite the backedge to the original header
-            if success.target == cloned_header {
-                success_target = original_header;
-            } else if failure.target == cloned_header {
-                failure_target = original_header;
+            if success.block == cloned_header.into() {
+                success_target = original_header.into();
+            } else if failure.block == cloned_header.into() {
+                failure_target = original_header.into();
             } else {
                 return false;
             }
 
             *terminator = mir::Terminator::Check {
                 constraint: constraint.clone(),
-                success: mir::CheckTarget {
-                    target: success_target,
+                success: mir::BlockTarget {
+                    block: success_target,
                     arguments: success.arguments.clone(),
                 },
-                failure: mir::CheckTarget {
-                    target: failure_target,
+                failure: mir::BlockTarget {
+                    block: failure_target,
                     arguments: failure.arguments.clone(),
                 },
             };

@@ -33,6 +33,13 @@ impl FunctionLowerer<'_> {
         let this_value = match instance_mir_type {
             mir::Type::Reference { kind, pointee, .. } => match kind {
                 mir::ReferenceKind::Managed => {
+                    let pointee = pointee
+                        .ty()
+                        .ok_or_else(|| LowerError::UnsupportedConstruct {
+                            node,
+                            message: "constructor pointee type is not concrete".to_string(),
+                        })?;
+
                     let pointer = self.state.builder.managed_alloc(pointee, instance_type);
                     let default_value =
                         self.default_struct_value_for_layout(pointee, &layout, class_symbol, node)?;

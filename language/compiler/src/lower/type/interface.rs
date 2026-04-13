@@ -65,10 +65,20 @@ impl TypeLowerer {
         let itab_type = self.ty_usize;
 
         // compute field sizes and alignments
-        let (object_size, object_alignment) =
-            self.size_and_align_of_type(builder.tree().get(object_type), builder.tree());
-        let (itab_size, itab_alignment) =
-            self.size_and_align_of_type(builder.tree().get(itab_type), builder.tree());
+        let (object_size, object_alignment) = self
+            .size_and_align_of_type(builder.tree().get(object_type), builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "interface layout requires concrete nested types".to_string(),
+            })?;
+        let (itab_size, itab_alignment) = self
+            .size_and_align_of_type(builder.tree().get(itab_type), builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "interface layout requires concrete nested types".to_string(),
+            })?;
 
         // assemble field inputs
         let fields = vec![

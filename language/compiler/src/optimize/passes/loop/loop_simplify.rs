@@ -109,7 +109,10 @@ fn run_loop_simplify(
                     .filter(|&&eb| {
                         let block = tree.get(eb);
                         let terminator = tree.get(block.terminator);
-                        terminator.successors().contains(&exit_block)
+                        terminator
+                            .successors()
+                            .iter()
+                            .any(|target| target.block() == Some(exit_block))
                     })
                     .copied()
                     .collect();
@@ -198,6 +201,25 @@ struct ExitWork {
     exiting_blocks: Vec<mir::LocalNodeId<mir::Block>>,
 }
 
+/// Create fresh parameters matching an existing parameter list.
+fn fresh_parameters_like(
+    parameters: &[mir::Parameter],
+    function: &mut mir::Function,
+) -> Vec<mir::Parameter> {
+    parameters
+        .iter()
+        .map(
+            |parameter| match (parameter.value.value(), parameter.ty.ty()) {
+                (Some(_), Some(ty)) => mir::Parameter {
+                    value: function.next_typed_value(ty).into(),
+                    ty: ty.into(),
+                },
+                _ => *parameter,
+            },
+        )
+        .collect()
+}
+
 /// Check if a loop needs a preheader.
 ///
 /// A loop needs a preheader if:
@@ -270,19 +292,18 @@ fn insert_preheader(
     let header_params = &header_block.parameters;
 
     // create preheader with fresh parameters matching header's types
-    let preheader_params: Vec<mir::TypedValue> = header_params
-        .iter()
-        .map(|p| mir::TypedValue {
-            value: function.next_typed_value(p.ty),
-            ty: p.ty,
-        })
-        .collect();
+    let preheader_params = fresh_parameters_like(header_params, function);
 
     // preheader unconditionally jumps to header, forwarding its parameters
-    let preheader_args: Vec<mir::Value> = preheader_params.iter().map(|p| p.value).collect();
+    let preheader_args: Vec<_> = preheader_params
+        .iter()
+        .map(|parameter| parameter.value)
+        .collect();
     let preheader_terminator = tree.insert(mir::Terminator::Jump {
-        target: header,
-        arguments: preheader_args,
+        target: mir::BlockTarget {
+            block: header.into(),
+            arguments: preheader_args,
+        },
     });
     let preheader = mir::Block {
         name: None,
@@ -329,11 +350,13 @@ fn redirect_terminator(
     new_target: mir::LocalNodeId<mir::Block>,
 ) -> Option<mir::Terminator> {
     match terminator {
-        mir::Terminator::Jump { target, arguments } => {
-            if *target == old_target {
+        mir::Terminator::Jump { target } => {
+            if target.block.block() == Some(old_target) {
                 Some(mir::Terminator::Jump {
-                    target: new_target,
-                    arguments: arguments.clone(),
+                    target: mir::BlockTarget {
+                        block: new_target.into(),
+                        arguments: target.arguments.clone(),
+                    },
                 })
             } else {
                 None
@@ -343,28 +366,30 @@ fn redirect_terminator(
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
-            let redirect_then = *then_target == old_target;
-            let redirect_else = *else_target == old_target;
+            let redirect_then = then_target.block.block() == Some(old_target);
+            let redirect_else = else_target.block.block() == Some(old_target);
 
             if redirect_then || redirect_else {
                 Some(mir::Terminator::Branch {
                     condition: *condition,
-                    then_target: if redirect_then {
-                        new_target
-                    } else {
-                        *then_target
+                    then_target: mir::BlockTarget {
+                        block: if redirect_then {
+                            new_target.into()
+                        } else {
+                            then_target.block
+                        },
+                        arguments: then_target.arguments.clone(),
                     },
-                    then_arguments: then_arguments.clone(),
-                    else_target: if redirect_else {
-                        new_target
-                    } else {
-                        *else_target
+                    else_target: mir::BlockTarget {
+                        block: if redirect_else {
+                            new_target.into()
+                        } else {
+                            else_target.block
+                        },
+                        arguments: else_target.arguments.clone(),
                     },
-                    else_arguments: else_arguments.clone(),
                 })
             } else {
                 None
@@ -375,25 +400,25 @@ fn redirect_terminator(
             success,
             failure,
         } => {
-            let redirect_success = success.target == old_target;
-            let redirect_failure = failure.target == old_target;
+            let redirect_success = success.block == old_target.into();
+            let redirect_failure = failure.block == old_target.into();
 
             if redirect_success || redirect_failure {
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
-                    success: mir::CheckTarget {
-                        target: if redirect_success {
-                            new_target
+                    success: mir::BlockTarget {
+                        block: if redirect_success {
+                            new_target.into()
                         } else {
-                            success.target
+                            success.block
                         },
                         arguments: success.arguments.clone(),
                     },
-                    failure: mir::CheckTarget {
-                        target: if redirect_failure {
-                            new_target
+                    failure: mir::BlockTarget {
+                        block: if redirect_failure {
+                            new_target.into()
                         } else {
-                            failure.target
+                            failure.block
                         },
                         arguments: failure.arguments.clone(),
                     },
@@ -406,11 +431,13 @@ fn redirect_terminator(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
-            let redirect_default = *default == old_target;
-            let redirect_cases: Vec<bool> = cases.iter().map(|c| c.target == old_target).collect();
+            let redirect_default = default.block.block() == Some(old_target);
+            let redirect_cases: Vec<bool> = cases
+                .iter()
+                .map(|case| case.target.block.block() == Some(old_target))
+                .collect();
             let any_case_redirected = redirect_cases.iter().any(|&r| r);
 
             if redirect_default || any_case_redirected {
@@ -419,19 +446,27 @@ fn redirect_terminator(
                     .zip(redirect_cases.iter())
                     .map(|(case, &redirect)| mir::SwitchCase {
                         value: case.value,
-                        target: if redirect { new_target } else { case.target },
-                        arguments: case.arguments.clone(),
+                        target: mir::BlockTarget {
+                            block: if redirect {
+                                new_target.into()
+                            } else {
+                                case.target.block
+                            },
+                            arguments: case.target.arguments.clone(),
+                        },
                     })
                     .collect();
 
                 Some(mir::Terminator::Switch {
                     value: *value,
-                    default: if redirect_default {
-                        new_target
-                    } else {
-                        *default
+                    default: mir::BlockTarget {
+                        block: if redirect_default {
+                            new_target.into()
+                        } else {
+                            default.block
+                        },
+                        arguments: default.arguments.clone(),
                     },
-                    default_arguments: default_arguments.clone(),
                     cases: new_cases,
                 })
             } else {
@@ -439,16 +474,14 @@ fn redirect_terminator(
             }
         }
 
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => {
-            if *resume == old_target {
+        mir::Terminator::Yield { value, resume } => {
+            if resume.block.block() == Some(old_target) {
                 Some(mir::Terminator::Yield {
                     value: *value,
-                    resume: new_target,
-                    resume_arguments: resume_arguments.clone(),
+                    resume: mir::BlockTarget {
+                        block: new_target.into(),
+                        arguments: resume.arguments.clone(),
+                    },
                 })
             } else {
                 None
@@ -481,19 +514,18 @@ fn merge_latches(
     let header_params = &header_block.parameters;
 
     // create merged latch with fresh parameters matching header's types
-    let latch_params: Vec<mir::TypedValue> = header_params
-        .iter()
-        .map(|p| mir::TypedValue {
-            value: function.next_typed_value(p.ty),
-            ty: p.ty,
-        })
-        .collect();
+    let latch_params = fresh_parameters_like(header_params, function);
 
     // merged latch jumps to header, forwarding its parameters
-    let latch_args: Vec<mir::Value> = latch_params.iter().map(|p| p.value).collect();
+    let latch_args: Vec<_> = latch_params
+        .iter()
+        .map(|parameter| parameter.value)
+        .collect();
     let latch_terminator = tree.insert(mir::Terminator::Jump {
-        target: header,
-        arguments: latch_args,
+        target: mir::BlockTarget {
+            block: header.into(),
+            arguments: latch_args,
+        },
     });
     let new_latch = mir::Block {
         name: None,
@@ -537,19 +569,18 @@ fn insert_dedicated_exit(
     let exit_params = &exit_block_data.parameters;
 
     // create dedicated exit with fresh parameters matching exit block's types
-    let dedicated_params: Vec<mir::TypedValue> = exit_params
-        .iter()
-        .map(|p| mir::TypedValue {
-            value: function.next_typed_value(p.ty),
-            ty: p.ty,
-        })
-        .collect();
+    let dedicated_params = fresh_parameters_like(exit_params, function);
 
     // dedicated exit jumps to original exit, forwarding its parameters
-    let dedicated_args: Vec<mir::Value> = dedicated_params.iter().map(|p| p.value).collect();
+    let dedicated_args: Vec<_> = dedicated_params
+        .iter()
+        .map(|parameter| parameter.value)
+        .collect();
     let dedicated_terminator = tree.insert(mir::Terminator::Jump {
-        target: exit_block,
-        arguments: dedicated_args,
+        target: mir::BlockTarget {
+            block: exit_block.into(),
+            arguments: dedicated_args,
+        },
     });
     let dedicated_exit = mir::Block {
         name: None,

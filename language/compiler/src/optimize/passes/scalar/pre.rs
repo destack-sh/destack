@@ -119,7 +119,7 @@ struct PhiPlacement {
     /// The expression key this phi represents.
     key: ExpressionKey,
     /// The block parameter inserted for the expression.
-    param: mir::TypedValue,
+    param: mir::Parameter,
     /// The ordering index used for insertion.
     order: usize,
 }
@@ -134,7 +134,7 @@ enum ExpressionTemplate {
     /// Cast expression template.
     Cast {
         operator: mir::CastOperator,
-        to_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::TypeReference,
     },
     /// Select expression template.
     Select,
@@ -185,7 +185,10 @@ fn run_pre(
             let Some(key) = expression_key_from_instruction(instruction, tree) else {
                 continue;
             };
-            let Some(destination) = instruction.destination() else {
+            let Some(destination) = instruction
+                .destination()
+                .and_then(|destination| destination.value())
+            else {
                 continue;
             };
             let value_type = value_types.require_value_type(destination);
@@ -278,7 +281,10 @@ fn run_pre(
 
             // allocate a new parameter for the expression
             let param_value = function.next_typed_value(value_type);
-            let param = mir::TypedValue::new(param_value, value_type);
+            let param = mir::Parameter {
+                value: param_value.into(),
+                ty: value_type.into(),
+            };
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {
                 key: key.clone(),
@@ -361,11 +367,15 @@ fn run_pre(
                     value
                 } else {
                     // insert a missing computation along this edge when possible
+                    let Some(value_type) = placement.param.ty.ty() else {
+                        continue;
+                    };
+
                     let inserted_value = insert_expression_in_block(
                         pred,
                         insertion_block,
                         placement.key.clone(),
-                        placement.param.ty,
+                        value_type,
                         function,
                         tree,
                         templates.get(&placement.key),
@@ -514,7 +524,11 @@ fn value_available_in_block(
     use_def: &UseDefMaps,
 ) -> bool {
     // function parameters are always available
-    if function.parameters.iter().any(|param| param.value == value) {
+    if function
+        .parameters
+        .iter()
+        .any(|param| param.value.value() == Some(value))
+    {
         return true;
     }
 
@@ -573,7 +587,7 @@ fn rename_block(
             current
                 .entry(placement.key.clone())
                 .or_default()
-                .push(placement.param.value);
+                .push(placement.param.value.value().unwrap());
             pushed_keys.push(placement.key.clone());
         }
     }
@@ -589,7 +603,10 @@ fn rename_block(
         let Some(key) = expression_key_from_instruction(instruction, tree) else {
             continue;
         };
-        let Some(destination) = instruction.destination() else {
+        let Some(destination) = instruction
+            .destination()
+            .and_then(|destination| destination.value())
+        else {
             continue;
         };
 
@@ -684,24 +701,24 @@ fn build_instruction_from_key(
     match (key, template) {
         (ExpressionKey::Binary { left, right, .. }, ExpressionTemplate::Binary { operator }) => {
             mir::Instruction::Binary {
-                destination,
+                destination: destination.into(),
                 operator: *operator,
-                left: *left,
-                right: *right,
+                left: (*left).into(),
+                right: (*right).into(),
             }
         }
         (ExpressionKey::Unary { argument, .. }, ExpressionTemplate::Unary { operator }) => {
             mir::Instruction::Unary {
-                destination,
+                destination: destination.into(),
                 operator: *operator,
-                argument: *argument,
+                argument: (*argument).into(),
             }
         }
         (ExpressionKey::Cast { argument, .. }, ExpressionTemplate::Cast { operator, to_type }) => {
             mir::Instruction::Cast {
-                destination,
+                destination: destination.into(),
                 operator: *operator,
-                argument: *argument,
+                argument: (*argument).into(),
                 to_type: *to_type,
             }
         }
@@ -713,29 +730,29 @@ fn build_instruction_from_key(
             },
             ExpressionTemplate::Select,
         ) => mir::Instruction::Select {
-            destination,
-            condition: *condition,
-            then_value: *then_value,
-            else_value: *else_value,
+            destination: destination.into(),
+            condition: (*condition).into(),
+            then_value: (*then_value).into(),
+            else_value: (*else_value).into(),
         },
         (ExpressionKey::FieldGet { aggregate, .. }, ExpressionTemplate::FieldGet { index }) => {
             mir::Instruction::FieldGet {
-                destination,
-                aggregate: *aggregate,
+                destination: destination.into(),
+                aggregate: (*aggregate).into(),
                 index: *index,
             }
         }
         (ExpressionKey::ElementGet { array, index }, ExpressionTemplate::ElementGet) => {
             mir::Instruction::ElementGet {
-                destination,
-                array: *array,
-                index: *index,
+                destination: destination.into(),
+                array: (*array).into(),
+                index: (*index).into(),
             }
         }
         (ExpressionKey::GlobalConst { global }, ExpressionTemplate::GlobalConst) => {
             mir::Instruction::GlobalConst {
-                destination,
-                global: *global,
+                destination: destination.into(),
+                global: (*global).into(),
             }
         }
         _ => panic!("mismatched expression template"),

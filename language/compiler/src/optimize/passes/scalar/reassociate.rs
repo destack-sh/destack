@@ -120,6 +120,13 @@ fn run_reassociate(
                 right,
             } = instruction
             {
+                let (Some(destination), Some(left), Some(right)) =
+                    (destination.value(), left.value(), right.value())
+                else {
+                    new_instructions.push(*instruction_id);
+                    continue;
+                };
+
                 // build a reassociation plan
                 let plan = reassociate_binary(
                     operator,
@@ -172,10 +179,10 @@ fn run_reassociate(
 
                     // update the binary instruction with the rebuilt operands
                     let new_instruction = mir::Instruction::Binary {
-                        destination,
+                        destination: destination.into(),
                         operator,
-                        left: base,
-                        right: last,
+                        left: base.into(),
+                        right: last.into(),
                     };
                     tree.replace(*instruction_id, new_instruction.clone());
                     value_to_instruction.insert(
@@ -213,22 +220,31 @@ fn run_reassociate(
             // update constant tracking for non binary instructions
             match instruction {
                 mir::Instruction::Const { destination, value } => {
-                    block_constants.insert(destination, value);
+                    if let Some(destination) = destination.value() {
+                        block_constants.insert(destination, value);
+                    }
                 }
                 mir::Instruction::GlobalConst {
                     destination,
                     global,
                 } => {
-                    let constant = constant_from_global(global, tree);
-                    if let Some(constant) = constant {
-                        block_constants.insert(destination, constant);
-                    } else {
-                        block_constants.remove(destination);
+                    if let Some(destination) = destination.value() {
+                        let constant = global
+                            .global()
+                            .and_then(|global| constant_from_global(global, tree));
+                        if let Some(constant) = constant {
+                            block_constants.insert(destination, constant);
+                        } else {
+                            block_constants.remove(&destination);
+                        }
                     }
                 }
                 _ => {
-                    if let Some(destination) = instruction.destination() {
-                        block_constants.remove(destination);
+                    if let Some(destination) = instruction
+                        .destination()
+                        .and_then(|destination| destination.value())
+                    {
+                        block_constants.remove(&destination);
                     }
                 }
             }
@@ -384,16 +400,25 @@ fn collect_associative_operands(
     }
 
     // collect nested operands
+    let Some(left) = left.value() else {
+        non_constants.push(value);
+        return;
+    };
     collect_associative_operands(
         context,
-        *left,
+        left,
         non_constants,
         constant_values,
         constant_cache,
     );
+
+    let Some(right) = right.value() else {
+        non_constants.push(value);
+        return;
+    };
     collect_associative_operands(
         context,
-        *right,
+        right,
         non_constants,
         constant_values,
         constant_cache,
@@ -444,8 +469,17 @@ fn associative_subtree_contains_constant(
     }
 
     // check whether either subtree contains constants
-    let left_has = associative_subtree_contains_constant(context, *left, constant_cache);
-    let right_has = associative_subtree_contains_constant(context, *right, constant_cache);
+    let Some(left) = left.value() else {
+        constant_cache.insert(value, false);
+        return false;
+    };
+    let Some(right) = right.value() else {
+        constant_cache.insert(value, false);
+        return false;
+    };
+
+    let left_has = associative_subtree_contains_constant(context, left, constant_cache);
+    let right_has = associative_subtree_contains_constant(context, right, constant_cache);
     let has_constant = left_has || right_has;
 
     constant_cache.insert(value, has_constant);
@@ -471,10 +505,10 @@ fn rebuild_chain(
     for operand in &operands[1..operands.len() - 1] {
         let destination = function.next_typed_value(result_type);
         let instruction = mir::Instruction::Binary {
-            destination,
+            destination: destination.into(),
             operator,
-            left: current,
-            right: *operand,
+            left: current.into(),
+            right: (*operand).into(),
         };
         let instruction_id = tree.insert(instruction);
         new_instructions.push(instruction_id);
@@ -532,7 +566,7 @@ fn resolve_constant_value(
     // insert a new constant instruction
     let destination = function.next_typed_value(result_type);
     let instruction = mir::Instruction::Const {
-        destination,
+        destination: destination.into(),
         value: constant,
     };
     let instruction_id = tree.insert(instruction);

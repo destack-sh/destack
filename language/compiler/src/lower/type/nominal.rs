@@ -148,7 +148,11 @@ impl ModuleLowerer<'_> {
             );
             let (size, alignment) = self
                 .type_lowerer
-                .size_and_align_of_type(self.builder.tree().get(vtable_type), self.builder.tree());
+                .size_and_align_of_type(self.builder.tree().get(vtable_type), self.builder.tree())
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: instance_declaration,
+                    message: "nominal layout requires concrete nested types".to_string(),
+                })?;
 
             let vtable_field = FieldInput {
                 name: vtable_name,
@@ -265,7 +269,11 @@ impl ModuleLowerer<'_> {
                 let field_type = self.builder.tree().get(mir_type);
                 let (size, alignment) = self
                     .type_lowerer
-                    .size_and_align_of_type(field_type, self.builder.tree());
+                    .size_and_align_of_type(field_type, self.builder.tree())
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: anchor,
+                        message: "nominal layout requires concrete nested types".to_string(),
+                    })?;
 
                 // compute the layout field name
                 let field_name = static_key_to_field_name(&key, &mut self.builder);
