@@ -1224,7 +1224,11 @@ impl StepState<'_, '_> {
             return self.read_memory_slot(&pointer, 0);
         }
 
-        let raw_pointer = pointer.as_raw_pointer().unwrap();
+        let raw_pointer = pointer.as_raw_pointer().ok_or_else(|| {
+            self.make_error(Error::InvalidPointerType {
+                actual: format!("{pointer:?}"),
+            })
+        })?;
         if raw_pointer.is_null() {
             return Err(self.make_error(Error::NullPointerDereference));
         }
@@ -1272,7 +1276,11 @@ impl StepState<'_, '_> {
             return self.write_memory_slot(&pointer, 0, value);
         }
 
-        let raw_pointer = pointer.as_raw_pointer().unwrap();
+        let raw_pointer = pointer.as_raw_pointer().ok_or_else(|| {
+            self.make_error(Error::InvalidPointerType {
+                actual: format!("{pointer:?}"),
+            })
+        })?;
         if raw_pointer.is_null() {
             return Err(self.make_error(Error::NullPointerDereference));
         }
@@ -1328,7 +1336,11 @@ impl StepState<'_, '_> {
                 actual: "managed reference without typed byte semantics".to_string(),
             })),
             ValueTag::RawPointer => {
-                let raw_ptr = ptr.as_raw_pointer().unwrap();
+                let raw_ptr = ptr.as_raw_pointer().ok_or_else(|| {
+                    self.make_error(Error::InvalidPointerType {
+                        actual: format!("{ptr:?}"),
+                    })
+                })?;
                 if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
@@ -1355,11 +1367,15 @@ impl StepState<'_, '_> {
                 let byte = self
                     .heap()
                     .raw_byte_at(raw_ptr, slot_index)
-                    .expect("validated raw byte slot should exist");
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 Ok(Value::uint(byte as u64, 8))
             }
             ValueTag::StackPointer => {
-                let sp = ptr.as_stack_pointer().unwrap();
+                let sp = ptr.as_stack_pointer().ok_or_else(|| {
+                    self.make_error(Error::InvalidPointerType {
+                        actual: format!("{ptr:?}"),
+                    })
+                })?;
                 let frame = self
                     .engine
                     .call_stack
@@ -1387,7 +1403,11 @@ impl StepState<'_, '_> {
                 Ok(Value::uint(byte as u64, 8))
             }
             ValueTag::LocalPointer => {
-                let lp = ptr.as_local_pointer().unwrap();
+                let lp = ptr.as_local_pointer().ok_or_else(|| {
+                    self.make_error(Error::InvalidPointerType {
+                        actual: format!("{ptr:?}"),
+                    })
+                })?;
                 if offset != 0 || lp.slot_offset != 0 {
                     return Err(self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,
@@ -1421,7 +1441,11 @@ impl StepState<'_, '_> {
                 }))
             }
             ValueTag::RawPointer => {
-                let raw_ptr = ptr.as_raw_pointer().unwrap();
+                let raw_ptr = ptr.as_raw_pointer().ok_or_else(|| {
+                    self.make_error(Error::InvalidPointerType {
+                        actual: format!("{ptr:?}"),
+                    })
+                })?;
                 if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
@@ -1433,7 +1457,12 @@ impl StepState<'_, '_> {
                     })
                 })?;
                 let byte = if matches!(value.tag(), ValueTag::UInt) {
-                    value.as_uint().unwrap() as u8
+                    value.as_uint().ok_or_else(|| {
+                        self.make_error(Error::TypeMismatch {
+                            expected: "integer".to_string(),
+                            actual: format!("{value:?}"),
+                        })
+                    })? as u8
                 } else {
                     return Err(self.make_error(Error::TypeMismatch {
                         expected: "integer".to_string(),
@@ -1461,26 +1490,29 @@ impl StepState<'_, '_> {
                 Ok(())
             }
             ValueTag::StackPointer => {
-                let sp = ptr.as_stack_pointer().unwrap();
+                let sp = ptr.as_stack_pointer().ok_or_else(|| {
+                    self.make_error(Error::InvalidPointerType {
+                        actual: format!("{ptr:?}"),
+                    })
+                })?;
                 let slot_index = sp.slot_offset.checked_add(offset).ok_or_else(|| {
                     self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,
                         field_count: 0,
                     })
                 })?;
+                let byte = value.as_uint().map(|value| value as u8).ok_or_else(|| {
+                    self.make_error(Error::TypeMismatch {
+                        expected: "integer".to_string(),
+                        actual: format!("{value:?}"),
+                    })
+                })?;
+
                 let error = match self.engine.call_stack.get_mut(sp.frame_idx) {
                     Some(frame) => {
                         let allocation = match frame.stack_allocation_mut(sp.slot) {
                             Some(allocation) => allocation,
                             None => return Err(self.make_error(Error::InvalidManagedReference)),
-                        };
-                        let byte = if matches!(value.tag(), ValueTag::UInt) {
-                            value.as_uint().unwrap() as u8
-                        } else {
-                            return Err(self.make_error(Error::TypeMismatch {
-                                expected: "integer".to_string(),
-                                actual: format!("{value:?}"),
-                            }));
                         };
 
                         // write the slot value
@@ -1500,7 +1532,11 @@ impl StepState<'_, '_> {
                 Err(self.make_error(error))
             }
             ValueTag::LocalPointer => {
-                let lp = ptr.as_local_pointer().unwrap();
+                let lp = ptr.as_local_pointer().ok_or_else(|| {
+                    self.make_error(Error::InvalidPointerType {
+                        actual: format!("{ptr:?}"),
+                    })
+                })?;
                 if offset != 0 || lp.slot_offset != 0 {
                     return Err(self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,

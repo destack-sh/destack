@@ -81,21 +81,33 @@ pub(super) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             mutability,
             pointee,
             is_nullable,
-        } => ValueKind::Pointer {
-            pointee: *pointee,
-            storage: pointer_storage_from_reference(*address_space, *kind),
-            reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
+        } => match pointee.ty() {
+            Some(pointee) => ValueKind::Pointer {
+                pointee,
+                storage: pointer_storage_from_reference(*address_space, *kind),
+                reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
+            },
+            None => ValueKind::Unknown,
         },
-        mir::Type::FunctionPointer { result, .. } => ValueKind::FunctionPointer { result: *result },
+        mir::Type::FunctionPointer { result, .. } => match result.ty() {
+            Some(result) => ValueKind::FunctionPointer { result },
+            None => ValueKind::Unknown,
+        },
         mir::Type::Array {
             element,
             length,
             copyability: _,
-        } => ValueKind::Array {
-            element: *element,
-            length: *length,
+        } => match element.ty() {
+            Some(element) => ValueKind::Array {
+                element,
+                length: *length,
+            },
+            None => ValueKind::Unknown,
         },
-        mir::Type::Newtype { inner, .. } => kind_from_type(tree, *inner),
+        mir::Type::Newtype { inner, .. } => match inner.ty() {
+            Some(inner) => kind_from_type(tree, inner),
+            None => ValueKind::Unknown,
+        },
         mir::Type::Closure { .. } => ValueKind::Composite { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
@@ -108,10 +120,13 @@ pub(super) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             element,
             is_nullable,
             ..
-        } => ValueKind::Pointer {
-            pointee: *element,
-            storage: pointer_storage_from_reference(*address_space, *kind),
-            reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
+        } => match element.ty() {
+            Some(element) => ValueKind::Pointer {
+                pointee: element,
+                storage: pointer_storage_from_reference(*address_space, *kind),
+                reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
+            },
+            None => ValueKind::Unknown,
         },
     }
 }

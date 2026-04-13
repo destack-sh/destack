@@ -40,6 +40,38 @@ fn invalid_pointer_description(actual: impl Into<String>) -> Error {
     }
 }
 
+/// Require one managed reference value.
+#[inline(always)]
+fn managed_reference_from_value(value: Value) -> Result<ManagedReference, Error> {
+    value
+        .as_managed_reference()
+        .ok_or_else(|| invalid_pointer_type(value))
+}
+
+/// Require one stack pointer value.
+#[inline(always)]
+fn stack_pointer_from_value(value: Value) -> Result<StackPointer, Error> {
+    value
+        .as_stack_pointer()
+        .ok_or_else(|| invalid_pointer_type(value))
+}
+
+/// Require one local pointer value.
+#[inline(always)]
+fn local_pointer_from_value(value: Value) -> Result<LocalPointer, Error> {
+    value
+        .as_local_pointer()
+        .ok_or_else(|| invalid_pointer_type(value))
+}
+
+/// Require one global pointer value.
+#[inline(always)]
+fn global_pointer_from_value(value: Value) -> Result<GlobalPointer, Error> {
+    value
+        .as_global_pointer()
+        .ok_or_else(|| invalid_pointer_type(value))
+}
+
 /// Return the semantic component count for one managed composite.
 #[inline(always)]
 fn managed_component_count(
@@ -137,7 +169,7 @@ pub(crate) fn load_from_pointer_with_access(
         }
         ValueTag::StackPointer => {
             // require the stack pointee type before decoding stack storage
-            let sp = ptr.as_stack_pointer().unwrap();
+            let sp = stack_pointer_from_value(ptr)?;
             let Some(access) = access else {
                 return Err(invalid_pointer_description(
                     "stack pointer without pointee type",
@@ -148,12 +180,12 @@ pub(crate) fn load_from_pointer_with_access(
         }
         ValueTag::LocalPointer => {
             // load one local slot directly
-            let lp = ptr.as_local_pointer().unwrap();
+            let lp = local_pointer_from_value(ptr)?;
             load_local_slot(state, lp, lp.slot_offset)
         }
         ValueTag::GlobalPointer => {
             // load one global slot directly
-            let global = ptr.as_global_pointer().unwrap();
+            let global = global_pointer_from_value(ptr)?;
             load_global_slot(state, global)
         }
 
@@ -199,7 +231,7 @@ pub(crate) fn store_to_pointer_with_access(
         }
         ValueTag::StackPointer => {
             // require the stack pointee type before encoding stack storage
-            let sp = ptr.as_stack_pointer().unwrap();
+            let sp = stack_pointer_from_value(ptr)?;
             let Some(access) = access else {
                 return Err(invalid_pointer_description(
                     "stack pointer without pointee type",
@@ -210,12 +242,12 @@ pub(crate) fn store_to_pointer_with_access(
         }
         ValueTag::LocalPointer => {
             // store one local slot directly
-            let lp = ptr.as_local_pointer().unwrap();
+            let lp = local_pointer_from_value(ptr)?;
             store_local_slot(state, lp, lp.slot_offset, value)
         }
         ValueTag::GlobalPointer => {
             // reject immutable globals before storing the slot
-            let global = ptr.as_global_pointer().unwrap();
+            let global = global_pointer_from_value(ptr)?;
             let global_def = state.tree().get(global.id);
             if !global_def.is_mutable() {
                 return Err(Error::ImmutableGlobalWrite { global: global.id });
@@ -242,7 +274,7 @@ pub(crate) fn load_from_managed_reference_typed(
     }
 
     // reject null pointers before reading the allocation
-    let handle = ptr.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(ptr)?;
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -325,7 +357,7 @@ pub(crate) fn load_from_local_pointer(
     }
 
     // resolve pointer
-    let lp = ptr.as_local_pointer().unwrap();
+    let lp = local_pointer_from_value(ptr)?;
     load_local_slot(state, lp, lp.slot_offset)
 }
 
@@ -341,7 +373,7 @@ pub(crate) fn load_from_global_pointer(
     }
 
     // resolve pointer
-    let global = ptr.as_global_pointer().unwrap();
+    let global = global_pointer_from_value(ptr)?;
     load_global_slot(state, global)
 }
 
@@ -357,7 +389,7 @@ pub(crate) fn store_to_managed_reference_typed(
         return Err(invalid_pointer_type(ptr));
     }
 
-    let handle = ptr.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(ptr)?;
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -508,7 +540,7 @@ pub(crate) fn store_to_local_pointer(
     }
 
     // resolve pointer
-    let lp = ptr.as_local_pointer().unwrap();
+    let lp = local_pointer_from_value(ptr)?;
     store_local_slot(state, lp, lp.slot_offset, val)
 }
 
@@ -525,7 +557,7 @@ pub(crate) fn store_to_global_pointer(
     }
 
     // resolve pointer
-    let global = ptr.as_global_pointer().unwrap();
+    let global = global_pointer_from_value(ptr)?;
     let global_def = state.tree().get(global.id);
     if !global_def.is_mutable() {
         return Err(Error::ImmutableGlobalWrite { global: global.id });
@@ -547,7 +579,7 @@ pub(crate) fn field_addr(
     // resolve the source and compute the field pointer
     match composite.tag() {
         ValueTag::ManagedReference => {
-            let handle = composite.as_managed_reference().unwrap();
+            let handle = managed_reference_from_value(composite)?;
             let composite_type = managed_storage_type(state, handle)?;
             let field = state.storage_component_layout(composite_type, index)?;
             let byte_offset = handle.byte_offset().checked_add(field.offset).ok_or(
@@ -568,11 +600,11 @@ pub(crate) fn field_addr(
             "stack pointer requires typed field access",
         )),
         ValueTag::LocalPointer => {
-            let pointer = composite.as_local_pointer().unwrap();
+            let pointer = local_pointer_from_value(composite)?;
             field_addr_local(state, pointer, index, field_count)
         }
         ValueTag::GlobalPointer => {
-            let global = composite.as_global_pointer().unwrap();
+            let global = global_pointer_from_value(composite)?;
             let slot_index = resolve_global_field_slot(state, global, index, field_count)?;
             Ok(Value::global_pointer_with_offset(global.id, slot_index))
         }
@@ -748,7 +780,7 @@ pub(crate) fn element_addr(
     // resolve the source and compute the element pointer
     match array.tag() {
         ValueTag::ManagedReference => {
-            let handle = array.as_managed_reference().unwrap();
+            let handle = managed_reference_from_value(array)?;
             let slot_index = resolve_heap_element_slot(state, handle, index, array_length)?;
             let byte_offset = slot_index
                 .checked_mul(Value::BYTE_LEN as u32)
@@ -763,11 +795,11 @@ pub(crate) fn element_addr(
             "stack pointer requires typed element access",
         )),
         ValueTag::LocalPointer => {
-            let pointer = array.as_local_pointer().unwrap();
+            let pointer = local_pointer_from_value(array)?;
             element_addr_local(state, pointer, index, array_length)
         }
         ValueTag::GlobalPointer => {
-            let global = array.as_global_pointer().unwrap();
+            let global = global_pointer_from_value(array)?;
             let slot_index = resolve_global_element_slot(state, global, index, array_length)?;
             Ok(Value::global_pointer_with_offset(global.id, slot_index))
         }
@@ -1282,7 +1314,7 @@ pub(crate) fn load_field_global(
         });
     }
 
-    let handle = value.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(value)?;
 
     // reject null handles when enabled
     if state.null_checks && handle.is_null() {
@@ -1362,7 +1394,7 @@ pub(crate) fn store_field_global(
         });
     }
 
-    let handle = current.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(current)?;
 
     // reject null handles when enabled
     if null_checks && handle.is_null() {
@@ -1790,7 +1822,7 @@ pub(crate) fn load_element_global(
         return Err(Error::InvalidArrayAccess { index, length: 0 });
     }
 
-    let handle = value.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(value)?;
 
     // reject null handles when enabled
     if state.null_checks && handle.is_null() {
@@ -1832,7 +1864,7 @@ pub(crate) fn store_element_global(
         return Err(Error::InvalidArrayAccess { index, length: 0 });
     }
 
-    let handle = current.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(current)?;
 
     // reject null handles when enabled
     if null_checks && handle.is_null() {
@@ -1856,11 +1888,11 @@ pub(crate) fn get_field(
     // resolve composite value
     match agg.tag() {
         ValueTag::ManagedReference => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = managed_reference_from_value(agg)?;
             get_heap_field(state, handle, index)
         }
         ValueTag::StackPointer => {
-            let pointer = agg.as_stack_pointer().unwrap();
+            let pointer = stack_pointer_from_value(agg)?;
             get_stack_field(state, pointer, index)
         }
         _ => Err(Error::TypeMismatch {
@@ -1880,7 +1912,7 @@ pub(crate) fn set_field(
 ) -> Result<Value, Error> {
     // copy the value into fresh stack storage first
     let copied = duplicate_composite_value_to_stack(state, agg, "composite")?;
-    let pointer = copied.as_stack_pointer().unwrap();
+    let pointer = stack_pointer_from_value(copied)?;
 
     // then mutate the fresh value
     set_stack_field(state, pointer, index, val)?;
@@ -1898,11 +1930,11 @@ pub(crate) fn set_field_in_place(
 ) -> Result<(), Error> {
     match agg.tag() {
         ValueTag::ManagedReference => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = managed_reference_from_value(agg)?;
             store_heap_slot(state, handle, index as usize, val)
         }
         ValueTag::StackPointer => {
-            let pointer = agg.as_stack_pointer().unwrap();
+            let pointer = stack_pointer_from_value(agg)?;
             set_stack_field(state, pointer, index, val)
         }
         _ => Err(Error::TypeMismatch {
@@ -1922,11 +1954,11 @@ pub(crate) fn get_element(
     // resolve array value
     match arr.tag() {
         ValueTag::ManagedReference => {
-            let handle = arr.as_managed_reference().unwrap();
+            let handle = managed_reference_from_value(arr)?;
             get_heap_element(state, handle, index)
         }
         ValueTag::StackPointer => {
-            let pointer = arr.as_stack_pointer().unwrap();
+            let pointer = stack_pointer_from_value(arr)?;
             get_stack_element(state, pointer, index)
         }
         _ => Err(Error::TypeMismatch {
@@ -1946,7 +1978,7 @@ pub(crate) fn set_element(
 ) -> Result<Value, Error> {
     // copy the value into fresh stack storage first
     let copied = duplicate_composite_value_to_stack(state, arr, "array")?;
-    let pointer = copied.as_stack_pointer().unwrap();
+    let pointer = stack_pointer_from_value(copied)?;
 
     // then mutate the fresh value
     set_stack_element(state, pointer, index, val)?;
@@ -1962,7 +1994,7 @@ fn duplicate_composite_value_to_stack(
 ) -> Result<Value, Error> {
     let (storage_type, bytes) = match value.tag() {
         ValueTag::ManagedReference => {
-            let handle = value.as_managed_reference().unwrap();
+            let handle = managed_reference_from_value(value)?;
             let storage_type = managed_storage_type(state, handle)?;
             let bytes = state
                 .heap()
@@ -1973,7 +2005,7 @@ fn duplicate_composite_value_to_stack(
             (storage_type, bytes)
         }
         ValueTag::StackPointer => {
-            let pointer = value.as_stack_pointer().unwrap();
+            let pointer = stack_pointer_from_value(value)?;
             if pointer.slot_offset != 0 {
                 return Err(Error::InvalidManagedReference);
             }
@@ -2136,7 +2168,7 @@ fn load_global_slot(state: &mut StepState<'_, '_>, global: GlobalPointer) -> Res
         });
     }
 
-    let handle = value.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(value)?;
     load_heap_slot(state, handle, global.slot_offset)
 }
 
@@ -2166,7 +2198,7 @@ fn store_global_slot(
         });
     }
 
-    let handle = current.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(current)?;
     store_heap_slot(state, handle, global.slot_offset, value)?;
     state.globals.set(global.id, current);
     Ok(())
@@ -2444,7 +2476,7 @@ fn resolve_global_field_slot(
         });
     }
 
-    let handle = value.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(value)?;
 
     // look up the managed allocation
     let cell_len = managed_component_count(state, handle)?;
@@ -2554,7 +2586,7 @@ fn resolve_global_element_slot(
         return Err(Error::InvalidArrayAccess { index, length: 0 });
     }
 
-    let handle = value.as_managed_reference().unwrap();
+    let handle = managed_reference_from_value(value)?;
 
     // look up the managed allocation
     let cell_len = managed_component_count(state, handle)?;

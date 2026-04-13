@@ -5,6 +5,7 @@ use destack_mir as mir;
 use destack_heap::Value;
 
 use crate::executable::{Instruction, InstructionData, InstructionOperation, pack_optional_value};
+use crate::{Error, Result};
 
 use super::kind::{managed_pointee_type_for_value, managed_pointee_type_for_value_kind};
 use super::lower::BlockLowerer;
@@ -28,15 +29,26 @@ impl<'a> BlockLowerer<'a> {
         let mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } = terminator
         else {
             return None;
         };
+        let condition = condition.value()?;
+        let then_target_block = then_target.block.block()?;
+        let else_target_block = else_target.block.block()?;
+        let then_arguments = then_target
+            .arguments
+            .iter()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()?;
+        let else_arguments = else_target
+            .arguments
+            .iter()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()?;
 
-        if self.value_use_count(*condition) != 1 {
+        if self.value_use_count(condition) != Some(1) {
             return None;
         }
 
@@ -57,12 +69,15 @@ impl<'a> BlockLowerer<'a> {
             return None;
         }
 
-        if *destination != *condition {
+        let destination = destination.value()?;
+        let left = left.value()?;
+        let right = right.value()?;
+        if destination != condition {
             return None;
         }
 
         let mut const_value = None;
-        let mut left_value = *left;
+        let mut left_value = left;
         let mut operator = *operator;
         let mut pop_const = false;
         if let Some(prev_inst_id) = block
@@ -71,14 +86,15 @@ impl<'a> BlockLowerer<'a> {
         {
             let prev_inst = self.tree.get(*prev_inst_id);
             if let mir::Instruction::Const { destination, value } = prev_inst {
-                let uses = self.value_use_count(*destination);
-                if uses == 1 {
-                    if *destination == *right {
+                let destination = destination.value()?;
+                let uses = self.value_use_count(destination);
+                if uses == Some(1) {
+                    if destination == right {
                         const_value = Some(Value::from(value));
                         pop_const = true;
-                    } else if *destination == *left {
+                    } else if destination == left {
                         const_value = Some(Value::from(value));
-                        left_value = *right;
+                        left_value = right;
                         operator = swap_compare_operator(operator);
                         pop_const = true;
                     }
@@ -91,8 +107,8 @@ impl<'a> BlockLowerer<'a> {
             instructions.pop();
         }
 
-        let then_index = self.block_index_by_id[then_target];
-        let else_index = self.block_index_by_id[else_target];
+        let then_index = self.block_index_by_id[&then_target_block];
+        let else_index = self.block_index_by_id[&else_target_block];
         let then_parameters = self
             .block_parameter
             .get(then_index)
@@ -103,8 +119,8 @@ impl<'a> BlockLowerer<'a> {
             .get(else_index)
             .map(|params| params.as_slice())
             .unwrap_or_default();
-        let then_copies = pool.copy_range(then_parameters, then_arguments);
-        let else_copies = pool.copy_range(else_parameters, else_arguments);
+        let then_copies = pool.copy_range(then_parameters, &then_arguments);
+        let else_copies = pool.copy_range(else_parameters, &else_arguments);
 
         if let Some(right_const) = const_value {
             let operation = select_compare_branch_const_operation(operator);
@@ -126,8 +142,8 @@ impl<'a> BlockLowerer<'a> {
         Some(Instruction {
             operation,
             data: InstructionData::CompareAndBranch {
-                left: *left,
-                right: *right,
+                left,
+                right,
                 operator,
                 then_target: then_index as u32,
                 then_copies,
@@ -143,32 +159,59 @@ impl<'a> BlockLowerer<'a> {
         term: &mir::Terminator,
         decomposition_by_value: &HashMap<mir::Value, ValueDecomposition>,
         pool: &mut Pool,
-    ) -> Instruction {
-        match term {
+    ) -> Result<Instruction> {
+        Ok(match term {
             mir::Terminator::Error => {
-                panic!("recovered MIR terminator reached VM lowering");
+                return Err(Error::ConcreteMirRequired {
+                    context: "terminator".to_string(),
+                });
             }
             mir::Terminator::Return { value } => Instruction {
                 operation: InstructionOperation::Return,
                 data: InstructionData::Return {
-                    value: pack_optional_value(*value),
+                    value: pack_optional_value(
+                        (*value)
+                            .map(|value| {
+                                value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                    context: "return value".to_string(),
+                                })
+                            })
+                            .transpose()?,
+                    ),
                 },
             },
 
-            mir::Terminator::Jump { target, arguments } => {
-                let target_index = self.block_index_by_id[target];
+            mir::Terminator::Jump { target } => {
+                let target_block =
+                    (target.block)
+                        .block()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "jump target".to_string(),
+                        })?;
+                let arguments = target
+                    .arguments
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "jump argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let target_index = self.block_index_by_id[&target_block];
                 let target_parameters = self
                     .block_parameter
                     .get(target_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let value_tree_by_param = self.block_parameter_map.tree_by_block.get(target);
+                let value_tree_by_param = self.block_parameter_map.tree_by_block.get(&target_block);
                 let copies = pool.edge_copy_plan(
                     target_parameters,
-                    arguments,
+                    &arguments,
                     value_tree_by_param,
                     decomposition_by_value,
-                );
+                )?;
 
                 Instruction {
                     operation: InstructionOperation::Jump,
@@ -182,12 +225,49 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => {
-                let then_index = self.block_index_by_id[then_target];
-                let else_index = self.block_index_by_id[else_target];
+                let condition = (*condition)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "branch condition".to_string(),
+                    })?;
+                let then_target_block =
+                    (then_target.block)
+                        .block()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "branch then target".to_string(),
+                        })?;
+                let else_target_block =
+                    (else_target.block)
+                        .block()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "branch else target".to_string(),
+                        })?;
+                let then_arguments = then_target
+                    .arguments
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "branch then argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let else_arguments = else_target
+                    .arguments
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "branch else argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let then_index = self.block_index_by_id[&then_target_block];
+                let else_index = self.block_index_by_id[&else_target_block];
                 let then_parameters = self
                     .block_parameter
                     .get(then_index)
@@ -198,25 +278,31 @@ impl<'a> BlockLowerer<'a> {
                     .get(else_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let then_value_tree = self.block_parameter_map.tree_by_block.get(then_target);
-                let else_value_tree = self.block_parameter_map.tree_by_block.get(else_target);
+                let then_value_tree = self
+                    .block_parameter_map
+                    .tree_by_block
+                    .get(&then_target_block);
+                let else_value_tree = self
+                    .block_parameter_map
+                    .tree_by_block
+                    .get(&else_target_block);
                 let then_copies = pool.edge_copy_plan(
                     then_parameters,
-                    then_arguments,
+                    &then_arguments,
                     then_value_tree,
                     decomposition_by_value,
-                );
+                )?;
                 let else_copies = pool.edge_copy_plan(
                     else_parameters,
-                    else_arguments,
+                    &else_arguments,
                     else_value_tree,
                     decomposition_by_value,
-                );
+                )?;
 
                 Instruction {
-                    operation: select_branch_operation(self.value_kind_map(), *condition),
+                    operation: select_branch_operation(self.value_kind_map(), condition),
                     data: InstructionData::Branch {
-                        condition: *condition,
+                        condition,
                         then_target: then_index as u32,
                         then_copies,
                         else_target: else_index as u32,
@@ -230,8 +316,42 @@ impl<'a> BlockLowerer<'a> {
                 success,
                 failure,
             } => {
-                let success_index = self.block_index_by_id[&success.target];
-                let failure_index = self.block_index_by_id[&failure.target];
+                let success_block =
+                    (success.block)
+                        .block()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "check success target".to_string(),
+                        })?;
+                let failure_block =
+                    (failure.block)
+                        .block()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "check failure target".to_string(),
+                        })?;
+                let success_arguments = success
+                    .arguments
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "check success argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let failure_arguments = failure
+                    .arguments
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "check failure argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let success_index = self.block_index_by_id[&success_block];
+                let failure_index = self.block_index_by_id[&failure_block];
                 let success_parameters = self
                     .block_parameter
                     .get(success_index)
@@ -242,22 +362,20 @@ impl<'a> BlockLowerer<'a> {
                     .get(failure_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let success_value_tree =
-                    self.block_parameter_map.tree_by_block.get(&success.target);
-                let failure_value_tree =
-                    self.block_parameter_map.tree_by_block.get(&failure.target);
+                let success_value_tree = self.block_parameter_map.tree_by_block.get(&success_block);
+                let failure_value_tree = self.block_parameter_map.tree_by_block.get(&failure_block);
                 let success_copies = pool.edge_copy_plan(
                     success_parameters,
-                    &success.arguments,
+                    &success_arguments,
                     success_value_tree,
                     decomposition_by_value,
-                );
+                )?;
                 let failure_copies = pool.edge_copy_plan(
                     failure_parameters,
-                    &failure.arguments,
+                    &failure_arguments,
                     failure_value_tree,
                     decomposition_by_value,
-                );
+                )?;
 
                 Instruction {
                     operation: InstructionOperation::Check,
@@ -275,21 +393,40 @@ impl<'a> BlockLowerer<'a> {
                 value,
                 cases,
                 default,
-                default_arguments,
             } => {
-                let default_index = self.block_index_by_id[default];
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "switch value".to_string(),
+                })?;
+                let default_block =
+                    (default.block)
+                        .block()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "switch default target".to_string(),
+                        })?;
+                let default_arguments = default
+                    .arguments
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "switch default argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let default_index = self.block_index_by_id[&default_block];
                 let default_parameters = self
                     .block_parameter
                     .get(default_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let default_value_tree = self.block_parameter_map.tree_by_block.get(default);
+                let default_value_tree = self.block_parameter_map.tree_by_block.get(&default_block);
                 let default_copies = pool.edge_copy_plan(
                     default_parameters,
-                    default_arguments,
+                    &default_arguments,
                     default_value_tree,
                     decomposition_by_value,
-                );
+                )?;
 
                 if let Some((min_value, table_range)) = pool.switch_table_range(
                     &self.block_index_by_id,
@@ -299,11 +436,11 @@ impl<'a> BlockLowerer<'a> {
                     default_copies,
                     self.block_parameter_map,
                     decomposition_by_value,
-                ) {
+                )? {
                     Instruction {
-                        operation: select_switch_table_operation(self.value_kind_map(), *value),
+                        operation: select_switch_table_operation(self.value_kind_map(), value),
                         data: InstructionData::SwitchTable {
-                            value: *value,
+                            value,
                             min: min_value,
                             table: table_range,
                             default_target: default_index as u32,
@@ -317,11 +454,11 @@ impl<'a> BlockLowerer<'a> {
                         cases,
                         self.block_parameter_map,
                         decomposition_by_value,
-                    );
+                    )?;
                     Instruction {
-                        operation: select_switch_operation(self.value_kind_map(), *value),
+                        operation: select_switch_operation(self.value_kind_map(), value),
                         data: InstructionData::Switch {
-                            value: *value,
+                            value,
                             cases,
                             default_target: default_index as u32,
                             default_copies,
@@ -334,7 +471,15 @@ impl<'a> BlockLowerer<'a> {
                 operation: InstructionOperation::Trap,
                 data: InstructionData::Trap {
                     kind: *kind,
-                    payload: pack_optional_value(*payload),
+                    payload: pack_optional_value(
+                        (*payload)
+                            .map(|value| {
+                                value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                    context: "trap payload".to_string(),
+                                })
+                            })
+                            .transpose()?,
+                    ),
                 },
             },
 
@@ -343,26 +488,25 @@ impl<'a> BlockLowerer<'a> {
                 data: InstructionData::Unreachable,
             },
 
-            mir::Terminator::Yield {
-                value,
-                resume: _,
-                resume_arguments: _,
-            } => {
+            mir::Terminator::Yield { value, .. } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "yield value".to_string(),
+                })?;
                 let resume_point = self
                     .yield_resume_points
                     .get(&self.block_id())
                     .copied()
-                    .unwrap_or_else(|| {
-                        panic!(
+                    .ok_or_else(|| Error::InvariantViolation {
+                        context: format!(
                             "missing yield resume point for block: {:?}",
                             self.block_id()
-                        )
-                    });
+                        ),
+                    })?;
 
                 Instruction {
                     operation: InstructionOperation::Yield,
                     data: InstructionData::Yield {
-                        value: *value,
+                        value,
                         resume_point,
                     },
                 }
@@ -371,28 +515,37 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::Throw { value } => Instruction {
                 operation: InstructionOperation::Throw,
                 data: InstructionData::Throw {
-                    value: pack_optional_value(Some(*value)),
+                    value: pack_optional_value(Some((*value).value().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "throw value".to_string(),
+                        }
+                    })?)),
                 },
             },
 
             mir::Terminator::Invoke { function, call, .. } => {
-                let args = pool.argument_range(&call.arguments);
+                let function =
+                    (*function)
+                        .function()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "invoke callee".to_string(),
+                        })?;
+                let args = pool.argument_reference_range(&call.arguments, "invoke argument")?;
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
-                    .unwrap_or_else(|| {
-                        panic!(
+                    .ok_or_else(|| Error::InvariantViolation {
+                        context: format!(
                             "missing exceptional call resume points for block: {:?}",
                             self.block_id()
-                        )
-                    });
-                let target = self.call_target(*function);
+                        ),
+                    })?;
 
                 Instruction {
                     operation: InstructionOperation::CallBranch,
                     data: InstructionData::CallBranch {
                         function: function.id,
-                        target,
+                        target: self.call_target(function)?,
                         arguments: args,
                         normal_resume_point,
                         unwind_resume_point,
@@ -401,21 +554,27 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::InvokeIndirect { callee, call, .. } => {
-                let arguments = pool.argument_range(&call.arguments);
+                let callee = (*callee)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "invoke indirect callee".to_string(),
+                    })?;
+                let arguments =
+                    pool.argument_reference_range(&call.arguments, "invoke indirect argument")?;
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
-                    .unwrap_or_else(|| {
-                        panic!(
+                    .ok_or_else(|| Error::InvariantViolation {
+                        context: format!(
                             "missing exceptional call resume points for block: {:?}",
                             self.block_id()
-                        )
-                    });
+                        ),
+                    })?;
 
                 Instruction {
                     operation: InstructionOperation::CallIndirectBranch,
                     data: InstructionData::CallIndirectBranch {
-                        callee: *callee,
+                        callee,
                         arguments,
                         normal_resume_point,
                         unwind_resume_point,
@@ -429,25 +588,31 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => {
-                let arguments = pool.argument_range(&call.arguments);
+                let receiver = (*receiver)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "invoke virtual receiver".to_string(),
+                    })?;
+                let arguments =
+                    pool.argument_reference_range(&call.arguments, "invoke virtual argument")?;
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
-                    .unwrap_or_else(|| {
-                        panic!(
+                    .ok_or_else(|| Error::InvariantViolation {
+                        context: format!(
                             "missing exceptional call resume points for block: {:?}",
                             self.block_id()
-                        )
-                    });
+                        ),
+                    })?;
 
                 Instruction {
                     operation: InstructionOperation::CallVirtualBranch,
                     data: InstructionData::CallVirtualBranch {
-                        receiver: *receiver,
+                        receiver,
                         managed_pointee: managed_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
-                            *receiver,
+                            receiver,
                         ),
                         slot_id: slot_id.0,
                         arguments,
@@ -463,25 +628,31 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => {
-                let arguments = pool.argument_range(&call.arguments);
+                let receiver = (*receiver)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "invoke interface receiver".to_string(),
+                    })?;
+                let arguments =
+                    pool.argument_reference_range(&call.arguments, "invoke interface argument")?;
                 let &(normal_resume_point, unwind_resume_point) = self
                     .exceptional_call_resume_points
                     .get(&self.block_id())
-                    .unwrap_or_else(|| {
-                        panic!(
+                    .ok_or_else(|| Error::InvariantViolation {
+                        context: format!(
                             "missing exceptional call resume points for block: {:?}",
                             self.block_id()
-                        )
-                    });
+                        ),
+                    })?;
 
                 Instruction {
                     operation: InstructionOperation::CallInterfaceBranch,
                     data: InstructionData::CallInterfaceBranch {
-                        receiver: *receiver,
+                        receiver,
                         managed_pointee: managed_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
-                            *receiver,
+                            receiver,
                         ),
                         slot_id: slot_id.0,
                         arguments,
@@ -492,8 +663,15 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::TailCall { function, call, .. } => {
-                if *function == self.function_id {
-                    let args = pool.argument_range(&call.arguments);
+                let function =
+                    (*function)
+                        .function()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tail call callee".to_string(),
+                        })?;
+                if function == self.function_id {
+                    let args =
+                        pool.argument_reference_range(&call.arguments, "tail call argument")?;
                     Instruction {
                         operation: InstructionOperation::TailCallSelf,
                         data: InstructionData::TailCallSelf {
@@ -502,9 +680,20 @@ impl<'a> BlockLowerer<'a> {
                         },
                     }
                 } else {
-                    let callee = self.tree.get(*function);
-                    let copies = pool.parameter_copy_range(&callee.parameters, &call.arguments);
-                    let target = self.call_target(*function);
+                    let callee = self.tree.get(function);
+                    let arguments = call
+                        .arguments
+                        .iter()
+                        .map(|argument| {
+                            (*argument)
+                                .value()
+                                .ok_or_else(|| Error::ConcreteMirRequired {
+                                    context: "tail call argument".to_string(),
+                                })
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    let copies = pool.parameter_copy_range(&callee.parameters, &arguments)?;
+                    let target = self.call_target(function)?;
 
                     Instruction {
                         operation: InstructionOperation::TailCall,
@@ -518,11 +707,17 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::TailCallIndirect { callee, call, .. } => {
-                let args = pool.argument_range(&call.arguments);
+                let callee = (*callee)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tail indirect callee".to_string(),
+                    })?;
+                let args =
+                    pool.argument_reference_range(&call.arguments, "tail indirect argument")?;
                 Instruction {
                     operation: InstructionOperation::TailCallIndirect,
                     data: InstructionData::TailCallIndirect {
-                        callee: *callee,
+                        callee,
                         arguments: args,
                     },
                 }
@@ -534,14 +729,20 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => {
-                let args = pool.argument_range(&call.arguments);
+                let receiver = (*receiver)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tail virtual receiver".to_string(),
+                    })?;
+                let args =
+                    pool.argument_reference_range(&call.arguments, "tail virtual argument")?;
                 Instruction {
                     operation: InstructionOperation::TailCallVirtual,
                     data: InstructionData::TailCallVirtual {
-                        receiver: *receiver,
+                        receiver,
                         managed_pointee: managed_pointee_type_for_value_kind(
                             self.value_kind_map(),
-                            *receiver,
+                            receiver,
                         ),
                         slot_id: slot_id.0,
                         arguments: args,
@@ -555,20 +756,26 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => {
-                let args = pool.argument_range(&call.arguments);
+                let receiver = (*receiver)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tail interface receiver".to_string(),
+                    })?;
+                let args =
+                    pool.argument_reference_range(&call.arguments, "tail interface argument")?;
                 Instruction {
                     operation: InstructionOperation::TailCallInterface,
                     data: InstructionData::TailCallInterface {
-                        receiver: *receiver,
+                        receiver,
                         managed_pointee: managed_pointee_type_for_value_kind(
                             self.value_kind_map(),
-                            *receiver,
+                            receiver,
                         ),
                         slot_id: slot_id.0,
                         arguments: args,
                     },
                 }
             }
-        }
+        })
     }
 }

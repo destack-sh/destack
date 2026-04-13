@@ -118,8 +118,16 @@ fn actual_reference_type(
 
     let static_type = state.value_type(value_id)?;
     let pointee = match state.tree().get(static_type) {
-        mir::Type::Reference { pointee, .. } => Some(*pointee),
-        mir::Type::TensorReference { element, .. } => Some(*element),
+        mir::Type::Reference { pointee, .. } => {
+            Some((*pointee).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "reference pointee".to_string(),
+            })?)
+        }
+        mir::Type::TensorReference { element, .. } => {
+            Some((*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "tensor reference element".to_string(),
+            })?)
+        }
         _ => None,
     };
 
@@ -215,18 +223,37 @@ fn evaluate_check_constraint(
             is_signed,
             ..
         } => {
-            let length = load_length_value(state, *length)?;
+            let length = load_length_value(
+                state,
+                (*length)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "bounds check length".to_string(),
+                    })?,
+            )?;
 
             if *is_signed {
-                let (index, _) = load_signed_value(state, *index)?;
+                let (index, _) = load_signed_value(
+                    state,
+                    (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "bounds check index".to_string(),
+                    })?,
+                )?;
                 Ok(index >= 0 && (index as u64) < length)
             } else {
-                let (index, _) = load_unsigned_value(state, *index)?;
+                let (index, _) = load_unsigned_value(
+                    state,
+                    (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "bounds check index".to_string(),
+                    })?,
+                )?;
                 Ok(index < length)
             }
         }
         mir::CheckConstraint::Null { value } => {
-            let value = state.get(*value);
+            let value = state.get((*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "null check value".to_string(),
+            })?);
 
             if let Some(handle) = value.as_managed_reference() {
                 return Ok(!handle.is_null());
@@ -239,11 +266,16 @@ fn evaluate_check_constraint(
             Ok(true)
         }
         mir::CheckConstraint::DivZero { divisor } => {
-            if let Ok((value, _)) = load_signed_value(state, *divisor) {
+            let divisor = (*divisor)
+                .value()
+                .ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "divzero divisor".to_string(),
+                })?;
+            if let Ok((value, _)) = load_signed_value(state, divisor) {
                 return Ok(value != 0);
             }
 
-            let (value, _) = load_unsigned_value(state, *divisor)?;
+            let (value, _) = load_unsigned_value(state, divisor)?;
             Ok(value != 0)
         }
         mir::CheckConstraint::ShiftRange {
@@ -252,12 +284,15 @@ fn evaluate_check_constraint(
             is_signed,
         } => {
             let bit_width = u64::from(*bit_width);
+            let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "shift range value".to_string(),
+            })?;
 
             if *is_signed {
-                let (value, _) = load_signed_value(state, *value)?;
+                let (value, _) = load_signed_value(state, value)?;
                 Ok(value >= 0 && (value as u64) < bit_width)
             } else {
-                let (value, _) = load_unsigned_value(state, *value)?;
+                let (value, _) = load_unsigned_value(state, value)?;
                 Ok(value < bit_width)
             }
         }
@@ -267,15 +302,18 @@ fn evaluate_check_constraint(
             is_signed,
         } => {
             let target_width = u32::from(*to_width);
+            let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "narrow value".to_string(),
+            })?;
 
             if *is_signed {
-                let (value, _) = load_signed_value(state, *value)?;
+                let (value, _) = load_signed_value(state, value)?;
                 let min_value = -(1_i128 << target_width.saturating_sub(1));
                 let max_value = (1_i128 << target_width.saturating_sub(1)) - 1;
                 let value = value as i128;
                 Ok(value >= min_value && value <= max_value)
             } else {
-                let (value, _) = load_unsigned_value(state, *value)?;
+                let (value, _) = load_unsigned_value(state, value)?;
                 let max_value = if target_width >= 64 {
                     u128::from(u64::MAX)
                 } else {
@@ -289,13 +327,29 @@ fn evaluate_check_constraint(
             left,
             right,
             is_signed,
-        } => evaluate_overflow_check(state, *operator, *left, *right, *is_signed),
+        } => evaluate_overflow_check(
+            state,
+            *operator,
+            (*left).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "overflow left".to_string(),
+            })?,
+            (*right).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "overflow right".to_string(),
+            })?,
+            *is_signed,
+        ),
         mir::CheckConstraint::Type { value, expected } => {
-            if let Some(actual) = actual_reference_type(state, *value)? {
-                return Ok(actual == *expected);
+            let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "type check value".to_string(),
+            })?;
+            let expected = (*expected).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "type check expected".to_string(),
+            })?;
+            if let Some(actual) = actual_reference_type(state, value)? {
+                return Ok(actual == expected);
             }
 
-            let value = state.get(*value);
+            let value = state.get(value);
             if let Some((actual, _)) = value.as_uint_with_width() {
                 return Ok(actual == u64::from(expected.id));
             }
@@ -311,19 +365,38 @@ fn evaluate_check_constraint(
             })
         }
         mir::CheckConstraint::Union { value, expected } => {
-            if let Ok((actual, _)) = load_unsigned_value(state, *value) {
+            let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "union check value".to_string(),
+            })?;
+            if let Ok((actual, _)) = load_unsigned_value(state, value) {
                 return Ok(actual == *expected);
             }
 
-            let (actual, _) = load_signed_value(state, *value)?;
+            let (actual, _) = load_signed_value(state, value)?;
             Ok(actual >= 0 && actual as u64 == *expected)
         }
         mir::CheckConstraint::ReceiverType { receiver, expected } => {
-            let actual = actual_reference_type(state, *receiver)?;
-            Ok(actual == Some(*expected))
+            let receiver = (*receiver)
+                .value()
+                .ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "receiver type check receiver".to_string(),
+                })?;
+            let expected = (*expected).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "receiver type check expected".to_string(),
+            })?;
+            let actual = actual_reference_type(state, receiver)?;
+            Ok(actual == Some(expected))
         }
         mir::CheckConstraint::Implements { receiver, expected } => {
-            let Some(actual) = actual_reference_type(state, *receiver)? else {
+            let receiver = (*receiver)
+                .value()
+                .ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "implements check receiver".to_string(),
+                })?;
+            let expected = (*expected).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "implements check expected".to_string(),
+            })?;
+            let Some(actual) = actual_reference_type(state, receiver)? else {
                 return Ok(false);
             };
 
@@ -331,7 +404,7 @@ fn evaluate_check_constraint(
                 .tree()
                 .metadata
                 .dispatch
-                .itab_id(actual, *expected)
+                .itab_id(actual, expected)
                 .is_some())
         }
     }

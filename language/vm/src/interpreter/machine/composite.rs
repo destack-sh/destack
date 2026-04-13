@@ -30,6 +30,47 @@ fn load_array_index(state: &StepState<'_, '_>, index: mir::Value) -> Result<u64,
     })
 }
 
+/// Build one composite type mismatch.
+#[inline(always)]
+fn invalid_composite(value: Value) -> Error {
+    Error::TypeMismatch {
+        expected: "composite".to_string(),
+        actual: format!("{value:?}"),
+    }
+}
+
+/// Require one managed composite value.
+#[inline(always)]
+fn managed_composite(value: Value) -> Result<ManagedReference, Error> {
+    value
+        .as_managed_reference()
+        .ok_or_else(|| invalid_composite(value))
+}
+
+/// Require one raw composite pointer.
+#[inline(always)]
+fn raw_composite(value: Value) -> Result<RawPointer, Error> {
+    value
+        .as_raw_pointer()
+        .ok_or_else(|| invalid_composite(value))
+}
+
+/// Require one stack composite pointer.
+#[inline(always)]
+fn stack_composite(value: Value) -> Result<StackPointer, Error> {
+    value
+        .as_stack_pointer()
+        .ok_or_else(|| invalid_composite(value))
+}
+
+/// Require one global composite pointer.
+#[inline(always)]
+fn global_composite(value: Value) -> Result<GlobalPointer, Error> {
+    value
+        .as_global_pointer()
+        .ok_or_else(|| invalid_composite(value))
+}
+
 /// Step field get.
 pub(crate) fn step_field_get(
     state: &mut StepState<'_, '_>,
@@ -160,15 +201,24 @@ pub(crate) fn step_field_addr(
     // compute field address
     let value = match (agg.tag(), *field) {
         (ValueTag::ManagedReference, Some(field)) => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = match managed_composite(agg) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             access::field_addr_managed(state, handle, field, *index, *field_count)
         }
         (ValueTag::RawPointer, Some(field)) => {
-            let pointer = agg.as_raw_pointer().unwrap();
+            let pointer = match raw_composite(agg) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::field_addr_raw(state, pointer, field, *index, *field_count)
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer = agg.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(agg) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::field_addr_stack(state, pointer, field, *index, *field_count)
         }
         _ => access::field_addr(state, agg, *index, *field_count),
@@ -213,14 +263,20 @@ pub(crate) fn step_field_addr_composite(
     let agg = state.get(*composite);
     let value = match (agg.tag(), *field) {
         (ValueTag::ManagedReference, Some(field)) => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = match managed_composite(agg) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             match access::field_addr_managed(state, handle, field, *index, *field_count) {
                 Ok(value) => value,
                 Err(error) => return Transfer::Error(error),
             }
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer = agg.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(agg) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             match access::field_addr_stack(state, pointer, field, *index, *field_count) {
                 Ok(value) => value,
                 Err(error) => return Transfer::Error(error),
@@ -274,7 +330,10 @@ pub(crate) fn step_field_addr_managed(
     }
 
     // compute field address
-    let handle = agg.as_managed_reference().unwrap();
+    let handle = match managed_composite(agg) {
+        Ok(handle) => handle,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -320,7 +379,10 @@ pub(crate) fn step_field_addr_raw(
     }
 
     // compute field address
-    let pointer = agg.as_raw_pointer().unwrap();
+    let pointer = match raw_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -366,7 +428,10 @@ pub(crate) fn step_field_addr_stack(
     }
 
     // compute field address
-    let pointer = agg.as_stack_pointer().unwrap();
+    let pointer = match stack_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -412,7 +477,10 @@ pub(crate) fn step_field_addr_global(
     }
 
     // compute field address
-    let pointer = agg.as_global_pointer().unwrap();
+    let pointer = match global_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let value = match access::field_addr_global(state, pointer, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
@@ -451,15 +519,24 @@ pub(crate) fn step_field_load(
     // load the selected field through the runtime storage class
     let value = match (agg.tag(), *field) {
         (ValueTag::ManagedReference, Some(field)) => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = match managed_composite(agg) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             access::load_field_managed(state, handle, field, *index, *field_count)
         }
         (ValueTag::RawPointer, Some(field)) => {
-            let pointer = agg.as_raw_pointer().unwrap();
+            let pointer = match raw_composite(agg) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::load_field_raw(state, pointer, field, *index, *field_count)
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer = agg.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(agg) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::load_field_stack(state, pointer, field, *index, *field_count)
         }
         _ => {
@@ -506,14 +583,20 @@ pub(crate) fn step_field_load_composite(
     let agg = state.get(*composite);
     let value = match (agg.tag(), *field) {
         (ValueTag::ManagedReference, Some(field)) => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = match managed_composite(agg) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             match access::load_field_managed(state, handle, field, *index, *field_count) {
                 Ok(value) => value,
                 Err(error) => return Transfer::Error(error),
             }
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer = agg.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(agg) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             match access::load_field_stack(state, pointer, field, *index, *field_count) {
                 Ok(value) => value,
                 Err(error) => return Transfer::Error(error),
@@ -561,7 +644,10 @@ pub(crate) fn step_field_load_managed(
     }
 
     // load field value
-    let handle = agg.as_managed_reference().unwrap();
+    let handle = match managed_composite(agg) {
+        Ok(handle) => handle,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -604,7 +690,10 @@ pub(crate) fn step_field_load_raw(
     }
 
     // load field value
-    let pointer = agg.as_raw_pointer().unwrap();
+    let pointer = match raw_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -647,7 +736,10 @@ pub(crate) fn step_field_load_stack(
     }
 
     // load field value
-    let pointer = agg.as_stack_pointer().unwrap();
+    let pointer = match stack_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -690,7 +782,10 @@ pub(crate) fn step_field_load_global(
     }
 
     // load field value
-    let pointer = agg.as_global_pointer().unwrap();
+    let pointer = match global_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let value = match access::load_field_global(state, pointer, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
@@ -763,7 +858,10 @@ pub(crate) fn step_field_store(
     // store the selected field through the runtime storage class
     let result = match (agg.tag(), *field) {
         (ValueTag::ManagedReference, Some(field)) => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = match managed_composite(agg) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             let pointer = Value::managed_reference_with_meta(handle, *reference);
 
             let validate = (|| -> Result<(), Error> {
@@ -778,7 +876,10 @@ pub(crate) fn step_field_store(
             access::store_field_managed(state, handle, field, *index, *field_count, val)
         }
         (ValueTag::RawPointer, Some(field)) => {
-            let pointer = Value::raw_pointer_with_meta(agg.as_raw_pointer().unwrap(), *reference);
+            let pointer = match raw_composite(agg) {
+                Ok(pointer) => Value::raw_pointer_with_meta(pointer, *reference),
+                Err(error) => return Transfer::Error(error),
+            };
 
             let validate = (|| -> Result<(), Error> {
                 check_reference_kind(state, *reference, pointer)?;
@@ -791,7 +892,10 @@ pub(crate) fn step_field_store(
 
             access::store_field_raw(
                 state,
-                agg.as_raw_pointer().unwrap(),
+                match raw_composite(agg) {
+                    Ok(pointer) => pointer,
+                    Err(error) => return Transfer::Error(error),
+                },
                 field,
                 *index,
                 *field_count,
@@ -850,7 +954,10 @@ pub(crate) fn step_field_store_composite(
 
     let result = match (agg.tag(), *field) {
         (ValueTag::ManagedReference, Some(field)) => {
-            let handle = agg.as_managed_reference().unwrap();
+            let handle = match managed_composite(agg) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             let pointer = Value::managed_reference_with_meta(handle, *reference);
             if let Err(error) = check_reference_kind(state, *reference, pointer) {
                 return Transfer::Error(error);
@@ -859,15 +966,20 @@ pub(crate) fn step_field_store_composite(
             access::store_field_managed(state, handle, field, *index, *field_count, val)
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer =
-                Value::stack_pointer_with_meta(agg.as_stack_pointer().unwrap(), *reference);
+            let pointer = match stack_composite(agg) {
+                Ok(pointer) => Value::stack_pointer_with_meta(pointer, *reference),
+                Err(error) => return Transfer::Error(error),
+            };
             if let Err(error) = check_reference_kind(state, *reference, pointer) {
                 return Transfer::Error(error);
             }
 
             access::store_field_stack(
                 state,
-                agg.as_stack_pointer().unwrap(),
+                match stack_composite(agg) {
+                    Ok(pointer) => pointer,
+                    Err(error) => return Transfer::Error(error),
+                },
                 field,
                 *index,
                 *field_count,
@@ -918,7 +1030,10 @@ pub(crate) fn step_field_store_managed(
     let val = state.get(*value);
 
     // validate reference kind
-    let handle = agg.as_managed_reference().unwrap();
+    let handle = match managed_composite(agg) {
+        Ok(handle) => handle,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
@@ -966,7 +1081,10 @@ pub(crate) fn step_field_store_raw(
     let val = state.get(*value);
 
     // validate reference kind
-    let raw_pointer = agg.as_raw_pointer().unwrap();
+    let raw_pointer = match raw_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer = Value::raw_pointer_with_meta(raw_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
@@ -1015,7 +1133,10 @@ pub(crate) fn step_field_store_stack(
     let val = state.get(*value);
 
     // validate reference semantics
-    let stack_pointer = agg.as_stack_pointer().unwrap();
+    let stack_pointer = match stack_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer = Value::stack_pointer_with_meta(stack_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
@@ -1067,7 +1188,10 @@ pub(crate) fn step_field_store_global(
     let val = state.get(*value);
 
     // validate reference semantics
-    let global_pointer = agg.as_global_pointer().unwrap();
+    let global_pointer = match global_composite(agg) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer =
         Value::global_pointer_with_meta(global_pointer.id, global_pointer.slot_offset, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
@@ -1223,15 +1347,24 @@ pub(crate) fn step_element_addr(
     // compute element address
     let value = match (arr.tag(), *element) {
         (ValueTag::ManagedReference, Some(element)) => {
-            let handle = arr.as_managed_reference().unwrap();
+            let handle = match managed_composite(arr) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             access::element_addr_managed(state, handle, element, idx_val, *array_length)
         }
         (ValueTag::RawPointer, Some(element)) => {
-            let pointer = arr.as_raw_pointer().unwrap();
+            let pointer = match raw_composite(arr) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::element_addr_raw(state, pointer, element, idx_val, *array_length)
         }
         (ValueTag::StackPointer, Some(element)) => {
-            let pointer = arr.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(arr) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::element_addr_stack(state, pointer, element, idx_val, *array_length)
         }
         _ => access::element_addr(state, arr, idx_val, *array_length),
@@ -1291,14 +1424,20 @@ pub(crate) fn step_element_addr_composite(
     };
     let value = match arr.tag() {
         ValueTag::ManagedReference => {
-            let handle = arr.as_managed_reference().unwrap();
+            let handle = match managed_composite(arr) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             match access::element_addr_managed(state, handle, element, idx_val, *array_length) {
                 Ok(value) => value,
                 Err(error) => return Transfer::Error(error),
             }
         }
         ValueTag::StackPointer => {
-            let pointer = arr.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(arr) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             match access::element_addr_stack(state, pointer, element, idx_val, *array_length) {
                 Ok(value) => value,
                 Err(error) => return Transfer::Error(error),
@@ -1348,7 +1487,10 @@ pub(crate) fn step_element_addr_managed(
     };
 
     // compute element address
-    let handle = arr.as_managed_reference().unwrap();
+    let handle = match managed_composite(arr) {
+        Ok(handle) => handle,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -1398,7 +1540,10 @@ pub(crate) fn step_element_addr_raw(
     };
 
     // compute element address
-    let pointer = arr.as_raw_pointer().unwrap();
+    let pointer = match raw_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -1448,7 +1593,10 @@ pub(crate) fn step_element_addr_stack(
     };
 
     // compute element address
-    let pointer = arr.as_stack_pointer().unwrap();
+    let pointer = match stack_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -1498,7 +1646,10 @@ pub(crate) fn step_element_addr_global(
     };
 
     // compute element address
-    let pointer = arr.as_global_pointer().unwrap();
+    let pointer = match global_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let value = match access::element_addr_global(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
@@ -1541,15 +1692,24 @@ pub(crate) fn step_element_load(
     // load the selected element through the runtime storage class
     let value = match (arr.tag(), *element) {
         (ValueTag::ManagedReference, Some(element)) => {
-            let handle = arr.as_managed_reference().unwrap();
+            let handle = match managed_composite(arr) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             access::load_element_managed(state, handle, element, idx_val, *array_length)
         }
         (ValueTag::RawPointer, Some(element)) => {
-            let pointer = arr.as_raw_pointer().unwrap();
+            let pointer = match raw_composite(arr) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::load_element_raw(state, pointer, element, idx_val, *array_length)
         }
         (ValueTag::StackPointer, Some(element)) => {
-            let pointer = arr.as_stack_pointer().unwrap();
+            let pointer = match stack_composite(arr) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
             access::load_element_stack(state, pointer, element, idx_val, *array_length)
         }
         _ => {
@@ -1652,7 +1812,10 @@ pub(crate) fn step_element_load_managed(
     };
 
     // load element value
-    let handle = arr.as_managed_reference().unwrap();
+    let handle = match managed_composite(arr) {
+        Ok(handle) => handle,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -1699,7 +1862,10 @@ pub(crate) fn step_element_load_raw(
     };
 
     // load element value
-    let pointer = arr.as_raw_pointer().unwrap();
+    let pointer = match raw_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -1746,7 +1912,10 @@ pub(crate) fn step_element_load_stack(
     };
 
     // load element value
-    let pointer = arr.as_stack_pointer().unwrap();
+    let pointer = match stack_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
@@ -1793,7 +1962,10 @@ pub(crate) fn step_element_load_global(
     };
 
     // load element value
-    let pointer = arr.as_global_pointer().unwrap();
+    let pointer = match global_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let value = match access::load_element_global(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
@@ -1874,7 +2046,10 @@ pub(crate) fn step_element_store(
     // store the selected element through the runtime storage class
     let result = match (arr.tag(), *element) {
         (ValueTag::ManagedReference, Some(element)) => {
-            let handle = arr.as_managed_reference().unwrap();
+            let handle = match managed_composite(arr) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            };
             let pointer = Value::managed_reference_with_meta(handle, *reference);
 
             let validate = (|| -> Result<(), Error> {
@@ -1889,7 +2064,10 @@ pub(crate) fn step_element_store(
             access::store_element_managed(state, handle, element, idx_val, *array_length, val)
         }
         (ValueTag::RawPointer, Some(element)) => {
-            let pointer = Value::raw_pointer_with_meta(arr.as_raw_pointer().unwrap(), *reference);
+            let pointer = match raw_composite(arr) {
+                Ok(pointer) => Value::raw_pointer_with_meta(pointer, *reference),
+                Err(error) => return Transfer::Error(error),
+            };
 
             let validate = (|| -> Result<(), Error> {
                 check_reference_kind(state, *reference, pointer)?;
@@ -1902,7 +2080,10 @@ pub(crate) fn step_element_store(
 
             access::store_element_raw(
                 state,
-                arr.as_raw_pointer().unwrap(),
+                match raw_composite(arr) {
+                    Ok(pointer) => pointer,
+                    Err(error) => return Transfer::Error(error),
+                },
                 element,
                 idx_val,
                 *array_length,
@@ -1979,12 +2160,20 @@ pub(crate) fn step_element_store_composite(
 
     // validate reference semantics
     let pointer = match arr.tag() {
-        ValueTag::ManagedReference => {
-            Value::managed_reference_with_meta(arr.as_managed_reference().unwrap(), *reference)
-        }
-        ValueTag::StackPointer => {
-            Value::stack_pointer_with_meta(arr.as_stack_pointer().unwrap(), *reference)
-        }
+        ValueTag::ManagedReference => Value::managed_reference_with_meta(
+            match managed_composite(arr) {
+                Ok(handle) => handle,
+                Err(error) => return Transfer::Error(error),
+            },
+            *reference,
+        ),
+        ValueTag::StackPointer => Value::stack_pointer_with_meta(
+            match stack_composite(arr) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            },
+            *reference,
+        ),
         _ => unreachable!(),
     };
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
@@ -2036,7 +2225,10 @@ pub(crate) fn step_element_store_managed(
     };
 
     // validate reference semantics
-    let handle = arr.as_managed_reference().unwrap();
+    let handle = match managed_composite(arr) {
+        Ok(handle) => handle,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
@@ -2092,7 +2284,10 @@ pub(crate) fn step_element_store_raw(
     };
 
     // validate reference semantics
-    let raw_pointer = arr.as_raw_pointer().unwrap();
+    let raw_pointer = match raw_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer = Value::raw_pointer_with_meta(raw_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
@@ -2148,7 +2343,10 @@ pub(crate) fn step_element_store_stack(
     };
 
     // validate reference semantics
-    let stack_pointer = arr.as_stack_pointer().unwrap();
+    let stack_pointer = match stack_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer = Value::stack_pointer_with_meta(stack_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
@@ -2204,7 +2402,10 @@ pub(crate) fn step_element_store_global(
     };
 
     // validate reference semantics
-    let global_pointer = arr.as_global_pointer().unwrap();
+    let global_pointer = match global_composite(arr) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
     let pointer =
         Value::global_pointer_with_meta(global_pointer.id, global_pointer.slot_offset, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {

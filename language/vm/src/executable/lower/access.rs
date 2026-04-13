@@ -97,7 +97,7 @@ pub(super) fn tensor_element_type_for_view_type(
 
     match tree.get(ty) {
         mir::Type::Tensor { element, .. } | mir::Type::TensorReference { element, .. } => {
-            Some(*element)
+            element.ty()
         }
         _ => None,
     }

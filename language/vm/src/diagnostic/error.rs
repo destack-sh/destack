@@ -160,6 +160,12 @@ pub enum Error {
 
     /// Attempted to suspend while frame-local state was still live.
     SuspendWithFrameLocalState = 37,
+
+    /// One VM stage required concrete MIR at the given use site.
+    ConcreteMirRequired { context: String } = 38,
+
+    /// One internal VM invariant was violated.
+    InvariantViolation { context: String } = 39,
 }
 
 impl Error {
@@ -271,6 +277,12 @@ impl Error {
             Self::BadConversionToInteger => "bad conversion to integer".to_string(),
             Self::SuspendWithFrameLocalState => {
                 "cannot suspend while frame-local state is still live".to_string()
+            }
+            Self::ConcreteMirRequired { context } => {
+                format!("concrete MIR required: {context}")
+            }
+            Self::InvariantViolation { context } => {
+                format!("vm invariant violated: {context}")
             }
         }
     }

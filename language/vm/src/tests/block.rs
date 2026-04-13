@@ -210,8 +210,8 @@ b0(v0: int32):
     return v2
 }
 
-function caller(v0: fn(int32) -> int32, v1: int32): int32 {
-b0(v0: fn(int32) -> int32, v1: int32):
+function caller(v0: (int32) -> int32, v1: int32): int32 {
+b0(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#;
@@ -254,8 +254,8 @@ b0(v0: fn(int32) -> int32, v1: int32):
 #[test]
 fn test_call_indirect_type_mismatch() {
     let mir_text = r#"
-function caller(v0: fn(int32) -> int32, v1: int32): int32 {
-b0(v0: fn(int32) -> int32, v1: int32):
+function caller(v0: (int32) -> int32, v1: int32): int32 {
+b0(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#;
@@ -331,8 +331,8 @@ b2:
     return v1
 }
 
-function entry(v0: int32, v1: fn(int32, int32) -> int32): int32 {
-b0(v0: int32, v1: fn(int32, int32) -> int32):
+function entry(v0: int32, v1: (int32, int32) -> int32): int32 {
+b0(v0: int32, v1: (int32, int32) -> int32):
     v2: int32 = 0int32
     tailCall.indirect v1(v0, v2): (int32, int32) -> int32
 }"#;

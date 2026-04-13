@@ -12,7 +12,7 @@ b0(v0: int32):
 }
 function caller(v0: int32): int32 {
 b0(v0: int32):
-    v1: fn(int32) -> int32 = function.address add
+    v1: (int32) -> int32 = function.address add
     v2: int32 = call.indirect v1(v0): (int32) -> int32
     return v2
 }"#;

@@ -261,10 +261,13 @@ impl Frame {
         values: &[Value],
         locals: &[Value],
         roots: &mut Vec<ManagedReference>,
-    ) {
-        let layout = executable
-            .frame_layout(self.function)
-            .unwrap_or_else(|| panic!("missing frame layout for frame: {:?}", self.function));
+    ) -> Result<(), Error> {
+        let layout =
+            executable
+                .frame_layout(self.function)
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!("missing frame layout for frame: {:?}", self.function),
+                })?;
 
         // validate stack bounds in debug builds
         debug_assert!(
@@ -307,13 +310,13 @@ impl Frame {
         for allocation in self.stack_allocations.iter().flatten() {
             let layout = executable
                 .layout(allocation.storage_type())
-                .unwrap_or_else(|| {
-                    panic!(
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!(
                         "missing layout for stack allocation: frame={:?}, storage_type={:?}",
                         self.function,
                         allocation.storage_type(),
-                    )
-                });
+                    ),
+                })?;
 
             layout.reference_map.for_each_reference(
                 allocation.bytes(),
@@ -321,6 +324,8 @@ impl Frame {
                 |reference| roots.push(reference),
             );
         }
+
+        Ok(())
     }
 
     /// Collect one managed reference from a value if applicable.

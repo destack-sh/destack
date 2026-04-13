@@ -2,13 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
-use crate::executable::{Instruction, InstructionData, InstructionOperation};
-
 use super::kind::value_type_for_value;
 use super::pool::Pool;
 use super::tree::{
     BlockParameterMap, ValueDecomposition, ValueTree, can_decompose_value_type, seed_value_tree,
 };
+use crate::executable::{Instruction, InstructionData, InstructionOperation};
 
 /// One deferred dynamic element.get plan.
 struct IndexSelectPlan {
@@ -92,12 +91,20 @@ impl<'a> DecompositionLowerer<'a> {
                 fields,
                 ..
             } => {
-                self.decomposition_by_value.insert(
-                    *destination,
-                    ValueDecomposition {
-                        child: self.tree.get_arguments(*fields).to_vec(),
-                    },
-                );
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let child = self
+                    .tree
+                    .get_arguments(*fields)
+                    .iter()
+                    .map(|field| field.value())
+                    .collect::<Option<Vec<_>>>();
+                let Some(child) = child else {
+                    return false;
+                };
+                self.decomposition_by_value
+                    .insert(destination, ValueDecomposition { child });
 
                 true
             }
@@ -106,12 +113,20 @@ impl<'a> DecompositionLowerer<'a> {
                 elements,
                 ..
             } => {
-                self.decomposition_by_value.insert(
-                    *destination,
-                    ValueDecomposition {
-                        child: self.tree.get_arguments(*elements).to_vec(),
-                    },
-                );
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let child = self
+                    .tree
+                    .get_arguments(*elements)
+                    .iter()
+                    .map(|element| element.value())
+                    .collect::<Option<Vec<_>>>();
+                let Some(child) = child else {
+                    return false;
+                };
+                self.decomposition_by_value
+                    .insert(destination, ValueDecomposition { child });
 
                 true
             }
@@ -120,12 +135,20 @@ impl<'a> DecompositionLowerer<'a> {
                 elements,
                 ..
             } => {
-                self.decomposition_by_value.insert(
-                    *destination,
-                    ValueDecomposition {
-                        child: self.tree.get_arguments(*elements).to_vec(),
-                    },
-                );
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let child = self
+                    .tree
+                    .get_arguments(*elements)
+                    .iter()
+                    .map(|element| element.value())
+                    .collect::<Option<Vec<_>>>();
+                let Some(child) = child else {
+                    return false;
+                };
+                self.decomposition_by_value
+                    .insert(destination, ValueDecomposition { child });
 
                 true
             }
@@ -136,27 +159,36 @@ impl<'a> DecompositionLowerer<'a> {
                 aggregate,
                 index,
             } => {
-                let Some(aggregate) = self.decomposition_by_value.get(aggregate) else {
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let Some(aggregate) = aggregate.value() else {
+                    return false;
+                };
+                let Some(aggregate) = self.decomposition_by_value.get(&aggregate) else {
                     return false;
                 };
                 let Some(source) = aggregate.child.get(*index as usize).copied() else {
                     return false;
                 };
-                let destination_type = value_type_for_value(*destination, self.value_type);
+                let Some(destination_type) = value_type_for_value(destination, self.value_type)
+                else {
+                    return false;
+                };
 
                 if can_decompose_value_type(self.tree, destination_type)
                     && let Some(source_composite) =
                         self.decomposition_by_value.get(&source).cloned()
                 {
                     self.decomposition_by_value
-                        .insert(*destination, source_composite);
+                        .insert(destination, source_composite);
                     return true;
                 }
 
                 instructions.push(Instruction {
                     operation: InstructionOperation::Copy,
                     data: InstructionData::Copy {
-                        dest: *destination,
+                        dest: destination,
                         source,
                     },
                 });
@@ -171,7 +203,16 @@ impl<'a> DecompositionLowerer<'a> {
                 index,
                 value,
             } => {
-                let Some(aggregate) = self.decomposition_by_value.get(aggregate).cloned() else {
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let Some(aggregate) = aggregate.value() else {
+                    return false;
+                };
+                let Some(value) = value.value() else {
+                    return false;
+                };
+                let Some(aggregate) = self.decomposition_by_value.get(&aggregate).cloned() else {
                     return false;
                 };
                 if aggregate.child.get(*index as usize).is_none() {
@@ -179,10 +220,10 @@ impl<'a> DecompositionLowerer<'a> {
                 }
 
                 let mut child = aggregate.child;
-                child[*index as usize] = *value;
+                child[*index as usize] = value;
 
                 self.decomposition_by_value
-                    .insert(*destination, ValueDecomposition { child });
+                    .insert(destination, ValueDecomposition { child });
 
                 true
             }
@@ -191,15 +232,27 @@ impl<'a> DecompositionLowerer<'a> {
                 array,
                 index,
             } => {
-                let Some(array) = self.decomposition_by_value.get(array) else {
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let Some(array) = array.value() else {
+                    return false;
+                };
+                let Some(index) = index.value() else {
+                    return false;
+                };
+                let Some(array) = self.decomposition_by_value.get(&array) else {
                     return false;
                 };
 
-                let destination_type = value_type_for_value(*destination, self.value_type);
+                let Some(destination_type) = value_type_for_value(destination, self.value_type)
+                else {
+                    return false;
+                };
 
                 if can_decompose_value_type(self.tree, destination_type) {
                     let Some(destination_tree) =
-                        self.block_parameter_map.tree_by_value.get(destination)
+                        self.block_parameter_map.tree_by_value.get(&destination)
                     else {
                         return false;
                     };
@@ -216,7 +269,7 @@ impl<'a> DecompositionLowerer<'a> {
                         return false;
                     }
 
-                    self.emit_index_select_plan(instructions, pool, *index, plan);
+                    self.emit_index_select_plan(instructions, pool, index, plan);
                     seed_value_tree(destination_tree, &mut self.decomposition_by_value);
                     return true;
                 }
@@ -225,8 +278,8 @@ impl<'a> DecompositionLowerer<'a> {
                 instructions.push(Instruction {
                     operation: InstructionOperation::IndexSelect,
                     data: InstructionData::IndexSelect {
-                        dest: *destination,
-                        index: *index,
+                        dest: destination,
+                        index,
                         elements,
                     },
                 });
@@ -239,11 +292,23 @@ impl<'a> DecompositionLowerer<'a> {
                 index,
                 value,
             } => {
-                let Some(array) = self.decomposition_by_value.get(array) else {
+                let Some(destination) = destination.value() else {
+                    return false;
+                };
+                let Some(array) = array.value() else {
+                    return false;
+                };
+                let Some(index) = index.value() else {
+                    return false;
+                };
+                let Some(value) = value.value() else {
+                    return false;
+                };
+                let Some(array) = self.decomposition_by_value.get(&array) else {
                     return false;
                 };
                 let Some(destination_tree) =
-                    self.block_parameter_map.tree_by_value.get(destination)
+                    self.block_parameter_map.tree_by_value.get(&destination)
                 else {
                     return false;
                 };
@@ -261,7 +326,7 @@ impl<'a> DecompositionLowerer<'a> {
                     let is_valid = self.collect_select_by_index_plan(
                         destination_element,
                         *source_element,
-                        *value,
+                        value,
                         match_index as u64,
                         &mut path,
                         &mut plan,
@@ -271,7 +336,7 @@ impl<'a> DecompositionLowerer<'a> {
                     }
                 }
 
-                self.emit_select_by_index_plan(instructions, *index, plan);
+                self.emit_select_by_index_plan(instructions, index, plan);
                 seed_value_tree(destination_tree, &mut self.decomposition_by_value);
                 true
             }

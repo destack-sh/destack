@@ -170,8 +170,7 @@ fn align_offset(offset: usize, alignment: usize) -> usize {
 }
 
 /// MIR type alias for the canonical lowered string layout used by VM tests.
-pub const STRING_TYPE_ALIAS: &str =
-    "type @String = { lengthUtf16: u32, lengthBytes: u32, data: ref<raw u8> }\n";
+pub const STRING_TYPE_ALIAS: &str = "type String {\n    lengthUtf16: uint32;\n    lengthBytes: uint32;\n    data: ref<uint8, raw>;\n}\n";
 
 /// Return the canonical runtime string layout id when present.
 pub fn string_layout_id(tree: &mir::NodeTree) -> Option<mir::LayoutId> {
@@ -188,15 +187,22 @@ pub fn string_layout_matches(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
         return false;
     }
 
-    let field_type = |index: usize| tree.get(fields[index]).ty;
+    let field_type = |index: usize| match tree.get(fields[index]).ty {
+        mir::TypeReference::Type(ty) => Some(ty),
+        mir::TypeReference::Missing | mir::TypeReference::Error => None,
+    };
 
-    if !unsigned_int_type_matches(tree, field_type(StringLayout::LENGTH_UTF16_FIELD), 32) {
+    if !field_type(StringLayout::LENGTH_UTF16_FIELD)
+        .is_some_and(|ty| unsigned_int_type_matches(tree, ty, 32))
+    {
         return false;
     }
-    if !unsigned_int_type_matches(tree, field_type(StringLayout::LENGTH_BYTES_FIELD), 32) {
+    if !field_type(StringLayout::LENGTH_BYTES_FIELD)
+        .is_some_and(|ty| unsigned_int_type_matches(tree, ty, 32))
+    {
         return false;
     }
-    if !raw_u8_reference_matches(tree, field_type(StringLayout::DATA_FIELD)) {
+    if !field_type(StringLayout::DATA_FIELD).is_some_and(|ty| raw_u8_reference_matches(tree, ty)) {
         return false;
     }
 
@@ -227,5 +233,9 @@ fn raw_u8_reference_matches(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type
         return false;
     }
 
-    unsigned_int_type_matches(tree, *pointee, 8)
+    let mir::TypeReference::Type(pointee) = *pointee else {
+        return false;
+    };
+
+    unsigned_int_type_matches(tree, pointee, 8)
 }

@@ -4,6 +4,7 @@ use destack_mir as mir;
 
 use crate::executable::CallTarget;
 use crate::executable::layout::Layout;
+use crate::{Error, Result};
 
 use super::kind::ValueKindMap;
 use super::tree::BlockParameterMap;
@@ -18,7 +19,10 @@ pub(super) struct BlockOrder {
 
 impl BlockOrder {
     /// Build one lowered block traversal order from the entry block.
-    pub(super) fn new(tree: &mir::NodeTree, entry_block: mir::LocalNodeId<mir::Block>) -> Self {
+    pub(super) fn new(
+        tree: &mir::NodeTree,
+        entry_block: mir::LocalNodeId<mir::Block>,
+    ) -> Result<Self> {
         let mut index_by_id = HashMap::new();
         let mut block = Vec::new();
         let mut queue = vec![entry_block];
@@ -41,30 +45,62 @@ impl BlockOrder {
             let terminator = tree.get(mir_block.terminator);
             match terminator {
                 mir::Terminator::Jump { target, .. } => {
-                    queue.push(*target);
+                    queue.push((target.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "jump target".to_string(),
+                        }
+                    })?);
                 }
                 mir::Terminator::Branch {
                     then_target,
                     else_target,
                     ..
                 } => {
-                    queue.push(*then_target);
-                    queue.push(*else_target);
+                    queue.push((then_target.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "branch then target".to_string(),
+                        }
+                    })?);
+                    queue.push((else_target.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "branch else target".to_string(),
+                        }
+                    })?);
                 }
                 mir::Terminator::Check {
                     success, failure, ..
                 } => {
-                    queue.push(success.target);
-                    queue.push(failure.target);
+                    queue.push((success.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "check success target".to_string(),
+                        }
+                    })?);
+                    queue.push((failure.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "check failure target".to_string(),
+                        }
+                    })?);
                 }
                 mir::Terminator::Switch { cases, default, .. } => {
                     for case in cases {
-                        queue.push(case.target);
+                        queue.push((case.target.block).block().ok_or_else(|| {
+                            Error::ConcreteMirRequired {
+                                context: "switch case target".to_string(),
+                            }
+                        })?);
                     }
-                    queue.push(*default);
+                    queue.push((default.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "switch default target".to_string(),
+                        }
+                    })?);
                 }
                 mir::Terminator::Yield { resume, .. } => {
-                    queue.push(*resume);
+                    queue.push((resume.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "yield resume target".to_string(),
+                        }
+                    })?);
                 }
                 mir::Terminator::Invoke {
                     normal_target,
@@ -86,11 +122,21 @@ impl BlockOrder {
                     unwind_target,
                     ..
                 } => {
-                    queue.push(*normal_target);
-                    queue.push(*unwind_target);
+                    queue.push((normal_target.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "invoke normal target".to_string(),
+                        }
+                    })?);
+                    queue.push((unwind_target.block).block().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "invoke unwind target".to_string(),
+                        }
+                    })?);
                 }
                 mir::Terminator::Error => {
-                    panic!("recovered MIR terminator reached VM lowering");
+                    return Err(Error::ConcreteMirRequired {
+                        context: "terminator".to_string(),
+                    });
                 }
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Throw { .. }
@@ -108,7 +154,7 @@ impl BlockOrder {
             "too many blocks for lowered block indices"
         );
 
-        Self { index_by_id, block }
+        Ok(Self { index_by_id, block })
     }
 }
 

@@ -128,9 +128,12 @@ impl StringInterner {
     }
 
     /// Intern a string literal and return its managed value.
-    pub(crate) fn intern_string_literal(&mut self, heap: &mut Heap, value: &str) -> Value {
+    pub(crate) fn intern_string_literal(
+        &mut self,
+        heap: &mut Heap,
+        value: &str,
+    ) -> Result<Value, Error> {
         self.try_intern_string_literal(heap, value)
-            .unwrap_or_else(|error| panic!("{error}"))
     }
 
     /// Intern a string literal and return its managed value.
@@ -148,7 +151,9 @@ impl StringInterner {
         let length_bytes = value.len();
         let length_utf16 = value.encode_utf16().count();
         if length_bytes > u32::MAX as usize || length_utf16 > u32::MAX as usize {
-            panic!("string literal exceeds u32 length limits");
+            return Err(Error::InvariantViolation {
+                context: "string literal exceeds u32 length limits".to_string(),
+            });
         }
         let length_bytes = length_bytes as u32;
         let length_utf16 = length_utf16 as u32;
@@ -376,7 +381,12 @@ impl StringInterner {
             });
         }
 
-        let handle = value.as_managed_reference().unwrap();
+        let handle = value
+            .as_managed_reference()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "string".to_string(),
+                actual: format!("{value:?}"),
+            })?;
         self.validate_string_handle(heap, handle)?;
 
         Ok(handle)

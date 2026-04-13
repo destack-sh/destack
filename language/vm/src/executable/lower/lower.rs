@@ -5,6 +5,7 @@ use destack_mir as mir;
 
 use crate::executable::layout::Layout;
 use crate::executable::{Block, CallTarget, Function};
+use crate::{Error, Result};
 
 use super::block::{BlockOrder, FunctionContext};
 use super::decompose::DecompositionLowerer;
@@ -38,22 +39,26 @@ impl<'a> FunctionLowerer<'a> {
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         value_slots: &'a [LoweredValueSlot],
         block_parameter_map: &'a BlockParameterMap,
-    ) -> Option<Self> {
+    ) -> Result<Option<Self>> {
         let func = tree.get(func_id);
 
         if func.is_import() {
-            return None;
+            return Ok(None);
         }
 
-        let block_order = BlockOrder::new(tree, func.entry?);
+        let Some(entry) = func.entry else {
+            return Ok(None);
+        };
+
+        let block_order = BlockOrder::new(tree, entry)?;
         let value_type = value_slots.iter().map(|slot| slot.ty).collect::<Vec<_>>();
         let value_count = value_slots.len();
         let value_kind_map =
             KindMapBuilder::new(tree, func, &block_order.block, &value_type, value_count).build();
-        let value_use_count = compute_value_use_counts(tree, &block_order.block, value_count);
+        let value_use_count = compute_value_use_counts(tree, &block_order.block, value_count)?;
         let local_index_by_id = Self::local_index_map(func);
-        let block_parameter = Self::block_parameter(tree, &block_order.block);
-        let entry_block = block_order.index_by_id[&func.entry?] as u32;
+        let block_parameter = Self::block_parameter(tree, &block_order.block)?;
+        let entry_block = block_order.index_by_id[&entry] as u32;
         let context = FunctionContext {
             tree,
             function_id: func_id,
@@ -71,22 +76,28 @@ impl<'a> FunctionLowerer<'a> {
             block_parameter_map,
         };
 
-        Some(Self {
+        Ok(Some(Self {
             context,
             func,
             frame_layout,
             pool: Pool::new(),
-        })
+        }))
     }
 
     /// Lower the function into executable form.
-    fn lower(mut self) -> Function {
+    fn lower(mut self) -> Result<Function> {
         let parameter_value = self
             .func
             .parameters
             .iter()
-            .map(|parameter| parameter.value)
-            .collect::<Vec<_>>();
+            .map(|parameter| {
+                (parameter.value)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "function parameter value".to_string(),
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
         let parameter = self.pool.argument_range(&parameter_value);
         let mut mir_block = self
             .context
@@ -98,12 +109,12 @@ impl<'a> FunctionLowerer<'a> {
         let mut block = Vec::with_capacity(mir_block.len());
 
         for (_, mir_block) in mir_block {
-            block.push(self.lower_block(mir_block));
+            block.push(self.lower_block(mir_block)?);
         }
 
         let (argument_pool, switch_case_pool, copy_pool) = self.pool.into_parts();
 
-        Function {
+        Ok(Function {
             frame_layout: self.frame_layout,
             parameters: parameter,
             entry: self.context.entry_block,
@@ -113,11 +124,11 @@ impl<'a> FunctionLowerer<'a> {
             copy_pool,
             value_count: self.context.value_type.len(),
             local_count: self.func.locals.len(),
-        }
+        })
     }
 
     /// Lower one MIR block into executable form.
-    fn lower_block(&mut self, mir_block: mir::LocalNodeId<mir::Block>) -> Block {
+    fn lower_block(&mut self, mir_block: mir::LocalNodeId<mir::Block>) -> Result<Block> {
         let lowerer = BlockLowerer {
             function: &self.context,
             mir_block,
@@ -147,7 +158,7 @@ impl<'a> FunctionLowerer<'a> {
     fn block_parameter(
         tree: &mir::NodeTree,
         mir_block: &[mir::LocalNodeId<mir::Block>],
-    ) -> Vec<Vec<mir::Value>> {
+    ) -> Result<Vec<Vec<mir::Value>>> {
         let mut block_parameter = Vec::with_capacity(mir_block.len());
 
         for block_id in mir_block {
@@ -155,12 +166,18 @@ impl<'a> FunctionLowerer<'a> {
             let parameter = block
                 .parameters
                 .iter()
-                .map(|parameter| parameter.value)
-                .collect();
+                .map(|parameter| {
+                    (parameter.value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "block parameter value".to_string(),
+                        })
+                })
+                .collect::<Result<Vec<_>>>()?;
             block_parameter.push(parameter);
         }
 
-        block_parameter
+        Ok(block_parameter)
     }
 }
 
@@ -178,7 +195,7 @@ pub(in crate::executable) fn lower_function(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     value_slots: &[LoweredValueSlot],
     block_parameter_map: &BlockParameterMap,
-) -> Option<Function> {
+) -> Result<Option<Function>> {
     let lowerer = FunctionLowerer::new(
         tree,
         func_id,
@@ -191,7 +208,7 @@ pub(in crate::executable) fn lower_function(
         block_parameter_map,
     )?;
 
-    Some(lowerer.lower())
+    lowerer.map(FunctionLowerer::lower).transpose()
 }
 
 /// One block-local lowering session.
@@ -216,7 +233,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower the block into executable form.
-    fn lower(self, pool: &mut Pool) -> Block {
+    fn lower(self, pool: &mut Pool) -> Result<Block> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
         let mut mir_instruction_offsets = Vec::with_capacity(self.block.instructions.len() + 2);
         mir_instruction_offsets.push(0);
@@ -260,7 +277,7 @@ impl<'a> BlockLowerer<'a> {
                 continue;
             }
 
-            let instruction = self.lower_instruction(inst, pool);
+            let instruction = self.lower_instruction(inst, pool)?;
             instructions.push(instruction);
             inst_index += 1;
             mir_instruction_offsets.push(inst_index as u32);
@@ -268,36 +285,59 @@ impl<'a> BlockLowerer<'a> {
 
         let terminator = self.tree.get(self.block.terminator);
 
-        let allow_compare_branch_fusion = decomposition.is_empty()
-            && match terminator {
-                mir::Terminator::Branch {
-                    then_target,
-                    else_target,
-                    ..
-                } => {
-                    !self
-                        .block_parameter_map
-                        .tree_by_block
-                        .contains_key(then_target)
-                        && !self
+        let allow_compare_branch_fusion =
+            decomposition.is_empty()
+                && match terminator {
+                    mir::Terminator::Branch {
+                        then_target,
+                        else_target,
+                        ..
+                    } => {
+                        let then_target = (then_target.block).block().ok_or_else(|| {
+                            Error::ConcreteMirRequired {
+                                context: "branch then target".to_string(),
+                            }
+                        })?;
+                        let else_target = (else_target.block).block().ok_or_else(|| {
+                            Error::ConcreteMirRequired {
+                                context: "branch else target".to_string(),
+                            }
+                        })?;
+                        !self
                             .block_parameter_map
                             .tree_by_block
-                            .contains_key(else_target)
-                }
-                mir::Terminator::Check {
-                    success, failure, ..
-                } => {
-                    !self
-                        .block_parameter_map
-                        .tree_by_block
-                        .contains_key(&success.target)
-                        && !self
+                            .contains_key(&then_target)
+                            && !self
+                                .block_parameter_map
+                                .tree_by_block
+                                .contains_key(&else_target)
+                    }
+                    mir::Terminator::Check {
+                        success, failure, ..
+                    } => {
+                        let success =
+                            (success.block)
+                                .block()
+                                .ok_or_else(|| Error::ConcreteMirRequired {
+                                    context: "check success target".to_string(),
+                                })?;
+                        let failure =
+                            (failure.block)
+                                .block()
+                                .ok_or_else(|| Error::ConcreteMirRequired {
+                                    context: "check failure target".to_string(),
+                                })?;
+                        !self
                             .block_parameter_map
                             .tree_by_block
-                            .contains_key(&failure.target)
-                }
-                _ => true,
-            };
+                            .contains_key(&success)
+                            && !self
+                                .block_parameter_map
+                                .tree_by_block
+                                .contains_key(&failure)
+                    }
+                    _ => true,
+                };
 
         if allow_compare_branch_fusion
             && let Some(fused) = self.try_fuse_compare_branch(self.block, &mut instructions, pool)
@@ -325,42 +365,45 @@ impl<'a> BlockLowerer<'a> {
                 decomposition.flush(&mut instructions, pool);
             }
 
-            let lowered_terminator = self.lower_terminator(terminator, decomposition.map(), pool);
+            let lowered_terminator =
+                self.lower_terminator(terminator, decomposition.map(), pool)?;
             instructions.push(lowered_terminator);
         }
 
         mir_instruction_offsets.push((self.block.instructions.len() + 1) as u32);
         let mir_instruction_count = (self.block.instructions.len() + 1) as u32;
 
-        Block {
+        Ok(Block {
             mir_block: self.mir_block,
             instructions,
             mir_instruction_offsets,
             mir_instruction_count,
-        }
+        })
     }
 
     /// Return the lowered use count for one value.
-    pub(super) fn value_use_count(&self, value: mir::Value) -> u32 {
-        self.function
-            .value_use_count
-            .get(value.0 as usize)
-            .copied()
-            .unwrap_or_else(|| panic!("missing use count for value: {value:?}"))
+    pub(super) fn value_use_count(&self, value: mir::Value) -> Option<u32> {
+        self.function.value_use_count.get(value.0 as usize).copied()
     }
 
     /// Return one call target for one function id.
-    pub(super) fn call_target(&self, function: mir::LocalNodeId<mir::Function>) -> CallTarget {
-        lookup_call_target(self.call_targets, function)
-            .unwrap_or_else(|| panic!("missing call target for function: {function:?}"))
+    pub(super) fn call_target(
+        &self,
+        function: mir::LocalNodeId<mir::Function>,
+    ) -> Result<CallTarget> {
+        lookup_call_target(self.call_targets, function).ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing call target for function: {function:?}"),
+        })
     }
 
     /// Return one lowered local index for one local id.
-    pub(super) fn local_index(&self, local: mir::LocalNodeId<mir::Local>) -> u32 {
+    pub(super) fn local_index(&self, local: mir::LocalNodeId<mir::Local>) -> Result<u32> {
         self.local_index_by_id
             .get(&local)
             .copied()
-            .unwrap_or_else(|| panic!("missing local index for {local:?}"))
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing local index for {local:?}"),
+            })
     }
 
     /// Return the lowered value kind map.
@@ -384,7 +427,7 @@ fn compute_value_use_counts(
     tree: &mir::NodeTree,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
     value_count: usize,
-) -> Vec<u32> {
+) -> Result<Vec<u32>> {
     // allocate use counters
     let mut uses = vec![0u32; value_count];
 
@@ -402,19 +445,25 @@ fn compute_value_use_counts(
         for inst_id in &block.instructions {
             let inst = tree.get(*inst_id);
             for value in inst.uses() {
-                record_use(value);
+                record_use((value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "instruction use".to_string(),
+                })?);
             }
             if let Some(args) = inst.argument_slice() {
                 for arg in tree.get_arguments(args) {
-                    record_use(*arg);
+                    record_use((*arg).value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "instruction argument".to_string(),
+                    })?);
                 }
             }
         }
         for value in terminator.uses() {
-            record_use(value);
+            record_use((value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "terminator use".to_string(),
+            })?);
         }
     }
 
     // return the use table
-    uses
+    Ok(uses)
 }

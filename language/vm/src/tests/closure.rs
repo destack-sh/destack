@@ -42,7 +42,7 @@ b0:
 
 function callOnce(v0: ref<Env, managed>): int32 {
 b0(v0: ref<Env, managed>):
-    v1: closure() -> int32 = function.bind step, v0
+    v1: () => int32 = function.bind step, v0
     v2: int32 = call.indirect v1(): () -> int32
     return v2
 }"#;
@@ -84,7 +84,7 @@ b0:
     v1: int32 = 41int32
     store v0, v1
     v2: ref<int32, raw, readonly, addressSpace(stack)> = cast.bit v0 -> ref<int32, raw, readonly, addressSpace(stack)>
-    v3: closure() -> int32 = function.bind readEnv, v2
+    v3: () => int32 = function.bind readEnv, v2
     v4: int32 = call.indirect v3(): () -> int32
     return v4
 }"#;
@@ -109,7 +109,7 @@ b0:
     v0: ref<int32, managed> = managed.alloc int32
     v1: int32 = 99int32
     store v0, v1
-    v2: closure() -> int32 = function.bind readEnv, v0
+    v2: () => int32 = function.bind readEnv, v0
     tailCall.indirect v2(): () -> int32
 }"#;
 
@@ -143,7 +143,7 @@ b0:
     v2: ref<Env, managed> = managed.alloc Env
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
-    v4: closure() -> int32 = function.bind increment, v2
+    v4: () => int32 = function.bind increment, v2
     v5: int32 = call.indirect v4(): () -> int32
     v6: int32 = call.indirect v4(): () -> int32
     return v6
@@ -157,7 +157,7 @@ b0:
 fn test_environment_by_value_field() {
     let mir = r#"
 type Env { value: int32 }
-type Reader = closure() -> int32;
+type Reader = () => int32;
 @environment(ref<Env, managed>)
 function readEnv(): int32 {
 b0:
@@ -175,7 +175,7 @@ b0:
     v1: ref<int32, managed> = field.address v0, 0
     v2: int32 = 40int32
     store v1, v2
-    v3: closure() -> int32 = function.bind readEnv, v0
+    v3: () => int32 = function.bind readEnv, v0
     v4: int32 = call.indirect v3(): () -> int32
     return v4
 }"#;
@@ -208,8 +208,8 @@ b0:
     v5: int32 = 20int32
     store v2, v4
     store v3, v5
-    v6: closure() -> int32 = function.bind readEnv, v0
-    v7: closure() -> int32 = function.bind readEnv, v1
+    v6: () => int32 = function.bind readEnv, v0
+    v7: () => int32 = function.bind readEnv, v1
     v8: int32 = call.indirect v6(): () -> int32
     v9: int32 = call.indirect v7(): () -> int32
     v10: int32 = int.add v8, v9
@@ -244,7 +244,7 @@ b0(v0: int32):
 
 function callOnce(v0: ref<Env, managed>): int32 {
 b0(v0: ref<Env, managed>):
-    v1: closure() -> int32 = function.bind readEnv, v0
+    v1: () => int32 = function.bind readEnv, v0
     v2: int32 = call.indirect v1(): () -> int32
     return v2
 }"#;
@@ -285,7 +285,7 @@ type Env {
     value: int32;
 }
 type Holder {
-    fun: closure() -> int32;
+    fun: () => int32;
 }
 @environment(ref<Env, managed>)
 function readEnv(): int32 {
@@ -308,10 +308,10 @@ function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
     v2: ref<Holder, managed> = managed.alloc Holder
-    v3: ref<closure() -> int32, managed> = field.address v2, 0
-    v4: closure() -> int32 = function.bind readEnv, v1
+    v3: ref<() => int32, managed> = field.address v2, 0
+    v4: () => int32 = function.bind readEnv, v1
     store v3, v4
-    v5: closure() -> int32 = load v3
+    v5: () => int32 = load v3
     v6: int32 = call.indirect v5(): () -> int32
     return v6
 }"#;
@@ -324,7 +324,7 @@ b0(v0: int32):
 fn test_environment_chain_calls_inner() {
     let mir = r#"
 type InnerEnv { value: int32 }
-type OuterEnv { fun: closure() -> int32 }
+type OuterEnv { fun: () => int32 }
 
 @environment(ref<InnerEnv, managed>)
 function inner(): int32 {
@@ -339,8 +339,8 @@ b0:
 function outer(): int32 {
 b0:
     v0: ref<OuterEnv, managed> = function.environment
-    v1: ref<closure() -> int32, managed> = field.address v0, 0
-    v2: closure() -> int32 = load v1
+    v1: ref<() => int32, managed> = field.address v0, 0
+    v2: () => int32 = load v1
     v3: int32 = call.indirect v2(): () -> int32
     return v3
 }
@@ -357,8 +357,8 @@ function makeOuter(v0: int32): ref<OuterEnv, managed> {
 b0(v0: int32):
     v1: ref<InnerEnv, managed> = call makeInner(v0): (int32) -> ref<InnerEnv, managed>
     v2: ref<OuterEnv, managed> = managed.alloc OuterEnv
-    v3: ref<closure() -> int32, managed> = field.address v2, 0
-    v4: closure() -> int32 = function.bind inner, v1
+    v3: ref<() => int32, managed> = field.address v2, 0
+    v4: () => int32 = function.bind inner, v1
     store v3, v4
     return v2
 }
@@ -366,7 +366,7 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<OuterEnv, managed> = call makeOuter(v0): (int32) -> ref<OuterEnv, managed>
-    v2: closure() -> int32 = function.bind outer, v1
+    v2: () => int32 = function.bind outer, v1
     v3: int32 = call.indirect v2(): () -> int32
     return v3
 }"#;
@@ -378,7 +378,7 @@ b0(v0: int32):
 #[test]
 fn test_function_ptr_loaded_from_struct() {
     let mir = r#"
-type Holder { fun: fn(int32) -> int32 }
+type Holder { fun: (int32) -> int32 }
 
 function double(v0: int32): int32 {
 b0(v0: int32):
@@ -389,10 +389,10 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<Holder, managed> = managed.alloc Holder
-    v2: ref<fn(int32) -> int32, managed> = field.address v1, 0
-    v3: fn(int32) -> int32 = function.address double
+    v2: ref<(int32) -> int32, managed> = field.address v1, 0
+    v3: (int32) -> int32 = function.address double
     store v2, v3
-    v4: fn(int32) -> int32 = load v2
+    v4: (int32) -> int32 = load v2
     v5: int32 = call.indirect v4(v0): (int32) -> int32
     return v5
 }"#;
@@ -428,7 +428,7 @@ b0:
     store v1, v3
     store v2, v4
     v5: ref<Env, raw, readonly, addressSpace(stack)> = cast.bit v0 -> ref<Env, raw, readonly, addressSpace(stack)>
-    v6: closure() -> int32 = function.bind readEnv, v5
+    v6: () => int32 = function.bind readEnv, v5
     v7: int32 = call.indirect v6(): () -> int32
     return v7
 }"#;
@@ -441,7 +441,7 @@ b0:
 fn test_environment_loaded_from_array() {
     let mir = r#"
 type Env { value: int32 }
-type Reader = closure() -> int32;
+type Reader = () => int32;
 @environment(ref<Env, managed>)
 function readEnv(): int32 {
 b0:

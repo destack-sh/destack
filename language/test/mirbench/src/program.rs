@@ -949,7 +949,9 @@ fn calibrate_scale(
     let mut sample = Duration::ZERO;
     for _ in 0..2 {
         if needs_gc {
-            let _ = isolate.collect_garbage(heap, shared);
+            let _ = isolate
+                .collect_garbage(heap, shared)
+                .expect("failed to collect garbage");
         }
         let start = Instant::now();
         let _ = program.run_or_panic(isolate, heap, shared, entry_id, args);
@@ -1645,7 +1647,9 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
             let warmup_start = Instant::now();
             while warmup_start.elapsed() < profile.warmup {
                 if needs_gc {
-                    let _ = isolate.collect_garbage(&mut heap, &mut shared);
+                    let _ = isolate
+                        .collect_garbage(&mut heap, &mut shared)
+                        .expect("failed to collect garbage");
                 }
                 let _ = entry.program.run_or_panic(
                     &mut isolate,
@@ -1673,7 +1677,9 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
             let run_start = Instant::now();
             while run_start.elapsed() < min_duration {
                 if needs_gc {
-                    let gc = isolate.collect_garbage(&mut heap, &mut shared);
+                    let gc = isolate
+                        .collect_garbage(&mut heap, &mut shared)
+                        .expect("failed to collect garbage");
                     gc_collections += 1;
                     gc_freed_cells += gc.freed_allocations as u64;
                 }
@@ -1728,7 +1734,9 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 let profile_start = Instant::now();
                 while profile_start.elapsed() < min_duration {
                     if needs_gc {
-                        let _ = isolate.collect_garbage(&mut heap, &mut shared);
+                        let _ = isolate
+                            .collect_garbage(&mut heap, &mut shared)
+                            .expect("failed to collect garbage");
                     }
                     let _ = entry.program.run_or_panic(
                         &mut isolate,

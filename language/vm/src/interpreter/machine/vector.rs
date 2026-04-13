@@ -462,6 +462,16 @@ pub(crate) fn step_vector_convert(
         });
     }
 
+    let Some(source_element) = source_element.ty() else {
+        return Transfer::Error(Error::ConcreteMirRequired {
+            context: "vector convert source element".to_string(),
+        });
+    };
+    let Some(dest_element) = dest_element.ty() else {
+        return Transfer::Error(Error::ConcreteMirRequired {
+            context: "vector convert destination element".to_string(),
+        });
+    };
     let source_info = match scalar_type_info(state.tree(), source_element) {
         Ok(info) => info,
         Err(error) => return Transfer::Error(error),

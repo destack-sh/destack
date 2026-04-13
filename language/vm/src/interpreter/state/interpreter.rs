@@ -181,14 +181,13 @@ impl Interpreter {
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, global)| {
-                (
-                    id,
-                    global.ty,
-                    global.is_import(),
-                    global.initializer.clone(),
-                )
+                let ty = (global.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "global type".to_string(),
+                })?;
+
+                Ok((id, ty, global.is_import(), global.initializer.clone()))
             })
-            .collect();
+            .collect::<crate::Result<Vec<_>>>()?;
 
         // populate globals from initializers
         for (id, ty, is_import, initializer) in global_entries {
@@ -352,7 +351,7 @@ impl Interpreter {
         ty: mir::LocalNodeId<mir::Type>,
         values: Vec<Value>,
     ) -> RuntimeResult<Value> {
-        let schema = SchemaRegistry::default();
+        let schema = SchemaRegistry::new().map_err(|error| self.make_error(executable, error))?;
         let mut context =
             ExternalCallContext::new(executable, &schema, string_interner, memory.reborrow());
         context
@@ -399,11 +398,19 @@ impl Interpreter {
             ));
         };
         let expected_pointee = match executable.tree.get(string_type) {
-            mir::Type::Reference { pointee, .. } => *pointee,
+            mir::Type::Reference { pointee, .. } => {
+                (*pointee).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "string pointee type".to_string(),
+                })?
+            }
             _ => string_type,
         };
 
-        if *pointee != expected_pointee {
+        let pointee = (*pointee).ty().ok_or_else(|| Error::ConcreteMirRequired {
+            context: "string initializer pointee".to_string(),
+        })?;
+
+        if pointee != expected_pointee {
             return Err(self.make_error(
                 executable,
                 Error::TypeMismatch {
@@ -558,7 +565,7 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &GlobalStorage,
         memory: MemoryContext<'_>,
-    ) -> GcStats {
+    ) -> RuntimeResult<GcStats> {
         self.collect_garbage_with_continuations(executable, string_interner, globals, memory, &[])
     }
 
@@ -570,16 +577,20 @@ impl Interpreter {
         globals: &GlobalStorage,
         mut memory: MemoryContext<'_>,
         continuations: &[Continuation],
-    ) -> GcStats {
+    ) -> RuntimeResult<GcStats> {
         // collect roots from active frames
         let mut roots = Vec::new();
         for frame in &self.call_stack {
-            frame.collect_roots(executable, &self.value_stack, &self.local_stack, &mut roots);
+            frame
+                .collect_roots(executable, &self.value_stack, &self.local_stack, &mut roots)
+                .map_err(|error| self.make_error(executable, error))?;
         }
 
         // collect roots from continuations
         for continuation in continuations {
-            continuation.collect_roots(executable, &mut roots);
+            continuation
+                .collect_roots(executable, &mut roots)
+                .map_err(|error| self.make_error(executable, error))?;
         }
 
         // collect roots from globals
@@ -598,6 +609,6 @@ impl Interpreter {
         // sweep raw payload buffers for freed strings
         string_interner.sweep_buffers(memory.heap());
 
-        stats
+        Ok(stats)
     }
 }

@@ -33,8 +33,13 @@ fn function_value_payload_layout(
         });
     };
 
-    let signature_size = raw_type_size(tree, *signature)?;
-    let signature_alignment = raw_type_alignment(tree, *signature)?;
+    let signature = (*signature)
+        .ty()
+        .ok_or_else(|| Error::ConcreteMirRequired {
+            context: "closure signature".to_string(),
+        })?;
+    let signature_size = raw_type_size(tree, signature)?;
+    let signature_alignment = raw_type_alignment(tree, signature)?;
     let environment_size = Value::BYTE_LEN;
     let environment_alignment = std::mem::align_of::<Value>();
 
@@ -43,7 +48,7 @@ fn function_value_payload_layout(
     let alignment = signature_alignment.max(environment_alignment).max(1);
     let byte_len = align_offset(environment_offset + environment_size, alignment);
 
-    Ok((*signature, function_offset, environment_offset, byte_len))
+    Ok((signature, function_offset, environment_offset, byte_len))
 }
 
 /// Decode one boxed callable object into function and environment values.
@@ -355,7 +360,13 @@ pub(crate) fn decode_raw_value(
             raw[..bytes.len()].copy_from_slice(bytes);
             Ok(decode_pointer_bits(u64::from_le_bytes(raw), tree.get(ty)))
         }
-        mir::Type::Newtype { inner, .. } => decode_raw_value(tree, *inner, bytes),
+        mir::Type::Newtype { inner, .. } => decode_raw_value(
+            tree,
+            (*inner).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "newtype inner".to_string(),
+            })?,
+            bytes,
+        ),
         _ => Err(Error::TypeMismatch {
             expected: "scalar or reference raw load".to_string(),
             actual: format!("{ty:?}"),
@@ -655,7 +666,12 @@ pub(crate) fn encode_raw_value(
                 })?;
             (raw.id as u64).to_le_bytes()[..byte_len].to_vec()
         }
-        mir::Type::Newtype { inner, .. } => return encode_raw_value(tree, *inner, value),
+        mir::Type::Newtype { inner, .. } => {
+            let inner = (*inner).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "newtype inner".to_string(),
+            })?;
+            return encode_raw_value(tree, inner, value);
+        }
         _ => {
             return Err(Error::TypeMismatch {
                 expected: "scalar or reference raw store".to_string(),
@@ -728,7 +744,12 @@ pub(crate) fn decode_function_value(
         });
     }
 
-    let handle = value.as_managed_reference().unwrap();
+    let handle = value
+        .as_managed_reference()
+        .ok_or_else(|| Error::TypeMismatch {
+            expected: "boxed function value".to_string(),
+            actual: format!("{value:?}"),
+        })?;
     let ty = managed_storage_type(state, handle)?;
     let ty = repr_type(state.tree(), ty);
 
@@ -754,7 +775,11 @@ pub(crate) fn load_from_raw_pointer_typed(
         });
     }
 
-    let pointer = ptr.as_raw_pointer().unwrap();
+    let pointer = ptr
+        .as_raw_pointer()
+        .ok_or_else(|| Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        })?;
     if state.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -792,7 +817,9 @@ pub(crate) fn store_to_raw_pointer_typed(
         return Err(invalid_pointer_type(ptr));
     }
 
-    let pointer = ptr.as_raw_pointer().unwrap();
+    let pointer = ptr
+        .as_raw_pointer()
+        .ok_or_else(|| invalid_pointer_type(ptr))?;
     if state.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
     }

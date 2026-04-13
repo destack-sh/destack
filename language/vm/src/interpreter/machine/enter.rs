@@ -361,7 +361,7 @@ impl Interpreter {
                     frame.function,
                     frame.current_block,
                     resume_pc as u32,
-                )
+                )?
                 .unwrap_or(destination);
 
             if !is_invalid_value(return_destination) {
@@ -555,7 +555,7 @@ impl Interpreter {
                 caller.function,
                 caller.current_block,
                 caller.resume_pc as u32,
-            ) {
+            )? {
                 caller.set_value(&mut self.value_stack, destination, result);
             }
 

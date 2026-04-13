@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::executable::layout::repr_type;
+use crate::{Error, Result};
 
 /// One lowered runtime value slot.
 #[derive(Clone, Copy, Debug)]
@@ -76,14 +77,20 @@ pub(super) fn seed_value_tree(
 pub(in crate::executable) fn analyze_lowered_value_slots(
     tree: &mir::NodeTree,
     function: &mir::Function,
-) -> (Vec<LoweredValueSlot>, BlockParameterMap) {
+) -> Result<(Vec<LoweredValueSlot>, BlockParameterMap)> {
     let slot = function
         .value_types
         .iter()
         .enumerate()
-        .map(|(index, ty)| LoweredValueSlot {
-            source: engine::FrameSlotSource::Value(mir::Value::new(index as u32)),
-            ty: *ty,
+        .filter_map(|(index, ty)| {
+            let Some(ty) = *ty else {
+                return None;
+            };
+
+            Some(LoweredValueSlot {
+                source: engine::FrameSlotSource::Value(mir::Value::new(index as u32)),
+                ty,
+            })
         })
         .collect::<Vec<_>>();
     let mut slot_tree_builder = SlotTreeBuilder::new(tree, slot);
@@ -92,17 +99,21 @@ pub(in crate::executable) fn analyze_lowered_value_slots(
 
     // reserve hidden child slots for all decomposable semantic values
     for (index, ty) in function.value_types.iter().enumerate() {
+        let Some(ty) = *ty else {
+            continue;
+        };
+
         let value = mir::Value::new(index as u32);
-        if !can_decompose_value_type(tree, *ty) {
+        if !can_decompose_value_type(tree, ty) {
             continue;
         }
 
-        let child = slot_tree_builder.build_child_value_tree(value, *ty);
+        let child = slot_tree_builder.build_child_value_tree(value, ty)?;
         block_parameter_map.tree_by_value.insert(
             value,
             ValueTree {
                 slot: value,
-                ty: *ty,
+                ty,
                 child,
             },
         );
@@ -118,21 +129,29 @@ pub(in crate::executable) fn analyze_lowered_value_slots(
         let mut tree_by_value = HashMap::new();
 
         for parameter in &block.parameters {
-            if !can_decompose_value_type(tree, parameter.ty) {
+            let Some(value) = parameter.value.value() else {
+                continue;
+            };
+            let Some(ty) = parameter.ty.ty() else {
+                continue;
+            };
+
+            if !can_decompose_value_type(tree, ty) {
                 continue;
             }
 
-            let value_tree = block_parameter_map
-                .tree_by_value
-                .get(&parameter.value)
-                .cloned()
-                .unwrap_or_else(|| ValueTree {
-                    slot: parameter.value,
-                    ty: parameter.ty,
-                    child: slot_tree_builder.build_child_value_tree(parameter.value, parameter.ty),
-                });
+            let value_tree =
+                if let Some(value_tree) = block_parameter_map.tree_by_value.get(&value).cloned() {
+                    value_tree
+                } else {
+                    ValueTree {
+                        slot: value,
+                        ty,
+                        child: slot_tree_builder.build_child_value_tree(value, ty)?,
+                    }
+                };
 
-            tree_by_value.insert(parameter.value, value_tree);
+            tree_by_value.insert(value, value_tree);
         }
 
         if !tree_by_value.is_empty() {
@@ -142,7 +161,7 @@ pub(in crate::executable) fn analyze_lowered_value_slots(
         }
     }
 
-    (slot_tree_builder.finish(), block_parameter_map)
+    Ok((slot_tree_builder.finish(), block_parameter_map))
 }
 
 /// Return the blocks whose entry parameters must stay materialized for resume.
@@ -159,7 +178,10 @@ fn resume_target_block_set(
 
         match terminator {
             mir::Terminator::Yield { resume, .. } => {
-                block_set.insert(*resume);
+                let Some(block) = resume.block.block() else {
+                    continue;
+                };
+                block_set.insert(block);
             }
             mir::Terminator::Invoke {
                 normal_target,
@@ -181,8 +203,14 @@ fn resume_target_block_set(
                 unwind_target,
                 ..
             } => {
-                block_set.insert(*normal_target);
-                block_set.insert(*unwind_target);
+                let Some(normal_target) = normal_target.block.block() else {
+                    continue;
+                };
+                let Some(unwind_target) = unwind_target.block.block() else {
+                    continue;
+                };
+                block_set.insert(normal_target);
+                block_set.insert(unwind_target);
             }
             _ => {}
         }
@@ -213,7 +241,7 @@ impl<'a> SlotTreeBuilder<'a> {
         &mut self,
         owner: mir::Value,
         ty: mir::LocalNodeId<mir::Type>,
-    ) -> ValueTree {
+    ) -> Result<ValueTree> {
         let value = mir::Value::new(self.slot.len() as u32);
         let repr_ty = repr_type(self.tree, ty);
 
@@ -226,25 +254,35 @@ impl<'a> SlotTreeBuilder<'a> {
         let child = match self.tree.get(repr_ty) {
             mir::Type::Struct { fields, .. } => fields
                 .iter()
-                .map(|field| self.build_value_tree(owner, self.tree.get(*field).ty))
-                .collect(),
+                .filter_map(|field| {
+                    let field = self.tree.get(*field);
+                    let ty = field.ty.ty()?;
+                    Some(self.build_value_tree(owner, ty))
+                })
+                .collect::<Result<Vec<_>>>()?,
             mir::Type::Tuple { elements, .. } => elements
                 .iter()
-                .map(|element| self.build_value_tree(owner, *element))
-                .collect(),
+                .filter_map(|element| {
+                    let ty = element.ty()?;
+                    Some(self.build_value_tree(owner, ty))
+                })
+                .collect::<Result<Vec<_>>>()?,
             mir::Type::Array {
                 element, length, ..
-            } => (0..array_length(*length))
-                .map(|_| self.build_value_tree(owner, *element))
-                .collect(),
+            } => (0..array_length(*length)?)
+                .filter_map(|_| {
+                    let ty = element.ty()?;
+                    Some(self.build_value_tree(owner, ty))
+                })
+                .collect::<Result<Vec<_>>>()?,
             _ => Vec::new(),
         };
 
-        ValueTree {
+        Ok(ValueTree {
             slot: value,
             ty,
             child,
-        }
+        })
     }
 
     /// Build the hidden child slot tree for the given semantic type.
@@ -252,28 +290,39 @@ impl<'a> SlotTreeBuilder<'a> {
         &mut self,
         owner: mir::Value,
         ty: mir::LocalNodeId<mir::Type>,
-    ) -> Vec<ValueTree> {
-        match self.tree.get(repr_type(self.tree, ty)) {
+    ) -> Result<Vec<ValueTree>> {
+        Ok(match self.tree.get(repr_type(self.tree, ty)) {
             mir::Type::Struct { fields, .. } => fields
                 .iter()
-                .map(|field| self.build_value_tree(owner, self.tree.get(*field).ty))
-                .collect(),
+                .filter_map(|field| {
+                    let field = self.tree.get(*field);
+                    let ty = field.ty.ty()?;
+                    Some(self.build_value_tree(owner, ty))
+                })
+                .collect::<Result<Vec<_>>>()?,
             mir::Type::Tuple { elements, .. } => elements
                 .iter()
-                .map(|element| self.build_value_tree(owner, *element))
-                .collect(),
+                .filter_map(|element| {
+                    let ty = element.ty()?;
+                    Some(self.build_value_tree(owner, ty))
+                })
+                .collect::<Result<Vec<_>>>()?,
             mir::Type::Array {
                 element, length, ..
-            } => (0..array_length(*length))
-                .map(|_| self.build_value_tree(owner, *element))
-                .collect(),
+            } => (0..array_length(*length)?)
+                .filter_map(|_| {
+                    let ty = element.ty()?;
+                    Some(self.build_value_tree(owner, ty))
+                })
+                .collect::<Result<Vec<_>>>()?,
             _ => Vec::new(),
-        }
+        })
     }
 }
 
 /// Convert one MIR array length into one host index length.
-fn array_length(length: u64) -> usize {
-    usize::try_from(length)
-        .unwrap_or_else(|_| panic!("array length does not fit host usize: {length}"))
+fn array_length(length: u64) -> Result<usize> {
+    usize::try_from(length).map_err(|_| Error::InvariantViolation {
+        context: format!("array length does not fit host usize: {length}"),
+    })
 }
