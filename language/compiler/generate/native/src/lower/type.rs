@@ -95,7 +95,13 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
-        mir::Type::Newtype { inner, .. } => lower_type(tree, *inner, pointer_bytes),
+        mir::Type::Newtype { inner, .. } => {
+            let inner = inner.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: newtype inner type"
+                    .into(),
+            })?;
+            lower_type(tree, inner, pointer_bytes)
+        }
 
         mir::Type::Vector { .. } => Err(CodegenCraneliftError::unsupported_type(
             "vector types are not yet supported by the native backend",

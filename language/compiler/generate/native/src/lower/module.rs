@@ -131,7 +131,8 @@ impl<'a> ModuleLowerer<'a> {
 
             // define the data if we have an initializer (not for imports)
             if let Some(ref init) = global.initializer {
-                let bytes = self.lower_initializer(tree, init, global.ty, pointer_bytes)?;
+                let ty = self.type_id(global.ty, "global type")?;
+                let bytes = self.lower_initializer(tree, init, ty, pointer_bytes)?;
                 let mut data_description = cranelift_module::DataDescription::new();
                 data_description.define(bytes.into_boxed_slice());
                 self.cl_module.define_data(data_id, &data_description)?;
@@ -174,17 +175,24 @@ impl<'a> ModuleLowerer<'a> {
                     mir::Type::Tuple {
                         elements,
                         copyability: _,
-                    } => elements.clone(),
+                    } => elements
+                        .iter()
+                        .map(|element| self.type_id(*element, "tuple element type"))
+                        .collect::<CodegenCraneliftResult<Vec<_>>>()?,
                     mir::Type::Struct {
                         fields,
                         copyability: _,
-                    } => fields.iter().map(|f| tree.get(*f).ty).collect(),
+                    } => fields
+                        .iter()
+                        .map(|field| self.type_id(tree.get(*field).ty, "struct field type"))
+                        .collect::<CodegenCraneliftResult<Vec<_>>>()?,
                     mir::Type::Array {
                         element,
                         length,
                         copyability: _,
                     } => {
-                        vec![*element; *length as usize]
+                        let element = self.type_id(*element, "array element type")?;
+                        vec![element; *length as usize]
                     }
                     _ => {
                         return Err(CodegenCraneliftError::unsupported_type(
@@ -319,23 +327,50 @@ impl<'a> ModuleLowerer<'a> {
 
         // parameters
         for param in &function.parameters {
-            let ty = lower_type(tree, param.ty, pointer_bytes)?;
+            let ty = lower_type(
+                tree,
+                self.type_id(param.ty, "function parameter type")?,
+                pointer_bytes,
+            )?;
             signature.params.push(cir::AbiParam::new(ty));
         }
 
         // function environment parameter when used
-        if let Some(environment) = function.environment {
+        if let Some(environment) =
+            self.optional_type_id(function.environment, "function environment type")?
+        {
             let ty = lower_type(tree, environment, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
 
         // return type (if not void)
-        if !matches!(tree.get(function.return_type), mir::Type::Void) {
-            let ty = lower_type(tree, function.return_type, pointer_bytes)?;
+        let return_type = self.type_id(function.return_type, "function return type")?;
+        if !matches!(tree.get(return_type), mir::Type::Void) {
+            let ty = lower_type(tree, return_type, pointer_bytes)?;
             signature.returns.push(cir::AbiParam::new(ty));
         }
 
         Ok(signature)
+    }
+
+    /// Return one concrete MIR type from a recoverable reference.
+    fn type_id(
+        &self,
+        ty: mir::TypeReference,
+        context: &str,
+    ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Type>> {
+        ty.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+            message: format!("missing or malformed MIR type in native lowering: {context}"),
+        })
+    }
+
+    /// Return one optional concrete MIR type from a recoverable reference.
+    fn optional_type_id(
+        &self,
+        ty: Option<mir::TypeReference>,
+        context: &str,
+    ) -> CodegenCraneliftResult<Option<mir::LocalNodeId<mir::Type>>> {
+        ty.map(|ty| self.type_id(ty, context)).transpose()
     }
 
     /// Finish lowering and produce output.
