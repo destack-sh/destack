@@ -12,7 +12,8 @@ use crate::{
     FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, ItabId, Layout,
     LayoutId, LayoutMetadata, Local, LocalNodeId, ManagedReferenceRepresentation, Metadata,
     Mutability, Node, NodeType, ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type,
-    TypeAlias, TypeDeclarationSpans, TypeLineage, TypedValueSpan, ValueReference, Vtable, VtableId,
+    TypeAlias, TypeDeclarationSpans, TypeLineage, TypeReference, TypedValueSpan, ValueReference,
+    Vtable, VtableId,
 };
 
 /// Approximate per-entry overhead for one hash-map entry.
@@ -362,7 +363,10 @@ impl NodeTree {
         let string_type = self.string_type()?;
 
         match self.get(string_type) {
-            Type::Reference { pointee, .. } => self.type_layout_id(*pointee),
+            Type::Reference {
+                pointee: TypeReference::Type(pointee),
+                ..
+            } => self.type_layout_id(*pointee),
             _ => self.type_layout_id(string_type),
         }
     }
@@ -475,7 +479,7 @@ impl NodeTree {
                     mutability: Mutability::Mutable,
                     pointee,
                     is_nullable: true,
-                } if *pointee == void_type
+                } if *pointee == TypeReference::Type(void_type)
             )
         }) {
             return type_id;
@@ -505,7 +509,7 @@ impl NodeTree {
                     mutability: Mutability::Mutable,
                     pointee,
                     is_nullable: true,
-                } if *pointee == void_type
+                } if *pointee == TypeReference::Type(void_type)
             )
         }) {
             return type_id;
@@ -516,7 +520,7 @@ impl NodeTree {
             kind: ReferenceKind::Managed,
             address_space: AddressSpace::Generic,
             mutability: Mutability::Mutable,
-            pointee: void_type,
+            pointee: TypeReference::Type(void_type),
             is_nullable: true,
         })
     }

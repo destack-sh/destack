@@ -6,13 +6,12 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AllocationSize, ArgumentAttribute, AtomicRmwOperator, AtomicScope, BinaryOperator, Call,
-    CallBehavior, Constant, Function, FunctionReference, Global, GlobalReference, InterfaceSlotId,
-    Intrinsic, Local, LocalNodeId, LocalReference, MemoryEffect, MemoryOrdering, MemoryScope,
-    MemorySemantics, Node, NodeType, PointerAttribute, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
-    TensorScatterMode, TypeReference, UnaryOperator, ValueReference, VectorConvertMode,
-    VectorReduceOperator, VtableSlotId,
+    CallBehavior, Constant, FunctionReference, GlobalReference, InterfaceSlotId, Intrinsic,
+    LocalReference, MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType,
+    PointerAttribute, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
+    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator, VtableSlotId,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.

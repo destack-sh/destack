@@ -1,6 +1,6 @@
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
-    NodeVisitor, Terminator, Type, TypeAlias,
+    NodeVisitor, Terminator, Type, TypeAlias, TypeReference,
 };
 
 /// Walk any node.
@@ -136,20 +136,26 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 
     match ty {
         Type::Reference { pointee, .. } => {
-            let pointee_ty = tree.get(*pointee);
-            visitor.visit_type(tree, *pointee, pointee_ty);
+            if let TypeReference::Type(pointee) = *pointee {
+                let pointee_ty = tree.get(pointee);
+                visitor.visit_type(tree, pointee, pointee_ty);
+            }
         }
         Type::Array { element, .. } => {
-            let element_ty = tree.get(*element);
-            visitor.visit_type(tree, *element, element_ty);
+            if let TypeReference::Type(element) = *element {
+                let element_ty = tree.get(element);
+                visitor.visit_type(tree, element, element_ty);
+            }
         }
         Type::Tuple {
             elements,
             copyability: _,
         } => {
             for element_id in elements {
-                let element_ty = tree.get(*element_id);
-                visitor.visit_type(tree, *element_id, element_ty);
+                if let TypeReference::Type(element_id) = *element_id {
+                    let element_ty = tree.get(element_id);
+                    visitor.visit_type(tree, element_id, element_ty);
+                }
             }
         }
         Type::Struct {
@@ -162,32 +168,46 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             }
         }
         Type::Newtype { inner, .. } => {
-            let inner_ty = tree.get(*inner);
-            visitor.visit_type(tree, *inner, inner_ty);
+            if let TypeReference::Type(inner) = *inner {
+                let inner_ty = tree.get(inner);
+                visitor.visit_type(tree, inner, inner_ty);
+            }
         }
         Type::Vector { element, .. } => {
-            let element_ty = tree.get(*element);
-            visitor.visit_type(tree, *element, element_ty);
+            if let TypeReference::Type(element) = *element {
+                let element_ty = tree.get(element);
+                visitor.visit_type(tree, element, element_ty);
+            }
         }
         Type::Tensor { element, .. } => {
-            let element_ty = tree.get(*element);
-            visitor.visit_type(tree, *element, element_ty);
+            if let TypeReference::Type(element) = *element {
+                let element_ty = tree.get(element);
+                visitor.visit_type(tree, element, element_ty);
+            }
         }
         Type::TensorReference { element, .. } => {
-            let element_ty = tree.get(*element);
-            visitor.visit_type(tree, *element, element_ty);
+            if let TypeReference::Type(element) = *element {
+                let element_ty = tree.get(element);
+                visitor.visit_type(tree, element, element_ty);
+            }
         }
         Type::FunctionPointer { parameters, result } => {
             for parameter_id in parameters {
-                let parameter_ty = tree.get(*parameter_id);
-                visitor.visit_type(tree, *parameter_id, parameter_ty);
+                if let TypeReference::Type(parameter_id) = *parameter_id {
+                    let parameter_ty = tree.get(parameter_id);
+                    visitor.visit_type(tree, parameter_id, parameter_ty);
+                }
             }
-            let result_ty = tree.get(*result);
-            visitor.visit_type(tree, *result, result_ty);
+            if let TypeReference::Type(result) = *result {
+                let result_ty = tree.get(result);
+                visitor.visit_type(tree, result, result_ty);
+            }
         }
         Type::Closure { signature } => {
-            let signature_ty = tree.get(*signature);
-            visitor.visit_type(tree, *signature, signature_ty);
+            if let TypeReference::Type(signature) = *signature {
+                let signature_ty = tree.get(signature);
+                visitor.visit_type(tree, signature, signature_ty);
+            }
         }
         Type::Void
         | Type::Boolean
@@ -208,8 +228,10 @@ pub fn walk_type_alias<V: NodeVisitor + ?Sized>(
     type_alias: &TypeAlias,
 ) {
     visitor.visit_any(tree, NodeType::TypeAlias, id.id);
-    let aliased_ty = tree.get(type_alias.ty);
-    visitor.visit_type(tree, type_alias.ty, aliased_ty);
+    if let TypeReference::Type(aliased_ty_id) = type_alias.ty {
+        let aliased_ty = tree.get(aliased_ty_id);
+        visitor.visit_type(tree, aliased_ty_id, aliased_ty);
+    }
 }
 
 /// Walk a Field.
@@ -220,8 +242,10 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
     field: &Field,
 ) {
     visitor.visit_any(tree, NodeType::Field, id.id);
-    let field_ty = tree.get(field.ty);
-    visitor.visit_type(tree, field.ty, field_ty);
+    if let TypeReference::Type(field_ty_id) = field.ty {
+        let field_ty = tree.get(field_ty_id);
+        visitor.visit_type(tree, field_ty_id, field_ty);
+    }
 }
 
 /// Walk a Global.

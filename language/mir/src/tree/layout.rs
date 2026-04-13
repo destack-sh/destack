@@ -1,4 +1,4 @@
-use crate::{Field, LocalNodeId, NodeTree, TensorDimension, TensorLayout, Type};
+use crate::{Field, LocalNodeId, NodeTree, TensorDimension, TensorLayout, Type, TypeReference};
 
 /// Computed layout information for a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,7 +76,8 @@ pub(crate) fn compute_type_layout(
 
         Type::Closure { signature } => {
             let environment = tree.function_value_environment_type();
-            compute_tuple_layout(tree, &[*signature, environment], pointer_bytes)
+            let signature = require_type_reference(*signature, "closure signature");
+            compute_tuple_layout(tree, &[signature, environment], pointer_bytes)
         }
 
         Type::Array {
@@ -84,7 +85,11 @@ pub(crate) fn compute_type_layout(
             length,
             copyability: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes);
+            let element_layout = compute_type_layout(
+                tree,
+                require_type_reference(*element, "array element"),
+                pointer_bytes,
+            );
             let size = element_layout.size * (*length as u32);
             TypeLayout::new(size, element_layout.alignment)
         }
@@ -92,21 +97,29 @@ pub(crate) fn compute_type_layout(
         Type::Tuple {
             elements,
             copyability: _,
-        } => compute_tuple_layout(tree, elements, pointer_bytes),
+        } => compute_tuple_layout_from_references(tree, elements, pointer_bytes),
 
         Type::Struct {
             fields,
             copyability: _,
         } => compute_struct_layout_from_fields(tree, fields, pointer_bytes),
 
-        Type::Newtype { inner, .. } => compute_type_layout(tree, *inner, pointer_bytes),
+        Type::Newtype { inner, .. } => compute_type_layout(
+            tree,
+            require_type_reference(*inner, "newtype inner"),
+            pointer_bytes,
+        ),
 
         Type::Vector {
             element,
             lanes,
             copyability: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes);
+            let element_layout = compute_type_layout(
+                tree,
+                require_type_reference(*element, "vector element"),
+                pointer_bytes,
+            );
             let size = element_layout.size * (*lanes);
             TypeLayout::new(size, element_layout.alignment)
         }
@@ -117,7 +130,11 @@ pub(crate) fn compute_type_layout(
             layout,
             copyability: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes);
+            let element_layout = compute_type_layout(
+                tree,
+                require_type_reference(*element, "tensor element"),
+                pointer_bytes,
+            );
             let element_count = compute_tensor_element_count(shape, layout);
             let size = element_layout.size * element_count;
             TypeLayout::new(size, element_layout.alignment)
@@ -192,6 +209,20 @@ fn compute_tuple_layout(
     TypeLayout::new(final_size, max_alignment)
 }
 
+fn compute_tuple_layout_from_references(
+    tree: &NodeTree,
+    elements: &[TypeReference],
+    pointer_bytes: u8,
+) -> TypeLayout {
+    let elements = elements
+        .iter()
+        .copied()
+        .map(|element| require_type_reference(element, "tuple element"))
+        .collect::<Vec<_>>();
+
+    compute_tuple_layout(tree, &elements, pointer_bytes)
+}
+
 /// Compute the layout of a struct from its field definitions.
 /// This computes offsets from field order and field types.
 fn compute_struct_layout_from_fields(
@@ -208,7 +239,11 @@ fn compute_struct_layout_from_fields(
 
     for &field_id in fields {
         let field = tree.get(field_id);
-        let field_layout = compute_type_layout(tree, field.ty, pointer_bytes);
+        let field_layout = compute_type_layout(
+            tree,
+            require_type_reference(field.ty, "field type"),
+            pointer_bytes,
+        );
         offset = field_layout.align_offset(offset);
         offset += field_layout.size;
         max_alignment = max_alignment.max(field_layout.alignment);
@@ -217,6 +252,18 @@ fn compute_struct_layout_from_fields(
     // pad to alignment
     let final_size = TypeLayout::new(0, max_alignment).align_offset(offset);
     TypeLayout::new(final_size, max_alignment)
+}
+
+fn require_type_reference(reference: TypeReference, context: &str) -> LocalNodeId<Type> {
+    match reference {
+        TypeReference::Type(ty) => ty,
+        TypeReference::Missing => {
+            panic!("missing type reference while computing layout for {context}")
+        }
+        TypeReference::Error => {
+            panic!("malformed type reference while computing layout for {context}")
+        }
+    }
 }
 
 #[cfg(test)]
