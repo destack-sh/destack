@@ -15,6 +15,8 @@ pub enum ImportSource {
     ReferenceTypesDirective,
     /// TypeScript triple-slash `reference lib` directive.
     ReferenceLibDirective,
+    /// TypeScript triple-slash `reference no-default-lib` directive.
+    ReferenceNoDefaultLibDirective,
     /// Legacy import-equals expression used by older lowerings.
     ImportEquals,
     /// Dynamic import call (`import("mod")`).

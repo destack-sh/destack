@@ -108,6 +108,8 @@ pub struct TypeIndexSignature {
     pub key_type: LocalTypeId,
     /// The value type (like `T`).
     pub value_type: LocalTypeId,
+    /// Whether the index signature is optional.
+    pub is_optional: bool,
     /// Whether the index signature is readonly.
     pub is_readonly: bool,
 }
