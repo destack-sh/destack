@@ -3,7 +3,7 @@ use destack_source::{NodeSpanType, Span};
 use crate::{
     AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
     Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias,
-    TypeDeclarationSpans, TypedValue, Value,
+    TypeDeclarationSpans, TypeReference, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -116,7 +116,7 @@ impl Parser {
                         parameter_names: Vec::new(),
                         value_names: Vec::new(),
                         value_types: Vec::new(),
-                        return_type: void_type,
+                        return_type: TypeReference::Type(void_type),
                         return_lifetime: Lifetime::Inferred,
                         memory_effect: MemoryEffect::unknown(),
                         call_behavior: CallBehavior::unknown(),
@@ -227,7 +227,7 @@ impl Parser {
         };
         let function = self.tree.get_mut(function_id);
         function.parameters = parameters;
-        function.return_type = return_type;
+        function.return_type = TypeReference::Type(return_type);
 
         // imports stop at the signature
         if linkage.is_import() {
@@ -245,7 +245,7 @@ impl Parser {
     fn scan_function_placeholder_parameters(
         &mut self,
         linkage: Linkage,
-    ) -> ParseResult<Vec<TypedValue>> {
+    ) -> ParseResult<Vec<crate::Parameter>> {
         self.eat_token(TokenType::OpenParen)?;
 
         let parameters = if linkage.is_import() {
@@ -260,9 +260,9 @@ impl Parser {
             parameter_types
                 .into_iter()
                 .enumerate()
-                .map(|(index, ty)| TypedValue {
-                    value: Value::new(index as u32),
-                    ty,
+                .map(|(index, ty)| crate::Parameter {
+                    value: ValueReference::Value(crate::Value::new(index as u32)),
+                    ty: TypeReference::Type(ty),
                 })
                 .collect()
         } else {
@@ -273,7 +273,10 @@ impl Parser {
                 let value = self.scan_function_placeholder_value(&mut next_value_id)?;
                 self.eat_token(TokenType::Colon)?;
                 let ty = self.parse_type()?;
-                parameters.push(TypedValue { value, ty });
+                parameters.push(crate::Parameter {
+                    value: ValueReference::Value(value),
+                    ty: TypeReference::Type(ty),
+                });
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
@@ -398,7 +401,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let alias = TypeAlias {
             name: name_id,
-            ty: placeholder_id,
+            ty: TypeReference::Type(placeholder_id),
         };
         let id = self.tree.insert(alias);
         self.tree
@@ -480,7 +483,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let global = Global {
             name: name_id,
-            ty,
+            ty: TypeReference::Type(ty),
             mutability,
             linkage,
             initializer,
@@ -548,10 +551,10 @@ impl Parser {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))
             }
-            TokenType::BoolLiteral
+            TokenType::BooleanLiteral
             | TokenType::IntLiteral
             | TokenType::FloatLiteral
-            | TokenType::CharLiteral => {
+            | TokenType::CharacterLiteral => {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))
             }

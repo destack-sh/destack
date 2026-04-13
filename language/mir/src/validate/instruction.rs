@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::{
     AddressSpace, AllocationMode, ArgumentSlice, CastOperator, Constant, Function, Instruction,
     Intrinsic, Local, LocalNodeId, Mutability, NodeType, ReferenceKind, TensorDimension,
-    TensorLayout, Type, Value, compute_type_layout,
+    TensorLayout, Type, TypeReference, Value, ValueReference, compute_type_layout,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -52,6 +52,7 @@ impl<'a> Validator<'a> {
         defined_values: &HashSet<Value>,
     ) -> ValidateResult<()> {
         for value in instruction.uses() {
+            let value = self.require_value_reference(value, anchor, "instruction operand")?;
             self.ensure_defined(value, anchor, defined_values)?;
         }
 
@@ -104,22 +105,27 @@ impl<'a> Validator<'a> {
             Instruction::Call {
                 function: callee, ..
             } => {
-                self.validate_call_signature_matches_function(anchor, call.signature, *callee)?;
-                self.validate_direct_call_environment(anchor, *callee)?;
+                let callee = self.require_function_reference(*callee, anchor, "call callee")?;
+                self.validate_call_signature_matches_function(anchor, call.signature, callee)?;
+                self.validate_direct_call_environment(anchor, callee)?;
             }
             Instruction::CallVirtual {
                 declaring_type,
                 slot_id,
                 ..
             } => {
-                self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+                let declaring_type =
+                    self.require_type_reference(*declaring_type, anchor, "virtual call type")?;
+                self.validate_virtual_dispatch_slot(declaring_type, *slot_id, anchor)?;
             }
             Instruction::CallInterface {
                 declaring_type,
                 slot_id,
                 ..
             } => {
-                self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+                let declaring_type =
+                    self.require_type_reference(*declaring_type, anchor, "interface call type")?;
+                self.validate_interface_dispatch_slot(declaring_type, *slot_id, anchor)?;
             }
             Instruction::CallIndirect { callee, .. } => {
                 self.validate_indirect_callee_signature(
@@ -187,10 +193,12 @@ impl<'a> Validator<'a> {
     pub(super) fn value_type_or_error(
         &self,
         function: &Function,
-        value: Value,
+        value: ValueReference,
         anchor: ValidateAnchor,
         label: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
+        let value = self.require_value_reference(value, anchor, label)?;
+
         // look up the value type
         let value_type = function.value_type(value).ok_or_else(|| {
             ValidateError::MetadataInvariantViolation {
@@ -258,7 +266,16 @@ impl<'a> Validator<'a> {
         let vector_type = self.tree.get(type_id);
 
         match vector_type {
-            Type::Vector { element, lanes, .. } => Ok((*element, *lanes)),
+            Type::Vector { element, lanes, .. } => {
+                let Some(element) = self.concrete_type_reference(*element) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!("{message}, found vector with non concrete element type"),
+                        anchor,
+                    });
+                };
+
+                Ok((element, *lanes))
+            }
             other => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{message}, found {}", self.type_kind(other)),
                 anchor,
@@ -281,7 +298,16 @@ impl<'a> Validator<'a> {
                 shape,
                 layout,
                 ..
-            } => Ok((*element, shape, layout)),
+            } => {
+                let Some(element) = self.concrete_type_reference(*element) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!("{message}, found tensor with non concrete element type"),
+                        anchor,
+                    });
+                };
+
+                Ok((element, shape, layout))
+            }
             other => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{message}, found {}", self.type_kind(other)),
                 anchor,
@@ -314,7 +340,18 @@ impl<'a> Validator<'a> {
                 shape,
                 layout,
                 ..
-            } => Ok((*kind, *address_space, *mutability, *element, shape, layout)),
+            } => {
+                let Some(element) = self.concrete_type_reference(*element) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!(
+                            "{message}, found tensor reference with non concrete element type"
+                        ),
+                        anchor,
+                    });
+                };
+
+                Ok((*kind, *address_space, *mutability, element, shape, layout))
+            }
             other => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{message}, found {}", self.type_kind(other)),
                 anchor,
@@ -338,7 +375,18 @@ impl<'a> Validator<'a> {
                 pointee,
                 is_nullable,
                 ..
-            } => Ok((*kind, *mutability, *pointee, *is_nullable)),
+            } => {
+                let Some(pointee) = self.concrete_type_reference(*pointee) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!(
+                            "{message}, found reference with non concrete pointee type"
+                        ),
+                        anchor,
+                    });
+                };
+
+                Ok((*kind, *mutability, pointee, *is_nullable))
+            }
             _ => Err(ValidateError::MetadataInvariantViolation {
                 message: message.to_string(),
                 anchor,
@@ -392,18 +440,25 @@ impl<'a> Validator<'a> {
         // embedded node references
         match instruction {
             Instruction::LocalGet { local, .. } | Instruction::LocalSet { local, .. } => {
+                let local = self.require_local_reference(*local, anchor, "local reference")?;
                 self.ensure_node_type(NodeType::Local, local.id, anchor)?;
             }
             Instruction::LocalAddr {
                 local, result_type, ..
             } => {
+                let local = self.require_local_reference(*local, anchor, "local reference")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "local address type")?;
                 self.ensure_node_type(NodeType::Local, local.id, anchor)?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
             }
             Instruction::GlobalAddr { global, .. } | Instruction::GlobalConst { global, .. } => {
+                let global = self.require_global_reference(*global, anchor, "global reference")?;
                 self.ensure_node_type(NodeType::Global, global.id, anchor)?;
             }
             Instruction::FunctionAddr { function, .. } | Instruction::Call { function, .. } => {
+                let function =
+                    self.require_function_reference(*function, anchor, "function reference")?;
                 self.ensure_node_type(NodeType::Function, function.id, anchor)?;
             }
             Instruction::Cast { to_type, .. }
@@ -422,6 +477,8 @@ impl<'a> Validator<'a> {
             | Instruction::StackAlloc {
                 layout: to_type, ..
             } => {
+                let to_type =
+                    self.require_type_reference(*to_type, anchor, "instruction type reference")?;
                 self.ensure_node_type(NodeType::Type, to_type.id, anchor)?;
             }
             _ => {}
@@ -432,9 +489,10 @@ impl<'a> Validator<'a> {
             Instruction::LocalGet { local, .. }
             | Instruction::LocalAddr { local, .. }
             | Instruction::LocalSet { local, .. } => {
-                if !locals.contains(local) {
+                let local = self.require_local_reference(*local, anchor, "local reference")?;
+                if !locals.contains(&local) {
                     return Err(ValidateError::LocalReferenceNotInFunction {
-                        local_id: *local,
+                        local_id: local,
                         anchor,
                     });
                 }
@@ -445,12 +503,13 @@ impl<'a> Validator<'a> {
         // aggregate form
         match instruction {
             Instruction::Struct { ty, fields, .. } => {
-                let expected = match self.tree.get(*ty) {
+                let ty = self.require_type_reference(*ty, anchor, "struct type")?;
+                let expected = match self.tree.get(ty) {
                     Type::Struct { fields, .. } => fields.len(),
                     Type::Closure { .. } => 2,
                     other => {
                         return Err(ValidateError::AggregateTypeMismatch {
-                            expected: "struct or closure",
+                            expected: "struct or callable",
                             found: self.type_kind(other),
                             anchor,
                         });
@@ -466,7 +525,8 @@ impl<'a> Validator<'a> {
                 }
             }
             Instruction::Tuple { ty, elements, .. } => {
-                let expected = match self.tree.get(*ty) {
+                let ty = self.require_type_reference(*ty, anchor, "tuple type")?;
+                let expected = match self.tree.get(ty) {
                     Type::Tuple { elements, .. } => elements.len(),
                     other => {
                         return Err(ValidateError::AggregateTypeMismatch {
@@ -486,7 +546,8 @@ impl<'a> Validator<'a> {
                 }
             }
             Instruction::Array { ty, elements, .. } => {
-                let expected = match self.tree.get(*ty) {
+                let ty = self.require_type_reference(*ty, anchor, "array type")?;
+                let expected = match self.tree.get(ty) {
                     Type::Array { length, .. } => usize::try_from(*length).unwrap_or(usize::MAX),
                     other => {
                         return Err(ValidateError::AggregateTypeMismatch {
@@ -1109,11 +1170,16 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let global = self.require_global_reference(*global, anchor, "global reference")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "global address type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-                let global_decl = self.tree.get(*global);
+                let global_decl = self.tree.get(global);
+                let global_type =
+                    self.require_type_reference(global_decl.ty, anchor, "global type")?;
                 self.validate_reference_result_type(
-                    *result_type,
-                    Some(global_decl.ty),
+                    result_type,
+                    Some(global_type),
                     Some(ReferenceKind::Raw),
                     Some(global_decl.mutability),
                     anchor,
@@ -1137,7 +1203,9 @@ impl<'a> Validator<'a> {
                     });
                 };
 
-                let target_function = self.tree.get(*target);
+                let target =
+                    self.require_function_reference(*target, anchor, "function address")?;
+                let target_function = self.tree.get(target);
                 if target_function.environment.is_some() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.address cannot target a function with an environment"
@@ -1189,20 +1257,29 @@ impl<'a> Validator<'a> {
                         anchor,
                     });
                 };
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
+                let signature =
+                    self.require_type_reference(*signature, anchor, "function bind signature")?;
+                let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.bind signature must be a function pointer".to_string(),
                         anchor,
                     });
                 };
 
-                let target_function = self.tree.get(*target);
+                let target =
+                    self.require_function_reference(*target, anchor, "function bind target")?;
+                let target_function = self.tree.get(target);
                 let target_environment = target_function.environment.ok_or_else(|| {
                     ValidateError::MetadataInvariantViolation {
                         message: "function.bind target requires an environment".to_string(),
                         anchor,
                     }
                 })?;
+                let target_environment = self.require_type_reference(
+                    target_environment,
+                    anchor,
+                    "function bind environment type",
+                )?;
 
                 let actual_environment_type = self.value_type_or_error(
                     function,
@@ -1261,7 +1338,7 @@ impl<'a> Validator<'a> {
                         anchor,
                     }
                 })?;
-                if environment != destination_type_id {
+                if environment != destination_type_id.into() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.environment type mismatch".to_string(),
                         anchor,
@@ -1273,10 +1350,14 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let layout =
+                    self.require_type_reference(*layout, anchor, "managed.alloc layout")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "managed.alloc result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
                 self.validate_reference_result_type(
-                    *result_type,
-                    Some(*layout),
+                    result_type,
+                    Some(layout),
                     Some(ReferenceKind::Managed),
                     None,
                     anchor,
@@ -1287,10 +1368,20 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let element = self.require_type_reference(
+                    *element,
+                    anchor,
+                    "managed.allocArray element type",
+                )?;
+                let result_type = self.require_type_reference(
+                    *result_type,
+                    anchor,
+                    "managed.allocArray result type",
+                )?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
                 self.validate_reference_result_type(
-                    *result_type,
-                    Some(*element),
+                    result_type,
+                    Some(element),
                     Some(ReferenceKind::Managed),
                     None,
                     anchor,
@@ -1301,15 +1392,18 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let layout = self.require_type_reference(*layout, anchor, "raw.alloc layout")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "raw.alloc result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
                 let reference_type = self.reference_type(
-                    *result_type,
+                    result_type,
                     anchor,
                     "pointer-producing instruction result type is not a reference",
                 )?;
                 let (kind, _mutability, pointee, _is_nullable) = reference_type;
 
-                if pointee != *layout {
+                if pointee != layout {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "pointer-producing instruction result type mismatches pointee"
                             .to_string(),
@@ -1331,10 +1425,13 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let layout = self.require_type_reference(*layout, anchor, "stack.alloc layout")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "stack.alloc result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
                 self.validate_reference_result_type(
-                    *result_type,
-                    Some(*layout),
+                    result_type,
+                    Some(layout),
                     Some(ReferenceKind::Raw),
                     None,
                     anchor,
@@ -1357,8 +1454,11 @@ impl<'a> Validator<'a> {
                     "atomic.load pointer must be a reference type",
                 )?;
 
-                if !self.types_equivalent(pointee_type, *result_type)
-                    || !self.types_equivalent(destination_type, *result_type)
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "atomic.load result type")?;
+
+                if !self.types_equivalent(pointee_type, result_type)
+                    || !self.types_equivalent(destination_type, result_type)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "atomic.load result type must match the pointer pointee"
@@ -1444,9 +1544,22 @@ impl<'a> Validator<'a> {
                     });
                 };
 
+                let Some(first) = self.concrete_type_reference(elements[0]) else {
+                    return Err(self.metadata_error(
+                        anchor,
+                        "atomic.compare_exchange result tuple element type is not concrete",
+                    ));
+                };
+                let Some(second) = self.concrete_type_reference(elements[1]) else {
+                    return Err(self.metadata_error(
+                        anchor,
+                        "atomic.compare_exchange result tuple element type is not concrete",
+                    ));
+                };
+
                 if elements.len() != 2
-                    || !self.types_equivalent(elements[0], pointee_type)
-                    || !matches!(self.tree.get(elements[1]), Type::Boolean)
+                    || !self.types_equivalent(first, pointee_type)
+                    || !matches!(self.tree.get(second), Type::Boolean)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message:
@@ -1557,6 +1670,8 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "field.address result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
 
                 let aggregate_type = self.value_type_or_error(
@@ -1571,7 +1686,7 @@ impl<'a> Validator<'a> {
                     anchor,
                     "field.address",
                 )?;
-                self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
+                self.validate_reference_result_type(result_type, None, None, None, anchor)?;
             }
             Instruction::ElementGet {
                 destination,
@@ -1652,6 +1767,11 @@ impl<'a> Validator<'a> {
                 result_type,
                 ..
             } => {
+                let result_type = self.require_type_reference(
+                    *result_type,
+                    anchor,
+                    "element.address result type",
+                )?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
 
                 let array_type =
@@ -1659,7 +1779,7 @@ impl<'a> Validator<'a> {
                 let index_type =
                     self.value_type_or_error(function, *index, anchor, "element.address index")?;
                 self.element_type_for_array(array_type, anchor, "element.address")?;
-                self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
+                self.validate_reference_result_type(result_type, None, None, None, anchor)?;
 
                 self.expect_integer_like_type(
                     index_type,
@@ -1675,7 +1795,8 @@ impl<'a> Validator<'a> {
             } => {
                 let argument_type =
                     self.value_type_or_error(function, *argument, anchor, "cast argument")?;
-                self.validate_cast_legality(*operator, argument_type, *to_type, anchor)?;
+                let to_type = self.require_type_reference(*to_type, anchor, "cast result type")?;
+                self.validate_cast_legality(*operator, argument_type, to_type, anchor)?;
             }
             Instruction::Intrinsic {
                 destination,
@@ -1691,8 +1812,10 @@ impl<'a> Validator<'a> {
                 )?;
             }
             Instruction::Call { call, .. } => {
-                self.ensure_node_type(NodeType::Type, call.signature.id, anchor)?;
-                if !matches!(self.tree.get(call.signature), Type::FunctionPointer { .. }) {
+                let signature =
+                    self.require_type_reference(call.signature, anchor, "call signature")?;
+                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+                if !matches!(self.tree.get(signature), Type::FunctionPointer { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -1700,9 +1823,11 @@ impl<'a> Validator<'a> {
                 }
             }
             Instruction::CallIndirect { call, .. } => {
-                self.ensure_node_type(NodeType::Type, call.signature.id, anchor)?;
+                let signature =
+                    self.require_type_reference(call.signature, anchor, "call signature")?;
+                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
                 if !matches!(
-                    self.tree.get(call.signature),
+                    self.tree.get(signature),
                     Type::FunctionPointer { .. } | Type::Closure { .. }
                 ) {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1721,9 +1846,13 @@ impl<'a> Validator<'a> {
                 call,
                 ..
             } => {
+                let declaring_type =
+                    self.require_type_reference(*declaring_type, anchor, "call declaring type")?;
+                let signature =
+                    self.require_type_reference(call.signature, anchor, "call signature")?;
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
-                self.ensure_node_type(NodeType::Type, call.signature.id, anchor)?;
-                if !matches!(self.tree.get(call.signature), Type::FunctionPointer { .. }) {
+                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+                if !matches!(self.tree.get(signature), Type::FunctionPointer { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -1740,9 +1869,9 @@ impl<'a> Validator<'a> {
     fn validate_intrinsic_operation(
         &self,
         function: &Function,
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         intrinsic: Intrinsic,
-        arguments: &[Value],
+        arguments: &[ValueReference],
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         match intrinsic {
@@ -1762,8 +1891,8 @@ impl<'a> Validator<'a> {
     fn validate_addr_space_cast_intrinsic(
         &self,
         function: &Function,
-        destination: Option<Value>,
-        arguments: &[Value],
+        destination: Option<ValueReference>,
+        arguments: &[ValueReference],
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         // arity and destination
@@ -1852,8 +1981,8 @@ impl<'a> Validator<'a> {
     fn validate_ptr_offset_from_intrinsic(
         &self,
         function: &Function,
-        destination: Option<Value>,
-        arguments: &[Value],
+        destination: Option<ValueReference>,
+        arguments: &[ValueReference],
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         // arity and destination
@@ -1917,7 +2046,13 @@ impl<'a> Validator<'a> {
                     });
                 };
 
-                Ok(self.tree.get(*field_id).ty)
+                self.concrete_type_reference(self.tree.get(*field_id).ty)
+                    .ok_or_else(|| {
+                        self.metadata_error(
+                            anchor,
+                            format!("{operation} field type is not concrete"),
+                        )
+                    })
             }
             Type::Tuple { elements, .. } => {
                 let Some(element_type) = elements.get(index) else {
@@ -1930,21 +2065,31 @@ impl<'a> Validator<'a> {
                     });
                 };
 
-                Ok(*element_type)
+                self.concrete_type_reference(*element_type).ok_or_else(|| {
+                    self.metadata_error(
+                        anchor,
+                        format!("{operation} tuple element type is not concrete"),
+                    )
+                })
             }
             Type::Closure { .. } => Err(ValidateError::MetadataInvariantViolation {
-                message: format!("{operation} does not support closure"),
+                message: format!("{operation} does not support callable"),
                 anchor,
             }),
             Type::Reference { pointee, .. } => {
-                let pointee_type = *pointee;
+                let Some(pointee_type) = self.concrete_type_reference(*pointee) else {
+                    return Err(self.metadata_error(
+                        anchor,
+                        format!("{operation} pointee type is not concrete"),
+                    ));
+                };
                 let pointee = self.tree.get(pointee_type);
 
                 match pointee {
                     Type::Struct { .. } | Type::Tuple { .. } => self
                         .field_type_for_projection_target(pointee_type, index, anchor, operation),
                     Type::Closure { .. } => Err(ValidateError::MetadataInvariantViolation {
-                        message: format!("{operation} does not support closure"),
+                        message: format!("{operation} does not support callable"),
                         anchor,
                     }),
                     _ if index == 0 => Ok(pointee_type),
@@ -1982,12 +2127,15 @@ impl<'a> Validator<'a> {
     /// Resolve one projected element type if the type supports indexing.
     fn array_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
         match self.tree.get(type_id) {
-            Type::Array { element, .. } => Some(*element),
-            Type::Reference { pointee, .. } => match self.tree.get(*pointee) {
-                Type::Array { element, .. } => Some(*element),
-                _ => Some(*pointee),
+            Type::Array { element, .. } => self.concrete_type_reference(*element),
+            Type::Reference { pointee, .. } => match self.concrete_type_reference(*pointee) {
+                Some(pointee) => match self.tree.get(pointee) {
+                    Type::Array { element, .. } => self.concrete_type_reference(*element),
+                    _ => Some(pointee),
+                },
+                None => None,
             },
-            Type::TensorReference { element, .. } => Some(*element),
+            Type::TensorReference { element, .. } => self.concrete_type_reference(*element),
             _ => None,
         }
     }
@@ -2032,7 +2180,7 @@ impl<'a> Validator<'a> {
     /// Resolve one reference pointee type.
     fn reference_pointee_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
         match self.tree.get(type_id) {
-            Type::Reference { pointee, .. } => Some(*pointee),
+            Type::Reference { pointee, .. } => self.concrete_type_reference(*pointee),
             _ => None,
         }
     }
@@ -2048,14 +2196,22 @@ impl<'a> Validator<'a> {
                 shape,
                 layout,
                 ..
-            } => Some((*element, shape, layout)),
+            } => Some((self.concrete_type_reference(*element)?, shape, layout)),
             Type::TensorReference {
                 element,
                 shape,
                 layout,
                 ..
-            } => Some((*element, shape, layout)),
+            } => Some((self.concrete_type_reference(*element)?, shape, layout)),
             _ => None,
+        }
+    }
+
+    /// Resolve one concrete nested type reference.
+    fn concrete_type_reference(&self, ty: TypeReference) -> Option<LocalNodeId<Type>> {
+        match ty {
+            TypeReference::Type(ty) => Some(ty),
+            TypeReference::Missing | TypeReference::Error => None,
         }
     }
 
@@ -2124,7 +2280,15 @@ impl<'a> Validator<'a> {
                     && left_space == right_space
                     && left_mutability == right_mutability
                     && left_nullable == right_nullable
-                    && self.types_equivalent_inner(*left_pointee, *right_pointee, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_pointee),
+                        self.concrete_type_reference(*right_pointee),
+                    ) {
+                        (Some(left_pointee), Some(right_pointee)) => {
+                            self.types_equivalent_inner(left_pointee, right_pointee, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::Array {
@@ -2140,7 +2304,15 @@ impl<'a> Validator<'a> {
             ) => {
                 left_length == right_length
                     && left_copyability == right_copyability
-                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_element),
+                        self.concrete_type_reference(*right_element),
+                    ) {
+                        (Some(left_element), Some(right_element)) => {
+                            self.types_equivalent_inner(left_element, right_element, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::Tuple {
@@ -2155,8 +2327,14 @@ impl<'a> Validator<'a> {
                 left_copyability == right_copyability
                     && left_elements.len() == right_elements.len()
                     && left_elements.iter().zip(right_elements).all(
-                        |(left_element, right_element)| {
-                            self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+                        |(left_element, right_element)| match (
+                            self.concrete_type_reference(*left_element),
+                            self.concrete_type_reference(*right_element),
+                        ) {
+                            (Some(left_element), Some(right_element)) => {
+                                self.types_equivalent_inner(left_element, right_element, seen_pairs)
+                            }
+                            _ => false,
                         },
                     )
             }
@@ -2180,11 +2358,18 @@ impl<'a> Validator<'a> {
                             let right_field = self.tree.get(*right_field);
 
                             left_field.name == right_field.name
-                                && self.types_equivalent_inner(
-                                    left_field.ty,
-                                    right_field.ty,
-                                    seen_pairs,
-                                )
+                                && match (
+                                    self.concrete_type_reference(left_field.ty),
+                                    self.concrete_type_reference(right_field.ty),
+                                ) {
+                                    (Some(left_field_type), Some(right_field_type)) => self
+                                        .types_equivalent_inner(
+                                            left_field_type,
+                                            right_field_type,
+                                            seen_pairs,
+                                        ),
+                                    _ => false,
+                                }
                         })
             }
             (
@@ -2198,7 +2383,15 @@ impl<'a> Validator<'a> {
                 },
             ) => {
                 left_copyability == right_copyability
-                    && self.types_equivalent_inner(*left_inner, *right_inner, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_inner),
+                        self.concrete_type_reference(*right_inner),
+                    ) {
+                        (Some(left_inner), Some(right_inner)) => {
+                            self.types_equivalent_inner(left_inner, right_inner, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::Vector {
@@ -2214,7 +2407,15 @@ impl<'a> Validator<'a> {
             ) => {
                 left_lanes == right_lanes
                     && left_copyability == right_copyability
-                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_element),
+                        self.concrete_type_reference(*right_element),
+                    ) {
+                        (Some(left_element), Some(right_element)) => {
+                            self.types_equivalent_inner(left_element, right_element, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::Tensor {
@@ -2233,7 +2434,15 @@ impl<'a> Validator<'a> {
                 left_shape == right_shape
                     && left_layout == right_layout
                     && left_copyability == right_copyability
-                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_element),
+                        self.concrete_type_reference(*right_element),
+                    ) {
+                        (Some(left_element), Some(right_element)) => {
+                            self.types_equivalent_inner(left_element, right_element, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::TensorReference {
@@ -2261,7 +2470,15 @@ impl<'a> Validator<'a> {
                     && left_shape == right_shape
                     && left_layout == right_layout
                     && left_nullable == right_nullable
-                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_element),
+                        self.concrete_type_reference(*right_element),
+                    ) {
+                        (Some(left_element), Some(right_element)) => {
+                            self.types_equivalent_inner(left_element, right_element, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::FunctionPointer {
@@ -2275,15 +2492,28 @@ impl<'a> Validator<'a> {
             ) => {
                 left_parameters.len() == right_parameters.len()
                     && left_parameters.iter().zip(right_parameters).all(
-                        |(left_parameter, right_parameter)| {
-                            self.types_equivalent_inner(
-                                *left_parameter,
-                                *right_parameter,
-                                seen_pairs,
-                            )
+                        |(left_parameter, right_parameter)| match (
+                            self.concrete_type_reference(*left_parameter),
+                            self.concrete_type_reference(*right_parameter),
+                        ) {
+                            (Some(left_parameter), Some(right_parameter)) => self
+                                .types_equivalent_inner(
+                                    left_parameter,
+                                    right_parameter,
+                                    seen_pairs,
+                                ),
+                            _ => false,
                         },
                     )
-                    && self.types_equivalent_inner(*left_result, *right_result, seen_pairs)
+                    && match (
+                        self.concrete_type_reference(*left_result),
+                        self.concrete_type_reference(*right_result),
+                    ) {
+                        (Some(left_result), Some(right_result)) => {
+                            self.types_equivalent_inner(left_result, right_result, seen_pairs)
+                        }
+                        _ => false,
+                    }
             }
             (
                 Type::Closure {
@@ -2292,7 +2522,15 @@ impl<'a> Validator<'a> {
                 Type::Closure {
                     signature: right_signature,
                 },
-            ) => self.types_equivalent_inner(*left_signature, *right_signature, seen_pairs),
+            ) => match (
+                self.concrete_type_reference(*left_signature),
+                self.concrete_type_reference(*right_signature),
+            ) {
+                (Some(left_signature), Some(right_signature)) => {
+                    self.types_equivalent_inner(left_signature, right_signature, seen_pairs)
+                }
+                _ => false,
+            },
             _ => false,
         }
     }
@@ -2319,13 +2557,22 @@ impl<'a> Validator<'a> {
             });
         };
 
-        if let Some(expected) = expected_pointee
-            && !self.types_equivalent(*pointee, expected)
-        {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type mismatches pointee".to_string(),
-                anchor,
-            });
+        if let Some(expected) = expected_pointee {
+            let Some(pointee) = self.concrete_type_reference(*pointee) else {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "pointer-producing instruction result pointee is not concrete"
+                        .to_string(),
+                    anchor,
+                });
+            };
+
+            if !self.types_equivalent(pointee, expected) {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "pointer-producing instruction result type mismatches pointee"
+                        .to_string(),
+                    anchor,
+                });
+            }
         }
 
         if let Some(expected) = expected_kind
@@ -2538,7 +2785,10 @@ impl<'a> Validator<'a> {
         loop {
             match self.tree.get(type_id) {
                 Type::Newtype { inner, .. } => {
-                    type_id = *inner;
+                    let Some(inner) = self.concrete_type_reference(*inner) else {
+                        return type_id;
+                    };
+                    type_id = inner;
                 }
                 _ => return type_id,
             }

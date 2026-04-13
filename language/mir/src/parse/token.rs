@@ -83,10 +83,6 @@ pub enum TokenType {
     TensorReferenceNullable,
     /// `addressSpace`
     AddressSpace,
-    /// `fn`
-    Fn,
-    /// `closure`
-    Closure,
     /// `struct`
     Struct,
     /// `newtype`
@@ -142,11 +138,11 @@ pub enum TokenType {
     /// Float literal with type suffix: `3.14float32`
     FloatLiteral,
     /// Boolean literal: `true`, `false`
-    BoolLiteral,
+    BooleanLiteral,
     /// String literal: `"hello"`
     StringLiteral,
     /// Character literal: `'a'`
-    CharLiteral,
+    CharacterLiteral,
     /// Type name: `int32`, `uint64`, `float32`, etc.
     TypeName,
 

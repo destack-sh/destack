@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::{
     AddressSpace, AstNodeKey, DirNodeKey, Instruction, InterfaceDispatchEntry, ItabEntry,
     LayoutKind, ManagedReferenceRepresentation, Mutability, NodeType, ProvenanceAnchor,
-    ProvenanceId, ProvenanceKey, ProvenanceRecord, ReferenceKind, Type,
+    ProvenanceId, ProvenanceKey, ProvenanceRecord, ReferenceKind, Type, TypeReference,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -303,7 +303,7 @@ impl<'a> Validator<'a> {
 
                     for (field_id, layout_field) in fields.iter().zip(layout.fields.iter()) {
                         let field = self.tree.get(*field_id);
-                        if field.ty != layout_field.ty {
+                        if field.ty != TypeReference::Type(layout_field.ty) {
                             return Err(ValidateError::MetadataInvariantViolation {
                                 message: "struct field type does not match layout field type"
                                     .to_string(),
@@ -321,8 +321,15 @@ impl<'a> Validator<'a> {
                         });
                     }
 
+                    let TypeReference::Type(signature) = *signature else {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: "function value layout signature must be concrete".to_string(),
+                            anchor: ValidateAnchor::node(type_id),
+                        });
+                    };
+
                     let environment = self.tree.function_value_environment_type();
-                    if layout.fields[0].ty != *signature || layout.fields[1].ty != environment {
+                    if layout.fields[0].ty != signature || layout.fields[1].ty != environment {
                         return Err(ValidateError::MetadataInvariantViolation {
                             message: "function value layout field types do not match signature and environment"
                                 .to_string(),

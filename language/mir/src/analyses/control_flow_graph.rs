@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, Function, LocalNodeId, NodeTree};
+use crate::{Block, BlockReference, Function, LocalNodeId, NodeTree};
 
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
@@ -25,6 +25,10 @@ impl ControlFlowGraph {
             let terminator = tree.get(block.terminator);
 
             for successor in terminator.successors() {
+                let BlockReference::Block(successor) = successor else {
+                    continue;
+                };
+
                 if let Some(block_predecessors) = predecessors.get_mut(&successor) {
                     block_predecessors.push(block_id);
                 }

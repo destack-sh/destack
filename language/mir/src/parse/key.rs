@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::{
     AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type,
+    TensorDimension, TensorLayout, Type, TypeReference,
 };
 
 /// Interning key for struct fields.
@@ -12,7 +12,7 @@ pub(super) struct FieldKey {
     /// Optional field name.
     name: Option<StringId>,
     /// Field type.
-    ty: LocalNodeId<Type>,
+    ty: TypeReference,
     /// Attributes attached to the field.
     attributes: Vec<Attribute>,
 }
@@ -53,18 +53,18 @@ pub(super) enum TypeKey {
         kind: ReferenceKind,
         address_space: AddressSpace,
         mutability: Mutability,
-        pointee: LocalNodeId<Type>,
+        pointee: TypeReference,
         is_nullable: bool,
     },
     /// Fixed-length array.
     Array {
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         length: u64,
         copyability: Copyability,
     },
     /// Tuple of heterogeneous elements.
     Tuple {
-        elements: Vec<LocalNodeId<Type>>,
+        elements: Vec<TypeReference>,
         copyability: Copyability,
     },
     /// Struct with named or positional fields.
@@ -74,18 +74,18 @@ pub(super) enum TypeKey {
     },
     /// Nominal newtype wrapper.
     Newtype {
-        inner: LocalNodeId<Type>,
+        inner: TypeReference,
         copyability: Copyability,
     },
     /// Fixed-width SIMD vector.
     Vector {
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         lanes: u32,
         copyability: Copyability,
     },
     /// Tensor value type.
     Tensor {
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         shape: Vec<TensorDimension>,
         layout: TensorLayout,
         copyability: Copyability,
@@ -95,18 +95,18 @@ pub(super) enum TypeKey {
         kind: ReferenceKind,
         address_space: AddressSpace,
         mutability: Mutability,
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         shape: Vec<TensorDimension>,
         layout: TensorLayout,
         is_nullable: bool,
     },
     /// Function pointer signature.
     FunctionPointer {
-        parameters: Vec<LocalNodeId<Type>>,
-        result: LocalNodeId<Type>,
+        parameters: Vec<TypeReference>,
+        result: TypeReference,
     },
     /// Callable closure value.
-    Closure { signature: LocalNodeId<Type> },
+    Closure { signature: TypeReference },
 }
 
 impl TypeKey {

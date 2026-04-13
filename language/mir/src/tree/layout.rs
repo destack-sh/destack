@@ -76,7 +76,7 @@ pub(crate) fn compute_type_layout(
 
         Type::Closure { signature } => {
             let environment = tree.function_value_environment_type();
-            let signature = require_type_reference(*signature, "closure signature");
+            let signature = require_type_reference(*signature, "callable signature");
             compute_tuple_layout(tree, &[signature, environment], pointer_bytes)
         }
 

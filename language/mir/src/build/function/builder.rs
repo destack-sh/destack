@@ -4,8 +4,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::build::Variable;
 use crate::{
     AllocationMode, AllocationSize, Block, CallBehavior, ExecutionModel, ExecutionStage, Function,
-    Instruction, Lifetime, Linkage, LocalNodeId, MemoryEffect, NodeTree, PointerAttribute, Type,
-    TypedValue, Value, finalize_function_names,
+    Instruction, Lifetime, Linkage, LocalNodeId, MemoryEffect, NodeTree, Parameter,
+    PointerAttribute, Type, TypeReference, Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -81,15 +81,18 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Self {
         // create parameter values
         let mut next_value_id = 0u32;
-        let parameters: Vec<TypedValue> = parameter_types
+        let parameters: Vec<Parameter> = parameter_types
             .iter()
             .map(|&ty| {
                 let value = Value::new(next_value_id);
                 next_value_id += 1;
-                TypedValue::new(value, ty)
+                Parameter {
+                    value: ValueReference::Value(value),
+                    ty: TypeReference::Type(ty),
+                }
             })
             .collect();
-        let value_types = parameters.iter().map(|param| param.ty).collect();
+        let (_, value_types) = Function::parameter_state(&parameters);
 
         // blank function (entry will be set in finish())
         let function = Function {
@@ -98,7 +101,7 @@ impl<'a> FunctionBuilder<'a> {
             parameter_names: vec![None; parameter_types.len()],
             value_names: vec![None; next_value_id as usize],
             value_types,
-            return_type,
+            return_type: TypeReference::Type(return_type),
             return_lifetime: Lifetime::Inferred,
             memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),

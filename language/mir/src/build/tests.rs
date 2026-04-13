@@ -915,7 +915,7 @@ fn test_build_stack_alloc() {
         kind: ReferenceKind::Raw,
         address_space: AddressSpace::Stack,
         mutability: Mutability::Immutable,
-        pointee: i32_type,
+        pointee: i32_type.into(),
         is_nullable: false,
     });
 

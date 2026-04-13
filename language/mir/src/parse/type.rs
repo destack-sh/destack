@@ -48,7 +48,6 @@ impl Parser {
                 | TokenType::Newtype
                 | TokenType::OpenParen
                 | TokenType::OpenBrace
-                | TokenType::Fn
         )
     }
 
@@ -91,7 +90,7 @@ impl Parser {
                         self.eat_token(TokenType::CloseBracket)?;
 
                         type_id = self.intern_type(Type::Array {
-                            element: type_id,
+                            element: type_id.into(),
                             length,
                             copyability: Copyability::default(),
                         });
@@ -135,7 +134,7 @@ impl Parser {
                 })?;
                 self.eat_token(TokenType::GreaterThan)?;
                 Type::Vector {
-                    element,
+                    element: element.into(),
                     lanes,
                     copyability: Copyability::default(),
                 }
@@ -146,56 +145,43 @@ impl Parser {
                 let inner = self.parse_type()?;
                 self.eat_token(TokenType::GreaterThan)?;
                 Type::Newtype {
-                    inner,
+                    inner: inner.into(),
                     copyability: Copyability::default(),
                 }
             }
             TokenType::OpenParen => {
                 self.bump();
-                let mut elements = Vec::new();
-                while !self.peek_token(TokenType::CloseParen) {
-                    elements.push(self.parse_type()?);
-                    if !self.eat_token_maybe(TokenType::Comma) {
-                        break;
-                    }
-                }
-                self.eat_token(TokenType::CloseParen)?;
-                Type::Tuple {
-                    elements,
-                    copyability: Copyability::default(),
-                }
-            }
-            TokenType::Fn => {
-                self.bump();
-                self.eat_token(TokenType::OpenParen)?;
                 let mut parameters = Vec::new();
                 while !self.peek_token(TokenType::CloseParen) {
-                    parameters.push(self.parse_type()?);
+                    parameters.push(self.parse_type()?.into());
                     if !self.eat_token_maybe(TokenType::Comma) {
                         break;
                     }
                 }
                 self.eat_token(TokenType::CloseParen)?;
-                self.eat_token(TokenType::Arrow)?;
-                let result = self.parse_type()?;
-                Type::FunctionPointer { parameters, result }
-            }
-            TokenType::Closure => {
-                self.bump();
-                self.eat_token(TokenType::OpenParen)?;
-                let mut parameters = Vec::new();
-                while !self.peek_token(TokenType::CloseParen) {
-                    parameters.push(self.parse_type()?);
-                    if !self.eat_token_maybe(TokenType::Comma) {
-                        break;
+
+                if self.eat_token_maybe(TokenType::Arrow) {
+                    let result = self.parse_type()?;
+                    Type::FunctionPointer {
+                        parameters,
+                        result: result.into(),
+                    }
+                } else if self.eat_token_maybe(TokenType::FatArrow) {
+                    let result = self.parse_type()?;
+                    let signature = self.intern_type(Type::FunctionPointer {
+                        parameters,
+                        result: result.into(),
+                    });
+                    self.tree.ensure_function_value_environment_type();
+                    Type::Closure {
+                        signature: signature.into(),
+                    }
+                } else {
+                    Type::Tuple {
+                        elements: parameters,
+                        copyability: Copyability::default(),
                     }
                 }
-                self.eat_token(TokenType::CloseParen)?;
-                self.eat_token(TokenType::Arrow)?;
-                let result = self.parse_type()?;
-                let signature = self.intern_type(Type::FunctionPointer { parameters, result });
-                self.tree.ensure_function_value_environment_type();
-                Type::Closure { signature }
             }
             TokenType::OpenBrace => {
                 let (type_id, _, _) = self.parse_struct_type()?;
@@ -218,7 +204,7 @@ impl Parser {
             self.eat_token(TokenType::CloseBracket)?;
 
             type_id = self.intern_type(Type::Array {
-                element: type_id,
+                element: type_id.into(),
                 length,
                 copyability: Copyability::default(),
             });
@@ -285,7 +271,10 @@ impl Parser {
             let (ty, type_span) = self.parse_type_part()?;
 
             // field node
-            let field = Field { name, ty };
+            let field = Field {
+                name,
+                ty: ty.into(),
+            };
             fields.push(self.intern_field(field, attributes));
 
             // field delimiter
@@ -345,7 +334,7 @@ impl Parser {
             kind,
             address_space,
             mutability,
-            pointee,
+            pointee: pointee.into(),
             is_nullable,
         })
     }
@@ -364,7 +353,7 @@ impl Parser {
             kind,
             address_space,
             mutability,
-            element,
+            element: element.into(),
             shape,
             layout,
             is_nullable,
@@ -382,7 +371,7 @@ impl Parser {
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Tensor {
-            element,
+            element: element.into(),
             shape,
             layout,
             copyability: Copyability::default(),

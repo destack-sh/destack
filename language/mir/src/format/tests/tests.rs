@@ -35,7 +35,7 @@ pub(crate) fn format_tree_with_options(
 
 /// Assert formatter output and print a diff on mismatch.
 #[track_caller]
-pub(crate) fn assert_format_output_eq(expected: impl AsRef<str>, actual: impl AsRef<str>) {
+pub(crate) fn assert_output_eq(expected: impl AsRef<str>, actual: impl AsRef<str>) {
     let expected = expected.as_ref();
     let actual = actual.as_ref();
 
@@ -46,29 +46,33 @@ pub(crate) fn assert_format_output_eq(expected: impl AsRef<str>, actual: impl As
     }
 }
 
-/// Assert canonical formatter output and second pass stability.
+/// Assert canonical formatter output and formatter idempotence.
 #[track_caller]
-pub(crate) fn assert_format_with_options(input: &str, expected: &str, options: MirFormatOptions) {
+pub(crate) fn assert_format_eq_with_options(
+    input: &str,
+    expected: &str,
+    options: MirFormatOptions,
+) {
     // normalize the fixture boundary for stable assertions
     let expected = normalize_fixture_text(expected);
 
     // check the first formatter pass against the expected output
     let first_output = format_fixture_with_options(input, options);
-    assert_format_output_eq(expected, &first_output);
+    assert_output_eq(expected, &first_output);
 
     // check formatter idempotence on the canonical output
     let second_output = format_fixture_with_options(&first_output, options);
-    assert_format_output_eq(&first_output, &second_output);
+    assert_output_eq(&first_output, &second_output);
 }
 
-/// Assert canonical formatter output and second pass stability.
+/// Assert canonical formatter output and formatter idempotence.
 #[track_caller]
-pub(crate) fn assert_format_to(input: &str, expected: &str) {
-    assert_format_with_options(input, expected, MirFormatOptions::default());
+pub(crate) fn assert_format_eq(input: &str, expected: &str) {
+    assert_format_eq_with_options(input, expected, MirFormatOptions::default());
 }
 
-/// Assert formatter stability for one already canonical fixture.
+/// Assert canonical formatter output for one already canonical fixture.
 #[track_caller]
 pub(crate) fn assert_format(input: &str) {
-    assert_format_to(input, input);
+    assert_format_eq(input, input);
 }

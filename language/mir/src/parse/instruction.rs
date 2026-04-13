@@ -3,11 +3,11 @@ use std::str::FromStr;
 use destack_source::{NodeSpanType, Span};
 
 use crate::{
-    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Function,
-    Instruction, InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope,
-    MemorySemantics, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Instruction,
+    InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics,
+    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, Value,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, ValueReference,
     VectorConvertMode, VectorReduceOperator, VtableSlotId,
 };
 
@@ -23,7 +23,7 @@ impl Parser {
         let instruction_start = self.pos();
 
         // optional destination
-        let mut destination = None;
+        let mut destination: Option<ValueReference> = None;
         let mut destination_type = None;
         let mut destination_span = None;
         let mut destination_type_span = None;
@@ -32,7 +32,7 @@ impl Parser {
                 self.parse_typed_destination_parts()?;
             self.record_value_type(parsed_destination, parsed_type);
             self.eat_token(TokenType::Equals)?;
-            destination = Some(parsed_destination);
+            destination = Some(parsed_destination.into());
             destination_type = Some(parsed_type);
             destination_span = Some(parsed_span);
             destination_type_span = Some(parsed_type_span);
@@ -46,15 +46,18 @@ impl Parser {
             if let Some(token) = self.peek()
                 && (matches!(
                     token.ty,
-                    TokenType::BoolLiteral
+                    TokenType::BooleanLiteral
                         | TokenType::IntLiteral
                         | TokenType::FloatLiteral
-                        | TokenType::CharLiteral
+                        | TokenType::CharacterLiteral
                 ) || (token.ty == TokenType::Identifier
                     && self.tree.source_text(token.span) == "null"))
             {
                 let value = self.parse_constant_for_type(destination_type)?;
-                let instruction = Instruction::Const { destination, value };
+                let instruction = Instruction::Const {
+                    destination: destination.into(),
+                    value,
+                };
                 let id = self.tree.insert(instruction);
                 self.apply_instruction_spans(
                     id,
@@ -304,7 +307,7 @@ impl Parser {
                             destination,
                             operator,
                             argument,
-                            to_type,
+                            to_type: to_type.into(),
                         }
                     }
 
@@ -333,7 +336,7 @@ impl Parser {
                         Instruction::LocalAddr {
                             destination,
                             local,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                         }
                     }
 
@@ -343,7 +346,7 @@ impl Parser {
                         Instruction::GlobalAddr {
                             destination,
                             global,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                         }
                     }
                     "global.const" => {
@@ -378,7 +381,7 @@ impl Parser {
                         Instruction::Load {
                             destination,
                             pointer,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                         }
                     }
 
@@ -401,7 +404,7 @@ impl Parser {
                             destination,
                             aggregate,
                             index,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                         }
                     }
                     "field.set" => {
@@ -435,7 +438,7 @@ impl Parser {
                             destination,
                             array,
                             index,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                         }
                     }
                     "element.set" => {
@@ -457,7 +460,7 @@ impl Parser {
                         let fields = self.tree.add_arguments(&fields);
                         Instruction::Struct {
                             destination,
-                            ty,
+                            ty: ty.into(),
                             fields,
                         }
                     }
@@ -467,7 +470,7 @@ impl Parser {
                         let elements = self.tree.add_arguments(&elements);
                         Instruction::Tuple {
                             destination,
-                            ty,
+                            ty: ty.into(),
                             elements,
                         }
                     }
@@ -477,7 +480,7 @@ impl Parser {
                         let elements = self.tree.add_arguments(&elements);
                         Instruction::Array {
                             destination,
-                            ty,
+                            ty: ty.into(),
                             elements,
                         }
                     }
@@ -865,8 +868,8 @@ impl Parser {
                         let layout = self.parse_type()?;
                         Instruction::ManagedAlloc {
                             destination,
-                            layout,
-                            result_type: destination_type,
+                            layout: layout.into(),
+                            result_type: destination_type.into(),
                         }
                     }
                     "managed.allocArray" => {
@@ -875,25 +878,25 @@ impl Parser {
                         let length = self.parse_value()?;
                         Instruction::ManagedAllocArray {
                             destination,
-                            element,
+                            element: element.into(),
                             length,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                         }
                     }
                     "raw.alloc" => {
                         let layout = self.parse_type()?;
                         Instruction::RawAlloc {
                             destination,
-                            layout,
-                            result_type: destination_type,
+                            layout: layout.into(),
+                            result_type: destination_type.into(),
                         }
                     }
                     "stack.alloc" => {
                         let layout = self.parse_type()?;
                         Instruction::StackAlloc {
                             destination,
-                            layout,
-                            result_type: destination_type,
+                            layout: layout.into(),
+                            result_type: destination_type.into(),
                         }
                     }
 
@@ -905,7 +908,7 @@ impl Parser {
                         Instruction::AtomicLoad {
                             destination,
                             pointer,
-                            result_type: destination_type,
+                            result_type: destination_type.into(),
                             ordering,
                             scope,
                             memory_scope,
@@ -1001,7 +1004,7 @@ impl Parser {
     }
 
     /// Parse a bracketed list of values and append each element as one source segment.
-    fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<Value>> {
+    fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<ValueReference>> {
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
@@ -1020,7 +1023,7 @@ impl Parser {
     fn parse_value_bracket_list_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<Vec<Value>> {
+    ) -> ParseResult<Vec<ValueReference>> {
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
@@ -1036,7 +1039,7 @@ impl Parser {
     }
 
     /// Parse a parenthesized list of values.
-    fn parse_value_paren_list(&mut self) -> ParseResult<Vec<Value>> {
+    fn parse_value_paren_list(&mut self) -> ParseResult<Vec<ValueReference>> {
         self.eat_token(TokenType::OpenParen)?;
         let mut values = Vec::new();
 
@@ -1127,7 +1130,7 @@ impl Parser {
         let mut values = Vec::new();
 
         while !self.peek_token(TokenType::CloseParen) {
-            let token = self.eat_token(TokenType::BoolLiteral)?;
+            let token = self.eat_token(TokenType::BooleanLiteral)?;
             let value = self.tree.source_text(token.span) == "true";
             values.push(value);
             if !self.eat_token_maybe(TokenType::Comma) {
@@ -1140,13 +1143,13 @@ impl Parser {
     }
 
     /// Parse one named value group like `name(v0, v1)`.
-    fn parse_named_value_group(&mut self, name: &str) -> ParseResult<Vec<Value>> {
+    fn parse_named_value_group(&mut self, name: &str) -> ParseResult<Vec<ValueReference>> {
         self.eat_named_group(name)?;
         self.parse_value_paren_list()
     }
 
     /// Parse one named single value group like `name(v0)`.
-    fn parse_named_single_value_group(&mut self, name: &str) -> ParseResult<Value> {
+    fn parse_named_single_value_group(&mut self, name: &str) -> ParseResult<ValueReference> {
         let values = self.parse_named_value_group(name)?;
         let [value] = values.as_slice() else {
             return Err(ParseError::invalid(name, self.pos()));
@@ -1623,7 +1626,11 @@ impl Parser {
     /// Parse one direct call target and arguments.
     pub(super) fn parse_direct_call_target(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>, LocalNodeId<Type>)> {
+    ) -> ParseResult<(
+        crate::FunctionReference,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
+    )> {
         let mut segment_spans = Vec::new();
         self.parse_direct_call_target_segments(&mut segment_spans)
     }
@@ -1632,7 +1639,11 @@ impl Parser {
     pub(super) fn parse_direct_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>, LocalNodeId<Type>)> {
+    ) -> ParseResult<(
+        crate::FunctionReference,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
+    )> {
         let function = self.parse_function_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
@@ -1643,11 +1654,11 @@ impl Parser {
     pub(super) fn parse_virtual_call_target(
         &mut self,
     ) -> ParseResult<(
-        Value,
-        LocalNodeId<Type>,
+        crate::ValueReference,
+        crate::TypeReference,
         VtableSlotId,
-        Vec<Value>,
-        LocalNodeId<Type>,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
     )> {
         let mut segment_spans = Vec::new();
         self.parse_virtual_call_target_segments(&mut segment_spans)
@@ -1658,11 +1669,11 @@ impl Parser {
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(
-        Value,
-        LocalNodeId<Type>,
+        crate::ValueReference,
+        crate::TypeReference,
         VtableSlotId,
-        Vec<Value>,
-        LocalNodeId<Type>,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
@@ -1672,18 +1683,24 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, declaring_type, slot_id, arguments, signature))
+        Ok((
+            receiver,
+            declaring_type.into(),
+            slot_id,
+            arguments,
+            signature,
+        ))
     }
 
     /// Parse one interface call target and signature.
     pub(super) fn parse_interface_call_target(
         &mut self,
     ) -> ParseResult<(
-        Value,
-        LocalNodeId<Type>,
+        crate::ValueReference,
+        crate::TypeReference,
         InterfaceSlotId,
-        Vec<Value>,
-        LocalNodeId<Type>,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
     )> {
         let mut segment_spans = Vec::new();
         self.parse_interface_call_target_segments(&mut segment_spans)
@@ -1694,11 +1711,11 @@ impl Parser {
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(
-        Value,
-        LocalNodeId<Type>,
+        crate::ValueReference,
+        crate::TypeReference,
         InterfaceSlotId,
-        Vec<Value>,
-        LocalNodeId<Type>,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
@@ -1708,13 +1725,23 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, declaring_type, slot_id, arguments, signature))
+        Ok((
+            receiver,
+            declaring_type.into(),
+            slot_id,
+            arguments,
+            signature,
+        ))
     }
 
     /// Parse one indirect call target and signature.
     pub(super) fn parse_indirect_call_target(
         &mut self,
-    ) -> ParseResult<(Value, Vec<Value>, LocalNodeId<Type>)> {
+    ) -> ParseResult<(
+        crate::ValueReference,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
+    )> {
         let mut segment_spans = Vec::new();
         self.parse_indirect_call_target_segments(&mut segment_spans)
     }
@@ -1723,7 +1750,11 @@ impl Parser {
     pub(super) fn parse_indirect_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(Value, Vec<Value>, LocalNodeId<Type>)> {
+    ) -> ParseResult<(
+        crate::ValueReference,
+        Vec<crate::ValueReference>,
+        crate::TypeReference,
+    )> {
         let callee = self.parse_value_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
@@ -1735,14 +1766,14 @@ impl Parser {
     fn parse_required_call_signature_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<crate::TypeReference> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
         self.eat_token(TokenType::OpenParen)?;
 
         let mut parameters = Vec::new();
         while !self.peek_token(TokenType::CloseParen) {
-            parameters.push(self.parse_type()?);
+            parameters.push(self.parse_type()?.into());
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
@@ -1754,7 +1785,12 @@ impl Parser {
         let signature_span = self.span_from_parse_start(signature_start);
         segment_spans.push(signature_span);
 
-        Ok(self.intern_type(Type::FunctionPointer { parameters, result }))
+        Ok(self
+            .intern_type(Type::FunctionPointer {
+                parameters,
+                result: result.into(),
+            })
+            .into())
     }
 
     /// Parse one atomic ordering, scope, memory scope, and semantics suffix.

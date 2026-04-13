@@ -4,8 +4,23 @@ use destack_fir::write;
 use destack_source::Span;
 
 use crate::{
-    Attribute, AttributeArgs, AttributeValue, MirFormatter, NodeTree, write_comments_before,
+    Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, MirFormatter, NodeTree,
+    write_comments_before,
 };
+
+fn write_attribute_identifier<'a>(
+    identifier: AttributeIdentifier,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    match identifier {
+        AttributeIdentifier::Identifier(identifier) => {
+            let text_value = f.context().strings.get(identifier);
+            write!(f, [text(text_value)])
+        }
+        AttributeIdentifier::Missing => write!(f, [token("<missing>")]),
+        AttributeIdentifier::Error => write!(f, [token("<error>")]),
+    }
+}
 
 /// Write a list of attributes as standalone lines.
 pub(crate) fn write_attributes<'a>(
@@ -78,8 +93,8 @@ pub(crate) fn write_attribute<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     // open the attribute
-    let name = f.context().strings.get(attribute.name);
-    write!(f, [token("@"), text(name)])?;
+    write!(f, [token("@")])?;
+    write_attribute_identifier(attribute.name, f)?;
 
     // format optional arguments
     match &attribute.args {
@@ -107,8 +122,8 @@ pub(crate) fn write_attribute<'a>(
                     write!(f, [token(","), space()])?;
                 }
 
-                let key = f.context().strings.get(pair.key);
-                write!(f, [text(key), token("=")])?;
+                write_attribute_identifier(pair.key, f)?;
+                write!(f, [token("=")])?;
                 write_attribute_value(&pair.value, f)?;
             }
             write!(f, [token(")")])?;
@@ -125,12 +140,9 @@ pub(crate) fn write_attribute_value<'a>(
 ) -> FormatResult<()> {
     // format by value kind
     match value {
-        AttributeValue::Identifier(name) => {
-            let text_value = f.context().strings.get(*name);
-            write!(f, [text(text_value)])
-        }
+        AttributeValue::Identifier(name) => write_attribute_identifier(*name, f),
         AttributeValue::Type(ty) => write!(f, [*ty]),
-        AttributeValue::Integer(value) => write!(f, [text(&value.to_string())]),
+        AttributeValue::Integer(value) => write!(f, [*value]),
         AttributeValue::Float(value) => format_float_literal(*value, f),
         AttributeValue::Boolean(value) => {
             let text_value = if *value { "true" } else { "false" };
@@ -151,6 +163,8 @@ pub(crate) fn write_attribute_value<'a>(
             }
             write!(f, [token("]")])
         }
+        AttributeValue::Missing => write!(f, [token("<missing>")]),
+        AttributeValue::Error => write!(f, [token("<error>")]),
     }
 }
 

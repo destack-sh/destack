@@ -3,11 +3,13 @@ use destack_source::FileId;
 
 use crate::parse::{ParseError, ParseOptions, Parser};
 use crate::{
-    AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Block, Call, CallBehavior,
-    Constant, Copyability, DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation,
-    EffectClass, Field, Function, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
-    Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey, ReferenceKind,
-    SuspendBehavior, Terminator, Type, UnwindBehavior, Value, VtableSlotId,
+    AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
+    AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copyability,
+    DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
+    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
+    LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
+    ReferenceKind, SuspendBehavior, Terminator, Type, TypeReference, UnwindBehavior, Value,
+    ValueReference, VtableSlotId,
 };
 
 use super::Validator;
@@ -26,6 +28,26 @@ fn parse_ok(source: &str) {
         .expect("expected parse success");
 }
 
+/// Wrap one type id as a recoverable type reference.
+fn type_reference(ty: LocalNodeId<Type>) -> TypeReference {
+    TypeReference::Type(ty)
+}
+
+/// Wrap one value as a recoverable value reference.
+fn value_reference(value: Value) -> ValueReference {
+    ValueReference::Value(value)
+}
+
+/// Wrap one local id as a recoverable local reference.
+fn local_reference(local: LocalNodeId<Local>) -> LocalReference {
+    LocalReference::Local(local)
+}
+
+/// Wrap one function id as a recoverable function reference.
+fn function_reference(function: LocalNodeId<Function>) -> FunctionReference {
+    FunctionReference::Function(function)
+}
+
 /// Local references must resolve to locals declared on the function.
 #[test]
 fn test_validate_rejects_local_not_in_function() {
@@ -39,14 +61,14 @@ fn test_validate_rejects_local_not_in_function() {
         is_signed: true,
     });
     let local = tree.insert(Local::new(
-        local_ty,
+        type_reference(local_ty),
         Mutability::Immutable,
         Ownership::Owned,
     ));
 
     let instruction = tree.insert(Instruction::LocalGet {
-        destination: Value::new(0),
-        local,
+        destination: value_reference(Value::new(0)),
+        local: local_reference(local),
     });
     let block = Block {
         name: None,
@@ -56,7 +78,7 @@ fn test_validate_rejects_local_not_in_function() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(ty), block_id);
     function.set_value_type(Value::new(0), local_ty);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
@@ -91,6 +113,32 @@ b1:
         .validate()
         .expect_err("expected validation failure");
     assert_eq!(error.to_string(), "recovered MIR instruction is not valid");
+}
+
+/// Reject recoverable attribute syntax after validation.
+#[test]
+fn test_reject_recovered_attribute_values() {
+    let mut tree = NodeTree::new();
+    let strings = StringPool::new();
+    let type_id = tree.insert_type(Type::Void);
+    let attribute_name = strings.intern("broken");
+
+    tree.set_attributes(
+        type_id,
+        vec![Attribute {
+            name: AttributeIdentifier::identifier(attribute_name),
+            args: AttributeArgs::Value(AttributeValue::Missing),
+        }],
+    );
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate()
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: attribute value is missing"
+    );
 }
 
 /// Reject duplicate value definitions.
@@ -251,7 +299,7 @@ b0:
 
 function caller(v0: ref<int32, managed>): int32 {
 b0(v0: ref<int32, managed>):
-    v1: fn() -> int32 = function.address callee
+    v1: () -> int32 = function.address callee
     return v0
 }"#;
 
@@ -275,7 +323,7 @@ b0:
 
 function caller(v0: ref<int64, managed>): int32 {
 b0(v0: ref<int64, managed>):
-    v1: closure() -> int32 = function.bind callee, v0
+    v1: () => int32 = function.bind callee, v0
     return v0
 }"#;
 
@@ -297,17 +345,17 @@ b0:
     return v1
 }
 
-function caller(v0: ref<int32, managed>): fn() -> int32    {
+function caller(v0: ref<int32, managed>): () -> int32    {
 b0(v0: ref<int32, managed>):
-    v1: closure() -> int32 = function.bind callee, v0
-    v2: fn() -> int32 = field.get v1, 0
+    v1: () => int32 = function.bind callee, v0
+    v2: () -> int32 = field.get v1, 0
     return v2
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: field.get does not support closure"
+        "metadata invariant violation: field.get does not support callable"
     );
 }
 
@@ -455,10 +503,12 @@ fn test_reject_duplicate_instruction_id() {
     });
     let value = Value::new(0);
     let instruction = tree.insert(Instruction::Const {
-        destination: value,
+        destination: value_reference(value),
         value: Constant::int32(1),
     });
-    let assume = tree.insert(Instruction::Assume { condition: value });
+    let assume = tree.insert(Instruction::Assume {
+        condition: value_reference(value),
+    });
     let block = Block {
         name: None,
         parameters: Vec::new(),
@@ -467,7 +517,7 @@ fn test_reject_duplicate_instruction_id() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(ty), block_id);
     function.set_value_type(value, value_ty);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
@@ -503,7 +553,7 @@ fn test_reject_duplicate_terminator_id() {
         terminator: shared_terminator,
     });
 
-    let mut function = Function::local(name, Vec::new(), void_type, entry_block);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_type), entry_block);
     function.blocks = vec![entry_block, second_block];
     function.entry = Some(entry_block);
     let function_id = tree.insert(function);
@@ -529,7 +579,7 @@ fn test_reject_debug_binding_empty_range() {
         is_signed: true,
     });
     let instruction = tree.insert(Instruction::Const {
-        destination: Value::new(0),
+        destination: value_reference(Value::new(0)),
         value: Constant::int32(1),
     });
     let terminator_id = tree.insert(Terminator::Return { value: None });
@@ -540,7 +590,7 @@ fn test_reject_debug_binding_empty_range() {
         terminator: terminator_id,
     });
 
-    let mut function = Function::local(name, Vec::new(), void_type, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_type), block_id);
     function.set_value_type(Value::new(0), value_type);
     function.value_names[0] = Some(pool.intern("value0"));
     function.blocks = vec![block_id];
@@ -619,7 +669,7 @@ fn test_reject_duplicate_local_id() {
         is_signed: true,
     });
     let local = tree.insert(Local::new(
-        local_ty,
+        type_reference(local_ty),
         Mutability::Immutable,
         Ownership::Owned,
     ));
@@ -631,7 +681,7 @@ fn test_reject_duplicate_local_id() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(ty), block_id);
     function.locals = vec![local, local];
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
@@ -661,8 +711,8 @@ fn test_reject_function_return_type_wrong_node_kind() {
         terminator: terminator_id,
     });
 
-    let mut function = Function::local(name, Vec::new(), void_type, block_id);
-    function.return_type = LocalNodeId::new(block_id.id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_type), block_id);
+    function.return_type = type_reference(LocalNodeId::new(block_id.id));
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -696,8 +746,8 @@ fn test_reject_function_environment_type_wrong_node_kind() {
         terminator: terminator_id,
     });
 
-    let mut function = Function::local(name, Vec::new(), void_type, block_id);
-    function.environment = Some(LocalNodeId::new(block_id.id));
+    let mut function = Function::local(name, Vec::new(), type_reference(void_type), block_id);
+    function.environment = Some(type_reference(LocalNodeId::new(block_id.id)));
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -725,15 +775,15 @@ fn test_reject_argument_slice_out_of_bounds() {
     let void_ty = tree.insert_type(Type::Void);
     let signature = tree.insert_type(Type::FunctionPointer {
         parameters: Vec::new(),
-        result: void_ty,
+        result: type_reference(void_ty),
     });
-    let callee = Function::import(name, Vec::new(), void_ty);
+    let callee = Function::import(name, Vec::new(), type_reference(void_ty));
     let callee_id = tree.insert(callee);
 
     let instruction = tree.insert(Instruction::Call {
         destination: None,
-        function: callee_id,
-        call: Call::new(ArgumentSlice::new(0, 1), signature),
+        function: function_reference(callee_id),
+        call: Call::new(ArgumentSlice::new(0, 1), type_reference(signature)),
     });
     let block = Block {
         name: None,
@@ -743,7 +793,7 @@ fn test_reject_argument_slice_out_of_bounds() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -768,17 +818,17 @@ fn test_reject_call_effect_argument_count_mismatch() {
     let void_ty = tree.insert_type(Type::Void);
     let signature = tree.insert_type(Type::FunctionPointer {
         parameters: Vec::new(),
-        result: void_ty,
+        result: type_reference(void_ty),
     });
-    let callee = Function::import(name, Vec::new(), void_ty);
+    let callee = Function::import(name, Vec::new(), type_reference(void_ty));
     let callee_id = tree.insert(callee);
 
     let instruction = tree.insert(Instruction::Call {
         destination: None,
-        function: callee_id,
+        function: function_reference(callee_id),
         call: Call {
             argument_attributes: vec![ArgumentAttribute::default()],
-            ..Call::new(ArgumentSlice::new(0, 0), signature)
+            ..Call::new(ArgumentSlice::new(0, 0), type_reference(signature))
         },
     });
     let block = Block {
@@ -789,7 +839,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -814,9 +864,9 @@ fn test_reject_pure_effect_with_suspend() {
     let void_ty = tree.insert_type(Type::Void);
     let signature = tree.insert_type(Type::FunctionPointer {
         parameters: Vec::new(),
-        result: void_ty,
+        result: type_reference(void_ty),
     });
-    let callee = Function::import(name, Vec::new(), void_ty);
+    let callee = Function::import(name, Vec::new(), type_reference(void_ty));
     let callee_id = tree.insert(callee);
 
     let behavior = CallBehavior {
@@ -826,10 +876,10 @@ fn test_reject_pure_effect_with_suspend() {
     };
     let instruction = tree.insert(Instruction::Call {
         destination: None,
-        function: callee_id,
+        function: function_reference(callee_id),
         call: Call {
             behavior: Some(behavior),
-            ..Call::new(ArgumentSlice::new(0, 0), signature)
+            ..Call::new(ArgumentSlice::new(0, 0), type_reference(signature))
         },
     });
     let block = Block {
@@ -840,7 +890,7 @@ fn test_reject_pure_effect_with_suspend() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -865,9 +915,9 @@ fn test_reject_pure_effect_with_unwind() {
     let void_ty = tree.insert_type(Type::Void);
     let signature = tree.insert_type(Type::FunctionPointer {
         parameters: Vec::new(),
-        result: void_ty,
+        result: type_reference(void_ty),
     });
-    let callee = Function::import(name, Vec::new(), void_ty);
+    let callee = Function::import(name, Vec::new(), type_reference(void_ty));
     let callee_id = tree.insert(callee);
 
     let behavior = CallBehavior {
@@ -877,10 +927,10 @@ fn test_reject_pure_effect_with_unwind() {
     };
     let instruction = tree.insert(Instruction::Call {
         destination: None,
-        function: callee_id,
+        function: function_reference(callee_id),
         call: Call {
             behavior: Some(behavior),
-            ..Call::new(ArgumentSlice::new(0, 0), signature)
+            ..Call::new(ArgumentSlice::new(0, 0), type_reference(signature))
         },
     });
     let block = Block {
@@ -891,7 +941,7 @@ fn test_reject_pure_effect_with_unwind() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -1046,7 +1096,7 @@ fn test_reject_struct_layout_field_type_mismatch() {
     let float32 = tree.insert_type(Type::FLOAT32);
     let field_id = tree.insert(Field {
         name: Some(field_name),
-        ty: int32,
+        ty: type_reference(int32),
     });
     let struct_type = tree.insert_type(Type::Struct {
         fields: vec![field_id],
@@ -1083,16 +1133,19 @@ fn test_reject_struct_layout_field_type_mismatch() {
 fn test_dynamic_call_declared_target_is_inline() {
     let instruction = Instruction::CallVirtual {
         destination: None,
-        receiver: Value::new(0),
-        call: Call::new(ArgumentSlice::new(0, 0), LocalNodeId::new(0)),
-        declaring_type: LocalNodeId::new(0),
+        receiver: value_reference(Value::new(0)),
+        call: Call::new(
+            ArgumentSlice::new(0, 0),
+            type_reference(LocalNodeId::new(0)),
+        ),
+        declaring_type: type_reference(LocalNodeId::new(0)),
         slot_id: VtableSlotId::new(0),
-        declared_target: Some(LocalNodeId::new(1)),
+        declared_target: Some(function_reference(LocalNodeId::new(1))),
     };
 
     assert_eq!(
         instruction.call_declared_target(),
-        Some(LocalNodeId::new(1))
+        Some(function_reference(LocalNodeId::new(1)))
     );
 }
 
@@ -1112,14 +1165,14 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
         kind: ReferenceKind::Managed,
         address_space: AddressSpace::Generic,
         mutability: Mutability::Mutable,
-        pointee: layout_ty,
+        pointee: type_reference(layout_ty),
         is_nullable: false,
     });
     let destination = Value::new(0);
     let instruction = tree.insert(Instruction::ManagedAlloc {
-        destination,
-        layout: layout_ty,
-        result_type: result_ty,
+        destination: value_reference(destination),
+        layout: type_reference(layout_ty),
+        result_type: type_reference(result_ty),
     });
     let block = Block {
         name: None,
@@ -1129,7 +1182,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.set_value_type(destination, result_ty);
     function.allocation = AllocationMode::NoManaged;
     function.blocks = vec![block_id];
@@ -1162,14 +1215,14 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
         kind: ReferenceKind::Raw,
         address_space: AddressSpace::Generic,
         mutability: Mutability::Mutable,
-        pointee: layout_ty,
+        pointee: type_reference(layout_ty),
         is_nullable: false,
     });
     let destination = Value::new(0);
     let instruction = tree.insert(Instruction::RawAlloc {
-        destination,
-        layout: layout_ty,
-        result_type: result_ty,
+        destination: value_reference(destination),
+        layout: type_reference(layout_ty),
+        result_type: type_reference(result_ty),
     });
     let block = Block {
         name: None,
@@ -1179,7 +1232,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), type_reference(void_ty), block_id);
     function.set_value_type(destination, result_ty);
     function.allocation = AllocationMode::StackOnly;
     function.blocks = vec![block_id];

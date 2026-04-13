@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::metadata::{Layout, LayoutField, LayoutKind};
 use crate::parse::{ParseError, ParseResult, Parser};
 use crate::tree::compute_type_layout;
-use crate::{Field, LocalNodeId, Type};
+use crate::{Field, LocalNodeId, Type, TypeReference};
 
 impl Parser {
     /// Record layout metadata for aggregate types parsed from MIR text.
@@ -46,6 +46,9 @@ impl Parser {
                 let field = self.tree.get(*field_id);
                 (field.name, field.ty)
             };
+            let Some(field_type) = concrete_type(field_type) else {
+                return Ok(());
+            };
             let field_layout =
                 compute_type_layout(&self.tree, field_type, self.tree.pointer_bytes());
             offset = field_layout.align_offset(offset);
@@ -84,17 +87,21 @@ impl Parser {
     fn record_tuple_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
-        elements: &[LocalNodeId<Type>],
+        elements: &[TypeReference],
     ) -> ParseResult<()> {
         // compute element layouts in order
         let mut layout_fields = Vec::with_capacity(elements.len());
         let mut offset = 0u32;
         let mut max_alignment = 1u32;
 
-        for (index, element_id) in elements.iter().enumerate() {
+        for (index, element_id) in elements.iter().copied().enumerate() {
+            let Some(element_id) = concrete_type(element_id) else {
+                return Ok(());
+            };
+
             // compute element size and alignment
             let element_layout =
-                compute_type_layout(&self.tree, *element_id, self.tree.pointer_bytes());
+                compute_type_layout(&self.tree, element_id, self.tree.pointer_bytes());
 
             // align the current offset
             offset = element_layout.align_offset(offset);
@@ -102,7 +109,7 @@ impl Parser {
             // record the element field
             layout_fields.push(LayoutField {
                 name: self.synthetic_tuple_name(index),
-                ty: *element_id,
+                ty: element_id,
                 offset,
                 size: element_layout.size,
                 alignment: element_layout.alignment,
@@ -135,9 +142,13 @@ impl Parser {
     fn record_array_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
-        element: LocalNodeId<Type>,
+        element: TypeReference,
         length: u64,
     ) -> ParseResult<()> {
+        let Some(element) = concrete_type(element) else {
+            return Ok(());
+        };
+
         // compute element layout
         let element_layout = compute_type_layout(&self.tree, element, self.tree.pointer_bytes());
         let element_stride = self.align_up(element_layout.size, element_layout.alignment);
@@ -174,8 +185,12 @@ impl Parser {
     fn record_function_value_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
-        signature: LocalNodeId<Type>,
+        signature: TypeReference,
     ) -> ParseResult<()> {
+        let Some(signature) = concrete_type(signature) else {
+            return Ok(());
+        };
+
         let environment = self.tree.ensure_function_value_environment_type();
         let components = [signature, environment];
         let mut layout_fields = Vec::with_capacity(components.len());
@@ -246,5 +261,12 @@ impl Parser {
         } else {
             value + (alignment - misalignment)
         }
+    }
+}
+
+fn concrete_type(reference: TypeReference) -> Option<LocalNodeId<Type>> {
+    match reference {
+        TypeReference::Type(ty) => Some(ty),
+        TypeReference::Missing | TypeReference::Error => None,
     }
 }

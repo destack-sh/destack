@@ -17,10 +17,14 @@ impl<'a> Validator<'a> {
         let anchor = ValidateAnchor::node(function_id);
 
         // type references
-        self.ensure_node_type(NodeType::Type, function.return_type.id, anchor)?;
+        let return_type =
+            self.require_type_reference(function.return_type, anchor, "function return type")?;
+        self.ensure_node_type(NodeType::Type, return_type.id, anchor)?;
 
         for parameter in &function.parameters {
-            self.ensure_node_type(NodeType::Type, parameter.ty.id, anchor)?;
+            let parameter_type =
+                self.require_type_reference(parameter.ty, anchor, "function parameter type")?;
+            self.ensure_node_type(NodeType::Type, parameter_type.id, anchor)?;
         }
 
         // metadata shape
@@ -56,6 +60,8 @@ impl<'a> Validator<'a> {
 
         // function environment
         if let Some(environment) = function.environment {
+            let environment =
+                self.require_type_reference(environment, anchor, "function environment type")?;
             self.ensure_node_type(NodeType::Type, environment.id, anchor)?;
 
             let environment_type = self.tree.get(environment);

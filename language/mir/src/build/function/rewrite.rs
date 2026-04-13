@@ -1,5 +1,7 @@
 use crate::build::FunctionBuilder;
-use crate::{Block, CheckConstraint, Instruction, LocalNodeId, Terminator, TypedValue, Value};
+use crate::{
+    Block, CheckConstraint, Instruction, LocalNodeId, Parameter, Terminator, Value, ValueReference,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -12,13 +14,13 @@ impl<'a> FunctionBuilder<'a> {
 
         // update variable definitions
         for value in self.variable_definitions.values_mut() {
-            Self::replace_value_in_slot(value, from, to);
+            Self::replace_plain_value(value, from, to);
         }
 
         // update incomplete phis
         for phis in self.incomplete_phis.values_mut() {
             for (_variable, phi_value) in phis {
-                Self::replace_value_in_slot(phi_value, from, to);
+                Self::replace_plain_value(phi_value, from, to);
             }
         }
 
@@ -319,18 +321,18 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(value, from, to);
                 }
             }
-            Terminator::Jump { arguments, .. } => {
-                Self::replace_values_in_slice(arguments, from, to);
+            Terminator::Jump { target } => {
+                Self::replace_values_in_slice(&mut target.arguments, from, to);
             }
             Terminator::Branch {
                 condition,
-                then_arguments,
-                else_arguments,
+                then_target,
+                else_target,
                 ..
             } => {
                 Self::replace_value_in_slot(condition, from, to);
-                Self::replace_values_in_slice(then_arguments, from, to);
-                Self::replace_values_in_slice(else_arguments, from, to);
+                Self::replace_values_in_slice(&mut then_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut else_target.arguments, from, to);
             }
             Terminator::Check {
                 constraint,
@@ -343,64 +345,60 @@ impl<'a> FunctionBuilder<'a> {
             }
             Terminator::Switch {
                 value,
-                default_arguments,
+                default,
                 cases,
                 ..
             } => {
                 Self::replace_value_in_slot(value, from, to);
-                Self::replace_values_in_slice(default_arguments, from, to);
+                Self::replace_values_in_slice(&mut default.arguments, from, to);
                 for case in cases {
-                    Self::replace_values_in_slice(&mut case.arguments, from, to);
+                    Self::replace_values_in_slice(&mut case.target.arguments, from, to);
                 }
             }
-            Terminator::Yield {
-                value,
-                resume_arguments,
-                ..
-            } => {
+            Terminator::Yield { value, resume } => {
                 Self::replace_value_in_slot(value, from, to);
-                Self::replace_values_in_slice(resume_arguments, from, to);
+                Self::replace_values_in_slice(&mut resume.arguments, from, to);
             }
             Terminator::Invoke {
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(normal_arguments, from, to);
-                Self::replace_values_in_slice(unwind_arguments, from, to);
+                Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
             }
             Terminator::InvokeIndirect {
                 callee,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(normal_arguments, from, to);
-                Self::replace_values_in_slice(unwind_arguments, from, to);
+                Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
             }
             Terminator::InvokeVirtual {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             }
             | Terminator::InvokeInterface {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(normal_arguments, from, to);
-                Self::replace_values_in_slice(unwind_arguments, from, to);
+                Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
             }
             Terminator::Throw { value } => {
                 Self::replace_value_in_slot(value, from, to);
@@ -427,10 +425,16 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Replace a value in a slot.
-    fn replace_value_in_slot(value: &mut Value, from: Value, to: Value) {
-        // update matching values
+    fn replace_plain_value(value: &mut Value, from: Value, to: Value) {
         if *value == from {
             *value = to;
+        }
+    }
+
+    /// Replace a value in a recoverable slot.
+    fn replace_value_in_slot(value: &mut ValueReference, from: Value, to: Value) {
+        if *value == ValueReference::Value(from) {
+            *value = ValueReference::Value(to);
         }
     }
 
@@ -480,7 +484,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Replace values in a slice.
-    fn replace_values_in_slice(values: &mut [Value], from: Value, to: Value) {
+    fn replace_values_in_slice(values: &mut [ValueReference], from: Value, to: Value) {
         // update each value
         for value in values {
             Self::replace_value_in_slot(value, from, to);
@@ -488,7 +492,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Replace values in a parameter list.
-    fn replace_values_in_parameters(parameters: &mut [TypedValue], from: Value, to: Value) {
+    fn replace_values_in_parameters(parameters: &mut [Parameter], from: Value, to: Value) {
         // update each parameter value
         for parameter in parameters {
             Self::replace_value_in_slot(&mut parameter.value, from, to);

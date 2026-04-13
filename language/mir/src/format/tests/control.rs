@@ -2,7 +2,7 @@ use super::assert_format;
 
 /// Formats switch based control flow canonically.
 #[test]
-fn test_format_roundtrip_switch() {
+fn test_format_switch() {
     assert_format(
         r#"
 function dispatch(value0: int32): int32 {
@@ -27,7 +27,7 @@ block3:
 
 /// Formats yielding control flow canonically.
 #[test]
-fn test_format_roundtrip_yield() {
+fn test_format_yield() {
     assert_format(
         r#"
 function yieldOnce(value0: int32): int32 {
@@ -45,7 +45,7 @@ block1(value2: int32, value3: int32):
 
 /// Formats exceptional invokes and throws canonically.
 #[test]
-fn test_format_roundtrip_invoke_and_throw() {
+fn test_format_invoke_and_throw() {
     assert_format(
         r#"
 extern function callee(int32): int32
@@ -66,7 +66,7 @@ block2(value2: ref<int32, managed, readonly>):
 
 /// Formats trap terminators canonically.
 #[test]
-fn test_format_roundtrip_trap() {
+fn test_format_trap() {
     assert_format(
         r#"
 global message: ref<void, managed, readonly>, readonly = "boom"
@@ -82,7 +82,7 @@ entry0:
 
 /// Formats checked control flow canonically.
 #[test]
-fn test_format_roundtrip_check_type_guards() {
+fn test_format_check_type_guards() {
     assert_format(
         r#"
 function guard(value0: uint32, value1: ref<void, managed>): int32 {

@@ -19,6 +19,12 @@ impl From<Value> for ValueReference {
     }
 }
 
+impl From<&Value> for ValueReference {
+    fn from(value: &Value) -> Self {
+        Self::Value(*value)
+    }
+}
+
 impl ValueReference {
     /// Return the concrete value when present.
     #[inline]
@@ -44,6 +50,12 @@ pub enum TypeReference {
 impl From<LocalNodeId<Type>> for TypeReference {
     fn from(ty: LocalNodeId<Type>) -> Self {
         Self::Type(ty)
+    }
+}
+
+impl From<&LocalNodeId<Type>> for TypeReference {
+    fn from(ty: &LocalNodeId<Type>) -> Self {
+        Self::Type(*ty)
     }
 }
 
@@ -75,6 +87,12 @@ impl From<LocalNodeId<Block>> for BlockReference {
     }
 }
 
+impl From<&LocalNodeId<Block>> for BlockReference {
+    fn from(block: &LocalNodeId<Block>) -> Self {
+        Self::Block(*block)
+    }
+}
+
 impl BlockReference {
     /// Return the concrete block when present.
     #[inline]
@@ -100,6 +118,12 @@ pub enum FunctionReference {
 impl From<LocalNodeId<Function>> for FunctionReference {
     fn from(function: LocalNodeId<Function>) -> Self {
         Self::Function(function)
+    }
+}
+
+impl From<&LocalNodeId<Function>> for FunctionReference {
+    fn from(function: &LocalNodeId<Function>) -> Self {
+        Self::Function(*function)
     }
 }
 
@@ -131,6 +155,12 @@ impl From<LocalNodeId<Local>> for LocalReference {
     }
 }
 
+impl From<&LocalNodeId<Local>> for LocalReference {
+    fn from(local: &LocalNodeId<Local>) -> Self {
+        Self::Local(*local)
+    }
+}
+
 impl LocalReference {
     /// Return the concrete local when present.
     #[inline]
@@ -156,6 +186,24 @@ pub enum GlobalReference {
 impl From<LocalNodeId<Global>> for GlobalReference {
     fn from(global: LocalNodeId<Global>) -> Self {
         Self::Global(global)
+    }
+}
+
+impl From<&LocalNodeId<Global>> for GlobalReference {
+    fn from(global: &LocalNodeId<Global>) -> Self {
+        Self::Global(*global)
+    }
+}
+
+impl From<i64> for IntegerReference {
+    fn from(value: i64) -> Self {
+        Self::Integer(value)
+    }
+}
+
+impl From<&i64> for IntegerReference {
+    fn from(value: &i64) -> Self {
+        Self::Integer(*value)
     }
 }
 

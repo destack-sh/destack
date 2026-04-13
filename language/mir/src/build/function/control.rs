@@ -1,6 +1,6 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, Call, CheckConstraint, CheckTarget, Function, InterfaceSlotId, LocalNodeId, Terminator,
+    Block, BlockTarget, Call, CheckConstraint, Function, InterfaceSlotId, LocalNodeId, Terminator,
     TrapKind, Type, Value, VtableSlotId,
 };
 
@@ -13,7 +13,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Return {
-            value: return_value,
+            value: return_value.map(Into::into),
         };
     }
 
@@ -25,8 +25,10 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Jump {
-            target: target_block,
-            arguments: Vec::new(),
+            target: BlockTarget {
+                block: target_block.into(),
+                arguments: Vec::new(),
+            },
         };
     }
 
@@ -44,11 +46,15 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Branch {
-            condition: condition_value,
-            then_target: then_block,
-            then_arguments: Vec::new(),
-            else_target: else_block,
-            else_arguments: Vec::new(),
+            condition: condition_value.into(),
+            then_target: BlockTarget {
+                block: then_block.into(),
+                arguments: Vec::new(),
+            },
+            else_target: BlockTarget {
+                block: else_block.into(),
+                arguments: Vec::new(),
+            },
         };
     }
 
@@ -67,12 +73,12 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::Check {
             constraint,
-            success: CheckTarget {
-                target: success_block,
+            success: BlockTarget {
+                block: success_block.into(),
                 arguments: Vec::new(),
             },
-            failure: CheckTarget {
-                target: failure_block,
+            failure: BlockTarget {
+                block: failure_block.into(),
                 arguments: Vec::new(),
             },
         };
@@ -84,7 +90,9 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Throw { value };
+        *terminator = Terminator::Throw {
+            value: value.into(),
+        };
     }
 
     /// Abort execution immediately.
@@ -107,7 +115,7 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::Trap {
             kind: TrapKind::Panic,
-            payload: Some(payload),
+            payload: Some(payload.into()),
         };
     }
 
@@ -130,12 +138,22 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Invoke {
-            function,
-            call: Call::new(argument_values, signature),
-            normal_target: normal_block,
-            normal_arguments,
-            unwind_target: unwind_block,
-            unwind_arguments,
+            function: function.into(),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
+            normal_target: BlockTarget {
+                block: normal_block.into(),
+                arguments: normal_arguments.into_iter().map(Into::into).collect(),
+            },
+            unwind_target: BlockTarget {
+                block: unwind_block.into(),
+                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            },
         };
     }
 
@@ -158,12 +176,22 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::InvokeIndirect {
-            callee,
-            call: Call::new(argument_values, signature),
-            normal_target: normal_block,
-            normal_arguments,
-            unwind_target: unwind_block,
-            unwind_arguments,
+            callee: callee.into(),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
+            normal_target: BlockTarget {
+                block: normal_block.into(),
+                arguments: normal_arguments.into_iter().map(Into::into).collect(),
+            },
+            unwind_target: BlockTarget {
+                block: unwind_block.into(),
+                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            },
         };
     }
 
@@ -189,15 +217,25 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::InvokeVirtual {
-            receiver,
-            declaring_type,
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(argument_values, signature),
-            normal_target: normal_block,
-            normal_arguments,
-            unwind_target: unwind_block,
-            unwind_arguments,
+            declared_target: declared_target.map(Into::into),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
+            normal_target: BlockTarget {
+                block: normal_block.into(),
+                arguments: normal_arguments.into_iter().map(Into::into).collect(),
+            },
+            unwind_target: BlockTarget {
+                block: unwind_block.into(),
+                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            },
         };
     }
 
@@ -223,15 +261,25 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::InvokeInterface {
-            receiver,
-            declaring_type,
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(argument_values, signature),
-            normal_target: normal_block,
-            normal_arguments,
-            unwind_target: unwind_block,
-            unwind_arguments,
+            declared_target: declared_target.map(Into::into),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
+            normal_target: BlockTarget {
+                block: normal_block.into(),
+                arguments: normal_arguments.into_iter().map(Into::into).collect(),
+            },
+            unwind_target: BlockTarget {
+                block: unwind_block.into(),
+                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            },
         };
     }
 
@@ -249,8 +297,14 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCall {
-            function,
-            call: Call::new(argument_values, signature),
+            function: function.into(),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
         };
     }
 
@@ -271,11 +325,17 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallVirtual {
-            receiver,
-            declaring_type,
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(argument_values, signature),
+            declared_target: declared_target.map(Into::into),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
         };
     }
 
@@ -296,11 +356,17 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallInterface {
-            receiver,
-            declaring_type,
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(argument_values, signature),
+            declared_target: declared_target.map(Into::into),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
         };
     }
 
@@ -318,8 +384,14 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallIndirect {
-            callee,
-            call: Call::new(argument_values, signature),
+            callee: callee.into(),
+            call: Call::new(
+                argument_values
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+                signature.into(),
+            ),
         };
     }
 }

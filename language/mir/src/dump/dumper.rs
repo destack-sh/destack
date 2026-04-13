@@ -1,8 +1,10 @@
 use crate::{
-    AddressSpace, BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
-    GlobalInitializer, Instruction, Local, LocalNodeId, MemoryRegionSet, MemorySemantics,
-    Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase,
-    Terminator, TrapKind, Type, UnaryOperator, Value,
+    AddressSpace, BinaryOperator, Block, BlockReference, BlockTarget, CastOperator,
+    CheckConstraint, Constant, Function, FunctionReference, Global, GlobalInitializer,
+    GlobalReference, Instruction, Local, LocalNodeId, LocalReference, MemoryRegionSet,
+    MemorySemantics, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
+    ReferenceKind, SwitchCase, Terminator, TrapKind, Type, TypeReference, UnaryOperator,
+    ValueReference,
 };
 use destack_core::{Color, StringPool};
 
@@ -101,35 +103,106 @@ impl<'a> Dumper<'a> {
 
     // === value formatting ===
 
-    fn format_value(&self, v: Value) -> String {
-        format!("v{}", v.0)
+    fn format_value<V>(&self, value: V) -> String
+    where
+        V: Into<ValueReference>,
+    {
+        match value.into() {
+            ValueReference::Value(value) => format!("v{}", value.0),
+            ValueReference::Missing => "<missing>".to_string(),
+            ValueReference::Error => "<error>".to_string(),
+        }
     }
 
     fn format_block_id(&self, id: LocalNodeId<Block>) -> String {
         format!("b{}", id.id)
     }
 
-    fn format_local_id(&self, id: LocalNodeId<Local>) -> String {
-        format!("local{}", id.id)
+    fn format_block_reference(&self, block: BlockReference) -> String {
+        match block {
+            BlockReference::Block(block) => self.format_block_id(block),
+            BlockReference::Missing => "<missing>".to_string(),
+            BlockReference::Error => "<error>".to_string(),
+        }
     }
 
-    fn format_global_id(&self, id: LocalNodeId<Global>) -> String {
-        let global = self.tree.get(id);
-        self.strings.get(global.name).to_string()
+    fn format_block_target(&self, target: &BlockTarget) -> String {
+        self.format_block_reference(target.block)
     }
 
-    fn format_function_id(&self, id: LocalNodeId<Function>) -> String {
-        let function = self.tree.get(id);
-        self.strings.get(function.name).to_string()
-    }
+    fn write_block_target(&mut self, target: &BlockTarget) {
+        self.write(&self.format_block_target(target));
 
-    fn format_type_id(&self, id: LocalNodeId<Type>) -> String {
-        if let Some(name) = self.tree.type_display_name(id) {
-            return self.strings.get(name).to_string();
+        if target.arguments.is_empty() {
+            return;
         }
 
-        let ty = self.tree.get(id);
-        self.format_type(ty)
+        self.write("(");
+        for (index, argument) in target.arguments.iter().enumerate() {
+            if index > 0 {
+                self.write(", ");
+            }
+
+            self.write(&self.format_value(*argument));
+        }
+        self.write(")");
+    }
+
+    fn format_local_id<L>(&self, local: L) -> String
+    where
+        L: Into<LocalReference>,
+    {
+        match local.into() {
+            LocalReference::Local(local) => format!("local{}", local.id),
+            LocalReference::Missing => "<missing>".to_string(),
+            LocalReference::Error => "<error>".to_string(),
+        }
+    }
+
+    fn format_global_id<G>(&self, global: G) -> String
+    where
+        G: Into<GlobalReference>,
+    {
+        match global.into() {
+            GlobalReference::Global(global) => {
+                let global = self.tree.get(global);
+                self.strings.get(global.name).to_string()
+            }
+            GlobalReference::Missing => "<missing>".to_string(),
+            GlobalReference::Error => "<error>".to_string(),
+        }
+    }
+
+    fn format_function_id<F>(&self, function: F) -> String
+    where
+        F: Into<FunctionReference>,
+    {
+        match function.into() {
+            FunctionReference::Function(function) => {
+                let function = self.tree.get(function);
+                self.strings.get(function.name).to_string()
+            }
+            FunctionReference::Missing => "<missing>".to_string(),
+            FunctionReference::Error => "<error>".to_string(),
+        }
+    }
+
+    fn format_type_id<T>(&self, ty: T) -> String
+    where
+        T: Into<TypeReference>,
+    {
+        match ty.into() {
+            TypeReference::Type(ty) => {
+                if let Some(name) = self.tree.type_display_name(ty) {
+                    return self.strings.get(name).to_string();
+                }
+
+                let ty = self.tree.get(ty);
+                self.format_type(ty)
+            }
+            TypeReference::Missing => "<missing>".to_string(),
+            TypeReference::Error => "<error>".to_string(),
+        }
     }
 
     fn format_type(&self, ty: &Type) -> String {
@@ -197,11 +270,11 @@ impl<'a> Dumper<'a> {
             Type::FunctionPointer { parameters, result } => {
                 let parameter_count = parameters.len();
                 let result = self.format_type_id(*result);
-                format!("fn(/* {parameter_count} */) -> {result}")
+                format!("(/* {parameter_count} */) -> {result}")
             }
             Type::Closure { signature } => {
                 let signature = self.format_type_id(*signature);
-                format!("closure<{signature}>")
+                format!("({signature}) => <?>")
             }
         }
     }
@@ -1674,56 +1747,24 @@ impl<'a> Dumper<'a> {
                 }
             }
 
-            Terminator::Jump { target, arguments } => {
+            Terminator::Jump { target } => {
                 self.write_colored("jump", Color::Red);
                 self.write(" ");
-                self.write(&self.format_block_id(*target));
-                if !arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(target);
             }
 
             Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => {
                 self.write_colored("branch", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*condition));
                 self.write(", ");
-                self.write(&self.format_block_id(*then_target));
-                if !then_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in then_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(then_target);
                 self.write(", ");
-                self.write(&self.format_block_id(*else_target));
-                if !else_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in else_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(else_target);
             }
 
             Terminator::Check {
@@ -1831,70 +1872,34 @@ impl<'a> Dumper<'a> {
                     }
                 }
                 self.write(" -> ");
-                self.write(&self.format_block_id(success.target));
-                if !success.arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in success.arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(success);
                 self.write(", ");
-                self.write(&self.format_block_id(failure.target));
-                if !failure.arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in failure.arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(failure);
             }
 
             Terminator::Switch {
                 value,
                 default,
-                default_arguments,
                 cases,
             } => {
                 self.write_colored("switch", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*value));
                 self.write(", default ");
-                self.write(&self.format_block_id(*default));
-                if !default_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in default_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(default);
                 for SwitchCase {
                     value: case_val,
                     target,
-                    arguments,
                 } in cases
                 {
-                    self.write(&format!(", {case_val} => "));
-                    self.write(&self.format_block_id(*target));
-                    if !arguments.is_empty() {
-                        self.write("(");
-                        for (i, arg) in arguments.iter().enumerate() {
-                            if i > 0 {
-                                self.write(", ");
-                            }
-                            self.write(&self.format_value(*arg));
-                        }
-                        self.write(")");
-                    }
+                    let case_text = match case_val {
+                        crate::IntegerReference::Integer(value) => value.to_string(),
+                        crate::IntegerReference::Missing => "<missing>".to_string(),
+                        crate::IntegerReference::Error => "<error>".to_string(),
+                    };
+
+                    self.write(&format!(", {case_text} => "));
+                    self.write_block_target(target);
                 }
             }
 
@@ -1902,35 +1907,19 @@ impl<'a> Dumper<'a> {
                 self.write_colored("unreachable", Color::Red);
             }
 
-            Terminator::Yield {
-                value,
-                resume,
-                resume_arguments,
-            } => {
+            Terminator::Yield { value, resume } => {
                 self.write_colored("yield", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*value));
                 self.write(", ");
-                self.write(&self.format_block_id(*resume));
-                if !resume_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in resume_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(resume);
             }
 
             Terminator::Invoke {
                 function,
                 call,
                 normal_target,
-                normal_arguments,
                 unwind_target,
-                unwind_arguments,
             } => {
                 self.write_colored("invoke", Color::Red);
                 self.write(" ");
@@ -1946,38 +1935,16 @@ impl<'a> Dumper<'a> {
                 self.write(" : ");
                 self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
-                self.write(&self.format_block_id(*normal_target));
-                if !normal_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in normal_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(normal_target);
                 self.write(", catch ");
-                self.write(&self.format_block_id(*unwind_target));
-                if !unwind_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in unwind_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(unwind_target);
             }
 
             Terminator::InvokeIndirect {
                 callee,
                 call,
                 normal_target,
-                normal_arguments,
                 unwind_target,
-                unwind_arguments,
                 ..
             } => {
                 self.write_colored("invoke.indirect", Color::Red);
@@ -1994,29 +1961,9 @@ impl<'a> Dumper<'a> {
                 self.write(" : ");
                 self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
-                self.write(&self.format_block_id(*normal_target));
-                if !normal_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in normal_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(normal_target);
                 self.write(", catch ");
-                self.write(&self.format_block_id(*unwind_target));
-                if !unwind_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in unwind_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(unwind_target);
             }
 
             Terminator::InvokeVirtual {
@@ -2025,9 +1972,7 @@ impl<'a> Dumper<'a> {
                 declaring_type,
                 slot_id,
                 normal_target,
-                normal_arguments,
                 unwind_target,
-                unwind_arguments,
                 ..
             } => {
                 self.write_colored("invoke.virtual", Color::Red);
@@ -2048,29 +1993,9 @@ impl<'a> Dumper<'a> {
                 self.write(" : ");
                 self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
-                self.write(&self.format_block_id(*normal_target));
-                if !normal_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in normal_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(normal_target);
                 self.write(", catch ");
-                self.write(&self.format_block_id(*unwind_target));
-                if !unwind_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in unwind_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(unwind_target);
             }
 
             Terminator::InvokeInterface {
@@ -2079,9 +2004,7 @@ impl<'a> Dumper<'a> {
                 declaring_type,
                 slot_id,
                 normal_target,
-                normal_arguments,
                 unwind_target,
-                unwind_arguments,
                 ..
             } => {
                 self.write_colored("invoke.interface", Color::Red);
@@ -2102,29 +2025,9 @@ impl<'a> Dumper<'a> {
                 self.write(" : ");
                 self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
                 self.write(" -> ");
-                self.write(&self.format_block_id(*normal_target));
-                if !normal_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in normal_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(normal_target);
                 self.write(", catch ");
-                self.write(&self.format_block_id(*unwind_target));
-                if !unwind_arguments.is_empty() {
-                    self.write("(");
-                    for (i, arg) in unwind_arguments.iter().enumerate() {
-                        if i > 0 {
-                            self.write(", ");
-                        }
-                        self.write(&self.format_value(*arg));
-                    }
-                    self.write(")");
-                }
+                self.write_block_target(unwind_target);
             }
 
             Terminator::Throw { value } => {
@@ -2250,11 +2153,11 @@ fn overflow_check_family(operator: BinaryOperator) -> &'static str {
 
 /// Split a packed tensor range list into offsets, sizes, and strides.
 fn split_tensor_ranges(
-    values: &[Value],
+    values: &[ValueReference],
     offsets_count: u16,
     sizes_count: u16,
     strides_count: u16,
-) -> (&[Value], &[Value], &[Value]) {
+) -> (&[ValueReference], &[ValueReference], &[ValueReference]) {
     // compute slice bounds
     let offsets_end = offsets_count as usize;
     let sizes_end = offsets_end + sizes_count as usize;

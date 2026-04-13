@@ -1,6 +1,9 @@
 use destack_source::Span;
 
-use crate::{Block, Function, Global, Local, LocalNodeId, Type, TypedValue, TypedValueSpan, Value};
+use crate::{
+    BlockReference, FunctionReference, GlobalReference, LocalNodeId, LocalReference, Parameter,
+    Type, TypeReference, TypedValueSpan, Value, ValueReference,
+};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -8,7 +11,7 @@ use super::token::TokenType;
 
 impl Parser {
     /// Parse a value reference.
-    pub(super) fn parse_value(&mut self) -> ParseResult<Value> {
+    pub(super) fn parse_value(&mut self) -> ParseResult<ValueReference> {
         let (value, _) = self.parse_value_reference_part()?;
         Ok(value)
     }
@@ -17,7 +20,7 @@ impl Parser {
     pub(super) fn parse_value_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<Value> {
+    ) -> ParseResult<ValueReference> {
         let (value, span) = self.parse_value_reference_part()?;
         segment_spans.push(span);
 
@@ -96,7 +99,7 @@ impl Parser {
     }
 
     /// Parse a value reference and return its span.
-    pub(super) fn parse_value_reference_part(&mut self) -> ParseResult<(Value, Span)> {
+    pub(super) fn parse_value_reference_part(&mut self) -> ParseResult<(ValueReference, Span)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value reference", self.pos()))?;
@@ -117,17 +120,19 @@ impl Parser {
                             span.end.saturating_sub(span.start) as usize,
                         )
                     })?;
-                Ok((Value::new(idx), span))
+                Ok((ValueReference::Value(Value::new(idx)), span))
             }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
 
-                let value =
-                    self.value_name_map.get(&name).copied().ok_or_else(|| {
-                        ParseError::new(format!("undefined value '{name}'"), start)
-                    })?;
+                let value = self
+                    .value_name_map
+                    .get(&name)
+                    .copied()
+                    .map(ValueReference::Value)
+                    .ok_or_else(|| ParseError::new(format!("undefined value '{name}'"), start))?;
                 Ok((value, span))
             }
             _ => Err(ParseError::unexpected_token("value reference", token)),
@@ -135,13 +140,13 @@ impl Parser {
     }
 
     /// Parse a block reference.
-    pub(super) fn parse_block_ref(&mut self) -> ParseResult<LocalNodeId<Block>> {
+    pub(super) fn parse_block_ref(&mut self) -> ParseResult<BlockReference> {
         let (block, _) = self.parse_block_ref_part()?;
         Ok(block)
     }
 
     /// Parse a block reference and return its span.
-    pub(super) fn parse_block_ref_part(&mut self) -> ParseResult<(LocalNodeId<Block>, Span)> {
+    pub(super) fn parse_block_ref_part(&mut self) -> ParseResult<(BlockReference, Span)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("block reference", self.pos()))?;
@@ -166,7 +171,7 @@ impl Parser {
                 self.block_id_by_label_index
                     .get(&label_index)
                     .copied()
-                    .map(|block| (block, span))
+                    .map(|block| (BlockReference::Block(block), span))
                     .ok_or_else(|| ParseError::new(format!("undefined block '{text}'"), start))
             }
             TokenType::Identifier => {
@@ -176,7 +181,7 @@ impl Parser {
                 self.block_name_map
                     .get(&name)
                     .copied()
-                    .map(|block| (block, span))
+                    .map(|block| (BlockReference::Block(block), span))
                     .ok_or_else(|| ParseError::new(format!("undefined block '{name}'"), start))
             }
             _ => Err(ParseError::unexpected_token("block reference", token)),
@@ -184,7 +189,7 @@ impl Parser {
     }
 
     /// Parse a local reference and return its span.
-    pub(super) fn parse_local_ref_part(&mut self) -> ParseResult<(LocalNodeId<Local>, Span)> {
+    pub(super) fn parse_local_ref_part(&mut self) -> ParseResult<(LocalReference, Span)> {
         let token = self.eat_token(TokenType::LocalReference)?;
         let token_start = token.start;
         let token_text = self.tree.source_text(token.span).to_string();
@@ -196,14 +201,14 @@ impl Parser {
             .ok_or_else(|| {
                 ParseError::invalid_at_span("local reference", token_start, token_length)
             })?;
-        Ok((LocalNodeId::new(idx), span))
+        Ok((LocalReference::Local(LocalNodeId::new(idx)), span))
     }
 
     /// Parse a local reference and append its span as one source segment.
     pub(super) fn parse_local_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<LocalNodeId<Local>> {
+    ) -> ParseResult<LocalReference> {
         let (local, span) = self.parse_local_ref_part()?;
         segment_spans.push(span);
 
@@ -213,14 +218,14 @@ impl Parser {
     /// Parse a function reference and return its span.
     pub(super) fn parse_function_reference_part(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Function>, Span)> {
+    ) -> ParseResult<(FunctionReference, Span)> {
         let (name, start) = self.parse_symbol_name()?;
         let span = self.span_at(start, name.len());
 
         self.function_map
             .get(&name)
             .copied()
-            .map(|function| (function, span))
+            .map(|function| (FunctionReference::Function(function), span))
             .ok_or_else(|| ParseError::invalid(&format!("function reference '{name}'"), start))
     }
 
@@ -228,7 +233,7 @@ impl Parser {
     pub(super) fn parse_function_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<LocalNodeId<Function>> {
+    ) -> ParseResult<FunctionReference> {
         let (function, span) = self.parse_function_reference_part()?;
         segment_spans.push(span);
 
@@ -236,16 +241,14 @@ impl Parser {
     }
 
     /// Parse a global reference and return its span.
-    pub(super) fn parse_global_reference_part(
-        &mut self,
-    ) -> ParseResult<(LocalNodeId<Global>, Span)> {
+    pub(super) fn parse_global_reference_part(&mut self) -> ParseResult<(GlobalReference, Span)> {
         let (name, start) = self.parse_symbol_name()?;
         let span = self.span_at(start, name.len());
 
         self.global_map
             .get(&name)
             .copied()
-            .map(|global| (global, span))
+            .map(|global| (GlobalReference::Global(global), span))
             .ok_or_else(|| ParseError::invalid(&format!("global reference '{name}'"), start))
     }
 
@@ -253,7 +256,7 @@ impl Parser {
     pub(super) fn parse_global_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<LocalNodeId<Global>> {
+    ) -> ParseResult<GlobalReference> {
         let (global, span) = self.parse_global_reference_part()?;
         segment_spans.push(span);
 
@@ -264,7 +267,7 @@ impl Parser {
     pub(super) fn parse_call_argument_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<Vec<Value>> {
+    ) -> ParseResult<Vec<ValueReference>> {
         self.eat_token(TokenType::OpenParen)?;
         let args = self.parse_value_list_segments(segment_spans)?;
         self.eat_token(TokenType::CloseParen)?;
@@ -273,7 +276,7 @@ impl Parser {
     }
 
     /// Parse a comma-separated list of values.
-    pub(super) fn parse_value_list(&mut self) -> ParseResult<Vec<Value>> {
+    pub(super) fn parse_value_list(&mut self) -> ParseResult<Vec<ValueReference>> {
         let mut values = Vec::new();
         while self.is_value_reference_start() {
             values.push(self.parse_value()?);
@@ -288,7 +291,7 @@ impl Parser {
     pub(super) fn parse_value_list_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<Vec<Value>> {
+    ) -> ParseResult<Vec<ValueReference>> {
         let mut values = Vec::new();
         while self.is_value_reference_start() {
             values.push(self.parse_value_segment(segment_spans)?);
@@ -303,7 +306,7 @@ impl Parser {
     /// Parse a comma-separated list of typed values and their spans.
     pub(super) fn parse_typed_values(
         &mut self,
-    ) -> ParseResult<(Vec<TypedValue>, Vec<TypedValueSpan>)> {
+    ) -> ParseResult<(Vec<Parameter>, Vec<TypedValueSpan>)> {
         let mut values = Vec::new();
         let mut spans = Vec::new();
         while self.is_value_definition_start() {
@@ -312,7 +315,10 @@ impl Parser {
             self.eat_token(TokenType::Colon)?;
             let (ty, type_span) = self.parse_type_part()?;
             let value_span = self.span_from_parse_start(value_start);
-            values.push(TypedValue::new(value, ty));
+            values.push(Parameter {
+                value: ValueReference::Value(value),
+                ty: TypeReference::Type(ty),
+            });
             spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;

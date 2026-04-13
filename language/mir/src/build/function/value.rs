@@ -2,6 +2,7 @@ use crate::build::FunctionBuilder;
 use crate::{
     AtomicRmwOperator, AtomicScope, BinaryOperator, CastOperator, Constant, Instruction, Intrinsic,
     LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Type, UnaryOperator, Value,
+    ValueReference,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -9,7 +10,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Const {
-            destination,
+            destination: destination.into(),
             value: Constant::Null,
         });
         self.define_value(destination, reference_type);
@@ -37,7 +38,7 @@ impl<'a> FunctionBuilder<'a> {
         };
         let ty_id = self.tree.insert_type(ty);
         self.insert_instruction(Instruction::Const {
-            destination,
+            destination: destination.into(),
             value: constant,
         });
         self.define_value(destination, ty_id);
@@ -58,7 +59,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn bconst(&mut self, value: bool) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Const {
-            destination,
+            destination: destination.into(),
             value: Constant::Boolean { value },
         });
         let ty_id = self.tree.insert_type(Type::Boolean);
@@ -75,7 +76,7 @@ impl<'a> FunctionBuilder<'a> {
             value.to_bits()
         };
         self.insert_instruction(Instruction::Const {
-            destination,
+            destination: destination.into(),
             value: Constant::Float { bits, width },
         });
         let ty_id = self.tree.insert_type(Type::Float {
@@ -100,10 +101,10 @@ impl<'a> FunctionBuilder<'a> {
             );
         }
         self.insert_instruction(Instruction::Binary {
-            destination,
+            destination: destination.into(),
             operator,
-            left: left_value,
-            right: right_value,
+            left: left_value.into(),
+            right: right_value.into(),
         });
         if operator.is_comparison() {
             let bool_type = self.tree.insert_type(Type::Boolean);
@@ -206,9 +207,9 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let argument_type = self.value_type_or_panic(argument_value, "unary argument");
         self.insert_instruction(Instruction::Unary {
-            destination,
+            destination: destination.into(),
             operator,
-            argument: argument_value,
+            argument: argument_value.into(),
         });
         self.define_value(destination, argument_type);
         destination
@@ -235,10 +236,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Cast {
-            destination,
+            destination: destination.into(),
             operator,
-            argument,
-            to_type,
+            argument: argument.into(),
+            to_type: to_type.into(),
         });
         self.define_value(destination, to_type);
         destination
@@ -280,10 +281,10 @@ impl<'a> FunctionBuilder<'a> {
             panic!("select expects matching value types");
         }
         self.insert_instruction(Instruction::Select {
-            destination,
-            condition,
-            then_value,
-            else_value,
+            destination: destination.into(),
+            condition: condition.into(),
+            then_value: then_value.into(),
+            else_value: else_value.into(),
         });
         self.define_value(destination, then_type);
         destination
@@ -299,9 +300,13 @@ impl<'a> FunctionBuilder<'a> {
         args: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let arguments = self.tree.add_arguments(&args);
+        let arguments = args
+            .into_iter()
+            .map(ValueReference::from)
+            .collect::<Vec<_>>();
+        let arguments = self.tree.add_arguments(&arguments);
         self.insert_instruction(Instruction::Intrinsic {
-            destination: Some(destination),
+            destination: Some(destination.into()),
             intrinsic,
             arguments,
         });
@@ -311,7 +316,11 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Call an intrinsic with no return value.
     pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, args: Vec<Value>) {
-        let arguments = self.tree.add_arguments(&args);
+        let arguments = args
+            .into_iter()
+            .map(ValueReference::from)
+            .collect::<Vec<_>>();
+        let arguments = self.tree.add_arguments(&arguments);
         self.insert_instruction(Instruction::Intrinsic {
             destination: None,
             intrinsic,
@@ -331,9 +340,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicLoad {
-            destination,
-            pointer,
-            result_type,
+            destination: destination.into(),
+            pointer: pointer.into(),
+            result_type: result_type.into(),
             ordering,
             scope,
             memory_scope,
@@ -354,8 +363,8 @@ impl<'a> FunctionBuilder<'a> {
         semantics: MemorySemantics,
     ) {
         self.insert_instruction(Instruction::AtomicStore {
-            pointer,
-            value,
+            pointer: pointer.into(),
+            value: value.into(),
             ordering,
             scope,
             memory_scope,
@@ -378,10 +387,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicCompareExchange {
-            destination,
-            pointer,
-            expected,
-            new_value,
+            destination: destination.into(),
+            pointer: pointer.into(),
+            expected: expected.into(),
+            new_value: new_value.into(),
             is_weak,
             ordering,
             scope,
@@ -406,10 +415,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicRmw {
-            destination,
+            destination: destination.into(),
             operator,
-            pointer,
-            value,
+            pointer: pointer.into(),
+            value: value.into(),
             ordering,
             scope,
             memory_scope,

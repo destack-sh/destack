@@ -1,14 +1,14 @@
-use super::{assert_format_output_eq, assert_format_with_options, format_tree_with_options};
+use super::{assert_format_eq_with_options, assert_output_eq, format_tree_with_options};
 use crate::{
-    Constant, Function, Global, GlobalInitializer, MirFormatOptions, NodeTree, Type, TypeAlias,
-    TypedValue, Value,
+    Constant, Function, Global, GlobalInitializer, MirFormatOptions, NodeTree, Parameter, Type,
+    TypeAlias, Value,
 };
 use destack_core::StringPool;
 
 /// Formats repeated anonymous types behind synthetic aliases when configured.
 #[test]
-fn test_format_roundtrip_with_synthetic_type_aliases() {
-    assert_format_with_options(
+fn test_format_with_synthetic_type_aliases() {
+    assert_format_eq_with_options(
         r#"
 function make(value0: int32, value1: float64, value2: boolean): (int32, float64, boolean) {
 entry0(value0: int32, value1: float64, value2: boolean):
@@ -43,7 +43,7 @@ entry0(value0: Tuple0):
 
 /// Formats local metadata names from MIR trees when configured.
 #[test]
-fn test_format_output_with_local_names() {
+fn test_format_local_names() {
     let mut tree = NodeTree::new();
     let int32_type = tree.insert_type(Type::Int {
         width: 32,
@@ -58,17 +58,20 @@ fn test_format_output_with_local_names() {
 
     tree.insert(TypeAlias {
         name: status_name,
-        ty: int32_type,
+        ty: int32_type.into(),
     });
     tree.insert(Global::constant(
         default_name,
-        int32_type,
+        int32_type.into(),
         GlobalInitializer::Scalar(Constant::int32(1)),
     ));
     tree.insert(Function::import(
         is_active_name,
-        vec![TypedValue::new(Value::new(0), int32_type)],
-        boolean_type,
+        vec![Parameter {
+            value: Value::new(0).into(),
+            ty: int32_type.into(),
+        }],
+        boolean_type.into(),
     ));
 
     let strings = strings.into_immutable();
@@ -78,7 +81,7 @@ fn test_format_output_with_local_names() {
         MirFormatOptions::default().with_local_names(true),
     );
 
-    assert_format_output_eq(
+    assert_output_eq(
         r#"
 type Status = int32;
 
@@ -93,8 +96,8 @@ extern function Status.isActive(Status): boolean
 
 /// Skips synthetic aliases when type usage stays below the configured threshold.
 #[test]
-fn test_format_roundtrip_without_synthetic_type_alias_when_usage_is_too_low() {
-    assert_format_with_options(
+fn test_format_skips_synthetic_type_aliases_below_threshold() {
+    assert_format_eq_with_options(
         r#"
 function make(value0: int32, value1: float64, value2: boolean): (int32, float64, boolean) {
 entry0(value0: int32, value1: float64, value2: boolean):
@@ -117,8 +120,8 @@ entry0(value0: int32, value1: float64, value2: boolean):
 
 /// Preserves the first explicit item comment when synthetic aliases are inserted before it.
 #[test]
-fn test_format_roundtrip_with_synthetic_aliases_before_first_item_comment() {
-    assert_format_with_options(
+fn test_format_with_synthetic_aliases_before_first_item_comment() {
+    assert_format_eq_with_options(
         r#"
 // builder
 function make(value0: int32, value1: float64, value2: boolean): (int32, float64, boolean) {
@@ -145,8 +148,8 @@ entry0(value0: int32, value1: float64, value2: boolean):
 
 /// Preserves explicit item comments and final trailing comments when synthetic aliases are inserted.
 #[test]
-fn test_format_roundtrip_with_synthetic_aliases_across_multiple_items_and_eof_comment() {
-    assert_format_with_options(
+fn test_format_with_synthetic_aliases_across_multiple_items_and_eof_comment() {
+    assert_format_eq_with_options(
         r#"
 // builder
 function make(value0: int32, value1: float64, value2: boolean): (int32, float64, boolean) {

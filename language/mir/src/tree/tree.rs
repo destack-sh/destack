@@ -460,14 +460,14 @@ impl NodeTree {
         panic!("missing float type id for width {width}");
     }
 
-    /// Return the canonical storage type for the hidden environment field in `closure`.
+    /// Return the canonical storage type for the hidden environment field in one callable.
     pub fn function_value_environment_type(&self) -> LocalNodeId<Type> {
         let void_type = if let Some(type_id) = self.metadata.layout.void_type() {
             type_id
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             type_id
         } else {
-            panic!("missing void type for closure environment storage");
+            panic!("missing void type for callable environment storage");
         };
 
         if let Some(type_id) = self.find_type_by_predicate(|ty| {
@@ -485,10 +485,10 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing canonical closure environment storage type");
+        panic!("missing canonical callable environment storage type");
     }
 
-    /// Ensure the canonical storage type for the hidden environment field in `closure`.
+    /// Ensure the canonical storage type for the hidden environment field in one callable.
     pub fn ensure_function_value_environment_type(&mut self) -> LocalNodeId<Type> {
         // reuse or create the canonical void type
         let void_type = if let Some(type_id) = self.metadata.layout.void_type() {

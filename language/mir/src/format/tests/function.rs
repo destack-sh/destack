@@ -1,8 +1,8 @@
-use super::{assert_format, assert_format_to};
+use super::{assert_format, assert_format_eq};
 
 /// Formats a simple add function canonically.
 #[test]
-fn test_format_roundtrip_simple_add() {
+fn test_format_simple_add() {
     assert_format(
         r#"
 function add(value0: int32, value1: int32): int32 {
@@ -16,7 +16,7 @@ entry0(value0: int32, value1: int32):
 
 /// Formats local declarations and local access operations canonically.
 #[test]
-fn test_format_roundtrip_with_locals() {
+fn test_format_with_locals() {
     assert_format(
         r#"
 function withLocals(): int64 {
@@ -34,7 +34,7 @@ entry0:
 
 /// Formats local address operations canonically.
 #[test]
-fn test_format_roundtrip_local_address() {
+fn test_format_local_address() {
     assert_format(
         r#"
 function localAddr(): void {
@@ -50,7 +50,7 @@ entry0:
 
 /// Formats block control flow canonically.
 #[test]
-fn test_format_roundtrip_branch() {
+fn test_format_branch() {
     assert_format(
         r#"
 function choose(value0: boolean, value1: int32, value2: int32): int32 {
@@ -69,7 +69,7 @@ block2(value4: int32):
 
 /// Formats void returns canonically.
 #[test]
-fn test_format_roundtrip_void_return() {
+fn test_format_void_return() {
     assert_format(
         r#"
 function noop(): void {
@@ -80,9 +80,9 @@ entry0:
     );
 }
 
-/// Formats environment functions and bound closures canonically.
+/// Formats environment functions and callable values canonically.
 #[test]
-fn test_format_roundtrip_function_environment() {
+fn test_format_function_environment() {
     assert_format(
         r#"
 @environment(ref<void, managed>)
@@ -96,7 +96,7 @@ entry0(value0: int32):
 function caller(): int32 {
 entry0:
     value0: ref<void, managed> = function.environment
-    value1: closure(int32) -> int32 = function.bind callee, value0
+    value1: (int32) => int32 = function.bind callee, value0
     value2: int32 = 1int32
     value3: int32 = call.indirect value1(value2): (int32) -> int32
     return value3
@@ -107,8 +107,8 @@ entry0:
 
 /// Renames non canonical value and block names during formatting.
 #[test]
-fn test_format_roundtrip_renames_non_canonical_names() {
-    assert_format_to(
+fn test_format_renames_non_canonical_names() {
+    assert_format_eq(
         r#"
 function varTest(): int32 {
 b0:
@@ -128,7 +128,7 @@ entry0:
 
 /// Preserves reference mutability spelling in canonical output.
 #[test]
-fn test_format_roundtrip_reference_mutability_preserved() {
+fn test_format_reference_mutability_preserved() {
     assert_format(
         r#"
 function refMutability(value0: ref<int32, managed>, value1: ref<int32, owned, readonly>): ref<int32, managed> {

@@ -1,11 +1,11 @@
-use crate::{Function, Instruction, Terminator};
+use crate::{Block, Function, Instruction, Terminator, assert_node};
 use destack_source::DiagnosticSeverity;
 
-use super::tests::parse_fixture_source;
+use super::tests::TestParser;
 
 /// Recovering parse returns partial MIR and shared diagnostics after a syntax error.
 #[test]
-fn test_parse_with_diagnostics_collects_diagnostics() {
+fn test_parse_collects_diagnostics() {
     let source = r#"
 function good(): void {
 b0:
@@ -20,11 +20,14 @@ b0:
 }
 "#;
 
-    let (tree, diagnostics) = parse_fixture_source(source);
+    // parse
+    let (tree, diagnostics) = TestParser::new(source).parse_with_diagnostics();
 
+    // diagnostic and later function
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
+    // int32
     let diagnostics = diagnostics.iter();
     let diagnostic = diagnostics.first().unwrap();
     let length = diagnostic
@@ -39,7 +42,7 @@ b0:
 
 /// Recovering parse keeps later blocks after a broken instruction line.
 #[test]
-fn test_parse_with_diagnostics_keeps_later_blocks_after_instruction_error() {
+fn test_parse_recovers_after_instruction_error() {
     let source = r#"
 function broken(): void {
 b0:
@@ -50,34 +53,31 @@ b1:
 }
 "#;
 
-    let (tree, diagnostics) = parse_fixture_source(source);
+    // parse
+    let (tree, diagnostics) = TestParser::new(source).parse_with_diagnostics();
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
 
+    // diagnostic and blocks
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
     assert_eq!(function.blocks.len(), 2);
 
-    let first_block = tree.get(function.blocks[0]);
-    assert!(matches!(
-        tree.get(first_block.terminator),
-        Terminator::Error
-    ));
-    assert_eq!(first_block.instructions.len(), 1);
-    assert!(matches!(
-        tree.get(first_block.instructions[0]),
-        Instruction::Error
-    ));
+    // b0
+    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+        assert_eq!(instructions.len(), 1);
+        assert_node!(tree, instructions[0], Instruction::Error);
+        assert_node!(tree, *terminator, Terminator::Error);
+    });
 
-    let second_block = tree.get(function.blocks[1]);
-    assert!(matches!(
-        tree.get(second_block.terminator),
-        Terminator::Return { .. }
-    ));
+    // b1
+    assert_node!(tree, function.blocks[1], Block { terminator, .. } => {
+        assert_node!(tree, *terminator, Terminator::Return { .. });
+    });
 }
 
 /// Recovering parse keeps later blocks after a broken terminator line.
 #[test]
-fn test_parse_with_diagnostics_keeps_later_blocks_after_terminator_error() {
+fn test_parse_recovers_after_terminator_error() {
     let source = r#"
 function broken(): void {
 b0:
@@ -88,22 +88,22 @@ b1:
 }
 "#;
 
-    let (tree, diagnostics) = parse_fixture_source(source);
+    // parse
+    let (tree, diagnostics) = TestParser::new(source).parse_with_diagnostics();
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
 
+    // diagnostic and blocks
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
     assert_eq!(function.blocks.len(), 2);
 
-    let first_block = tree.get(function.blocks[0]);
-    assert!(matches!(
-        tree.get(first_block.terminator),
-        Terminator::Error
-    ));
+    // b0
+    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+        assert_node!(tree, *terminator, Terminator::Error);
+    });
 
-    let second_block = tree.get(function.blocks[1]);
-    assert!(matches!(
-        tree.get(second_block.terminator),
-        Terminator::Return { .. }
-    ));
+    // b1
+    assert_node!(tree, function.blocks[1], Block { terminator, .. } => {
+        assert_node!(tree, *terminator, Terminator::Return { .. });
+    });
 }

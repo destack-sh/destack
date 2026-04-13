@@ -3,11 +3,11 @@ use destack_source::Span;
 use destack_source::NodeSpanType;
 
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block, Call,
-    CallBehavior, CheckConstraint, CheckTarget, ExecutionModel, ExecutionStage, Function,
-    FunctionHeaderSpans, Instruction, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect,
-    Mutability, Ownership, PointerAttribute, SwitchCase, Terminator, TrapKind, Type, TypedValue,
-    TypedValueSpan, Value,
+    AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block,
+    BlockTarget, Call, CallBehavior, CheckConstraint, ExecutionModel, ExecutionStage, Function,
+    FunctionHeaderSpans, Instruction, IntegerReference, Linkage, Local, LocalNodeId,
+    LocalReference, MemoryEffect, Mutability, Ownership, Parameter, PointerAttribute, SwitchCase,
+    Terminator, TrapKind, TypeReference, TypedValueSpan, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -23,7 +23,7 @@ impl Parser {
         Option<ExecutionModel>,
         Option<ExecutionStage>,
         Option<[u32; 3]>,
-        Option<LocalNodeId<Type>>,
+        Option<TypeReference>,
     )> {
         // metadata outputs
         let mut execution_model = None;
@@ -33,9 +33,9 @@ impl Parser {
 
         // inspect attributes
         for attribute in attributes {
-            let name = {
-                let name = self.strings.get(attribute.name);
-                name.to_string()
+            let name = match attribute.name {
+                crate::AttributeIdentifier::Identifier(name) => self.strings.get(name).to_string(),
+                crate::AttributeIdentifier::Missing | crate::AttributeIdentifier::Error => continue,
             };
             match name.as_str() {
                 "executionModel" => {
@@ -47,9 +47,9 @@ impl Parser {
                     }
 
                     let value = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Identifier(value)) => {
-                            self.strings.get(*value)
-                        }
+                        AttributeArgs::Value(AttributeValue::Identifier(
+                            crate::AttributeIdentifier::Identifier(value),
+                        )) => self.strings.get(*value),
                         AttributeArgs::Value(AttributeValue::String(value)) => {
                             self.strings.get(*value)
                         }
@@ -77,9 +77,9 @@ impl Parser {
                     }
 
                     let value = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Identifier(value)) => {
-                            self.strings.get(*value)
-                        }
+                        AttributeArgs::Value(AttributeValue::Identifier(
+                            crate::AttributeIdentifier::Identifier(value),
+                        )) => self.strings.get(*value),
                         AttributeArgs::Value(AttributeValue::String(value)) => {
                             self.strings.get(*value)
                         }
@@ -173,7 +173,10 @@ impl Parser {
             self.parse_function_parameters(linkage)?;
         let parameter_names = parameters
             .iter()
-            .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
+            .map(|parameter| match parameter.value {
+                ValueReference::Value(value) => self.tree.get(function_id).value_name(value),
+                ValueReference::Missing | ValueReference::Error => None,
+            })
             .collect::<Vec<_>>();
 
         // return type
@@ -187,35 +190,14 @@ impl Parser {
         // extern function body
         if linkage.is_import() {
             let name_id = self.strings.intern(&name);
-            let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
-            let value_types = self.seed_value_types(&parameters);
-            let next_value_id = value_types.len() as u32;
-            let value_names = self.tree.get(function_id).value_names.clone();
-            let function = Function {
-                name: name_id,
-                parameters,
-                parameter_names,
-                value_names,
-                value_types,
-                return_type,
-                return_lifetime: Lifetime::Inferred,
-                memory_effect: MemoryEffect::unknown(),
-                call_behavior: CallBehavior::unknown(),
-                allocation_size: None,
-                parameter_attributes,
-                return_attribute: PointerAttribute::default(),
-                linkage,
-                allocation: AllocationMode::Any, // #Incomplete: set proper MIR allocation mode?
-                suspension: None,
-                execution_model,
-                execution_stage,
-                workgroup_size,
-                environment: environment_type,
-                locals: Vec::new(),
-                blocks: Vec::new(),
-                entry: None,
-                next_value_id,
-            };
+            let mut function =
+                Function::import(name_id, parameters, TypeReference::Type(return_type));
+            function.parameter_names = parameter_names;
+            function.execution_model = execution_model;
+            function.execution_stage = execution_stage;
+            function.workgroup_size = workgroup_size;
+            function.environment = environment_type;
+            function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
 
             // update the placeholder with the parsed signature
             self.tree
@@ -261,7 +243,7 @@ impl Parser {
             .set_side_span(id, NodeSpanType::Type, signature_span);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_function_parameter_spans(id, parameter_spans);
-        let value_types = self.seed_value_types(&parameters);
+        let (_, value_types) = Function::parameter_state(&parameters);
 
         // populate signature fields
         let function = self.tree.get_mut(id);
@@ -269,7 +251,7 @@ impl Parser {
         function.parameters = parameters.clone();
         function.parameter_names = parameter_names;
         function.value_types = value_types;
-        function.return_type = return_type;
+        function.return_type = TypeReference::Type(return_type);
         function.linkage = linkage;
         function.memory_effect = MemoryEffect::unknown();
         function.call_behavior = CallBehavior::unknown();
@@ -363,7 +345,7 @@ impl Parser {
     fn parse_function_parameters(
         &mut self,
         linkage: Linkage,
-    ) -> ParseResult<(Vec<TypedValue>, Vec<TypedValueSpan>, Span, Span)> {
+    ) -> ParseResult<(Vec<Parameter>, Vec<TypedValueSpan>, Span, Span)> {
         let open_paren_token = self.eat_token(TokenType::OpenParen)?;
         let open_paren_start = open_paren_token.start;
         let open_paren_length = self.tree.source_text(open_paren_token.span).len();
@@ -386,9 +368,9 @@ impl Parser {
             let parameters = parameter_types
                 .into_iter()
                 .enumerate()
-                .map(|(index, ty)| TypedValue {
-                    value: Value::new(index as u32),
-                    ty,
+                .map(|(index, ty)| Parameter {
+                    value: ValueReference::Value(Value::new(index as u32)),
+                    ty: TypeReference::Type(ty),
                 })
                 .collect();
 
@@ -414,7 +396,9 @@ impl Parser {
     fn parse_workgroup_size(&mut self, args: &AttributeArgs) -> ParseResult<[u32; 3]> {
         // list or key values
         let dims = match args {
-            AttributeArgs::Value(AttributeValue::Integer(value)) => [*value, 1, 1],
+            AttributeArgs::Value(AttributeValue::Integer(IntegerReference::Integer(value))) => {
+                [*value, 1, 1]
+            }
             AttributeArgs::Values(values) => self.parse_workgroup_dims_from_values(values)?,
             AttributeArgs::Value(AttributeValue::List(values)) => {
                 self.parse_workgroup_dims_from_values(values)?
@@ -448,7 +432,7 @@ impl Parser {
         let mut dims = [1i64; 3];
         for (index, value) in values.iter().enumerate() {
             match value {
-                AttributeValue::Integer(value) => dims[index] = *value,
+                AttributeValue::Integer(IntegerReference::Integer(value)) => dims[index] = *value,
                 _ => {
                     return Err(ParseError::new(
                         "workgroupSize values must be integers",
@@ -471,9 +455,17 @@ impl Parser {
         let mut y = None;
         let mut z = None;
         for pair in pairs {
-            let key = self.strings.get(pair.key);
+            let key = match pair.key {
+                crate::AttributeIdentifier::Identifier(key) => self.strings.get(key),
+                crate::AttributeIdentifier::Missing | crate::AttributeIdentifier::Error => {
+                    return Err(ParseError::new(
+                        "workgroupSize keys must be identifiers",
+                        self.pos(),
+                    ));
+                }
+            };
             let value = match &pair.value {
-                AttributeValue::Integer(value) => *value,
+                AttributeValue::Integer(IntegerReference::Integer(value)) => *value,
                 _ => {
                     return Err(ParseError::new(
                         "workgroupSize values must be integers",
@@ -592,7 +584,7 @@ impl Parser {
         }
 
         // record the local
-        let local = Local::new(ty, mutability, ownership);
+        let local = Local::new(TypeReference::Type(ty), mutability, ownership);
         let local_id = self.tree.insert(local);
         self.tree
             .set_text_span(local_id, self.span_from_parse_start(local_start));
@@ -660,7 +652,10 @@ impl Parser {
 
         // block parameter value types
         for param in &parameters {
-            self.record_value_type(param.value, param.ty);
+            if let (ValueReference::Value(value), TypeReference::Type(ty)) = (param.value, param.ty)
+            {
+                self.record_value_type(value, ty);
+            }
         }
 
         self.eat_token(TokenType::Colon)?;
@@ -883,7 +878,7 @@ impl Parser {
     }
 
     /// Parse the entry block parameter mirror and reuse the function parameters.
-    fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<TypedValue>> {
+    fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<Parameter>> {
         let function_id = self
             .current_function
             .unwrap_or_else(|| panic!("entry block parameters require a current function"));
@@ -902,7 +897,7 @@ impl Parser {
             }
 
             self.eat_token(TokenType::Colon)?;
-            let ty = self.parse_type()?;
+            let ty = TypeReference::Type(self.parse_type()?);
             if ty != parameter.ty {
                 return Err(ParseError::new(
                     format!(
@@ -922,7 +917,7 @@ impl Parser {
     }
 
     /// Parse one entry block parameter and resolve it to the mirrored function parameter.
-    fn parse_entry_block_parameter(&mut self) -> ParseResult<(Value, Span)> {
+    fn parse_entry_block_parameter(&mut self) -> ParseResult<(ValueReference, Span)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("entry block parameter", self.pos()))?;
@@ -940,17 +935,19 @@ impl Parser {
                         ParseError::invalid("entry block parameter", span.start as usize)
                     })?;
 
-                Ok((Value::new(index), span))
+                Ok((ValueReference::Value(Value::new(index)), span))
             }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
 
-                let value =
-                    self.value_name_map.get(&name).copied().ok_or_else(|| {
-                        ParseError::new(format!("undefined value '{name}'"), start)
-                    })?;
+                let value = self
+                    .value_name_map
+                    .get(&name)
+                    .copied()
+                    .map(ValueReference::Value)
+                    .ok_or_else(|| ParseError::new(format!("undefined value '{name}'"), start))?;
 
                 Ok((value, span))
             }
@@ -1006,51 +1003,54 @@ impl Parser {
             TokenType::Invoke => {
                 self.bump();
                 let (function, arguments, signature) = self.parse_direct_call_target()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
+                let (normal_target, unwind_target) = self.parse_call_continuations()?;
                 Ok(Terminator::Invoke {
                     function,
                     call: Call::new(arguments, signature),
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                 })
             }
             TokenType::Jump => {
                 self.bump();
-                let target = self.parse_block_ref()?;
-                let arguments = self.parse_optional_block_arguments()?;
-                Ok(Terminator::Jump { target, arguments })
+                let target = BlockTarget {
+                    block: self.parse_block_ref()?,
+                    arguments: self.parse_optional_block_arguments()?,
+                };
+
+                Ok(Terminator::Jump { target })
             }
             TokenType::Branch => {
                 self.bump();
                 let condition = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let then_target = self.parse_block_ref()?;
-                let then_arguments = self.parse_optional_block_arguments()?;
+                let then_target = BlockTarget {
+                    block: self.parse_block_ref()?,
+                    arguments: self.parse_optional_block_arguments()?,
+                };
                 self.eat_token(TokenType::Comma)?;
-                let else_target = self.parse_block_ref()?;
-                let else_arguments = self.parse_optional_block_arguments()?;
+                let else_target = BlockTarget {
+                    block: self.parse_block_ref()?,
+                    arguments: self.parse_optional_block_arguments()?,
+                };
+
                 Ok(Terminator::Branch {
                     condition,
                     then_target,
-                    then_arguments,
                     else_target,
-                    else_arguments,
                 })
             }
             TokenType::Check => {
                 self.bump();
                 let constraint = self.parse_check_kind()?;
                 self.eat_token(TokenType::Arrow)?;
-                let success = CheckTarget {
-                    target: self.parse_block_ref()?,
+                let success = BlockTarget {
+                    block: self.parse_block_ref()?,
                     arguments: self.parse_optional_block_arguments()?,
                 };
                 self.eat_token(TokenType::Comma)?;
-                let failure = CheckTarget {
-                    target: self.parse_block_ref()?,
+                let failure = BlockTarget {
+                    block: self.parse_block_ref()?,
                     arguments: self.parse_optional_block_arguments()?,
                 };
                 Ok(Terminator::Check {
@@ -1063,26 +1063,28 @@ impl Parser {
                 self.bump();
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let default = self.parse_block_ref()?;
-                let default_arguments = self.parse_optional_block_arguments()?;
+                let default = BlockTarget {
+                    block: self.parse_block_ref()?,
+                    arguments: self.parse_optional_block_arguments()?,
+                };
 
                 let mut cases = Vec::new();
                 while self.eat_token_maybe(TokenType::Comma) {
                     let case_value = self.parse_int_literal()?;
                     self.eat_token(TokenType::FatArrow)?;
-                    let target = self.parse_block_ref()?;
-                    let arguments = self.parse_optional_block_arguments()?;
+                    let target = BlockTarget {
+                        block: self.parse_block_ref()?,
+                        arguments: self.parse_optional_block_arguments()?,
+                    };
                     cases.push(SwitchCase {
-                        value: case_value,
+                        value: IntegerReference::Integer(case_value),
                         target,
-                        arguments,
                     });
                 }
 
                 Ok(Terminator::Switch {
                     value,
                     default,
-                    default_arguments,
                     cases,
                 })
             }
@@ -1090,13 +1092,12 @@ impl Parser {
                 self.bump();
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let resume = self.parse_block_ref()?;
-                let resume_arguments = self.parse_optional_block_arguments()?;
-                Ok(Terminator::Yield {
-                    value,
-                    resume,
-                    resume_arguments,
-                })
+                let resume = BlockTarget {
+                    block: self.parse_block_ref()?,
+                    arguments: self.parse_optional_block_arguments()?,
+                };
+
+                Ok(Terminator::Yield { value, resume })
             }
             TokenType::Throw => {
                 self.bump();
@@ -1155,15 +1156,12 @@ impl Parser {
             TokenType::InvokeIndirect => {
                 self.bump();
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
+                let (normal_target, unwind_target) = self.parse_call_continuations()?;
                 Ok(Terminator::InvokeIndirect {
                     callee,
                     call: Call::new(arguments, signature),
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                 })
             }
             TokenType::TailCallVirtual => {
@@ -1182,8 +1180,7 @@ impl Parser {
                 self.bump();
                 let (receiver, declaring_type, slot_id, arguments, signature) =
                     self.parse_virtual_call_target()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
+                let (normal_target, unwind_target) = self.parse_call_continuations()?;
                 Ok(Terminator::InvokeVirtual {
                     receiver,
                     declaring_type,
@@ -1191,9 +1188,7 @@ impl Parser {
                     declared_target: None,
                     call: Call::new(arguments, signature),
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                 })
             }
             TokenType::TailCallInterface => {
@@ -1212,8 +1207,7 @@ impl Parser {
                 self.bump();
                 let (receiver, declaring_type, slot_id, arguments, signature) =
                     self.parse_interface_call_target()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
+                let (normal_target, unwind_target) = self.parse_call_continuations()?;
                 Ok(Terminator::InvokeInterface {
                     receiver,
                     declaring_type,
@@ -1221,9 +1215,7 @@ impl Parser {
                     declared_target: None,
                     call: Call::new(arguments, signature),
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                 })
             }
             _ => Err(ParseError::unexpected("terminator", token.ty, token.start)),
@@ -1320,7 +1312,7 @@ impl Parser {
 
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_type()?;
+                let expected = TypeReference::Type(self.parse_type()?);
 
                 Ok(CheckConstraint::Type { value, expected })
             }
@@ -1350,7 +1342,7 @@ impl Parser {
 
                 let receiver = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_type()?;
+                let expected = TypeReference::Type(self.parse_type()?);
 
                 Ok(CheckConstraint::ReceiverType { receiver, expected })
             }
@@ -1364,7 +1356,7 @@ impl Parser {
 
                 let receiver = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_type()?;
+                let expected = TypeReference::Type(self.parse_type()?);
 
                 Ok(CheckConstraint::Implements { receiver, expected })
             }
@@ -1472,7 +1464,7 @@ impl Parser {
     }
 
     /// Parse optional block arguments like `(v0, v1)`.
-    fn parse_optional_block_arguments(&mut self) -> ParseResult<Vec<Value>> {
+    fn parse_optional_block_arguments(&mut self) -> ParseResult<Vec<ValueReference>> {
         if self.eat_token_maybe(TokenType::OpenParen) {
             let arguments = self.parse_value_list()?;
             self.eat_token(TokenType::CloseParen)?;
@@ -1483,29 +1475,21 @@ impl Parser {
     }
 
     /// Parse success and exception continuations for an invoke terminator.
-    fn parse_call_continuations(
-        &mut self,
-    ) -> ParseResult<(
-        LocalNodeId<Block>,
-        Vec<Value>,
-        LocalNodeId<Block>,
-        Vec<Value>,
-    )> {
+    fn parse_call_continuations(&mut self) -> ParseResult<(BlockTarget, BlockTarget)> {
         self.eat_token(TokenType::Arrow)?;
-        let normal_target = self.parse_block_ref()?;
-        let normal_arguments = self.parse_optional_block_arguments()?;
+        let normal_target = BlockTarget {
+            block: self.parse_block_ref()?,
+            arguments: self.parse_optional_block_arguments()?,
+        };
 
         self.eat_token(TokenType::Comma)?;
         self.eat_token(TokenType::Catch)?;
-        let unwind_target = self.parse_block_ref()?;
-        let unwind_arguments = self.parse_optional_block_arguments()?;
+        let unwind_target = BlockTarget {
+            block: self.parse_block_ref()?,
+            arguments: self.parse_optional_block_arguments()?,
+        };
 
-        Ok((
-            normal_target,
-            normal_arguments,
-            unwind_target,
-            unwind_arguments,
-        ))
+        Ok((normal_target, unwind_target))
     }
 
     /// Collect and predeclare blocks before parsing the function body.
@@ -1594,33 +1578,17 @@ impl Parser {
                 Instruction::LocalGet { local, .. }
                 | Instruction::LocalAddr { local, .. }
                 | Instruction::LocalSet { local, .. } => {
-                    *local = source_to_actual
-                        .get(local.id as usize)
-                        .copied()
-                        .unwrap_or(*local);
+                    if let LocalReference::Local(local_id) = *local {
+                        *local = source_to_actual
+                            .get(local_id.id as usize)
+                            .copied()
+                            .map(LocalReference::Local)
+                            .unwrap_or(*local);
+                    }
                 }
                 _ => {}
             }
         }
-    }
-
-    /// Seed a value type table from typed parameters.
-    fn seed_value_types(&self, parameters: &[TypedValue]) -> Vec<LocalNodeId<Type>> {
-        // sort parameters into value order
-        let mut ordered: Vec<_> = parameters.iter().collect();
-        ordered.sort_by_key(|parameter| parameter.value.0);
-
-        // validate that the parameters form a dense prefix
-        let mut value_types = Vec::with_capacity(ordered.len());
-        for (expected, parameter) in ordered.into_iter().enumerate() {
-            if parameter.value.0 as usize != expected {
-                panic!("missing value type for v{expected}");
-            }
-
-            value_types.push(parameter.ty);
-        }
-
-        value_types
     }
 }
 

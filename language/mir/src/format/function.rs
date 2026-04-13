@@ -164,9 +164,13 @@ pub(super) fn format_function_attributes<'a>(
 
 /// Return whether one explicit attribute list contains a named attribute.
 fn has_attribute(attributes: &[crate::Attribute], name: &str, f: &MirFormatter<'_, '_>) -> bool {
-    attributes
-        .iter()
-        .any(|attribute| f.context().strings.get(attribute.name) == name)
+    attributes.iter().any(|attribute| {
+        matches!(
+            attribute.name,
+            crate::AttributeIdentifier::Identifier(identifier)
+                if f.context().strings.get(identifier) == name
+        )
+    })
 }
 
 /// Write one simple string attribute line.

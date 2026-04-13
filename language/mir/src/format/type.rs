@@ -7,7 +7,7 @@ use super::attribute::{write_attributes, write_attributes_before_anchor, write_i
 use crate::{
     AddressSpace, Attribute, Field, FieldSpan, FormatMirNode, LocalNodeId, MirFormatContext,
     MirFormatter, Mutability, ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias,
-    TypeDeclarationSpans, write_comments_before,
+    TypeDeclarationSpans, TypeReference, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -164,17 +164,19 @@ fn format_struct_field_entry<'a>(
 
     // field attributes
     if !field_attributes.is_empty() {
-        let field_span =
-            field_span.unwrap_or_else(|| panic!("missing field span for {field_id:?}"));
-        let field_head_start = field_span.name_span.unwrap_or(field_span.type_span).start;
+        if let Some(field_span) = field_span {
+            let field_head_start = field_span.name_span.unwrap_or(field_span.type_span).start;
 
-        write_attributes_before_anchor(
-            field_attributes,
-            &field_span.attribute_spans,
-            field_head_start,
-            tree,
-            f,
-        )?;
+            write_attributes_before_anchor(
+                field_attributes,
+                &field_span.attribute_spans,
+                field_head_start,
+                tree,
+                f,
+            )?;
+        } else {
+            write_attributes(field_attributes, f)?;
+        }
     }
 
     // field body
@@ -368,7 +370,7 @@ fn format_type_inner<'a>(
             write!(f, [token(">")])
         }
         Type::FunctionPointer { parameters, result } => {
-            write!(f, [token("fn(")])?;
+            write!(f, [token("(")])?;
             for (i, param) in parameters.iter().enumerate() {
                 if i > 0 {
                     write!(f, [token(","), space()])?;
@@ -378,21 +380,40 @@ fn format_type_inner<'a>(
             write!(f, [token(")"), space(), token("->"), space(), result])
         }
         Type::Closure { signature, .. } => {
-            let signature_type = f.context().tree.get(*signature);
-            if let Type::FunctionPointer { parameters, result } = signature_type {
-                write!(f, [token("closure(")])?;
-                for (i, param) in parameters.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, [token(","), space()])?;
+            if let TypeReference::Type(signature) = *signature {
+                let signature_type = f.context().tree.get(signature);
+                if let Type::FunctionPointer { parameters, result } = signature_type {
+                    write!(f, [token("(")])?;
+                    for (i, param) in parameters.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, [token(","), space()])?;
+                        }
+                        write!(f, [param])?;
                     }
-                    write!(f, [param])?;
+                    write!(f, [token(")"), space(), token("=>"), space(), result])?;
+                    return Ok(());
                 }
-                write!(f, [token(")"), space(), token("->"), space(), result])
-            } else {
-                write!(f, [token("closure<"), signature, token(">")])
             }
+
+            write!(
+                f,
+                [
+                    token("("),
+                    signature,
+                    token(")"),
+                    space(),
+                    token("=>"),
+                    space(),
+                    token("<?>")
+                ]
+            )
         }
     }
+}
+
+/// Format one nested type reference.
+fn format_type_reference<'a>(ty: TypeReference, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    write!(f, [ty])
 }
 
 fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -432,7 +453,7 @@ fn format_view_header<'a>(
     kind: ReferenceKind,
     address_space: AddressSpace,
     mutability: Mutability,
-    element: LocalNodeId<Type>,
+    element: TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     let kind_token = match kind {
@@ -450,7 +471,8 @@ fn format_view_header<'a>(
             .map(|name| format!("addressSpace({name})")),
     };
 
-    write!(f, [element, token(","), space(), token(kind_token)])?;
+    format_type_reference(element, f)?;
+    write!(f, [token(","), space(), token(kind_token)])?;
     if mutability == Mutability::Immutable {
         write!(f, [token(","), space(), token("readonly")])?;
     }
@@ -469,8 +491,24 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
         let attributes = f.context().tree.attributes(id);
         let name = f.context().strings.get(self.name);
         let name = f.context().format_alias_name(name);
-        let ty = f.context().tree.get(self.ty);
-        format_type_declaration(&name, attributes, Some(id), self.ty, ty, f)
+        let TypeReference::Type(type_id) = self.ty else {
+            write!(
+                f,
+                [
+                    token("type"),
+                    space(),
+                    text(&name),
+                    space(),
+                    token("="),
+                    space(),
+                    self.ty,
+                    token(";")
+                ]
+            )?;
+            return Ok(());
+        };
+        let ty = f.context().tree.get(type_id);
+        format_type_declaration(&name, attributes, Some(id), type_id, ty, f)
     }
 }
 

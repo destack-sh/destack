@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, Function, Local, LocalNodeId, NodeType, Value};
+use crate::{Block, Function, Local, LocalNodeId, NodeType, Value, ValueReference};
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 
@@ -99,9 +99,13 @@ impl<'tree> Validator<'tree> {
 
         // parameter names
         for parameter in &function.parameters {
-            let Some(name_id) = function.value_name(parameter.value) else {
+            let ValueReference::Value(value) = parameter.value else {
+                continue;
+            };
+
+            let Some(name_id) = function.value_name(value) else {
                 return Err(ValidateError::MissingValueName {
-                    value: parameter.value,
+                    value,
                     anchor: ValidateAnchor::node(function_id),
                 });
             };
@@ -119,9 +123,13 @@ impl<'tree> Validator<'tree> {
 
             if Some(block_id) != entry {
                 for parameter in &block.parameters {
-                    let Some(name_id) = function.value_name(parameter.value) else {
+                    let ValueReference::Value(value) = parameter.value else {
+                        continue;
+                    };
+
+                    let Some(name_id) = function.value_name(value) else {
                         return Err(ValidateError::MissingValueName {
-                            value: parameter.value,
+                            value,
                             anchor: ValidateAnchor::node(block_id),
                         });
                     };
@@ -139,6 +147,10 @@ impl<'tree> Validator<'tree> {
                 let Some(destination) = instruction.destination() else {
                     continue;
                 };
+                let ValueReference::Value(destination) = destination else {
+                    continue;
+                };
+
                 let Some(name_id) = function.value_name(destination) else {
                     return Err(ValidateError::MissingValueName {
                         value: destination,
@@ -171,9 +183,13 @@ impl<'tree> Validator<'tree> {
         // parameters
         let mut defined_values = HashSet::new();
         for parameter in &function.parameters {
-            if !defined_values.insert(parameter.value) {
+            let ValueReference::Value(value) = parameter.value else {
+                continue;
+            };
+
+            if !defined_values.insert(value) {
                 return Err(ValidateError::DuplicateValueDefinition {
-                    value: parameter.value,
+                    value,
                     anchor: ValidateAnchor::node(function_id),
                 });
             }
@@ -214,9 +230,13 @@ impl<'tree> Validator<'tree> {
             // block parameters
             if block_id != entry {
                 for parameter in &block.parameters {
-                    if !defined_values.insert(parameter.value) {
+                    let ValueReference::Value(value) = parameter.value else {
+                        continue;
+                    };
+
+                    if !defined_values.insert(value) {
                         return Err(ValidateError::DuplicateValueDefinition {
-                            value: parameter.value,
+                            value,
                             anchor: ValidateAnchor::node(block_id),
                         });
                     }
@@ -239,7 +259,7 @@ impl<'tree> Validator<'tree> {
                 }
 
                 let instruction = self.tree.get(instruction_id);
-                if let Some(destination) = instruction.destination()
+                if let Some(ValueReference::Value(destination)) = instruction.destination()
                     && !defined_values.insert(destination)
                 {
                     return Err(ValidateError::DuplicateValueDefinition {

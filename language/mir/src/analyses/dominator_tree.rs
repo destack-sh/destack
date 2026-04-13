@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Block, ControlFlowGraph, Function, LocalNodeId, NodeTree};
+use crate::{Block, BlockReference, ControlFlowGraph, Function, LocalNodeId, NodeTree};
 
 /// Dense control flow graph used by dominance computation.
 #[derive(Debug)]
@@ -33,6 +33,10 @@ impl DenseControlFlow {
             let terminator = tree.get(block_data.terminator);
 
             for successor in terminator.successors() {
+                let BlockReference::Block(successor) = successor else {
+                    continue;
+                };
+
                 let successor_index = block_index[&successor];
                 successors[index].push(successor_index);
             }

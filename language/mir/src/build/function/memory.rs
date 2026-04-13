@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
     AddressSpace, Global, Instruction, Local, LocalNodeId, Mutability, Ownership, ReferenceKind,
-    Type, Value,
+    Type, TypeReference, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -10,7 +10,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self
             .tree
-            .insert(Local::new(ty, mutability, Ownership::Owned));
+            .insert(Local::new(ty.into(), mutability, Ownership::Owned));
         let function = self.tree.get_mut(self.function_id);
         function.locals.push(local);
         local
@@ -29,7 +29,7 @@ impl<'a> FunctionBuilder<'a> {
             kind,
             address_space,
             mutability,
-            pointee,
+            pointee: pointee.into(),
             is_nullable,
         })
     }
@@ -37,8 +37,11 @@ impl<'a> FunctionBuilder<'a> {
     /// Load from a local variable.
     pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::LocalGet { destination, local });
-        let local_ty = self.tree.get(local).ty;
+        self.insert_instruction(Instruction::LocalGet {
+            destination: destination.into(),
+            local: local.into(),
+        });
+        let local_ty = concrete_type_reference(self.tree.get(local).ty, "local.get local type");
         self.define_value(destination, local_ty);
         destination
     }
@@ -51,9 +54,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::LocalAddr {
-            destination,
-            local,
-            result_type,
+            destination: destination.into(),
+            local: local.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -61,7 +64,10 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Store to a local variable.
     pub fn local_set(&mut self, local: LocalNodeId<Local>, value: Value) {
-        self.insert_instruction(Instruction::LocalSet { local, value });
+        self.insert_instruction(Instruction::LocalSet {
+            local: local.into(),
+            value: value.into(),
+        });
     }
 
     /// Get the address of a mutable global variable.
@@ -72,9 +78,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::GlobalAddr {
-            destination,
-            global,
-            result_type,
+            destination: destination.into(),
+            global: global.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -84,10 +90,11 @@ impl<'a> FunctionBuilder<'a> {
     pub fn global_const(&mut self, global: LocalNodeId<Global>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::GlobalConst {
-            destination,
-            global,
+            destination: destination.into(),
+            global: global.into(),
         });
-        let global_ty = self.tree.get(global).ty;
+        let global_ty =
+            concrete_type_reference(self.tree.get(global).ty, "global.const global type");
         self.define_value(destination, global_ty);
         destination
     }
@@ -96,9 +103,9 @@ impl<'a> FunctionBuilder<'a> {
     pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
-            destination,
-            pointer: pointer_value,
-            result_type,
+            destination: destination.into(),
+            pointer: pointer_value.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -107,8 +114,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Store to a pointer.
     pub fn store(&mut self, pointer_value: Value, value: Value) {
         self.insert_instruction(Instruction::Store {
-            pointer: pointer_value,
-            value,
+            pointer: pointer_value.into(),
+            value: value.into(),
         });
     }
 
@@ -122,13 +129,16 @@ impl<'a> FunctionBuilder<'a> {
         match aggregate {
             Type::Struct { fields, .. } => fields
                 .get(index as usize)
-                .map(|field_id| self.tree.get(*field_id).ty)
+                .map(|field_id| {
+                    concrete_type_reference(self.tree.get(*field_id).ty, "struct field type")
+                })
                 .unwrap_or_else(|| panic!("field index out of bounds")),
             Type::Tuple { elements, .. } => elements
                 .get(index as usize)
                 .copied()
+                .map(|element| concrete_type_reference(element, "tuple field type"))
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::Closure { .. } => panic!("field access does not support closure"),
+            Type::Closure { .. } => panic!("field access does not support callable"),
             _ => panic!("field access expects struct or tuple"),
         }
     }
@@ -140,7 +150,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> LocalNodeId<Type> {
         let array = self.tree.get(array_type);
         match array {
-            Type::Array { element, .. } => *element,
+            Type::Array { element, .. } => concrete_type_reference(*element, "array element type"),
             _ => panic!("element access expects array type"),
         }
     }
@@ -152,7 +162,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> LocalNodeId<Type> {
         let vector = self.tree.get(vector_type);
         match vector {
-            Type::Vector { element, .. } => *element,
+            Type::Vector { element, .. } => {
+                concrete_type_reference(*element, "vector element type")
+            }
             _ => panic!("vector access expects vector type"),
         }
     }
@@ -164,7 +176,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> LocalNodeId<Type> {
         let reference_type = self.tree.get(reference_type);
         match reference_type {
-            Type::TensorReference { element, .. } => *element,
+            Type::TensorReference { element, .. } => {
+                concrete_type_reference(*element, "tensor reference element type")
+            }
             _ => panic!("tensor access expects tensor reference type"),
         }
     }
@@ -178,12 +192,16 @@ impl<'a> FunctionBuilder<'a> {
     pub(super) fn signature_result_type(&self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
         let signature_type = self.tree.get(signature);
         match signature_type {
-            Type::FunctionPointer { result, .. } => *result,
+            Type::FunctionPointer { result, .. } => {
+                concrete_type_reference(*result, "function pointer result")
+            }
             Type::Closure { signature, .. } => {
-                let Type::FunctionPointer { result, .. } = self.tree.get(*signature) else {
-                    panic!("closure must carry a function pointer signature");
+                let signature =
+                    concrete_type_reference(*signature, "callable function pointer signature");
+                let Type::FunctionPointer { result, .. } = self.tree.get(signature) else {
+                    panic!("callable must carry a function pointer signature");
                 };
-                *result
+                concrete_type_reference(*result, "callable function pointer result")
             }
             _ => panic!("call expects function pointer signature"),
         }
@@ -198,9 +216,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ManagedAlloc {
-            destination,
-            layout,
-            result_type,
+            destination: destination.into(),
+            layout: layout.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -216,10 +234,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ManagedAllocArray {
-            destination,
-            element,
-            length,
-            result_type,
+            destination: destination.into(),
+            element: element.into(),
+            length: length.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -234,9 +252,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::RawAlloc {
-            destination,
-            layout,
-            result_type,
+            destination: destination.into(),
+            layout: layout.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -244,7 +262,9 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Free raw heap memory previously allocated with `raw.alloc`.
     pub fn raw_free(&mut self, pointer: Value) {
-        self.insert_instruction(Instruction::RawFree { pointer });
+        self.insert_instruction(Instruction::RawFree {
+            pointer: pointer.into(),
+        });
     }
 
     /// Allocate on the stack (lives until function returns).
@@ -256,9 +276,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::StackAlloc {
-            destination,
-            layout,
-            result_type,
+            destination: destination.into(),
+            layout: layout.into(),
+            result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
         destination
@@ -268,6 +288,16 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Assume a condition is true (UB if false).
     pub fn assume(&mut self, condition: Value) {
-        self.insert_instruction(Instruction::Assume { condition });
+        self.insert_instruction(Instruction::Assume {
+            condition: condition.into(),
+        });
+    }
+}
+
+fn concrete_type_reference(reference: TypeReference, context: &str) -> LocalNodeId<Type> {
+    match reference {
+        TypeReference::Type(ty) => ty,
+        TypeReference::Missing => panic!("missing type reference for {context}"),
+        TypeReference::Error => panic!("malformed type reference for {context}"),
     }
 }

@@ -1,6 +1,9 @@
 use destack_source::Span;
 
-use crate::{Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, FloatValue};
+use crate::{
+    Attribute, AttributeArgs, AttributeIdentifier, AttributeKeyValue, AttributeValue, FloatValue,
+    IntegerReference, TypeReference,
+};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -33,7 +36,7 @@ impl Parser {
         // name and arguments
         let name_token = self.eat_token(TokenType::Identifier)?;
         let name_text = self.tree.source_text(name_token.span).to_string();
-        let name = self.strings.intern(&name_text);
+        let name = AttributeIdentifier::Identifier(self.strings.intern(&name_text));
 
         // optional argument payload
         let args = if self.eat_token_maybe(TokenType::OpenParen) {
@@ -64,7 +67,7 @@ impl Parser {
             loop {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 let key_text = self.tree.source_text(key_token.span).to_string();
-                let key = self.strings.intern(&key_text);
+                let key = AttributeIdentifier::Identifier(self.strings.intern(&key_text));
                 self.eat_token(TokenType::Equals)?;
                 let value = self.parse_attribute_value()?;
                 pairs.push(AttributeKeyValue { key, value });
@@ -108,23 +111,25 @@ impl Parser {
         // type values
         if self.peek_type(token_ty) {
             let ty = self.parse_type()?;
-            return Ok(AttributeValue::Type(ty));
+            return Ok(AttributeValue::Type(TypeReference::Type(ty)));
         }
 
         // scalar and list values
         match token_ty {
             TokenType::Identifier => {
                 self.bump();
-                Ok(AttributeValue::Identifier(self.strings.intern(&token_text)))
+                let identifier = AttributeIdentifier::Identifier(self.strings.intern(&token_text));
+
+                Ok(AttributeValue::Identifier(identifier))
             }
-            TokenType::BoolLiteral => {
+            TokenType::BooleanLiteral => {
                 self.bump();
                 let value = token_text == "true";
                 Ok(AttributeValue::Boolean(value))
             }
             TokenType::IntLiteral => {
                 let value = self.parse_int_literal()?;
-                Ok(AttributeValue::Integer(value))
+                Ok(AttributeValue::Integer(IntegerReference::Integer(value)))
             }
             TokenType::FloatLiteral => {
                 self.bump();

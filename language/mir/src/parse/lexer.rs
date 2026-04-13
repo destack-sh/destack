@@ -200,11 +200,9 @@ impl<'a> Lexer<'a> {
                 }
             }
             "addressSpace" => TokenType::AddressSpace,
-            "fn" => TokenType::Fn,
-            "closure" => TokenType::Closure,
             "struct" => TokenType::Struct,
             "newtype" => TokenType::Newtype,
-            "true" | "false" => TokenType::BoolLiteral,
+            "true" | "false" => TokenType::BooleanLiteral,
             "owned" | "borrowed" | "copy" => TokenType::Ownership,
             "readonly" => TokenType::Readonly,
             "const" => TokenType::Const,
@@ -285,7 +283,7 @@ impl<'a> Lexer<'a> {
         // expect closing '
         if self.peek() == Some('\'') {
             self.advance();
-            TokenType::CharLiteral
+            TokenType::CharacterLiteral
         } else {
             TokenType::Unknown
         }
@@ -510,9 +508,9 @@ mod tests {
         assert_eq!(
             types,
             vec![
-                TokenType::CharLiteral,
-                TokenType::CharLiteral,
-                TokenType::CharLiteral,
+                TokenType::CharacterLiteral,
+                TokenType::CharacterLiteral,
+                TokenType::CharacterLiteral,
                 TokenType::End
             ]
         );

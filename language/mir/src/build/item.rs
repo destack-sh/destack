@@ -1,7 +1,7 @@
 use crate::build::{FunctionBuilder, ModuleBuilder};
 use crate::validate::Validator;
 use crate::{
-    Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type, TypedValue, Value,
+    Function, Global, GlobalInitializer, LocalNodeId, Mutability, Parameter, Type, Value,
     finalize_function_names,
 };
 
@@ -15,7 +15,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
         self.tree
-            .insert(Global::new(name_id, ty, Mutability::Mutable, init))
+            .insert(Global::new(name_id, ty.into(), Mutability::Mutable, init))
     }
 
     /// Create a global constant (immutable).
@@ -27,7 +27,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
         self.tree
-            .insert(Global::new(name_id, ty, Mutability::Immutable, init))
+            .insert(Global::new(name_id, ty.into(), Mutability::Immutable, init))
     }
 
     /// Create a global with explicit mutability.
@@ -39,7 +39,8 @@ impl ModuleBuilder {
         init: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
-        self.tree.insert(Global::new(name_id, ty, mutability, init))
+        self.tree
+            .insert(Global::new(name_id, ty.into(), mutability, init))
     }
 
     /// Declare an external global (defined elsewhere).
@@ -50,7 +51,8 @@ impl ModuleBuilder {
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
-        self.tree.insert(Global::import(name_id, ty, mutability))
+        self.tree
+            .insert(Global::import(name_id, ty.into(), mutability))
     }
 
     /// Start building a new function.
@@ -84,17 +86,17 @@ impl ModuleBuilder {
         return_type: LocalNodeId<Type>,
     ) -> LocalNodeId<Function> {
         let name_id = self.strings.intern(name);
-        let parameters: Vec<TypedValue> = parameter_types
+        let parameters: Vec<Parameter> = parameter_types
             .iter()
             .enumerate()
-            .map(|(index, &ty)| TypedValue {
-                value: Value::new(index as u32),
-                ty,
+            .map(|(index, &ty)| Parameter {
+                value: Value::new(index as u32).into(),
+                ty: ty.into(),
             })
             .collect();
-        let function_id = self
-            .tree
-            .insert(Function::declare(name_id, parameters, return_type));
+        let function_id =
+            self.tree
+                .insert(Function::declare(name_id, parameters, return_type.into()));
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         let validator = Validator::new(&self.tree);
@@ -113,17 +115,17 @@ impl ModuleBuilder {
         return_type: LocalNodeId<Type>,
     ) -> LocalNodeId<Function> {
         let name_id = self.strings.intern(name);
-        let parameters: Vec<TypedValue> = parameter_types
+        let parameters: Vec<Parameter> = parameter_types
             .iter()
             .enumerate()
-            .map(|(index, &ty)| TypedValue {
-                value: Value::new(index as u32),
-                ty,
+            .map(|(index, &ty)| Parameter {
+                value: Value::new(index as u32).into(),
+                ty: ty.into(),
             })
             .collect();
-        let function_id = self
-            .tree
-            .insert(Function::import(name_id, parameters, return_type));
+        let function_id =
+            self.tree
+                .insert(Function::import(name_id, parameters, return_type.into()));
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         let validator = Validator::new(&self.tree);

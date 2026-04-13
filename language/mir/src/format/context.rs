@@ -11,7 +11,7 @@ use crate::parse::TokenType;
 use crate::{
     AddressSpace, Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node,
     NodeTree, NodeTreeImpl, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator,
-    Type, TypeAlias, Value,
+    Type, TypeAlias, TypeReference, Value,
 };
 
 use super::r#type::format_type_declaration;
@@ -144,14 +144,18 @@ impl<'a> MirFormatContext<'a> {
         // collect explicit type aliases
         let type_alias_by_type: HashMap<_, _> = tree
             .iter_nodes::<TypeAlias>()
-            .map(|(_, alias)| {
+            .filter_map(|(_, alias)| {
+                let TypeReference::Type(ty) = alias.ty else {
+                    return None;
+                };
+
                 let name = strings.get(alias.name);
                 let name = if options.use_local_names {
                     local_name_from_metadata(name)
                 } else {
                     name.to_string()
                 };
-                (alias.ty, name)
+                Some((ty, name))
             })
             .collect();
 
@@ -512,8 +516,8 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Tuple { .. } => "Tuple",
         Type::Array { .. } => "Array",
         Type::Reference { .. } => "Ref",
-        Type::FunctionPointer { .. } => "Fn",
-        Type::Closure { .. } => "Closure",
+        Type::FunctionPointer { .. } => "Function",
+        Type::Closure { .. } => "Callable",
         _ => "Type",
     }
 }
@@ -575,6 +579,19 @@ fn type_key_for_alias(
     type_key_for_alias_inner(tree, strings, ty, &mut active_types)
 }
 
+/// Build one structural key from a type reference.
+fn type_key_for_alias_reference(
+    tree: &NodeTree,
+    strings: &ImmutableStringPool,
+    ty: TypeReference,
+) -> String {
+    match ty {
+        TypeReference::Type(ty) => type_key_for_alias(tree, strings, ty),
+        TypeReference::Missing => "<missing>".to_string(),
+        TypeReference::Error => "<error>".to_string(),
+    }
+}
+
 /// Build a structural key used for alias grouping.
 fn type_key_for_alias_inner(
     tree: &NodeTree,
@@ -620,7 +637,7 @@ fn type_key_for_alias_inner(
                 result.push_str("ref<");
             }
             // append the pointee key first
-            let pointee_key = type_key_for_alias_inner(tree, strings, *pointee, active_types);
+            let pointee_key = type_key_for_alias_reference(tree, strings, *pointee);
             result.push_str(&pointee_key);
 
             // append the reference kind
@@ -656,14 +673,14 @@ fn type_key_for_alias_inner(
             element, length, ..
         } => {
             // format array keys with element and length
-            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
+            let element_key = type_key_for_alias_reference(tree, strings, *element);
             format!("{element_key}[{length}]")
         }
         Type::Tuple { elements, .. } => {
             // join tuple element keys
             let elements = elements
                 .iter()
-                .map(|element| type_key_for_alias_inner(tree, strings, *element, active_types))
+                .map(|element| type_key_for_alias_reference(tree, strings, *element))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("({elements})")
@@ -674,8 +691,7 @@ fn type_key_for_alias_inner(
                 .iter()
                 .map(|field_id| {
                     let field = tree.get(*field_id);
-                    let field_type =
-                        type_key_for_alias_inner(tree, strings, field.ty, active_types);
+                    let field_type = type_key_for_alias_reference(tree, strings, field.ty);
                     match field.name {
                         Some(name) => format!("{}: {field_type}", strings.get(name)),
                         None => field_type,
@@ -686,12 +702,12 @@ fn type_key_for_alias_inner(
             format!("{{ {fields} }}")
         }
         Type::Newtype { inner, .. } => {
-            let inner_key = type_key_for_alias_inner(tree, strings, *inner, active_types);
+            let inner_key = type_key_for_alias_reference(tree, strings, *inner);
             format!("newtype<{inner_key}>")
         }
         Type::Vector { element, lanes, .. } => {
             // format vector keys with element and lane count
-            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
+            let element_key = type_key_for_alias_reference(tree, strings, *element);
             format!("vector<{element_key}, {lanes}>")
         }
         Type::Tensor {
@@ -701,7 +717,7 @@ fn type_key_for_alias_inner(
             ..
         } => {
             // format tensor keys with element, shape, and layout
-            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
+            let element_key = type_key_for_alias_reference(tree, strings, *element);
             let shape_key = format_shape_key(shape);
             let layout_key = format_tensor_layout_key(layout);
             format!("tensor<{element_key}, {shape_key}, {layout_key}>")
@@ -722,7 +738,7 @@ fn type_key_for_alias_inner(
             } else {
                 result.push_str("tensorRef<");
             }
-            let element_key = type_key_for_alias_inner(tree, strings, *element, active_types);
+            let element_key = type_key_for_alias_reference(tree, strings, *element);
             result.push_str(&element_key);
             result.push_str(", ");
             result.push_str(match kind {
@@ -756,23 +772,29 @@ fn type_key_for_alias_inner(
             // join parameter and result keys
             let params = parameters
                 .iter()
-                .map(|param| type_key_for_alias_inner(tree, strings, *param, active_types))
+                .map(|param| type_key_for_alias_reference(tree, strings, *param))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias_inner(tree, strings, *result, active_types);
-            format!("fn({params}) -> {result}")
+            let result = type_key_for_alias_reference(tree, strings, *result);
+            format!("({params}) -> {result}")
         }
         Type::Closure { signature, .. } => {
-            let Type::FunctionPointer { parameters, result } = tree.get(*signature) else {
-                panic!("closure type key expects a function pointer signature");
+            let TypeReference::Type(signature) = *signature else {
+                return format!(
+                    "({}) => <?>",
+                    type_key_for_alias_reference(tree, strings, *signature)
+                );
+            };
+            let Type::FunctionPointer { parameters, result } = tree.get(signature) else {
+                panic!("callable type key expects a function pointer signature");
             };
             let params = parameters
                 .iter()
-                .map(|param| type_key_for_alias_inner(tree, strings, *param, active_types))
+                .map(|param| type_key_for_alias_reference(tree, strings, *param))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias_inner(tree, strings, *result, active_types);
-            format!("closure({params}) -> {result}")
+            let result = type_key_for_alias_reference(tree, strings, *result);
+            format!("({params}) => {result}")
         }
     };
 
@@ -999,9 +1021,13 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
 /// Record usage of a type and its nested types.
 fn record_type_use(
     tree: &NodeTree,
-    ty: LocalNodeId<Type>,
+    ty: TypeReference,
     counts: &mut HashMap<LocalNodeId<Type>, u32>,
 ) {
+    let TypeReference::Type(ty) = ty else {
+        return;
+    };
+
     // track visited types for this traversal
     let mut visited = HashSet::new();
 
@@ -1027,45 +1053,78 @@ fn record_type_use_inner(
     // record nested types
     match tree.get(ty) {
         Type::Reference { pointee, .. } => {
-            record_type_use_inner(tree, *pointee, counts, visited);
+            let TypeReference::Type(pointee) = *pointee else {
+                return;
+            };
+            record_type_use_inner(tree, pointee, counts, visited);
         }
         Type::Array { element, .. } => {
-            record_type_use_inner(tree, *element, counts, visited);
+            let TypeReference::Type(element) = *element else {
+                return;
+            };
+            record_type_use_inner(tree, element, counts, visited);
         }
         Type::Tuple { elements, .. } => {
             // record tuple element types
             for element_id in elements {
-                record_type_use_inner(tree, *element_id, counts, visited);
+                let TypeReference::Type(element_id) = *element_id else {
+                    continue;
+                };
+                record_type_use_inner(tree, element_id, counts, visited);
             }
         }
         Type::Struct { fields, .. } => {
             // record struct field types
             for field_id in fields {
                 let field = tree.get(*field_id);
-                record_type_use_inner(tree, field.ty, counts, visited);
+                let TypeReference::Type(field_ty) = field.ty else {
+                    continue;
+                };
+                record_type_use_inner(tree, field_ty, counts, visited);
             }
         }
         Type::Newtype { inner, .. } => {
-            record_type_use_inner(tree, *inner, counts, visited);
+            let TypeReference::Type(inner) = *inner else {
+                return;
+            };
+            record_type_use_inner(tree, inner, counts, visited);
         }
         Type::Vector { element, .. } => {
-            record_type_use_inner(tree, *element, counts, visited);
+            let TypeReference::Type(element) = *element else {
+                return;
+            };
+            record_type_use_inner(tree, element, counts, visited);
         }
         Type::Tensor { element, .. } => {
-            record_type_use_inner(tree, *element, counts, visited);
+            let TypeReference::Type(element) = *element else {
+                return;
+            };
+            record_type_use_inner(tree, element, counts, visited);
         }
         Type::TensorReference { element, .. } => {
-            record_type_use_inner(tree, *element, counts, visited);
+            let TypeReference::Type(element) = *element else {
+                return;
+            };
+            record_type_use_inner(tree, element, counts, visited);
         }
         Type::FunctionPointer { parameters, result } => {
             // record function pointer types
             for parameter_id in parameters {
-                record_type_use_inner(tree, *parameter_id, counts, visited);
+                let TypeReference::Type(parameter_id) = *parameter_id else {
+                    continue;
+                };
+                record_type_use_inner(tree, parameter_id, counts, visited);
             }
-            record_type_use_inner(tree, *result, counts, visited);
+            let TypeReference::Type(result) = *result else {
+                return;
+            };
+            record_type_use_inner(tree, result, counts, visited);
         }
         Type::Closure { signature } => {
-            record_type_use_inner(tree, *signature, counts, visited);
+            let TypeReference::Type(signature) = *signature else {
+                return;
+            };
+            record_type_use_inner(tree, signature, counts, visited);
         }
         Type::Void
         | Type::Boolean
@@ -1531,12 +1590,16 @@ fn collect_alias_dependencies(
 
 /// Record a dependency and continue traversal.
 fn record_dependency(
-    type_id: LocalNodeId<Type>,
+    type_id: TypeReference,
     root: LocalNodeId<Type>,
     alias_types: &HashSet<LocalNodeId<Type>>,
     dependencies: &mut HashSet<LocalNodeId<Type>>,
     stack: &mut Vec<LocalNodeId<Type>>,
 ) {
+    let TypeReference::Type(type_id) = type_id else {
+        return;
+    };
+
     if type_id != root && alias_types.contains(&type_id) {
         dependencies.insert(type_id);
     }
