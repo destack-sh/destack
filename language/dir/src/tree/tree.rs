@@ -10,8 +10,16 @@ use crate::{
     Arena, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
     Expression, FunctionMode, GenericArgument, GenericParameter, IfCondition, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor,
+<<<<<<< HEAD
     NodeVisitorOptions, Parameter, Pattern, PatternField, Property, Provenance, ProvenanceId,
     ProvenanceReason, TypeExpression, TypeProperty, WhereClause,
+||||||| parent of 1ffb34b5c5 (feat(language/dir): mirror tuple elements and align shared AST shapes)
+    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TypeExpression, TypeProperty,
+    WhereClause,
+=======
+    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TupleElement, TypeExpression,
+    TypeProperty, WhereClause,
+>>>>>>> 1ffb34b5c5 (feat(language/dir): mirror tuple elements and align shared AST shapes)
 };
 
 /// Normalized semantic documentation attached to one DIR node.
@@ -50,6 +58,7 @@ pub struct NodeTree {
     pub(crate) generic_parameters: Arena<GenericParameter>,
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) generic_arguments: Arena<GenericArgument>,
+    pub(crate) tuple_elements: Arena<TupleElement>,
     pub(crate) arguments: Arena<Argument>,
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
@@ -114,6 +123,7 @@ impl NodeTree {
             generic_parameters: Arena::new(),
             parameters: Arena::new(),
             generic_arguments: Arena::new(),
+            tuple_elements: Arena::new(),
             arguments: Arena::new(),
             match_cases: Arena::new(),
             patterns: Arena::new(),
@@ -458,6 +468,10 @@ impl NodeTree {
                 let typed_id = LocalNodeId::<GenericArgument>::new(node_id.id);
                 visitor.visit_generic_argument(self, typed_id, self.get(typed_id));
             }
+            NodeType::TupleElement => {
+                let typed_id = LocalNodeId::<TupleElement>::new(node_id.id);
+                visitor.visit_tuple_element(self, typed_id, self.get(typed_id));
+            }
             NodeType::Argument => {
                 let typed_id = LocalNodeId::<Argument>::new(node_id.id);
                 visitor.visit_argument(self, typed_id, self.get(typed_id));
@@ -639,6 +653,17 @@ impl NodeTree {
             ) {
                 self.push_node(id.into_any());
                 crate::walk_generic_argument(self, tree, id, generic_argument);
+                self.parent_stack.pop();
+            }
+
+            fn visit_tuple_element(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<TupleElement>,
+                tuple_element: &TupleElement,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_tuple_element(self, tree, id, tuple_element);
                 self.parent_stack.pop();
             }
 
@@ -864,6 +889,12 @@ impl NodeTree {
                 crate::walk_generic_argument
             );
             validate_visit!(
+                visit_tuple_element,
+                TupleElement,
+                NodeType::TupleElement,
+                crate::walk_tuple_element
+            );
+            validate_visit!(
                 visit_argument,
                 Argument,
                 NodeType::Argument,
@@ -1077,7 +1108,9 @@ impl NodeTree {
         let parent_property = self.get(parent_property_id);
 
         match parent_property {
-            Property::Method { body, .. } => body.id == expression_id.id,
+            Property::Method { body, .. } => body
+                .as_ref()
+                .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
             _ => false,
         }
     }
@@ -1244,6 +1277,7 @@ impl_node_tree_stores! {
     GenericParameter => generic_parameters,
     Parameter => parameters,
     GenericArgument => generic_arguments,
+    TupleElement => tuple_elements,
     Argument => arguments,
     TypeExpression => type_expressions,
     MatchCase => match_cases,

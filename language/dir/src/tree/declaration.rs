@@ -43,7 +43,7 @@ pub struct GlobalDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct NamespaceDeclaration {
     /// The namespace name.
-    pub name: Option<Name>,
+    pub name: Name,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -66,7 +66,7 @@ pub struct NamespaceDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct TypeDeclaration {
     /// The declared name.
-    pub name: Option<Name>,
+    pub name: Name,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -91,7 +91,7 @@ pub struct TypeDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ImportAliasDeclaration {
     /// The declared name.
-    pub name: Option<Name>,
+    pub name: Name,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -133,7 +133,7 @@ pub struct StructDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ClassDeclaration {
     /// The declared name.
-    pub name: Name,
+    pub name: Option<Name>,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -220,27 +220,6 @@ pub struct InterfaceDeclaration {
     pub members: Vec<LocalNodeId<Member>>,
 }
 
-/// A function declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub struct FunctionDeclaration {
-    /// The declared name.
-    pub name: Option<Name>,
-    /// The export mode of the declaration.
-    pub export: Option<ExportMode>,
-    /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The optional symbol for `self`.
-    pub self_symbol: Option<LocalSymbolId>,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
-    /// The function signature.
-    pub signature: FunctionSignature,
-    /// The optional function body.
-    pub body: Option<LocalNodeId<Expression>>,
-}
-
 /// An extension declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ExtensionDeclaration {
@@ -266,6 +245,27 @@ pub struct ExtensionDeclaration {
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The extension members.
     pub members: Vec<LocalNodeId<Member>>,
+}
+
+/// A function declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub struct FunctionDeclaration {
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// The declaration symbol.
+    pub symbol: LocalSymbolId,
+    /// The optional symbol for `self`.
+    pub self_symbol: Option<LocalSymbolId>,
+    /// The declaration scope.
+    pub scope: LocalScopeId,
+    /// The function signature.
+    pub signature: FunctionSignature,
+    /// The optional function body.
+    pub body: Option<LocalNodeId<Expression>>,
 }
 
 /// Declaration introduces a type or function into its scope.

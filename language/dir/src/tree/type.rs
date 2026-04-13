@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, Declaration, Expression, FunctionSignature, GenericArgument, GlobalSymbolId, Key,
     LocalNodeId, Mutability, Node, NodeType, Path, ScalarLiteral, StringId, SymbolSpaceOrder,
-    TypeLiteral, VarianceBound,
+    TupleElement, TypeLiteral, VarianceBound,
 };
 
 /// One object type property.
@@ -89,7 +89,7 @@ pub enum TypeExpression {
 
     /// Tuple type syntax.
     Tuple {
-        elements: Vec<LocalNodeId<GenericArgument>>,
+        elements: Vec<LocalNodeId<TupleElement>>,
     },
 
     /// Array type syntax.
@@ -171,6 +171,11 @@ pub enum TypeExpression {
 
     /// `T!`.
     Must {
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
+    /// `T as comptime`.
+    AsComptime {
         target_type: LocalNodeId<TypeExpression>,
     },
 

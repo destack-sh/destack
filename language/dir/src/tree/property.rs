@@ -24,7 +24,7 @@ pub enum StaticProperty {
     },
     /// Evaluated static member function.
     Method {
-        key: Key,
+        key: Option<Key>,
         signature: FunctionSignature,
         body: StaticExpression,
         symbol: LocalSymbolId,
@@ -81,9 +81,9 @@ pub enum Property {
     },
     /// Named member function.
     Method {
-        key: Key,
+        key: Option<Key>,
         signature: FunctionSignature,
-        body: LocalNodeId<Expression>,
+        body: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
     /// Spread property.
