@@ -91,4 +91,6 @@ impl VmAbiCodec for BackendSupport {
 }
 
 /// Register VM storage schemas for core.
-pub(crate) fn register_core_vm_storage_types(_isolate: &mut vm::Isolate) {}
+pub(crate) fn register_core_vm_storage_types(_isolate: &mut vm::Isolate) -> vm::Result<()> {
+    Ok(())
+}

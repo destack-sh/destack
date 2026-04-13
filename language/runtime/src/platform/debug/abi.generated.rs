@@ -313,6 +313,8 @@ pub struct InspectorendpointReplayRecord {
 }
 
 /// Register VM storage schemas for debug.
-pub(crate) fn register_debug_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("debug::InspectorEndpoint", 2);
+pub(crate) fn register_debug_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("debug::InspectorEndpoint", 2)?;
+
+    Ok(())
 }

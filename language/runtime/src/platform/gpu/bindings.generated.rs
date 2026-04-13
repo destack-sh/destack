@@ -35316,9 +35316,14 @@ pub(crate) fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: 
 }
 
 /// Install VM bindings for gpu.
-pub(crate) fn install_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_gpu_vm_storage_types(isolate);
+pub(crate) fn install_gpu_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_gpu_vm_storage_types(isolate)?;
     register_gpu_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) GPU_VM_BINDINGS, "gpu", install_gpu_vm_bindings);

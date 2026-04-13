@@ -1026,15 +1026,19 @@ impl AbiRenderer<'_> {
         };
         output.push_str(&format!("/// Register VM storage schemas for {domain}.\n"));
         output.push_str(&format!(
-            "pub(crate) fn {register_storage_types_fn}({isolate_name}: &mut vm::Isolate) {{\n"
+            "pub(crate) fn {register_storage_types_fn}({isolate_name}: &mut vm::Isolate) -> vm::Result<()> {{\n"
         ));
         for (metadata_name, component_count) in storage_type_registrations {
             output.push_str(&format!(
-                "    isolate.register_named_storage_type(\"{}\", {});\n",
+                "    isolate.register_named_storage_type(\"{}\", {})?;\n",
                 codegen.escape_rust_string(&metadata_name),
                 component_count
             ));
         }
+        if !storage_type_registrations.is_empty() {
+            output.push_str("\n");
+        }
+        output.push_str("    Ok(())\n");
         output.push_str("}\n");
 
         self.output

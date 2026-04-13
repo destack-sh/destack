@@ -27049,9 +27049,14 @@ pub(crate) fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &
 }
 
 /// Install VM bindings for fs.
-pub(crate) fn install_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_fs_vm_storage_types(isolate);
+pub(crate) fn install_fs_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_fs_vm_storage_types(isolate)?;
     register_fs_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) FS_VM_BINDINGS, "fs", install_fs_vm_bindings);

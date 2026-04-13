@@ -652,6 +652,8 @@ pub struct TlscontextoptionsReplayRecord {
 }
 
 /// Register VM storage schemas for tls.
-pub(crate) fn register_tls_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("tls::TlsContextOptions", 5);
+pub(crate) fn register_tls_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("tls::TlsContextOptions", 5)?;
+
+    Ok(())
 }

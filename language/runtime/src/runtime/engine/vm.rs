@@ -127,7 +127,7 @@ impl Engine for Isolate {
             .boxed());
         };
 
-        Ok(Isolate::continuation_image(self, continuation))
+        Isolate::continuation_image(self, continuation).map_err(Box::<RuntimeError>::from)
     }
 
     /// Restore one continuation from one immutable VM continuation image.

@@ -20217,9 +20217,14 @@ pub(crate) fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate
 }
 
 /// Install VM bindings for audio.
-pub(crate) fn install_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_audio_vm_storage_types(isolate);
+pub(crate) fn install_audio_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_audio_vm_storage_types(isolate)?;
     register_audio_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) AUDIO_VM_BINDINGS, "audio", install_audio_vm_bindings);

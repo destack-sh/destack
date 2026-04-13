@@ -129,7 +129,10 @@ impl TestRuntime {
         let (tree, strings) = test_vm_isolate_module();
         let mut vm_isolate =
             vm::Isolate::build(tree, strings).expect("test vm isolate should build");
-        agent.bindings.install_vm_defaults(&mut vm_isolate);
+        agent
+            .bindings
+            .install_vm_defaults(&mut vm_isolate)
+            .expect("test vm bindings should install");
         let vm_heap = vm::Heap::default();
         let vm_shared = vm::SharedSpace::default();
 
@@ -146,7 +149,10 @@ impl TestRuntime {
     /// Install default VM bindings using the test agent.
     #[cfg(test)]
     pub(crate) fn install_vm_defaults(&mut self, isolate: &mut vm::Isolate) {
-        self.agent.bindings.install_vm_defaults(isolate);
+        self.agent
+            .bindings
+            .install_vm_defaults(isolate)
+            .expect("test vm bindings should install");
     }
 
     /// Execute a native binding within a runtime call context.
@@ -297,22 +303,25 @@ impl TestRuntime {
 
 /// Build the minimal MIR module required for one VM binding test isolate.
 fn test_vm_isolate_module() -> (NodeTree, ImmutableStringPool) {
-    let (mut tree, strings) =
-        Parser::parse(FileId::new(0), vm::STRING_TYPE_ALIAS, ParseOptions::default())
-            .validate()
-            .expect("runtime vm test isolate should parse");
+    let (mut tree, strings) = Parser::parse(
+        FileId::new(0),
+        vm::STRING_TYPE_ALIAS,
+        ParseOptions::default(),
+    )
+    .validate()
+    .expect("runtime vm test isolate should parse");
 
     // keep runtime VM tests explicit about the well known String contract
     let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {
         if strings.get(type_alias.name) == "String" {
-            Some(type_alias.ty)
+            type_alias.ty.ty()
         } else {
             None
         }
     });
 
     if let Some(string_type) = string_type {
-        tree.type_table.set_string_type(string_type);
+        tree.metadata.layout.set_string_type(string_type);
     }
 
     (tree, strings)

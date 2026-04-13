@@ -22399,9 +22399,14 @@ pub(crate) fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: 
 }
 
 /// Install VM bindings for net.
-pub(crate) fn install_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_net_vm_storage_types(isolate);
+pub(crate) fn install_net_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_net_vm_storage_types(isolate)?;
     register_net_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) NET_VM_BINDINGS, "net", install_net_vm_bindings);

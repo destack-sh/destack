@@ -5554,32 +5554,34 @@ pub enum ProcesswaitstatusReplayRecord {
 }
 
 /// Register VM storage schemas for process.
-pub(crate) fn register_process_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("process::PathBytes", 1);
-    isolate.register_named_storage_type("process::PathUtf16", 1);
-    isolate.register_named_storage_type("process::OsPathBytes", 2);
-    isolate.register_named_storage_type("process::OsPathUtf16", 2);
-    isolate.register_named_storage_type("process::ProcessFdActionClose", 2);
-    isolate.register_named_storage_type("process::ProcessFdActionDup2", 3);
-    isolate.register_named_storage_type("process::ProcessFdActionOpen", 5);
-    isolate.register_named_storage_type("process::ProcessGroupIds", 3);
-    isolate.register_named_storage_type("process::ProcessLimit", 2);
-    isolate.register_named_storage_type("process::ProcessSchedulerConfig", 3);
-    isolate.register_named_storage_type("process::ProcessSpawnOptions", 4);
-    isolate.register_named_storage_type("process::ProcessStdioDescriptor", 2);
-    isolate.register_named_storage_type("process::ProcessStdioFile", 2);
-    isolate.register_named_storage_type("process::ProcessStdioInherit", 1);
-    isolate.register_named_storage_type("process::ProcessStdioNull", 1);
-    isolate.register_named_storage_type("process::ProcessStdioPipe", 2);
-    isolate.register_named_storage_type("process::ProcessUserIds", 3);
-    isolate.register_named_storage_type("process::ProcessWaitContinuedStatus", 2);
-    isolate.register_named_storage_type("process::ProcessWaitExitedStatus", 3);
-    isolate.register_named_storage_type("process::ProcessWaitRunningStatus", 2);
-    isolate.register_named_storage_type("process::ProcessWaitSignaledStatus", 4);
-    isolate.register_named_storage_type("process::ProcessWaitStoppedStatus", 3);
-    isolate.register_named_storage_type("process::SignalEvent", 2);
-    isolate.register_named_storage_type("process::OsPath", 2);
-    isolate.register_named_storage_type("process::ProcessFdAction", 2);
-    isolate.register_named_storage_type("process::ProcessStdio", 2);
-    isolate.register_named_storage_type("process::ProcessWaitStatus", 2);
+pub(crate) fn register_process_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("process::PathBytes", 1)?;
+    isolate.register_named_storage_type("process::PathUtf16", 1)?;
+    isolate.register_named_storage_type("process::OsPathBytes", 2)?;
+    isolate.register_named_storage_type("process::OsPathUtf16", 2)?;
+    isolate.register_named_storage_type("process::ProcessFdActionClose", 2)?;
+    isolate.register_named_storage_type("process::ProcessFdActionDup2", 3)?;
+    isolate.register_named_storage_type("process::ProcessFdActionOpen", 5)?;
+    isolate.register_named_storage_type("process::ProcessGroupIds", 3)?;
+    isolate.register_named_storage_type("process::ProcessLimit", 2)?;
+    isolate.register_named_storage_type("process::ProcessSchedulerConfig", 3)?;
+    isolate.register_named_storage_type("process::ProcessSpawnOptions", 4)?;
+    isolate.register_named_storage_type("process::ProcessStdioDescriptor", 2)?;
+    isolate.register_named_storage_type("process::ProcessStdioFile", 2)?;
+    isolate.register_named_storage_type("process::ProcessStdioInherit", 1)?;
+    isolate.register_named_storage_type("process::ProcessStdioNull", 1)?;
+    isolate.register_named_storage_type("process::ProcessStdioPipe", 2)?;
+    isolate.register_named_storage_type("process::ProcessUserIds", 3)?;
+    isolate.register_named_storage_type("process::ProcessWaitContinuedStatus", 2)?;
+    isolate.register_named_storage_type("process::ProcessWaitExitedStatus", 3)?;
+    isolate.register_named_storage_type("process::ProcessWaitRunningStatus", 2)?;
+    isolate.register_named_storage_type("process::ProcessWaitSignaledStatus", 4)?;
+    isolate.register_named_storage_type("process::ProcessWaitStoppedStatus", 3)?;
+    isolate.register_named_storage_type("process::SignalEvent", 2)?;
+    isolate.register_named_storage_type("process::OsPath", 2)?;
+    isolate.register_named_storage_type("process::ProcessFdAction", 2)?;
+    isolate.register_named_storage_type("process::ProcessStdio", 2)?;
+    isolate.register_named_storage_type("process::ProcessWaitStatus", 2)?;
+
+    Ok(())
 }

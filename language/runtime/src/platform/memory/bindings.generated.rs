@@ -3144,9 +3144,14 @@ pub(crate) fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolat
 }
 
 /// Install VM bindings for memory.
-pub(crate) fn install_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_memory_vm_storage_types(isolate);
+pub(crate) fn install_memory_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_memory_vm_storage_types(isolate)?;
     register_memory_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) MEMORY_VM_BINDINGS, "memory", install_memory_vm_bindings);

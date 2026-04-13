@@ -4568,9 +4568,14 @@ pub(crate) fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: 
 }
 
 /// Install VM bindings for tty.
-pub(crate) fn install_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_tty_vm_storage_types(isolate);
+pub(crate) fn install_tty_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_tty_vm_storage_types(isolate)?;
     register_tty_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) TTY_VM_BINDINGS, "tty", install_tty_vm_bindings);

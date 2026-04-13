@@ -73,10 +73,12 @@ impl BindingRegistry {
 
     /// Install default VM bindings into a VM isolate.
     #[allow(dead_code)]
-    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
+    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) -> vm::Result<()> {
         for set in platform::PLATFORM_VM_BINDINGS {
-            self.install_vm_binding_set(isolate, set);
+            self.install_vm_binding_set(isolate, set)?;
         }
+
+        Ok(())
     }
 
     /// Install default native bindings for the runtime.
@@ -88,9 +90,13 @@ impl BindingRegistry {
 
     /// Install a binding set into a VM isolate.
     #[allow(dead_code)]
-    pub(crate) fn install_vm_binding_set(&mut self, isolate: &mut Isolate, set: &VmBindingSet) {
+    pub(crate) fn install_vm_binding_set(
+        &mut self,
+        isolate: &mut Isolate,
+        set: &VmBindingSet,
+    ) -> vm::Result<()> {
         // dispatch to the binding set install hook
-        (set.install)(self, isolate);
+        (set.install)(self, isolate)
     }
 
     /// Install a native binding set into the registry.

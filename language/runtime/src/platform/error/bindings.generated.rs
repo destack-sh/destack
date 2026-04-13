@@ -1441,9 +1441,14 @@ pub(crate) fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate
 }
 
 /// Install VM bindings for error.
-pub(crate) fn install_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_error_vm_storage_types(isolate);
+pub(crate) fn install_error_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_error_vm_storage_types(isolate)?;
     register_error_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) ERROR_VM_BINDINGS, "error", install_error_vm_bindings);

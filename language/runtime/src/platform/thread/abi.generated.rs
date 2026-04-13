@@ -350,8 +350,10 @@ pub struct ThreadcpusetReplayRecord {
 }
 
 /// Register VM storage schemas for thread.
-pub(crate) fn register_thread_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("thread::ThreadCpu", 2);
-    isolate.register_named_storage_type("thread::ThreadCpuSet", 1);
-    isolate.register_named_storage_type("thread::ThreadOptions", 2);
+pub(crate) fn register_thread_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("thread::ThreadCpu", 2)?;
+    isolate.register_named_storage_type("thread::ThreadCpuSet", 1)?;
+    isolate.register_named_storage_type("thread::ThreadOptions", 2)?;
+
+    Ok(())
 }

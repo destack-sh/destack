@@ -585,11 +585,12 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         output.push_str(&format!("pub(crate) fn {install_fn}(\n"));
         output.push_str("    registry: &mut BindingRegistry,\n");
         output.push_str("    isolate: &mut Isolate,\n");
-        output.push_str(") {\n");
+        output.push_str(") -> vm::Result<()> {\n");
         output.push_str(&format!(
-            "    super::abi_generated::{register_storage_types_fn}(isolate);\n"
+            "    super::abi_generated::{register_storage_types_fn}(isolate)?;\n"
         ));
         output.push_str(&format!("    {register_fn}(registry, isolate);\n"));
+        output.push_str("    Ok(())\n");
         output.push_str("}\n\n");
 
         output.push_str(&format!(
