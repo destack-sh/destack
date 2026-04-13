@@ -143,7 +143,7 @@ impl ModuleLowerer<'_> {
     /// Resolve (and cache) the RuntimeStatus layout for binding ABI lowering.
     pub(crate) fn runtime_status_layout(
         &mut self,
-        _expression_id: dir::LocalNodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<RuntimeStatusLayout> {
         if let Some(layout) = self.runtime_status_layout {
             return Ok(layout);
@@ -153,13 +153,24 @@ impl ModuleLowerer<'_> {
         let error_name = self.builder.intern("error_id");
         let code_type = self.builder.type_u32();
         let error_type = self.builder.type_u64();
+        let anchor = expression_id
+            .into_global_any(self.module_id)
+            .into_anchored(Some(self.profile));
 
         let (code_size, code_align) = self
             .type_lowerer
-            .size_and_align_of_type(self.builder.tree().get(code_type), self.builder.tree());
+            .size_and_align_of_type(self.builder.tree().get(code_type), self.builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "binding layout requires concrete nested types".to_string(),
+            })?;
         let (error_size, error_align) = self
             .type_lowerer
-            .size_and_align_of_type(self.builder.tree().get(error_type), self.builder.tree());
+            .size_and_align_of_type(self.builder.tree().get(error_type), self.builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "binding layout requires concrete nested types".to_string(),
+            })?;
 
         let layout = self.type_lowerer.compute_struct_layout(
             vec![

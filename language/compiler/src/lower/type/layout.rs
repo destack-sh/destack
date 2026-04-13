@@ -321,120 +321,116 @@ impl TypeLowerer {
         &self,
         ty: &mir::Type,
         tree: &mir::NodeTree,
-    ) -> (u32, u32) {
+    ) -> Option<(u32, u32)> {
         let pointer_bytes = self.pointer_bytes();
         match ty {
-            mir::Type::Void => (0, 1),
-            mir::Type::Boolean => (1, 1),
+            mir::Type::Void => Some((0, 1)),
+            mir::Type::Boolean => Some((1, 1)),
             mir::Type::Int { width, .. } => {
                 let bytes = u32::from(*width).div_ceil(8);
-                // natural alignment: min(size, 8) for most ABIs
                 let align = bytes.min(8);
-                (bytes, align)
+                Some((bytes, align))
             }
             mir::Type::Isize | mir::Type::Usize => {
                 let bytes = pointer_bytes as u32;
                 let align = bytes.min(8);
-                (bytes, align)
+                Some((bytes, align))
             }
             mir::Type::Float { width } => {
                 let bytes = u32::from(*width).div_ceil(8);
                 let align = bytes.min(8);
-                (bytes, align)
+                Some((bytes, align))
             }
             mir::Type::TypeDescriptor | mir::Type::TypeId | mir::Type::Reference { .. } => {
                 let bytes = pointer_bytes as u32;
-                (bytes, bytes)
+                Some((bytes, bytes))
             }
             mir::Type::TensorReference { .. } => {
                 let bytes = pointer_bytes as u32;
-                (bytes, bytes)
+                Some((bytes, bytes))
             }
             mir::Type::Array {
                 element,
                 length,
                 copyability: _,
             } => {
-                let element_ty = tree.get(*element);
-                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree);
-                (elem_size * (*length as u32), elem_align)
+                let element_ty = tree.get(element.ty()?);
+                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;
+                Some((elem_size * (*length as u32), elem_align))
             }
             mir::Type::Tuple {
                 elements,
                 copyability: _,
             } => {
-                // tuple layout is like a struct with anonymous fields
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
 
                 for elem_id in elements {
-                    let elem_ty = tree.get(*elem_id);
-                    let (elem_size, elem_align) = self.size_and_align_of_type(elem_ty, tree);
+                    let elem_ty = tree.get(elem_id.ty()?);
+                    let (elem_size, elem_align) = self.size_and_align_of_type(elem_ty, tree)?;
                     max_align = max_align.max(elem_align);
                     current_offset = self.align_up(current_offset, elem_align) + elem_size;
                 }
 
                 let total_size = self.align_up(current_offset, max_align);
-                (total_size, max_align)
+                Some((total_size, max_align))
             }
             mir::Type::Struct {
                 fields,
                 copyability: _,
             } => {
-                // compute struct layout from field order
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
 
                 for field_id in fields {
                     let field = tree.get(*field_id);
-                    let field_ty = tree.get(field.ty);
-                    let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree);
+                    let field_ty = tree.get(field.ty.ty()?);
+                    let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree)?;
                     max_align = max_align.max(field_align);
                     current_offset = self.align_up(current_offset, field_align) + field_size;
                 }
 
                 let total_size = self.align_up(current_offset, max_align);
-                (total_size, max_align)
+                Some((total_size, max_align))
             }
             mir::Type::Closure { signature } => {
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
                 let environment = tree.function_value_environment_type();
 
-                let signature_ty = tree.get(*signature);
+                let signature_ty = tree.get(signature.ty()?);
                 let (signature_size, signature_align) =
-                    self.size_and_align_of_type(signature_ty, tree);
+                    self.size_and_align_of_type(signature_ty, tree)?;
                 max_align = max_align.max(signature_align);
                 current_offset = self.align_up(current_offset, signature_align) + signature_size;
 
                 let environment_ty = tree.get(environment);
                 let (environment_size, environment_align) =
-                    self.size_and_align_of_type(environment_ty, tree);
+                    self.size_and_align_of_type(environment_ty, tree)?;
                 max_align = max_align.max(environment_align);
                 current_offset =
                     self.align_up(current_offset, environment_align) + environment_size;
 
                 let total_size = self.align_up(current_offset, max_align);
-                (total_size, max_align)
+                Some((total_size, max_align))
             }
             mir::Type::Newtype { inner, .. } => {
-                let inner_ty = tree.get(*inner);
+                let inner_ty = tree.get(inner.ty()?);
                 self.size_and_align_of_type(inner_ty, tree)
             }
             mir::Type::FunctionPointer { .. } => {
-                // function pointers are pointer sized
                 let bytes = pointer_bytes as u32;
-                (bytes, bytes)
+                Some((bytes, bytes))
             }
             mir::Type::Vector {
                 element,
                 lanes,
                 copyability: _,
             } => {
-                let element_ty = tree.get(*element);
-                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree);
+                let element_ty = tree.get(element.ty()?);
+                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;
                 let size = elem_size * *lanes;
-                (size, elem_align)
+                Some((size, elem_align))
             }
             mir::Type::Tensor {
                 element,
@@ -442,11 +438,11 @@ impl TypeLowerer {
                 layout,
                 copyability: _,
             } => {
-                let element_ty = tree.get(*element);
-                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree);
+                let element_ty = tree.get(element.ty()?);
+                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;
                 let element_count = self.tensor_element_count(shape, layout);
                 let size = elem_size * element_count;
-                (size, elem_align)
+                Some((size, elem_align))
             }
         }
     }

@@ -266,17 +266,26 @@ impl RangeMap {
     }
 
     /// Get the range for a value.
-    pub fn get(&self, value: mir::Value) -> Option<&ValueRange> {
+    pub fn get(&self, value: impl Into<mir::ValueReference>) -> Option<&ValueRange> {
+        let value = value.into().value()?;
         self.ranges.get(&value)
     }
 
     /// Insert a range for a value.
-    pub fn insert(&mut self, value: mir::Value, range: ValueRange) {
+    pub fn insert(&mut self, value: impl Into<mir::ValueReference>, range: ValueRange) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.ranges.insert(value, range);
     }
 
     /// Remove any range for a value.
-    pub fn remove(&mut self, value: mir::Value) {
+    pub fn remove(&mut self, value: impl Into<mir::ValueReference>) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.ranges.remove(&value);
     }
 
@@ -422,6 +431,10 @@ impl RangeAnalysis {
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors() {
+                        let Some(succ) = succ.block() else {
+                            continue;
+                        };
+
                         if !in_worklist.contains(&succ) {
                             worklist.push_back(succ);
                             in_worklist.insert(succ);
@@ -511,11 +524,16 @@ fn apply_block_param_ranges(
 
     // apply ranges to entry state
     for param in &block.parameters {
-        if let Some(range) = ranges.get(&param.value) {
-            entry_state.insert(param.value, range.clone());
-        } else {
-            entry_state.remove(param.value);
+        let Some(param_value) = param.value.value() else {
+            continue;
+        };
+
+        if let Some(range) = ranges.get(&param_value) {
+            entry_state.insert(param_value, range.clone());
+            continue;
         }
+
+        entry_state.remove(param_value);
     }
 }
 
@@ -588,8 +606,12 @@ fn resolve_block_param_ranges(
     // collect ranges for parameters
     let mut ranges = HashMap::new();
     for (param, state) in block.parameters.iter().zip(states.into_iter()) {
+        let Some(param_value) = param.value.value() else {
+            continue;
+        };
+
         if let ParamRangeState::Range(range) = state {
-            ranges.insert(param.value, range);
+            ranges.insert(param_value, range);
         }
     }
 
@@ -613,6 +635,9 @@ fn transfer_block(
         let Some(destination) = instruction.destination() else {
             continue;
         };
+        let Some(destination) = destination.value() else {
+            continue;
+        };
 
         if let Some(range) = range_for_instruction(instruction, tree, &state, pointer_width_bits) {
             state.insert(destination, range);
@@ -634,7 +659,8 @@ fn range_for_instruction(
     match instruction {
         mir::Instruction::Const { value, .. } => ValueRange::from_constant(value),
         mir::Instruction::GlobalConst { global, .. } => {
-            let constant = constant_from_global(*global, tree)?;
+            let global = global.global()?;
+            let constant = constant_from_global(global, tree)?;
             ValueRange::from_constant(&constant)
         }
         mir::Instruction::Binary {
@@ -654,7 +680,7 @@ fn range_for_instruction(
         } => range_for_cast(
             *operator,
             state.get(*argument),
-            *to_type,
+            to_type.ty()?,
             tree,
             pointer_width_bits,
         ),
@@ -1342,7 +1368,12 @@ fn float_bounds_from_candidates(candidates: &[f64]) -> (Option<FloatBounds>, boo
 
         match min {
             Some(current_min) => {
-                let current_max = max.unwrap();
+                let Some(current_max) = max else {
+                    min = Some(value);
+                    max = Some(value);
+                    continue;
+                };
+
                 let next_min = current_min.min(value);
                 let next_max = current_max.max(value);
                 min = Some(next_min);
@@ -1356,10 +1387,10 @@ fn float_bounds_from_candidates(candidates: &[f64]) -> (Option<FloatBounds>, boo
     }
 
     // build bounds from finite candidates
-    let bounds = min.map(|min| FloatBounds {
-        min,
-        max: max.unwrap(),
-    });
+    let bounds = match (min, max) {
+        (Some(min), Some(max)) => Some(FloatBounds { min, max }),
+        _ => None,
+    };
 
     (bounds, can_be_pos_inf, can_be_neg_inf)
 }

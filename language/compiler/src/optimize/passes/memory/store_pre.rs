@@ -155,7 +155,7 @@ fn run_store_pre(
     let function_params: HashSet<_> = function
         .parameters
         .iter()
-        .map(|param| param.value)
+        .filter_map(|param| param.value.value())
         .collect();
 
     // track modifications
@@ -175,7 +175,7 @@ fn run_store_pre(
             .parameters
             .iter()
             .enumerate()
-            .map(|(index, param)| (param.value, index))
+            .filter_map(|(index, param)| Some((param.value.value()?, index)))
             .collect::<HashMap<_, _>>();
 
         // scan block instructions for store candidates
@@ -183,10 +183,24 @@ fn run_store_pre(
             // select store instructions
             let (kind, pointer, local, value) = match tree.get(instruction_id) {
                 mir::Instruction::Store { pointer, value } => {
-                    (StoreKind::Store, Some(*pointer), None, *value)
+                    let Some(pointer) = pointer.value() else {
+                        continue;
+                    };
+                    let Some(value) = value.value() else {
+                        continue;
+                    };
+
+                    (StoreKind::Store, Some(pointer), None, value)
                 }
                 mir::Instruction::LocalSet { local, value } => {
-                    (StoreKind::LocalSet, None, Some(*local), *value)
+                    let Some(local) = local.local() else {
+                        continue;
+                    };
+                    let Some(value) = value.value() else {
+                        continue;
+                    };
+
+                    (StoreKind::LocalSet, None, Some(local), value)
                 }
                 _ => continue,
             };
@@ -529,10 +543,24 @@ fn incoming_def_matches(
     }
     let (def_kind, def_pointer, def_local, def_value) = match tree.get(def_instruction) {
         mir::Instruction::Store { pointer, value } => {
-            (StoreKind::Store, Some(*pointer), None, *value)
+            let Some(pointer) = pointer.value() else {
+                return false;
+            };
+            let Some(value) = value.value() else {
+                return false;
+            };
+
+            (StoreKind::Store, Some(pointer), None, value)
         }
         mir::Instruction::LocalSet { local, value } => {
-            (StoreKind::LocalSet, None, Some(*local), *value)
+            let Some(local) = local.local() else {
+                return false;
+            };
+            let Some(value) = value.value() else {
+                return false;
+            };
+
+            (StoreKind::LocalSet, None, Some(local), value)
         }
         _ => return false,
     };
@@ -565,12 +593,12 @@ fn insert_store_for_plan(
     // build the new store instruction
     let instruction = match kind {
         StoreKind::Store => mir::Instruction::Store {
-            pointer: plan.pointer.expect("store pointer required"),
-            value: plan.value,
+            pointer: plan.pointer.expect("store pointer required").into(),
+            value: plan.value.into(),
         },
         StoreKind::LocalSet => mir::Instruction::LocalSet {
-            local: plan.local.expect("local target required"),
-            value: plan.value,
+            local: plan.local.expect("local target required").into(),
+            value: plan.value.into(),
         },
     };
 

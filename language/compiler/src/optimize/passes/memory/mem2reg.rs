@@ -177,7 +177,11 @@ fn find_promotable_locals(
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             if let Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
-                address_taken.insert(*local);
+                let Some(local) = local.local() else {
+                    continue;
+                };
+
+                address_taken.insert(local);
             }
         }
     }
@@ -186,9 +190,11 @@ fn find_promotable_locals(
         .locals
         .iter()
         .filter(|local_id| !address_taken.contains(local_id))
-        .map(|&local_id| {
+        .filter_map(|&local_id| {
             let local = tree.get(local_id);
-            (local_id, PromotableLocal { ty: local.ty })
+            let ty = local.ty.ty()?;
+
+            Some((local_id, PromotableLocal { ty }))
         })
         .collect()
 }
@@ -209,9 +215,10 @@ fn find_definition_blocks(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if let Instruction::LocalSet { local, .. } = instruction
-                && promotable.contains_key(local)
+                && let Some(local) = local.local()
+                && promotable.contains_key(&local)
             {
-                def_blocks.get_mut(local).unwrap().insert(block_id);
+                def_blocks.get_mut(&local).unwrap().insert(block_id);
             }
         }
     }
@@ -300,15 +307,25 @@ fn compute_local_liveness(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             match instruction {
-                Instruction::LocalGet { local, .. } if promotable.contains_key(local) => {
-                    let was_defined = seen_defs.contains(local);
+                Instruction::LocalGet { local, .. }
+                    if local
+                        .local()
+                        .is_some_and(|local| promotable.contains_key(&local)) =>
+                {
+                    let local = local.local().unwrap();
+                    let was_defined = seen_defs.contains(&local);
                     if !was_defined {
-                        uses.insert(*local);
+                        uses.insert(local);
                     }
                 }
-                Instruction::LocalSet { local, .. } if promotable.contains_key(local) => {
-                    seen_defs.insert(*local);
-                    defs.insert(*local);
+                Instruction::LocalSet { local, .. }
+                    if local
+                        .local()
+                        .is_some_and(|local| promotable.contains_key(&local)) =>
+                {
+                    let local = local.local().unwrap();
+                    seen_defs.insert(local);
+                    defs.insert(local);
                 }
                 _ => {}
             }
@@ -343,6 +360,10 @@ fn compute_local_liveness(
             // live_out is union of successor live_in sets
             let mut new_live_out: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
             for successor in terminator.successors() {
+                let Some(successor) = successor.block() else {
+                    continue;
+                };
+
                 if let Some(successor_live_in) = live_in.get(&successor) {
                     new_live_out.extend(successor_live_in.iter().copied());
                 }
@@ -402,9 +423,9 @@ fn insert_block_parameters(
             let ty = promotable[&local].ty;
             let param_value = function.next_typed_value(ty);
 
-            block.parameters.push(mir::TypedValue {
-                value: param_value,
-                ty,
+            block.parameters.push(mir::Parameter {
+                value: param_value.into(),
+                ty: ty.into(),
             });
 
             block_params.insert((block_id, local), param_value);
@@ -461,24 +482,38 @@ fn rename_variables(
             let instruction = tree.get(instruction_id);
             match instruction {
                 Instruction::LocalGet { destination, local } => {
-                    if promotable.contains_key(local) {
+                    let Some(destination) = destination.value() else {
+                        continue;
+                    };
+                    let Some(local) = local.local() else {
+                        continue;
+                    };
+
+                    if promotable.contains_key(&local) {
                         // replace with current value
                         let current_value =
-                            value_stacks[local].last().copied().unwrap_or_else(|| {
+                            value_stacks[&local].last().copied().unwrap_or_else(|| {
                                 panic!(
                                     "use of undefined local in block {block_id:?} \
                                  (local was read before being written, this is invalid MIR)"
                                 )
                             });
-                        substitutions.insert(*destination, current_value);
+                        substitutions.insert(destination, current_value);
                         instructions_to_remove.insert(instruction_id);
                     }
                 }
                 Instruction::LocalSet { local, value } => {
-                    if promotable.contains_key(local) {
+                    let Some(local) = local.local() else {
+                        continue;
+                    };
+                    let Some(value) = value.value() else {
+                        continue;
+                    };
+
+                    if promotable.contains_key(&local) {
                         // apply any pending substitutions to the value
-                        let actual_value = resolve_value(*value, &substitutions);
-                        value_stacks.get_mut(local).unwrap().push(actual_value);
+                        let actual_value = resolve_value(value, &substitutions);
+                        value_stacks.get_mut(&local).unwrap().push(actual_value);
                         instructions_to_remove.insert(instruction_id);
                     }
                 }
@@ -576,6 +611,18 @@ fn resolve_value(value: mir::Value, substitutions: &HashMap<mir::Value, mir::Val
     current
 }
 
+/// Resolve a value reference through substitution chains when concrete.
+fn remap_value_reference(
+    value: mir::ValueReference,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> mir::ValueReference {
+    let Some(value) = value.value() else {
+        return value;
+    };
+
+    resolve_value(value, substitutions).into()
+}
+
 /// Update terminator to add block arguments for successors.
 fn update_terminator_arguments(
     terminator: &Terminator,
@@ -591,46 +638,50 @@ fn update_terminator_arguments(
         Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
         }
-        Terminator::Jump { target, arguments } => {
+        Terminator::Jump { target } => {
             let new_args = extend_arguments(
-                *target,
-                arguments,
+                target.block,
+                &target.arguments,
                 block_params,
                 value_stacks,
                 substitutions,
             );
             Terminator::Jump {
-                target: *target,
-                arguments: new_args,
+                target: mir::BlockTarget {
+                    block: target.block,
+                    arguments: new_args,
+                },
             }
         }
         Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             let new_then_args = extend_arguments(
-                *then_target,
-                then_arguments,
+                then_target.block,
+                &then_target.arguments,
                 block_params,
                 value_stacks,
                 substitutions,
             );
             let new_else_args = extend_arguments(
-                *else_target,
-                else_arguments,
+                else_target.block,
+                &else_target.arguments,
                 block_params,
                 value_stacks,
                 substitutions,
             );
             Terminator::Branch {
-                condition: resolve_value(*condition, substitutions),
-                then_target: *then_target,
-                then_arguments: new_then_args,
-                else_target: *else_target,
-                else_arguments: new_else_args,
+                condition: remap_value_reference(*condition, substitutions),
+                then_target: mir::BlockTarget {
+                    block: then_target.block,
+                    arguments: new_then_args,
+                },
+                else_target: mir::BlockTarget {
+                    block: else_target.block,
+                    arguments: new_else_args,
+                },
             }
         }
         Terminator::Check {
@@ -639,14 +690,14 @@ fn update_terminator_arguments(
             failure,
         } => {
             let new_success_args = extend_arguments(
-                success.target,
+                success.block,
                 &success.arguments,
                 block_params,
                 value_stacks,
                 substitutions,
             );
             let new_failure_args = extend_arguments(
-                failure.target,
+                failure.block,
                 &failure.arguments,
                 block_params,
                 value_stacks,
@@ -659,23 +710,23 @@ fn update_terminator_arguments(
                     collection,
                     is_signed,
                 } => mir::CheckConstraint::Bounds {
-                    index: resolve_value(*index, substitutions),
-                    length: resolve_value(*length, substitutions),
-                    collection: resolve_value(*collection, substitutions),
+                    index: remap_value_reference(*index, substitutions),
+                    length: remap_value_reference(*length, substitutions),
+                    collection: remap_value_reference(*collection, substitutions),
                     is_signed: *is_signed,
                 },
                 mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
-                    value: resolve_value(*value, substitutions),
+                    value: remap_value_reference(*value, substitutions),
                 },
                 mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
-                    divisor: resolve_value(*divisor, substitutions),
+                    divisor: remap_value_reference(*divisor, substitutions),
                 },
                 mir::CheckConstraint::ShiftRange {
                     value,
                     bit_width,
                     is_signed,
                 } => mir::CheckConstraint::ShiftRange {
-                    value: resolve_value(*value, substitutions),
+                    value: remap_value_reference(*value, substitutions),
                     bit_width: *bit_width,
                     is_signed: *is_signed,
                 },
@@ -684,7 +735,7 @@ fn update_terminator_arguments(
                     to_width,
                     is_signed,
                 } => mir::CheckConstraint::Narrow {
-                    value: resolve_value(*value, substitutions),
+                    value: remap_value_reference(*value, substitutions),
                     to_width: *to_width,
                     is_signed: *is_signed,
                 },
@@ -695,39 +746,39 @@ fn update_terminator_arguments(
                     is_signed,
                 } => mir::CheckConstraint::Overflow {
                     operator: *operator,
-                    left: resolve_value(*left, substitutions),
-                    right: resolve_value(*right, substitutions),
+                    left: remap_value_reference(*left, substitutions),
+                    right: remap_value_reference(*right, substitutions),
                     is_signed: *is_signed,
                 },
                 mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
-                    value: resolve_value(*value, substitutions),
+                    value: remap_value_reference(*value, substitutions),
                     expected: *expected,
                 },
                 mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
-                    value: resolve_value(*value, substitutions),
+                    value: remap_value_reference(*value, substitutions),
                     expected: *expected,
                 },
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
-                        receiver: resolve_value(*receiver, substitutions),
+                        receiver: remap_value_reference(*receiver, substitutions),
                         expected: *expected,
                     }
                 }
                 mir::CheckConstraint::Implements { receiver, expected } => {
                     mir::CheckConstraint::Implements {
-                        receiver: resolve_value(*receiver, substitutions),
+                        receiver: remap_value_reference(*receiver, substitutions),
                         expected: *expected,
                     }
                 }
             };
             Terminator::Check {
                 constraint,
-                success: mir::CheckTarget {
-                    target: success.target,
+                success: mir::BlockTarget {
+                    block: success.block,
                     arguments: new_success_args,
                 },
-                failure: mir::CheckTarget {
-                    target: failure.target,
+                failure: mir::BlockTarget {
+                    block: failure.block,
                     arguments: new_failure_args,
                 },
             }
@@ -735,12 +786,11 @@ fn update_terminator_arguments(
         Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
             let new_default_args = extend_arguments(
-                *default,
-                default_arguments,
+                default.block,
+                &default.arguments,
                 block_params,
                 value_stacks,
                 substitutions,
@@ -749,108 +799,114 @@ fn update_terminator_arguments(
                 .iter()
                 .map(|case| mir::SwitchCase {
                     value: case.value,
-                    target: case.target,
-                    arguments: extend_arguments(
-                        case.target,
-                        &case.arguments,
-                        block_params,
-                        value_stacks,
-                        substitutions,
-                    ),
+                    target: mir::BlockTarget {
+                        block: case.target.block,
+                        arguments: extend_arguments(
+                            case.target.block,
+                            &case.target.arguments,
+                            block_params,
+                            value_stacks,
+                            substitutions,
+                        ),
+                    },
                 })
                 .collect();
             Terminator::Switch {
-                value: resolve_value(*value, substitutions),
-                default: *default,
-                default_arguments: new_default_args,
+                value: remap_value_reference(*value, substitutions),
+                default: mir::BlockTarget {
+                    block: default.block,
+                    arguments: new_default_args,
+                },
                 cases: new_cases,
             }
         }
-        Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => {
+        Terminator::Yield { value, resume } => {
             let new_resume_args = extend_arguments(
-                *resume,
-                resume_arguments,
+                resume.block,
+                &resume.arguments,
                 block_params,
                 value_stacks,
                 substitutions,
             );
             Terminator::Yield {
-                value: resolve_value(*value, substitutions),
-                resume: *resume,
-                resume_arguments: new_resume_args,
+                value: remap_value_reference(*value, substitutions),
+                resume: mir::BlockTarget {
+                    block: resume.block,
+                    arguments: new_resume_args,
+                },
             }
         }
         Terminator::Invoke {
             function,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => Terminator::Invoke {
             function: *function,
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
-            normal_target: *normal_target,
-            normal_arguments: extend_arguments(
-                *normal_target,
-                normal_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
-            unwind_target: *unwind_target,
-            unwind_arguments: extend_arguments(
-                *unwind_target,
-                unwind_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: extend_arguments(
+                    normal_target.block,
+                    &normal_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: extend_arguments(
+                    unwind_target.block,
+                    &unwind_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
         },
         Terminator::InvokeIndirect {
             callee,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => Terminator::InvokeIndirect {
-            callee: resolve_value(*callee, substitutions),
+            callee: remap_value_reference(*callee, substitutions),
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
-            normal_target: *normal_target,
-            normal_arguments: extend_arguments(
-                *normal_target,
-                normal_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
-            unwind_target: *unwind_target,
-            unwind_arguments: extend_arguments(
-                *unwind_target,
-                unwind_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: extend_arguments(
+                    normal_target.block,
+                    &normal_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: extend_arguments(
+                    unwind_target.block,
+                    &unwind_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
         },
         Terminator::InvokeVirtual {
             receiver,
@@ -859,38 +915,40 @@ fn update_terminator_arguments(
             slot_id,
             declared_target,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => Terminator::InvokeVirtual {
-            receiver: resolve_value(*receiver, substitutions),
+            receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
             declared_target: *declared_target,
-            normal_target: *normal_target,
-            normal_arguments: extend_arguments(
-                *normal_target,
-                normal_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
-            unwind_target: *unwind_target,
-            unwind_arguments: extend_arguments(
-                *unwind_target,
-                unwind_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: extend_arguments(
+                    normal_target.block,
+                    &normal_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: extend_arguments(
+                    unwind_target.block,
+                    &unwind_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
         },
         Terminator::InvokeInterface {
             receiver,
@@ -899,48 +957,50 @@ fn update_terminator_arguments(
             slot_id,
             declared_target,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => Terminator::InvokeInterface {
-            receiver: resolve_value(*receiver, substitutions),
+            receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
             declared_target: *declared_target,
-            normal_target: *normal_target,
-            normal_arguments: extend_arguments(
-                *normal_target,
-                normal_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
-            unwind_target: *unwind_target,
-            unwind_arguments: extend_arguments(
-                *unwind_target,
-                unwind_arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: extend_arguments(
+                    normal_target.block,
+                    &normal_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: extend_arguments(
+                    unwind_target.block,
+                    &unwind_target.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
         },
         Terminator::Return { value } => Terminator::Return {
-            value: value.map(|v| resolve_value(v, substitutions)),
+            value: value.map(|value| remap_value_reference(value, substitutions)),
         },
         Terminator::Throw { value } => Terminator::Throw {
-            value: resolve_value(*value, substitutions),
+            value: remap_value_reference(*value, substitutions),
         },
         Terminator::Trap { kind, payload } => Terminator::Trap {
             kind: *kind,
-            payload: payload.map(|value| resolve_value(value, substitutions)),
+            payload: payload.map(|value| remap_value_reference(value, substitutions)),
         },
         Terminator::Unreachable => Terminator::Unreachable,
         Terminator::TailCall { function, call } => Terminator::TailCall {
@@ -949,7 +1009,7 @@ fn update_terminator_arguments(
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
@@ -961,12 +1021,12 @@ fn update_terminator_arguments(
             slot_id,
             declared_target,
         } => Terminator::TailCallVirtual {
-            receiver: resolve_value(*receiver, substitutions),
+            receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
@@ -981,12 +1041,12 @@ fn update_terminator_arguments(
             slot_id,
             declared_target,
         } => Terminator::TailCallInterface {
-            receiver: resolve_value(*receiver, substitutions),
+            receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
@@ -995,12 +1055,12 @@ fn update_terminator_arguments(
             declared_target: *declared_target,
         },
         Terminator::TailCallIndirect { callee, call } => Terminator::TailCallIndirect {
-            callee: resolve_value(*callee, substitutions),
+            callee: remap_value_reference(*callee, substitutions),
             call: mir::Call {
                 arguments: call
                     .arguments
                     .iter()
-                    .map(|v| resolve_value(*v, substitutions))
+                    .map(|value| remap_value_reference(*value, substitutions))
                     .collect(),
                 ..call.clone()
             },
@@ -1010,18 +1070,24 @@ fn update_terminator_arguments(
 
 /// Extend existing arguments with block arguments for a target block.
 fn extend_arguments(
-    target: mir::LocalNodeId<mir::Block>,
-    existing: &[mir::Value],
+    target: mir::BlockReference,
+    existing: &[mir::ValueReference],
     block_params: &HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
         mir::Value,
     >,
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Vec<mir::Value> {
+) -> Vec<mir::ValueReference> {
+    let Some(target) = target.block() else {
+        return existing.to_vec();
+    };
+
     let mut args: Vec<_> = existing
         .iter()
-        .map(|&v| resolve_value(v, substitutions))
+        .copied()
+        .filter_map(|value| value.value())
+        .map(|value| resolve_value(value, substitutions).into())
         .collect();
 
     // find block params for target block and add arguments
@@ -1045,7 +1111,7 @@ fn extend_arguments(
                 )
             });
 
-        args.push(resolve_value(value, substitutions));
+        args.push(resolve_value(value, substitutions).into());
     }
 
     args

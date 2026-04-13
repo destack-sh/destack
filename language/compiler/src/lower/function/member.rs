@@ -125,6 +125,10 @@ impl FunctionLowerer<'_> {
             let aggregate_mir_type = self.state.builder.tree().get(aggregate_type).clone();
             match aggregate_mir_type {
                 mir::Type::Reference { pointee, .. } => {
+                    let pointee = pointee.ty().ok_or_else(|| {
+                        self.error(expression_id, "aggregate pointee type is not concrete")
+                    })?;
+
                     self.emit_null_check(expression_id, aggregate_value, aggregate_type)?;
                     aggregate_value = self.state.builder.load(aggregate_value, pointee);
                     aggregate_type = pointee;
@@ -576,14 +580,36 @@ impl FunctionLowerer<'_> {
         let (element_types, newtype_inner, is_tuple_payload) = {
             let mir_type = self.state.builder.tree().get(left_mir_type);
             match mir_type {
-                mir::Type::Tuple { elements, .. } => (elements.clone(), None, true),
+                mir::Type::Tuple { elements, .. } => (
+                    elements
+                        .iter()
+                        .copied()
+                        .map(|element| element.ty())
+                        .collect::<Option<Vec<_>>>()
+                        .ok_or_else(|| {
+                            self.error(expression_id, "tuple element type is not concrete")
+                        })?,
+                    None,
+                    true,
+                ),
                 mir::Type::Newtype { inner, .. } => {
-                    let inner_type = *inner;
+                    let inner_type = inner.ty().ok_or_else(|| {
+                        self.error(expression_id, "newtype inner type is not concrete")
+                    })?;
                     let inner_payload = self.state.builder.tree().get(inner_type);
                     match inner_payload {
-                        mir::Type::Tuple { elements, .. } => {
-                            (elements.clone(), Some(inner_type), true)
-                        }
+                        mir::Type::Tuple { elements, .. } => (
+                            elements
+                                .iter()
+                                .copied()
+                                .map(|element| element.ty())
+                                .collect::<Option<Vec<_>>>()
+                                .ok_or_else(|| {
+                                    self.error(expression_id, "tuple element type is not concrete")
+                                })?,
+                            Some(inner_type),
+                            true,
+                        ),
                         _ => (vec![inner_type], Some(inner_type), false),
                     }
                 }

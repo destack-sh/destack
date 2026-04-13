@@ -350,7 +350,11 @@ impl BasicAA {
 
         match inst {
             mir::Instruction::Load { pointer, .. } => {
-                let load_loc = MemoryLocation::from_ptr(*pointer);
+                let Some(pointer) = pointer.value() else {
+                    return ModRefInfo::NO_MOD_REF;
+                };
+
+                let load_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&load_loc, loc, tree) == AliasResult::NoAlias {
                     ModRefInfo::NO_MOD_REF
                 } else {
@@ -359,7 +363,11 @@ impl BasicAA {
             }
 
             mir::Instruction::Store { pointer, .. } => {
-                let store_loc = MemoryLocation::from_ptr(*pointer);
+                let Some(pointer) = pointer.value() else {
+                    return ModRefInfo::NO_MOD_REF;
+                };
+
+                let store_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&store_loc, loc, tree) == AliasResult::NoAlias {
                     ModRefInfo::NO_MOD_REF
                 } else {
@@ -367,7 +375,11 @@ impl BasicAA {
                 }
             }
             mir::Instruction::AtomicLoad { pointer, .. } => {
-                let load_loc = MemoryLocation::from_ptr(*pointer);
+                let Some(pointer) = pointer.value() else {
+                    return ModRefInfo::NO_MOD_REF;
+                };
+
+                let load_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&load_loc, loc, tree) == AliasResult::NoAlias {
                     ModRefInfo::NO_MOD_REF
                 } else {
@@ -375,7 +387,11 @@ impl BasicAA {
                 }
             }
             mir::Instruction::AtomicStore { pointer, .. } => {
-                let store_loc = MemoryLocation::from_ptr(*pointer);
+                let Some(pointer) = pointer.value() else {
+                    return ModRefInfo::NO_MOD_REF;
+                };
+
+                let store_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&store_loc, loc, tree) == AliasResult::NoAlias {
                     ModRefInfo::NO_MOD_REF
                 } else {
@@ -384,7 +400,11 @@ impl BasicAA {
             }
             mir::Instruction::AtomicCompareExchange { pointer, .. }
             | mir::Instruction::AtomicRmw { pointer, .. } => {
-                let access_loc = MemoryLocation::from_ptr(*pointer);
+                let Some(pointer) = pointer.value() else {
+                    return ModRefInfo::NO_MOD_REF;
+                };
+
+                let access_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&access_loc, loc, tree) == AliasResult::NoAlias {
                     ModRefInfo::NO_MOD_REF
                 } else {
@@ -415,7 +435,11 @@ impl BasicAA {
 
             // deallocation: only affects the freed memory
             mir::Instruction::RawFree { pointer } => {
-                let free_loc = MemoryLocation::from_ptr(*pointer);
+                let Some(pointer) = pointer.value() else {
+                    return ModRefInfo::NO_MOD_REF;
+                };
+
+                let free_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&free_loc, loc, tree) == AliasResult::NoAlias {
                     ModRefInfo::NO_MOD_REF
                 } else {
@@ -753,6 +777,9 @@ impl BasicAA {
             }
 
             // build a location for the argument pointer
+            let Some(arg_value) = arg_value.value() else {
+                continue;
+            };
             let arg_loc = if let Some(size) = arg_attribute
                 .attributes
                 .dereferenceable_bytes
@@ -845,13 +872,17 @@ impl BasicAA {
         tree: &mir::NodeTree,
     ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
         // use the instruction signature when available
-        let signature = inst.call_signature()?;
+        let signature = inst.call_signature()?.ty()?;
         let signature = tree.get(signature);
         let mir::Type::FunctionPointer { parameters, .. } = signature else {
             return None;
         };
 
-        Some(parameters.clone())
+        parameters
+            .iter()
+            .copied()
+            .map(|parameter| parameter.ty())
+            .collect()
     }
 
     /// Resolve memory effects from a direct callee when present.
@@ -861,7 +892,7 @@ impl BasicAA {
         tree: &mir::NodeTree,
     ) -> Option<mir::MemoryEffect> {
         // resolve the declared target when available
-        let function = inst.call_declared_target()?;
+        let function = inst.call_declared_target()?.function()?;
         let callee = tree.get(function);
         Some(callee.memory_effect.clone())
     }
@@ -922,7 +953,9 @@ impl BasicAA {
             PointerBase::Parameter { index, .. } => {
                 // extract address space from parameter type when possible
                 let parameter = self.function.parameters.get(index as usize)?;
-                match tree.get(parameter.ty) {
+                let ty = parameter.ty.ty()?;
+
+                match tree.get(ty) {
                     mir::Type::Reference { address_space, .. }
                     | mir::Type::TensorReference { address_space, .. } => Some(*address_space),
                     _ => None,

@@ -95,7 +95,10 @@ impl FunctionLowerer<'_> {
             let mir::Type::Reference { pointee, .. } = mir_type else {
                 break;
             };
-            array_type = *pointee;
+            array_type = pointee.ty().ok_or_else(|| LowerError::Internal {
+                module: self.context.module_id,
+                message: "bounds check array reference type must be concrete".to_string(),
+            })?;
         }
 
         // resolve the array length
@@ -136,9 +139,9 @@ impl FunctionLowerer<'_> {
 
         // emit the bounds check
         let constraint = mir::CheckConstraint::Bounds {
-            index: index_value,
-            length: length_const,
-            collection: array_value,
+            index: index_value.into(),
+            length: length_const.into(),
+            collection: array_value.into(),
             is_signed,
         };
         self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.bounds_check)?;
@@ -168,7 +171,9 @@ impl FunctionLowerer<'_> {
         }
 
         // emit the null check
-        let constraint = mir::CheckConstraint::Null { value };
+        let constraint = mir::CheckConstraint::Null {
+            value: value.into(),
+        };
         self.emit_check(constraint, RUNTIME_CHECK_MESSAGES.null_check)?;
 
         Ok(())

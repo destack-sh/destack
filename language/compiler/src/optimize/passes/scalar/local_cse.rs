@@ -132,18 +132,32 @@ fn eliminate_common_subexpressions_in_block(
 
         // handle local get forwarding
         if let mir::Instruction::LocalGet { destination, local } = instruction {
-            if let Some(existing) = local_values.get(local) {
-                substitutions.insert(*destination, *existing);
+            let Some(destination) = destination.value() else {
+                continue;
+            };
+            let Some(local) = local.local() else {
+                continue;
+            };
+
+            if let Some(existing) = local_values.get(&local) {
+                substitutions.insert(destination, *existing);
                 to_remove.insert(instruction_id);
             } else {
-                local_values.insert(*local, *destination);
+                local_values.insert(local, destination);
             }
             continue;
         }
 
         // update local state on set
         if let mir::Instruction::LocalSet { local, value } = instruction {
-            local_values.insert(*local, *value);
+            let Some(local) = local.local() else {
+                continue;
+            };
+            let Some(value) = value.value() else {
+                continue;
+            };
+
+            local_values.insert(local, value);
         }
 
         // handle load forwarding
@@ -153,14 +167,21 @@ fn eliminate_common_subexpressions_in_block(
             ..
         } = instruction
         {
-            let location = MemoryLocation::from_ptr(*pointer);
+            let Some(destination) = destination.value() else {
+                continue;
+            };
+            let Some(pointer) = pointer.value() else {
+                continue;
+            };
+
+            let location = MemoryLocation::from_ptr(pointer);
             if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
-                substitutions.insert(*destination, existing);
+                substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
             } else {
                 load_table.push(LoadEntry {
                     location,
-                    value: *destination,
+                    value: destination,
                 });
             }
             continue;
@@ -182,7 +203,10 @@ fn eliminate_common_subexpressions_in_block(
         };
 
         // get the destination value
-        let Some(destination) = instruction.destination() else {
+        let Some(destination) = instruction
+            .destination()
+            .and_then(|destination| destination.value())
+        else {
             continue;
         };
 

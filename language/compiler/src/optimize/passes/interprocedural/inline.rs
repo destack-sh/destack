@@ -550,8 +550,17 @@ fn resolve_inline_target(
             ..
         } => {
             // capture call arguments for a direct call
-            let args = tree.get_arguments(call.arguments).to_vec();
-            Some((*function, args, *destination))
+            let args = tree
+                .get_arguments(call.arguments)
+                .iter()
+                .copied()
+                .map(|argument| argument.value())
+                .collect::<Option<Vec<_>>>()?;
+            Some((
+                function.function()?,
+                args,
+                destination.and_then(|value| value.value()),
+            ))
         }
         _ => None,
     }
@@ -652,7 +661,11 @@ fn inline_callsite(
     };
 
     // reject mismatched return handling
-    if matches!(tree.get(callee.return_type), mir::Type::Void) && site.destination.is_some() {
+    let Some(return_type) = callee.return_type.ty() else {
+        return false;
+    };
+
+    if matches!(tree.get(return_type), mir::Type::Void) && site.destination.is_some() {
         return false;
     }
 
@@ -668,13 +681,21 @@ fn inline_callsite(
     // build the parameter to argument mapping
     let mut argument_map = HashMap::new();
     for (param, arg) in callee.parameters.iter().zip(site.arguments.iter()) {
-        argument_map.insert(param.value, *arg);
+        let Some(param_value) = param.value.value() else {
+            return false;
+        };
+
+        argument_map.insert(param_value, *arg);
     }
 
     // ensure entry block parameters are sourced from arguments
     let entry_params = tree.get(entry_block).parameters.clone();
     for param in &entry_params {
-        if !argument_map.contains_key(&param.value) {
+        let Some(param_value) = param.value.value() else {
+            return false;
+        };
+
+        if !argument_map.contains_key(&param_value) {
             return false;
         }
     }
@@ -692,7 +713,7 @@ fn inline_callsite(
         site.call_index,
         site.call_instruction_id,
         inline_entry,
-        callee.return_type,
+        return_type,
         site.destination,
         &entry_params,
         &argument_map,
@@ -785,23 +806,28 @@ fn clone_callee_blocks(
         let original = tree.get(*block_id);
 
         // allocate new values for block parameters
-        let new_params: Vec<mir::TypedValue> = original
+        let new_params: Vec<mir::Parameter> = original
             .parameters
             .iter()
-            .map(|param| {
-                let new_value = caller.next_typed_value(param.ty);
-                value_map.insert(param.value, new_value);
-                mir::TypedValue {
-                    value: new_value,
-                    ty: param.ty,
-                }
+            .filter_map(|param| {
+                let value = param.value.value()?;
+                let ty = param.ty.ty()?;
+                let new_value = caller.next_typed_value(ty);
+                value_map.insert(value, new_value);
+                Some(mir::Parameter {
+                    value: new_value.into(),
+                    ty: ty.into(),
+                })
             })
             .collect();
 
         // allocate new values for instruction destinations
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction
+                .destination()
+                .and_then(|destination| destination.value())
+            {
                 let destination_type = callee_value_types.require_value_type(destination);
                 let new_value = caller.next_typed_value(destination_type);
                 value_map.insert(destination, new_value);
@@ -813,7 +839,7 @@ fn clone_callee_blocks(
             name: None,
             parameters: new_params,
             instructions: Vec::new(),
-            terminator: original.terminator.clone(),
+            terminator: original.terminator,
         };
         let new_block_id = tree.insert(new_block);
         block_map.insert(*block_id, new_block_id);
@@ -834,7 +860,7 @@ fn split_block_for_inline(
     inline_entry: mir::LocalNodeId<mir::Block>,
     return_type: mir::LocalNodeId<mir::Type>,
     destination: Option<mir::Value>,
-    entry_params: &[mir::TypedValue],
+    entry_params: &[mir::Parameter],
     argument_map: &HashMap<mir::Value, mir::Value>,
 ) -> Option<InlineSplit> {
     // load the call block for editing
@@ -857,9 +883,9 @@ fn split_block_for_inline(
     // allocate a continuation parameter when a value is returned
     if destination.is_some() {
         let new_value = caller.next_typed_value(return_type);
-        continuation_block.parameters.push(mir::TypedValue {
-            value: new_value,
-            ty: return_type,
+        continuation_block.parameters.push(mir::Parameter {
+            value: new_value.into(),
+            ty: return_type.into(),
         });
         result_value = Some(new_value);
     }
@@ -870,20 +896,24 @@ fn split_block_for_inline(
     if removed != Some(call_instruction_id) {
         return None;
     }
+
     // preserve the original terminator for the continuation
     let original_terminator = tree.get(block.terminator).clone();
 
     // build jump arguments for the inlined entry block
     let mut entry_arguments = Vec::new();
     for param in entry_params {
-        let argument = argument_map.get(&param.value).copied()?;
-        entry_arguments.push(argument);
+        let param_value = param.value.value()?;
+        let argument = argument_map.get(&param_value).copied()?;
+        entry_arguments.push(argument.into());
     }
 
     // replace the call with a jump to the inlined entry
     let jump_terminator = mir::Terminator::Jump {
-        target: inline_entry,
-        arguments: entry_arguments,
+        target: mir::BlockTarget {
+            block: inline_entry.into(),
+            arguments: entry_arguments,
+        },
     };
     tree.replace(block.terminator, jump_terminator);
     tree.replace(block_id, block);
@@ -1028,8 +1058,10 @@ fn rewrite_inlined_returns(
 
         // replace the return with a jump to the continuation
         let new_terminator = mir::Terminator::Jump {
-            target: continuation,
-            arguments,
+            target: mir::BlockTarget {
+                block: continuation.into(),
+                arguments: arguments.into_iter().map(Into::into).collect(),
+            },
         };
         tree.replace(block.terminator, new_terminator);
         tree.replace(new_block_id, block);

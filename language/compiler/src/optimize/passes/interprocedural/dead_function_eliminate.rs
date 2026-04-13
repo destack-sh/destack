@@ -188,7 +188,10 @@ fn build_signature_index(
     // populate the signature index
     for function_id in functions {
         let function = tree.get(*function_id);
-        let signature = SignatureKey::from_function(tree, function);
+        let Some(signature) = SignatureKey::from_function(tree, function) else {
+            continue;
+        };
+
         index.entry(signature).or_default().push(*function_id);
     }
 
@@ -276,16 +279,16 @@ fn call_constraint_from_terminator(
 /// Resolve call constraints from a signature type.
 fn call_constraint_from_signature(
     tree: &mir::NodeTree,
-    signature: mir::LocalNodeId<mir::Type>,
-    declared_target: Option<mir::LocalNodeId<mir::Function>>,
+    signature: mir::TypeReference,
+    declared_target: Option<mir::FunctionReference>,
 ) -> Option<CallConstraint> {
     if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
         return Some(CallConstraint::Signature(signature));
     }
 
-    if let Some(target) = declared_target {
+    if let Some(target) = declared_target.and_then(|target| target.function()) {
         let signature = SignatureKey::from_function(tree, tree.get(target));
-        return Some(CallConstraint::Signature(signature));
+        return signature.map(CallConstraint::Signature);
     }
 
     Some(CallConstraint::Unknown)

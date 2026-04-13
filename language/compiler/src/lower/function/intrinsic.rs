@@ -425,7 +425,12 @@ impl FunctionLowerer<'_> {
         intrinsic_name: &str,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         match self.state.builder.tree().get(vector_type) {
-            mir::Type::Vector { element, .. } => Ok(*element),
+            mir::Type::Vector { element, .. } => element.ty().ok_or_else(|| {
+                self.error(
+                    expression_id,
+                    format!("{intrinsic_name} element type is not concrete"),
+                )
+            }),
             _ => Err(self.error(
                 expression_id,
                 format!("{intrinsic_name} expects a vector type"),
@@ -441,7 +446,15 @@ impl FunctionLowerer<'_> {
         intrinsic_name: &str,
     ) -> LowerResult<(mir::LocalNodeId<mir::Type>, u32)> {
         match self.state.builder.tree().get(vector_type) {
-            mir::Type::Vector { element, lanes, .. } => Ok((*element, *lanes)),
+            mir::Type::Vector { element, lanes, .. } => {
+                let element = element.ty().ok_or_else(|| {
+                    self.error(
+                        expression_id,
+                        format!("{intrinsic_name} element type is not concrete"),
+                    )
+                })?;
+                Ok((element, *lanes))
+            }
             _ => Err(self.error(
                 expression_id,
                 format!("{intrinsic_name} expects a vector type"),

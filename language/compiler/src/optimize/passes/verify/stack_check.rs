@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
-use mir::{Instruction, Value};
+use mir::{Instruction, Value, ValueReference};
 
 use crate::OptimizeError;
 use crate::optimize::{
@@ -80,7 +80,11 @@ impl StackPointerMap {
     }
 
     /// Get the state for a value (NonStack if not tracked).
-    fn get(&self, value: Value) -> StackPointerState {
+    fn get(&self, value: impl Into<ValueReference>) -> StackPointerState {
+        let Some(value) = value.into().value() else {
+            return StackPointerState::NonStack;
+        };
+
         self.0
             .get(&value)
             .copied()
@@ -88,12 +92,24 @@ impl StackPointerMap {
     }
 
     /// Mark a value as definitely pointing to stack memory.
-    fn mark_stack(&mut self, value: Value) {
+    fn mark_stack(&mut self, value: impl Into<ValueReference>) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.0.insert(value, StackPointerState::Stack);
     }
 
     /// Propagate state from source to destination if source is tracked.
-    fn propagate(&mut self, source: Value, destination: Value) {
+    fn propagate(
+        &mut self,
+        source: impl Into<ValueReference>,
+        destination: impl Into<ValueReference>,
+    ) {
+        let Some(destination) = destination.into().value() else {
+            return;
+        };
+
         let state = self.get(source);
         if state != StackPointerState::NonStack {
             self.0.insert(destination, state);
@@ -172,23 +188,27 @@ impl StackPointerMap {
     ) {
         match instruction {
             Instruction::Call {
-                destination: Some(dest),
+                destination: Some(destination),
                 function,
                 call,
                 ..
             } => {
+                let Some(function) = function.function() else {
+                    return;
+                };
+
                 let arguments = tree.get_arguments(call.arguments);
-                let lifetime = lifetime_analysis.get(*function);
-                self.apply_lifetime_result(*dest, lifetime, arguments);
+                let lifetime = lifetime_analysis.get(function);
+                self.apply_lifetime_result(*destination, lifetime, arguments);
             }
             Instruction::CallVirtual {
-                destination: Some(dest),
+                destination: Some(destination),
                 receiver,
                 call,
                 ..
             }
             | Instruction::CallInterface {
-                destination: Some(dest),
+                destination: Some(destination),
                 receiver,
                 call,
                 ..
@@ -198,21 +218,28 @@ impl StackPointerMap {
                 args.extend_from_slice(tree.get_arguments(call.arguments));
 
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
-                    self.apply_call_targets(*dest, &args, targets, lifetime_analysis);
+                    self.apply_call_targets(*destination, &args, targets, lifetime_analysis);
                 } else {
-                    self.apply_signature_lifetime(*dest, call.signature, tree, &args, None);
+                    self.apply_signature_lifetime(*destination, call.signature, tree, &args, None);
                 }
             }
             Instruction::CallIndirect {
-                destination: Some(dest),
+                destination: Some(destination),
                 call,
+                callee,
                 ..
             } => {
                 let args = tree.get_arguments(call.arguments);
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
-                    self.apply_call_targets(*dest, args, targets, lifetime_analysis);
+                    self.apply_call_targets(*destination, args, targets, lifetime_analysis);
                 } else {
-                    self.apply_signature_lifetime(*dest, call.signature, tree, args, None);
+                    self.apply_signature_lifetime(
+                        *destination,
+                        call.signature,
+                        tree,
+                        args,
+                        Some(*callee),
+                    );
                 }
             }
             // calls without destination: nothing to track
@@ -223,8 +250,8 @@ impl StackPointerMap {
     /// Apply resolved call targets to propagate stack pointer state.
     fn apply_call_targets(
         &mut self,
-        destination: Value,
-        arguments: &[Value],
+        destination: ValueReference,
+        arguments: &[ValueReference],
         targets: &[mir::LocalNodeId<mir::Function>],
         lifetime_analysis: &LifetimeAnalysis,
     ) {
@@ -248,9 +275,9 @@ impl StackPointerMap {
     /// Apply resolved lifetime information to a call destination.
     fn apply_lifetime_result(
         &mut self,
-        destination: Value,
+        destination: ValueReference,
         lifetime: &ResolvedLifetime,
-        arguments: &[Value],
+        arguments: &[ValueReference],
     ) {
         match lifetime {
             // no borrowed references in return: destination is not a stack pointer
@@ -269,11 +296,11 @@ impl StackPointerMap {
     /// Apply signature-based lifetime inference when call targets are unknown.
     fn apply_signature_lifetime(
         &mut self,
-        destination: Value,
-        signature: mir::LocalNodeId<mir::Type>,
+        destination: ValueReference,
+        signature: mir::TypeReference,
         tree: &mir::NodeTree,
-        arguments: &[Value],
-        env: Option<Value>,
+        arguments: &[ValueReference],
+        env: Option<ValueReference>,
     ) {
         let lifetime = LifetimeAnalysis::resolve_signature(signature, tree);
         match lifetime {
@@ -285,7 +312,7 @@ impl StackPointerMap {
                 if let Some(env) = env
                     && self.get(env).is_maybe_stack()
                 {
-                    self.0.insert(destination, self.get(env));
+                    self.propagate(env, destination);
                 }
             }
         }
@@ -294,24 +321,24 @@ impl StackPointerMap {
     /// Propagate stack pointer state from borrowed parameter indices.
     fn propagate_from_param_indices(
         &mut self,
-        destination: Value,
-        arguments: &[Value],
+        destination: ValueReference,
+        arguments: &[ValueReference],
         param_indices: &[u32],
-        env: Option<Value>,
+        env: Option<ValueReference>,
     ) {
-        for &param_idx in param_indices {
-            if let Some(&arg) = arguments.get(param_idx as usize)
-                && self.get(arg).is_maybe_stack()
+        for &parameter_index in param_indices {
+            if let Some(&argument) = arguments.get(parameter_index as usize)
+                && self.get(argument).is_maybe_stack()
             {
-                self.0.insert(destination, self.get(arg));
+                self.propagate(argument, destination);
                 return;
             }
         }
 
-        if let Some(env) = env
-            && self.get(env).is_maybe_stack()
+        if let Some(environment) = env
+            && self.get(environment).is_maybe_stack()
         {
-            self.0.insert(destination, self.get(env));
+            self.propagate(environment, destination);
         }
     }
 
@@ -323,51 +350,36 @@ impl StackPointerMap {
         // the dataflow framework handles this via its worklist algorithm
         // we just need to make sure the state correctly reflects what flows out
         match terminator {
-            mir::Terminator::Jump {
-                target, arguments, ..
-            } => {
-                let target_block = tree.get(*target);
-                for (arg, param) in arguments.iter().zip(&target_block.parameters) {
-                    if self.get(*arg).is_maybe_stack() {
-                        // parameter will receive stack pointer - handled by dataflow merge
-                        // but we mark in our state so it propagates correctly
-                        self.propagate(*arg, param.value);
-                    }
-                }
+            mir::Terminator::Jump { target } => {
+                self.propagate_block_target(target, tree);
             }
             mir::Terminator::Branch {
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
                 ..
             } => {
-                // propagate to then branch params
-                let then_block = tree.get(*then_target);
-                for (arg, param) in then_arguments.iter().zip(&then_block.parameters) {
-                    self.propagate(*arg, param.value);
-                }
-
-                // propagate to else branch params
-                let else_block = tree.get(*else_target);
-                for (arg, param) in else_arguments.iter().zip(&else_block.parameters) {
-                    self.propagate(*arg, param.value);
-                }
+                self.propagate_block_target(then_target, tree);
+                self.propagate_block_target(else_target, tree);
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                let success_block = tree.get(success.target);
-                for (arg, param) in success.arguments.iter().zip(&success_block.parameters) {
-                    self.propagate(*arg, param.value);
-                }
-
-                let failure_block = tree.get(failure.target);
-                for (arg, param) in failure.arguments.iter().zip(&failure_block.parameters) {
-                    self.propagate(*arg, param.value);
-                }
+                self.propagate_block_target(success, tree);
+                self.propagate_block_target(failure, tree);
             }
             _ => {}
+        }
+    }
+
+    /// Propagate stack state across one block edge.
+    fn propagate_block_target(&mut self, target: &mir::BlockTarget, tree: &mir::NodeTree) {
+        let Some(block) = target.block.block() else {
+            return;
+        };
+
+        let block = tree.get(block);
+        for (&argument, parameter) in target.arguments.iter().zip(&block.parameters) {
+            self.propagate(argument, parameter.value);
         }
     }
 
@@ -439,8 +451,8 @@ impl StackPointerMap {
     ) {
         match terminator {
             // returning a stack pointer = escape
-            mir::Terminator::Return { value: Some(v) } => {
-                if self.get(*v).is_maybe_stack() {
+            mir::Terminator::Return { value: Some(value) } => {
+                if self.get(*value).is_maybe_stack() {
                     context.emit_error(OptimizeError::ReturnReferenceToLocal {
                         node: block_id.into_any().into_anchored(*module_id, *target_id),
                     });

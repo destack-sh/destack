@@ -168,7 +168,7 @@ impl TypeLowerer {
             let mir_type = tree.get(target_ty);
             match mir_type {
                 mir::Type::Reference { pointee, .. } => {
-                    target_ty = *pointee;
+                    target_ty = pointee.ty()?;
                 }
                 mir::Type::Struct { .. } => {
                     return self
@@ -458,7 +458,7 @@ impl TypeLowerer {
         let copyability = builder.tree().get(inner_type).copyability();
 
         Ok(builder.tree_mut().insert_type(mir::Type::Newtype {
-            inner: inner_type,
+            inner: inner_type.into(),
             copyability,
         }))
     }
@@ -520,7 +520,7 @@ impl TypeLowerer {
             let inner_type = self.lower_type(types, alias_target_id, module_id, node, builder)?;
             let copyability = builder.tree().get(inner_type).copyability();
             return Ok(builder.tree_mut().insert_type(mir::Type::Newtype {
-                inner: inner_type,
+                inner: inner_type.into(),
                 copyability,
             }));
         }
@@ -579,9 +579,20 @@ impl TypeLowerer {
         let env_pointer_type = self.function_environment_pointer_type();
         let signature_type = builder.tree().get(signature);
         let env_type = builder.tree().get(env_pointer_type);
-        let (signature_size, signature_align) =
-            self.size_and_align_of_type(signature_type, builder.tree());
-        let (env_size, env_align) = self.size_and_align_of_type(env_type, builder.tree());
+        let (signature_size, signature_align) = self
+            .size_and_align_of_type(signature_type, builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "function layout requires concrete nested types".to_string(),
+            })?;
+        let (env_size, env_align) = self
+            .size_and_align_of_type(env_type, builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "function layout requires concrete nested types".to_string(),
+            })?;
 
         let fn_name = builder.intern(FUNCTION_PTR_FIELD);
         let env_name = builder.intern(ENV_FIELD);

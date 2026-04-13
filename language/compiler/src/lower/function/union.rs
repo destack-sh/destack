@@ -203,7 +203,15 @@ impl FunctionLowerer<'_> {
         let (element, length) = match self.state.builder.tree().get(payload_type) {
             mir::Type::Array {
                 element, length, ..
-            } => (*element, *length),
+            } => (
+                element
+                    .ty()
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node,
+                        message: "inline union element type is not concrete".to_string(),
+                    })?,
+                *length,
+            ),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node,
@@ -624,7 +632,7 @@ impl FunctionLowerer<'_> {
         };
 
         let constraint = mir::CheckConstraint::Union {
-            value: comparison.tag_value,
+            value: comparison.tag_value.into(),
             expected: comparison.tag_index as u64,
         };
 

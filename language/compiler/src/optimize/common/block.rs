@@ -12,99 +12,7 @@ use crate::optimize::common::{
 /// Returns true if the value appears in any operand position of the terminator.
 /// This includes branch conditions, return values, and block arguments.
 pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
-    match term {
-        mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
-        }
-        mir::Terminator::Return { value: Some(v) } => *v == value,
-        mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => false,
-        mir::Terminator::Jump { arguments, .. } => arguments.contains(&value),
-        mir::Terminator::Branch {
-            condition,
-            then_arguments,
-            else_arguments,
-            ..
-        } => {
-            *condition == value
-                || then_arguments.contains(&value)
-                || else_arguments.contains(&value)
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            constraint.uses().contains(&value)
-                || success.arguments.contains(&value)
-                || failure.arguments.contains(&value)
-        }
-        mir::Terminator::Switch {
-            value: v,
-            cases,
-            default_arguments,
-            ..
-        } => {
-            *v == value
-                || cases.iter().any(|c| c.arguments.contains(&value))
-                || default_arguments.contains(&value)
-        }
-        mir::Terminator::Yield {
-            value: v,
-            resume_arguments,
-            ..
-        } => *v == value || resume_arguments.contains(&value),
-        mir::Terminator::Invoke {
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            call.arguments.contains(&value)
-                || normal_arguments.contains(&value)
-                || unwind_arguments.contains(&value)
-        }
-        mir::Terminator::InvokeIndirect {
-            callee,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            *callee == value
-                || call.arguments.contains(&value)
-                || normal_arguments.contains(&value)
-                || unwind_arguments.contains(&value)
-        }
-        mir::Terminator::InvokeVirtual {
-            receiver,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        }
-        | mir::Terminator::InvokeInterface {
-            receiver,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            *receiver == value
-                || call.arguments.contains(&value)
-                || normal_arguments.contains(&value)
-                || unwind_arguments.contains(&value)
-        }
-        mir::Terminator::Throw { value: v } => *v == value,
-        mir::Terminator::Trap { payload, .. } => payload.is_some_and(|payload| payload == value),
-        mir::Terminator::TailCall { call, .. } => call.arguments.contains(&value),
-        mir::Terminator::TailCallVirtual { receiver, call, .. }
-        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
-            *receiver == value || call.arguments.contains(&value)
-        }
-        mir::Terminator::TailCallIndirect { callee, call, .. } => {
-            *callee == value || call.arguments.contains(&value)
-        }
-    }
+    term.uses().contains(&mir::ValueReference::Value(value))
 }
 
 /// Get all values used by a terminator.
@@ -112,140 +20,34 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
 /// Returns a vector of all value operands in the terminator, including
 /// conditions, return values, and block arguments.
 pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
-    match term {
-        mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
-        }
-        mir::Terminator::Return { value: Some(v) } => vec![*v],
-        mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => vec![],
-        mir::Terminator::Jump { arguments, .. } => arguments.clone(),
-        mir::Terminator::Branch {
-            condition,
-            then_arguments,
-            else_arguments,
-            ..
-        } => {
-            let mut values = vec![*condition];
-            values.extend(then_arguments.iter().copied());
-            values.extend(else_arguments.iter().copied());
-            values
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            let mut values = Vec::new();
-            values.extend(constraint.uses().iter().copied());
-            values.extend(success.arguments.iter().copied());
-            values.extend(failure.arguments.iter().copied());
-            values
-        }
-        mir::Terminator::Switch {
-            value,
-            cases,
-            default_arguments,
-            ..
-        } => {
-            let mut values = vec![*value];
-            for case in cases {
-                values.extend(case.arguments.iter().copied());
-            }
-            values.extend(default_arguments.iter().copied());
-            values
-        }
-        mir::Terminator::Yield {
-            value,
-            resume_arguments,
-            ..
-        } => {
-            let mut values = vec![*value];
-            values.extend(resume_arguments.iter().copied());
-            values
-        }
-        mir::Terminator::Invoke {
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            let mut values = call.arguments.clone();
-            values.extend(normal_arguments.iter().copied());
-            values.extend(unwind_arguments.iter().copied());
-            values
-        }
-        mir::Terminator::InvokeIndirect {
-            callee,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            let mut values = vec![*callee];
-            values.extend(call.arguments.iter().copied());
-            values.extend(normal_arguments.iter().copied());
-            values.extend(unwind_arguments.iter().copied());
-            values
-        }
-        mir::Terminator::InvokeVirtual {
-            receiver,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        }
-        | mir::Terminator::InvokeInterface {
-            receiver,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            let mut values = vec![*receiver];
-            values.extend(call.arguments.iter().copied());
-            values.extend(normal_arguments.iter().copied());
-            values.extend(unwind_arguments.iter().copied());
-            values
-        }
-        mir::Terminator::Throw { value } => vec![*value],
-        mir::Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
-        mir::Terminator::TailCall { call, .. } => call.arguments.clone(),
-        mir::Terminator::TailCallVirtual { receiver, call, .. }
-        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
-            let mut values = vec![*receiver];
-            values.extend(call.arguments.iter().copied());
-            values
-        }
-        mir::Terminator::TailCallIndirect { callee, call, .. } => {
-            let mut values = vec![*callee];
-            values.extend(call.arguments.iter().copied());
-            values
-        }
-    }
+    term.uses()
+        .iter()
+        .filter_map(|value| value.value())
+        .collect()
 }
 
 /// Get the arguments passed to a specific successor block from a terminator.
 pub fn terminator_arguments_for_successor(
     terminator: &mir::Terminator,
     successor: mir::LocalNodeId<mir::Block>,
-) -> &[mir::Value] {
+) -> &[mir::ValueReference] {
     match terminator {
-        mir::Terminator::Jump { target, arguments } if *target == successor => arguments,
+        mir::Terminator::Jump { target } if target.block.block() == Some(successor) => {
+            &target.arguments
+        }
 
         mir::Terminator::Branch {
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
             ..
         } => {
             // then branch
-            if *then_target == successor {
-                then_arguments
+            if then_target.block.block() == Some(successor) {
+                &then_target.arguments
             }
             // else branch
-            else if *else_target == successor {
-                else_arguments
+            else if else_target.block.block() == Some(successor) {
+                &else_target.arguments
             }
             // not a successor
             else {
@@ -255,81 +57,66 @@ pub fn terminator_arguments_for_successor(
         mir::Terminator::Check {
             success, failure, ..
         } => {
-            if success.target == successor {
+            if success.block.block() == Some(successor) {
                 &success.arguments
-            } else if failure.target == successor {
+            } else if failure.block.block() == Some(successor) {
                 &failure.arguments
             } else {
                 &[]
             }
         }
 
-        mir::Terminator::Switch {
-            default,
-            default_arguments,
-            cases,
-            ..
-        } => {
+        mir::Terminator::Switch { default, cases, .. } => {
             // default case
-            if *default == successor {
-                return default_arguments;
+            if default.block.block() == Some(successor) {
+                return &default.arguments;
             }
 
             // numbered cases
             for case in cases {
-                if case.target == successor {
-                    return &case.arguments;
+                if case.target.block.block() == Some(successor) {
+                    return &case.target.arguments;
                 }
             }
 
             &[]
         }
 
-        mir::Terminator::Yield {
-            resume,
-            resume_arguments,
-            ..
-        } if *resume == successor => resume_arguments,
+        mir::Terminator::Yield { resume, .. } if resume.block.block() == Some(successor) => {
+            &resume.arguments
+        }
         mir::Terminator::Invoke {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         } => {
-            if *normal_target == successor {
-                normal_arguments
-            } else if *unwind_target == successor {
-                unwind_arguments
+            if normal_target.block.block() == Some(successor) {
+                &normal_target.arguments
+            } else if unwind_target.block.block() == Some(successor) {
+                &unwind_target.arguments
             } else {
                 &[]
             }
         }
         mir::Terminator::InvokeIndirect {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeVirtual {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeInterface {
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         } => {
-            if *normal_target == successor {
-                normal_arguments
-            } else if *unwind_target == successor {
-                unwind_arguments
+            if normal_target.block.block() == Some(successor) {
+                &normal_target.arguments
+            } else if unwind_target.block.block() == Some(successor) {
+                &unwind_target.arguments
             } else {
                 &[]
             }
@@ -356,6 +143,9 @@ pub fn collect_reachable_blocks(
         let block_data = tree.get(block);
         let terminator = tree.get(block_data.terminator);
         for successor in terminator.successors() {
+            let Some(successor) = successor.block() else {
+                continue;
+            };
             if visited.insert(successor) {
                 worklist.push_back(successor);
             }
@@ -419,7 +209,7 @@ pub enum SuccessorArguments<'a> {
     /// No edge to the successor was found.
     Missing,
     /// A single consistent argument list for all matching edges.
-    Consistent(&'a [mir::Value]),
+    Consistent(&'a [mir::ValueReference]),
     /// Multiple edges to the successor disagree on arguments.
     Conflict,
 }
@@ -446,35 +236,38 @@ pub fn append_successor_arguments(
 
     // compute an updated terminator when this edge targets the successor
     let new_terminator = match &terminator {
-        mir::Terminator::Jump { target, arguments } if *target == successor => {
-            let mut new_args = arguments.clone();
-            new_args.extend(extra_args.iter().copied());
-            mir::Terminator::Jump {
-                target: *target,
-                arguments: new_args,
-            }
+        mir::Terminator::Jump { target } if target.block.block() == Some(successor) => {
+            let mut new_target = target.clone();
+            new_target
+                .arguments
+                .extend(extra_args.iter().copied().map(mir::ValueReference::from));
+
+            mir::Terminator::Jump { target: new_target }
         }
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
-            let mut new_then = then_arguments.clone();
-            let mut new_else = else_arguments.clone();
-            if *then_target == successor {
-                new_then.extend(extra_args.iter().copied());
+            let mut new_then = then_target.clone();
+            let mut new_else = else_target.clone();
+
+            if then_target.block.block() == Some(successor) {
+                new_then
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
-            if *else_target == successor {
-                new_else.extend(extra_args.iter().copied());
+
+            if else_target.block.block() == Some(successor) {
+                new_else
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
+
             mir::Terminator::Branch {
                 condition: *condition,
-                then_target: *then_target,
-                then_arguments: new_then,
-                else_target: *else_target,
-                else_arguments: new_else,
+                then_target: new_then,
+                else_target: new_else,
             }
         }
         mir::Terminator::Check {
@@ -482,46 +275,50 @@ pub fn append_successor_arguments(
             success,
             failure,
         } => {
-            let mut success_args = success.arguments.clone();
-            let mut failure_args = failure.arguments.clone();
-            if success.target == successor {
-                success_args.extend(extra_args.iter().copied());
+            let mut new_success = success.clone();
+            let mut new_failure = failure.clone();
+
+            if success.block.block() == Some(successor) {
+                new_success
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
-            if failure.target == successor {
-                failure_args.extend(extra_args.iter().copied());
+
+            if failure.block.block() == Some(successor) {
+                new_failure
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
+
             mir::Terminator::Check {
                 constraint: constraint.clone(),
-                success: mir::CheckTarget {
-                    target: success.target,
-                    arguments: success_args,
-                },
-                failure: mir::CheckTarget {
-                    target: failure.target,
-                    arguments: failure_args,
-                },
+                success: new_success,
+                failure: new_failure,
             }
         }
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
-            let mut new_default = default_arguments.clone();
-            if *default == successor {
-                new_default.extend(extra_args.iter().copied());
+            let mut new_default = default.clone();
+            if default.block.block() == Some(successor) {
+                new_default
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
 
             let mut new_cases = Vec::with_capacity(cases.len());
             for case in cases {
-                if case.target == successor {
-                    let mut new_args = case.arguments.clone();
-                    new_args.extend(extra_args.iter().copied());
+                if case.target.block.block() == Some(successor) {
+                    let mut new_target = case.target.clone();
+                    new_target
+                        .arguments
+                        .extend(extra_args.iter().copied().map(mir::ValueReference::from));
+
                     new_cases.push(mir::SwitchCase {
                         value: case.value,
-                        target: case.target,
-                        arguments: new_args,
+                        target: new_target,
                     });
                 } else {
                     new_cases.push(case.clone());
@@ -530,24 +327,21 @@ pub fn append_successor_arguments(
 
             mir::Terminator::Switch {
                 value: *value,
-                default: *default,
-                default_arguments: new_default,
+                default: new_default,
                 cases: new_cases,
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => {
-            let mut new_resume = resume_arguments.clone();
-            if *resume == successor {
-                new_resume.extend(extra_args.iter().copied());
+        mir::Terminator::Yield { value, resume } => {
+            let mut new_resume = resume.clone();
+            if resume.block.block() == Some(successor) {
+                new_resume
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
+
             mir::Terminator::Yield {
                 value: *value,
-                resume: *resume,
-                resume_arguments: new_resume,
+                resume: new_resume,
             }
         }
         _ => terminator.clone(),
@@ -594,15 +388,20 @@ pub fn ensure_edge_block(
     }
 
     // extract the successor arguments for this edge
-    let args = match terminator_arguments_for_successor_checked(pred_terminator, successor) {
-        SuccessorArguments::Consistent(args) => args.to_vec(),
-        _ => return predecessor,
-    };
+    let args: Vec<mir::Value> =
+        match terminator_arguments_for_successor_checked(pred_terminator, successor) {
+            SuccessorArguments::Consistent(args) => {
+                args.iter().filter_map(|value| value.value()).collect()
+            }
+            _ => return predecessor,
+        };
 
     // build the new edge block
     let edge_terminator = tree.insert(mir::Terminator::Jump {
-        target: successor,
-        arguments: args,
+        target: mir::BlockTarget {
+            block: successor.into(),
+            arguments: args.into_iter().map(mir::ValueReference::from).collect(),
+        },
     });
     let edge_block = mir::Block::new(edge_terminator);
     let edge_block_id = tree.insert(edge_block);
@@ -659,29 +458,30 @@ fn redirect_successor_to_edge(
 
     // build a new terminator that targets the edge block
     let new_terminator = match &terminator {
-        mir::Terminator::Jump { target, .. } if *target == successor => mir::Terminator::Jump {
-            target: edge_block,
-            arguments: Vec::new(),
-        },
+        mir::Terminator::Jump { target } if target.block.block() == Some(successor) => {
+            mir::Terminator::Jump {
+                target: mir::BlockTarget {
+                    block: mir::BlockReference::from(edge_block),
+                    arguments: Vec::new(),
+                },
+            }
+        }
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
-            let mut new_then = *then_target;
-            let mut new_else = *else_target;
-            let mut then_args = then_arguments.clone();
-            let mut else_args = else_arguments.clone();
+            let mut new_then = then_target.clone();
+            let mut new_else = else_target.clone();
 
-            if *then_target == successor {
-                new_then = edge_block;
-                then_args = Vec::new();
+            if then_target.block.block() == Some(successor) {
+                new_then.block = mir::BlockReference::from(edge_block);
+                new_then.arguments = Vec::new();
             }
-            if *else_target == successor {
-                new_else = edge_block;
-                else_args = Vec::new();
+
+            if else_target.block.block() == Some(successor) {
+                new_else.block = mir::BlockReference::from(edge_block);
+                new_else.arguments = Vec::new();
             }
 
             if new_then == *then_target && new_else == *else_target {
@@ -691,9 +491,7 @@ fn redirect_successor_to_edge(
             mir::Terminator::Branch {
                 condition: *condition,
                 then_target: new_then,
-                then_arguments: then_args,
                 else_target: new_else,
-                else_arguments: else_args,
             }
         }
         mir::Terminator::Check {
@@ -704,16 +502,17 @@ fn redirect_successor_to_edge(
             let mut new_success = success.clone();
             let mut new_failure = failure.clone();
 
-            if success.target == successor {
-                new_success.target = edge_block;
+            if success.block.block() == Some(successor) {
+                new_success.block = mir::BlockReference::from(edge_block);
                 new_success.arguments = Vec::new();
             }
-            if failure.target == successor {
-                new_failure.target = edge_block;
+
+            if failure.block.block() == Some(successor) {
+                new_failure.block = mir::BlockReference::from(edge_block);
                 new_failure.arguments = Vec::new();
             }
 
-            if new_success.target == success.target && new_failure.target == failure.target {
+            if new_success.block == success.block && new_failure.block == failure.block {
                 return false;
             }
 
@@ -726,27 +525,28 @@ fn redirect_successor_to_edge(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
-            let mut new_default = *default;
-            let mut new_default_arguments = default_arguments.clone();
+            let mut new_default = default.clone();
             let mut new_cases = Vec::with_capacity(cases.len());
             let mut changed = false;
 
-            if *default == successor {
-                new_default = edge_block;
-                new_default_arguments = Vec::new();
+            if default.block.block() == Some(successor) {
+                new_default.block = mir::BlockReference::from(edge_block);
+                new_default.arguments = Vec::new();
                 changed = true;
             }
 
             for case in cases {
-                if case.target == successor {
+                if case.target.block.block() == Some(successor) {
                     changed = true;
+                    let mut new_target = case.target.clone();
+                    new_target.block = mir::BlockReference::from(edge_block);
+                    new_target.arguments = Vec::new();
+
                     new_cases.push(mir::SwitchCase {
                         value: case.value,
-                        target: edge_block,
-                        arguments: Vec::new(),
+                        target: new_target,
                     });
                 } else {
                     new_cases.push(case.clone());
@@ -760,18 +560,17 @@ fn redirect_successor_to_edge(
             mir::Terminator::Switch {
                 value: *value,
                 default: new_default,
-                default_arguments: new_default_arguments,
                 cases: new_cases,
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments: _,
-        } => {
+        mir::Terminator::Yield { value, resume } => {
             // rewrite the resume target when it matches the successor
-            let (new_resume, new_args) = if *resume == successor {
-                (edge_block, Vec::new())
+            let new_resume = if resume.block.block() == Some(successor) {
+                let mut new_resume = resume.clone();
+                new_resume.block = mir::BlockReference::from(edge_block);
+                new_resume.arguments = Vec::new();
+
+                new_resume
             } else {
                 return false;
             };
@@ -779,7 +578,6 @@ fn redirect_successor_to_edge(
             mir::Terminator::Yield {
                 value: *value,
                 resume: new_resume,
-                resume_arguments: new_args,
             }
         }
         _ => return false,
@@ -816,7 +614,8 @@ impl BlockParamForwarding {
             }
 
             // track candidates and conflicts per parameter
-            let mut candidates: Vec<Option<mir::Value>> = vec![None; block.parameters.len()];
+            let mut candidates: Vec<Option<mir::ValueReference>> =
+                vec![None; block.parameters.len()];
             let mut conflicts = vec![false; block.parameters.len()];
             let mut saw_pred = false;
 
@@ -873,8 +672,15 @@ impl BlockParamForwarding {
                     continue;
                 };
 
-                if candidate != param.value {
-                    map.insert(param.value, candidate);
+                let Some(param_value) = param.value.value() else {
+                    continue;
+                };
+                let Some(candidate) = candidate.value() else {
+                    continue;
+                };
+
+                if candidate != param_value {
+                    map.insert(param_value, candidate);
                 }
             }
         }
@@ -970,14 +776,14 @@ pub fn terminator_arguments_for_successor_checked(
     successor: mir::LocalNodeId<mir::Block>,
 ) -> SuccessorArguments<'_> {
     // track candidate arguments and conflicts
-    let mut candidate: Option<&[mir::Value]> = None;
+    let mut candidate: Option<&[mir::ValueReference]> = None;
     let mut is_conflict = false;
 
     /// Record candidate arguments or flag a conflict.
     fn record_arguments<'a>(
-        candidate: &mut Option<&'a [mir::Value]>,
+        candidate: &mut Option<&'a [mir::ValueReference]>,
         is_conflict: &mut bool,
-        args: &'a [mir::Value],
+        args: &'a [mir::ValueReference],
     ) {
         if let Some(existing) = *candidate {
             if existing != args {
@@ -990,57 +796,46 @@ pub fn terminator_arguments_for_successor_checked(
 
     // scan terminator edges
     match terminator {
-        mir::Terminator::Jump { target, arguments } => {
-            if *target == successor {
-                record_arguments(&mut candidate, &mut is_conflict, arguments);
+        mir::Terminator::Jump { target } => {
+            if target.block.block() == Some(successor) {
+                record_arguments(&mut candidate, &mut is_conflict, &target.arguments);
             }
         }
         mir::Terminator::Branch {
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
             ..
         } => {
-            if *then_target == successor {
-                record_arguments(&mut candidate, &mut is_conflict, then_arguments);
+            if then_target.block.block() == Some(successor) {
+                record_arguments(&mut candidate, &mut is_conflict, &then_target.arguments);
             }
-            if *else_target == successor {
-                record_arguments(&mut candidate, &mut is_conflict, else_arguments);
+            if else_target.block.block() == Some(successor) {
+                record_arguments(&mut candidate, &mut is_conflict, &else_target.arguments);
             }
         }
         mir::Terminator::Check {
             success, failure, ..
         } => {
-            if success.target == successor {
+            if success.block.block() == Some(successor) {
                 record_arguments(&mut candidate, &mut is_conflict, &success.arguments);
             }
-            if failure.target == successor {
+            if failure.block.block() == Some(successor) {
                 record_arguments(&mut candidate, &mut is_conflict, &failure.arguments);
             }
         }
-        mir::Terminator::Switch {
-            default,
-            default_arguments,
-            cases,
-            ..
-        } => {
-            if *default == successor {
-                record_arguments(&mut candidate, &mut is_conflict, default_arguments);
+        mir::Terminator::Switch { default, cases, .. } => {
+            if default.block.block() == Some(successor) {
+                record_arguments(&mut candidate, &mut is_conflict, &default.arguments);
             }
             for case in cases {
-                if case.target == successor {
-                    record_arguments(&mut candidate, &mut is_conflict, &case.arguments);
+                if case.target.block.block() == Some(successor) {
+                    record_arguments(&mut candidate, &mut is_conflict, &case.target.arguments);
                 }
             }
         }
-        mir::Terminator::Yield {
-            resume,
-            resume_arguments,
-            ..
-        } => {
-            if *resume == successor {
-                record_arguments(&mut candidate, &mut is_conflict, resume_arguments);
+        mir::Terminator::Yield { resume, .. } => {
+            if resume.block.block() == Some(successor) {
+                record_arguments(&mut candidate, &mut is_conflict, &resume.arguments);
             }
         }
         _ => {}
@@ -1063,127 +858,19 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
     // collect uses from instructions
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
-        uses.extend(instruction.uses());
+        uses.extend(instruction.uses().iter().filter_map(|value| value.value()));
         if let Some(arguments) = instruction.argument_slice() {
-            uses.extend(tree.get_arguments(arguments).iter().copied());
+            uses.extend(
+                tree.get_arguments(arguments)
+                    .iter()
+                    .filter_map(|value| value.value()),
+            );
         }
     }
 
     // collect uses from the terminator
     let terminator = tree.get(block.terminator);
-    match terminator {
-        mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
-        }
-        mir::Terminator::Jump { arguments, .. } => {
-            // record jump arguments
-            uses.extend(arguments.iter().copied());
-        }
-        mir::Terminator::Branch {
-            condition,
-            then_arguments,
-            else_arguments,
-            ..
-        } => {
-            // record branch condition and arguments
-            uses.push(*condition);
-            uses.extend(then_arguments.iter().copied());
-            uses.extend(else_arguments.iter().copied());
-        }
-        mir::Terminator::Check {
-            success,
-            failure,
-            constraint,
-        } => {
-            // record check operands and arguments
-            uses.extend(constraint.uses());
-            uses.extend(success.arguments.iter().copied());
-            uses.extend(failure.arguments.iter().copied());
-        }
-        mir::Terminator::Switch {
-            value,
-            default_arguments,
-            cases,
-            ..
-        } => {
-            // record switch condition and arguments
-            uses.push(*value);
-            uses.extend(default_arguments.iter().copied());
-            for case in cases {
-                uses.extend(case.arguments.iter().copied());
-            }
-        }
-        mir::Terminator::Yield {
-            value,
-            resume_arguments,
-            ..
-        } => {
-            // record yield value and resume arguments
-            uses.push(*value);
-            uses.extend(resume_arguments.iter().copied());
-        }
-        mir::Terminator::Invoke {
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            uses.extend(call.arguments.iter().copied());
-            uses.extend(normal_arguments.iter().copied());
-            uses.extend(unwind_arguments.iter().copied());
-        }
-        mir::Terminator::InvokeIndirect {
-            callee,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            uses.push(*callee);
-            uses.extend(call.arguments.iter().copied());
-            uses.extend(normal_arguments.iter().copied());
-            uses.extend(unwind_arguments.iter().copied());
-        }
-        mir::Terminator::InvokeVirtual {
-            receiver,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        }
-        | mir::Terminator::InvokeInterface {
-            receiver,
-            call,
-            normal_arguments,
-            unwind_arguments,
-            ..
-        } => {
-            uses.push(*receiver);
-            uses.extend(call.arguments.iter().copied());
-            uses.extend(normal_arguments.iter().copied());
-            uses.extend(unwind_arguments.iter().copied());
-        }
-        mir::Terminator::Return { value } => {
-            // record return value
-            if let Some(value) = value {
-                uses.push(*value);
-            }
-        }
-        mir::Terminator::Throw { value } => {
-            // record thrown value
-            uses.push(*value);
-        }
-        mir::Terminator::Trap { payload, .. } => {
-            if let Some(payload) = payload {
-                uses.push(*payload);
-            }
-        }
-        mir::Terminator::Unreachable
-        | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallVirtual { .. }
-        | mir::Terminator::TailCallInterface { .. }
-        | mir::Terminator::TailCallIndirect { .. } => {}
-    }
+    uses.extend(terminator.uses().iter().filter_map(|value| value.value()));
 
     uses
 }
@@ -1201,7 +888,10 @@ pub fn block_uses_available_in_predecessor(
     let mut param_values: HashSet<mir::Value> = HashSet::new();
 
     for param in &block.parameters {
-        param_values.insert(param.value);
+        let Some(param) = param.value.value() else {
+            continue;
+        };
+        param_values.insert(param);
     }
 
     // ensure all uses are defined before the predecessor
@@ -1252,7 +942,9 @@ pub fn resolve_edge_value(
     };
 
     // return the argument at the parameter index
-    args.get(param_index).copied()
+    args.get(param_index)
+        .copied()
+        .and_then(|argument| argument.value())
 }
 
 /// Return true when a value is available in a block.
@@ -1285,7 +977,10 @@ pub fn block_parameters_used_outside_block(
 ) -> bool {
     // detect parameter uses outside of the defining block
     for param in &block.parameters {
-        let Some(uses) = use_blocks.get(&param.value) else {
+        let Some(param) = param.value.value() else {
+            continue;
+        };
+        let Some(uses) = use_blocks.get(&param) else {
             continue;
         };
 
@@ -1320,11 +1015,15 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
         }
 
         match terminator {
-            mir::Terminator::Jump { target, arguments } => {
-                if block.parameters.is_empty() && arguments.is_empty() {
+            mir::Terminator::Jump { target } => {
+                if block.parameters.is_empty() && target.arguments.is_empty() {
                     threadable.insert(block_id, ThreadableBlock::Terminator(terminator.clone()));
-                } else if block_is_passthrough_jump(block, arguments) {
-                    threadable.insert(block_id, ThreadableBlock::Forward { target: *target });
+                } else if block_is_passthrough_jump(block, &target.arguments) {
+                    let Some(target) = target.block.block() else {
+                        continue;
+                    };
+
+                    threadable.insert(block_id, ThreadableBlock::Forward { target });
                 }
             }
             mir::Terminator::Return { .. }
@@ -1351,19 +1050,26 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
         let terminator = tree.get(block.terminator);
 
         let new_terminator = match terminator {
-            mir::Terminator::Jump { target, arguments } => {
-                let resolved = block_resolve_jump_target(*target, arguments, &threadable);
+            mir::Terminator::Jump { target } => {
+                let Some(target_block) = target.block.block() else {
+                    continue;
+                };
+
+                let resolved =
+                    block_resolve_jump_target(target_block, &target.arguments, &threadable);
                 match resolved {
-                    ResolvedTarget::Terminator(terminator) if arguments.is_empty() => {
+                    ResolvedTarget::Terminator(terminator) if target.arguments.is_empty() => {
                         Some(terminator)
                     }
                     ResolvedTarget::Jump {
                         target: new_target,
                         arguments: new_arguments,
-                    } if new_target != *target || &new_arguments != arguments => {
+                    } if new_target != target_block || new_arguments != target.arguments => {
                         Some(mir::Terminator::Jump {
-                            target: new_target,
-                            arguments: new_arguments,
+                            target: mir::BlockTarget {
+                                block: mir::BlockReference::from(new_target),
+                                arguments: new_arguments,
+                            },
                         })
                     }
                     _ => None,
@@ -1372,14 +1078,19 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => {
+                let Some(then_block) = then_target.block.block() else {
+                    continue;
+                };
+                let Some(else_block) = else_target.block.block() else {
+                    continue;
+                };
+
                 let then_resolved =
-                    block_resolve_jump_target(*then_target, then_arguments, &threadable);
+                    block_resolve_jump_target(then_block, &then_target.arguments, &threadable);
                 let else_resolved =
-                    block_resolve_jump_target(*else_target, else_arguments, &threadable);
+                    block_resolve_jump_target(else_block, &else_target.arguments, &threadable);
 
                 let (new_then, new_then_args) = match then_resolved {
                     ResolvedTarget::Jump { target, arguments }
@@ -1387,7 +1098,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     {
                         (target, arguments)
                     }
-                    _ => (*then_target, then_arguments.clone()),
+                    _ => (then_block, then_target.arguments.clone()),
                 };
                 let (new_else, new_else_args) = match else_resolved {
                     ResolvedTarget::Jump { target, arguments }
@@ -1395,20 +1106,24 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     {
                         (target, arguments)
                     }
-                    _ => (*else_target, else_arguments.clone()),
+                    _ => (else_block, else_target.arguments.clone()),
                 };
 
-                if new_then != *then_target
-                    || new_else != *else_target
-                    || new_then_args != *then_arguments
-                    || new_else_args != *else_arguments
+                if new_then != then_block
+                    || new_else != else_block
+                    || new_then_args != then_target.arguments
+                    || new_else_args != else_target.arguments
                 {
                     Some(mir::Terminator::Branch {
                         condition: *condition,
-                        then_target: new_then,
-                        then_arguments: new_then_args,
-                        else_target: new_else,
-                        else_arguments: new_else_args,
+                        then_target: mir::BlockTarget {
+                            block: mir::BlockReference::from(new_then),
+                            arguments: new_then_args,
+                        },
+                        else_target: mir::BlockTarget {
+                            block: mir::BlockReference::from(new_else),
+                            arguments: new_else_args,
+                        },
                     })
                 } else {
                     None
@@ -1419,10 +1134,17 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                 success,
                 failure,
             } => {
+                let Some(success_block) = success.block.block() else {
+                    continue;
+                };
+                let Some(failure_block) = failure.block.block() else {
+                    continue;
+                };
+
                 let success_resolved =
-                    block_resolve_jump_target(success.target, &success.arguments, &threadable);
+                    block_resolve_jump_target(success_block, &success.arguments, &threadable);
                 let failure_resolved =
-                    block_resolve_jump_target(failure.target, &failure.arguments, &threadable);
+                    block_resolve_jump_target(failure_block, &failure.arguments, &threadable);
 
                 let (new_success, new_success_args) = match success_resolved {
                     ResolvedTarget::Jump { target, arguments }
@@ -1430,7 +1152,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     {
                         (target, arguments)
                     }
-                    _ => (success.target, success.arguments.clone()),
+                    _ => (success_block, success.arguments.clone()),
                 };
                 let (new_failure, new_failure_args) = match failure_resolved {
                     ResolvedTarget::Jump { target, arguments }
@@ -1438,22 +1160,22 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     {
                         (target, arguments)
                     }
-                    _ => (failure.target, failure.arguments.clone()),
+                    _ => (failure_block, failure.arguments.clone()),
                 };
 
-                if new_success != success.target
-                    || new_failure != failure.target
+                if new_success != success_block
+                    || new_failure != failure_block
                     || new_success_args != success.arguments
                     || new_failure_args != failure.arguments
                 {
                     Some(mir::Terminator::Check {
                         constraint: constraint.clone(),
-                        success: mir::CheckTarget {
-                            target: new_success,
+                        success: mir::BlockTarget {
+                            block: mir::BlockReference::from(new_success),
                             arguments: new_success_args,
                         },
-                        failure: mir::CheckTarget {
-                            target: new_failure,
+                        failure: mir::BlockTarget {
+                            block: mir::BlockReference::from(new_failure),
                             arguments: new_failure_args,
                         },
                     })
@@ -1464,12 +1186,15 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
             mir::Terminator::Switch {
                 value,
                 default,
-                default_arguments,
                 cases,
             } => {
                 // resolve the default edge
+                let Some(default_block) = default.block.block() else {
+                    continue;
+                };
+
                 let default_resolved =
-                    block_resolve_jump_target(*default, default_arguments, &threadable);
+                    block_resolve_jump_target(default_block, &default.arguments, &threadable);
 
                 // choose the resolved default target
                 let (new_default, new_default_args) = match default_resolved {
@@ -1478,18 +1203,22 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     {
                         (target, arguments)
                     }
-                    _ => (*default, default_arguments.clone()),
+                    _ => (default_block, default.arguments.clone()),
                 };
 
                 // track whether any edge changes
                 let mut remapped =
-                    new_default != *default || new_default_args != *default_arguments;
+                    new_default != default_block || new_default_args != default.arguments;
                 let mut new_cases = Vec::with_capacity(cases.len());
 
                 // resolve case edges
                 for case in cases {
+                    let Some(case_block) = case.target.block.block() else {
+                        continue;
+                    };
+
                     let resolved =
-                        block_resolve_jump_target(case.target, &case.arguments, &threadable);
+                        block_resolve_jump_target(case_block, &case.target.arguments, &threadable);
 
                     // choose the resolved case target
                     let (target, arguments) = match resolved {
@@ -1498,18 +1227,20 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                         {
                             (target, arguments)
                         }
-                        _ => (case.target, case.arguments.clone()),
+                        _ => (case_block, case.target.arguments.clone()),
                     };
 
                     // track remapped edges
-                    if target != case.target || arguments != case.arguments {
+                    if target != case_block || arguments != case.target.arguments {
                         remapped = true;
                     }
 
                     new_cases.push(mir::SwitchCase {
                         value: case.value,
-                        target,
-                        arguments,
+                        target: mir::BlockTarget {
+                            block: mir::BlockReference::from(target),
+                            arguments,
+                        },
                     });
                 }
 
@@ -1517,8 +1248,10 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                 if remapped {
                     Some(mir::Terminator::Switch {
                         value: *value,
-                        default: new_default,
-                        default_arguments: new_default_args,
+                        default: mir::BlockTarget {
+                            block: mir::BlockReference::from(new_default),
+                            arguments: new_default_args,
+                        },
                         cases: new_cases,
                     })
                 } else {
@@ -1556,7 +1289,7 @@ enum ResolvedTarget {
         /// The final target block.
         target: mir::LocalNodeId<mir::Block>,
         /// The arguments to pass to the target.
-        arguments: Vec<mir::Value>,
+        arguments: Vec<mir::ValueReference>,
     },
     /// Resolved to a terminator that can be absorbed (return or unreachable).
     Terminator(mir::Terminator),
@@ -1565,7 +1298,7 @@ enum ResolvedTarget {
 /// Resolve a jump target by following through threadable blocks.
 fn block_resolve_jump_target(
     target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    arguments: &[mir::ValueReference],
     threadable: &HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock>,
 ) -> ResolvedTarget {
     // seed the traversal state
@@ -1598,11 +1331,12 @@ fn block_resolve_jump_target(
                 current = *next_target;
             }
             ThreadableBlock::Terminator(terminator) => match terminator {
-                mir::Terminator::Jump {
-                    target: next_target,
-                    arguments,
-                } if arguments.is_empty() => {
-                    current = *next_target;
+                mir::Terminator::Jump { target } if target.arguments.is_empty() => {
+                    let Some(target) = target.block.block() else {
+                        return ResolvedTarget::Terminator(terminator.clone());
+                    };
+
+                    current = target;
                     current_args = Vec::new();
                 }
                 _ => {
@@ -1616,7 +1350,7 @@ fn block_resolve_jump_target(
 /// Return true when the argument list matches the target block parameters.
 fn arguments_match_block(
     target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    arguments: &[mir::ValueReference],
     tree: &mir::NodeTree,
 ) -> bool {
     // require argument counts to match parameters
@@ -1625,7 +1359,7 @@ fn arguments_match_block(
 }
 
 /// Return true if a jump forwards all block parameters unchanged.
-fn block_is_passthrough_jump(block: &mir::Block, arguments: &[mir::Value]) -> bool {
+fn block_is_passthrough_jump(block: &mir::Block, arguments: &[mir::ValueReference]) -> bool {
     // require exact parameter and argument alignment
     if block.parameters.len() != arguments.len() {
         return false;
@@ -1635,7 +1369,7 @@ fn block_is_passthrough_jump(block: &mir::Block, arguments: &[mir::Value]) -> bo
     let mut is_forwarding = true;
     for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
         // stop when a parameter does not match
-        if param.value != *arg {
+        if param.value.value() != arg.value() {
             is_forwarding = false;
             break;
         }
@@ -1656,31 +1390,52 @@ pub fn terminator_substitute_uses(
         return terminator.clone();
     }
 
-    let substitute = |v: &mir::Value| -> mir::Value { *substitutions.get(v).unwrap_or(v) };
+    let substitute = |v: mir::ValueReference| -> mir::ValueReference {
+        let Some(value) = v.value() else {
+            return v;
+        };
+        let value = *substitutions.get(&value).unwrap_or(&value);
+
+        mir::ValueReference::from(value)
+    };
 
     match terminator {
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
         }
         mir::Terminator::Return { value } => mir::Terminator::Return {
-            value: value.map(|v| substitute(&v)),
+            value: value.map(substitute),
         },
-        mir::Terminator::Jump { target, arguments } => mir::Terminator::Jump {
-            target: *target,
-            arguments: arguments.iter().map(&substitute).collect(),
+        mir::Terminator::Jump { target } => mir::Terminator::Jump {
+            target: mir::BlockTarget {
+                block: target.block,
+                arguments: target.arguments.iter().copied().map(substitute).collect(),
+            },
         },
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => mir::Terminator::Branch {
-            condition: substitute(condition),
-            then_target: *then_target,
-            then_arguments: then_arguments.iter().map(&substitute).collect(),
-            else_target: *else_target,
-            else_arguments: else_arguments.iter().map(&substitute).collect(),
+            condition: substitute(*condition),
+            then_target: mir::BlockTarget {
+                block: then_target.block,
+                arguments: then_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
+            else_target: mir::BlockTarget {
+                block: else_target.block,
+                arguments: else_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
         },
         mir::Terminator::Check {
             constraint,
@@ -1694,23 +1449,23 @@ pub fn terminator_substitute_uses(
                     collection,
                     is_signed,
                 } => mir::CheckConstraint::Bounds {
-                    index: substitute(index),
-                    length: substitute(length),
-                    collection: substitute(collection),
+                    index: substitute(*index),
+                    length: substitute(*length),
+                    collection: substitute(*collection),
                     is_signed: *is_signed,
                 },
                 mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
-                    value: substitute(value),
+                    value: substitute(*value),
                 },
                 mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
-                    divisor: substitute(divisor),
+                    divisor: substitute(*divisor),
                 },
                 mir::CheckConstraint::ShiftRange {
                     value,
                     bit_width,
                     is_signed,
                 } => mir::CheckConstraint::ShiftRange {
-                    value: substitute(value),
+                    value: substitute(*value),
                     bit_width: *bit_width,
                     is_signed: *is_signed,
                 },
@@ -1719,7 +1474,7 @@ pub fn terminator_substitute_uses(
                     to_width,
                     is_signed,
                 } => mir::CheckConstraint::Narrow {
-                    value: substitute(value),
+                    value: substitute(*value),
                     to_width: *to_width,
                     is_signed: *is_signed,
                 },
@@ -1730,40 +1485,40 @@ pub fn terminator_substitute_uses(
                     is_signed,
                 } => mir::CheckConstraint::Overflow {
                     operator: *operator,
-                    left: substitute(left),
-                    right: substitute(right),
+                    left: substitute(*left),
+                    right: substitute(*right),
                     is_signed: *is_signed,
                 },
                 mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
-                    value: substitute(value),
+                    value: substitute(*value),
                     expected: *expected,
                 },
                 mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
-                    value: substitute(value),
+                    value: substitute(*value),
                     expected: *expected,
                 },
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
-                        receiver: substitute(receiver),
+                        receiver: substitute(*receiver),
                         expected: *expected,
                     }
                 }
                 mir::CheckConstraint::Implements { receiver, expected } => {
                     mir::CheckConstraint::Implements {
-                        receiver: substitute(receiver),
+                        receiver: substitute(*receiver),
                         expected: *expected,
                     }
                 }
             };
 
-            let success = mir::CheckTarget {
-                target: success.target,
-                arguments: success.arguments.iter().map(&substitute).collect(),
+            let success = mir::BlockTarget {
+                block: success.block,
+                arguments: success.arguments.iter().copied().map(substitute).collect(),
             };
 
-            let failure = mir::CheckTarget {
-                target: failure.target,
-                arguments: failure.arguments.iter().map(&substitute).collect(),
+            let failure = mir::BlockTarget {
+                block: failure.block,
+                arguments: failure.arguments.iter().copied().map(substitute).collect(),
             };
 
             mir::Terminator::Check {
@@ -1775,65 +1530,96 @@ pub fn terminator_substitute_uses(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => mir::Terminator::Switch {
-            value: substitute(value),
-            default: *default,
-            default_arguments: default_arguments.iter().map(&substitute).collect(),
+            value: substitute(*value),
+            default: mir::BlockTarget {
+                block: default.block,
+                arguments: default.arguments.iter().copied().map(substitute).collect(),
+            },
             cases: cases
                 .iter()
                 .map(|case| mir::SwitchCase {
                     value: case.value,
-                    target: case.target,
-                    arguments: case.arguments.iter().map(&substitute).collect(),
+                    target: mir::BlockTarget {
+                        block: case.target.block,
+                        arguments: case
+                            .target
+                            .arguments
+                            .iter()
+                            .copied()
+                            .map(substitute)
+                            .collect(),
+                    },
                 })
                 .collect(),
         },
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => mir::Terminator::Yield {
-            value: substitute(value),
-            resume: *resume,
-            resume_arguments: resume_arguments.iter().map(&substitute).collect(),
+        mir::Terminator::Yield { value, resume } => mir::Terminator::Yield {
+            value: substitute(*value),
+            resume: mir::BlockTarget {
+                block: resume.block,
+                arguments: resume.arguments.iter().copied().map(substitute).collect(),
+            },
         },
         mir::Terminator::Invoke {
             function,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::Invoke {
             function: *function,
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            normal_target: *normal_target,
-            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
-            unwind_target: *unwind_target,
-            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: normal_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: unwind_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
         },
         mir::Terminator::InvokeIndirect {
             callee,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::InvokeIndirect {
-            callee: substitute(callee),
+            callee: substitute(*callee),
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            normal_target: *normal_target,
-            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
-            unwind_target: *unwind_target,
-            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: normal_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: unwind_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
         },
         mir::Terminator::InvokeVirtual {
             receiver,
@@ -1842,22 +1628,34 @@ pub fn terminator_substitute_uses(
             slot_id,
             declared_target,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::InvokeVirtual {
-            receiver: substitute(receiver),
+            receiver: substitute(*receiver),
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
             declared_target: *declared_target,
-            normal_target: *normal_target,
-            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
-            unwind_target: *unwind_target,
-            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: normal_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: unwind_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
         },
         mir::Terminator::InvokeInterface {
             receiver,
@@ -1866,35 +1664,47 @@ pub fn terminator_substitute_uses(
             slot_id,
             declared_target,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::InvokeInterface {
-            receiver: substitute(receiver),
+            receiver: substitute(*receiver),
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
             declaring_type: *declaring_type,
             slot_id: *slot_id,
             declared_target: *declared_target,
-            normal_target: *normal_target,
-            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
-            unwind_target: *unwind_target,
-            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+            normal_target: mir::BlockTarget {
+                block: normal_target.block,
+                arguments: normal_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target.block,
+                arguments: unwind_target
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(substitute)
+                    .collect(),
+            },
         },
         mir::Terminator::Throw { value } => mir::Terminator::Throw {
-            value: substitute(value),
+            value: substitute(*value),
         },
         mir::Terminator::Trap { kind, payload } => mir::Terminator::Trap {
             kind: *kind,
-            payload: payload.map(|value| substitute(&value)),
+            payload: payload.map(substitute),
         },
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
         },
@@ -1905,9 +1715,9 @@ pub fn terminator_substitute_uses(
             slot_id,
             declared_target,
         } => mir::Terminator::TailCallVirtual {
-            receiver: substitute(receiver),
+            receiver: substitute(*receiver),
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
             declaring_type: *declaring_type,
@@ -1921,9 +1731,9 @@ pub fn terminator_substitute_uses(
             slot_id,
             declared_target,
         } => mir::Terminator::TailCallInterface {
-            receiver: substitute(receiver),
+            receiver: substitute(*receiver),
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
             declaring_type: *declaring_type,
@@ -1931,9 +1741,9 @@ pub fn terminator_substitute_uses(
             declared_target: *declared_target,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {
-            callee: substitute(callee),
+            callee: substitute(*callee),
             call: mir::Call {
-                arguments: call.arguments.iter().map(&substitute).collect(),
+                arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
         },

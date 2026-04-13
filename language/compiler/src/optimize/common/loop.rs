@@ -46,14 +46,27 @@ pub fn loop_guard_branch(
     let header_terminator = tree.get(header_block.terminator);
     let mir::Terminator::Branch {
         then_target,
-        then_arguments,
         else_target,
-        else_arguments,
         ..
     } = header_terminator
     else {
         return None;
     };
+
+    let then_block = then_target.block.block()?;
+    let else_block = else_target.block.block()?;
+    let then_arguments: Vec<_> = then_target
+        .arguments
+        .iter()
+        .copied()
+        .map(|argument| argument.value())
+        .collect::<Option<_>>()?;
+    let else_arguments: Vec<_> = else_target
+        .arguments
+        .iter()
+        .copied()
+        .map(|argument| argument.value())
+        .collect::<Option<_>>()?;
 
     // reject non loop in loop target
     if !loop_blocks.contains(&in_loop) {
@@ -61,33 +74,33 @@ pub fn loop_guard_branch(
     }
 
     // handle then edge targeting the loop
-    if *then_target == in_loop {
+    if then_block == in_loop {
         // reject exits that stay inside the loop
-        if loop_blocks.contains(else_target) {
+        if loop_blocks.contains(&else_block) {
             return None;
         }
 
         // record the exit and in loop arguments
         return Some(LoopGuardBranch {
-            exit_block: *else_target,
-            exit_arguments: else_arguments.clone(),
-            in_loop_arguments: then_arguments.clone(),
+            exit_block: else_block,
+            exit_arguments: else_arguments,
+            in_loop_arguments: then_arguments,
             in_loop_is_then: true,
         });
     }
 
     // handle else edge targeting the loop
-    if *else_target == in_loop {
+    if else_block == in_loop {
         // reject exits that stay inside the loop
-        if loop_blocks.contains(then_target) {
+        if loop_blocks.contains(&then_block) {
             return None;
         }
 
         // record the exit and in loop arguments
         return Some(LoopGuardBranch {
-            exit_block: *then_target,
-            exit_arguments: then_arguments.clone(),
-            in_loop_arguments: else_arguments.clone(),
+            exit_block: then_block,
+            exit_arguments: then_arguments,
+            in_loop_arguments: else_arguments,
             in_loop_is_then: false,
         });
     }
@@ -153,7 +166,12 @@ pub fn loop_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
+        mir::Terminator::Jump { target } if target.block.block()? == header => target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<_>>()?,
         _ => return None,
     };
 
@@ -173,15 +191,26 @@ pub fn control_instructions_for_latch(
     let header_block = tree.get(header);
     for instruction_id in &header_block.instructions {
         let instruction = tree.get(*instruction_id);
-        control_values.extend(instruction.uses());
+        control_values.extend(
+            instruction
+                .uses()
+                .into_iter()
+                .filter_map(|value| value.value()),
+        );
     }
     let header_terminator = tree.get(header_block.terminator);
     control_values.extend(terminator_used_values(header_terminator));
 
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    if let mir::Terminator::Jump { arguments, .. } = latch_terminator {
-        control_values.extend(arguments.iter().copied());
+    if let mir::Terminator::Jump { target } = latch_terminator {
+        control_values.extend(
+            target
+                .arguments
+                .iter()
+                .copied()
+                .filter_map(|argument| argument.value()),
+        );
     }
 
     // walk backward from control values to latch definitions
@@ -201,7 +230,12 @@ pub fn control_instructions_for_latch(
         }
 
         let instruction = tree.get(*definition);
-        worklist.extend(instruction.uses());
+        worklist.extend(
+            instruction
+                .uses()
+                .into_iter()
+                .filter_map(|value| value.value()),
+        );
     }
 
     control_instructions
@@ -332,23 +366,27 @@ fn clone_loop_blocks_internal(
         let original = tree.get(*block_id);
 
         // build new block parameters and value mapping
-        let new_params: Vec<mir::TypedValue> = original
+        let new_params: Vec<mir::Parameter> = original
             .parameters
             .iter()
-            .map(|param| {
-                let new_value = function.next_typed_value(param.ty);
-                value_map.insert(param.value, new_value);
-                mir::TypedValue {
-                    value: new_value,
-                    ty: param.ty,
+            .map(|param| match (param.value.value(), param.ty.ty()) {
+                (Some(value), Some(ty)) => {
+                    let new_value = function.next_typed_value(ty);
+                    value_map.insert(value, new_value);
+
+                    mir::Parameter {
+                        value: new_value.into(),
+                        ty: ty.into(),
+                    }
                 }
+                _ => *param,
             })
             .collect();
 
         // allocate new values for instruction destinations
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 let new_value = function.next_typed_value_like(destination);
                 value_map.insert(destination, new_value);
             }
@@ -358,7 +396,7 @@ fn clone_loop_blocks_internal(
             name: None,
             parameters: new_params,
             instructions: Vec::new(),
-            terminator: original.terminator.clone(),
+            terminator: original.terminator,
         };
         let new_block_id = tree.insert(new_block);
         block_map.insert(*block_id, new_block_id);

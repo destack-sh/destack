@@ -196,8 +196,12 @@ impl ValueDefinitions {
             // record block parameters
             let block = tree.get(block_id);
             for param in block.parameters.iter() {
+                let Some(value) = param.value.value() else {
+                    continue;
+                };
+
                 definitions.insert(
-                    param.value,
+                    value,
                     ValueDefinition {
                         block: block_id,
                         kind: ValueDefinitionKind::Parameter,
@@ -208,7 +212,10 @@ impl ValueDefinitions {
             // record instruction destinations
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction
+                    .destination()
+                    .and_then(|destination| destination.value())
+                {
                     definitions.insert(
                         destination,
                         ValueDefinition {
@@ -252,12 +259,20 @@ impl ValueUses {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 for value in instruction.uses() {
+                    let Some(value) = value.value() else {
+                        continue;
+                    };
+
                     uses.entry(value).or_default().insert(block_id);
                 }
 
                 // scan external argument slices
                 if let Some(args) = instruction.argument_slice() {
                     for &value in tree.get_arguments(args) {
+                        let Some(value) = value.value() else {
+                            continue;
+                        };
+
                         uses.entry(value).or_default().insert(block_id);
                     }
                 }
@@ -266,6 +281,10 @@ impl ValueUses {
             // scan terminator uses
             let terminator = tree.get(block.terminator);
             for value in terminator.uses() {
+                let Some(value) = value.value() else {
+                    continue;
+                };
+
                 uses.entry(value).or_default().insert(block_id);
             }
         }
@@ -369,7 +388,10 @@ impl<'a> CandidateContext<'a> {
                 for &instruction_id in &block.instructions {
                     // read the instruction and its destination
                     let instruction = self.tree.get(instruction_id);
-                    let Some(destination) = instruction.destination() else {
+                    let Some(destination) = instruction
+                        .destination()
+                        .and_then(|destination| destination.value())
+                    else {
                         continue;
                     };
 
@@ -385,10 +407,11 @@ impl<'a> CandidateContext<'a> {
                         right,
                         ..
                     } = instruction
+                        && let (Some(left), Some(right)) = (left.value(), right.value())
                         && !division_is_safe(
                             *operator,
-                            *left,
-                            *right,
+                            left,
+                            right,
                             block_id,
                             self.ranges,
                             self.value_types,
@@ -695,7 +718,10 @@ fn apply_candidates_for_loop(
 
     // append new parameters in header order
     for item in &plan_items {
-        header_block.parameters.push(item.new_param);
+        header_block.parameters.push(mir::Parameter {
+            value: item.new_param.value.into(),
+            ty: item.new_param.ty.into(),
+        });
     }
     tree.replace(header, header_block);
 
@@ -705,10 +731,10 @@ fn apply_candidates_for_loop(
     // insert recurrence updates into the latch
     for item in &plan_items {
         let instruction = mir::Instruction::Binary {
-            destination: item.next_value,
+            destination: item.next_value.into(),
             operator: mir::BinaryOperator::Add,
-            left: item.new_param.value,
-            right: item.step_value,
+            left: item.new_param.value.into(),
+            right: item.step_value.into(),
         };
         let instruction_id = tree.insert(instruction);
         latch_block.instructions.push(instruction_id);
@@ -1021,7 +1047,7 @@ fn terminator_has_successor(
     successor: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // check successor list
-    terminator.successors().contains(&successor)
+    terminator.successors().contains(&successor.into())
 }
 
 /// Append arguments for a successor edge.
@@ -1037,40 +1063,40 @@ fn append_arguments_for_successor(
 
     // match terminator kinds with successor edges
     match terminator {
-        mir::Terminator::Jump { target, arguments } => {
+        mir::Terminator::Jump { target } => {
             // ensure the jump targets the successor
-            if *target != successor {
+            if target.block != successor.into() {
                 return None;
             }
 
             // append arguments for the jump
-            let mut updated_args = arguments.clone();
-            updated_args.extend(new_args.iter().copied());
+            let mut updated_args = target.arguments.clone();
+            updated_args.extend(new_args.iter().copied().map(mir::ValueReference::from));
             Some(mir::Terminator::Jump {
-                target: *target,
-                arguments: updated_args,
+                target: mir::BlockTarget {
+                    block: target.block,
+                    arguments: updated_args,
+                },
             })
         }
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             // update branch arguments for matching edges
-            let mut updated_then = then_arguments.clone();
-            let mut updated_else = else_arguments.clone();
+            let mut updated_then = then_target.arguments.clone();
+            let mut updated_else = else_target.arguments.clone();
             let mut touched = false;
 
-            if *then_target == successor {
-                updated_then.extend(new_args.iter().copied());
+            if then_target.block == successor.into() {
+                updated_then.extend(new_args.iter().copied().map(mir::ValueReference::from));
                 touched = true;
             }
 
             // update else arguments when needed
-            if *else_target == successor {
-                updated_else.extend(new_args.iter().copied());
+            if else_target.block == successor.into() {
+                updated_else.extend(new_args.iter().copied().map(mir::ValueReference::from));
                 touched = true;
             }
 
@@ -1081,10 +1107,14 @@ fn append_arguments_for_successor(
 
             Some(mir::Terminator::Branch {
                 condition: *condition,
-                then_target: *then_target,
-                then_arguments: updated_then,
-                else_target: *else_target,
-                else_arguments: updated_else,
+                then_target: mir::BlockTarget {
+                    block: then_target.block,
+                    arguments: updated_then,
+                },
+                else_target: mir::BlockTarget {
+                    block: else_target.block,
+                    arguments: updated_else,
+                },
             })
         }
         mir::Terminator::Check {
@@ -1097,14 +1127,14 @@ fn append_arguments_for_successor(
             let mut updated_failure = failure.arguments.clone();
             let mut touched = false;
 
-            if success.target == successor {
-                updated_success.extend(new_args.iter().copied());
+            if success.block == successor.into() {
+                updated_success.extend(new_args.iter().copied().map(mir::ValueReference::from));
                 touched = true;
             }
 
             // update failure arguments when needed
-            if failure.target == successor {
-                updated_failure.extend(new_args.iter().copied());
+            if failure.block == successor.into() {
+                updated_failure.extend(new_args.iter().copied().map(mir::ValueReference::from));
                 touched = true;
             }
 
@@ -1115,12 +1145,12 @@ fn append_arguments_for_successor(
 
             Some(mir::Terminator::Check {
                 constraint: constraint.clone(),
-                success: mir::CheckTarget {
-                    target: success.target,
+                success: mir::BlockTarget {
+                    block: success.block,
                     arguments: updated_success,
                 },
-                failure: mir::CheckTarget {
-                    target: failure.target,
+                failure: mir::BlockTarget {
+                    block: failure.block,
                     arguments: updated_failure,
                 },
             })
@@ -1128,32 +1158,34 @@ fn append_arguments_for_successor(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
             // update switch case arguments for matching edges
             let mut updated_cases = Vec::new();
-            let mut updated_default = default_arguments.clone();
+            let mut updated_default = default.arguments.clone();
             let mut touched = false;
 
             // update default arguments when needed
-            if *default == successor {
-                updated_default.extend(new_args.iter().copied());
+            if default.block == successor.into() {
+                updated_default.extend(new_args.iter().copied().map(mir::ValueReference::from));
                 touched = true;
             }
 
             // update case arguments when needed
             for case in cases {
-                let mut updated_case_args = case.arguments.clone();
-                if case.target == successor {
-                    updated_case_args.extend(new_args.iter().copied());
+                let mut updated_case_args = case.target.arguments.clone();
+                if case.target.block == successor.into() {
+                    updated_case_args
+                        .extend(new_args.iter().copied().map(mir::ValueReference::from));
                     touched = true;
                 }
 
                 updated_cases.push(mir::SwitchCase {
                     value: case.value,
-                    target: case.target,
-                    arguments: updated_case_args,
+                    target: mir::BlockTarget {
+                        block: case.target.block,
+                        arguments: updated_case_args,
+                    },
                 });
             }
 
@@ -1164,28 +1196,28 @@ fn append_arguments_for_successor(
 
             Some(mir::Terminator::Switch {
                 value: *value,
-                default: *default,
-                default_arguments: updated_default,
+                default: mir::BlockTarget {
+                    block: default.block,
+                    arguments: updated_default,
+                },
                 cases: updated_cases,
             })
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => {
+        mir::Terminator::Yield { value, resume } => {
             // ensure the yield resumes to the successor
-            if *resume != successor {
+            if resume.block != successor.into() {
                 return None;
             }
 
             // append resume arguments
-            let mut updated_args = resume_arguments.clone();
-            updated_args.extend(new_args.iter().copied());
+            let mut updated_args = resume.arguments.clone();
+            updated_args.extend(new_args.iter().copied().map(mir::ValueReference::from));
             Some(mir::Terminator::Yield {
                 value: *value,
-                resume: *resume,
-                resume_arguments: updated_args,
+                resume: mir::BlockTarget {
+                    block: resume.block,
+                    arguments: updated_args,
+                },
             })
         }
         _ => None,
@@ -1246,7 +1278,11 @@ impl<'a> ScevMaterializer<'a> {
                 continue;
             };
 
-            constant_cache.push((value.clone(), *destination));
+            let Some(destination) = destination.value() else {
+                continue;
+            };
+
+            constant_cache.push((value.clone(), destination));
         }
 
         Self {
@@ -1485,7 +1521,7 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a new constant instruction
         let destination = function.next_typed_value(type_id);
         let instruction = mir::Instruction::Const {
-            destination,
+            destination: destination.into(),
             value: constant.clone(),
         };
         self.insert_instruction(instruction);
@@ -1584,6 +1620,10 @@ impl<'a> ScevMaterializer<'a> {
 
         // materialize inline operands
         for operand in instruction.uses() {
+            let Some(operand) = operand.value() else {
+                return None;
+            };
+
             let mapped = self.materialize_value(function, operand)?;
             value_map.insert(operand, mapped);
         }
@@ -1592,6 +1632,10 @@ impl<'a> ScevMaterializer<'a> {
         if let Some(args_slice) = instruction.argument_slice() {
             let arguments = self.tree.get_arguments(args_slice).to_vec();
             for operand in arguments {
+                let Some(operand) = operand.value() else {
+                    return None;
+                };
+
                 let mapped = self.materialize_value(function, operand)?;
                 value_map.insert(operand, mapped);
             }
@@ -1618,10 +1662,10 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a destination value
         let destination = function.next_typed_value_like(left);
         let instruction = mir::Instruction::Binary {
-            destination,
+            destination: destination.into(),
             operator,
-            left,
-            right,
+            left: left.into(),
+            right: right.into(),
         };
         self.insert_instruction(instruction);
         destination
@@ -1637,9 +1681,9 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a destination value
         let destination = function.next_typed_value_like(argument);
         let instruction = mir::Instruction::Unary {
-            destination,
+            destination: destination.into(),
             operator,
-            argument,
+            argument: argument.into(),
         };
         self.insert_instruction(instruction);
         destination
@@ -1656,10 +1700,10 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a destination value
         let destination = function.next_typed_value(to_type);
         let instruction = mir::Instruction::Cast {
-            destination,
+            destination: destination.into(),
             operator,
-            argument,
-            to_type,
+            argument: argument.into(),
+            to_type: to_type.into(),
         };
         self.insert_instruction(instruction);
         destination

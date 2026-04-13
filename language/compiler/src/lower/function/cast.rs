@@ -762,6 +762,10 @@ impl FunctionLowerer<'_> {
                 ..
             } => self.state.builder.bitcast(value, target_ptr_type),
             mir::Type::Reference { pointee, .. } => {
+                let Some(pointee) = pointee.ty() else {
+                    return self.state.builder.bitcast(value, target_ptr_type);
+                };
+
                 let loaded = self.state.builder.load(value, pointee);
                 let boxed = self.box_value(loaded, pointee);
                 self.state.builder.bitcast(boxed, target_ptr_type)

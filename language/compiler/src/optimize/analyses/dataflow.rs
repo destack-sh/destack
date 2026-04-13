@@ -175,10 +175,14 @@ where
                 // add successors to worklist
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
-                for succ in terminator.successors() {
-                    if !in_worklist.contains(&succ) {
-                        worklist.push_back(succ);
-                        in_worklist.insert(succ);
+                for successor in terminator.successors() {
+                    let Some(successor) = successor.block() else {
+                        continue;
+                    };
+
+                    if !in_worklist.contains(&successor) {
+                        worklist.push_back(successor);
+                        in_worklist.insert(successor);
                     }
                 }
             }
@@ -266,8 +270,12 @@ where
             let mut merged = result.block_exit.get(&block_id).unwrap().clone();
 
             // also merge with successor entries
-            for succ in terminator.successors() {
-                if let Some(succ_entry) = result.block_entry.get(&succ) {
+            for successor in terminator.successors() {
+                let Some(successor) = successor.block() else {
+                    continue;
+                };
+
+                if let Some(succ_entry) = result.block_entry.get(&successor) {
                     merged = merged.meet(succ_entry);
                 }
             }
@@ -275,7 +283,11 @@ where
         }
         // compute from successors only
         else {
-            let successors: Vec<_> = terminator.successors().into_iter().collect();
+            let successors: Vec<_> = terminator
+                .successors()
+                .into_iter()
+                .filter_map(|successor| successor.block())
+                .collect();
             if successors.is_empty() {
                 continue;
             }

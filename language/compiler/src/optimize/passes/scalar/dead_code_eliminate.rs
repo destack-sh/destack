@@ -89,7 +89,9 @@ fn run_dead_code_elimination(
             // record the defining instruction
             let instruction = tree.get(instruction_id);
             if let Some(dest) = instruction.destination() {
-                value_to_instruction.insert(dest, instruction_id);
+                if let Some(dest) = dest.value() {
+                    value_to_instruction.insert(dest, instruction_id);
+                }
             }
         }
     }
@@ -115,6 +117,9 @@ fn run_dead_code_elimination(
         // record terminator uses as live
         let terminator = tree.get(block.terminator);
         for value in terminator.uses() {
+            let Some(value) = value.value() else {
+                continue;
+            };
             if let Some(&instruction_id) = value_to_instruction.get(&value)
                 && live.insert(instruction_id)
             {
@@ -129,6 +134,9 @@ fn run_dead_code_elimination(
 
         // mark operands as live
         for value in instruction.uses() {
+            let Some(value) = value.value() else {
+                continue;
+            };
             if let Some(&def_instruction_id) = value_to_instruction.get(&value)
                 && live.insert(def_instruction_id)
             {
@@ -139,6 +147,9 @@ fn run_dead_code_elimination(
         // mark external argument uses as live
         if let Some(args_slice) = instruction.argument_slice() {
             for &arg in tree.get_arguments(args_slice) {
+                let Some(arg) = arg.value() else {
+                    continue;
+                };
                 if let Some(&def_instruction_id) = value_to_instruction.get(&arg)
                     && live.insert(def_instruction_id)
                 {
@@ -182,8 +193,10 @@ fn remove_dead_stores(
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
-            if let mir::Instruction::LocalGet { local, .. } = tree.get(instruction_id) {
-                locals_read.insert(*local);
+            if let mir::Instruction::LocalGet { local, .. } = tree.get(instruction_id)
+                && let Some(local) = local.local()
+            {
+                locals_read.insert(local);
             }
         }
     }
@@ -200,18 +213,26 @@ fn remove_dead_stores(
             // classify stores and check for overwrites
             match instruction {
                 mir::Instruction::LocalSet { local, .. } => {
-                    if !locals_read.contains(local)
-                        || local_set_overwritten(&instruction_ids, index, *local, tree)
+                    let Some(local) = local.local() else {
+                        continue;
+                    };
+
+                    if !locals_read.contains(&local)
+                        || local_set_overwritten(&instruction_ids, index, local, tree)
                     {
                         dead_stores.insert(instruction_id);
                     }
                 }
                 mir::Instruction::Store { pointer, .. } => {
+                    let Some(pointer) = pointer.value() else {
+                        continue;
+                    };
+
                     if instruction_requires_exact_access(tree, instruction_id) {
                         continue;
                     }
 
-                    if store_overwritten_in_block(&instruction_ids, index, *pointer, tree, alias) {
+                    if store_overwritten_in_block(&instruction_ids, index, pointer, tree, alias) {
                         dead_stores.insert(instruction_id);
                     }
                 }
@@ -253,13 +274,13 @@ fn local_set_overwritten(
             // stop when a read observes the local
             mir::Instruction::LocalGet {
                 local: get_local, ..
-            } if *get_local == local => {
+            } if get_local.local() == Some(local) => {
                 return false;
             }
             // stop when a later write overwrites the local
             mir::Instruction::LocalSet {
                 local: set_local, ..
-            } if *set_local == local => {
+            } if set_local.local() == Some(local) => {
                 return true;
             }
             _ => {}
@@ -289,7 +310,10 @@ fn store_overwritten_in_block(
             pointer: other_ptr, ..
         } = instruction
         {
-            let other_loc = MemoryLocation::from_ptr(*other_ptr);
+            let Some(other_ptr) = other_ptr.value() else {
+                return false;
+            };
+            let other_loc = MemoryLocation::from_ptr(other_ptr);
             let alias_result = alias.alias(&location, &other_loc);
 
             if alias_result.is_must_alias() || location.ptr == other_loc.ptr {

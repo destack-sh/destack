@@ -22,9 +22,9 @@ use crate::optimize::{
 #[derive(Debug, Clone)]
 struct ReturnBlockInfo {
     /// Block parameters for the return block.
-    params: Vec<mir::TypedValue>,
+    params: Vec<mir::Parameter>,
     /// The returned value, if any.
-    return_value: Option<mir::Value>,
+    return_value: Option<mir::ValueReference>,
 }
 
 /// Maximum instructions to duplicate during tail duplication.
@@ -278,20 +278,21 @@ fn fold_branches(
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => {
                 // resolve condition constant
-                let condition_constant = constants.constant_at_exit(block_id, *condition);
+                let condition_constant = condition
+                    .value()
+                    .and_then(|condition| constants.constant_at_exit(block_id, condition));
                 let condition_value = match condition_constant {
                     Some(mir::Constant::Boolean { value }) => Some(*value),
                     _ => None,
                 };
                 let condition_value = condition_value
                     .or_else(|| {
+                        let condition = condition.value()?;
                         if is_range_allowed {
-                            bool_from_range(exit_ranges.get(*condition))
+                            bool_from_range(exit_ranges.get(condition))
                         } else {
                             None
                         }
@@ -299,15 +300,15 @@ fn fold_branches(
                     .or_else(|| assume_truth_value(&block, tree, *condition));
 
                 if let Some(is_true) = condition_value {
-                    let (target, arguments) = if is_true {
-                        (*then_target, then_arguments.clone())
+                    let target = if is_true {
+                        then_target.clone()
                     } else {
-                        (*else_target, else_arguments.clone())
+                        else_target.clone()
                     };
 
                     let new_block = block.clone();
                     tree.replace(block_id, new_block);
-                    tree.replace(terminator_id, mir::Terminator::Jump { target, arguments });
+                    tree.replace(terminator_id, mir::Terminator::Jump { target });
                     changed = true;
                 }
             }
@@ -323,56 +324,47 @@ fn fold_branches(
                 };
 
                 if let Some(is_true) = condition_value {
-                    let (target, arguments) = if is_true {
-                        (success.target, success.arguments.clone())
+                    let target = if is_true {
+                        success.clone()
                     } else {
-                        (failure.target, failure.arguments.clone())
+                        failure.clone()
                     };
 
                     let new_block = block.clone();
                     tree.replace(block_id, new_block);
-                    tree.replace(terminator_id, mir::Terminator::Jump { target, arguments });
+                    tree.replace(terminator_id, mir::Terminator::Jump { target });
                     changed = true;
                 }
             }
             mir::Terminator::Switch {
                 value,
                 default,
-                default_arguments,
                 cases,
             } => {
                 // fold switches when value is constant or range restricted
-                let constant_value = constants.constant_at_exit(block_id, *value);
+                let constant_value = value
+                    .value()
+                    .and_then(|value| constants.constant_at_exit(block_id, value));
                 let range_value = if is_range_allowed {
-                    exit_ranges.get(*value)
+                    value.value().and_then(|value| exit_ranges.get(value))
                 } else {
                     None
                 };
                 let is_boolean_value = value_is_boolean(*value, range_value, &value_definitions);
-                if let Some(new_terminator) = fold_switch(
-                    *value,
-                    *default,
-                    default_arguments,
-                    cases,
-                    constant_value,
-                    range_value,
-                ) {
+                if let Some(new_terminator) =
+                    fold_switch(*value, default, cases, constant_value, range_value)
+                {
                     let mut new_block = block.clone();
                     if let mir::Terminator::Switch {
                         value,
                         default,
-                        default_arguments,
                         cases,
                     } = &new_terminator
                     {
                         // lower boolean switches into branches
-                        if let Some(lowered) = lower_boolean_switch(
-                            *value,
-                            *default,
-                            default_arguments,
-                            cases,
-                            is_boolean_value,
-                        ) {
+                        if let Some(lowered) =
+                            lower_boolean_switch(*value, default, cases, is_boolean_value)
+                        {
                             tree.replace(block_id, new_block);
                             tree.replace(terminator_id, lowered);
                             changed = true;
@@ -384,8 +376,7 @@ fn fold_branches(
                             function,
                             tree,
                             *value,
-                            *default,
-                            default_arguments,
+                            default,
                             cases,
                             range_value,
                         ) {
@@ -403,13 +394,9 @@ fn fold_branches(
                 }
 
                 // lower boolean switches into branches
-                if let Some(new_terminator) = lower_boolean_switch(
-                    *value,
-                    *default,
-                    default_arguments,
-                    cases,
-                    is_boolean_value,
-                ) {
+                if let Some(new_terminator) =
+                    lower_boolean_switch(*value, default, cases, is_boolean_value)
+                {
                     let new_block = block.clone();
                     tree.replace(block_id, new_block);
                     tree.replace(terminator_id, new_terminator);
@@ -418,15 +405,9 @@ fn fold_branches(
                 }
 
                 // lower single case switches into branches when safe
-                if let Some((new_instructions, new_terminator)) = lower_single_case_switch(
-                    function,
-                    tree,
-                    *value,
-                    *default,
-                    default_arguments,
-                    cases,
-                    range_value,
-                ) {
+                if let Some((new_instructions, new_terminator)) =
+                    lower_single_case_switch(function, tree, *value, default, cases, range_value)
+                {
                     let mut new_block = block.clone();
                     new_block.instructions.extend(new_instructions);
                     tree.replace(block_id, new_block);
@@ -473,17 +454,14 @@ fn thread_edge_conditions(
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => {
                 // resolve then and else edges using edge specific ranges
                 let then_edge = resolve_edge_if_available(
                     block_id,
                     *condition,
                     true,
-                    *then_target,
-                    then_arguments,
+                    then_target,
                     tree,
                     constants,
                     ranges,
@@ -496,8 +474,7 @@ fn thread_edge_conditions(
                     block_id,
                     *condition,
                     false,
-                    *else_target,
-                    else_arguments,
+                    else_target,
                     tree,
                     constants,
                     ranges,
@@ -508,23 +485,17 @@ fn thread_edge_conditions(
                 );
 
                 // select rewritten or original edges
-                let (new_then_target, new_then_args) =
-                    then_edge.unwrap_or((*then_target, then_arguments.clone()));
-                let (new_else_target, new_else_args) =
-                    else_edge.unwrap_or((*else_target, else_arguments.clone()));
+                let new_then_target = then_edge.unwrap_or_else(|| then_target.clone());
+                let new_else_target = else_edge.unwrap_or_else(|| else_target.clone());
 
                 // update terminator when edges change
-                let changed_edge = new_then_target != *then_target
-                    || new_else_target != *else_target
-                    || new_then_args != *then_arguments
-                    || new_else_args != *else_arguments;
+                let changed_edge =
+                    new_then_target != *then_target || new_else_target != *else_target;
                 if changed_edge {
                     Some(mir::Terminator::Branch {
                         condition: *condition,
                         then_target: new_then_target,
-                        then_arguments: new_then_args,
                         else_target: new_else_target,
-                        else_arguments: new_else_args,
                     })
                 } else {
                     None
@@ -566,10 +537,9 @@ fn thread_edge_conditions(
 #[allow(clippy::too_many_arguments)]
 fn resolve_edge_if_available(
     source_block: mir::LocalNodeId<mir::Block>,
-    condition: mir::Value,
+    condition: mir::ValueReference,
     is_true: bool,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: &mir::BlockTarget,
     tree: &mir::NodeTree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
@@ -577,14 +547,13 @@ fn resolve_edge_if_available(
     value_use_counts: &HashMap<mir::Value, usize>,
     value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     domtree: &DominatorTree,
-) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+) -> Option<mir::BlockTarget> {
     // resolve the edge target
     let resolved = resolve_edge_target(
         source_block,
         condition,
         is_true,
         target,
-        arguments,
         tree,
         constants,
         ranges,
@@ -593,7 +562,7 @@ fn resolve_edge_if_available(
     )?;
 
     // require values to be available at the source block
-    if !values_available_in_block(source_block, &resolved.1, value_def_blocks, domtree) {
+    if !values_available_in_block(source_block, &resolved.arguments, value_def_blocks, domtree) {
         return None;
     }
 
@@ -604,18 +573,18 @@ fn resolve_edge_if_available(
 #[allow(clippy::too_many_arguments)]
 fn resolve_edge_target(
     source_block: mir::LocalNodeId<mir::Block>,
-    condition: mir::Value,
+    condition: mir::ValueReference,
     is_true: bool,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: &mir::BlockTarget,
     tree: &mir::NodeTree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
     value_use_counts: &HashMap<mir::Value, usize>,
-) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+) -> Option<mir::BlockTarget> {
     // fetch the edge target block
-    let block = tree.get(target);
+    let target_block = target.block.block()?;
+    let block = tree.get(target_block);
     let terminator = tree.get(block.terminator);
 
     // require an empty or condition only block
@@ -624,14 +593,18 @@ fn resolve_edge_target(
     }
 
     // require argument counts to match parameters
-    if block.parameters.len() != arguments.len() {
+    if block.parameters.len() != target.arguments.len() {
         return None;
     }
 
     // build parameter substitutions for this edge
     let mut param_substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-    for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
-        param_substitutions.insert(param.value, *arg);
+    for (param, arg) in block.parameters.iter().zip(target.arguments.iter()) {
+        let (Some(param), Some(arg)) = (param.value.value(), arg.value()) else {
+            return None;
+        };
+
+        param_substitutions.insert(param, arg);
     }
 
     // build edge specific ranges and apply parameter ranges
@@ -644,32 +617,33 @@ fn resolve_edge_target(
         value_definitions,
     );
     let mut target_ranges = edge_ranges.clone();
-    apply_block_param_ranges_for_edge(block, arguments, &edge_ranges, &mut target_ranges);
+    apply_block_param_ranges_for_edge(block, &target.arguments, &edge_ranges, &mut target_ranges);
 
     // resolve the target terminator
     let resolved = match terminator {
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             let condition_value = resolve_condition_value(
                 *condition,
-                target,
+                target_block,
                 &target_ranges,
                 constants,
                 value_definitions,
             )?;
             // choose the resolved branch target
-            let (target, args) = if condition_value {
-                (*then_target, then_arguments.as_slice())
+            let target = if condition_value {
+                then_target
             } else {
-                (*else_target, else_arguments.as_slice())
+                else_target
             };
-            let resolved_args = substitute_values(args, &param_substitutions);
-            Some((target, resolved_args))
+            let resolved_args = substitute_values(&target.arguments, &param_substitutions);
+            Some(mir::BlockTarget {
+                block: target.block,
+                arguments: resolved_args,
+            })
         }
         mir::Terminator::Check {
             constraint,
@@ -678,40 +652,39 @@ fn resolve_edge_target(
         } => {
             let condition_value = constraint_truth_value(constraint, &target_ranges)?;
             // choose the resolved check target
-            let (target, args) = if condition_value {
-                (success.target, success.arguments.as_slice())
-            } else {
-                (failure.target, failure.arguments.as_slice())
-            };
-            let resolved_args = substitute_values(args, &param_substitutions);
-            Some((target, resolved_args))
+            let target = if condition_value { success } else { failure };
+            let resolved_args = substitute_values(&target.arguments, &param_substitutions);
+            Some(mir::BlockTarget {
+                block: target.block,
+                arguments: resolved_args,
+            })
         }
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
             let resolved = resolve_switch_target(
                 *value,
-                target,
-                *default,
-                default_arguments,
+                target_block,
+                default,
                 cases,
                 constants,
                 &target_ranges,
             )?;
             // forward the resolved switch edge
-            let (target, args) = resolved;
-            let resolved_args = substitute_values(&args, &param_substitutions);
-            Some((target, resolved_args))
+            let resolved_args = substitute_values(&resolved.arguments, &param_substitutions);
+            Some(mir::BlockTarget {
+                block: resolved.block,
+                arguments: resolved_args,
+            })
         }
         _ => None,
     }?;
 
     // require arguments to match the resolved target parameters
-    let resolved_block = tree.get(resolved.0);
-    if resolved_block.parameters.len() != resolved.1.len() {
+    let resolved_block = tree.get(resolved.block.block()?);
+    if resolved_block.parameters.len() != resolved.arguments.len() {
         return None;
     }
 
@@ -737,8 +710,8 @@ fn is_threadable_condition_block(
 
     // fetch the condition value used by the terminator
     let condition_value = match terminator {
-        mir::Terminator::Branch { condition, .. } => Some(*condition),
-        mir::Terminator::Switch { value, .. } => Some(*value),
+        mir::Terminator::Branch { condition, .. } => condition.value(),
+        mir::Terminator::Switch { value, .. } => value.value(),
         _ => None,
     };
     let Some(condition_value) = condition_value else {
@@ -751,19 +724,19 @@ fn is_threadable_condition_block(
     let Some(destination) = instruction.destination() else {
         return false;
     };
-    if destination != condition_value {
+    if destination.value() != Some(condition_value) {
         return false;
     }
 
     // require that the condition is used only by the terminator
-    let use_count = value_use_counts.get(&destination).copied().unwrap_or(0);
+    let use_count = value_use_counts.get(&condition_value).copied().unwrap_or(0);
     use_count == 1
 }
 
 /// Build edge specific ranges for a branch condition.
 fn edge_ranges_for_condition(
     block_id: mir::LocalNodeId<mir::Block>,
-    condition: mir::Value,
+    condition: mir::ValueReference,
     is_true: bool,
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
@@ -771,6 +744,9 @@ fn edge_ranges_for_condition(
 ) -> RangeMap {
     // seed ranges from the source block exit
     let mut edge_ranges = ranges.exit(block_id).clone();
+    let Some(condition) = condition.value() else {
+        return edge_ranges;
+    };
 
     // constrain the condition value for this edge
     let condition_range = ValueRange::Boolean {
@@ -820,12 +796,20 @@ fn apply_comparison_constraint(
     }
 
     // resolve constant operands when possible
-    let left_const = resolve_integer_constant(*left, edge_ranges, constants, block_id);
-    let right_const = resolve_integer_constant(*right, edge_ranges, constants, block_id);
+    let left_const = left
+        .value()
+        .and_then(|left| resolve_integer_constant(left, edge_ranges, constants, block_id));
+    let right_const = right
+        .value()
+        .and_then(|right| resolve_integer_constant(right, edge_ranges, constants, block_id));
 
     // refine the left operand when the right is constant
     if let (None, Some(right_const)) = (left_const, right_const) {
-        refine_range_for_comparison(edge_ranges, *left, *operator, is_true, right_const);
+        let Some(left) = left.value() else {
+            return;
+        };
+
+        refine_range_for_comparison(edge_ranges, left, *operator, is_true, right_const);
     }
 
     // refine the right operand when the left is constant
@@ -833,35 +817,47 @@ fn apply_comparison_constraint(
         let Some(swapped) = swap_comparison_operator(*operator) else {
             return;
         };
-        refine_range_for_comparison(edge_ranges, *right, swapped, is_true, left_const);
+        let Some(right) = right.value() else {
+            return;
+        };
+
+        refine_range_for_comparison(edge_ranges, right, swapped, is_true, left_const);
     }
 }
 
 /// Apply block parameter ranges for a single edge.
 fn apply_block_param_ranges_for_edge(
     block: &mir::Block,
-    arguments: &[mir::Value],
+    arguments: &[mir::ValueReference],
     source_ranges: &RangeMap,
     target_ranges: &mut RangeMap,
 ) {
     // map each parameter to the range of its incoming argument
     for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
-        if let Some(range) = source_ranges.get(*arg) {
-            target_ranges.insert(param.value, range.clone());
+        let Some(param) = param.value.value() else {
+            continue;
+        };
+
+        if let Some(arg) = arg.value()
+            && let Some(range) = source_ranges.get(arg)
+        {
+            target_ranges.insert(param, range.clone());
         } else {
-            target_ranges.remove(param.value);
+            target_ranges.remove(param);
         }
     }
 }
 
 /// Resolve a boolean condition using ranges or comparison evaluation.
 fn resolve_condition_value(
-    condition: mir::Value,
+    condition: mir::ValueReference,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeMap,
     constants: &ConstantPropagation,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
 ) -> Option<bool> {
+    let condition = condition.value()?;
+
     // check constant propagation facts
     let constant = constants
         .constant_at_entry(block_id, condition)
@@ -897,14 +893,15 @@ fn resolve_condition_value(
 
 /// Resolve a switch to a single target using edge specific ranges.
 fn resolve_switch_target(
-    value: mir::Value,
+    value: mir::ValueReference,
     block_id: mir::LocalNodeId<mir::Block>,
-    default: mir::LocalNodeId<mir::Block>,
-    default_arguments: &[mir::Value],
+    default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
     constants: &ConstantPropagation,
     ranges: &RangeMap,
-) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+) -> Option<mir::BlockTarget> {
+    let value = value.value()?;
+
     // check constant propagation first
     let constant = constants
         .constant_at_entry(block_id, value)
@@ -915,13 +912,7 @@ fn resolve_switch_target(
         ..
     }) = constant
     {
-        let terminator = resolve_switch_case(
-            *constant_value as i128,
-            default,
-            default_arguments,
-            cases,
-            *is_signed,
-        );
+        let terminator = resolve_switch_case(*constant_value as i128, default, cases, *is_signed);
         return extract_switch_target(terminator);
     }
     if let Some(mir::Constant::UInt {
@@ -929,13 +920,7 @@ fn resolve_switch_target(
         ..
     }) = constant
     {
-        let terminator = resolve_switch_case(
-            *constant_value as i128,
-            default,
-            default_arguments,
-            cases,
-            false,
-        );
+        let terminator = resolve_switch_case(*constant_value as i128, default, cases, false);
         return extract_switch_target(terminator);
     }
 
@@ -953,16 +938,14 @@ fn resolve_switch_target(
         return None;
     }
 
-    let terminator = resolve_switch_case(*min, default, default_arguments, cases, *is_signed);
+    let terminator = resolve_switch_case(*min, default, cases, *is_signed);
     extract_switch_target(terminator)
 }
 
 /// Extract the jump target from a switch resolution terminator.
-fn extract_switch_target(
-    terminator: mir::Terminator,
-) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+fn extract_switch_target(terminator: mir::Terminator) -> Option<mir::BlockTarget> {
     match terminator {
-        mir::Terminator::Jump { target, arguments } => Some((target, arguments)),
+        mir::Terminator::Jump { target } => Some(target),
         _ => None,
     }
 }
@@ -1116,7 +1099,7 @@ fn comparison_bounds(
 fn assume_truth_value(
     block: &mir::Block,
     tree: &mir::NodeTree,
-    condition: mir::Value,
+    condition: mir::ValueReference,
 ) -> Option<bool> {
     for instruction_id in &block.instructions {
         let instruction = tree.get(*instruction_id);
@@ -1134,9 +1117,8 @@ fn assume_truth_value(
 
 /// Fold switch terminators using constant or range information.
 fn fold_switch(
-    value: mir::Value,
-    default: mir::LocalNodeId<mir::Block>,
-    default_arguments: &[mir::Value],
+    value: mir::ValueReference,
+    default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
     constant_value: Option<&mir::Constant>,
     range_value: Option<&ValueRange>,
@@ -1149,19 +1131,12 @@ fn fold_switch(
         return Some(resolve_switch_case(
             *value as i128,
             default,
-            default_arguments,
             cases,
             *is_signed,
         ));
     }
     if let Some(mir::Constant::UInt { value, .. }) = constant_value {
-        return Some(resolve_switch_case(
-            *value as i128,
-            default,
-            default_arguments,
-            cases,
-            false,
-        ));
+        return Some(resolve_switch_case(*value as i128, default, cases, false));
     }
 
     // narrow cases by integer range when possible
@@ -1176,21 +1151,18 @@ fn fold_switch(
     };
 
     if min == max {
-        return Some(resolve_switch_case(
-            *min,
-            default,
-            default_arguments,
-            cases,
-            *is_signed,
-        ));
+        return Some(resolve_switch_case(*min, default, cases, *is_signed));
     }
 
     let mut filtered_cases: Vec<mir::SwitchCase> = Vec::new();
     for case in cases {
+        let Some(case_value) = case.value.integer() else {
+            continue;
+        };
         let case_value = if *is_signed {
-            case.value as i128
+            case_value as i128
         } else {
-            case.value as u64 as i128
+            case_value as u64 as i128
         };
         if case_value >= *min && case_value <= *max {
             filtered_cases.push(case.clone());
@@ -1203,15 +1175,13 @@ fn fold_switch(
 
     if filtered_cases.is_empty() {
         return Some(mir::Terminator::Jump {
-            target: default,
-            arguments: default_arguments.to_vec(),
+            target: default.clone(),
         });
     }
 
     Some(mir::Terminator::Switch {
         value,
-        default,
-        default_arguments: default_arguments.to_vec(),
+        default: default.clone(),
         cases: filtered_cases,
     })
 }
@@ -1219,39 +1189,39 @@ fn fold_switch(
 /// Resolve a switch into a jump when the value is known.
 fn resolve_switch_case(
     value: i128,
-    default: mir::LocalNodeId<mir::Block>,
-    default_arguments: &[mir::Value],
+    default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
     is_signed: bool,
 ) -> mir::Terminator {
     // scan cases for a matching value
     for case in cases {
         // normalize the case value for comparison
+        let Some(case_value) = case.value.integer() else {
+            continue;
+        };
         let case_value = if is_signed {
-            case.value as i128
+            case_value as i128
         } else {
-            case.value as u64 as i128
+            case_value as u64 as i128
         };
 
         // return when the case matches
         if value == case_value {
             return mir::Terminator::Jump {
-                target: case.target,
-                arguments: case.arguments.clone(),
+                target: case.target.clone(),
             };
         }
     }
 
     // fall back to the default target
     mir::Terminator::Jump {
-        target: default,
-        arguments: default_arguments.to_vec(),
+        target: default.clone(),
     }
 }
 
 /// Return true when a value is known to be boolean.
 fn value_is_boolean(
-    value: mir::Value,
+    value: mir::ValueReference,
     range_value: Option<&ValueRange>,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
 ) -> bool {
@@ -1261,6 +1231,10 @@ fn value_is_boolean(
     }
 
     // fall back to instruction based detection
+    let Some(value) = value.value() else {
+        return false;
+    };
+
     let Some(instruction) = value_definitions.get(&value) else {
         return false;
     };
@@ -1277,9 +1251,8 @@ fn value_is_boolean(
 
 /// Lower boolean switches into conditional branches when possible.
 fn lower_boolean_switch(
-    value: mir::Value,
-    default: mir::LocalNodeId<mir::Block>,
-    default_arguments: &[mir::Value],
+    value: mir::ValueReference,
+    default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
     is_boolean_value: bool,
 ) -> Option<mir::Terminator> {
@@ -1292,9 +1265,9 @@ fn lower_boolean_switch(
     let mut case_zero: Option<&mir::SwitchCase> = None;
     let mut case_one: Option<&mir::SwitchCase> = None;
     for case in cases {
-        match case.value {
-            0 => case_zero = Some(case),
-            1 => case_one = Some(case),
+        match case.value.integer() {
+            Some(0) => case_zero = Some(case),
+            Some(1) => case_one = Some(case),
             _ => return None,
         }
     }
@@ -1305,21 +1278,19 @@ fn lower_boolean_switch(
     }
 
     // map cases to branch edges
-    let (then_target, then_arguments) = match case_one {
-        Some(case) => (case.target, case.arguments.clone()),
-        None => (default, default_arguments.to_vec()),
+    let then_target = match case_one {
+        Some(case) => case.target.clone(),
+        None => default.clone(),
     };
-    let (else_target, else_arguments) = match case_zero {
-        Some(case) => (case.target, case.arguments.clone()),
-        None => (default, default_arguments.to_vec()),
+    let else_target = match case_zero {
+        Some(case) => case.target.clone(),
+        None => default.clone(),
     };
 
     Some(mir::Terminator::Branch {
         condition: value,
         then_target,
-        then_arguments,
         else_target,
-        else_arguments,
     })
 }
 
@@ -1327,9 +1298,8 @@ fn lower_boolean_switch(
 fn lower_single_case_switch(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
-    value: mir::Value,
-    default: mir::LocalNodeId<mir::Block>,
-    default_arguments: &[mir::Value],
+    value: mir::ValueReference,
+    default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
     range_value: Option<&ValueRange>,
 ) -> Option<(Vec<mir::LocalNodeId<mir::Instruction>>, mir::Terminator)> {
@@ -1339,7 +1309,7 @@ fn lower_single_case_switch(
     };
 
     // skip when the case is identical to the default
-    if case.target == default && case.arguments == default_arguments {
+    if case.target == *default {
         return None;
     }
 
@@ -1354,20 +1324,24 @@ fn lower_single_case_switch(
     // materialize the case constant
     let type_id = tree.int_type(*width as u16, *is_signed);
     let constant_value = function.next_typed_value(type_id);
+    let Some(case_value) = case.value.integer() else {
+        return None;
+    };
+
     let constant = if *is_signed {
         mir::Constant::Int {
-            value: case.value,
+            value: case_value,
             width: *width,
             is_signed: true,
         }
     } else {
         mir::Constant::UInt {
-            value: case.value as u64,
+            value: case_value as u64,
             width: *width,
         }
     };
     let constant_id = tree.insert(mir::Instruction::Const {
-        destination: constant_value,
+        destination: constant_value.into(),
         value: constant,
     });
 
@@ -1375,19 +1349,17 @@ fn lower_single_case_switch(
     let bool_type = tree.boolean_type();
     let condition_value = function.next_typed_value(bool_type);
     let compare_id = tree.insert(mir::Instruction::Binary {
-        destination: condition_value,
+        destination: condition_value.into(),
         operator: mir::BinaryOperator::Equal,
         left: value,
-        right: constant_value,
+        right: constant_value.into(),
     });
 
     // build the conditional branch
     let terminator = mir::Terminator::Branch {
-        condition: condition_value,
-        then_target: case.target,
-        then_arguments: case.arguments.clone(),
-        else_target: default,
-        else_arguments: default_arguments.to_vec(),
+        condition: condition_value.into(),
+        then_target: case.target.clone(),
+        else_target: default.clone(),
     };
 
     Some((vec![constant_id, compare_id], terminator))
@@ -1395,16 +1367,16 @@ fn lower_single_case_switch(
 
 /// Compute canonical return arguments for an edge into a return block.
 fn remap_return_edge_arguments(
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: &mir::BlockTarget,
     return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     is_void_return: bool,
-) -> Option<Vec<mir::Value>> {
+) -> Option<Vec<mir::ValueReference>> {
     // lookup return block metadata
-    let info = return_blocks.get(&target)?;
+    let target_block = target.block.block()?;
+    let info = return_blocks.get(&target_block)?;
 
     // ensure the argument count matches the block parameters
-    if info.params.len() != arguments.len() {
+    if info.params.len() != target.arguments.len() {
         return None;
     }
 
@@ -1418,7 +1390,7 @@ fn remap_return_edge_arguments(
     let mut remapped_value = return_value;
 
     // substitute the return value if it is a block parameter
-    for (param, arg) in info.params.iter().zip(arguments.iter()) {
+    for (param, arg) in info.params.iter().zip(target.arguments.iter()) {
         if param.value == return_value {
             remapped_value = *arg;
             break;
@@ -1432,10 +1404,12 @@ fn remap_return_edge_arguments(
 fn record_kept_return(
     return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     kept_returns: &mut HashSet<mir::LocalNodeId<mir::Block>>,
-    target: mir::LocalNodeId<mir::Block>,
+    target: mir::BlockReference,
 ) {
     // record the target when it is a return block
-    if return_blocks.contains_key(&target) {
+    if let Some(target) = target.block()
+        && return_blocks.contains_key(&target)
+    {
         kept_returns.insert(target);
     }
 }
@@ -1455,36 +1429,21 @@ fn function_has_remappable_return_edges(
 
         // inspect terminator targets
         match terminator {
-            mir::Terminator::Jump { target, arguments } => {
+            mir::Terminator::Jump { target } => {
                 // check jump targets
-                if remap_return_edge_arguments(*target, arguments, return_blocks, is_void_return)
-                    .is_some()
-                {
+                if remap_return_edge_arguments(target, return_blocks, is_void_return).is_some() {
                     return true;
                 }
             }
             mir::Terminator::Branch {
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
                 ..
             } => {
                 // check branch targets
-                if remap_return_edge_arguments(
-                    *then_target,
-                    then_arguments,
-                    return_blocks,
-                    is_void_return,
-                )
-                .is_some()
-                    || remap_return_edge_arguments(
-                        *else_target,
-                        else_arguments,
-                        return_blocks,
-                        is_void_return,
-                    )
-                    .is_some()
+                if remap_return_edge_arguments(then_target, return_blocks, is_void_return).is_some()
+                    || remap_return_edge_arguments(else_target, return_blocks, is_void_return)
+                        .is_some()
                 {
                     return true;
                 }
@@ -1493,51 +1452,22 @@ fn function_has_remappable_return_edges(
                 success, failure, ..
             } => {
                 // check check targets
-                if remap_return_edge_arguments(
-                    success.target,
-                    &success.arguments,
-                    return_blocks,
-                    is_void_return,
-                )
-                .is_some()
-                    || remap_return_edge_arguments(
-                        failure.target,
-                        &failure.arguments,
-                        return_blocks,
-                        is_void_return,
-                    )
-                    .is_some()
+                if remap_return_edge_arguments(success, return_blocks, is_void_return).is_some()
+                    || remap_return_edge_arguments(failure, return_blocks, is_void_return).is_some()
                 {
                     return true;
                 }
             }
-            mir::Terminator::Switch {
-                default,
-                default_arguments,
-                cases,
-                ..
-            } => {
+            mir::Terminator::Switch { default, cases, .. } => {
                 // check default switch edge
-                if remap_return_edge_arguments(
-                    *default,
-                    default_arguments,
-                    return_blocks,
-                    is_void_return,
-                )
-                .is_some()
-                {
+                if remap_return_edge_arguments(default, return_blocks, is_void_return).is_some() {
                     return true;
                 }
 
                 // check each switch case edge
                 for case in cases {
-                    if remap_return_edge_arguments(
-                        case.target,
-                        &case.arguments,
-                        return_blocks,
-                        is_void_return,
-                    )
-                    .is_some()
+                    if remap_return_edge_arguments(&case.target, return_blocks, is_void_return)
+                        .is_some()
                     {
                         return true;
                     }
@@ -1555,9 +1485,13 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
     // collect candidate return and unreachable blocks
     let mut return_blocks: HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo> = HashMap::new();
     let mut unreachable_blocks: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
+    let mut changed = false;
 
     // determine return type expectations
-    let return_type = tree.get(function.return_type);
+    let Some(return_type_id) = function.return_type.ty() else {
+        return false;
+    };
+    let return_type = tree.get(return_type_id);
     let is_void_return = matches!(return_type, mir::Type::Void);
 
     // scan blocks for empty return and unreachable terminators
@@ -1600,7 +1534,6 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
     }
 
     // merge unreachable blocks into one canonical block
-    let mut changed = false;
     if unreachable_blocks.len() > 1 {
         let canonical_unreachable = unreachable_blocks[0];
         let redirects: HashMap<_, _> = unreachable_blocks
@@ -1633,10 +1566,13 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
         function.blocks.push(canonical_id);
         canonical_id
     } else {
-        let return_value = function.next_typed_value(function.return_type);
-        let param = mir::TypedValue::new(return_value, function.return_type);
+        let return_value = function.next_typed_value(return_type_id);
+        let param = mir::Parameter {
+            value: return_value.into(),
+            ty: return_type_id.into(),
+        };
         let terminator = tree.insert(mir::Terminator::Return {
-            value: Some(return_value),
+            value: Some(return_value.into()),
         });
         let block = mir::Block::with_parameters(vec![param], terminator);
         let canonical_id = tree.insert(block);
@@ -1676,6 +1612,10 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors() {
+            let Some(successor) = successor.block() else {
+                continue;
+            };
+
             if return_ids.contains(&successor) {
                 referenced_returns.insert(successor);
             }
@@ -1722,62 +1662,59 @@ fn rewrite_return_targets(
 ) -> mir::Terminator {
     // rewrite return block targets based on the terminator kind
     match terminator {
-        mir::Terminator::Jump { target, arguments } => {
+        mir::Terminator::Jump { target } => {
             // remap jump targets that point at return blocks
-            let remapped =
-                remap_return_edge_arguments(*target, arguments, return_blocks, is_void_return);
+            let remapped = remap_return_edge_arguments(target, return_blocks, is_void_return);
 
             // build the remapped jump when possible
             if let Some(arguments) = remapped {
                 return mir::Terminator::Jump {
-                    target: canonical_return,
-                    arguments,
+                    target: mir::BlockTarget {
+                        block: canonical_return.into(),
+                        arguments,
+                    },
                 };
             }
 
             // keep the return block when remapping is not possible
-            record_kept_return(return_blocks, kept_returns, *target);
+            record_kept_return(return_blocks, kept_returns, target.block);
 
             terminator.clone()
         }
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             // remap then and else edges into the canonical return block
-            let then_remap = remap_return_edge_arguments(
-                *then_target,
-                then_arguments,
-                return_blocks,
-                is_void_return,
-            );
-            let else_remap = remap_return_edge_arguments(
-                *else_target,
-                else_arguments,
-                return_blocks,
-                is_void_return,
-            );
+            let then_remap =
+                remap_return_edge_arguments(then_target, return_blocks, is_void_return);
+            let else_remap =
+                remap_return_edge_arguments(else_target, return_blocks, is_void_return);
 
             // apply remapped then edge when available
             let mut remapped = false;
-            let (new_then_target, new_then_args) = if let Some(arguments) = then_remap {
+            let new_then_target = if let Some(arguments) = then_remap {
                 remapped = true;
-                (canonical_return, arguments)
+                mir::BlockTarget {
+                    block: canonical_return.into(),
+                    arguments,
+                }
             } else {
-                record_kept_return(return_blocks, kept_returns, *then_target);
-                (*then_target, then_arguments.clone())
+                record_kept_return(return_blocks, kept_returns, then_target.block);
+                then_target.clone()
             };
 
             // apply remapped else edge when available
-            let (new_else_target, new_else_args) = if let Some(arguments) = else_remap {
+            let new_else_target = if let Some(arguments) = else_remap {
                 remapped = true;
-                (canonical_return, arguments)
+                mir::BlockTarget {
+                    block: canonical_return.into(),
+                    arguments,
+                }
             } else {
-                record_kept_return(return_blocks, kept_returns, *else_target);
-                (*else_target, else_arguments.clone())
+                record_kept_return(return_blocks, kept_returns, else_target.block);
+                else_target.clone()
             };
 
             // rebuild the branch when any edge was remapped
@@ -1785,9 +1722,7 @@ fn rewrite_return_targets(
                 return mir::Terminator::Branch {
                     condition: *condition,
                     then_target: new_then_target,
-                    then_arguments: new_then_args,
                     else_target: new_else_target,
-                    else_arguments: new_else_args,
                 };
             }
 
@@ -1799,50 +1734,40 @@ fn rewrite_return_targets(
             failure,
         } => {
             // remap check edges into the canonical return block
-            let success_remap = remap_return_edge_arguments(
-                success.target,
-                &success.arguments,
-                return_blocks,
-                is_void_return,
-            );
-            let failure_remap = remap_return_edge_arguments(
-                failure.target,
-                &failure.arguments,
-                return_blocks,
-                is_void_return,
-            );
+            let success_remap = remap_return_edge_arguments(success, return_blocks, is_void_return);
+            let failure_remap = remap_return_edge_arguments(failure, return_blocks, is_void_return);
 
             // apply remapped success edge when available
             let mut remapped = false;
-            let (new_success_target, new_success_args) = if let Some(arguments) = success_remap {
+            let new_success = if let Some(arguments) = success_remap {
                 remapped = true;
-                (canonical_return, arguments)
+                mir::BlockTarget {
+                    block: canonical_return.into(),
+                    arguments,
+                }
             } else {
-                record_kept_return(return_blocks, kept_returns, success.target);
-                (success.target, success.arguments.clone())
+                record_kept_return(return_blocks, kept_returns, success.block);
+                success.clone()
             };
 
             // apply remapped failure edge when available
-            let (new_failure_target, new_failure_args) = if let Some(arguments) = failure_remap {
+            let new_failure = if let Some(arguments) = failure_remap {
                 remapped = true;
-                (canonical_return, arguments)
+                mir::BlockTarget {
+                    block: canonical_return.into(),
+                    arguments,
+                }
             } else {
-                record_kept_return(return_blocks, kept_returns, failure.target);
-                (failure.target, failure.arguments.clone())
+                record_kept_return(return_blocks, kept_returns, failure.block);
+                failure.clone()
             };
 
             // rebuild the check when any edge was remapped
             if remapped {
                 return mir::Terminator::Check {
                     constraint: constraint.clone(),
-                    success: mir::CheckTarget {
-                        target: new_success_target,
-                        arguments: new_success_args,
-                    },
-                    failure: mir::CheckTarget {
-                        target: new_failure_target,
-                        arguments: new_failure_args,
-                    },
+                    success: new_success,
+                    failure: new_failure,
                 };
             }
 
@@ -1851,47 +1776,42 @@ fn rewrite_return_targets(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
             // remap the default edge into the canonical return block
-            let default_remap = remap_return_edge_arguments(
-                *default,
-                default_arguments,
-                return_blocks,
-                is_void_return,
-            );
+            let default_remap = remap_return_edge_arguments(default, return_blocks, is_void_return);
 
             // apply the default remap when available
             let mut remapped = false;
-            let (new_default, new_default_args) = if let Some(arguments) = default_remap {
+            let new_default = if let Some(arguments) = default_remap {
                 remapped = true;
-                (canonical_return, arguments)
+                mir::BlockTarget {
+                    block: canonical_return.into(),
+                    arguments,
+                }
             } else {
-                record_kept_return(return_blocks, kept_returns, *default);
-                (*default, default_arguments.clone())
+                record_kept_return(return_blocks, kept_returns, default.block);
+                default.clone()
             };
 
             // remap switch cases into the canonical return block
             let mut new_cases = Vec::with_capacity(cases.len());
             for case in cases {
-                let case_remap = remap_return_edge_arguments(
-                    case.target,
-                    &case.arguments,
-                    return_blocks,
-                    is_void_return,
-                );
+                let case_remap =
+                    remap_return_edge_arguments(&case.target, return_blocks, is_void_return);
 
                 // apply the case remap when available
                 if let Some(arguments) = case_remap {
                     remapped = true;
                     new_cases.push(mir::SwitchCase {
                         value: case.value,
-                        target: canonical_return,
-                        arguments,
+                        target: mir::BlockTarget {
+                            block: canonical_return.into(),
+                            arguments,
+                        },
                     });
                 } else {
-                    record_kept_return(return_blocks, kept_returns, case.target);
+                    record_kept_return(return_blocks, kept_returns, case.target.block);
                     new_cases.push(case.clone());
                 }
             }
@@ -1901,7 +1821,6 @@ fn rewrite_return_targets(
                 return mir::Terminator::Switch {
                     value: *value,
                     default: new_default,
-                    default_arguments: new_default_args,
                     cases: new_cases,
                 };
             }
@@ -1955,36 +1874,26 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
         let new_terminator = match terminator {
             mir::Terminator::Branch {
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
                 ..
-            } if then_target == else_target && then_arguments == else_arguments => {
-                Some(mir::Terminator::Jump {
-                    target: *then_target,
-                    arguments: then_arguments.clone(),
-                })
-            }
+            } if then_target == else_target => Some(mir::Terminator::Jump {
+                target: then_target.clone(),
+            }),
             mir::Terminator::Check {
                 success, failure, ..
-            } if success.target == failure.target && success.arguments == failure.arguments => {
-                Some(mir::Terminator::Jump {
-                    target: success.target,
-                    arguments: success.arguments.clone(),
-                })
-            }
+            } if success == failure => Some(mir::Terminator::Jump {
+                target: success.clone(),
+            }),
             mir::Terminator::Switch {
                 value,
                 default,
-                default_arguments,
                 cases,
-                ..
             } => {
                 // drop cases that match the default edge
                 let mut filtered_cases: Vec<mir::SwitchCase> = Vec::new();
                 let mut changed_cases = false;
                 for case in cases {
-                    if case.target == *default && case.arguments == *default_arguments {
+                    if case.target == *default {
                         changed_cases = true;
                         continue;
                     }
@@ -1994,14 +1903,12 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
                 // replace with a jump when all edges are identical
                 if filtered_cases.is_empty() {
                     Some(mir::Terminator::Jump {
-                        target: *default,
-                        arguments: default_arguments.clone(),
+                        target: default.clone(),
                     })
                 } else if changed_cases {
                     Some(mir::Terminator::Switch {
                         value: *value,
-                        default: *default,
-                        default_arguments: default_arguments.clone(),
+                        default: default.clone(),
                         cases: filtered_cases,
                     })
                 } else {
@@ -2035,9 +1942,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
         let mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } = terminator
         else {
             continue;
@@ -2049,16 +1954,20 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
         }
 
         // skip malformed branches
-        if then_arguments.len() != else_arguments.len() {
+        if then_target.arguments.len() != else_target.arguments.len() {
             continue;
         }
 
         // build new arguments using selects when needed
-        let mut new_arguments = Vec::with_capacity(then_arguments.len());
+        let mut new_arguments = Vec::with_capacity(then_target.arguments.len());
         let mut new_block = block.clone();
         let mut inserted_select = false;
 
-        for (then_arg, else_arg) in then_arguments.iter().zip(else_arguments.iter()) {
+        for (then_arg, else_arg) in then_target
+            .arguments
+            .iter()
+            .zip(else_target.arguments.iter())
+        {
             // keep identical arguments unchanged
             if then_arg == else_arg {
                 new_arguments.push(*then_arg);
@@ -2066,28 +1975,37 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
             }
 
             // materialize a select for differing arguments
-            let destination = function.next_typed_value_like(*then_arg);
+            let Some(then_arg_value) = then_arg.value() else {
+                continue;
+            };
+            let Some(else_arg_value) = else_arg.value() else {
+                continue;
+            };
+
+            let destination = function.next_typed_value_like(then_arg_value);
             let instruction = mir::Instruction::Select {
-                destination,
+                destination: destination.into(),
                 condition,
-                then_value: *then_arg,
-                else_value: *else_arg,
+                then_value: then_arg_value.into(),
+                else_value: else_arg_value.into(),
             };
             let instruction_id = tree.insert(instruction);
             new_block.instructions.push(instruction_id);
-            new_arguments.push(destination);
+            new_arguments.push(destination.into());
             inserted_select = true;
         }
 
         // skip when nothing changed
-        if !inserted_select && then_arguments == else_arguments {
+        if !inserted_select && then_target.arguments == else_target.arguments {
             continue;
         }
 
         // replace the branch with a jump to the shared target
         let new_terminator = mir::Terminator::Jump {
-            target: then_target,
-            arguments: new_arguments,
+            target: mir::BlockTarget {
+                block: then_target.block,
+                arguments: new_arguments,
+            },
         };
         tree.replace(new_block.terminator, new_terminator);
         tree.replace(block_id, new_block);
@@ -2103,7 +2021,7 @@ struct JumpPredecessor {
     /// The predecessor block.
     pred: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to the target block.
-    arguments: Vec<mir::Value>,
+    arguments: Vec<mir::ValueReference>,
 }
 
 /// Duplicate small jump targets into jump predecessors.
@@ -2127,16 +2045,20 @@ fn tail_duplicate_blocks(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors() {
-            *predecessor_counts.entry(successor).or_insert(0) += 1;
+            if let Some(successor) = successor.block() {
+                *predecessor_counts.entry(successor).or_insert(0) += 1;
+            }
         }
 
-        if let mir::Terminator::Jump { target, arguments } = terminator {
+        if let mir::Terminator::Jump { target } = terminator
+            && let Some(target_block) = target.block.block()
+        {
             jump_predecessors
-                .entry(*target)
+                .entry(target_block)
                 .or_default()
                 .push(JumpPredecessor {
                     pred: block_id,
-                    arguments: arguments.clone(),
+                    arguments: target.arguments.clone(),
                 });
         }
     }
@@ -2261,7 +2183,11 @@ fn tail_duplicate_blocks(
             // build value map for parameters and new instruction values
             let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
             for (param, arg) in block.parameters.iter().zip(pred.arguments.iter()) {
-                value_map.insert(param.value, *arg);
+                let (Some(param), Some(arg)) = (param.value.value(), arg.value()) else {
+                    continue;
+                };
+
+                value_map.insert(param, arg);
             }
 
             // clone instructions with remapped values
@@ -2269,7 +2195,8 @@ fn tail_duplicate_blocks(
             for instruction_id in &block.instructions {
                 let instruction = tree.get(*instruction_id).clone();
 
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction.destination().and_then(|value| value.value())
+                {
                     let new_destination = function.next_typed_value_like(destination);
                     value_map.insert(destination, new_destination);
                 }
@@ -2296,8 +2223,10 @@ fn tail_duplicate_blocks(
             let pred_block = tree.get(pred.pred).clone();
             let updated_pred = pred_block.clone();
             let new_pred_terminator = mir::Terminator::Jump {
-                target: new_block_id,
-                arguments: Vec::new(),
+                target: mir::BlockTarget {
+                    block: new_block_id.into(),
+                    arguments: Vec::new(),
+                },
             };
             tree.replace(updated_pred.terminator, new_pred_terminator);
             tree.replace(pred.pred, updated_pred);
@@ -2312,13 +2241,17 @@ fn tail_duplicate_blocks(
 /// Return true when all values are available in the given block.
 fn values_available_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
-    values: &[mir::Value],
+    values: &[mir::ValueReference],
     value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     domtree: &DominatorTree,
 ) -> bool {
     // ensure each value definition dominates the block
     for value in values {
-        let Some(def_block) = value_def_blocks.get(value) else {
+        let Some(value) = value.value() else {
+            return false;
+        };
+
+        let Some(def_block) = value_def_blocks.get(&value) else {
             return false;
         };
 
@@ -2430,7 +2363,9 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
         // record unique successors for the block
         let mut unique_successors = HashSet::new();
         for successor in terminator.successors() {
-            unique_successors.insert(successor);
+            if let Some(successor) = successor.block() {
+                unique_successors.insert(successor);
+            }
         }
 
         // store successor count for critical edge checks
@@ -2468,41 +2403,35 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
             } => {
                 // split the then edge when critical
                 let new_then_target = split_critical_edge_target(
                     function,
                     tree,
                     block_id,
-                    *then_target,
-                    then_arguments,
+                    then_target,
                     &predecessors,
                     &mut split_cache,
                 )
-                .unwrap_or(*then_target);
+                .unwrap_or_else(|| then_target.clone());
 
                 // split the else edge when critical
                 let new_else_target = split_critical_edge_target(
                     function,
                     tree,
                     block_id,
-                    *else_target,
-                    else_arguments,
+                    else_target,
                     &predecessors,
                     &mut split_cache,
                 )
-                .unwrap_or(*else_target);
+                .unwrap_or_else(|| else_target.clone());
 
                 if new_then_target != *then_target || new_else_target != *else_target {
                     Some(mir::Terminator::Branch {
                         condition: *condition,
                         then_target: new_then_target,
-                        then_arguments: then_arguments.clone(),
                         else_target: new_else_target,
-                        else_arguments: else_arguments.clone(),
                     })
                 } else {
                     None
@@ -2518,36 +2447,28 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
                     function,
                     tree,
                     block_id,
-                    success.target,
-                    &success.arguments,
+                    success,
                     &predecessors,
                     &mut split_cache,
                 )
-                .unwrap_or(success.target);
+                .unwrap_or_else(|| success.clone());
 
                 // split the failure edge when critical
                 let new_failure_target = split_critical_edge_target(
                     function,
                     tree,
                     block_id,
-                    failure.target,
-                    &failure.arguments,
+                    failure,
                     &predecessors,
                     &mut split_cache,
                 )
-                .unwrap_or(failure.target);
+                .unwrap_or_else(|| failure.clone());
 
-                if new_success_target != success.target || new_failure_target != failure.target {
+                if new_success_target != *success || new_failure_target != *failure {
                     Some(mir::Terminator::Check {
                         constraint: constraint.clone(),
-                        success: mir::CheckTarget {
-                            target: new_success_target,
-                            arguments: success.arguments.clone(),
-                        },
-                        failure: mir::CheckTarget {
-                            target: new_failure_target,
-                            arguments: failure.arguments.clone(),
-                        },
+                        success: new_success_target,
+                        failure: new_failure_target,
                     })
                 } else {
                     None
@@ -2556,7 +2477,6 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
             mir::Terminator::Switch {
                 value,
                 default,
-                default_arguments,
                 cases,
             } => {
                 // split the default edge when critical
@@ -2564,12 +2484,11 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
                     function,
                     tree,
                     block_id,
-                    *default,
-                    default_arguments,
+                    default,
                     &predecessors,
                     &mut split_cache,
                 )
-                .unwrap_or(*default);
+                .unwrap_or_else(|| default.clone());
 
                 // split each case edge when critical
                 let mut updated_cases = Vec::with_capacity(cases.len());
@@ -2580,12 +2499,11 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
                         function,
                         tree,
                         block_id,
-                        case.target,
-                        &case.arguments,
+                        &case.target,
                         &predecessors,
                         &mut split_cache,
                     )
-                    .unwrap_or(case.target);
+                    .unwrap_or_else(|| case.target.clone());
 
                     if new_target != case.target {
                         remapped = true;
@@ -2594,7 +2512,6 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
                     updated_cases.push(mir::SwitchCase {
                         value: case.value,
                         target: new_target,
-                        arguments: case.arguments.clone(),
                     });
                 }
 
@@ -2602,7 +2519,6 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
                     Some(mir::Terminator::Switch {
                         value: *value,
                         default: new_default,
-                        default_arguments: default_arguments.clone(),
                         cases: updated_cases,
                     })
                 } else {
@@ -2627,28 +2543,32 @@ fn split_critical_edge_target(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     source: mir::LocalNodeId<mir::Block>,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
+    target: &mir::BlockTarget,
     predecessors: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
     split_cache: &mut HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
     >,
-) -> Option<mir::LocalNodeId<mir::Block>> {
+) -> Option<mir::BlockTarget> {
+    let target_block_id = target.block.block()?;
+
     // require multiple predecessors to be critical
-    let target_preds = predecessors.get(&target).map_or(0, HashSet::len);
+    let target_preds = predecessors.get(&target_block_id).map_or(0, HashSet::len);
     if target_preds <= 1 {
         return None;
     }
 
     // reuse previously split edges for the same source and target
-    if let Some(existing) = split_cache.get(&(source, target)) {
-        return Some(*existing);
+    if let Some(existing) = split_cache.get(&(source, target_block_id)) {
+        return Some(mir::BlockTarget {
+            block: (*existing).into(),
+            arguments: target.arguments.clone(),
+        });
     }
 
     // read the target block parameters
-    let target_block = tree.get(target);
-    if target_block.parameters.len() != arguments.len() {
+    let target_block = tree.get(target_block_id);
+    if target_block.parameters.len() != target.arguments.len() {
         return None;
     }
 
@@ -2656,24 +2576,36 @@ fn split_critical_edge_target(
     let mut new_parameters = Vec::with_capacity(target_block.parameters.len());
     let mut new_arguments = Vec::with_capacity(target_block.parameters.len());
     for param in &target_block.parameters {
-        let value = function.next_typed_value(param.ty);
-        new_parameters.push(mir::TypedValue::new(value, param.ty));
-        new_arguments.push(value);
+        let Some(ty) = param.ty.ty() else {
+            return None;
+        };
+
+        let value = function.next_typed_value(ty);
+        new_parameters.push(mir::Parameter {
+            value: value.into(),
+            ty: ty.into(),
+        });
+        new_arguments.push(value.into());
     }
 
     // build the split block
     let new_terminator = tree.insert(mir::Terminator::Jump {
-        target,
-        arguments: new_arguments,
+        target: mir::BlockTarget {
+            block: target_block_id.into(),
+            arguments: new_arguments,
+        },
     });
     let new_block = mir::Block::with_parameters(new_parameters, new_terminator);
 
     // insert the block and record it for reuse
     let new_block_id = tree.insert(new_block);
     insert_block_after(function, source, new_block_id);
-    split_cache.insert((source, target), new_block_id);
+    split_cache.insert((source, target_block_id), new_block_id);
 
-    Some(new_block_id)
+    Some(mir::BlockTarget {
+        block: new_block_id.into(),
+        arguments: target.arguments.clone(),
+    })
 }
 
 /// Merge blocks where predecessor has single successor and successor has single predecessor.
@@ -2697,7 +2629,9 @@ fn merge_blocks(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors() {
-            *predecessor_count.entry(successor).or_insert(0) += 1;
+            if let Some(successor) = successor.block() {
+                *predecessor_count.entry(successor).or_insert(0) += 1;
+            }
         }
     }
 
@@ -2717,10 +2651,13 @@ fn merge_blocks(
             let (target, arguments, block_clone) = {
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
-                let mir::Terminator::Jump { target, arguments } = terminator else {
+                let mir::Terminator::Jump { target } = terminator else {
                     continue;
                 };
-                (*target, arguments.clone(), block.clone())
+                let Some(target_block) = target.block.block() else {
+                    continue;
+                };
+                (target_block, target.arguments.clone(), block.clone())
             };
 
             // don't merge into ourselves
@@ -2769,7 +2706,7 @@ fn merge_blocks(
                     .parameters
                     .iter()
                     .zip(arguments.iter())
-                    .map(|(param, arg)| (param.value, *arg))
+                    .filter_map(|(param, arg)| Some((param.value.value()?, arg.value()?)))
                     .collect();
                 param_to_arg
             };
@@ -2841,6 +2778,10 @@ fn eliminate_unreachable_blocks(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors() {
+            let Some(successor) = successor.block() else {
+                continue;
+            };
+
             if !reachable.contains(&successor) {
                 worklist.push(successor);
             }

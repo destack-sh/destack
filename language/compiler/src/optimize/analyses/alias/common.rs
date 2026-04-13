@@ -13,7 +13,7 @@ pub(super) struct FunctionAA {
     /// Map from value to its defining instruction.
     pub definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     /// Function parameters.
-    pub parameters: Vec<mir::TypedValue>,
+    pub parameters: Vec<mir::Parameter>,
 }
 
 impl FunctionAA {
@@ -36,15 +36,16 @@ impl FunctionAA {
                 let inst = tree.get(instruction_id);
 
                 // record definitions
-                if let Some(dest) = inst.destination() {
+                if let Some(dest) = inst.destination().and_then(|value| value.value()) {
                     definitions.insert(dest, instruction_id);
                 }
 
                 // track integer constants
                 if let mir::Instruction::Const { destination, value } = inst
                     && let mir::Constant::Int { value: v, .. } = value
+                    && let Some(destination) = destination.value()
                 {
-                    constants.insert(*destination, *v);
+                    constants.insert(destination, *v);
                 }
             }
         }

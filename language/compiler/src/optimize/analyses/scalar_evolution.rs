@@ -231,8 +231,12 @@ impl ValueDefinitions {
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
             for (index, param) in block.parameters.iter().enumerate() {
+                let Some(value) = param.value.value() else {
+                    continue;
+                };
+
                 definitions.insert(
-                    param.value,
+                    value,
                     ValueDefinition {
                         block: block_id,
                         kind: ValueDefinitionKind::Parameter { index },
@@ -246,7 +250,8 @@ impl ValueDefinitions {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction.destination().and_then(|value| value.value())
+                {
                     definitions.insert(
                         destination,
                         ValueDefinition {
@@ -325,11 +330,16 @@ impl<'a> LoopScevBuilder<'a> {
         for &block_id in &self.lp.blocks {
             let block = self.tree.get(block_id);
             for param in &block.parameters {
-                values.push(param.value);
+                let Some(value) = param.value.value() else {
+                    continue;
+                };
+
+                values.push(value);
             }
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
+                if let Some(destination) = instruction.destination().and_then(|value| value.value())
+                {
                     values.push(destination);
                 }
             }
@@ -403,16 +413,40 @@ impl<'a> LoopScevBuilder<'a> {
                 left,
                 right,
                 ..
-            } => self.scev_for_binary(value, *operator, *left, *right),
+            } => {
+                let Some(left) = left.value() else {
+                    return Scev::Unknown(value);
+                };
+                let Some(right) = right.value() else {
+                    return Scev::Unknown(value);
+                };
+
+                self.scev_for_binary(value, *operator, left, right)
+            }
             mir::Instruction::Unary {
                 operator, argument, ..
-            } => self.scev_for_unary(value, *operator, *argument),
+            } => {
+                let Some(argument) = argument.value() else {
+                    return Scev::Unknown(value);
+                };
+
+                self.scev_for_unary(value, *operator, argument)
+            }
             mir::Instruction::Cast {
                 operator,
                 argument,
                 to_type,
                 ..
-            } => self.scev_for_cast(value, *operator, *argument, *to_type),
+            } => {
+                let Some(argument) = argument.value() else {
+                    return Scev::Unknown(value);
+                };
+                let Some(to_type) = to_type.ty() else {
+                    return Scev::Unknown(value);
+                };
+
+                self.scev_for_cast(value, *operator, argument, to_type)
+            }
             _ => Scev::Unknown(value),
         }
     }
@@ -718,27 +752,41 @@ impl<'a> LoopScevBuilder<'a> {
         // derive the step for supported additive chains
         match operator {
             mir::BinaryOperator::Add => {
-                if self.is_invariant_value(*right)
-                    && let Some(step) = self.step_from_expression(param_value, *left, step_zero)
+                let Some(left) = left.value() else {
+                    return None;
+                };
+                let Some(right) = right.value() else {
+                    return None;
+                };
+
+                if self.is_invariant_value(right)
+                    && let Some(step) = self.step_from_expression(param_value, left, step_zero)
                 {
-                    let rhs = self.scev_for_value(*right);
+                    let rhs = self.scev_for_value(right);
                     return Some(scev_add(step, rhs));
                 }
 
-                if self.is_invariant_value(*left)
-                    && let Some(step) = self.step_from_expression(param_value, *right, step_zero)
+                if self.is_invariant_value(left)
+                    && let Some(step) = self.step_from_expression(param_value, right, step_zero)
                 {
-                    let lhs = self.scev_for_value(*left);
+                    let lhs = self.scev_for_value(left);
                     return Some(scev_add(step, lhs));
                 }
 
                 None
             }
             mir::BinaryOperator::Subtract => {
-                if self.is_invariant_value(*right)
-                    && let Some(step) = self.step_from_expression(param_value, *left, step_zero)
+                let Some(left) = left.value() else {
+                    return None;
+                };
+                let Some(right) = right.value() else {
+                    return None;
+                };
+
+                if self.is_invariant_value(right)
+                    && let Some(step) = self.step_from_expression(param_value, left, step_zero)
                 {
-                    let rhs = self.scev_for_value(*right);
+                    let rhs = self.scev_for_value(right);
                     return Some(scev_sub(step, rhs));
                 }
 
@@ -766,7 +814,11 @@ fn collect_loop_invariants(
 
     // seed invariants with function parameters
     for param in &function.parameters {
-        invariants.insert(param.value);
+        let Some(value) = param.value.value() else {
+            continue;
+        };
+
+        invariants.insert(value);
     }
 
     // seed invariants with values defined outside the loop
@@ -786,7 +838,8 @@ fn collect_loop_invariants(
 
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                let Some(destination) = instruction.destination() else {
+                let Some(destination) = instruction.destination().and_then(|value| value.value())
+                else {
                     continue;
                 };
 
@@ -817,6 +870,10 @@ fn instruction_uses_invariants(
 ) -> bool {
     // check inline operands
     for value in instruction.uses() {
+        let Some(value) = value.value() else {
+            return false;
+        };
+
         if !invariants.contains(&value) {
             return false;
         }
@@ -827,9 +884,11 @@ fn instruction_uses_invariants(
         return true;
     };
 
-    tree.get_arguments(args_slice)
-        .iter()
-        .all(|value| invariants.contains(value))
+    tree.get_arguments(args_slice).iter().all(|value| {
+        value
+            .value()
+            .is_some_and(|value| invariants.contains(&value))
+    })
 }
 
 /// Get the header argument for a specific predecessor and parameter.
@@ -844,7 +903,7 @@ fn header_argument_from_pred(
     let pred_terminator = tree.get(pred_block.terminator);
     let args = terminator_arguments_for_successor(pred_terminator, header);
 
-    args.get(param_index).copied()
+    args.get(param_index).and_then(|value| value.value())
 }
 
 /// Get a constant value for an SSA value if it is constant.
@@ -863,7 +922,10 @@ fn constant_for_value(
     let instruction_data = tree.get(instruction);
     match instruction_data {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => constant_from_global(*global, tree),
+        mir::Instruction::GlobalConst { global, .. } => {
+            let global = global.global()?;
+            constant_from_global(global, tree)
+        }
         _ => None,
     }
 }
@@ -878,7 +940,7 @@ fn zero_constant_for_param(
     // resolve the parameter type
     let header_block = tree.get(header);
     let param = header_block.parameters.get(param_index)?;
-    let ty = tree.get(param.ty);
+    let ty = tree.get(param.ty.ty()?);
     constant_zero_for_type(ty, pointer_width_bits)
 }
 

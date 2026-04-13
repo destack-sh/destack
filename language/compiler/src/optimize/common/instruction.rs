@@ -136,7 +136,11 @@ pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::NodeTr
         Instruction::FieldAddr { result_type, .. }
         | Instruction::ElementAddr { result_type, .. }
         | Instruction::LocalAddr { result_type, .. } => {
-            let ty = tree.get(*result_type);
+            let Some(result_type) = result_type.ty() else {
+                return false;
+            };
+
+            let ty = tree.get(result_type);
             matches!(
                 ty,
                 mir::Type::Reference {
@@ -418,7 +422,9 @@ pub fn instruction_collect_used_values(
 
     // add function parameters as implicitly used (they're inputs)
     for param in &function.parameters {
-        used.insert(param.value);
+        if let Some(value) = param.value.value() {
+            used.insert(value);
+        }
     }
 
     // scan blocks for instruction and terminator uses
@@ -432,20 +438,26 @@ pub fn instruction_collect_used_values(
 
             // add inline uses
             for value in instruction.uses() {
-                used.insert(value);
+                if let Some(value) = value.value() {
+                    used.insert(value);
+                }
             }
 
             // add externalized argument uses for calls and intrinsics
             if let Some(args_slice) = instruction.argument_slice() {
                 for &arg in tree.get_arguments(args_slice) {
-                    used.insert(arg);
+                    if let Some(arg) = arg.value() {
+                        used.insert(arg);
+                    }
                 }
             }
         }
 
         // collect uses from terminator
         for value in terminator.uses() {
-            used.insert(value);
+            if let Some(value) = value.value() {
+                used.insert(value);
+            }
         }
     }
 
@@ -466,7 +478,17 @@ pub fn instruction_substitute_uses(
     }
 
     // resolve a value through the substitution map
-    let substitute = |v: &mir::Value| -> mir::Value { *substitutions.get(v).unwrap_or(v) };
+    let substitute = |value: &mir::ValueReference| -> mir::ValueReference {
+        let Some(concrete_value) = value.value() else {
+            return *value;
+        };
+
+        substitutions
+            .get(&concrete_value)
+            .copied()
+            .map(Into::into)
+            .unwrap_or(*value)
+    };
 
     // rebuild the instruction with substituted operands
     match instruction {
@@ -1074,8 +1096,17 @@ pub fn instruction_substitute_uses_in_tree(
     }
 
     // resolve values through the substitution map
-    let substitute =
-        |value: mir::Value| -> mir::Value { *substitutions.get(&value).unwrap_or(&value) };
+    let substitute = |value: mir::ValueReference| -> mir::ValueReference {
+        let Some(value_id) = value.value() else {
+            return value;
+        };
+
+        substitutions
+            .get(&value_id)
+            .copied()
+            .map(Into::into)
+            .unwrap_or(value)
+    };
 
     // rebuild argument slices when needed
     let mut substitute_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
@@ -1083,10 +1114,11 @@ pub fn instruction_substitute_uses_in_tree(
         let arguments = tree.get_arguments(slice);
 
         // skip when no arguments are substituted
-        if !arguments
-            .iter()
-            .any(|value| substitutions.contains_key(value))
-        {
+        if !arguments.iter().any(|value| {
+            value
+                .value()
+                .is_some_and(|value| substitutions.contains_key(&value))
+        }) {
             return slice;
         }
 
@@ -1571,9 +1603,9 @@ pub fn instruction_substitute_uses_in_tree(
 
 /// Substitute values in a slice using the provided mapping.
 pub fn substitute_values(
-    values: &[mir::Value],
+    values: &[mir::ValueReference],
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Vec<mir::Value> {
+) -> Vec<mir::ValueReference> {
     // fast path for empty substitutions
     if substitutions.is_empty() {
         return values.to_vec();
@@ -1582,7 +1614,17 @@ pub fn substitute_values(
     // apply substitutions to the value list
     values
         .iter()
-        .map(|value| substitutions.get(value).copied().unwrap_or(*value))
+        .map(|value| {
+            let Some(value_id) = value.value() else {
+                return *value;
+            };
+
+            substitutions
+                .get(&value_id)
+                .copied()
+                .map(Into::into)
+                .unwrap_or(*value)
+        })
         .collect()
 }
 
@@ -1681,7 +1723,11 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
 
         // block parameters are defined in this block
         for param in &block.parameters {
-            def_block.insert(param.value, block_id);
+            let Some(value) = param.value.value() else {
+                continue;
+            };
+
+            def_block.insert(value, block_id);
         }
 
         // instructions
@@ -1689,18 +1735,27 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
             let instruction = tree.get(instruction_id);
 
             // record definition
-            if let Some(dest) = instruction.destination() {
+            if let Some(dest) = instruction.destination().and_then(|value| value.value()) {
                 def_block.insert(dest, block_id);
             }
 
             // record uses
-            for use_value in instruction.uses() {
+            for use_value in instruction
+                .uses()
+                .into_iter()
+                .filter_map(|value| value.value())
+            {
                 use_blocks.entry(use_value).or_default().push(block_id);
             }
 
             // externalized arguments
             if let Some(args_slice) = instruction.argument_slice() {
-                for &arg in tree.get_arguments(args_slice) {
+                for arg in tree
+                    .get_arguments(args_slice)
+                    .iter()
+                    .copied()
+                    .filter_map(|value| value.value())
+                {
                     use_blocks.entry(arg).or_default().push(block_id);
                 }
             }
@@ -1708,7 +1763,11 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
 
         // terminator uses
         let terminator = tree.get(block.terminator);
-        for use_value in terminator.uses() {
+        for use_value in terminator
+            .uses()
+            .into_iter()
+            .filter_map(|value| value.value())
+        {
             use_blocks.entry(use_value).or_default().push(block_id);
         }
     }
@@ -1820,7 +1879,7 @@ pub fn build_value_definition_map(
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 map.insert(destination, instruction_id);
             }
         }
@@ -1843,13 +1902,15 @@ pub fn build_value_definition_blocks(
 
         // record block parameters as definitions
         for param in &block.parameters {
-            map.insert(param.value, block_id);
+            if let Some(value) = param.value.value() {
+                map.insert(value, block_id);
+            }
         }
 
         // record instruction definitions
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 map.insert(destination, block_id);
             }
         }
@@ -1891,7 +1952,7 @@ pub fn build_value_instruction_map(
         for &instruction_id in &block.instructions {
             // record instructions that define a value
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 map.insert(destination, instruction.clone());
             }
         }
@@ -1915,7 +1976,7 @@ pub fn build_value_instruction_refs(
         for (index, instruction_id) in block.instructions.iter().enumerate() {
             // record instructions that define a value
             let instruction = tree.get(*instruction_id);
-            if let Some(destination) = instruction.destination() {
+            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
                 map.insert(
                     destination,
                     InstructionRef {
@@ -1942,7 +2003,17 @@ pub fn instruction_map(
     tree: &mut mir::NodeTree,
 ) -> mir::Instruction {
     // remap values through the provided map
-    let remap = |v: mir::Value| -> mir::Value { *value_map.get(&v).unwrap_or(&v) };
+    let remap = |value: mir::ValueReference| -> mir::ValueReference {
+        let Some(value_id) = value.value() else {
+            return value;
+        };
+
+        value_map
+            .get(&value_id)
+            .copied()
+            .map(Into::into)
+            .unwrap_or(value)
+    };
 
     // rebuild argument slices with remapped values
     let mut remap_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
@@ -1950,7 +2021,8 @@ pub fn instruction_map(
         let new_args: Vec<_> = tree
             .get_arguments(slice)
             .iter()
-            .map(|&v| remap(v))
+            .copied()
+            .map(remap)
             .collect();
 
         tree.add_arguments(&new_args)
@@ -2666,14 +2738,38 @@ pub fn instruction_map_with_locals(
     tree: &mut mir::NodeTree,
 ) -> mir::Instruction {
     // create a value remapper for simple value uses
-    let remap = |value: mir::Value| -> mir::Value { *value_map.get(&value).unwrap_or(&value) };
+    let remap = |value: mir::ValueReference| -> mir::ValueReference {
+        let Some(value_id) = value.value() else {
+            return value;
+        };
+
+        value_map
+            .get(&value_id)
+            .copied()
+            .map(Into::into)
+            .unwrap_or(value)
+    };
+
+    // create a local remapper for direct local references
+    let remap_local = |local: mir::LocalReference| -> mir::LocalReference {
+        let Some(local_id) = local.local() else {
+            return local;
+        };
+
+        local_map
+            .get(&local_id)
+            .copied()
+            .map(Into::into)
+            .unwrap_or(local)
+    };
 
     // remap argument slices into a new argument buffer entry
     let mut remap_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
         let new_args: Vec<_> = tree
             .get_arguments(slice)
             .iter()
-            .map(|&value| remap(value))
+            .copied()
+            .map(remap)
             .collect();
         tree.add_arguments(&new_args)
     };
@@ -2742,20 +2838,14 @@ pub fn instruction_map_with_locals(
             pointer: remap(*pointer),
             value: remap(*value),
         },
-        mir::Instruction::LocalGet { destination, local } => {
-            let local = local_map.get(local).copied().unwrap_or(*local);
-            mir::Instruction::LocalGet {
-                destination: remap(*destination),
-                local,
-            }
-        }
-        mir::Instruction::LocalSet { local, value } => {
-            let local = local_map.get(local).copied().unwrap_or(*local);
-            mir::Instruction::LocalSet {
-                local,
-                value: remap(*value),
-            }
-        }
+        mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
+            destination: remap(*destination),
+            local: remap_local(*local),
+        },
+        mir::Instruction::LocalSet { local, value } => mir::Instruction::LocalSet {
+            local: remap_local(*local),
+            value: remap(*value),
+        },
         mir::Instruction::Assume { condition } => mir::Instruction::Assume {
             condition: remap(*condition),
         },
@@ -3393,22 +3483,30 @@ pub fn terminator_remap(
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
 ) {
-    // remap block targets in place
-    let remap_target = |t: &mut mir::LocalNodeId<mir::Block>| {
-        if let Some(&new_t) = block_map.get(t) {
-            *t = new_t;
+    // remap one block target in place
+    let remap_target = |target: &mut mir::BlockTarget| {
+        let Some(block) = target.block.block() else {
+            return;
+        };
+
+        if let Some(&remapped_block) = block_map.get(&block) {
+            target.block = remapped_block.into();
         }
     };
 
-    // remap values in place
-    let remap_value = |v: &mut mir::Value| {
-        if let Some(&new_v) = value_map.get(v) {
-            *v = new_v;
+    // remap one value reference in place
+    let remap_value = |value: &mut mir::ValueReference| {
+        let Some(concrete_value) = value.value() else {
+            return;
+        };
+
+        if let Some(&remapped_value) = value_map.get(&concrete_value) {
+            *value = remapped_value.into();
         }
     };
 
-    // remap a list of arguments
-    let remap_args = |args: &mut Vec<mir::Value>| {
+    // remap a list of block arguments
+    let remap_args = |args: &mut Vec<mir::ValueReference>| {
         for arg in args.iter_mut() {
             remap_value(arg);
         }
@@ -3419,31 +3517,29 @@ pub fn terminator_remap(
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
         }
-        mir::Terminator::Jump { target, arguments } => {
+        mir::Terminator::Jump { target } => {
             remap_target(target);
-            remap_args(arguments);
+            remap_args(&mut target.arguments);
         }
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             remap_value(condition);
             remap_target(then_target);
-            remap_args(then_arguments);
+            remap_args(&mut then_target.arguments);
             remap_target(else_target);
-            remap_args(else_arguments);
+            remap_args(&mut else_target.arguments);
         }
         mir::Terminator::Check {
             constraint,
             success,
             failure,
         } => {
-            remap_target(&mut success.target);
+            remap_target(success);
             remap_args(&mut success.arguments);
-            remap_target(&mut failure.target);
+            remap_target(failure);
             remap_args(&mut failure.arguments);
             match constraint {
                 mir::CheckConstraint::Bounds {
@@ -3489,15 +3585,14 @@ pub fn terminator_remap(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
             remap_value(value);
             remap_target(default);
-            remap_args(default_arguments);
+            remap_args(&mut default.arguments);
             for case in cases.iter_mut() {
                 remap_target(&mut case.target);
-                remap_args(&mut case.arguments);
+                remap_args(&mut case.target.arguments);
             }
         }
         mir::Terminator::Return { value } => {
@@ -3505,69 +3600,57 @@ pub fn terminator_remap(
                 remap_value(v);
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => {
+        mir::Terminator::Yield { value, resume } => {
             remap_value(value);
             remap_target(resume);
-            remap_args(resume_arguments);
+            remap_args(&mut resume.arguments);
         }
         mir::Terminator::Invoke {
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         } => {
             remap_args(&mut call.arguments);
             remap_target(normal_target);
-            remap_args(normal_arguments);
+            remap_args(&mut normal_target.arguments);
             remap_target(unwind_target);
-            remap_args(unwind_arguments);
+            remap_args(&mut unwind_target.arguments);
         }
         mir::Terminator::InvokeIndirect {
             callee,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         } => {
             remap_value(callee);
             remap_args(&mut call.arguments);
             remap_target(normal_target);
-            remap_args(normal_arguments);
+            remap_args(&mut normal_target.arguments);
             remap_target(unwind_target);
-            remap_args(unwind_arguments);
+            remap_args(&mut unwind_target.arguments);
         }
         mir::Terminator::InvokeVirtual {
             receiver,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         }
         | mir::Terminator::InvokeInterface {
             receiver,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
             ..
         } => {
             remap_value(receiver);
             remap_args(&mut call.arguments);
             remap_target(normal_target);
-            remap_args(normal_arguments);
+            remap_args(&mut normal_target.arguments);
             remap_target(unwind_target);
-            remap_args(unwind_arguments);
+            remap_args(&mut unwind_target.arguments);
         }
         mir::Terminator::Throw { value } => {
             remap_value(value);

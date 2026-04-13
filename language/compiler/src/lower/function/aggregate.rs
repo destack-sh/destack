@@ -262,15 +262,21 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the newtype result type from type inference
         let newtype_type = self.lower_type_for_expression(expression_id)?;
+        let node = expression_id
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
 
         // require a nominal newtype wrapper
         let inner_type = match self.state.builder.tree().get(newtype_type) {
-            mir::Type::Newtype { inner, .. } => *inner,
+            mir::Type::Newtype { inner, .. } => {
+                inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "tagged scalar inner type is not concrete".to_string(),
+                })?
+            }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    node,
                     message: "tagged scalar expression requires a newtype".to_string(),
                 });
             }
@@ -331,15 +337,21 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the newtype result type from type inference
         let newtype_type = self.lower_type_for_expression(expression_id)?;
+        let node = expression_id
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
 
         // require a nominal newtype wrapper
         let inner_type = match self.state.builder.tree().get(newtype_type) {
-            mir::Type::Newtype { inner, .. } => *inner,
+            mir::Type::Newtype { inner, .. } => {
+                inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "tagged tuple inner type is not concrete".to_string(),
+                })?
+            }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
+                    node,
                     message: "tagged tuple expression requires a newtype".to_string(),
                 });
             }
@@ -490,14 +502,36 @@ impl FunctionLowerer<'_> {
                 })?;
 
             // return the constructor value as-is
-            let constructor_return_type = self.state.builder.tree().get(function_id).return_type;
+            let constructor_return_type = self
+                .state
+                .builder
+                .tree()
+                .get(function_id)
+                .return_type
+                .ty()
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                    message: "constructor return type is not concrete".to_string(),
+                })?;
             return Ok((value, constructor_return_type));
         }
 
         // get the instance type from type inference
         let result_type = self.lower_type_for_expression(expression_id)?;
         let (instance_type, reference_kind) = match self.state.builder.tree().get(result_type) {
-            mir::Type::Reference { kind, pointee, .. } => (*pointee, Some(*kind)),
+            mir::Type::Reference { kind, pointee, .. } => (
+                pointee
+                    .ty()
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                        message: "constructor instance pointee is not concrete".to_string(),
+                    })?,
+                Some(*kind),
+            ),
             _ => (result_type, None),
         };
 

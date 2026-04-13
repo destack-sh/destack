@@ -103,7 +103,7 @@ struct AccumulatorPattern {
     /// The binary operator used.
     operator: BinaryOperator,
     /// The "other" operand (not the call result).
-    other_operand: mir::Value,
+    other_operand: mir::ValueReference,
     /// Index of the call instruction in the block.
     call_index: usize,
     /// Index of the binary instruction in the block.
@@ -143,7 +143,9 @@ fn try_accumulator_transform(
     }
 
     // get the return type to determine the identity constant
-    let return_type = function.return_type;
+    let Some(return_type) = function.return_type.ty() else {
+        return false;
+    };
     let Some(identity) = identity_constant_for_operator(operator, return_type, tree) else {
         return false;
     };
@@ -175,16 +177,16 @@ fn try_accumulator_transform(
 
     let entry = tree.get(entry_block);
     let mut new_entry = entry.clone();
-    new_entry.parameters.push(mir::TypedValue {
-        value: acc_value,
-        ty: return_type,
+    new_entry.parameters.push(mir::Parameter {
+        value: acc_value.into(),
+        ty: return_type.into(),
     });
     tree.replace(entry_block, new_entry);
 
     // also add to function parameters
-    function.parameters.push(mir::TypedValue {
-        value: acc_value,
-        ty: return_type,
+    function.parameters.push(mir::Parameter {
+        value: acc_value.into(),
+        ty: return_type.into(),
     });
 
     // update all external call sites to pass the identity constant
@@ -236,7 +238,9 @@ fn try_accumulator_transform_exported(
     identity: &Constant,
     strings: &StringPool,
 ) -> bool {
-    let return_type = function.return_type;
+    let Some(return_type) = function.return_type.ty() else {
+        return false;
+    };
 
     // create the impl function name: "func" -> "func$impl"
     let impl_name_str = format!("{}$impl", &*strings.get(function.name));
@@ -281,16 +285,16 @@ fn try_accumulator_transform_exported(
 
     let impl_entry = tree.get(impl_entry_block);
     let mut new_impl_entry = impl_entry.clone();
-    new_impl_entry.parameters.push(mir::TypedValue {
-        value: acc_value,
-        ty: return_type,
+    new_impl_entry.parameters.push(mir::Parameter {
+        value: acc_value.into(),
+        ty: return_type.into(),
     });
     tree.replace(impl_entry_block, new_impl_entry);
 
     // add to impl function parameters
-    impl_function.parameters.push(mir::TypedValue {
-        value: acc_value,
-        ty: return_type,
+    impl_function.parameters.push(mir::Parameter {
+        value: acc_value.into(),
+        ty: return_type.into(),
     });
 
     // transform impl function's accumulator blocks
@@ -414,22 +418,41 @@ fn remap_terminator_blocks(
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
         }
-        mir::Terminator::Jump { target, arguments } => mir::Terminator::Jump {
-            target: block_map.get(target).copied().unwrap_or(*target),
-            arguments: arguments.clone(),
+        mir::Terminator::Jump { target } => mir::Terminator::Jump {
+            target: mir::BlockTarget {
+                block: target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(target.block),
+                arguments: target.arguments.clone(),
+            },
         },
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => mir::Terminator::Branch {
             condition: *condition,
-            then_target: block_map.get(then_target).copied().unwrap_or(*then_target),
-            then_arguments: then_arguments.clone(),
-            else_target: block_map.get(else_target).copied().unwrap_or(*else_target),
-            else_arguments: else_arguments.clone(),
+            then_target: mir::BlockTarget {
+                block: then_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(then_target.block),
+                arguments: then_target.arguments.clone(),
+            },
+            else_target: mir::BlockTarget {
+                block: else_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(else_target.block),
+                arguments: else_target.arguments.clone(),
+            },
         },
         mir::Terminator::Check {
             constraint,
@@ -437,36 +460,54 @@ fn remap_terminator_blocks(
             failure,
         } => mir::Terminator::Check {
             constraint: constraint.clone(),
-            success: mir::CheckTarget {
-                target: block_map
-                    .get(&success.target)
-                    .copied()
-                    .unwrap_or(success.target),
+            success: mir::BlockTarget {
+                block: success
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(success.block),
                 arguments: success.arguments.clone(),
             },
-            failure: mir::CheckTarget {
-                target: block_map
-                    .get(&failure.target)
-                    .copied()
-                    .unwrap_or(failure.target),
+            failure: mir::BlockTarget {
+                block: failure
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(failure.block),
                 arguments: failure.arguments.clone(),
             },
         },
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => mir::Terminator::Switch {
             value: *value,
-            default: block_map.get(default).copied().unwrap_or(*default),
-            default_arguments: default_arguments.clone(),
+            default: mir::BlockTarget {
+                block: default
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(default.block),
+                arguments: default.arguments.clone(),
+            },
             cases: cases
                 .iter()
                 .map(|case| mir::SwitchCase {
                     value: case.value,
-                    target: block_map.get(&case.target).copied().unwrap_or(case.target),
-                    arguments: case.arguments.clone(),
+                    target: mir::BlockTarget {
+                        block: case
+                            .target
+                            .block
+                            .block()
+                            .and_then(|block| block_map.get(&block).copied())
+                            .map(mir::BlockReference::from)
+                            .unwrap_or(case.target.block),
+                        arguments: case.target.arguments.clone(),
+                    },
                 })
                 .collect(),
         },
@@ -474,43 +515,55 @@ fn remap_terminator_blocks(
             function,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::Invoke {
             function: *function,
             call: call.clone(),
-            normal_target: block_map
-                .get(normal_target)
-                .copied()
-                .unwrap_or(*normal_target),
-            normal_arguments: normal_arguments.clone(),
-            unwind_target: block_map
-                .get(unwind_target)
-                .copied()
-                .unwrap_or(*unwind_target),
-            unwind_arguments: unwind_arguments.clone(),
+            normal_target: mir::BlockTarget {
+                block: normal_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(normal_target.block),
+                arguments: normal_target.arguments.clone(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(unwind_target.block),
+                arguments: unwind_target.arguments.clone(),
+            },
         },
         mir::Terminator::InvokeIndirect {
             callee,
             call,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::InvokeIndirect {
             callee: *callee,
             call: call.clone(),
-            normal_target: block_map
-                .get(normal_target)
-                .copied()
-                .unwrap_or(*normal_target),
-            normal_arguments: normal_arguments.clone(),
-            unwind_target: block_map
-                .get(unwind_target)
-                .copied()
-                .unwrap_or(*unwind_target),
-            unwind_arguments: unwind_arguments.clone(),
+            normal_target: mir::BlockTarget {
+                block: normal_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(normal_target.block),
+                arguments: normal_target.arguments.clone(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(unwind_target.block),
+                arguments: unwind_target.arguments.clone(),
+            },
         },
         mir::Terminator::InvokeVirtual {
             receiver,
@@ -519,25 +572,31 @@ fn remap_terminator_blocks(
             slot_id,
             declared_target,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::InvokeVirtual {
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
             declared_target: *declared_target,
-            normal_target: block_map
-                .get(normal_target)
-                .copied()
-                .unwrap_or(*normal_target),
-            normal_arguments: normal_arguments.clone(),
-            unwind_target: block_map
-                .get(unwind_target)
-                .copied()
-                .unwrap_or(*unwind_target),
-            unwind_arguments: unwind_arguments.clone(),
+            normal_target: mir::BlockTarget {
+                block: normal_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(normal_target.block),
+                arguments: normal_target.arguments.clone(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(unwind_target.block),
+                arguments: unwind_target.arguments.clone(),
+            },
         },
         mir::Terminator::InvokeInterface {
             receiver,
@@ -546,25 +605,31 @@ fn remap_terminator_blocks(
             slot_id,
             declared_target,
             normal_target,
-            normal_arguments,
             unwind_target,
-            unwind_arguments,
         } => mir::Terminator::InvokeInterface {
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
             declared_target: *declared_target,
-            normal_target: block_map
-                .get(normal_target)
-                .copied()
-                .unwrap_or(*normal_target),
-            normal_arguments: normal_arguments.clone(),
-            unwind_target: block_map
-                .get(unwind_target)
-                .copied()
-                .unwrap_or(*unwind_target),
-            unwind_arguments: unwind_arguments.clone(),
+            normal_target: mir::BlockTarget {
+                block: normal_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(normal_target.block),
+                arguments: normal_target.arguments.clone(),
+            },
+            unwind_target: mir::BlockTarget {
+                block: unwind_target
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(unwind_target.block),
+                arguments: unwind_target.arguments.clone(),
+            },
         },
         // return, unreachable, tailcall don't reference blocks that need remapping
         mir::Terminator::Return { .. }
@@ -576,14 +641,17 @@ fn remap_terminator_blocks(
         | mir::Terminator::TailCallInterface { .. }
         | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
         // yield has a resume block that needs remapping
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => mir::Terminator::Yield {
+        mir::Terminator::Yield { value, resume } => mir::Terminator::Yield {
             value: *value,
-            resume: block_map.get(resume).copied().unwrap_or(*resume),
-            resume_arguments: resume_arguments.clone(),
+            resume: mir::BlockTarget {
+                block: resume
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(resume.block),
+                arguments: resume.arguments.clone(),
+            },
         },
     }
 }
@@ -606,13 +674,13 @@ fn update_recursive_calls_to_impl(
             call,
             ..
         } = instr
-            && function == original_function_id
+            && function.function() == Some(original_function_id)
         {
             let mut call = call;
-            call.signature = signature;
+            call.signature = signature.into();
             let new_instr = Instruction::Call {
                 destination,
-                function: impl_function_id,
+                function: impl_function_id.into(),
                 call,
             };
             tree.replace(instr_id, new_instr);
@@ -632,35 +700,41 @@ fn rewrite_as_wrapper(
     function.recompute_next_value_id(tree);
 
     // resolve the return type for wrapper values
-    let return_type = function.return_type;
+    let Some(return_type) = function.return_type.ty() else {
+        return;
+    };
 
     // create identity constant
     let identity_value = function.next_typed_value(return_type);
     let const_instr = Instruction::Const {
-        destination: identity_value,
+        destination: identity_value.into(),
         value: identity.clone(),
     };
     let const_id = tree.insert(const_instr);
 
     // build call arguments: original params + identity
-    let mut call_args: Vec<mir::Value> = function.parameters.iter().map(|p| p.value).collect();
-    call_args.push(identity_value);
+    let mut call_args: Vec<mir::ValueReference> = function
+        .parameters
+        .iter()
+        .filter_map(|parameter| parameter.value.value().map(Into::into))
+        .collect();
+    call_args.push(identity_value.into());
     let call_arguments = tree.add_arguments(&call_args);
 
     // create call to impl
     let result_value = function.next_typed_value(return_type);
     let signature = build_signature_type(impl_function_id, tree);
     let call_instr = Instruction::Call {
-        destination: Some(result_value),
-        function: impl_function_id,
-        call: mir::Call::new(call_arguments, signature),
+        destination: Some(result_value.into()),
+        function: impl_function_id.into(),
+        call: mir::Call::new(call_arguments, signature.into()),
     };
     let call_id = tree.insert(call_instr);
 
     // create new entry block with just: const, call, return
     let entry = tree.get(entry_block).clone();
     let entry_terminator = tree.insert(mir::Terminator::Return {
-        value: Some(result_value),
+        value: Some(result_value.into()),
     });
     let new_entry = mir::Block {
         name: None,
@@ -717,7 +791,7 @@ fn find_external_call_sites(
             for (idx, &instr_id) in block.instructions.iter().enumerate() {
                 let instr = tree.get(instr_id);
                 if let Instruction::Call { function, .. } = instr
-                    && *function == target_function_id
+                    && function.function() == Some(target_function_id)
                 {
                     call_sites.push(CallSite {
                         function_id: func_id,
@@ -755,24 +829,28 @@ fn update_call_site(
     // create a value for the identity constant
     // create the const instruction
     let const_instr = Instruction::Const {
-        destination: identity_value,
+        destination: identity_value.into(),
         value: identity.clone(),
     };
     let const_id = tree.insert(const_instr);
 
     // get the existing arguments and append the identity
-    let mut new_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
-    new_args.push(identity_value);
+    let mut new_args: Vec<mir::ValueReference> = tree.get_arguments(call.arguments).to_vec();
+    new_args.push(identity_value.into());
 
     // create new call with extended arguments
+    let Some(function) = function.function() else {
+        return;
+    };
+
     let new_arguments = tree.add_arguments(&new_args);
     let mut call = call;
     call.arguments = new_arguments;
-    call.signature = build_signature_type(function, tree);
+    call.signature = build_signature_type(function, tree).into();
 
     let new_call = Instruction::Call {
         destination,
-        function,
+        function: function.into(),
         call,
     };
     let new_call_id = tree.insert(new_call);
@@ -920,8 +998,8 @@ fn detect_accumulator_pattern(
     let (binary_idx, (operator, left, right)) = binary_index.zip(binary_info)?;
 
     // collect recursive call results and definition indices
-    let mut recursive_call_results: HashSet<mir::Value> = HashSet::new();
-    let mut definition_indices: HashMap<mir::Value, usize> = HashMap::new();
+    let mut recursive_call_results: HashSet<mir::ValueReference> = HashSet::new();
+    let mut definition_indices: HashMap<mir::ValueReference, usize> = HashMap::new();
     for (idx, &instr_id) in block.instructions.iter().enumerate() {
         let instr = tree.get(instr_id);
         if let Some(destination) = instr.destination() {
@@ -932,7 +1010,7 @@ fn detect_accumulator_pattern(
             function: called_func,
             ..
         } = instr
-            && *called_func == current_function_id
+            && called_func.function() == Some(current_function_id)
         {
             recursive_call_results.insert(*destination);
         }
@@ -949,7 +1027,7 @@ fn detect_accumulator_pattern(
         } = instr
         {
             // must be calling ourselves
-            if *called_func != current_function_id {
+            if called_func.function() != Some(current_function_id) {
                 continue;
             }
 
@@ -1031,7 +1109,7 @@ fn find_base_case_blocks(
         // check if block contains a recursive call
         let has_recursive_call = block.instructions.iter().any(|&instr_id| {
             let instr = tree.get(instr_id);
-            matches!(instr, Instruction::Call { function, .. } if *function == current_function_id)
+            matches!(instr, Instruction::Call { function, .. } if function.function() == Some(current_function_id))
         });
         if has_recursive_call {
             continue;
@@ -1039,7 +1117,9 @@ fn find_base_case_blocks(
 
         // check if return value is the identity
         let is_identity = if let Some(ret_val) = value {
-            is_value_identity(*ret_val, identity, function, tree)
+            ret_val
+                .value()
+                .is_some_and(|ret_val| is_value_identity(ret_val, identity, function, tree))
         } else {
             false
         };
@@ -1068,7 +1148,7 @@ fn is_value_identity(
                 destination,
                 value: const_val,
             } = instr
-                && *destination == value
+                && destination.value() == Some(value)
             {
                 return const_val == identity;
             }
@@ -1090,18 +1170,24 @@ fn transform_accumulator_block(
     tree: &mut mir::NodeTree,
 ) {
     // get the call arguments before any mutations
-    let call_args: Vec<mir::Value> = tree.get_arguments(pattern.call_arguments).to_vec();
+    let call_args: Vec<mir::Value> = tree
+        .get_arguments(pattern.call_arguments)
+        .iter()
+        .filter_map(|argument| argument.value())
+        .collect();
 
     // create new accumulator value
-    let acc_type = function.return_type;
+    let Some(acc_type) = function.return_type.ty() else {
+        return;
+    };
     let new_acc = function.next_typed_value(acc_type);
 
     // create new binary instruction: new_acc = OP acc, other
     let new_binary = Instruction::Binary {
-        destination: new_acc,
+        destination: new_acc.into(),
         operator: pattern.operator,
-        left: acc_value,
-        right: pattern.other_operand,
+        left: acc_value.into(),
+        right: pattern.other_operand.into(),
     };
 
     // build new instructions list: keep everything except call and old binary
@@ -1121,10 +1207,13 @@ fn transform_accumulator_block(
     // create jump with accumulated value
     let mut jump_args = call_args;
     jump_args.push(new_acc);
+    let jump_arguments: Vec<_> = jump_args.into_iter().map(Into::into).collect();
 
     let new_terminator = mir::Terminator::Jump {
-        target: entry_block,
-        arguments: jump_args,
+        target: mir::BlockTarget {
+            block: entry_block.into(),
+            arguments: jump_arguments,
+        },
     };
 
     // replace the block
@@ -1159,33 +1248,37 @@ fn transform_base_case_block(
     else {
         return;
     };
-    let original_value = *original_value;
+    let Some(original_value) = original_value.value() else {
+        return;
+    };
 
     if is_identity {
         // just return the accumulator
         let new_block = block;
         let new_terminator = mir::Terminator::Return {
-            value: Some(acc_value),
+            value: Some(acc_value.into()),
         };
         tree.replace(new_block.terminator, new_terminator);
         tree.replace(block_id, new_block);
     } else {
         // return OP(acc, original_value)
-        let acc_type = function.return_type;
+        let Some(acc_type) = function.return_type.ty() else {
+            return;
+        };
         let result_val = function.next_typed_value(acc_type);
 
         let combine_instr = Instruction::Binary {
-            destination: result_val,
+            destination: result_val.into(),
             operator,
-            left: acc_value,
-            right: original_value,
+            left: acc_value.into(),
+            right: original_value.into(),
         };
         let combine_id = tree.insert(combine_instr);
 
         let mut new_block = block;
         new_block.instructions.push(combine_id);
         let new_terminator = mir::Terminator::Return {
-            value: Some(result_val),
+            value: Some(result_val.into()),
         };
         tree.replace(new_block.terminator, new_terminator);
         tree.replace(block_id, new_block);
@@ -1229,13 +1322,13 @@ fn transform_self_recursive_tail_call(
     };
 
     // must be calling ourselves
-    if *called_function != current_function_id {
+    if called_function.function() != Some(current_function_id) {
         return false;
     }
 
     // return value must match call result
     let is_tail_position = match (destination, returned_value) {
-        (Some(call_result), Some(return_val)) => *call_result == return_val,
+        (Some(call_result), Some(return_val)) => call_result.value() == return_val.value(),
         (None, None) => true,
         _ => false,
     };
@@ -1245,7 +1338,12 @@ fn transform_self_recursive_tail_call(
     }
 
     // extract call arguments before mutating
-    let call_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
+    let call_args: Vec<mir::Value> = tree
+        .get_arguments(call.arguments)
+        .iter()
+        .filter_map(|argument| argument.value())
+        .collect();
+    let jump_arguments: Vec<_> = call_args.into_iter().map(Into::into).collect();
 
     // rewrite the block: remove call, replace return with jump to entry
     let block = tree.get(block_id);
@@ -1253,8 +1351,10 @@ fn transform_self_recursive_tail_call(
     new_instructions.pop();
 
     let new_terminator = mir::Terminator::Jump {
-        target: entry_block,
-        arguments: call_args,
+        target: mir::BlockTarget {
+            block: entry_block.into(),
+            arguments: jump_arguments,
+        },
     };
 
     let mut new_block = block.clone();
@@ -1301,13 +1401,13 @@ fn transform_sibling_tail_call(
             ..
         } => {
             // skip self-recursive calls (handled by transform_self_recursive_tail_call)
-            if *called_function == current_function_id {
+            if called_function.function() == Some(current_function_id) {
                 return false;
             }
 
             // return value must match call result
             let is_tail_position = match (destination, returned_value) {
-                (Some(call_result), Some(return_val)) => *call_result == return_val,
+                (Some(call_result), Some(return_val)) => call_result.value() == return_val.value(),
                 (None, None) => true,
                 _ => false,
             };
@@ -1317,7 +1417,7 @@ fn transform_sibling_tail_call(
             }
 
             // extract call arguments before mutating
-            let call_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
+            let call_args: Vec<mir::ValueReference> = tree.get_arguments(call.arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCall
             let block = tree.get(block_id);
@@ -1344,7 +1444,7 @@ fn transform_sibling_tail_call(
         } => {
             // return value must match call result
             let is_tail_position = match (destination, returned_value) {
-                (Some(call_result), Some(return_val)) => *call_result == return_val,
+                (Some(call_result), Some(return_val)) => call_result.value() == return_val.value(),
                 (None, None) => true,
                 _ => false,
             };
@@ -1355,7 +1455,7 @@ fn transform_sibling_tail_call(
 
             // extract call info before mutating
             let callee_value = *callee;
-            let call_args: Vec<mir::Value> = tree.get_arguments(call.arguments).to_vec();
+            let call_args: Vec<mir::ValueReference> = tree.get_arguments(call.arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCallIndirect
             let block = tree.get(block_id);

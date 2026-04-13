@@ -163,15 +163,20 @@ fn run_induction_simplify(
 
         // scan header parameters
         for (param_index, param) in header_parameters.iter().enumerate() {
-            // derive a structural type key for comparisons
-            let param_type = TypeKey::from_type(param.ty, tree);
+            let Some(param_value) = param.value.value() else {
+                continue;
+            };
 
-            // resolve the parameter signature
+            let Some(param_type) = param.ty.ty().map(|ty| TypeKey::from_type(ty, tree)) else {
+                continue;
+            };
+
+            // derive a structural type key for comparisons
             let signature = param_signature(lp.header, param_index, tree, cfg, &forwarding);
 
             // resolve the recurrence key for the parameter
             let scev_key = scev
-                .scev_for_value_in_loop(loop_index, param.value)
+                .scev_for_value_in_loop(loop_index, param_value)
                 .and_then(|scev_value| {
                     let scev_value = scev_value.clone();
                     let Scev::AddRec { loop_header, .. } = &scev_value else {
@@ -240,10 +245,10 @@ fn run_induction_simplify(
                     &mut header_inserts,
                 )
             } else {
-                signature_match.or(scev_match).unwrap_or(param.value)
+                signature_match.or(scev_match).unwrap_or(param_value)
             };
-            if canonical_value != param.value {
-                substitutions.insert(param.value, canonical_value);
+            if canonical_value != param_value {
+                substitutions.insert(param_value, canonical_value);
             }
 
             // record canonical signature entries
@@ -313,7 +318,11 @@ fn run_induction_simplify(
             .iter()
             .enumerate()
             .filter_map(|(index, param)| {
-                if substitutions.contains_key(&param.value) {
+                if param
+                    .value
+                    .value()
+                    .is_some_and(|value| substitutions.contains_key(&value))
+                {
                     Some(index)
                 } else {
                     None
@@ -363,7 +372,12 @@ fn run_induction_simplify(
         let new_parameters: Vec<_> = block
             .parameters
             .iter()
-            .filter(|param| !substitutions.contains_key(&param.value))
+            .filter(|param| {
+                !param
+                    .value
+                    .value()
+                    .is_some_and(|value| substitutions.contains_key(&value))
+            })
             .cloned()
             .collect();
 
@@ -439,7 +453,7 @@ fn insert_offset_value(
     // materialize the offset constant
     let const_value = function.next_typed_value_like(base_value);
     let const_instruction = mir::Instruction::Const {
-        destination: const_value,
+        destination: const_value.into(),
         value: offset,
     };
     let const_id = tree.insert(const_instruction);
@@ -447,10 +461,10 @@ fn insert_offset_value(
     // materialize the adjusted value
     let adjusted_value = function.next_typed_value_like(base_value);
     let add_instruction = mir::Instruction::Binary {
-        destination: adjusted_value,
+        destination: adjusted_value.into(),
         operator: mir::BinaryOperator::Add,
-        left: base_value,
-        right: const_value,
+        left: base_value.into(),
+        right: const_value.into(),
     };
     let add_id = tree.insert(add_instruction);
 
@@ -469,13 +483,19 @@ fn remove_arguments_at_indices(
 ) -> mir::Terminator {
     // rewrite terminators that target blocks with removed parameters
     match terminator {
-        mir::Terminator::Jump { target, arguments } => {
+        mir::Terminator::Jump { target } => {
             // update jump arguments when needed
-            if let Some(indices) = removed_indices.get(target) {
-                let new_args = filter_indices(arguments, indices);
+            let Some(target_block) = target.block.block() else {
+                return terminator.clone();
+            };
+
+            if let Some(indices) = removed_indices.get(&target_block) {
+                let new_args = filter_indices(&target.arguments, indices);
                 mir::Terminator::Jump {
-                    target: *target,
-                    arguments: new_args,
+                    target: mir::BlockTarget {
+                        block: target.block,
+                        arguments: new_args,
+                    },
                 }
             } else {
                 terminator.clone()
@@ -484,32 +504,42 @@ fn remove_arguments_at_indices(
         mir::Terminator::Branch {
             condition,
             then_target,
-            then_arguments,
             else_target,
-            else_arguments,
         } => {
             // update then arguments when needed
-            let new_then_args = if let Some(indices) = removed_indices.get(then_target) {
-                filter_indices(then_arguments, indices)
+            let new_then_args = if let Some(indices) = then_target
+                .block
+                .block()
+                .and_then(|block| removed_indices.get(&block))
+            {
+                filter_indices(&then_target.arguments, indices)
             } else {
-                then_arguments.clone()
+                then_target.arguments.clone()
             };
 
             // update else arguments when needed
-            let new_else_args = if let Some(indices) = removed_indices.get(else_target) {
-                filter_indices(else_arguments, indices)
+            let new_else_args = if let Some(indices) = else_target
+                .block
+                .block()
+                .and_then(|block| removed_indices.get(&block))
+            {
+                filter_indices(&else_target.arguments, indices)
             } else {
-                else_arguments.clone()
+                else_target.arguments.clone()
             };
 
             // rebuild the branch when arguments changed
-            if new_then_args != *then_arguments || new_else_args != *else_arguments {
+            if new_then_args != then_target.arguments || new_else_args != else_target.arguments {
                 mir::Terminator::Branch {
                     condition: *condition,
-                    then_target: *then_target,
-                    then_arguments: new_then_args,
-                    else_target: *else_target,
-                    else_arguments: new_else_args,
+                    then_target: mir::BlockTarget {
+                        block: then_target.block,
+                        arguments: new_then_args,
+                    },
+                    else_target: mir::BlockTarget {
+                        block: else_target.block,
+                        arguments: new_else_args,
+                    },
                 }
             } else {
                 terminator.clone()
@@ -521,14 +551,22 @@ fn remove_arguments_at_indices(
             failure,
         } => {
             // update success arguments when needed
-            let new_success_args = if let Some(indices) = removed_indices.get(&success.target) {
+            let new_success_args = if let Some(indices) = success
+                .block
+                .block()
+                .and_then(|block| removed_indices.get(&block))
+            {
                 filter_indices(&success.arguments, indices)
             } else {
                 success.arguments.clone()
             };
 
             // update failure arguments when needed
-            let new_failure_args = if let Some(indices) = removed_indices.get(&failure.target) {
+            let new_failure_args = if let Some(indices) = failure
+                .block
+                .block()
+                .and_then(|block| removed_indices.get(&block))
+            {
                 filter_indices(&failure.arguments, indices)
             } else {
                 failure.arguments.clone()
@@ -538,12 +576,12 @@ fn remove_arguments_at_indices(
             if new_success_args != success.arguments || new_failure_args != failure.arguments {
                 mir::Terminator::Check {
                     constraint: constraint.clone(),
-                    success: mir::CheckTarget {
-                        target: success.target,
+                    success: mir::BlockTarget {
+                        block: success.block,
                         arguments: new_success_args,
                     },
-                    failure: mir::CheckTarget {
-                        target: failure.target,
+                    failure: mir::BlockTarget {
+                        block: failure.block,
                         arguments: new_failure_args,
                     },
                 }
@@ -554,56 +592,70 @@ fn remove_arguments_at_indices(
         mir::Terminator::Switch {
             value,
             default,
-            default_arguments,
             cases,
         } => {
             // update default arguments when needed
-            let new_default_args = if let Some(indices) = removed_indices.get(default) {
-                filter_indices(default_arguments, indices)
+            let new_default_args = if let Some(indices) = default
+                .block
+                .block()
+                .and_then(|block| removed_indices.get(&block))
+            {
+                filter_indices(&default.arguments, indices)
             } else {
-                default_arguments.clone()
+                default.arguments.clone()
             };
 
             // update case arguments when needed
             let mut new_cases = Vec::new();
             for case in cases {
-                let new_args = if let Some(indices) = removed_indices.get(&case.target) {
-                    filter_indices(&case.arguments, indices)
+                let new_args = if let Some(indices) = case
+                    .target
+                    .block
+                    .block()
+                    .and_then(|block| removed_indices.get(&block))
+                {
+                    filter_indices(&case.target.arguments, indices)
                 } else {
-                    case.arguments.clone()
+                    case.target.arguments.clone()
                 };
 
                 new_cases.push(mir::SwitchCase {
                     value: case.value,
-                    target: case.target,
-                    arguments: new_args,
+                    target: mir::BlockTarget {
+                        block: case.target.block,
+                        arguments: new_args,
+                    },
                 });
             }
 
             // rebuild the switch when arguments changed
-            if new_default_args != *default_arguments || new_cases != *cases {
+            if new_default_args != default.arguments || new_cases != *cases {
                 mir::Terminator::Switch {
                     value: *value,
-                    default: *default,
-                    default_arguments: new_default_args,
+                    default: mir::BlockTarget {
+                        block: default.block,
+                        arguments: new_default_args,
+                    },
                     cases: new_cases,
                 }
             } else {
                 terminator.clone()
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => {
+        mir::Terminator::Yield { value, resume } => {
             // update resume arguments when needed
-            if let Some(indices) = removed_indices.get(resume) {
-                let new_args = filter_indices(resume_arguments, indices);
+            if let Some(indices) = resume
+                .block
+                .block()
+                .and_then(|block| removed_indices.get(&block))
+            {
+                let new_args = filter_indices(&resume.arguments, indices);
                 mir::Terminator::Yield {
                     value: *value,
-                    resume: *resume,
-                    resume_arguments: new_args,
+                    resume: mir::BlockTarget {
+                        block: resume.block,
+                        arguments: new_args,
+                    },
                 }
             } else {
                 terminator.clone()
@@ -614,7 +666,10 @@ fn remove_arguments_at_indices(
 }
 
 /// Filter out values at the specified indices.
-fn filter_indices(values: &[mir::Value], indices_to_remove: &[usize]) -> Vec<mir::Value> {
+fn filter_indices(
+    values: &[mir::ValueReference],
+    indices_to_remove: &[usize],
+) -> Vec<mir::ValueReference> {
     // collect values that are not removed
     let mut filtered = Vec::with_capacity(values.len());
 
@@ -645,7 +700,7 @@ fn param_signature(
         let pred_terminator = tree.get(pred_block.terminator);
         let args = terminator_arguments_for_successor(pred_terminator, header);
         let arg = *args.get(param_index)?;
-        let arg = forwarding.resolve(arg);
+        let arg = forwarding.resolve(arg.value()?);
         arguments.push((pred, arg));
     }
 

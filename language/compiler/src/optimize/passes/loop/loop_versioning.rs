@@ -280,12 +280,19 @@ fn run_loop_versioning(
         let mut preheader_block = tree.get(preheader).clone();
         preheader_block.instructions.extend(guard_instructions);
         preheader_block.instructions.push(fast_guard);
+        let Some(condition) = tree.get(fast_guard).destination() else {
+            continue;
+        };
         let preheader_terminator = mir::Terminator::Branch {
-            condition: tree.get(fast_guard).destination().unwrap(),
-            then_target: fast_header,
-            then_arguments: preheader_args.clone(),
-            else_target: header,
-            else_arguments: preheader_args.clone(),
+            condition,
+            then_target: mir::BlockTarget {
+                block: fast_header.into(),
+                arguments: preheader_args.iter().copied().map(Into::into).collect(),
+            },
+            else_target: mir::BlockTarget {
+                block: header.into(),
+                arguments: preheader_args.iter().copied().map(Into::into).collect(),
+            },
         };
         tree.replace(preheader_block.terminator, preheader_terminator);
         tree.replace(preheader, preheader_block);
@@ -328,7 +335,12 @@ fn find_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
+        mir::Terminator::Jump { target } if target.block.block() == Some(header) => target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()?,
         _ => return None,
     };
 
@@ -356,17 +368,19 @@ fn guard_from_header(
     };
 
     // require the true edge to stay inside the loop
-    if !loop_blocks.contains(then_target) {
+    let then_target = then_target.block.block()?;
+    if !loop_blocks.contains(&then_target) {
         return None;
     }
 
     // locate the guard instruction that produces the condition
-    let definition = use_def.def_block.get(condition)?;
+    let condition = condition.value()?;
+    let definition = use_def.def_block.get(&condition)?;
     let block = tree.get(*definition);
     let inst_id = block
         .instructions
         .iter()
-        .find(|&&inst_id| tree.get(inst_id).destination() == Some(*condition))?;
+        .find(|&&inst_id| tree.get(inst_id).destination() == Some(condition.into()))?;
     let inst = tree.get(*inst_id);
 
     let mir::Instruction::Binary {
@@ -381,15 +395,19 @@ fn guard_from_header(
 
     // accept unsigned comparisons that can be normalized to induction < bound
     let (induction, bound, is_strict) = match operator {
-        mir::BinaryOperator::UnsignedLessThan => (*left, *right, true),
-        mir::BinaryOperator::UnsignedLessEqual => (*left, *right, false),
-        mir::BinaryOperator::UnsignedGreaterThan => (*right, *left, true),
-        mir::BinaryOperator::UnsignedGreaterEqual => (*right, *left, false),
+        mir::BinaryOperator::UnsignedLessThan => (left.value()?, right.value()?, true),
+        mir::BinaryOperator::UnsignedLessEqual => (left.value()?, right.value()?, false),
+        mir::BinaryOperator::UnsignedGreaterThan => (right.value()?, left.value()?, true),
+        mir::BinaryOperator::UnsignedGreaterEqual => (right.value()?, left.value()?, false),
         _ => return None,
     };
 
     // require the induction variable to be a header parameter
-    let header_params: Vec<_> = header_block.parameters.iter().map(|p| p.value).collect();
+    let header_params: Vec<_> = header_block
+        .parameters
+        .iter()
+        .filter_map(|parameter| parameter.value.value())
+        .collect();
     if !header_params.contains(&induction) {
         return None;
     }
@@ -451,11 +469,11 @@ fn bounds_check_in_loop(
         }
 
         // ignore mismatched indices
-        if *index != induction {
+        if index.value() != Some(induction) {
             continue;
         }
 
-        return Some((*length, *collection));
+        return Some((length.value()?, collection.value()?));
     }
 
     None
@@ -494,7 +512,12 @@ fn insert_preheader_guard(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let target_args = match preheader_terminator {
-        mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
+        mir::Terminator::Jump { target } if target.block.block() == Some(header) => target
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| argument.value())
+            .collect::<Option<Vec<_>>>()?,
         _ => return None,
     };
 
@@ -507,10 +530,10 @@ fn insert_preheader_guard(
     let bool_type = tree.boolean_type();
     let destination = function.next_typed_value(bool_type);
     let guard = mir::Instruction::Binary {
-        destination,
+        destination: destination.into(),
         operator: mir::BinaryOperator::UnsignedLessEqual,
-        left: bound,
-        right: length,
+        left: bound.into(),
+        right: length.into(),
     };
     let guard_id = tree.insert(guard);
 
@@ -563,7 +586,7 @@ fn preheader_guard_bound(
     // build a constant one value for the add
     let one_value = function.next_typed_value_like(bound);
     let one_inst = tree.insert(mir::Instruction::Const {
-        destination: one_value,
+        destination: one_value.into(),
         value: mir::Constant::UInt {
             value: 1,
             width: width as u8,
@@ -573,10 +596,10 @@ fn preheader_guard_bound(
     // build the incremented bound
     let add_value = function.next_typed_value_like(bound);
     let add_inst = tree.insert(mir::Instruction::Binary {
-        destination: add_value,
+        destination: add_value.into(),
         operator: mir::BinaryOperator::Add,
-        left: bound,
-        right: one_value,
+        left: bound.into(),
+        right: one_value.into(),
     });
 
     Some((vec![one_inst, add_inst], add_value))
@@ -616,14 +639,17 @@ fn strip_bounds_checks(
         };
 
         // ignore non matching checks
-        if *is_signed || *index != induction || *bound != length || *col != collection {
+        if *is_signed
+            || index.value() != Some(induction)
+            || bound.value() != Some(length)
+            || col.value() != Some(collection)
+        {
             continue;
         }
 
         // replace the check with the success edge
         let new_terminator = mir::Terminator::Jump {
-            target: success.target,
-            arguments: success.arguments.clone(),
+            target: success.clone(),
         };
         tree.replace(block.terminator, new_terminator);
         tree.replace(cloned_id, block);

@@ -444,7 +444,7 @@ fn guard_info(
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
     let condition = match header_terminator {
-        mir::Terminator::Branch { condition, .. } => *condition,
+        mir::Terminator::Branch { condition, .. } => condition.value()?,
         _ => return None,
     };
 
@@ -476,7 +476,7 @@ fn guard_info(
     let induction_index = header_block
         .parameters
         .iter()
-        .position(|param| param.value == *left)?;
+        .position(|param| param.value.value() == left.value())?;
 
     // resolve the induction step
     let step = induction_step(
@@ -494,7 +494,7 @@ fn guard_info(
 
     // validate the step direction
     let operator = *operator;
-    let bound = *right;
+    let bound = right.value()?;
 
     // reject less than guards with non positive steps
     if matches!(
@@ -541,13 +541,18 @@ fn induction_step(
     // locate the latch jump argument
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    let mir::Terminator::Jump { arguments, .. } = latch_terminator else {
+    let mir::Terminator::Jump { target } = latch_terminator else {
         return None;
     };
 
     // resolve the induction argument
-    let arg = *arguments.get(induction_index)?;
-    let header_param = tree.get(header).parameters.get(induction_index)?.value;
+    let arg = target.arguments.get(induction_index).copied()?.value()?;
+    let header_param = tree
+        .get(header)
+        .parameters
+        .get(induction_index)?
+        .value
+        .value()?;
 
     // reject unchanged induction values
     if forwarding.resolve(arg) == header_param {
@@ -569,11 +574,19 @@ fn induction_step(
 
     // compute the constant step
     let step = match operator {
-        mir::BinaryOperator::Add if forwarding.resolve(*left) == header_param => {
-            const_i64(*right, latch, constants)?
+        mir::BinaryOperator::Add
+            if left
+                .value()
+                .is_some_and(|left| forwarding.resolve(left) == header_param) =>
+        {
+            const_i64(right.value()?, latch, constants)?
         }
-        mir::BinaryOperator::Subtract if forwarding.resolve(*left) == header_param => {
-            -const_i64(*right, latch, constants)?
+        mir::BinaryOperator::Subtract
+            if left
+                .value()
+                .is_some_and(|left| forwarding.resolve(left) == header_param) =>
+        {
+            -const_i64(right.value()?, latch, constants)?
         }
         _ => return None,
     };
@@ -762,6 +775,13 @@ fn apply_fusion(
         .iter()
         .zip(second_header.parameters.iter())
     {
+        let Some(first_param) = first_param.typed_value() else {
+            return false;
+        };
+        let Some(second_param) = second_param.typed_value() else {
+            return false;
+        };
+
         if first_param.ty != second_param.ty {
             return false;
         }
@@ -781,6 +801,13 @@ fn apply_fusion(
         .iter()
         .zip(second_latch.parameters.iter())
     {
+        let Some(first_param) = first_param.typed_value() else {
+            return false;
+        };
+        let Some(second_param) = second_param.typed_value() else {
+            return false;
+        };
+
         // require matching parameter types
         if first_param.ty != second_param.ty {
             return false;
@@ -793,7 +820,7 @@ fn apply_fusion(
     // map loop2 body definitions
     for &instruction_id in &candidate.second.body_instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(destination) = instruction.destination() {
+        if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
             let new_value = function.next_typed_value_like(destination);
             value_map.insert(destination, new_value);
         }
@@ -802,7 +829,11 @@ fn apply_fusion(
     // ensure loop2 body does not depend on header local values
     for &instruction_id in &candidate.second.body_instructions {
         let instruction = tree.get(instruction_id);
-        for value in instruction.uses() {
+        for value in instruction
+            .uses()
+            .into_iter()
+            .filter_map(|value| value.value())
+        {
             if value_map.contains_key(&value) {
                 continue;
             }
@@ -855,31 +886,31 @@ fn apply_fusion(
     let mir::Terminator::Branch {
         condition,
         then_target,
-        then_arguments,
         else_target,
-        else_arguments,
     } = &header_terminator
     else {
         return false;
     };
 
     // rewrite the exit target
-    let in_loop_is_then = *then_target == candidate.first.latch;
+    let in_loop_is_then = then_target.block.block() == Some(candidate.first.latch);
     let new_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: *then_target,
-            then_arguments: then_arguments.clone(),
-            else_target: candidate.second.exit_block,
-            else_arguments: Vec::new(),
+            then_target: then_target.clone(),
+            else_target: mir::BlockTarget {
+                block: candidate.second.exit_block.into(),
+                arguments: Vec::new(),
+            },
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: candidate.second.exit_block,
-            then_arguments: Vec::new(),
-            else_target: *else_target,
-            else_arguments: else_arguments.clone(),
+            then_target: mir::BlockTarget {
+                block: candidate.second.exit_block.into(),
+                arguments: Vec::new(),
+            },
+            else_target: else_target.clone(),
         }
     };
     tree.replace(candidate.first.header, header_block);

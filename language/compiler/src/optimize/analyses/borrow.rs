@@ -106,7 +106,11 @@ impl BorrowMap {
     }
 
     /// Get the borrow state for a value.
-    pub fn get(&self, value: Value) -> BorrowState {
+    pub fn get(&self, value: impl Into<mir::ValueReference>) -> BorrowState {
+        let Some(value) = value.into().value() else {
+            return BorrowState::NotBorrowed;
+        };
+
         self.states
             .get(&value)
             .cloned()
@@ -114,26 +118,35 @@ impl BorrowMap {
     }
 
     /// Check if a value is possibly borrowed.
-    pub fn is_possibly_borrowed(&self, value: Value) -> bool {
+    pub fn is_possibly_borrowed(&self, value: impl Into<mir::ValueReference>) -> bool {
         self.get(value).is_possibly_borrowed()
     }
 
     /// Get the origin of a reference value when there is exactly one.
-    pub fn reference_origin(&self, reference: Value) -> Option<Value> {
+    pub fn reference_origin(&self, reference: impl Into<mir::ValueReference>) -> Option<Value> {
+        let reference = reference.into().value()?;
+
         self.reference_origins
             .get(&reference)
             .and_then(|origins| origins.first().copied())
     }
 
     /// Get all possible origins for a reference value.
-    pub fn reference_origins(&self, reference: Value) -> Option<&[Value]> {
+    pub fn reference_origins(&self, reference: impl Into<mir::ValueReference>) -> Option<&[Value]> {
+        let reference = reference.into().value()?;
+
         self.reference_origins
             .get(&reference)
             .map(|origins| origins.as_slice())
     }
 
     /// Get the local origin for a reference value.
-    pub fn local_reference_origin(&self, reference: Value) -> Option<mir::LocalNodeId<mir::Local>> {
+    pub fn local_reference_origin(
+        &self,
+        reference: impl Into<mir::ValueReference>,
+    ) -> Option<mir::LocalNodeId<mir::Local>> {
+        let reference = reference.into().value()?;
+
         self.local_reference_origins
             .get(&reference)
             .and_then(|locals| locals.first().copied())
@@ -142,8 +155,10 @@ impl BorrowMap {
     /// Get all possible local origins for a reference value.
     pub fn local_reference_origins(
         &self,
-        reference: Value,
+        reference: impl Into<mir::ValueReference>,
     ) -> Option<&[mir::LocalNodeId<mir::Local>]> {
+        let reference = reference.into().value()?;
+
         self.local_reference_origins
             .get(&reference)
             .map(|locals| locals.as_slice())
@@ -152,10 +167,15 @@ impl BorrowMap {
     /// Record a new borrow.
     pub fn add_borrow(
         &mut self,
-        reference: Value,
-        origin: Value,
+        reference: impl Into<mir::ValueReference>,
+        origin: impl Into<mir::ValueReference>,
         at: mir::LocalNodeId<Instruction>,
     ) {
+        let (Some(reference), Some(origin)) = (reference.into().value(), origin.into().value())
+        else {
+            return;
+        };
+
         self.states.insert(origin, BorrowState::Borrowed { at });
         self.reference_origins.insert(reference, vec![origin]);
         self.reference_locations.insert(reference, at);
@@ -164,10 +184,15 @@ impl BorrowMap {
     /// Record a new local borrow.
     pub fn add_local_borrow(
         &mut self,
-        reference: Value,
-        local: mir::LocalNodeId<mir::Local>,
+        reference: impl Into<mir::ValueReference>,
+        local: impl Into<mir::LocalReference>,
         at: mir::LocalNodeId<Instruction>,
     ) {
+        let (Some(reference), Some(local)) = (reference.into().value(), local.into().local())
+        else {
+            return;
+        };
+
         self.local_states
             .insert(local, BorrowState::Borrowed { at });
         self.local_reference_origins.insert(reference, vec![local]);
@@ -178,7 +203,16 @@ impl BorrowMap {
     ///
     /// Used when a reference is passed through a block parameter, the block
     /// parameter inherits the borrow relationship of the argument.
-    pub fn transfer_borrow(&mut self, from_ref: Value, to_ref: Value) {
+    pub fn transfer_borrow(
+        &mut self,
+        from_ref: impl Into<mir::ValueReference>,
+        to_ref: impl Into<mir::ValueReference>,
+    ) {
+        let (Some(from_ref), Some(to_ref)) = (from_ref.into().value(), to_ref.into().value())
+        else {
+            return;
+        };
+
         if let Some(origins) = self.reference_origins.get(&from_ref)
             && let Some(&at) = self.reference_locations.get(&from_ref)
         {
@@ -197,14 +231,22 @@ impl BorrowMap {
     /// Merge borrow origins from multiple references into a single reference.
     pub fn merge_borrows(
         &mut self,
-        destination: Value,
-        sources: &[Value],
+        destination: impl Into<mir::ValueReference>,
+        sources: &[mir::ValueReference],
         at: mir::LocalNodeId<Instruction>,
     ) {
+        let Some(destination) = destination.into().value() else {
+            return;
+        };
+
         let mut origins = Vec::new();
         let mut locals = Vec::new();
 
         for &source in sources {
+            let Some(source) = source.value() else {
+                continue;
+            };
+
             if let Some(source_origins) = self.reference_origins.get(&source) {
                 for &origin in source_origins {
                     if !origins.contains(&origin) {
@@ -241,19 +283,28 @@ impl BorrowMap {
     }
 
     /// Merge borrow relationships from multiple block arguments into a parameter.
-    pub fn merge_param_borrows(&mut self, param: Value, sources: &[Value]) {
-        let mut merged_sources = Vec::new();
+    pub fn merge_param_borrows(
+        &mut self,
+        param: impl Into<mir::ValueReference>,
+        sources: &[mir::ValueReference],
+    ) {
+        let mut merged_sources: Vec<mir::ValueReference> = Vec::new();
         let mut borrow_location = None;
 
         for &source in sources {
+            let Some(source) = source.value() else {
+                continue;
+            };
+
             let has_borrow = self.reference_origins.contains_key(&source)
                 || self.local_reference_origins.contains_key(&source);
             if !has_borrow {
                 continue;
             }
 
-            if !merged_sources.contains(&source) {
-                merged_sources.push(source);
+            let source_reference = source.into();
+            if !merged_sources.contains(&source_reference) {
+                merged_sources.push(source_reference);
             }
 
             if borrow_location.is_none() {
@@ -271,7 +322,11 @@ impl BorrowMap {
     }
 
     /// Remove a borrow when its reference dies.
-    pub fn expire_borrow(&mut self, reference: Value) {
+    pub fn expire_borrow(&mut self, reference: impl Into<mir::ValueReference>) {
+        let Some(reference) = reference.into().value() else {
+            return;
+        };
+
         if let Some(origins) = self.reference_origins.remove(&reference) {
             // only remove borrow state if no other references borrow from this origin
             for origin in origins {
@@ -474,9 +529,9 @@ impl BorrowAnalysis {
                     let pred_block = tree.get(pred_id);
                     let pred_terminator = tree.get(pred_block.terminator);
                     let arguments = terminator_arguments_for_successor(pred_terminator, block_id);
-                    for (index, arg) in arguments.iter().enumerate() {
+                    for (index, &arg) in arguments.iter().enumerate() {
                         if let Some(slot) = param_sources.get_mut(index) {
-                            slot.push(*arg);
+                            slot.push(arg);
                         }
                     }
                 }
@@ -487,7 +542,11 @@ impl BorrowAnalysis {
                 // expire borrows whose references are not live-in to this block
                 let is_live_in = |value| {
                     liveness.is_live_in(block_id, value)
-                        || block.parameters.iter().any(|param| param.value == value)
+                        || block
+                            .parameters
+                            .iter()
+                            .filter_map(|param| param.value.value())
+                            .any(|param| param == value)
                 };
                 let dead_refs: Vec<Value> = state
                     .active_references()
@@ -531,9 +590,9 @@ impl BorrowAnalysis {
                 let pred_block = tree.get(pred_id);
                 let pred_terminator = tree.get(pred_block.terminator);
                 let arguments = terminator_arguments_for_successor(pred_terminator, block_id);
-                for (index, arg) in arguments.iter().enumerate() {
+                for (index, &arg) in arguments.iter().enumerate() {
                     if let Some(slot) = param_sources.get_mut(index) {
-                        slot.push(*arg);
+                        slot.push(arg);
                     }
                 }
             }
@@ -544,7 +603,11 @@ impl BorrowAnalysis {
             // expire borrows whose references are not live-in to this block
             let is_live_in = |value| {
                 liveness.is_live_in(block_id, value)
-                    || block.parameters.iter().any(|param| param.value == value)
+                    || block
+                        .parameters
+                        .iter()
+                        .filter_map(|param| param.value.value())
+                        .any(|param| param == value)
             };
             let dead_refs: Vec<Value> = state
                 .active_references()
@@ -572,40 +635,42 @@ fn apply_instruction_effects(
     tree: &mir::NodeTree,
 ) {
     match inst {
-        // field.address creates a borrow of the aggregate
-        Instruction::FieldAddr {
-            destination,
-            aggregate,
-            result_type,
-            ..
-        } => {
-            if !reference_is_borrowed(*result_type, tree) {
-                return;
-            }
-            state.add_borrow(*destination, *aggregate, inst_id);
-        }
-
-        // element.address creates a borrow of the array
+        // address projections create a borrow of the container
         Instruction::ElementAddr {
             destination,
-            array,
+            array: origin,
+            result_type,
+            ..
+        }
+        | Instruction::FieldAddr {
+            destination,
+            aggregate: origin,
             result_type,
             ..
         } => {
-            if !reference_is_borrowed(*result_type, tree) {
+            let Some(result_type) = result_type.ty() else {
+                return;
+            };
+            if !reference_is_borrowed(result_type, tree) {
                 return;
             }
-            state.add_borrow(*destination, *array, inst_id);
+
+            state.add_borrow(*destination, *origin, inst_id);
         }
+
         // local.address creates a borrow of the local slot
         Instruction::LocalAddr {
             destination,
             local,
             result_type,
         } => {
-            if !reference_is_borrowed(*result_type, tree) {
+            let Some(result_type) = result_type.ty() else {
+                return;
+            };
+            if !reference_is_borrowed(result_type, tree) {
                 return;
             }
+
             state.add_local_borrow(*destination, *local, inst_id);
         }
 

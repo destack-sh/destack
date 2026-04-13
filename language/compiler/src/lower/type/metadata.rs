@@ -48,12 +48,28 @@ impl ModuleLowerer<'_> {
             mir::Type::Tuple {
                 elements,
                 copyability: _,
-            } => Some(LayoutTarget::Tuple(elements.clone())),
+            } => {
+                let Some(elements) = elements
+                    .iter()
+                    .map(|element| element.ty())
+                    .collect::<Option<Vec<_>>>()
+                else {
+                    return Ok(None);
+                };
+
+                Some(LayoutTarget::Tuple(elements))
+            }
             mir::Type::Array {
                 element,
                 length,
                 copyability: _,
-            } => Some(LayoutTarget::Array(*element, *length)),
+            } => {
+                let Some(element) = element.ty() else {
+                    return Ok(None);
+                };
+
+                Some(LayoutTarget::Array(element, *length))
+            }
             _ => None,
         };
         let Some(target) = target else {
@@ -63,7 +79,9 @@ impl ModuleLowerer<'_> {
         // materialize the concrete layout metadata
         match target {
             LayoutTarget::Tuple(elements) => {
-                let (fields, size, alignment) = self.tuple_layout_fields(&elements);
+                let Some((fields, size, alignment)) = self.tuple_layout_fields(&elements) else {
+                    return Ok(None);
+                };
                 let layout_id = self.insert_layout_metadata(
                     ty,
                     mir::LayoutKind::Tuple,
@@ -137,7 +155,7 @@ impl ModuleLowerer<'_> {
     fn tuple_layout_fields(
         &mut self,
         elements: &[mir::LocalNodeId<mir::Type>],
-    ) -> (Vec<mir::LayoutField>, u32, u32) {
+    ) -> Option<(Vec<mir::LayoutField>, u32, u32)> {
         // compute element layouts in order
         let mut fields = Vec::with_capacity(elements.len());
         let mut offset = 0u32;
@@ -148,7 +166,7 @@ impl ModuleLowerer<'_> {
             let element_type = self.builder.tree().get(*element);
             let (size, alignment) = self
                 .type_lowerer
-                .size_and_align_of_type(element_type, self.builder.tree());
+                .size_and_align_of_type(element_type, self.builder.tree())?;
 
             // align the current offset
             offset = align_up(offset, alignment);
@@ -172,7 +190,7 @@ impl ModuleLowerer<'_> {
         // pad to alignment
         let size = align_up(offset, max_alignment);
 
-        (fields, size, max_alignment)
+        Some((fields, size, max_alignment))
     }
 
     /// Compute layout info for an array type.
@@ -187,7 +205,14 @@ impl ModuleLowerer<'_> {
         let element_type = self.builder.tree().get(element);
         let (size, alignment) = self
             .type_lowerer
-            .size_and_align_of_type(element_type, self.builder.tree());
+            .size_and_align_of_type(element_type, self.builder.tree())
+            .ok_or_else(|| {
+                self.array_layout_error(
+                    type_id,
+                    anchor,
+                    "array layout requires concrete nested types",
+                )
+            })?;
         let stride = align_up(size, alignment);
 
         // validate the array length

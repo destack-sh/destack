@@ -26,17 +26,26 @@ impl ConstantMap {
     }
 
     /// Get the constant value for a given SSA value.
-    pub fn get(&self, value: mir::Value) -> Option<&mir::Constant> {
+    pub fn get(&self, value: impl Into<mir::ValueReference>) -> Option<&mir::Constant> {
+        let value = value.into().value()?;
         self.constants.get(&value)
     }
 
     /// Insert a constant value for a given SSA value.
-    pub fn insert(&mut self, value: mir::Value, constant: mir::Constant) {
+    pub fn insert(&mut self, value: impl Into<mir::ValueReference>, constant: mir::Constant) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.constants.insert(value, constant);
     }
 
     /// Remove any constant for a given SSA value.
-    pub fn remove(&mut self, value: mir::Value) {
+    pub fn remove(&mut self, value: impl Into<mir::ValueReference>) {
+        let Some(value) = value.into().value() else {
+            return;
+        };
+
         self.constants.remove(&value);
     }
 
@@ -192,6 +201,10 @@ impl ConstantPropagation {
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors() {
+                        let Some(succ) = succ.block() else {
+                            continue;
+                        };
+
                         if in_worklist.insert(succ) {
                             worklist.push_back(succ);
                         }
@@ -309,11 +322,16 @@ fn apply_block_param_constants(
 
     // apply constants to entry state
     for param in &block.parameters {
-        if let Some(constant) = constants.get(&param.value) {
-            entry_state.insert(param.value, constant.clone());
-        } else {
-            entry_state.remove(param.value);
+        let Some(param_value) = param.value.value() else {
+            continue;
+        };
+
+        if let Some(constant) = constants.get(&param_value) {
+            entry_state.insert(param_value, constant.clone());
+            continue;
         }
+
+        entry_state.remove(param_value);
     }
 }
 
@@ -386,8 +404,12 @@ fn resolve_block_param_constants(
     // collect constants for parameters
     let mut constants = HashMap::new();
     for (param, state) in block.parameters.iter().zip(states.into_iter()) {
+        let Some(param_value) = param.value.value() else {
+            continue;
+        };
+
         if let ParamState::Constant(constant) = state {
-            constants.insert(param.value, constant);
+            constants.insert(param_value, constant);
         }
     }
 
@@ -409,6 +431,9 @@ fn transfer_block(
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
         let Some(destination) = instruction.destination() else {
+            continue;
+        };
+        let Some(destination) = destination.value() else {
             continue;
         };
 
@@ -467,7 +492,7 @@ fn constant_for_instruction(
             fold_cast(
                 *operator,
                 arg_constant.clone(),
-                *to_type,
+                to_type.ty()?,
                 pointer_width_bits,
                 tree,
             )

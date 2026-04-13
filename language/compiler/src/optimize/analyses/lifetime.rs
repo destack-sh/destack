@@ -79,15 +79,16 @@ impl LifetimeAnalysis {
 
     /// Resolve lifetime bounds from a function signature type.
     pub fn resolve_signature(
-        signature: mir::LocalNodeId<mir::Type>,
+        signature: impl Into<mir::TypeReference>,
         tree: &mir::NodeTree,
     ) -> ResolvedLifetime {
-        let signature_type = tree.get(signature);
-        if !signature_return_contains_borrowed_refs(signature_type, tree) {
+        let signature = signature.into();
+
+        if !signature_return_contains_borrowed_refs(signature, tree) {
             return ResolvedLifetime::None;
         }
 
-        let Some(indices) = borrowed_parameter_indices_for_signature(signature_type, tree) else {
+        let Some(indices) = borrowed_parameter_indices_for_signature(signature, tree) else {
             return ResolvedLifetime::Static;
         };
 
@@ -117,7 +118,10 @@ impl LifetimeAnalysis {
         tree: &mir::NodeTree,
     ) -> ResolvedLifetime {
         // check if return type contains borrowed references
-        let return_ty = tree.get(function.return_type);
+        let Some(return_ty) = function.return_type.ty() else {
+            return ResolvedLifetime::None;
+        };
+        let return_ty = tree.get(return_ty);
         if !type_contains_borrowed_refs(return_ty, tree) {
             return ResolvedLifetime::None;
         }

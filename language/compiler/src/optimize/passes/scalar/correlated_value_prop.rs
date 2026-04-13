@@ -123,7 +123,19 @@ fn run_correlated_value_prop(
                 then_target,
                 else_target,
                 ..
-            } => (*condition, *then_target, *else_target),
+            } => {
+                let Some(condition) = condition.value() else {
+                    continue;
+                };
+                let Some(then_target) = then_target.block.block() else {
+                    continue;
+                };
+                let Some(else_target) = else_target.block.block() else {
+                    continue;
+                };
+
+                (condition, then_target, else_target)
+            }
             _ => continue,
         };
 
@@ -260,15 +272,22 @@ fn equality_condition(
     } = instruction
     {
         // map equality operators to the condition
+        let Some(left) = left.value() else {
+            return None;
+        };
+        let Some(right) = right.value() else {
+            return None;
+        };
+
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
-                left: *left,
-                right: *right,
+                left,
+                right,
                 is_equal_on_then: true,
             }),
             mir::BinaryOperator::NotEqual => Some(EqualityCondition {
-                left: *left,
-                right: *right,
+                left,
+                right,
                 is_equal_on_then: false,
             }),
             _ => None,
@@ -281,7 +300,8 @@ fn equality_condition(
         argument,
         ..
     } = instruction
-        && let Some(nested) = value_to_instruction.get(argument)
+        && let Some(argument) = argument.value()
+        && let Some(nested) = value_to_instruction.get(&argument)
         && let mir::Instruction::Binary {
             operator,
             left,
@@ -290,15 +310,22 @@ fn equality_condition(
         } = nested
     {
         // invert equality operators for the negated condition
+        let Some(left) = left.value() else {
+            return None;
+        };
+        let Some(right) = right.value() else {
+            return None;
+        };
+
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
-                left: *left,
-                right: *right,
+                left,
+                right,
                 is_equal_on_then: false,
             }),
             mir::BinaryOperator::NotEqual => Some(EqualityCondition {
-                left: *left,
-                right: *right,
+                left,
+                right,
                 is_equal_on_then: true,
             }),
             _ => None,
@@ -332,7 +359,16 @@ fn range_constraints_for_condition(
             left,
             right,
             ..
-        } => (*operator, *left, *right),
+        } => {
+            let Some(left) = left.value() else {
+                return constraints;
+            };
+            let Some(right) = right.value() else {
+                return constraints;
+            };
+
+            (*operator, left, right)
+        }
         _ => return constraints,
     };
 
@@ -378,7 +414,9 @@ fn constant_from_value(
     // map constants to their values
     match instruction {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => constant_from_global(*global, tree),
+        mir::Instruction::GlobalConst { global, .. } => {
+            constant_from_global(global.global()?, tree)
+        }
         _ => None,
     }
 }
@@ -538,12 +576,21 @@ fn apply_range_constraint(
             else {
                 continue;
             };
+            let Some(destination) = destination.value() else {
+                continue;
+            };
+            let Some(left) = left.value() else {
+                continue;
+            };
+            let Some(right) = right.value() else {
+                continue;
+            };
 
             // fold the comparison when constrained
             let comparison = comparison_from_range(
                 *operator,
-                *left,
-                *right,
+                left,
+                right,
                 constraint,
                 value_to_instruction,
                 tree,
@@ -552,7 +599,7 @@ fn apply_range_constraint(
             // replace with a constant when the outcome is known
             if let Some(result) = comparison {
                 let new_instruction = mir::Instruction::Const {
-                    destination: *destination,
+                    destination: destination.into(),
                     value: mir::Constant::Boolean { value: result },
                 };
                 tree.replace(instruction_id, new_instruction);

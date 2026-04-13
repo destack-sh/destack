@@ -172,7 +172,13 @@ impl TypeLowerer {
             mir_element_types.push(element_type);
             let element = builder.tree().get(element_type);
             copyability = copyability.combine(element.copyability());
-            let (size, alignment) = self.size_and_align_of_type(element, builder.tree());
+            let (size, alignment) = self
+                .size_and_align_of_type(element, builder.tree())
+                .ok_or_else(|| LowerError::UnsupportedType {
+                    node,
+                    ty: element_id.into_global(module_id),
+                    message: "union layout requires concrete nested types".to_string(),
+                })?;
             max_payload_size = max_payload_size.max(size);
             max_payload_alignment = max_payload_alignment.max(alignment);
         }
@@ -190,10 +196,18 @@ impl TypeLowerer {
         };
 
         // compute field sizes and alignments
-        let (tag_size, tag_alignment) =
-            self.size_and_align_of_type(builder.tree().get(tag_type), builder.tree());
-        let (payload_size, payload_alignment) =
-            self.size_and_align_of_type(builder.tree().get(payload_type), builder.tree());
+        let (tag_size, tag_alignment) = self
+            .size_and_align_of_type(builder.tree().get(tag_type), builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "union layout requires concrete nested types".to_string(),
+            })?;
+        let (payload_size, payload_alignment) = self
+            .size_and_align_of_type(builder.tree().get(payload_type), builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "union layout requires concrete nested types".to_string(),
+            })?;
 
         // assemble field inputs
         let fields = vec![
@@ -388,7 +402,11 @@ impl TypeLowerer {
             return Ok(Some(non_null_type));
         }
 
-        let nullable = builder.type_reference(*kind, *pointee, *mutability, *address_space, true);
+        let Some(pointee) = pointee.ty() else {
+            return Ok(None);
+        };
+
+        let nullable = builder.type_reference(*kind, pointee, *mutability, *address_space, true);
         Ok(Some(nullable))
     }
 

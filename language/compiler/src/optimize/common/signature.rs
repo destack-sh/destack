@@ -15,25 +15,27 @@ pub struct SignatureKey {
 
 impl SignatureKey {
     /// Build a signature key from a function definition.
-    pub fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Self {
+    pub fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Option<Self> {
         // collect parameter type keys
         let parameters = function
             .parameters
             .iter()
-            .map(|param| TypeKey::from_type(param.ty, tree))
-            .collect();
+            .map(|param| Some(TypeKey::from_type(param.ty.ty()?, tree)))
+            .collect::<Option<Vec<_>>>()?;
 
         // collect result type key
-        let result = TypeKey::from_type(function.return_type, tree);
+        let result = TypeKey::from_type(function.return_type.ty()?, tree);
 
-        Self { parameters, result }
+        Some(Self { parameters, result })
     }
 
     /// Build a signature key from a function pointer type.
     pub fn from_signature_type(
         tree: &mir::NodeTree,
-        signature: mir::LocalNodeId<mir::Type>,
+        signature: impl Into<mir::TypeReference>,
     ) -> Option<Self> {
+        let signature = signature.into().ty()?;
+
         // resolve the function pointer signature
         let mir::Type::FunctionPointer { parameters, result } = tree.get(signature) else {
             return None;
@@ -42,11 +44,11 @@ impl SignatureKey {
         // collect parameter type keys
         let parameters = parameters
             .iter()
-            .map(|param| TypeKey::from_type(*param, tree))
-            .collect();
+            .map(|param| Some(TypeKey::from_type(param.ty()?, tree)))
+            .collect::<Option<Vec<_>>>()?;
 
         // collect result type key
-        let result = TypeKey::from_type(*result, tree);
+        let result = TypeKey::from_type(result.ty()?, tree);
 
         Some(Self { parameters, result })
     }

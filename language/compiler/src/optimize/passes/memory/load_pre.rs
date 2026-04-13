@@ -139,7 +139,7 @@ fn run_load_pre(
     let function_params: HashSet<_> = function
         .parameters
         .iter()
-        .map(|param| param.value)
+        .filter_map(|param| param.value.value())
         .collect();
 
     // ensure fresh value allocation
@@ -163,7 +163,7 @@ fn run_load_pre(
             .parameters
             .iter()
             .enumerate()
-            .map(|(index, param)| (param.value, index))
+            .filter_map(|(index, param)| Some((param.value.value()?, index)))
             .collect::<HashMap<_, _>>();
 
         // scan block instructions for load candidates
@@ -174,13 +174,25 @@ fn run_load_pre(
                     destination,
                     pointer,
                     result_type,
-                } => LoadCandidate {
-                    block: block_id,
-                    load_id: instruction_id,
-                    destination: *destination,
-                    pointer: *pointer,
-                    result_type: *result_type,
-                },
+                } => {
+                    let Some(destination) = destination.value() else {
+                        continue;
+                    };
+                    let Some(pointer) = pointer.value() else {
+                        continue;
+                    };
+                    let Some(result_type) = result_type.ty() else {
+                        continue;
+                    };
+
+                    LoadCandidate {
+                        block: block_id,
+                        load_id: instruction_id,
+                        destination,
+                        pointer,
+                        result_type,
+                    }
+                }
                 _ => continue,
             };
 
@@ -208,7 +220,10 @@ fn run_load_pre(
 
             // allocate a new block parameter for the load value
             let param_value = function.next_typed_value(load.result_type);
-            let param = mir::TypedValue::new(param_value, load.result_type);
+            let param = mir::Parameter {
+                value: param_value.into(),
+                ty: load.result_type.into(),
+            };
             let mut updated_block = tree.get(block_id).clone();
             updated_block.parameters.push(param);
             tree.replace(block_id, updated_block);
@@ -238,9 +253,9 @@ fn run_load_pre(
                     // insert a new load at the edge block
                     let load_value = function.next_typed_value(load.result_type);
                     let load_instruction = mir::Instruction::Load {
-                        destination: load_value,
-                        pointer: insertion.pointer,
-                        result_type: load.result_type,
+                        destination: load_value.into(),
+                        pointer: insertion.pointer.into(),
+                        result_type: load.result_type.into(),
                     };
                     let load_id = tree.insert(load_instruction);
 
@@ -474,7 +489,7 @@ fn reusable_predecessor_load(
         };
 
         // require the pointer and type to match
-        if *load_pointer != pointer || *load_type != result_type {
+        if load_pointer.value() != Some(pointer) || load_type.ty() != Some(result_type) {
             continue;
         }
 
@@ -494,7 +509,7 @@ fn reusable_predecessor_load(
         // require the same incoming memory state
         let load_clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias, tree);
         if load_clobber == incoming_access {
-            reusable = Some(*destination);
+            reusable = destination.value();
         }
     }
 

@@ -167,7 +167,11 @@ impl ModuleLowerer<'_> {
         let field_ty = self.builder.tree().get(field_type);
         let (size, alignment) = self
             .type_lowerer
-            .size_and_align_of_type(field_ty, self.builder.tree());
+            .size_and_align_of_type(field_ty, self.builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "closure layout requires concrete nested types".to_string(),
+            })?;
 
         // assign a stable field name
         let field_name = self.capture_field_name(capture.symbol);

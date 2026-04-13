@@ -1,7 +1,7 @@
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
-use mir::{Instruction, Value};
+use mir::Instruction;
 
 use crate::OptimizeError;
 use crate::optimize::{
@@ -81,7 +81,7 @@ impl<'a> MoveCheckContext<'a> {
     fn check_use(
         &self,
         state: &OwnershipMap,
-        value: Value,
+        value: impl Into<mir::ValueReference>,
         at_instruction: Option<mir::LocalNodeId<Instruction>>,
         at_block: mir::LocalNodeId<mir::Block>,
         context: &impl DiagnosticEmitter,
@@ -115,7 +115,7 @@ impl<'a> MoveCheckContext<'a> {
     fn check_local_use(
         &self,
         state: &OwnershipMap,
-        local: mir::LocalNodeId<mir::Local>,
+        local: impl Into<mir::LocalReference>,
         at_instruction: Option<mir::LocalNodeId<Instruction>>,
         at_block: mir::LocalNodeId<mir::Block>,
         context: &impl DiagnosticEmitter,
@@ -248,12 +248,16 @@ impl<'a> MoveCheckContext<'a> {
             }
             mir::Terminator::Branch {
                 condition,
-                then_arguments,
-                else_arguments,
+                then_target,
+                else_target,
                 ..
             } => {
                 self.check_use(state, *condition, None, block_id, context);
-                for &arg in then_arguments.iter().chain(else_arguments.iter()) {
+                for &arg in then_target
+                    .arguments
+                    .iter()
+                    .chain(else_target.arguments.iter())
+                {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
@@ -271,46 +275,43 @@ impl<'a> MoveCheckContext<'a> {
             }
             mir::Terminator::Switch {
                 value,
-                default_arguments,
+                default,
                 cases,
                 ..
             } => {
                 self.check_use(state, *value, None, block_id, context);
-                for &arg in default_arguments {
+                for &arg in &default.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
                 for case in cases {
-                    for &arg in &case.arguments {
+                    for &arg in &case.target.arguments {
                         self.check_use(state, arg, None, block_id, context);
                     }
                 }
             }
-            mir::Terminator::Jump { arguments, .. } => {
-                for &arg in arguments {
+            mir::Terminator::Jump { target } => {
+                for &arg in &target.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::Yield {
-                value,
-                resume_arguments,
-                ..
-            } => {
+            mir::Terminator::Yield { value, resume } => {
                 self.check_use(state, *value, None, block_id, context);
-                for &arg in resume_arguments {
+
+                for &arg in &resume.arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
             mir::Terminator::Invoke {
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 for &arg in call
                     .arguments
                     .iter()
-                    .chain(normal_arguments.iter())
-                    .chain(unwind_arguments.iter())
+                    .chain(normal_target.arguments.iter())
+                    .chain(unwind_target.arguments.iter())
                 {
                     self.check_use(state, arg, None, block_id, context);
                 }
@@ -318,16 +319,16 @@ impl<'a> MoveCheckContext<'a> {
             mir::Terminator::InvokeIndirect {
                 callee,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 self.check_use(state, *callee, None, block_id, context);
                 for &arg in call
                     .arguments
                     .iter()
-                    .chain(normal_arguments.iter())
-                    .chain(unwind_arguments.iter())
+                    .chain(normal_target.arguments.iter())
+                    .chain(unwind_target.arguments.iter())
                 {
                     self.check_use(state, arg, None, block_id, context);
                 }
@@ -335,23 +336,23 @@ impl<'a> MoveCheckContext<'a> {
             mir::Terminator::InvokeVirtual {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             }
             | mir::Terminator::InvokeInterface {
                 receiver,
                 call,
-                normal_arguments,
-                unwind_arguments,
+                normal_target,
+                unwind_target,
                 ..
             } => {
                 self.check_use(state, *receiver, None, block_id, context);
                 for &arg in call
                     .arguments
                     .iter()
-                    .chain(normal_arguments.iter())
-                    .chain(unwind_arguments.iter())
+                    .chain(normal_target.arguments.iter())
+                    .chain(unwind_target.arguments.iter())
                 {
                     self.check_use(state, arg, None, block_id, context);
                 }

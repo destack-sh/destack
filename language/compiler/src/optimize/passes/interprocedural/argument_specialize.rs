@@ -108,7 +108,7 @@ struct DirectCallSite {
     /// The call instruction.
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     /// The arguments passed at the callsite.
-    arguments: Vec<mir::Value>,
+    arguments: Vec<mir::ValueReference>,
 }
 
 /// Collected callsite data for specialization.
@@ -266,11 +266,12 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                             call,
                             ..
                         } = instruction
+                        && let Some(callee) = callee.function()
                     {
                         let arguments = tree.get_arguments(call.arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
-                            callee: *callee,
+                            callee,
                             block: block_id,
                             call_instruction: instruction_id,
                             arguments,
@@ -615,11 +616,11 @@ fn update_callsite(
     call.argument_attributes = remap.filter_by_index(&call.argument_attributes);
     call.allocation_size = remap.remap_allocation_size(call.allocation_size);
     call.arguments = new_slice;
-    call.signature = signature_type.unwrap_or(call.signature);
+    call.signature = signature_type.map(Into::into).unwrap_or(call.signature);
 
     let updated = mir::Instruction::Call {
         destination,
-        function: new_callee,
+        function: new_callee.into(),
         call,
     };
     tree.replace(callsite.call_instruction, updated);

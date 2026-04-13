@@ -132,7 +132,9 @@ impl ModuleLowerer<'_> {
         mir_type: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::GlobalInitializer> {
         // peel transparent nominal wrappers before matching initializer payloads
-        let mir_type = self.global_initializer_repr_type(mir_type);
+        let Ok(mir_type) = self.global_initializer_repr_type(mir_type) else {
+            return None;
+        };
         let mir_ty = self.builder.tree().get(mir_type);
         let constant = match (value, mir_ty) {
             (dir::ScalarLiteral::Boolean(b), mir::Type::Boolean) => mir::Constant::boolean(*b),
@@ -190,13 +192,17 @@ impl ModuleLowerer<'_> {
     fn global_initializer_repr_type(
         &self,
         mut mir_type: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         loop {
             let mir::Type::Newtype { inner, .. } = self.builder.tree().get(mir_type) else {
-                return mir_type;
+                return Ok(mir_type);
             };
 
-            mir_type = *inner;
+            mir_type = inner.ty().ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: dir::GlobalNodeIdAny::new(self.module_id, self.anchor_node)
+                    .into_anchored(Some(self.profile)),
+                message: "global initializer newtype inner type is not concrete".to_string(),
+            })?;
         }
     }
 
@@ -231,7 +237,7 @@ impl ModuleLowerer<'_> {
         };
 
         // build the enum constant initializer
-        let mir_type = self.global_initializer_repr_type(mir_type);
+        let mir_type = self.global_initializer_repr_type(mir_type)?;
         let mir_ty = self.builder.tree().get(mir_type);
         let initializer = match (value, mir_ty) {
             (
