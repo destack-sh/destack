@@ -24,6 +24,7 @@ pub enum TypeProperty {
     },
     /// Index signature.
     IndexSignature {
+        is_optional: bool,
         is_readonly: bool,
         name: StringId,
         key_type: LocalNodeId<TypeExpression>,

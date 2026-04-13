@@ -432,6 +432,7 @@ pub fn walk_type_property<V: NodeVisitor + ?Sized>(
             walk_function_signature(visitor, tree, signature);
         }
         TypeProperty::IndexSignature {
+            is_optional: _,
             is_readonly: _,
             name: _,
             key_type,
