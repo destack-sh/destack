@@ -47,7 +47,12 @@ impl<'a> Printer<'a> {
                 self.write_punct("{");
 
                 match modifiers.readonly {
+                    TypeModifier::Present => {
+                        self.write_keyword(Keyword::Readonly);
+                        self.write_punct(" ");
+                    }
                     TypeModifier::Add => {
+                        self.write_punct("+");
                         self.write_keyword(Keyword::Readonly);
                         self.write_punct(" ");
                     }
@@ -76,7 +81,8 @@ impl<'a> Printer<'a> {
                 self.write_punct("]");
 
                 match modifiers.optional {
-                    TypeModifier::Add => self.write_punct("?"),
+                    TypeModifier::Present => self.write_punct("?"),
+                    TypeModifier::Add => self.write_punct("+?"),
                     TypeModifier::Remove => self.write_punct("-?"),
                     TypeModifier::None => {}
                 }

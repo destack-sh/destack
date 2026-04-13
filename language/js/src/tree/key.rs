@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId};
+use crate::{Expression, LocalNodeId, Type};
 use destack_core::StringId;
 
 /// A Name is a regular or string identifier.
@@ -20,8 +20,5 @@ pub enum Key {
     /// Dynamic key (like `["Content-Type"]`).
     Expression(LocalNodeId<Expression>),
     /// Named dynamic key (like `[x: string]: any`).
-    NamedExpression {
-        name: Name,
-        key: LocalNodeId<Expression>,
-    },
+    NamedExpression { name: Name, key: LocalNodeId<Type> },
 }

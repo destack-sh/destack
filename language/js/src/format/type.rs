@@ -210,8 +210,11 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 write!(f, [token("{")])?;
 
                 match modifiers.readonly {
-                    TypeModifier::Add => {
+                    TypeModifier::Present => {
                         write!(f, [Keyword::Readonly, space()])?;
+                    }
+                    TypeModifier::Add => {
+                        write!(f, [token("+"), Keyword::Readonly, space()])?;
                     }
                     TypeModifier::Remove => {
                         write!(f, [token("-"), Keyword::Readonly, space()])?;
@@ -238,7 +241,8 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 write!(f, [token("]")])?;
 
                 match modifiers.optional {
-                    TypeModifier::Add => write!(f, [token("?")])?,
+                    TypeModifier::Present => write!(f, [token("?")])?,
+                    TypeModifier::Add => write!(f, [token("+?")])?,
                     TypeModifier::Remove => write!(f, [token("-?")])?,
                     TypeModifier::None => {}
                 }
