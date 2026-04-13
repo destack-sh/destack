@@ -682,6 +682,7 @@ fn rewrite_type_index_signature<V: TypeRewriter + ?Sized>(
                 name: signature.name,
                 key_type: mapped_key,
                 value_type: mapped_value,
+                is_optional: signature.is_optional,
                 is_readonly: signature.is_readonly,
             },
             true,
