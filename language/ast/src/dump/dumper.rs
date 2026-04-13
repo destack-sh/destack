@@ -484,6 +484,7 @@ impl Dump for ImportSource {
             ImportSource::ReferencePathDirective => "ReferencePathDirective",
             ImportSource::ReferenceTypesDirective => "ReferenceTypesDirective",
             ImportSource::ReferenceLibDirective => "ReferenceLibDirective",
+            ImportSource::ReferenceNoDefaultLibDirective => "ReferenceNoDefaultLibDirective",
             ImportSource::ImportEquals => "ImportEquals",
             ImportSource::ImportCall => "ImportCall",
         };
