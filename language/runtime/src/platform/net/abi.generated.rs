@@ -6884,39 +6884,41 @@ pub const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags =
     PacketBackendCapabilityFlags(4u64);
 
 /// Register VM storage schemas for net.
-pub(crate) fn register_net_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("net::PathBytes", 1);
-    isolate.register_named_storage_type("net::PathUtf16", 1);
-    isolate.register_named_storage_type("net::SocketControlBuffer", 1);
-    isolate.register_named_storage_type("net::KeepAliveConfig", 4);
-    isolate.register_named_storage_type("net::Linger", 2);
-    isolate.register_named_storage_type("net::NetInterface", 6);
-    isolate.register_named_storage_type("net::OsPathBytes", 2);
-    isolate.register_named_storage_type("net::OsPathUtf16", 2);
-    isolate.register_named_storage_type("net::PacketBackendDescriptor", 5);
-    isolate.register_named_storage_type("net::PacketCaptureOptions", 6);
-    isolate.register_named_storage_type("net::PacketCaptureRecord", 5);
-    isolate.register_named_storage_type("net::PacketCaptureStats", 3);
-    isolate.register_named_storage_type("net::PacketFanoutOptions", 3);
-    isolate.register_named_storage_type("net::PacketRingOptions", 5);
-    isolate.register_named_storage_type("net::ResolveQuery", 4);
-    isolate.register_named_storage_type("net::ReverseLookupName", 2);
-    isolate.register_named_storage_type("net::RouteEntry", 7);
-    isolate.register_named_storage_type("net::SocketAddress", 3);
-    isolate.register_named_storage_type("net::SocketCredentials", 3);
-    isolate.register_named_storage_type("net::SocketPair", 2);
-    isolate.register_named_storage_type("net::SocketRecvBatchRequest", 2);
-    isolate.register_named_storage_type("net::SocketRecvFrom", 3);
-    isolate.register_named_storage_type("net::SocketRecvMessage", 8);
-    isolate.register_named_storage_type("net::SocketSendBatchEntry", 2);
-    isolate.register_named_storage_type("net::SocketSendMessage", 5);
-    isolate.register_named_storage_type("net::SocketSendTo", 2);
-    isolate.register_named_storage_type("net::UdpReceive", 3);
-    isolate.register_named_storage_type("net::UdpSourceMembershipV4", 3);
-    isolate.register_named_storage_type("net::UdpSourceMembershipV6", 3);
-    isolate.register_named_storage_type("net::UdsAbstractAddress", 2);
-    isolate.register_named_storage_type("net::UdsPathAddress", 2);
-    isolate.register_named_storage_type("net::UdsUnnamedAddress", 1);
-    isolate.register_named_storage_type("net::OsPath", 2);
-    isolate.register_named_storage_type("net::UdsAddress", 2);
+pub(crate) fn register_net_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("net::PathBytes", 1)?;
+    isolate.register_named_storage_type("net::PathUtf16", 1)?;
+    isolate.register_named_storage_type("net::SocketControlBuffer", 1)?;
+    isolate.register_named_storage_type("net::KeepAliveConfig", 4)?;
+    isolate.register_named_storage_type("net::Linger", 2)?;
+    isolate.register_named_storage_type("net::NetInterface", 6)?;
+    isolate.register_named_storage_type("net::OsPathBytes", 2)?;
+    isolate.register_named_storage_type("net::OsPathUtf16", 2)?;
+    isolate.register_named_storage_type("net::PacketBackendDescriptor", 5)?;
+    isolate.register_named_storage_type("net::PacketCaptureOptions", 6)?;
+    isolate.register_named_storage_type("net::PacketCaptureRecord", 5)?;
+    isolate.register_named_storage_type("net::PacketCaptureStats", 3)?;
+    isolate.register_named_storage_type("net::PacketFanoutOptions", 3)?;
+    isolate.register_named_storage_type("net::PacketRingOptions", 5)?;
+    isolate.register_named_storage_type("net::ResolveQuery", 4)?;
+    isolate.register_named_storage_type("net::ReverseLookupName", 2)?;
+    isolate.register_named_storage_type("net::RouteEntry", 7)?;
+    isolate.register_named_storage_type("net::SocketAddress", 3)?;
+    isolate.register_named_storage_type("net::SocketCredentials", 3)?;
+    isolate.register_named_storage_type("net::SocketPair", 2)?;
+    isolate.register_named_storage_type("net::SocketRecvBatchRequest", 2)?;
+    isolate.register_named_storage_type("net::SocketRecvFrom", 3)?;
+    isolate.register_named_storage_type("net::SocketRecvMessage", 8)?;
+    isolate.register_named_storage_type("net::SocketSendBatchEntry", 2)?;
+    isolate.register_named_storage_type("net::SocketSendMessage", 5)?;
+    isolate.register_named_storage_type("net::SocketSendTo", 2)?;
+    isolate.register_named_storage_type("net::UdpReceive", 3)?;
+    isolate.register_named_storage_type("net::UdpSourceMembershipV4", 3)?;
+    isolate.register_named_storage_type("net::UdpSourceMembershipV6", 3)?;
+    isolate.register_named_storage_type("net::UdsAbstractAddress", 2)?;
+    isolate.register_named_storage_type("net::UdsPathAddress", 2)?;
+    isolate.register_named_storage_type("net::UdsUnnamedAddress", 1)?;
+    isolate.register_named_storage_type("net::OsPath", 2)?;
+    isolate.register_named_storage_type("net::UdsAddress", 2)?;
+
+    Ok(())
 }

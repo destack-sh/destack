@@ -5774,6 +5774,8 @@ impl VmAbiCodec for ResourceOwnership {
 }
 
 /// Register VM storage schemas for resource.
-pub(crate) fn register_resource_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("resource::ResourceKind", 1);
+pub(crate) fn register_resource_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("resource::ResourceKind", 1)?;
+
+    Ok(())
 }

@@ -514,9 +514,14 @@ pub(crate) fn register_resource_vm_bindings(registry: &mut BindingRegistry, isol
 }
 
 /// Install VM bindings for resource.
-pub(crate) fn install_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_resource_vm_storage_types(isolate);
+pub(crate) fn install_resource_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_resource_vm_storage_types(isolate)?;
     register_resource_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) RESOURCE_VM_BINDINGS, "resource", install_resource_vm_bindings);

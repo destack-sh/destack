@@ -54431,9 +54431,14 @@ pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isola
 }
 
 /// Install VM bindings for display.
-pub(crate) fn install_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_display_vm_storage_types(isolate);
+pub(crate) fn install_display_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_display_vm_storage_types(isolate)?;
     register_display_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) DISPLAY_VM_BINDINGS, "display", install_display_vm_bindings);

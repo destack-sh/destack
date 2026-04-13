@@ -16380,85 +16380,99 @@ pub const ACCESSIBILITY_TEXT_UNIT_WORD: AccessibilityTextUnitFlags =
     AccessibilityTextUnitFlags(4u32);
 
 /// Register VM storage schemas for accessibility.
-pub(crate) fn register_accessibility_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("accessibility::AccessibilityActionMetadata", 5);
-    isolate.register_named_storage_type("accessibility::AccessibilityActionOpenOptions", 1);
-    isolate.register_named_storage_type("accessibility::AccessibilityActivateAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityAddToSelectionAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityClearSelectionAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityCollapseAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityCollectionInfo", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityCollectionItemInfo", 7);
-    isolate.register_named_storage_type("accessibility::AccessibilityCustomAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityCustomActionInvocation", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilityDecrementAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityDismissAction", 2);
+pub(crate) fn register_accessibility_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("accessibility::AccessibilityActionMetadata", 5)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityActionOpenOptions", 1)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityActivateAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityAddToSelectionAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityClearSelectionAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityCollapseAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityCollectionInfo", 4)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityCollectionItemInfo", 7)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityCustomAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityCustomActionInvocation", 3)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDecrementAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDismissAction", 2)?;
     isolate.register_named_storage_type(
         "accessibility::AccessibilityDocumentEmbeddedObjectsResponse",
         5,
-    );
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentOpenOptions", 1);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentQueryMetadata", 7);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangeAtPointQuery", 4);
+    )?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentOpenOptions", 1)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentQueryMetadata", 7)?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentRangeBoundsResponse", 5);
+        .register_named_storage_type("accessibility::AccessibilityDocumentRangeAtPointQuery", 4)?;
+    isolate.register_named_storage_type(
+        "accessibility::AccessibilityDocumentRangeBoundsResponse",
+        5,
+    )?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentRangeForChildQuery", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangeForUnitQuery", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangeResponse", 5);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangesResponse", 5);
+        .register_named_storage_type("accessibility::AccessibilityDocumentRangeForChildQuery", 3)?;
+    isolate
+        .register_named_storage_type("accessibility::AccessibilityDocumentRangeForUnitQuery", 4)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangeResponse", 5)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangesResponse", 5)?;
     isolate.register_named_storage_type(
         "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
         3,
-    );
+    )?;
     isolate.register_named_storage_type(
         "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
         3,
-    );
+    )?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentReadStyleRunsQuery", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentReadTextQuery", 3);
+        .register_named_storage_type("accessibility::AccessibilityDocumentReadStyleRunsQuery", 3)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentReadTextQuery", 3)?;
+    isolate.register_named_storage_type(
+        "accessibility::AccessibilityDocumentReadUnitRangesQuery",
+        4,
+    )?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentReadUnitRangesQuery", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentStyleRunsResponse", 5);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentTextResponse", 5);
-    isolate.register_named_storage_type("accessibility::AccessibilityEmbeddedObject", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityExpandAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityFocusAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityIncrementAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityMoveTextSelectionAction", 5);
-    isolate.register_named_storage_type("accessibility::AccessibilityNode", 16);
-    isolate.register_named_storage_type("accessibility::AccessibilityNodeBounds", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityNodeRelations", 10);
-    isolate.register_named_storage_type("accessibility::AccessibilityNodeState", 29);
-    isolate.register_named_storage_type("accessibility::AccessibilityNotification", 5);
-    isolate.register_named_storage_type("accessibility::AccessibilityRangeValue", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityRemoveFromSelectionAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityReplaceSelectedTextAction", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilityScrollAction", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilityScrollIntoViewAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityScrollState", 7);
+        .register_named_storage_type("accessibility::AccessibilityDocumentStyleRunsResponse", 5)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentTextResponse", 5)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityEmbeddedObject", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityExpandAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityFocusAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityIncrementAction", 2)?;
+    isolate
+        .register_named_storage_type("accessibility::AccessibilityMoveTextSelectionAction", 5)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityNode", 16)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityNodeBounds", 4)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityNodeRelations", 10)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityNodeState", 29)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityNotification", 5)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityRangeValue", 4)?;
+    isolate
+        .register_named_storage_type("accessibility::AccessibilityRemoveFromSelectionAction", 2)?;
+    isolate
+        .register_named_storage_type("accessibility::AccessibilityReplaceSelectedTextAction", 3)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityScrollAction", 3)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityScrollIntoViewAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityScrollState", 7)?;
     isolate.register_named_storage_type(
         "accessibility::AccessibilityScrollTextRangeIntoViewAction",
         4,
-    );
-    isolate.register_named_storage_type("accessibility::AccessibilitySelectAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilitySetNumericValueAction", 3);
+    )?;
+    isolate.register_named_storage_type("accessibility::AccessibilitySelectAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilitySetNumericValueAction", 3)?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilitySetSelectedTextRangeAction", 4);
-    isolate
-        .register_named_storage_type("accessibility::AccessibilitySetSelectedTextRangesAction", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilitySetTextValueAction", 3);
-    isolate.register_named_storage_type("accessibility::AccessibilityShowMenuAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityTextDocument", 6);
-    isolate.register_named_storage_type("accessibility::AccessibilityTextRange", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityTextRect", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityTextSelection", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityTextState", 12);
-    isolate.register_named_storage_type("accessibility::AccessibilityTextStyleRun", 15);
-    isolate.register_named_storage_type("accessibility::AccessibilityToggleAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityTreeUpdate", 4);
-    isolate.register_named_storage_type("accessibility::AccessibilityAction", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentQuery", 2);
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentResponse", 2);
+        .register_named_storage_type("accessibility::AccessibilitySetSelectedTextRangeAction", 4)?;
+    isolate.register_named_storage_type(
+        "accessibility::AccessibilitySetSelectedTextRangesAction",
+        3,
+    )?;
+    isolate.register_named_storage_type("accessibility::AccessibilitySetTextValueAction", 3)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityShowMenuAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTextDocument", 6)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTextRange", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTextRect", 4)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTextSelection", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTextState", 12)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTextStyleRun", 15)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityToggleAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityTreeUpdate", 4)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityAction", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentQuery", 2)?;
+    isolate.register_named_storage_type("accessibility::AccessibilityDocumentResponse", 2)?;
+
+    Ok(())
 }

@@ -9600,34 +9600,36 @@ pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_SCHEDULED_WRITE: AudioSupportedStre
     AudioSupportedStreamRequirementFlags(2u32);
 
 /// Register VM storage schemas for audio.
-pub(crate) fn register_audio_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("audio::AudioBackendDescriptor", 11);
-    isolate.register_named_storage_type("audio::AudioBackendDisconnectedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioBackendResetEvent", 3);
-    isolate.register_named_storage_type("audio::AudioClockSnapshot", 12);
-    isolate.register_named_storage_type("audio::AudioDefaultCaptureChangedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioDefaultLoopbackChangedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioDefaultPlaybackChangedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioDeviceAddedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioDeviceDescriptor", 30);
-    isolate.register_named_storage_type("audio::AudioDeviceFormatChangedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioDeviceListRequest", 4);
-    isolate.register_named_storage_type("audio::AudioDeviceOpenOptions", 5);
-    isolate.register_named_storage_type("audio::AudioDeviceRemovedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioDeviceReroutedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioEventMetadata", 6);
-    isolate.register_named_storage_type("audio::AudioEventSubscriptionOptions", 8);
-    isolate.register_named_storage_type("audio::AudioInterruptionBeganEvent", 3);
-    isolate.register_named_storage_type("audio::AudioInterruptionEndedEvent", 3);
-    isolate.register_named_storage_type("audio::AudioStreamAvailability", 5);
-    isolate.register_named_storage_type("audio::AudioStreamConfig", 7);
-    isolate.register_named_storage_type("audio::AudioStreamDescriptor", 23);
-    isolate.register_named_storage_type("audio::AudioStreamDeviceChangedEvent", 5);
-    isolate.register_named_storage_type("audio::AudioStreamOpenOptions", 2);
-    isolate.register_named_storage_type("audio::AudioStreamState", 14);
-    isolate.register_named_storage_type("audio::AudioStreamStateChangedEvent", 4);
-    isolate.register_named_storage_type("audio::AudioStreamSupport", 4);
-    isolate.register_named_storage_type("audio::AudioStreamTiming", 9);
-    isolate.register_named_storage_type("audio::AudioStreamXRunEvent", 6);
-    isolate.register_named_storage_type("audio::AudioEvent", 2);
+pub(crate) fn register_audio_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("audio::AudioBackendDescriptor", 11)?;
+    isolate.register_named_storage_type("audio::AudioBackendDisconnectedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioBackendResetEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioClockSnapshot", 12)?;
+    isolate.register_named_storage_type("audio::AudioDefaultCaptureChangedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioDefaultLoopbackChangedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioDefaultPlaybackChangedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioDeviceAddedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioDeviceDescriptor", 30)?;
+    isolate.register_named_storage_type("audio::AudioDeviceFormatChangedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioDeviceListRequest", 4)?;
+    isolate.register_named_storage_type("audio::AudioDeviceOpenOptions", 5)?;
+    isolate.register_named_storage_type("audio::AudioDeviceRemovedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioDeviceReroutedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioEventMetadata", 6)?;
+    isolate.register_named_storage_type("audio::AudioEventSubscriptionOptions", 8)?;
+    isolate.register_named_storage_type("audio::AudioInterruptionBeganEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioInterruptionEndedEvent", 3)?;
+    isolate.register_named_storage_type("audio::AudioStreamAvailability", 5)?;
+    isolate.register_named_storage_type("audio::AudioStreamConfig", 7)?;
+    isolate.register_named_storage_type("audio::AudioStreamDescriptor", 23)?;
+    isolate.register_named_storage_type("audio::AudioStreamDeviceChangedEvent", 5)?;
+    isolate.register_named_storage_type("audio::AudioStreamOpenOptions", 2)?;
+    isolate.register_named_storage_type("audio::AudioStreamState", 14)?;
+    isolate.register_named_storage_type("audio::AudioStreamStateChangedEvent", 4)?;
+    isolate.register_named_storage_type("audio::AudioStreamSupport", 4)?;
+    isolate.register_named_storage_type("audio::AudioStreamTiming", 9)?;
+    isolate.register_named_storage_type("audio::AudioStreamXRunEvent", 6)?;
+    isolate.register_named_storage_type("audio::AudioEvent", 2)?;
+
+    Ok(())
 }

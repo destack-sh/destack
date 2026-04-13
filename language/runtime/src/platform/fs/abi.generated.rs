@@ -5830,29 +5830,31 @@ pub const XATTR_CREATE: XattrFlags = XattrFlags(1u32);
 pub const XATTR_REPLACE: XattrFlags = XattrFlags(2u32);
 
 /// Register VM storage schemas for fs.
-pub(crate) fn register_fs_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("fs::PathBytes", 1);
-    isolate.register_named_storage_type("fs::PathUtf16", 1);
-    isolate.register_named_storage_type("fs::Dirent", 2);
-    isolate.register_named_storage_type("fs::DirentNextEnd", 1);
-    isolate.register_named_storage_type("fs::DirentNextEntry", 2);
-    isolate.register_named_storage_type("fs::OpenOptions", 3);
-    isolate.register_named_storage_type("fs::OsPathBytes", 2);
-    isolate.register_named_storage_type("fs::OsPathUtf16", 2);
-    isolate.register_named_storage_type("fs::SpliceCursor", 1);
-    isolate.register_named_storage_type("fs::Stat", 14);
-    isolate.register_named_storage_type("fs::StatFs", 10);
-    isolate.register_named_storage_type("fs::Statx", 18);
-    isolate.register_named_storage_type("fs::WatchBatch", 2);
-    isolate.register_named_storage_type("fs::WatchCreateEvent", 3);
-    isolate.register_named_storage_type("fs::WatchEventMetadata", 1);
-    isolate.register_named_storage_type("fs::WatchMetadataEvent", 3);
-    isolate.register_named_storage_type("fs::WatchModifyEvent", 3);
-    isolate.register_named_storage_type("fs::WatchOptions", 3);
-    isolate.register_named_storage_type("fs::WatchOverflowEvent", 2);
-    isolate.register_named_storage_type("fs::WatchRemoveEvent", 3);
-    isolate.register_named_storage_type("fs::WatchRenameEvent", 4);
-    isolate.register_named_storage_type("fs::DirentNext", 2);
-    isolate.register_named_storage_type("fs::OsPath", 2);
-    isolate.register_named_storage_type("fs::WatchEvent", 2);
+pub(crate) fn register_fs_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("fs::PathBytes", 1)?;
+    isolate.register_named_storage_type("fs::PathUtf16", 1)?;
+    isolate.register_named_storage_type("fs::Dirent", 2)?;
+    isolate.register_named_storage_type("fs::DirentNextEnd", 1)?;
+    isolate.register_named_storage_type("fs::DirentNextEntry", 2)?;
+    isolate.register_named_storage_type("fs::OpenOptions", 3)?;
+    isolate.register_named_storage_type("fs::OsPathBytes", 2)?;
+    isolate.register_named_storage_type("fs::OsPathUtf16", 2)?;
+    isolate.register_named_storage_type("fs::SpliceCursor", 1)?;
+    isolate.register_named_storage_type("fs::Stat", 14)?;
+    isolate.register_named_storage_type("fs::StatFs", 10)?;
+    isolate.register_named_storage_type("fs::Statx", 18)?;
+    isolate.register_named_storage_type("fs::WatchBatch", 2)?;
+    isolate.register_named_storage_type("fs::WatchCreateEvent", 3)?;
+    isolate.register_named_storage_type("fs::WatchEventMetadata", 1)?;
+    isolate.register_named_storage_type("fs::WatchMetadataEvent", 3)?;
+    isolate.register_named_storage_type("fs::WatchModifyEvent", 3)?;
+    isolate.register_named_storage_type("fs::WatchOptions", 3)?;
+    isolate.register_named_storage_type("fs::WatchOverflowEvent", 2)?;
+    isolate.register_named_storage_type("fs::WatchRemoveEvent", 3)?;
+    isolate.register_named_storage_type("fs::WatchRenameEvent", 4)?;
+    isolate.register_named_storage_type("fs::DirentNext", 2)?;
+    isolate.register_named_storage_type("fs::OsPath", 2)?;
+    isolate.register_named_storage_type("fs::WatchEvent", 2)?;
+
+    Ok(())
 }

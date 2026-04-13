@@ -1216,9 +1216,14 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
 }
 
 /// Install VM bindings for security.
-pub(crate) fn install_security_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_security_vm_storage_types(isolate);
+pub(crate) fn install_security_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_security_vm_storage_types(isolate)?;
     register_security_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) SECURITY_VM_BINDINGS, "security", install_security_vm_bindings);

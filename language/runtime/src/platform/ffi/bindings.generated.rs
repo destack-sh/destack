@@ -843,9 +843,14 @@ pub(crate) fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: 
 }
 
 /// Install VM bindings for ffi.
-pub(crate) fn install_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_ffi_vm_storage_types(isolate);
+pub(crate) fn install_ffi_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_ffi_vm_storage_types(isolate)?;
     register_ffi_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) FFI_VM_BINDINGS, "ffi", install_ffi_vm_bindings);

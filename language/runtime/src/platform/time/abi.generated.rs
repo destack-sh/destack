@@ -581,7 +581,9 @@ impl VmAbiCodec for TimerOptions {
 impl VmCollectionElement for TimerOptions {}
 
 /// Register VM storage schemas for time.
-pub(crate) fn register_time_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("time::ClockMetadata", 4);
-    isolate.register_named_storage_type("time::TimerOptions", 2);
+pub(crate) fn register_time_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("time::ClockMetadata", 4)?;
+    isolate.register_named_storage_type("time::TimerOptions", 2)?;
+
+    Ok(())
 }

@@ -635,7 +635,9 @@ pub struct SecurerandommetadataReplayRecord {
 }
 
 /// Register VM storage schemas for random.
-pub(crate) fn register_random_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("random::RandomStreamState", 2);
-    isolate.register_named_storage_type("random::SecureRandomMetadata", 7);
+pub(crate) fn register_random_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("random::RandomStreamState", 2)?;
+    isolate.register_named_storage_type("random::SecureRandomMetadata", 7)?;
+
+    Ok(())
 }

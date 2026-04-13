@@ -14181,9 +14181,11 @@ pub(crate) fn register_accessibility_vm_bindings(
 pub(crate) fn install_accessibility_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
-) {
-    super::abi_generated::register_accessibility_vm_storage_types(isolate);
+) -> vm::Result<()> {
+    super::abi_generated::register_accessibility_vm_storage_types(isolate)?;
     register_accessibility_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) ACCESSIBILITY_VM_BINDINGS, "accessibility", install_accessibility_vm_bindings);

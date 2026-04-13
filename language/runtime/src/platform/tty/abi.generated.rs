@@ -1008,9 +1008,11 @@ pub struct TtytermiosattributesReplayRecord {
 }
 
 /// Register VM storage schemas for tty.
-pub(crate) fn register_tty_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("tty::PtyPair", 2);
-    isolate.register_named_storage_type("tty::TtyMode", 4);
-    isolate.register_named_storage_type("tty::TtySize", 4);
-    isolate.register_named_storage_type("tty::TtyTermiosAttributes", 7);
+pub(crate) fn register_tty_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("tty::PtyPair", 2)?;
+    isolate.register_named_storage_type("tty::TtyMode", 4)?;
+    isolate.register_named_storage_type("tty::TtySize", 4)?;
+    isolate.register_named_storage_type("tty::TtyTermiosAttributes", 7)?;
+
+    Ok(())
 }

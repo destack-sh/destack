@@ -244,6 +244,8 @@ pub struct SecuritypolicyruleReplayRecord {
 }
 
 /// Register VM storage schemas for security.
-pub(crate) fn register_security_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("security::SecurityPolicyRule", 2);
+pub(crate) fn register_security_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("security::SecurityPolicyRule", 2)?;
+
+    Ok(())
 }

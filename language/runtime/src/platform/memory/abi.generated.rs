@@ -489,7 +489,9 @@ pub const MEMORY_RESERVE_NO_RESERVE: MemoryReserveFlags = MemoryReserveFlags(4u3
 pub const MEMORY_RESERVE_TOP_DOWN: MemoryReserveFlags = MemoryReserveFlags(1u32);
 
 /// Register VM storage schemas for memory.
-pub(crate) fn register_memory_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("memory::MemoryRange", 2);
-    isolate.register_named_storage_type("memory::ProtectedMemoryRange", 2);
+pub(crate) fn register_memory_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("memory::MemoryRange", 2)?;
+    isolate.register_named_storage_type("memory::ProtectedMemoryRange", 2)?;
+
+    Ok(())
 }

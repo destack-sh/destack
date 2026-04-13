@@ -6600,32 +6600,34 @@ pub enum PlatformsystemsourceReplayRecord {
 }
 
 /// Register VM storage schemas for error.
-pub(crate) fn register_error_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("error::PlatformError", 5);
-    isolate.register_named_storage_type("error::PlatformErrorContextAudio", 3);
-    isolate.register_named_storage_type("error::PlatformErrorContextDevice", 5);
-    isolate.register_named_storage_type("error::PlatformErrorContextDisplay", 3);
-    isolate.register_named_storage_type("error::PlatformErrorContextFfi", 4);
-    isolate.register_named_storage_type("error::PlatformErrorContextGeneric", 5);
-    isolate.register_named_storage_type("error::PlatformErrorContextGpu", 3);
-    isolate.register_named_storage_type("error::PlatformErrorContextIo", 7);
-    isolate.register_named_storage_type("error::PlatformErrorContextIoDriver", 4);
-    isolate.register_named_storage_type("error::PlatformErrorContextIpc", 5);
-    isolate.register_named_storage_type("error::PlatformErrorContextNet", 5);
-    isolate.register_named_storage_type("error::PlatformErrorContextProcess", 5);
-    isolate.register_named_storage_type("error::PlatformErrorContextResource", 4);
-    isolate.register_named_storage_type("error::PlatformErrorContextSecurity", 4);
-    isolate.register_named_storage_type("error::PlatformErrorContextThread", 3);
-    isolate.register_named_storage_type("error::PlatformErrorContextTimer", 4);
-    isolate.register_named_storage_type("error::PlatformPathPayloadBytes", 2);
-    isolate.register_named_storage_type("error::PlatformPathPayloadUtf16", 2);
-    isolate.register_named_storage_type("error::PlatformSystemSourceEai", 3);
-    isolate.register_named_storage_type("error::PlatformSystemSourceErrno", 3);
-    isolate.register_named_storage_type("error::PlatformSystemSourceHResult", 3);
-    isolate.register_named_storage_type("error::PlatformSystemSourceOther", 3);
-    isolate.register_named_storage_type("error::PlatformSystemSourceSignal", 3);
-    isolate.register_named_storage_type("error::PlatformSystemSourceWinsock", 3);
-    isolate.register_named_storage_type("error::PlatformErrorContext", 2);
-    isolate.register_named_storage_type("error::PlatformPathPayload", 2);
-    isolate.register_named_storage_type("error::PlatformSystemSource", 2);
+pub(crate) fn register_error_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("error::PlatformError", 5)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextAudio", 3)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextDevice", 5)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextDisplay", 3)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextFfi", 4)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextGeneric", 5)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextGpu", 3)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextIo", 7)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextIoDriver", 4)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextIpc", 5)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextNet", 5)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextProcess", 5)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextResource", 4)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextSecurity", 4)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextThread", 3)?;
+    isolate.register_named_storage_type("error::PlatformErrorContextTimer", 4)?;
+    isolate.register_named_storage_type("error::PlatformPathPayloadBytes", 2)?;
+    isolate.register_named_storage_type("error::PlatformPathPayloadUtf16", 2)?;
+    isolate.register_named_storage_type("error::PlatformSystemSourceEai", 3)?;
+    isolate.register_named_storage_type("error::PlatformSystemSourceErrno", 3)?;
+    isolate.register_named_storage_type("error::PlatformSystemSourceHResult", 3)?;
+    isolate.register_named_storage_type("error::PlatformSystemSourceOther", 3)?;
+    isolate.register_named_storage_type("error::PlatformSystemSourceSignal", 3)?;
+    isolate.register_named_storage_type("error::PlatformSystemSourceWinsock", 3)?;
+    isolate.register_named_storage_type("error::PlatformErrorContext", 2)?;
+    isolate.register_named_storage_type("error::PlatformPathPayload", 2)?;
+    isolate.register_named_storage_type("error::PlatformSystemSource", 2)?;
+
+    Ok(())
 }

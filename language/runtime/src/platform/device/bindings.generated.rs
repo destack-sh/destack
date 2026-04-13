@@ -57962,9 +57962,14 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
 }
 
 /// Install VM bindings for device.
-pub(crate) fn install_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_device_vm_storage_types(isolate);
+pub(crate) fn install_device_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_device_vm_storage_types(isolate)?;
     register_device_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) DEVICE_VM_BINDINGS, "device", install_device_vm_bindings);

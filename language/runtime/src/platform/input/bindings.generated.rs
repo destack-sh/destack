@@ -34353,9 +34353,14 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
 }
 
 /// Install VM bindings for input.
-pub(crate) fn install_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_input_vm_storage_types(isolate);
+pub(crate) fn install_input_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_input_vm_storage_types(isolate)?;
     register_input_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) INPUT_VM_BINDINGS, "input", install_input_vm_bindings);

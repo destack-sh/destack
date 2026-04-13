@@ -1689,13 +1689,15 @@ pub struct DescriptorresultReplayRecord {
 }
 
 /// Register VM storage schemas for io.
-pub(crate) fn register_io_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("io::CompletionEvent", 3);
-    isolate.register_named_storage_type("io::CompletionOperation", 8);
-    isolate.register_named_storage_type("io::DescriptorRequest", 4);
-    isolate.register_named_storage_type("io::DescriptorResult", 2);
-    isolate.register_named_storage_type("io::PollEvent", 3);
-    isolate.register_named_storage_type("io::TimerFdSpec", 2);
-    isolate.register_named_storage_type("io::UringFeatures", 5);
-    isolate.register_named_storage_type("io::UringParameters", 3);
+pub(crate) fn register_io_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("io::CompletionEvent", 3)?;
+    isolate.register_named_storage_type("io::CompletionOperation", 8)?;
+    isolate.register_named_storage_type("io::DescriptorRequest", 4)?;
+    isolate.register_named_storage_type("io::DescriptorResult", 2)?;
+    isolate.register_named_storage_type("io::PollEvent", 3)?;
+    isolate.register_named_storage_type("io::TimerFdSpec", 2)?;
+    isolate.register_named_storage_type("io::UringFeatures", 5)?;
+    isolate.register_named_storage_type("io::UringParameters", 3)?;
+
+    Ok(())
 }

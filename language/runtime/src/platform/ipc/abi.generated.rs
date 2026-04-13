@@ -797,10 +797,12 @@ pub struct UnixreceiveancillaryReplayRecord {
 }
 
 /// Register VM storage schemas for ipc.
-pub(crate) fn register_ipc_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("ipc::MessageQueueReceive", 2);
-    isolate.register_named_storage_type("ipc::PipePair", 2);
-    isolate.register_named_storage_type("ipc::SharedMemoryMapping", 2);
-    isolate.register_named_storage_type("ipc::UnixPeerCredentials", 3);
-    isolate.register_named_storage_type("ipc::UnixReceiveAncillary", 3);
+pub(crate) fn register_ipc_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("ipc::MessageQueueReceive", 2)?;
+    isolate.register_named_storage_type("ipc::PipePair", 2)?;
+    isolate.register_named_storage_type("ipc::SharedMemoryMapping", 2)?;
+    isolate.register_named_storage_type("ipc::UnixPeerCredentials", 3)?;
+    isolate.register_named_storage_type("ipc::UnixReceiveAncillary", 3)?;
+
+    Ok(())
 }

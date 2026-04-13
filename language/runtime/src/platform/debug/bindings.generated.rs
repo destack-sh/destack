@@ -2095,9 +2095,14 @@ pub(crate) fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate
 }
 
 /// Install VM bindings for debug.
-pub(crate) fn install_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    super::abi_generated::register_debug_vm_storage_types(isolate);
+pub(crate) fn install_debug_vm_bindings(
+    registry: &mut BindingRegistry,
+    isolate: &mut Isolate,
+) -> vm::Result<()> {
+    super::abi_generated::register_debug_vm_storage_types(isolate)?;
     register_debug_vm_bindings(registry, isolate);
+
+    Ok(())
 }
 
 vm_binding_set!(pub(crate) DEBUG_VM_BINDINGS, "debug", install_debug_vm_bindings);

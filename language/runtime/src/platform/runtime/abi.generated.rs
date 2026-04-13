@@ -7561,44 +7561,46 @@ pub struct WorlddescriptorReplayRecord {
 }
 
 /// Register VM storage schemas for runtime.
-pub(crate) fn register_runtime_vm_storage_types(isolate: &mut vm::Isolate) {
-    isolate.register_named_storage_type("runtime::TopologyEdgeId", 1);
-    isolate.register_named_storage_type("runtime::TopologyEdgeKind", 1);
-    isolate.register_named_storage_type("runtime::TopologyEntityId", 1);
-    isolate.register_named_storage_type("runtime::TopologyEntityKind", 1);
-    isolate.register_named_storage_type("runtime::AgentCreateOptions", 2);
-    isolate.register_named_storage_type("runtime::AgentDescriptor", 6);
-    isolate.register_named_storage_type("runtime::AgentFilter", 4);
-    isolate.register_named_storage_type("runtime::BranchDescriptor", 4);
-    isolate.register_named_storage_type("runtime::BranchFilter", 2);
-    isolate.register_named_storage_type("runtime::CheckpointDescriptor", 4);
-    isolate.register_named_storage_type("runtime::CheckpointFilter", 3);
-    isolate.register_named_storage_type("runtime::EngineDescriptor", 5);
-    isolate.register_named_storage_type("runtime::EventLoopDescriptor", 5);
-    isolate.register_named_storage_type("runtime::HeapDescriptor", 4);
-    isolate.register_named_storage_type("runtime::ImageDescriptor", 3);
-    isolate.register_named_storage_type("runtime::ImageFilter", 1);
-    isolate.register_named_storage_type("runtime::ObservationOptions", 6);
-    isolate.register_named_storage_type("runtime::ObservationRecord", 3);
-    isolate.register_named_storage_type("runtime::ResourceDescriptor", 4);
-    isolate.register_named_storage_type("runtime::ResourceFilter", 4);
-    isolate.register_named_storage_type("runtime::RevisionDescriptor", 8);
-    isolate.register_named_storage_type("runtime::RevisionFilter", 1);
-    isolate.register_named_storage_type("runtime::RuntimeCreateOptions", 2);
-    isolate.register_named_storage_type("runtime::RuntimeDescriptor", 5);
-    isolate.register_named_storage_type("runtime::RuntimeFilter", 2);
-    isolate.register_named_storage_type("runtime::RuntimeLabel", 2);
-    isolate.register_named_storage_type("runtime::RuntimeLabelSelector", 2);
-    isolate.register_named_storage_type("runtime::SnapshotDescriptor", 4);
-    isolate.register_named_storage_type("runtime::TopologyEdge", 5);
-    isolate.register_named_storage_type("runtime::TopologyEdgeFilter", 4);
-    isolate.register_named_storage_type("runtime::TopologyEntity", 3);
-    isolate.register_named_storage_type("runtime::TopologyEntityFilter", 2);
-    isolate.register_named_storage_type("runtime::TraceCursorOptions", 1);
-    isolate.register_named_storage_type("runtime::TraceDescriptor", 2);
-    isolate.register_named_storage_type("runtime::TraceRecord", 3);
-    isolate.register_named_storage_type("runtime::WorldCreateOptions", 4);
-    isolate.register_named_storage_type("runtime::WorldDescriptor", 8);
-    isolate.register_named_storage_type("runtime::WorldResourceId", 2);
-    isolate.register_named_storage_type("runtime::WorldViewOptions", 1);
+pub(crate) fn register_runtime_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_storage_type("runtime::TopologyEdgeId", 1)?;
+    isolate.register_named_storage_type("runtime::TopologyEdgeKind", 1)?;
+    isolate.register_named_storage_type("runtime::TopologyEntityId", 1)?;
+    isolate.register_named_storage_type("runtime::TopologyEntityKind", 1)?;
+    isolate.register_named_storage_type("runtime::AgentCreateOptions", 2)?;
+    isolate.register_named_storage_type("runtime::AgentDescriptor", 6)?;
+    isolate.register_named_storage_type("runtime::AgentFilter", 4)?;
+    isolate.register_named_storage_type("runtime::BranchDescriptor", 4)?;
+    isolate.register_named_storage_type("runtime::BranchFilter", 2)?;
+    isolate.register_named_storage_type("runtime::CheckpointDescriptor", 4)?;
+    isolate.register_named_storage_type("runtime::CheckpointFilter", 3)?;
+    isolate.register_named_storage_type("runtime::EngineDescriptor", 5)?;
+    isolate.register_named_storage_type("runtime::EventLoopDescriptor", 5)?;
+    isolate.register_named_storage_type("runtime::HeapDescriptor", 4)?;
+    isolate.register_named_storage_type("runtime::ImageDescriptor", 3)?;
+    isolate.register_named_storage_type("runtime::ImageFilter", 1)?;
+    isolate.register_named_storage_type("runtime::ObservationOptions", 6)?;
+    isolate.register_named_storage_type("runtime::ObservationRecord", 3)?;
+    isolate.register_named_storage_type("runtime::ResourceDescriptor", 4)?;
+    isolate.register_named_storage_type("runtime::ResourceFilter", 4)?;
+    isolate.register_named_storage_type("runtime::RevisionDescriptor", 8)?;
+    isolate.register_named_storage_type("runtime::RevisionFilter", 1)?;
+    isolate.register_named_storage_type("runtime::RuntimeCreateOptions", 2)?;
+    isolate.register_named_storage_type("runtime::RuntimeDescriptor", 5)?;
+    isolate.register_named_storage_type("runtime::RuntimeFilter", 2)?;
+    isolate.register_named_storage_type("runtime::RuntimeLabel", 2)?;
+    isolate.register_named_storage_type("runtime::RuntimeLabelSelector", 2)?;
+    isolate.register_named_storage_type("runtime::SnapshotDescriptor", 4)?;
+    isolate.register_named_storage_type("runtime::TopologyEdge", 5)?;
+    isolate.register_named_storage_type("runtime::TopologyEdgeFilter", 4)?;
+    isolate.register_named_storage_type("runtime::TopologyEntity", 3)?;
+    isolate.register_named_storage_type("runtime::TopologyEntityFilter", 2)?;
+    isolate.register_named_storage_type("runtime::TraceCursorOptions", 1)?;
+    isolate.register_named_storage_type("runtime::TraceDescriptor", 2)?;
+    isolate.register_named_storage_type("runtime::TraceRecord", 3)?;
+    isolate.register_named_storage_type("runtime::WorldCreateOptions", 4)?;
+    isolate.register_named_storage_type("runtime::WorldDescriptor", 8)?;
+    isolate.register_named_storage_type("runtime::WorldResourceId", 2)?;
+    isolate.register_named_storage_type("runtime::WorldViewOptions", 1)?;
+
+    Ok(())
 }
