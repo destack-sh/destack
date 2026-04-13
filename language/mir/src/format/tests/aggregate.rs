@@ -1,8 +1,8 @@
-use super::{assert_format, assert_format_to};
+use super::{assert_format, assert_format_eq};
 
 /// Formats struct aggregate construction canonically.
 #[test]
-fn test_format_roundtrip_struct_aggregate() {
+fn test_format_struct_aggregate() {
     assert_format(
         r#"
 type Pair {
@@ -21,7 +21,7 @@ entry0(value0: int32, value1: int32):
 
 /// Formats tuple aggregate construction canonically.
 #[test]
-fn test_format_roundtrip_tuple_aggregate() {
+fn test_format_tuple_aggregate() {
     assert_format(
         r#"
 function makeTuple(value0: int32, value1: float64, value2: boolean): (int32, float64, boolean) {
@@ -35,8 +35,8 @@ entry0(value0: int32, value1: float64, value2: boolean):
 
 /// Formats tuple aggregate construction with a named alias canonically.
 #[test]
-fn test_format_roundtrip_tuple_alias_aggregate() {
-    assert_format_to(
+fn test_format_tuple_alias_aggregate() {
+    assert_format_eq(
         r#"
 type Triple = (int32, float64, boolean)
 
@@ -60,7 +60,7 @@ entry0(value0: int32, value1: float64, value2: boolean):
 
 /// Formats array aggregate construction canonically.
 #[test]
-fn test_format_roundtrip_array_aggregate() {
+fn test_format_array_aggregate() {
     assert_format(
         r#"
 function makeArray(value0: int32, value1: int32, value2: int32): int32[3] {
@@ -74,7 +74,7 @@ entry0(value0: int32, value1: int32, value2: int32):
 
 /// Formats aggregate field and element operations canonically.
 #[test]
-fn test_format_roundtrip_aggregate_access() {
+fn test_format_aggregate_access() {
     assert_format(
         r#"
 function aggregateAccess(value0: (int32, float64), value1: int32[10], value2: int64): int32 {

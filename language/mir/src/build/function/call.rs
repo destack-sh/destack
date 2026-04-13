@@ -1,8 +1,21 @@
 use crate::build::FunctionBuilder;
-use crate::{Call, Function, Instruction, InterfaceSlotId, LocalNodeId, Type, Value, VtableSlotId};
+use crate::{
+    Call, Function, FunctionReference, Instruction, InterfaceSlotId, LocalNodeId, Type,
+    TypeReference, Value, ValueReference, VtableSlotId,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
+    /// Store one call argument list in the external argument buffer.
+    fn add_call_arguments(&mut self, values: Vec<Value>) -> crate::ArgumentSlice {
+        let values = values
+            .into_iter()
+            .map(ValueReference::from)
+            .collect::<Vec<_>>();
+
+        self.tree.add_arguments(&values)
+    }
+
     /// Call a function.
     pub fn call(
         &mut self,
@@ -12,11 +25,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
-        let arguments = self.tree.add_arguments(&argument_values);
+        let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::Call {
-            destination: Some(destination),
-            function,
-            call: Call::new(arguments, signature),
+            destination: Some(destination.into()),
+            function: FunctionReference::Function(function),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
         self.define_value(destination, result_type);
         Some(destination)
@@ -29,11 +42,11 @@ impl<'a> FunctionBuilder<'a> {
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
-        let arguments = self.tree.add_arguments(&argument_values);
+        let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::Call {
             destination: None,
-            function,
-            call: Call::new(arguments, signature),
+            function: FunctionReference::Function(function),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
     }
 
@@ -49,14 +62,14 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
-        let arguments = self.tree.add_arguments(&argument_values);
+        let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::CallVirtual {
-            destination: Some(destination),
-            receiver,
-            declaring_type,
+            destination: Some(destination.into()),
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(arguments, signature),
+            declared_target: declared_target.map(FunctionReference::Function),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
         self.define_value(destination, result_type);
         Some(destination)
@@ -72,14 +85,14 @@ impl<'a> FunctionBuilder<'a> {
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
-        let arguments = self.tree.add_arguments(&argument_values);
+        let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::CallVirtual {
             destination: None,
-            receiver,
-            declaring_type,
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(arguments, signature),
+            declared_target: declared_target.map(FunctionReference::Function),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
     }
 
@@ -95,14 +108,14 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
-        let arguments = self.tree.add_arguments(&argument_values);
+        let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::CallInterface {
-            destination: Some(destination),
-            receiver,
-            declaring_type,
+            destination: Some(destination.into()),
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(arguments, signature),
+            declared_target: declared_target.map(FunctionReference::Function),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
         self.define_value(destination, result_type);
         Some(destination)
@@ -118,14 +131,14 @@ impl<'a> FunctionBuilder<'a> {
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
-        let arguments = self.tree.add_arguments(&argument_values);
+        let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::CallInterface {
             destination: None,
-            receiver,
-            declaring_type,
+            receiver: receiver.into(),
+            declaring_type: declaring_type.into(),
             slot_id,
-            declared_target,
-            call: Call::new(arguments, signature),
+            declared_target: declared_target.map(FunctionReference::Function),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
     }
 
@@ -137,8 +150,8 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionAddr {
-            destination,
-            function,
+            destination: destination.into(),
+            function: function.into(),
         });
         self.define_value(destination, signature);
         destination
@@ -153,9 +166,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionBind {
-            destination,
-            function,
-            environment,
+            destination: destination.into(),
+            function: function.into(),
+            environment: environment.into(),
         });
         self.define_value(destination, signature);
         destination
@@ -167,18 +180,20 @@ impl<'a> FunctionBuilder<'a> {
         {
             let function = self.tree.get_mut(self.function_id);
             match function.environment {
-                Some(existing) if existing != environment_type => {
+                Some(existing) if existing != environment_type.into() => {
                     panic!("mismatched environment types for function.environment");
                 }
                 Some(_) => {}
                 None => {
-                    function.environment = Some(environment_type);
+                    function.environment = Some(environment_type.into());
                 }
             }
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionEnvironment { destination });
+        self.insert_instruction(Instruction::FunctionEnvironment {
+            destination: destination.into(),
+        });
         self.define_value(destination, environment_type);
         destination
     }
@@ -192,11 +207,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
-        let arguments = self.tree.add_arguments(&args);
+        let arguments = self.add_call_arguments(args);
         self.insert_instruction(Instruction::CallIndirect {
-            destination: Some(destination),
-            callee,
-            call: Call::new(arguments, signature),
+            destination: Some(destination.into()),
+            callee: callee.into(),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
         self.define_value(destination, result_type);
         destination
@@ -209,11 +224,11 @@ impl<'a> FunctionBuilder<'a> {
         signature: LocalNodeId<Type>,
         args: Vec<Value>,
     ) {
-        let arguments = self.tree.add_arguments(&args);
+        let arguments = self.add_call_arguments(args);
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
-            callee,
-            call: Call::new(arguments, signature),
+            callee: callee.into(),
+            call: Call::new(arguments, TypeReference::Type(signature)),
         });
     }
 }

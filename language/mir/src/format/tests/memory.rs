@@ -2,7 +2,7 @@ use super::assert_format;
 
 /// Formats allocation and deallocation operations canonically.
 #[test]
-fn test_format_roundtrip_allocation_family() {
+fn test_format_allocation_family() {
     assert_format(
         r#"
 function allocFamily(value0: int64): ref<int32, raw, addressSpace(stack)> {
@@ -20,7 +20,7 @@ entry0(value0: int64):
 
 /// Formats load and store families canonically.
 #[test]
-fn test_format_roundtrip_load_store_family() {
+fn test_format_load_store_family() {
     assert_format(
         r#"
 global counter: int32 = zeroInit
@@ -45,7 +45,7 @@ entry0(value0: ref<int32, raw>):
 
 /// Formats atomic load, store, fence, and barrier operations canonically.
 #[test]
-fn test_format_roundtrip_atomic_load_store_fence_and_barrier_family() {
+fn test_format_atomic_load_store_fence_and_barrier_family() {
     assert_format(
         r#"
 function atomics(value0: ref<int32, raw>): int32 {
@@ -62,7 +62,7 @@ entry0(value0: ref<int32, raw>):
 
 /// Formats atomic compare-exchange and rmw operations canonically.
 #[test]
-fn test_format_roundtrip_atomic_compare_exchange_and_rmw_family() {
+fn test_format_atomic_compare_exchange_and_rmw_family() {
     assert_format(
         r#"
 function atomics(value0: ref<uint32, raw>): uint32 {

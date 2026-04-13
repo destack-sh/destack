@@ -1,6 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, Function, LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, Type, Value};
+use crate::{
+    AttributeArgs, AttributeIdentifier, AttributeValue, Block, BlockReference, Function,
+    FunctionReference, Global, GlobalReference, IntegerReference, Local, LocalNodeId,
+    LocalNodeIdAny, LocalReference, NodeTree, NodeType, Type, TypeReference, Value, ValueReference,
+};
 
 use super::{ValidateAnchor, ValidateError, ValidateResult};
 
@@ -22,6 +26,7 @@ impl<'a> Validator<'a> {
     pub fn validate(&self) -> ValidateResult<()> {
         // raw tree structure
         self.validate_structure()?;
+        self.validate_attributes()?;
 
         // function bodies
         for (global_id, node_type) in self.tree.node_type_by_node_id.iter().enumerate() {
@@ -37,6 +42,37 @@ impl<'a> Validator<'a> {
         self.validate_metadata()?;
         self.validate_dispatch()?;
         self.validate_debug()?;
+
+        Ok(())
+    }
+
+    /// Validate attached attributes.
+    fn validate_attributes(&self) -> ValidateResult<()> {
+        for (&node_id, attributes) in &self.tree.attributes_by_node_id {
+            let anchor = ValidateAnchor::for_raw_node(self.tree, node_id);
+
+            for attribute in attributes {
+                self.validate_attribute_name(attribute.name, anchor, "attribute name")?;
+
+                match &attribute.args {
+                    AttributeArgs::None => {}
+                    AttributeArgs::Value(value) => {
+                        self.validate_attribute_value(value, anchor, "attribute value")?;
+                    }
+                    AttributeArgs::Values(values) => {
+                        for value in values {
+                            self.validate_attribute_value(value, anchor, "attribute value")?;
+                        }
+                    }
+                    AttributeArgs::KeyValues(pairs) => {
+                        for pair in pairs {
+                            self.validate_attribute_name(pair.key, anchor, "attribute key")?;
+                            self.validate_attribute_value(&pair.value, anchor, "attribute value")?;
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
@@ -117,6 +153,188 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
+    /// Resolve one value reference or return a validation error.
+    pub(super) fn require_value_reference(
+        &self,
+        value: ValueReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<Value> {
+        match value {
+            ValueReference::Value(value) => Ok(value),
+            ValueReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            ValueReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Resolve one type reference or return a validation error.
+    pub(super) fn require_type_reference(
+        &self,
+        ty: TypeReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        match ty {
+            TypeReference::Type(ty) => Ok(ty),
+            TypeReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            TypeReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Resolve one block reference or return a validation error.
+    pub(super) fn require_block_reference(
+        &self,
+        block: BlockReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<LocalNodeId<Block>> {
+        match block {
+            BlockReference::Block(block) => Ok(block),
+            BlockReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            BlockReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Resolve one function reference or return a validation error.
+    pub(super) fn require_function_reference(
+        &self,
+        function: FunctionReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<LocalNodeId<Function>> {
+        match function {
+            FunctionReference::Function(function) => Ok(function),
+            FunctionReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            FunctionReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Resolve one local reference or return a validation error.
+    pub(super) fn require_local_reference(
+        &self,
+        local: LocalReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<LocalNodeId<Local>> {
+        match local {
+            LocalReference::Local(local) => Ok(local),
+            LocalReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            LocalReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Resolve one global reference or return a validation error.
+    pub(super) fn require_global_reference(
+        &self,
+        global: GlobalReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<LocalNodeId<Global>> {
+        match global {
+            GlobalReference::Global(global) => Ok(global),
+            GlobalReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            GlobalReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Resolve one integer reference or return a validation error.
+    pub(super) fn require_integer_reference(
+        &self,
+        value: IntegerReference,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<i64> {
+        match value {
+            IntegerReference::Integer(value) => Ok(value),
+            IntegerReference::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            IntegerReference::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Validate one attribute identifier.
+    fn validate_attribute_name(
+        &self,
+        identifier: AttributeIdentifier,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<()> {
+        match identifier {
+            AttributeIdentifier::Identifier(_) => Ok(()),
+            AttributeIdentifier::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            AttributeIdentifier::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
+    /// Validate one attribute value recursively.
+    fn validate_attribute_value(
+        &self,
+        value: &AttributeValue,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<()> {
+        match value {
+            AttributeValue::Identifier(identifier) => {
+                self.validate_attribute_name(*identifier, anchor, label)
+            }
+            AttributeValue::Type(ty) => {
+                let ty = self.require_type_reference(*ty, anchor, label)?;
+                self.ensure_node_type(NodeType::Type, ty.id, anchor)
+            }
+            AttributeValue::Integer(value) => {
+                let _ = self.require_integer_reference(*value, anchor, label)?;
+                Ok(())
+            }
+            AttributeValue::Float(_) | AttributeValue::Boolean(_) | AttributeValue::String(_) => {
+                Ok(())
+            }
+            AttributeValue::List(values) => {
+                for value in values {
+                    self.validate_attribute_value(value, anchor, label)?;
+                }
+
+                Ok(())
+            }
+            AttributeValue::Missing => {
+                Err(self.metadata_error(anchor, format!("{label} is missing")))
+            }
+            AttributeValue::Error => {
+                Err(self.metadata_error(anchor, format!("{label} is malformed")))
+            }
+        }
+    }
+
     /// Ensure a node id points at the expected node type.
     pub(super) fn ensure_node_type(
         &self,
@@ -163,7 +381,7 @@ impl<'a> Validator<'a> {
             Type::Tensor { .. } => "tensor",
             Type::TensorReference { .. } => "tensorRef",
             Type::FunctionPointer { .. } => "fn",
-            Type::Closure { .. } => "closure",
+            Type::Closure { .. } => "callable",
         }
     }
 

@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, Function, Instruction, Local, LocalNodeId, NodeTree, Value};
+use crate::{
+    Block, BlockReference, Function, Instruction, Local, LocalNodeId, LocalReference, NodeTree,
+    Value, ValueReference,
+};
 
 /// Per-block use and def facts for liveness.
 #[derive(Debug, Default)]
@@ -60,8 +63,12 @@ impl FunctionLiveness {
 
             // block parameters
             for parameter in &block.parameters {
-                seen_value_defs.insert(parameter.value);
-                block_facts.value_def.insert(parameter.value);
+                let Some(parameter_value) = concrete_value(parameter.value) else {
+                    continue;
+                };
+
+                seen_value_defs.insert(parameter_value);
+                block_facts.value_def.insert(parameter_value);
             }
 
             // instructions
@@ -88,6 +95,10 @@ impl FunctionLiveness {
 
             // terminator uses
             for used in terminator.uses() {
+                let Some(used) = concrete_value(used) else {
+                    continue;
+                };
+
                 if !seen_value_defs.contains(&used) {
                     block_facts.value_use.insert(used);
                 }
@@ -107,6 +118,10 @@ impl FunctionLiveness {
         tree: &NodeTree,
     ) {
         for used in instruction.uses() {
+            let Some(used) = concrete_value(used) else {
+                continue;
+            };
+
             if !seen_value_defs.contains(&used) {
                 facts.value_use.insert(used);
             }
@@ -114,6 +129,10 @@ impl FunctionLiveness {
 
         if let Some(arguments) = instruction.argument_slice() {
             for &argument in tree.get_arguments(arguments) {
+                let Some(argument) = concrete_value(argument) else {
+                    continue;
+                };
+
                 if !seen_value_defs.contains(&argument) {
                     facts.value_use.insert(argument);
                 }
@@ -129,8 +148,12 @@ impl FunctionLiveness {
     ) {
         match instruction {
             Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
-                if !seen_local_defs.contains(local) {
-                    facts.local_use.insert(*local);
+                let Some(local) = concrete_local(*local) else {
+                    return;
+                };
+
+                if !seen_local_defs.contains(&local) {
+                    facts.local_use.insert(local);
                 }
             }
             _ => {}
@@ -145,13 +168,21 @@ impl FunctionLiveness {
         instruction: &Instruction,
     ) {
         if let Some(destination) = instruction.destination() {
+            let Some(destination) = concrete_value(destination) else {
+                return;
+            };
+
             seen_value_defs.insert(destination);
             facts.value_def.insert(destination);
         }
 
         if let Instruction::LocalSet { local, .. } = instruction {
-            seen_local_defs.insert(*local);
-            facts.local_def.insert(*local);
+            let Some(local) = concrete_local(*local) else {
+                return;
+            };
+
+            seen_local_defs.insert(local);
+            facts.local_def.insert(local);
         }
     }
 
@@ -208,6 +239,10 @@ impl FunctionLiveness {
         let mut next_local_live_out = HashSet::new();
 
         for successor in terminator.successors() {
+            let BlockReference::Block(successor) = successor else {
+                continue;
+            };
+
             if let Some(successor_live_in) = liveness.value_live_in.get(&successor) {
                 next_value_live_out.extend(successor_live_in.iter().copied());
             }
@@ -341,19 +376,37 @@ impl FunctionLiveness {
         // later instructions
         for &instruction_id in block.instructions.iter().skip(instruction_index + 1) {
             let instruction = tree.get(instruction_id);
-            if instruction.uses().contains(&value) {
+
+            if instruction
+                .uses()
+                .iter()
+                .copied()
+                .filter_map(concrete_value)
+                .any(|used| used == value)
+            {
                 return true;
             }
 
             if let Some(arguments) = instruction.argument_slice()
-                && tree.get_arguments(arguments).contains(&value)
+                && tree
+                    .get_arguments(arguments)
+                    .iter()
+                    .copied()
+                    .filter_map(concrete_value)
+                    .any(|argument| argument == value)
             {
                 return true;
             }
         }
 
         // terminator
-        if terminator.uses().contains(&value) {
+        if terminator
+            .uses()
+            .iter()
+            .copied()
+            .filter_map(concrete_value)
+            .any(|used| used == value)
+        {
             return true;
         }
 
@@ -382,23 +435,31 @@ impl FunctionLiveness {
             let instruction = tree.get(*instruction_id);
 
             if let Some(destination) = instruction.destination() {
-                live.remove(&destination);
+                if let Some(destination) = concrete_value(destination) {
+                    live.remove(&destination);
+                }
             }
 
             for used in instruction.uses() {
-                live.insert(used);
+                if let Some(used) = concrete_value(used) {
+                    live.insert(used);
+                }
             }
 
             if let Some(arguments) = instruction.argument_slice() {
                 for &argument in tree.get_arguments(arguments) {
-                    live.insert(argument);
+                    if let Some(argument) = concrete_value(argument) {
+                        live.insert(argument);
+                    }
                 }
             }
         }
 
         // terminator
         for used in terminator.uses() {
-            live.insert(used);
+            if let Some(used) = concrete_value(used) {
+                live.insert(used);
+            }
         }
 
         live
@@ -417,6 +478,20 @@ impl FunctionLiveness {
         }
 
         values
+    }
+}
+
+fn concrete_value(value: ValueReference) -> Option<Value> {
+    match value {
+        ValueReference::Value(value) => Some(value),
+        ValueReference::Missing | ValueReference::Error => None,
+    }
+}
+
+fn concrete_local(local: LocalReference) -> Option<LocalNodeId<Local>> {
+    match local {
+        LocalReference::Local(local) => Some(local),
+        LocalReference::Missing | LocalReference::Error => None,
     }
 }
 

@@ -64,16 +64,16 @@ The terminators themselves are also quite straightforward: essentially, control 
 | `jump` | Unconditionally jumps to another block. | `jump b1(v0)` |
 | `branch` | Conditionally jumps to one of two blocks based on a boolean value. | `branch v0, b1(v1), b2(v2)` |
 | `check` | Conditionally jumps to a success or failure block based on a semantic constraint (`bounds`, `null`, `zeroDivisor`, etc.); easier to optimize than `branch` because the guard kind is explicit. | `check bounds.u v0, v1, v2 -> b1, b2` |
-| `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, [0: b1, 1: b2], b3` |
+| `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 => b1, 1 => b2` |
 | `invoke` | Calls a static function that may unwind; branches to explicit success and exception successors. | `invoke foo(v0): (int32) -> int32 -> okBlock, catch errBlock` |
-| `invoke.indirect` | Calls a function value that may unwind; branches to explicit success and exception successors. | `invoke.indirect fn(v0): (int32) -> int32 -> okBlock, catch errBlock` |
+| `invoke.indirect` | Calls a function value that may unwind; branches to explicit success and exception successors. | `invoke.indirect v1(v0): (int32) -> int32 -> okBlock, catch errBlock` |
 | `invoke.virtual` | Dispatches a virtual method that may unwind; branches to explicit success and exception successors. | `invoke.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock, catch errBlock` |
 | `invoke.interface` | Dispatches an interface method that may unwind; branches to explicit success and exception successors. | `invoke.interface receiver, InterfaceName, 3(v0): (InterfaceName) -> int32 -> okBlock, catch errBlock` |
 | `tailCall` | Calls a static function and reuses the current frame, never returning to the caller. | `tailCall foo(v0): (int32) -> void` |
-| `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect fn(v0): (int32) -> void` |
+| `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect v1(v0): (int32) -> void` |
 | `tailCall.virtual` | Tail-calls a virtual method, reusing the current frame. | `tailCall.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
 | `tailCall.interface` | Tail-calls an interface method, reusing the current frame. | `tailCall.interface receiver, InterfaceName, 3(v0): (InterfaceName) -> void` |
-| `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume` |
+| `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume(v1)` |
 | `throw` | Exits abruptly through the exception path, carrying a managed exception object. | `throw v0` |
 | `trap` | Terminates the program unrecoverably; trap kind is `trap.abort` or `trap.panic`. `trap.panic` carries a non-null readonly managed string payload. | `trap.panic v0` |
 | `unreachable` | Asserts that this point is never reached; traps with a panic if it is. | `unreachable` |

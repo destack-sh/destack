@@ -2,7 +2,7 @@ use super::assert_format;
 
 /// Formats vector and tensor operations canonically.
 #[test]
-fn test_format_roundtrip_vector_tensor_ops() {
+fn test_format_vector_tensor_ops() {
     assert_format(
         r#"
 function vectorTensorOps(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, value3: tensorRef<int32, borrowed, (2, 2)>): tensor<int32, (2, 2)> {
@@ -43,7 +43,7 @@ entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, v
 
 /// Formats check terminators and assume instructions canonically.
 #[test]
-fn test_format_roundtrip_check_and_assume() {
+fn test_format_check_and_assume() {
     assert_format(
         r#"
 function guard(value0: uint32, value1: uint32, value2: int32[4]): int32 {
@@ -65,7 +65,7 @@ block2:
 
 /// Formats direct and indirect calls canonically.
 #[test]
-fn test_format_roundtrip_calls() {
+fn test_format_calls() {
     assert_format(
         r#"
 extern function callee(int32, int32): int32
@@ -75,7 +75,7 @@ entry0:
     value0: int32 = 1int32
     value1: int32 = 2int32
     value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    value3: fn(int32, int32) -> int32 = function.address callee
+    value3: (int32, int32) -> int32 = function.address callee
     value4: int32 = call.indirect value3(value0, value1): (int32, int32) -> int32
     return value4
 }
@@ -85,7 +85,7 @@ entry0:
 
 /// Formats scalar instruction families canonically.
 #[test]
-fn test_format_roundtrip_scalar_instruction_families() {
+fn test_format_scalar_instruction_families() {
     assert_format(
         r#"
 function scalarOps(value0: int32, value1: int32, value2: boolean, value3: float64): int64 {

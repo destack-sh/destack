@@ -1,5 +1,7 @@
 use crate::build::{FunctionBuilder, Variable};
-use crate::{Block, LocalNodeId, Terminator, Type, TypedValue, Value};
+use crate::{
+    Block, BlockReference, LocalNodeId, Parameter, Terminator, Type, Value, ValueReference,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -38,7 +40,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Get a function parameter value.
     pub fn function_parameter(&self, index: usize) -> Value {
         let function = self.tree.get(self.function_id);
-        function.parameters[index].value
+        let ValueReference::Value(value) = function.parameters[index].value else {
+            panic!("missing concrete function parameter value");
+        };
+        value
     }
 
     /// Add a block parameter and return its value.
@@ -49,7 +54,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let value = self.allocate_value();
         let block_data = self.tree.get_mut(block);
-        block_data.parameters.push(TypedValue::new(value, ty));
+        block_data.parameters.push(Parameter {
+            value: value.into(),
+            ty: ty.into(),
+        });
         self.define_value(value, ty);
         value
     }
@@ -172,7 +180,6 @@ impl<'a> FunctionBuilder<'a> {
 
         // try to remove trivial phi: if all operands are the same (ignoring the phi itself)
         let trivial_value = self.try_remove_trivial_phi(phi_value, &operand_values);
-
         if let Some(replacement) = trivial_value {
             // phi is trivial: remove the block parameter and use the single value
             self.remove_block_parameter(block, phi_value);
@@ -228,7 +235,7 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(position) = block_data
             .parameters
             .iter()
-            .position(|param| param.value == value)
+            .position(|param| param.value == ValueReference::Value(value))
         {
             block_data.parameters.remove(position);
         }
@@ -245,50 +252,73 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         match terminator {
-            Terminator::Jump { target, arguments } if *target == to_block => {
-                arguments.push(value);
+            Terminator::Jump { target } if target.block == BlockReference::Block(to_block) => {
+                target.arguments.push(value.into());
             }
             Terminator::Branch {
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
                 ..
             } => {
-                if *then_target == to_block {
-                    then_arguments.push(value);
+                if then_target.block == BlockReference::Block(to_block) {
+                    then_target.arguments.push(value.into());
                 }
-                if *else_target == to_block {
-                    else_arguments.push(value);
+                if else_target.block == BlockReference::Block(to_block) {
+                    else_target.arguments.push(value.into());
                 }
             }
             Terminator::Check {
                 success, failure, ..
             } => {
-                if success.target == to_block {
-                    success.arguments.push(value);
+                if success.block == BlockReference::Block(to_block) {
+                    success.arguments.push(value.into());
                 }
-                if failure.target == to_block {
-                    failure.arguments.push(value);
+                if failure.block == BlockReference::Block(to_block) {
+                    failure.arguments.push(value.into());
                 }
             }
-            Terminator::Switch {
-                default,
-                default_arguments,
-                cases,
-                ..
-            } => {
-                if *default == to_block {
-                    default_arguments.push(value);
+            Terminator::Switch { default, cases, .. } => {
+                if default.block == BlockReference::Block(to_block) {
+                    default.arguments.push(value.into());
                 }
                 for case in cases {
-                    if case.target == to_block {
-                        case.arguments.push(value);
+                    if case.target.block == BlockReference::Block(to_block) {
+                        case.target.arguments.push(value.into());
                     }
                 }
             }
-            _ => {
-                // terminator doesn't jump to this block
+            Terminator::Invoke {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::InvokeIndirect {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::InvokeVirtual {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::InvokeInterface {
+                normal_target,
+                unwind_target,
+                ..
+            } => {
+                if normal_target.block == BlockReference::Block(to_block) {
+                    normal_target.arguments.push(value.into());
+                }
+                if unwind_target.block == BlockReference::Block(to_block) {
+                    unwind_target.arguments.push(value.into());
+                }
+            }
+            other => {
+                panic!(
+                    "missing phi predecessor edge from block {from_block:?} to block {to_block:?} \
+                     for terminator {other:?}",
+                );
             }
         }
     }

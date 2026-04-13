@@ -1,9 +1,9 @@
-use super::{assert_format, assert_format_to};
+use super::{assert_format, assert_format_eq};
 
 /// Formats declarations with dotted metadata names canonically.
 #[test]
-fn test_format_roundtrip_dotted_symbol_names() {
-    assert_format_to(
+fn test_format_dotted_symbol_names() {
+    assert_format_eq(
         r#"
 type Status = newtype<int32>
 
@@ -47,12 +47,12 @@ entry0:
     );
 }
 
-/// Formats closure typed declarations canonically.
+/// Formats callable typed declarations canonically.
 #[test]
-fn test_format_roundtrip_closure_type_declaration() {
-    assert_format_to(
+fn test_format_callable_type_declaration() {
+    assert_format_eq(
         r#"
-type Callable = closure(int32) -> int32
+type Callable = (int32) => int32
 
 function use(v0: Callable): Callable {
 b0(v0: Callable):
@@ -60,7 +60,7 @@ b0(v0: Callable):
 }
 "#,
         r#"
-type Callable = closure(int32) -> int32;
+type Callable = (int32) => int32;
 
 function use(value0: Callable): Callable {
 entry0(value0: Callable):
@@ -72,7 +72,7 @@ entry0(value0: Callable):
 
 /// Formats imports and exports across declaration kinds canonically.
 #[test]
-fn test_format_roundtrip_import_export_declarations() {
+fn test_format_import_export_declarations() {
     assert_format(
         r#"
 extern global Imported: int32, readonly

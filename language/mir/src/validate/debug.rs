@@ -520,7 +520,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                if self.tree.get(*local_id).ty != binding_type {
+                if self.tree.get(*local_id).ty != binding_type.into() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "debug value location type does not match binding type"
                             .to_string(),
@@ -535,7 +535,7 @@ impl<'a> Validator<'a> {
                     ValidateAnchor::node(function_id),
                 )?;
 
-                if self.tree.get(*global_id).ty != binding_type {
+                if self.tree.get(*global_id).ty != binding_type.into() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "debug value location type does not match binding type"
                             .to_string(),

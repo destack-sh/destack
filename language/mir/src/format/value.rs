@@ -2,12 +2,103 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{Constant, MirFormatContext, MirFormatter, Value};
+use crate::{
+    BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalReference,
+    MirFormatContext, MirFormatter, TypeReference, Value, ValueReference,
+};
+
+fn write_recovery_token<'a>(is_missing: bool, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    let token_text = if is_missing { "<missing>" } else { "<error>" };
+
+    write!(f, [token(token_text)])
+}
 
 impl<'a> Format<MirFormatContext<'a>> for Value {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let name = f.context().value_name(*self);
         write!(f, [text(&name)])
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for ValueReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            ValueReference::Value(value) => value.format(f),
+            ValueReference::Missing => write_recovery_token(true, f),
+            ValueReference::Error => write_recovery_token(false, f),
+        }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for TypeReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            TypeReference::Type(ty) => ty.format(f),
+            TypeReference::Missing => write_recovery_token(true, f),
+            TypeReference::Error => write_recovery_token(false, f),
+        }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for BlockReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            BlockReference::Block(block) => {
+                let name = f.context().block_name(*block);
+                write!(f, [text(&name)])
+            }
+            BlockReference::Missing => write_recovery_token(true, f),
+            BlockReference::Error => write_recovery_token(false, f),
+        }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for FunctionReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            FunctionReference::Function(function) => {
+                let name = f.context().function_name(*function).to_string();
+                write!(f, [text(&name)])
+            }
+            FunctionReference::Missing => write_recovery_token(true, f),
+            FunctionReference::Error => write_recovery_token(false, f),
+        }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for GlobalReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            GlobalReference::Global(global) => {
+                let name = f.context().global_name(*global).to_string();
+                write!(f, [text(&name)])
+            }
+            GlobalReference::Missing => write_recovery_token(true, f),
+            GlobalReference::Error => write_recovery_token(false, f),
+        }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for LocalReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            LocalReference::Local(local) => {
+                let index = f.context().local_index(*local);
+                write!(f, [text(&format!("local{index}"))])
+            }
+            LocalReference::Missing => write_recovery_token(true, f),
+            LocalReference::Error => write_recovery_token(false, f),
+        }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for IntegerReference {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        match self {
+            IntegerReference::Integer(value) => write!(f, [text(&value.to_string())]),
+            IntegerReference::Missing => write_recovery_token(true, f),
+            IntegerReference::Error => write_recovery_token(false, f),
+        }
     }
 }
 

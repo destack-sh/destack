@@ -1,6 +1,7 @@
 use crate::{
-    Function, Instruction, InterfaceDispatchEntry, InterfaceSlotId, ItabEntry, LocalNodeId,
-    NodeType, Terminator, Type, Value, VtableEntry, VtableSlotId,
+    Function, FunctionReference, Instruction, InterfaceDispatchEntry, InterfaceSlotId, ItabEntry,
+    LocalNodeId, NodeType, Terminator, Type, TypeReference, ValueReference, VtableEntry,
+    VtableSlotId,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -74,10 +75,12 @@ impl<'a> Validator<'a> {
     fn validate_dispatch_call_fact_target(
         &self,
         anchor: ValidateAnchor,
-        signature: LocalNodeId<Type>,
-        declared_target: Option<LocalNodeId<Function>>,
+        signature: TypeReference,
+        declared_target: Option<FunctionReference>,
     ) -> ValidateResult<()> {
         if let Some(declared_target) = declared_target {
+            let declared_target =
+                self.require_function_reference(declared_target, anchor, "declared call target")?;
             self.validate_call_signature_matches_function(anchor, signature, declared_target)?;
         }
 
@@ -88,18 +91,21 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_call_signature(
         &self,
         instruction_id: LocalNodeId<Instruction>,
-        destination: Option<Value>,
+        destination: Option<ValueReference>,
         argument_count: usize,
-        signature: LocalNodeId<Type>,
+        signature: TypeReference,
     ) -> ValidateResult<()> {
         let anchor = ValidateAnchor::node(instruction_id);
 
         // signature type
+        let signature = self.require_type_reference(signature, anchor, "call signature")?;
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
         let signature = match self.tree.get(signature) {
             Type::FunctionPointer { .. } => signature,
-            Type::Closure { signature, .. } => *signature,
+            Type::Closure { signature, .. } => {
+                self.require_type_reference(*signature, anchor, "callable signature")?
+            }
             _ => {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "call signature is not a function type".to_string(),
@@ -117,6 +123,7 @@ impl<'a> Validator<'a> {
         };
 
         // result type
+        let result = self.require_type_reference(*result, anchor, "call result type")?;
         self.ensure_node_type(NodeType::Type, result.id, anchor)?;
 
         // argument count
@@ -129,7 +136,7 @@ impl<'a> Validator<'a> {
         }
 
         // void destination
-        let returns_void = matches!(self.tree.get(*result), Type::Void);
+        let returns_void = matches!(self.tree.get(result), Type::Void);
         if returns_void && destination.is_some() {
             return Err(ValidateError::CallReturnValueNotAllowedForVoid { anchor });
         }
@@ -141,10 +148,11 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_call_signature_matches_function(
         &self,
         anchor: ValidateAnchor,
-        signature: LocalNodeId<Type>,
+        signature: TypeReference,
         function_id: LocalNodeId<Function>,
     ) -> ValidateResult<()> {
         // node kinds
+        let signature = self.require_type_reference(signature, anchor, "call signature")?;
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
         self.ensure_node_type(NodeType::Function, function_id.id, anchor)?;
 
@@ -156,8 +164,11 @@ impl<'a> Validator<'a> {
         };
 
         // function signature shape
+        let result = self.require_type_reference(*result, anchor, "call result type")?;
         self.ensure_node_type(NodeType::Type, result.id, anchor)?;
         for &parameter in parameters {
+            let parameter =
+                self.require_type_reference(parameter, anchor, "call parameter type")?;
             self.ensure_node_type(NodeType::Type, parameter.id, anchor)?;
         }
 
@@ -182,7 +193,7 @@ impl<'a> Validator<'a> {
         }
 
         // result
-        if function.return_type != *result {
+        if function.return_type != result.into() {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature does not match callee".to_string(),
                 anchor,

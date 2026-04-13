@@ -3,10 +3,10 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AtomicScope, FormatMirNode, Function, Global, Instruction, LocalNodeId, MemoryOrdering,
-    MemoryRegionSet, MemoryScope, MemorySemantics, MirFormatter, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorScatterDimensionNumbers, Value,
+    AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction, LocalNodeId,
+    MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics, MirFormatter,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -118,7 +118,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalGet { destination, local } => {
-                let local_index = f.context().local_index(*local);
+                let crate::LocalReference::Local(local) = *local else {
+                    return write!(f, [token("<error>")]);
+                };
+                let local_index = f.context().local_index(local);
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -136,7 +139,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                let local_index = f.context().local_index(*local);
+                let crate::LocalReference::Local(local) = *local else {
+                    return write!(f, [token("<error>")]);
+                };
+                let local_index = f.context().local_index(local);
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -152,7 +158,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalSet { local, value } => {
-                let local_index = f.context().local_index(*local);
+                let crate::LocalReference::Local(local) = *local else {
+                    return write!(f, [token("<error>")]);
+                };
+                let local_index = f.context().local_index(local);
                 write!(
                     f,
                     [
@@ -1499,9 +1508,16 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 }
 
 fn format_typed_destination<'a>(
-    destination: Value,
+    destination: ValueReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
+    let ValueReference::Value(destination) = destination else {
+        return write!(
+            f,
+            [destination, token(":"), space(), token("<missing-type>")]
+        );
+    };
+
     let ty = f
         .context()
         .value_type(destination)
@@ -1511,26 +1527,25 @@ fn format_typed_destination<'a>(
 
 /// Format a function reference.
 fn format_function_reference<'a>(
-    function_id: LocalNodeId<Function>,
+    function_id: FunctionReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    // resolve the function name before formatting
-    let name = f.context().function_name(function_id).to_string();
-    write!(f, [text(&name)])
+    write!(f, [function_id])
 }
 
 /// Format a global reference.
 fn format_global_reference<'a>(
-    global_id: LocalNodeId<Global>,
+    global_id: GlobalReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    // resolve the global name before formatting
-    let name = f.context().global_name(global_id).to_string();
-    write!(f, [text(&name)])
+    write!(f, [global_id])
 }
 
 /// Format a parenthesized, comma-separated list of values.
-fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_value_list<'a>(
+    values: &[ValueReference],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1543,29 +1558,32 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
 
 /// Format a required call signature suffix.
 fn format_call_signature_suffix<'a>(
-    signature: LocalNodeId<crate::Type>,
+    signature: TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
-    match f.context().tree.get(signature) {
-        crate::Type::FunctionPointer { parameters, result } => {
-            write!(f, [token("(")])?;
-            for (index, parameter) in parameters.iter().enumerate() {
-                if index > 0 {
-                    write!(f, [token(","), space()])?;
+    match signature {
+        TypeReference::Type(signature) => match f.context().tree.get(signature) {
+            crate::Type::FunctionPointer { parameters, result } => {
+                write!(f, [token("(")])?;
+                for (index, parameter) in parameters.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, [token(","), space()])?;
+                    }
+                    write!(f, [*parameter])?;
                 }
-                write!(f, [*parameter])?;
+                write!(f, [token(")"), space(), token("->"), space(), *result])
             }
-            write!(f, [token(")"), space(), token("->"), space(), *result])
-        }
-        _ => write!(f, [signature]),
+            _ => write!(f, [signature]),
+        },
+        TypeReference::Missing | TypeReference::Error => write!(f, [signature]),
     }
 }
 
 /// Format a bracketed, comma-separated list of values.
 fn format_value_bracket_list<'a>(
-    values: &[Value],
+    values: &[ValueReference],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("[")])?;
@@ -1593,7 +1611,7 @@ fn format_u32_bracket_list<'a>(values: &[u32], f: &mut MirFormatter<'a, '_>) -> 
 /// Format a named value list like `name=[v0, v1]`.
 fn format_named_value_group<'a>(
     name: &str,
-    values: &[Value],
+    values: &[ValueReference],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [text(name), token("(")])?;
@@ -1839,11 +1857,11 @@ fn format_named_bool_group<'a>(
 
 /// Split packed tensor range arguments.
 fn split_tensor_ranges(
-    values: &[Value],
+    values: &[ValueReference],
     offsets_count: u16,
     sizes_count: u16,
     strides_count: u16,
-) -> (&[Value], &[Value], &[Value]) {
+) -> (&[ValueReference], &[ValueReference], &[ValueReference]) {
     let offsets_end = offsets_count as usize;
     let sizes_end = offsets_end + sizes_count as usize;
     let strides_end = sizes_end + strides_count as usize;
@@ -1857,11 +1875,11 @@ fn split_tensor_ranges(
 
 /// Split packed tensor padding arguments.
 fn split_tensor_padding(
-    values: &[Value],
+    values: &[ValueReference],
     low_count: u16,
     high_count: u16,
     interior_count: u16,
-) -> (&[Value], &[Value], &[Value]) {
+) -> (&[ValueReference], &[ValueReference], &[ValueReference]) {
     let low_end = low_count as usize;
     let high_end = low_end + high_count as usize;
     let interior_end = high_end + interior_count as usize;
@@ -1874,7 +1892,10 @@ fn split_tensor_padding(
 }
 
 /// Format intrinsic arguments with optional memory ordering.
-fn format_intrinsic_args<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_intrinsic_args<'a>(
+    values: &[ValueReference],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {

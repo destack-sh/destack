@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     AddressSpace, Copyability, Field, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
-    TensorLayout, Type,
+    TensorLayout, Type, TypeReference,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -94,7 +94,7 @@ impl ModuleBuilder {
             kind,
             address_space,
             mutability,
-            pointee,
+            pointee: pointee.into(),
             is_nullable,
         })
     }
@@ -237,7 +237,7 @@ impl ModuleBuilder {
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Vector {
-            element,
+            element: element.into(),
             lanes,
             copyability,
         })
@@ -252,7 +252,7 @@ impl ModuleBuilder {
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Tensor {
-            element,
+            element: element.into(),
             shape,
             layout,
             copyability,
@@ -274,7 +274,7 @@ impl ModuleBuilder {
             kind,
             address_space,
             mutability,
-            element,
+            element: element.into(),
             shape,
             layout,
             is_nullable,
@@ -289,7 +289,7 @@ impl ModuleBuilder {
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Array {
-            element,
+            element: element.into(),
             length,
             copyability,
         })
@@ -301,6 +301,8 @@ impl ModuleBuilder {
         elements: Vec<LocalNodeId<Type>>,
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
+        let elements = elements.into_iter().map(TypeReference::from).collect();
+
         self.tree.insert_type(Type::Tuple {
             elements,
             copyability,
@@ -321,7 +323,10 @@ impl ModuleBuilder {
 
     /// Create a field definition for a struct type.
     pub fn field(&mut self, name: Option<StringId>, ty: LocalNodeId<Type>) -> LocalNodeId<Field> {
-        self.tree.insert(Field { name, ty })
+        self.tree.insert(Field {
+            name,
+            ty: ty.into(),
+        })
     }
 
     /// Create a function pointer type.
@@ -330,13 +335,19 @@ impl ModuleBuilder {
         parameters: Vec<LocalNodeId<Type>>,
         result: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.tree
-            .insert_type(Type::FunctionPointer { parameters, result })
+        let parameters = parameters.into_iter().map(TypeReference::from).collect();
+
+        self.tree.insert_type(Type::FunctionPointer {
+            parameters,
+            result: result.into(),
+        })
     }
 
     /// Create a callable function value type.
     pub fn type_function_value(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
         self.tree.ensure_function_value_environment_type();
-        self.tree.insert_type(Type::Closure { signature })
+        self.tree.insert_type(Type::Closure {
+            signature: signature.into(),
+        })
     }
 }

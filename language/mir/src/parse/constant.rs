@@ -23,7 +23,7 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Null)
             }
-            TokenType::BoolLiteral => {
+            TokenType::BooleanLiteral => {
                 let value = token_text == "true";
                 self.bump();
                 Ok(Constant::Boolean { value })
@@ -40,7 +40,7 @@ impl Parser {
                     ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
                 })
             }
-            TokenType::CharLiteral => {
+            TokenType::CharacterLiteral => {
                 self.bump();
                 let value = self.parse_char_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("char literal '{token_text}'"), token_start)
@@ -77,7 +77,7 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Null)
             }
-            TokenType::BoolLiteral => {
+            TokenType::BooleanLiteral => {
                 if !matches!(expected, Type::Boolean) {
                     return Err(ParseError::invalid("boolean constant type", token_start));
                 }
@@ -85,7 +85,7 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Boolean { value })
             }
-            TokenType::CharLiteral => {
+            TokenType::CharacterLiteral => {
                 if !matches!(
                     expected,
                     Type::Int {

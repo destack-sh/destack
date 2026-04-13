@@ -2,7 +2,7 @@ use super::assert_format;
 
 /// Formats kernel metadata canonically.
 #[test]
-fn test_format_roundtrip_function_metadata() {
+fn test_format_function_metadata() {
     assert_format(
         r#"
 @executionModel(kernel)
@@ -17,7 +17,7 @@ entry0:
 
 /// Formats graphics stage metadata canonically.
 #[test]
-fn test_format_roundtrip_function_stage_metadata() {
+fn test_format_function_stage_metadata() {
     assert_format(
         r#"
 @executionModel(graphics)
@@ -32,7 +32,7 @@ entry0:
 
 /// Formats item attributes on declarations and fields canonically.
 #[test]
-fn test_format_roundtrip_item_attributes() {
+fn test_format_item_attributes() {
     assert_format(
         r#"
 @packed

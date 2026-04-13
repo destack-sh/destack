@@ -2,7 +2,7 @@ use super::assert_format;
 
 /// Formats mutable globals and global address operations canonically.
 #[test]
-fn test_format_roundtrip_global_variable() {
+fn test_format_global_variable() {
     assert_format(
         r#"
 global counter: int32 = zeroInit
@@ -22,7 +22,7 @@ entry0:
 
 /// Formats immutable globals and global constant reads canonically.
 #[test]
-fn test_format_roundtrip_global_constant() {
+fn test_format_global_constant() {
     assert_format(
         r#"
 global MAGIC: int64, readonly = 42int64
@@ -38,7 +38,7 @@ entry0:
 
 /// Formats string constants and escapes canonically.
 #[test]
-fn test_format_roundtrip_string_constant() {
+fn test_format_string_constant() {
     assert_format(
         r#"
 global stringLiteralHelloWorldNl: ref<void, managed>, readonly = "hello\nworld"

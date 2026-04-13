@@ -1,14 +1,13 @@
-use crate::parse::{ParseOptions, Parser};
-use crate::{Function, Global, Local, TypeAlias};
-use destack_source::{FileId, NodeSpanType};
+use crate::{Block, Function, Global, Local, TypeAlias, TypeReference, assert_node};
+use destack_source::NodeSpanType;
 
-use super::tests::{span_for_text, span_for_text_in, span_for_text_in_after};
+use super::tests::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
 
 /// Parsed MIR records main spans for item and block names.
 #[test]
-fn test_parse_records_main_spans_for_named_nodes() {
+fn test_parse_named_node_spans() {
     let source = r#"
-type Callable = closure() -> void
+type Callable = () => void
 
 global Count: int32, readonly = 1int32
 
@@ -18,9 +17,7 @@ entry0:
 }
 "#;
 
-    let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
-        .expect("parse failed");
+    let (tree, _) = TestParser::new(source).parse();
 
     let (type_alias_id, _) = tree.iter_nodes::<TypeAlias>().next().unwrap();
     let (global_id, _) = tree.iter_nodes::<Global>().next().unwrap();
@@ -46,7 +43,7 @@ entry0:
 
     assert_eq!(
         tree.get_side_span(type_alias_id, NodeSpanType::Type),
-        Some(span_for_text(source, "closure() -> void"))
+        Some(span_for_text(source, "() => void"))
     );
     assert_eq!(
         tree.get_side_span(global_id, NodeSpanType::Type),
@@ -63,7 +60,7 @@ entry0:
 
     assert_eq!(
         tree.get_span(type_alias_id),
-        Some(span_for_text(source, "type Callable = closure() -> void"))
+        Some(span_for_text(source, "type Callable = () => void"))
     );
     assert_eq!(
         tree.get_span(global_id),
@@ -87,7 +84,7 @@ entry0:
 
 /// Parsed MIR records instruction ownership and side spans.
 #[test]
-fn test_parse_records_instruction_spans() {
+fn test_parse_instruction_spans() {
     let source = r#"
 function use(input0: int32): int32 {
 entry0(input0: int32):
@@ -96,74 +93,72 @@ entry0(input0: int32):
 }
 "#;
 
-    let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
-        .expect("parse failed");
+    let (tree, _) = TestParser::new(source).parse();
 
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
-    let block = tree.get(function.blocks[0]);
-    let instruction_id = block.instructions[0];
 
-    assert_eq!(
-        tree.get_span(instruction_id),
-        Some(span_for_text(
-            source,
-            "result1: int32 = int.add input0, input0"
-        ))
-    );
-    assert_eq!(
-        tree.get_main_span(instruction_id),
-        Some(span_for_text(source, "result1"))
-    );
-    assert_eq!(
-        tree.get_side_span(instruction_id, NodeSpanType::Type),
-        Some(span_for_text_in(
-            source,
-            "result1: int32 = int.add input0, input0",
-            "int32"
-        ))
-    );
-    assert_eq!(
-        tree.get_side_span(instruction_id, NodeSpanType::Segment(0)),
-        Some(span_for_text_in(
-            source,
-            "result1: int32 = int.add input0, input0",
-            "int.add"
-        ))
-    );
-    assert_eq!(
-        tree.get_side_span(instruction_id, NodeSpanType::Segment(1)),
-        Some(span_for_text_in(
-            source,
-            "result1: int32 = int.add input0, input0",
-            "input0"
-        ))
-    );
-    assert_eq!(
-        tree.get_side_span(instruction_id, NodeSpanType::Segment(2)),
-        Some(span_for_text_in_after(
-            source,
-            "result1: int32 = int.add input0, input0",
-            "input0",
-            1
-        ))
-    );
+    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+        let instruction_id = instructions[0];
 
-    let terminator_id = block.terminator;
+        assert_eq!(
+            tree.get_span(instruction_id),
+            Some(span_for_text(
+                source,
+                "result1: int32 = int.add input0, input0"
+            ))
+        );
+        assert_eq!(
+            tree.get_main_span(instruction_id),
+            Some(span_for_text(source, "result1"))
+        );
+        assert_eq!(
+            tree.get_side_span(instruction_id, NodeSpanType::Type),
+            Some(span_for_text_in(
+                source,
+                "result1: int32 = int.add input0, input0",
+                "int32"
+            ))
+        );
+        assert_eq!(
+            tree.get_side_span(instruction_id, NodeSpanType::Segment(0)),
+            Some(span_for_text_in(
+                source,
+                "result1: int32 = int.add input0, input0",
+                "int.add"
+            ))
+        );
+        assert_eq!(
+            tree.get_side_span(instruction_id, NodeSpanType::Segment(1)),
+            Some(span_for_text_in(
+                source,
+                "result1: int32 = int.add input0, input0",
+                "input0"
+            ))
+        );
+        assert_eq!(
+            tree.get_side_span(instruction_id, NodeSpanType::Segment(2)),
+            Some(span_for_text_in_after(
+                source,
+                "result1: int32 = int.add input0, input0",
+                "input0",
+                1
+            ))
+        );
 
-    assert_eq!(
-        tree.get_span(terminator_id),
-        Some(span_for_text(source, "return result1"))
-    );
-    assert_eq!(
-        tree.get_main_span(terminator_id),
-        Some(span_for_text(source, "return"))
-    );
+        assert_eq!(
+            tree.get_span(*terminator),
+            Some(span_for_text(source, "return result1"))
+        );
+        assert_eq!(
+            tree.get_main_span(*terminator),
+            Some(span_for_text(source, "return"))
+        );
+    });
 }
 
 /// Parsed MIR records local declaration spans.
 #[test]
-fn test_parse_records_local_spans() {
+fn test_parse_local_spans() {
     let source = r#"
 function use(): void {
     local local0: int32
@@ -173,9 +168,7 @@ entry0:
 }
 "#;
 
-    let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
-        .expect("parse failed");
+    let (tree, _) = TestParser::new(source).parse();
     let (local_id, _) = tree.iter_nodes::<Local>().next().unwrap();
 
     assert_eq!(
@@ -194,7 +187,7 @@ entry0:
 
 /// Parsing a raw alias named String does not implicitly bless a well known string type.
 #[test]
-fn test_parse_string_alias_does_not_set_well_known_string_type() {
+fn test_parse_string_alias_does_not_mark_well_known_string_type() {
     let source = r#"
 type String {
     lengthUtf16: uint32;
@@ -204,9 +197,7 @@ type String {
     data: ref<uint8, raw>;
 }"#;
 
-    let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
-        .expect("parse failed");
+    let (tree, _) = TestParser::new(source).parse();
 
     assert_eq!(tree.string_type(), None);
     assert_eq!(tree.string_layout_id(), None);
@@ -225,15 +216,15 @@ b0:
     return v0
 }"#;
 
-    let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
-        .expect("parse failed");
+    let (tree, _) = TestParser::new(source).parse();
     let alias = tree
         .iter_nodes::<TypeAlias>()
         .next()
         .map(|(_, alias)| alias)
         .expect("missing type alias");
 
-    assert!(tree.type_layout_id(alias.ty).is_some());
-    assert!(tree.type_layout(alias.ty).is_some());
+    assert_node!(alias.ty, TypeReference::Type(alias_type) => {
+        assert!(tree.type_layout_id(alias_type).is_some());
+        assert!(tree.type_layout(alias_type).is_some());
+    });
 }
