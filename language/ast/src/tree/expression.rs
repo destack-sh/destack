@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument,
-    ImportAttributeClause, ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase,
-    MatchKind, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
-    TemplateLiteral, TypeExpression, UnaryOperator,
+    Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument, ImportAttributeClause,
+    ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase, MatchKind, Mutability, Node,
+    NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeExpression,
+    UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B

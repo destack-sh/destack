@@ -38,7 +38,7 @@ pub struct GlobalDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NamespaceDeclaration {
     /// The namespace name.
-    pub name: Option<Name>,
+    pub name: Name,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -57,7 +57,7 @@ pub struct NamespaceDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeDeclaration {
     /// The declared name.
-    pub name: Option<Name>,
+    pub name: Name,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -78,7 +78,7 @@ pub struct TypeDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportAliasDeclaration {
     /// The declared name.
-    pub name: Option<Name>,
+    pub name: Name,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -114,7 +114,7 @@ pub struct StructDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClassDeclaration {
     /// The declared name.
-    pub name: Name,
+    pub name: Option<Name>,
     /// The export mode of the declaration.
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
@@ -258,11 +258,11 @@ impl Declaration {
     pub fn name(&self) -> Option<Name> {
         match self {
             Declaration::Global(_) => None,
-            Declaration::Namespace(declaration) => declaration.name,
-            Declaration::Type(declaration) => declaration.name,
-            Declaration::ImportAlias(declaration) => declaration.name,
+            Declaration::Namespace(declaration) => Some(declaration.name),
+            Declaration::Type(declaration) => Some(declaration.name),
+            Declaration::ImportAlias(declaration) => Some(declaration.name),
             Declaration::Struct(declaration) => Some(declaration.name),
-            Declaration::Class(declaration) => Some(declaration.name),
+            Declaration::Class(declaration) => declaration.name,
             Declaration::Enum(declaration) => declaration.name,
             Declaration::Interface(declaration) => declaration.name,
             Declaration::Extension(declaration) => declaration.name,

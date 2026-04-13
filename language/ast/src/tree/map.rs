@@ -4,7 +4,7 @@ use crate::{
     Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
     GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, Node, NodeTree,
     NodeTreeImpl, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField,
-    Property, TypeExpression, TypeProperty, WhereClause, walk_any,
+    Property, TupleElement, TypeExpression, TypeProperty, WhereClause, walk_any,
 };
 
 /// The NodeParentIndex is a side index of parent nodes into the AST NodeTree.
@@ -257,6 +257,16 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
         _tree: &NodeTree,
         id: LocalNodeId<GenericArgument>,
         _generic_argument: &GenericArgument,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_tuple_element(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<TupleElement>,
+        _tuple_element: &TupleElement,
     ) {
         self.record_parent_for(id.id);
     }

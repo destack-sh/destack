@@ -64,11 +64,11 @@ pub enum Property {
         key: Key,
         value: LocalNodeId<Expression>,
     },
-    /// Named member function.
+    /// Object-like member function.
     Method {
-        key: Key,
+        key: Option<Key>,
         signature: FunctionSignature,
-        body: LocalNodeId<Expression>,
+        body: Option<LocalNodeId<Expression>>,
     },
     /// Spread property.
     Spread { value: LocalNodeId<Expression> },
