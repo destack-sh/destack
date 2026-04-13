@@ -56,7 +56,7 @@ impl fmt::Debug for Isolate {
 impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
-        let executable = Arc::new(Executable::new(image.tree.clone(), image.strings.clone()));
+        let executable = Arc::new(Executable::new(image.tree.clone(), image.strings.clone())?);
         let mut isolate = Self {
             isolate_id: image.isolate_id,
             executable,
@@ -64,7 +64,7 @@ impl Isolate {
             string_interner: StringInterner::new(&image.tree),
             globals: image.globals.clone(),
             externals: HashMap::new(),
-            schema: SchemaRegistry::new(),
+            schema: SchemaRegistry::new()?,
             interpreter: Interpreter::new(),
         };
         isolate
@@ -86,7 +86,7 @@ impl Isolate {
         strings: ImmutableStringPool,
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
-        let executable = Arc::new(Executable::new(tree, strings));
+        let executable = Arc::new(Executable::new(tree, strings)?);
         let string_interner = StringInterner::new(&executable.tree);
         let isolate_id = ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
 
@@ -97,7 +97,7 @@ impl Isolate {
             string_interner,
             globals: GlobalStorage::new(),
             externals: HashMap::new(),
-            schema: SchemaRegistry::new(),
+            schema: SchemaRegistry::new()?,
             interpreter: Interpreter::new(),
         })
     }
@@ -169,9 +169,13 @@ impl Isolate {
     }
 
     /// Register one runtime named type for external ABI fallback.
-    pub fn register_named_storage_type(&mut self, name: &str, component_count: usize) {
+    pub fn register_named_storage_type(
+        &mut self,
+        name: &str,
+        component_count: usize,
+    ) -> Result<(), Error> {
         self.schema
-            .register_named_storage_type(name, component_count);
+            .register_named_storage_type(name, component_count)
     }
 
     /// Run a callback with a runtime context for this isolate.
@@ -189,7 +193,7 @@ impl Isolate {
     }
 
     /// Intern a UTF-8 string and return the managed string value.
-    pub fn intern_string(&mut self, heap: &mut Heap, value: &str) -> Value {
+    pub fn intern_string(&mut self, heap: &mut Heap, value: &str) -> Result<Value, Error> {
         self.string_interner.intern_string_literal(heap, value)
     }
 
@@ -313,7 +317,10 @@ impl Isolate {
     }
 
     /// Capture one continuation as one immutable image.
-    pub fn continuation_image(&self, continuation: &Continuation) -> ContinuationImage {
+    pub fn continuation_image(
+        &self,
+        continuation: &Continuation,
+    ) -> RuntimeResult<ContinuationImage> {
         continuation.image(&self.executable)
     }
 
@@ -349,7 +356,11 @@ impl Isolate {
     }
 
     /// Collect garbage from managed heap.
-    pub fn collect_garbage(&mut self, heap: &mut Heap, shared: &mut SharedSpace) -> GcStats {
+    pub fn collect_garbage(
+        &mut self,
+        heap: &mut Heap,
+        shared: &mut SharedSpace,
+    ) -> RuntimeResult<GcStats> {
         let mut memory = MemoryContext::new(heap, shared);
         self.interpreter.collect_garbage(
             &self.executable,
@@ -365,7 +376,7 @@ impl Isolate {
         heap: &mut Heap,
         shared: &mut SharedSpace,
         continuations: &[Continuation],
-    ) -> GcStats {
+    ) -> RuntimeResult<GcStats> {
         let mut memory = MemoryContext::new(heap, shared);
         self.interpreter.collect_garbage_with_continuations(
             &self.executable,
@@ -396,7 +407,7 @@ impl Isolate {
 
     /// Restore this isolate from one immutable VM image.
     pub fn restore_image(&mut self, heap: &mut Heap, image: &IsolateImage) -> RuntimeResult<()> {
-        self.executable = Arc::new(Executable::new(image.tree.clone(), image.strings.clone()));
+        self.executable = Arc::new(Executable::new(image.tree.clone(), image.strings.clone())?);
         self.options = image.options.clone();
 
         // restore isolate-owned mutable state first

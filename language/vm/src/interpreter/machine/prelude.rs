@@ -12,8 +12,8 @@ pub(crate) use crate::executable::{
 };
 pub(crate) use crate::interpreter::StepState;
 pub(crate) use destack_heap::{
-    LocalPointer, ManagedReference, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
-    Value, ValueTag,
+    GlobalPointer, LocalPointer, ManagedReference, RawPointer, ReferenceAddressSpace,
+    ReferenceMeta, StackPointer, Value, ValueTag,
 };
 
 pub(crate) use super::super::state::{Frame, resize_and_clear_stack};

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::{Error, Result};
+
 /// The first synthetic schema type id reserved for ABI fallback storage.
 const SYNTHETIC_SCHEMA_TYPE_ID_START: u32 = u32::MAX - 1;
 
@@ -43,15 +45,9 @@ pub(crate) struct SchemaRegistry {
     builtin_array_type_id: u32,
 }
 
-impl Default for SchemaRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SchemaRegistry {
     /// Create one runtime storage registry with builtin collection types.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new() -> Result<Self> {
         let mut registry = Self {
             next_type_id: SYNTHETIC_SCHEMA_TYPE_ID_START,
             type_id_by_name: HashMap::new(),
@@ -61,17 +57,23 @@ impl SchemaRegistry {
         };
 
         // register builtin aggregate storage that the external ABI always expects
-        let builtin_slice_type_id = registry.register_storage_type(BUILTIN_SLICE_NAME, 2);
-        let builtin_array_type_id = registry.register_storage_type(BUILTIN_ARRAY_NAME, 3);
+        let builtin_slice_type_id = registry.register_storage_type(BUILTIN_SLICE_NAME, 2)?;
+        let builtin_array_type_id = registry.register_storage_type(BUILTIN_ARRAY_NAME, 3)?;
         registry.builtin_slice_type_id = builtin_slice_type_id;
         registry.builtin_array_type_id = builtin_array_type_id;
 
-        registry
+        Ok(registry)
     }
 
     /// Register one runtime named type.
-    pub(crate) fn register_named_storage_type(&mut self, name: &str, component_count: usize) {
-        self.register_storage_type(name, component_count);
+    pub(crate) fn register_named_storage_type(
+        &mut self,
+        name: &str,
+        component_count: usize,
+    ) -> Result<()> {
+        self.register_storage_type(name, component_count)?;
+
+        Ok(())
     }
 
     /// Resolve one runtime named type id.
@@ -107,40 +109,46 @@ impl SchemaRegistry {
     }
 
     /// Register one storage schema and return its stable synthetic type id.
-    fn register_storage_type(&mut self, name: &str, component_count: usize) -> u32 {
+    fn register_storage_type(&mut self, name: &str, component_count: usize) -> Result<u32> {
         // reuse an existing schema when it matches exactly
         if let Some(type_id) = self.type_id(name) {
             let schema = self
                 .schema(type_id)
-                .unwrap_or_else(|| panic!("missing runtime storage schema for '{name}'"));
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!("missing runtime storage schema for '{name}'"),
+                })?;
             if schema.component_count() != component_count {
-                panic!(
-                    "runtime storage schema mismatch for '{name}': expected {}, found {}",
-                    schema.component_count(),
-                    component_count
-                );
+                return Err(Error::InvariantViolation {
+                    context: format!(
+                        "runtime storage schema mismatch for '{name}': expected {}, found {}",
+                        schema.component_count(),
+                        component_count
+                    ),
+                });
             }
 
-            return type_id;
+            return Ok(type_id);
         }
 
         // otherwise allocate a fresh synthetic type id
-        let type_id = self.allocate_type_id();
+        let type_id = self.allocate_type_id()?;
         self.type_id_by_name.insert(name.to_string(), type_id);
         self.schema_by_type_id
             .insert(type_id, StorageSchema::new(component_count));
 
-        type_id
+        Ok(type_id)
     }
 
     /// Allocate one fresh synthetic type id.
-    fn allocate_type_id(&mut self) -> u32 {
+    fn allocate_type_id(&mut self) -> Result<u32> {
         let type_id = self.next_type_id;
-        self.next_type_id = self
-            .next_type_id
-            .checked_sub(1)
-            .unwrap_or_else(|| panic!("runtime storage registry exhausted synthetic type ids"));
+        self.next_type_id =
+            self.next_type_id
+                .checked_sub(1)
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: "runtime storage registry exhausted synthetic type ids".to_string(),
+                })?;
 
-        type_id
+        Ok(type_id)
     }
 }

@@ -21,7 +21,14 @@ impl Interpreter {
             .call_stack
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let return_type = executable.tree.get(callee.function).return_type;
+        let return_type = executable
+            .tree
+            .get(callee.function)
+            .return_type
+            .ty()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "return transfer type".to_string(),
+            })?;
         let returned = capture_transferred_value(
             executable,
             memory.heap_ref(),
@@ -75,7 +82,7 @@ impl Interpreter {
             caller.function,
             caller.current_block,
             caller.resume_pc as u32,
-        ) {
+        )? {
             bind_transferred_value(
                 executable,
                 &mut self.value_stack,

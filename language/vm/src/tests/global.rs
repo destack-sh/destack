@@ -149,15 +149,15 @@ b0:
 #[test]
 fn test_multiple_globals() {
     let mir = r#"
-global a: int32, readonly = 10int32
-global b: int32, readonly = 20int32
-global c: int32 = 30int32
+global first: int32, readonly = 10int32
+global second: int32, readonly = 20int32
+global third: int32 = 30int32
 
 function sum(): int32 {
 b0:
-    v0: int32 = global.const a
-    v1: int32 = global.const b
-    v2: ref<int32, raw, addressSpace(global)> = global.address c
+    v0: int32 = global.const first
+    v1: int32 = global.const second
+    v2: ref<int32, raw, addressSpace(global)> = global.address third
     v3: int32 = load v2
     v4: int32 = int.add v0, v1
     v5: int32 = int.add v4, v3

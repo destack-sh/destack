@@ -7,12 +7,13 @@ use crate::executable::{
     ConstValue, Instruction, InstructionData, InstructionOperation, UNKNOWN_ARRAY_LENGTH,
     UNKNOWN_FIELD_COUNT, pack_optional_value,
 };
+use crate::{Error, Result};
 
 use super::access::*;
 use super::kind::{
     managed_pointee_type_for_value, managed_pointee_type_for_value_kind,
     raw_pointee_type_for_value, raw_pointee_type_for_value_kind, reference_meta_for_type,
-    reference_meta_for_value, value_type_for_value,
+    reference_meta_for_value, value_type_for_value as lookup_value_type_for_value,
 };
 use super::lower::BlockLowerer;
 use super::operation::{
@@ -35,7 +36,7 @@ impl<'a> BlockLowerer<'a> {
         let next_inst_id = next_inst_id?;
 
         // check value usage count for the addr result
-        let can_fuse = |value: mir::Value| -> bool { self.value_use_count(value) == 1 };
+        let can_fuse = |value: mir::Value| -> bool { self.value_use_count(value) == Some(1) };
 
         // load next instruction for pattern matching
         let next_inst = self.tree.get(next_inst_id);
@@ -47,16 +48,19 @@ impl<'a> BlockLowerer<'a> {
                 index,
                 ..
             } => {
-                if !can_fuse(*destination) {
+                let destination = destination.value()?;
+                let aggregate = aggregate.value()?;
+
+                if !can_fuse(destination) {
                     return None;
                 }
 
-                let field_count = self.field_count_for_value(*aggregate);
+                let field_count = self.field_count_for_value(aggregate);
 
                 // precompute the field access descriptor when the pointee is known
                 let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), *aggregate).or_else(
-                        || raw_pointee_type_for_value_kind(self.value_kind_map(), *aggregate),
+                    managed_pointee_type_for_value_kind(self.value_kind_map(), aggregate).or_else(
+                        || raw_pointee_type_for_value_kind(self.value_kind_map(), aggregate),
                     );
                 let field = pointee_type.and_then(|pointee_type| {
                     field_access_for_pointee(self.layouts(), pointee_type, *index)
@@ -67,15 +71,15 @@ impl<'a> BlockLowerer<'a> {
                         destination: load_dest,
                         pointer,
                         ..
-                    } if pointer == destination => Some((
+                    } if pointer.value()? == destination => Some((
                         Instruction {
                             operation: select_field_load_operation(
                                 self.value_kind_map(),
-                                *aggregate,
+                                aggregate,
                             ),
                             data: InstructionData::FieldLoad {
-                                dest: *load_dest,
-                                composite: *aggregate,
+                                dest: load_dest.value()?,
+                                composite: aggregate,
                                 index: *index,
                                 field_count,
                                 field,
@@ -83,28 +87,32 @@ impl<'a> BlockLowerer<'a> {
                         },
                         2,
                     )),
-                    mir::Instruction::Store { pointer, value } if pointer == destination => Some((
-                        Instruction {
-                            operation: select_field_store_operation(
-                                self.value_kind_map(),
-                                *aggregate,
-                                field_count,
-                                *index,
-                            ),
-                            data: InstructionData::FieldStore {
-                                composite: *aggregate,
-                                index: *index,
-                                value: *value,
-                                reference: reference_meta_for_value(
+                    mir::Instruction::Store { pointer, value }
+                        if pointer.value()? == destination =>
+                    {
+                        Some((
+                            Instruction {
+                                operation: select_field_store_operation(
                                     self.value_kind_map(),
-                                    *destination,
+                                    aggregate,
+                                    field_count,
+                                    *index,
                                 ),
-                                field_count,
-                                field,
+                                data: InstructionData::FieldStore {
+                                    composite: aggregate,
+                                    index: *index,
+                                    value: value.value()?,
+                                    reference: reference_meta_for_value(
+                                        self.value_kind_map(),
+                                        destination,
+                                    ),
+                                    field_count,
+                                    field,
+                                },
                             },
-                        },
-                        2,
-                    )),
+                            2,
+                        ))
+                    }
                     _ => None,
                 }
             }
@@ -114,16 +122,19 @@ impl<'a> BlockLowerer<'a> {
                 index,
                 ..
             } => {
-                if !can_fuse(*destination) {
+                let destination = destination.value()?;
+                let array = array.value()?;
+
+                if !can_fuse(destination) {
                     return None;
                 }
 
-                let array_length = self.array_length_for_value(*array);
+                let array_length = self.array_length_for_value(array);
 
                 // precompute the element access descriptor when the pointee is known
                 let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), *array)
-                        .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), *array));
+                    managed_pointee_type_for_value_kind(self.value_kind_map(), array)
+                        .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), array));
                 let element = pointee_type.and_then(|pointee_type| {
                     element_access_for_pointee(self.layouts(), pointee_type)
                 });
@@ -133,39 +144,43 @@ impl<'a> BlockLowerer<'a> {
                         destination: load_dest,
                         pointer,
                         ..
-                    } if pointer == destination => Some((
+                    } if pointer.value()? == destination => Some((
                         Instruction {
-                            operation: select_element_load_operation(self.value_kind_map(), *array),
+                            operation: select_element_load_operation(self.value_kind_map(), array),
                             data: InstructionData::ElementLoad {
-                                dest: *load_dest,
-                                array: *array,
-                                index: *index,
+                                dest: load_dest.value()?,
+                                array,
+                                index: index.value()?,
                                 array_length,
                                 element,
                             },
                         },
                         2,
                     )),
-                    mir::Instruction::Store { pointer, value } if pointer == destination => Some((
-                        Instruction {
-                            operation: select_element_store_operation(
-                                self.value_kind_map(),
-                                *array,
-                            ),
-                            data: InstructionData::ElementStore {
-                                array: *array,
-                                index: *index,
-                                value: *value,
-                                reference: reference_meta_for_value(
+                    mir::Instruction::Store { pointer, value }
+                        if pointer.value()? == destination =>
+                    {
+                        Some((
+                            Instruction {
+                                operation: select_element_store_operation(
                                     self.value_kind_map(),
-                                    *destination,
+                                    array,
                                 ),
-                                array_length,
-                                element,
+                                data: InstructionData::ElementStore {
+                                    array,
+                                    index: index.value()?,
+                                    value: value.value()?,
+                                    reference: reference_meta_for_value(
+                                        self.value_kind_map(),
+                                        destination,
+                                    ),
+                                    array_length,
+                                    element,
+                                },
                             },
-                        },
-                        2,
-                    )),
+                            2,
+                        ))
+                    }
                     _ => None,
                 }
             }
@@ -174,38 +189,45 @@ impl<'a> BlockLowerer<'a> {
                 global,
                 ..
             } => {
-                if !can_fuse(*destination) {
+                let destination = destination.value()?;
+                let global = global.global()?;
+
+                if !can_fuse(destination) {
                     return None;
                 }
 
-                let reference = reference_meta_for_value(self.value_kind_map(), *destination);
+                let reference = reference_meta_for_value(self.value_kind_map(), destination);
 
                 match next_inst {
                     mir::Instruction::Load {
                         destination: load_dest,
                         pointer,
                         ..
-                    } if pointer == destination => Some((
+                    } if pointer.value()? == destination => Some((
                         Instruction {
                             operation: InstructionOperation::GlobalLoad,
                             data: InstructionData::GlobalLoad {
-                                dest: *load_dest,
+                                dest: load_dest.value()?,
                                 global: global.id,
                             },
                         },
                         2,
                     )),
-                    mir::Instruction::Store { pointer, value } if pointer == destination => Some((
-                        Instruction {
-                            operation: InstructionOperation::GlobalStore,
-                            data: InstructionData::GlobalStore {
-                                global: global.id,
-                                value: *value,
-                                reference,
+                    mir::Instruction::Store { pointer, value }
+                        if pointer.value()? == destination =>
+                    {
+                        Some((
+                            Instruction {
+                                operation: InstructionOperation::GlobalStore,
+                                data: InstructionData::GlobalStore {
+                                    global: global.id,
+                                    value: value.value()?,
+                                    reference,
+                                },
                             },
-                        },
-                        2,
-                    )),
+                            2,
+                        ))
+                    }
                     _ => None,
                 }
             }
@@ -223,15 +245,16 @@ impl<'a> BlockLowerer<'a> {
         let next_inst_id = next_inst_id?;
 
         // check if the value is only used once
-        let can_fuse = |value: mir::Value| -> bool { self.value_use_count(value) == 1 };
+        let can_fuse = |value: mir::Value| -> bool { self.value_use_count(value) == Some(1) };
 
         // we need a Const instruction
         let mir::Instruction::Const { destination, value } = inst else {
             return None;
         };
+        let destination = destination.value()?;
 
         // check if the const value is only used once
-        if !can_fuse(*destination) {
+        if !can_fuse(destination) {
             return None;
         }
 
@@ -248,7 +271,7 @@ impl<'a> BlockLowerer<'a> {
         };
 
         // we can fuse if the constant is the right operand
-        if right != destination {
+        if right.value()? != destination {
             return None;
         }
 
@@ -262,7 +285,9 @@ impl<'a> BlockLowerer<'a> {
         let const_value = Value::from(value);
 
         // check if left operand is integer for specialized handler
-        let kind = self.value_kind_map().get(*left);
+        let left = left.value()?;
+        let bin_dest = bin_dest.value()?;
+        let kind = self.value_kind_map().get(left);
         if let Some(ValueKind::Int { signed, .. }) = kind {
             // try to get a specialized const handler
             if let Some(operation) = select_specialized_const_int_operation(*operator, signed) {
@@ -270,8 +295,8 @@ impl<'a> BlockLowerer<'a> {
                     Instruction {
                         operation,
                         data: InstructionData::BinaryConstRightSpecialized {
-                            dest: *bin_dest,
-                            left: *left,
+                            dest: bin_dest,
+                            left,
                             right_const: const_value,
                         },
                     },
@@ -285,9 +310,9 @@ impl<'a> BlockLowerer<'a> {
             Instruction {
                 operation: InstructionOperation::BinaryConstRight,
                 data: InstructionData::BinaryConstRight {
-                    dest: *bin_dest,
+                    dest: bin_dest,
                     op: *operator,
-                    left: *left,
+                    left,
                     right_const: const_value,
                 },
             },
@@ -300,17 +325,23 @@ impl<'a> BlockLowerer<'a> {
         &self,
         inst: &mir::Instruction,
         pool: &mut Pool,
-    ) -> Instruction {
-        match inst {
+    ) -> Result<Instruction> {
+        Ok(match inst {
             mir::Instruction::Error => {
-                panic!("recovered MIR instruction reached VM lowering");
+                return Err(Error::ConcreteMirRequired {
+                    context: "instruction".to_string(),
+                });
             }
             mir::Instruction::Const { destination, value } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "const destination".to_string(),
+                        })?;
                 let const_value = if matches!(value, mir::Constant::Null) {
-                    let reference = reference_meta_for_type(
-                        self.tree,
-                        value_type_for_value(*destination, self.value_type()),
-                    );
+                    let reference =
+                        reference_meta_for_type(self.tree, self.value_type_for_value(destination)?);
                     let value = match reference.kind() {
                         Some(mir::ReferenceKind::Managed) => {
                             Value::managed_reference_with_meta(ManagedReference::NULL, reference)
@@ -331,7 +362,7 @@ impl<'a> BlockLowerer<'a> {
                 Instruction {
                     operation: InstructionOperation::Const,
                     data: InstructionData::Const {
-                        dest: *destination,
+                        dest: destination,
                         value: const_value,
                     },
                 }
@@ -343,45 +374,57 @@ impl<'a> BlockLowerer<'a> {
                 left,
                 right,
             } => {
-                let left_type = value_type_for_value(*left, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "binary destination".to_string(),
+                        })?;
+                let left = (*left).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "binary left operand".to_string(),
+                })?;
+                let right = (*right).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "binary right operand".to_string(),
+                })?;
+                let left_type = self.value_type_for_value(left)?;
                 if matches!(
                     self.tree.get(left_type),
                     mir::Type::Vector { .. } | mir::Type::Tensor { .. }
                 ) {
-                    let result_type = value_type_for_value(*destination, self.value_type());
-                    return Instruction {
+                    let result_type = self.value_type_for_value(destination)?;
+                    return Ok(Instruction {
                         operation: InstructionOperation::BinaryElementwise,
                         data: InstructionData::BinaryElementwise {
-                            dest: *destination,
+                            dest: destination,
                             op: *operator,
-                            left: *left,
-                            right: *right,
+                            left,
+                            right,
                             result_type,
                         },
-                    };
+                    });
                 }
 
-                let kind = self.value_kind_map().get(*left);
+                let kind = self.value_kind_map().get(left);
                 if let Some(ValueKind::Int { signed, .. }) = kind
                     && let Some(operation) = select_specialized_int_operation(*operator, signed)
                 {
-                    return Instruction {
+                    return Ok(Instruction {
                         operation,
                         data: InstructionData::BinarySpecialized {
-                            dest: *destination,
-                            left: *left,
-                            right: *right,
+                            dest: destination,
+                            left,
+                            right,
                         },
-                    };
+                    });
                 }
 
                 Instruction {
-                    operation: select_binary_operation(self.value_kind_map(), *left, *operator),
+                    operation: select_binary_operation(self.value_kind_map(), left, *operator),
                     data: InstructionData::Binary {
-                        dest: *destination,
+                        dest: destination,
                         op: *operator,
-                        left: *left,
-                        right: *right,
+                        left,
+                        right,
                     },
                 }
             }
@@ -391,29 +434,40 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 argument,
             } => {
-                let argument_type = value_type_for_value(*argument, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "unary destination".to_string(),
+                        })?;
+                let argument = (*argument)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "unary argument".to_string(),
+                    })?;
+                let argument_type = self.value_type_for_value(argument)?;
                 if matches!(
                     self.tree.get(argument_type),
                     mir::Type::Vector { .. } | mir::Type::Tensor { .. }
                 ) {
-                    let result_type = value_type_for_value(*destination, self.value_type());
-                    return Instruction {
+                    let result_type = self.value_type_for_value(destination)?;
+                    return Ok(Instruction {
                         operation: InstructionOperation::UnaryElementwise,
                         data: InstructionData::UnaryElementwise {
-                            dest: *destination,
+                            dest: destination,
                             op: *operator,
-                            arg: *argument,
+                            arg: argument,
                             result_type,
                         },
-                    };
+                    });
                 }
 
                 Instruction {
-                    operation: select_unary_operation(self.value_kind_map(), *argument, *operator),
+                    operation: select_unary_operation(self.value_kind_map(), argument, *operator),
                     data: InstructionData::Unary {
-                        dest: *destination,
+                        dest: destination,
                         op: *operator,
-                        arg: *argument,
+                        arg: argument,
                     },
                 }
             }
@@ -423,30 +477,73 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 argument,
                 to_type,
-            } => Instruction {
-                operation: InstructionOperation::Cast,
-                data: InstructionData::Cast {
-                    dest: *destination,
-                    op: *operator,
-                    arg: *argument,
-                    to_type: to_type.id,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "cast destination".to_string(),
+                        })?;
+                let argument = (*argument)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "cast argument".to_string(),
+                    })?;
+                let to_type = (*to_type).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "cast destination type".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::Cast,
+                    data: InstructionData::Cast {
+                        dest: destination,
+                        op: *operator,
+                        arg: argument,
+                        to_type: to_type.id,
+                    },
+                }
+            }
 
             mir::Instruction::Select {
                 destination,
                 condition,
                 then_value,
                 else_value,
-            } => Instruction {
-                operation: InstructionOperation::Select,
-                data: InstructionData::Select {
-                    dest: *destination,
-                    condition: *condition,
-                    then_value: *then_value,
-                    else_value: *else_value,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "select destination".to_string(),
+                        })?;
+                let condition = (*condition)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "select condition".to_string(),
+                    })?;
+                let then_value =
+                    (*then_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "select then value".to_string(),
+                        })?;
+                let else_value =
+                    (*else_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "select else value".to_string(),
+                        })?;
+
+                Instruction {
+                    operation: InstructionOperation::Select,
+                    data: InstructionData::Select {
+                        dest: destination,
+                        condition,
+                        then_value,
+                        else_value,
+                    },
+                }
+            }
 
             mir::Instruction::Call {
                 destination,
@@ -454,16 +551,40 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => {
+                let function =
+                    (*function)
+                        .function()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "call callee".to_string(),
+                        })?;
                 let args = self.tree.get_arguments(call.arguments);
-                let args_range = pool.argument_range(args);
-                let callee = self.tree.get(*function);
-                let copies = pool.parameter_copy_range(&callee.parameters, args);
-                let target = self.call_target(*function);
+                let args_range = pool.argument_reference_range(args, "call argument")?;
+                let arguments = args
+                    .iter()
+                    .map(|argument| {
+                        (*argument)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "call argument".to_string(),
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let callee = self.tree.get(function);
+                let copies = pool.parameter_copy_range(&callee.parameters, &arguments)?;
+                let target = self.call_target(function)?;
 
                 Instruction {
                     operation: InstructionOperation::Call,
                     data: InstructionData::Call {
-                        dest: pack_optional_value(*destination),
+                        dest: pack_optional_value(
+                            (*destination)
+                                .map(|value| {
+                                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "call destination".to_string(),
+                                    })
+                                })
+                                .transpose()?,
+                        ),
                         function: function.id,
                         target,
                         arguments: args_range,
@@ -480,16 +601,29 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => {
                 let args = self.tree.get_arguments(call.arguments);
-                let args_range = pool.argument_range(args);
+                let args_range = pool.argument_reference_range(args, "virtual call argument")?;
+                let receiver = (*receiver)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "virtual call receiver".to_string(),
+                    })?;
                 Instruction {
                     operation: InstructionOperation::CallVirtual,
                     data: InstructionData::CallVirtual {
-                        dest: pack_optional_value(*destination),
-                        receiver: *receiver,
+                        dest: pack_optional_value(
+                            (*destination)
+                                .map(|value| {
+                                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "virtual call destination".to_string(),
+                                    })
+                                })
+                                .transpose()?,
+                        ),
+                        receiver,
                         managed_pointee: managed_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
-                            *receiver,
+                            receiver,
                         ),
                         slot_id: slot_id.0,
                         arguments: args_range,
@@ -505,16 +639,29 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => {
                 let args = self.tree.get_arguments(call.arguments);
-                let args_range = pool.argument_range(args);
+                let args_range = pool.argument_reference_range(args, "interface call argument")?;
+                let receiver = (*receiver)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "interface call receiver".to_string(),
+                    })?;
                 Instruction {
                     operation: InstructionOperation::CallInterface,
                     data: InstructionData::CallInterface {
-                        dest: pack_optional_value(*destination),
-                        receiver: *receiver,
+                        dest: pack_optional_value(
+                            (*destination)
+                                .map(|value| {
+                                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "interface call destination".to_string(),
+                                    })
+                                })
+                                .transpose()?,
+                        ),
+                        receiver,
                         managed_pointee: managed_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
-                            *receiver,
+                            receiver,
                         ),
                         slot_id: slot_id.0,
                         arguments: args_range,
@@ -528,23 +675,48 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(call.arguments));
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(call.arguments),
+                    "indirect call argument",
+                )?;
+                let callee = (*callee)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "indirect call callee".to_string(),
+                    })?;
                 Instruction {
                     operation: InstructionOperation::CallIndirect,
                     data: InstructionData::CallIndirect {
-                        dest: pack_optional_value(*destination),
-                        callee: *callee,
+                        dest: pack_optional_value(
+                            (*destination)
+                                .map(|value| {
+                                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "indirect call destination".to_string(),
+                                    })
+                                })
+                                .transpose()?,
+                        ),
+                        callee,
                         arguments: args,
                     },
                 }
             }
 
             mir::Instruction::LocalGet { destination, local } => {
-                let local_index = self.local_index(*local);
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "local get destination".to_string(),
+                        })?;
+                let local = (*local).local().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "local get source".to_string(),
+                })?;
+                let local_index = self.local_index(local)?;
                 Instruction {
                     operation: InstructionOperation::LocalGet,
                     data: InstructionData::LocalGet {
-                        dest: *destination,
+                        dest: destination,
                         local: local_index,
                     },
                 }
@@ -553,24 +725,39 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                let local_index = self.local_index(*local);
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "local address destination".to_string(),
+                        })?;
+                let local = (*local).local().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "local address local".to_string(),
+                })?;
+                let local_index = self.local_index(local)?;
                 Instruction {
                     operation: InstructionOperation::LocalAddr,
                     data: InstructionData::LocalAddr {
-                        dest: *destination,
+                        dest: destination,
                         local: local_index,
-                        reference: reference_meta_for_value(self.value_kind_map(), *destination),
+                        reference: reference_meta_for_value(self.value_kind_map(), destination),
                     },
                 }
             }
 
             mir::Instruction::LocalSet { local, value } => {
-                let local_index = self.local_index(*local);
+                let local = (*local).local().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "local set destination".to_string(),
+                })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "local set value".to_string(),
+                })?;
+                let local_index = self.local_index(local)?;
                 Instruction {
                     operation: InstructionOperation::LocalSet,
                     data: InstructionData::LocalSet {
                         local: local_index,
-                        value: *value,
+                        value,
                     },
                 }
             }
@@ -579,126 +766,244 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 global,
                 ..
-            } => Instruction {
-                operation: InstructionOperation::GlobalAddr,
-                data: InstructionData::GlobalAddr {
-                    dest: *destination,
-                    global: global.id,
-                    reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "global address destination".to_string(),
+                        })?;
+                let global = (*global)
+                    .global()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "global address global".to_string(),
+                    })?;
+
+                Instruction {
+                    operation: InstructionOperation::GlobalAddr,
+                    data: InstructionData::GlobalAddr {
+                        dest: destination,
+                        global: global.id,
+                        reference: reference_meta_for_value(self.value_kind_map(), destination),
+                    },
+                }
+            }
 
             mir::Instruction::GlobalConst {
                 destination,
                 global,
-            } => Instruction {
-                operation: InstructionOperation::GlobalConst,
-                data: InstructionData::GlobalConst {
-                    dest: *destination,
-                    global: global.id,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "global const destination".to_string(),
+                        })?;
+                let global = (*global)
+                    .global()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "global const global".to_string(),
+                    })?;
+
+                Instruction {
+                    operation: InstructionOperation::GlobalConst,
+                    data: InstructionData::GlobalConst {
+                        dest: destination,
+                        global: global.id,
+                    },
+                }
+            }
 
             mir::Instruction::FunctionAddr {
                 destination,
                 function,
-            } => Instruction {
-                operation: InstructionOperation::FunctionAddr,
-                data: InstructionData::FunctionAddr {
-                    dest: *destination,
-                    function: function.id,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "function address destination".to_string(),
+                        })?;
+                let function =
+                    (*function)
+                        .function()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "function address callee".to_string(),
+                        })?;
+
+                Instruction {
+                    operation: InstructionOperation::FunctionAddr,
+                    data: InstructionData::FunctionAddr {
+                        dest: destination,
+                        function: function.id,
+                    },
+                }
+            }
             mir::Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
-            } => Instruction {
-                operation: InstructionOperation::FunctionBind,
-                data: InstructionData::FunctionBind {
-                    dest: *destination,
-                    function: function.id,
-                    environment: *environment,
-                },
-            },
-            mir::Instruction::FunctionEnvironment { destination } => Instruction {
-                operation: InstructionOperation::FunctionEnvironment,
-                data: InstructionData::FunctionEnvironment { dest: *destination },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "function bind destination".to_string(),
+                        })?;
+                let function =
+                    (*function)
+                        .function()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "function bind callee".to_string(),
+                        })?;
+                let environment =
+                    (*environment)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "function bind environment".to_string(),
+                        })?;
+
+                Instruction {
+                    operation: InstructionOperation::FunctionBind,
+                    data: InstructionData::FunctionBind {
+                        dest: destination,
+                        function: function.id,
+                        environment,
+                    },
+                }
+            }
+            mir::Instruction::FunctionEnvironment { destination } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "function environment destination".to_string(),
+                        })?;
+
+                Instruction {
+                    operation: InstructionOperation::FunctionEnvironment,
+                    data: InstructionData::FunctionEnvironment { dest: destination },
+                }
+            }
             mir::Instruction::Load {
                 destination,
                 pointer,
                 ..
-            } => Instruction {
-                operation: select_load_operation(self.value_kind_map(), *pointer),
-                data: {
-                    let pointee_type =
-                        managed_pointee_type_for_value_kind(self.value_kind_map(), *pointer)
-                            .or_else(|| {
-                                raw_pointee_type_for_value_kind(self.value_kind_map(), *pointer)
-                            })
-                            .or_else(|| {
-                                managed_pointee_type_for_value(
-                                    self.tree,
-                                    self.value_type(),
-                                    *pointer,
-                                )
-                            })
-                            .or_else(|| {
-                                raw_pointee_type_for_value(self.tree, self.value_type(), *pointer)
-                            });
-                    let access = pointee_type.and_then(|pointee_type| {
-                        typed_access_for_pointee(self.layouts(), pointee_type)
-                    });
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "load destination".to_string(),
+                        })?;
+                let pointer = (*pointer)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "load pointer".to_string(),
+                    })?;
 
-                    InstructionData::Load {
-                        dest: *destination,
-                        pointer: *pointer,
-                        access,
-                    }
-                },
-            },
+                Instruction {
+                    operation: select_load_operation(self.value_kind_map(), pointer),
+                    data: {
+                        let pointee_type =
+                            managed_pointee_type_for_value_kind(self.value_kind_map(), pointer)
+                                .or_else(|| {
+                                    raw_pointee_type_for_value_kind(self.value_kind_map(), pointer)
+                                })
+                                .or_else(|| {
+                                    managed_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        pointer,
+                                    )
+                                })
+                                .or_else(|| {
+                                    raw_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        pointer,
+                                    )
+                                });
+                        let access = pointee_type.and_then(|pointee_type| {
+                            typed_access_for_pointee(self.layouts(), pointee_type)
+                        });
 
-            mir::Instruction::Store { pointer, value } => Instruction {
-                operation: select_store_operation(self.value_kind_map(), *pointer),
-                data: {
-                    let pointee_type =
-                        managed_pointee_type_for_value_kind(self.value_kind_map(), *pointer)
-                            .or_else(|| {
-                                raw_pointee_type_for_value_kind(self.value_kind_map(), *pointer)
-                            })
-                            .or_else(|| {
-                                managed_pointee_type_for_value(
-                                    self.tree,
-                                    self.value_type(),
-                                    *pointer,
-                                )
-                            })
-                            .or_else(|| {
-                                raw_pointee_type_for_value(self.tree, self.value_type(), *pointer)
-                            });
-                    let access = pointee_type.and_then(|pointee_type| {
-                        typed_access_for_pointee(self.layouts(), pointee_type)
-                    });
+                        InstructionData::Load {
+                            dest: destination,
+                            pointer,
+                            access,
+                        }
+                    },
+                }
+            }
 
-                    InstructionData::Store {
-                        pointer: *pointer,
-                        value: *value,
-                        reference: reference_meta_for_value(self.value_kind_map(), *pointer),
-                        access,
-                    }
-                },
-            },
+            mir::Instruction::Store { pointer, value } => {
+                let pointer = (*pointer)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "store pointer".to_string(),
+                    })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "store value".to_string(),
+                })?;
 
-            mir::Instruction::RawDrop { value } => Instruction {
-                operation: InstructionOperation::RawDrop,
-                data: InstructionData::RawDrop { value: *value },
-            },
+                Instruction {
+                    operation: select_store_operation(self.value_kind_map(), pointer),
+                    data: {
+                        let pointee_type =
+                            managed_pointee_type_for_value_kind(self.value_kind_map(), pointer)
+                                .or_else(|| {
+                                    raw_pointee_type_for_value_kind(self.value_kind_map(), pointer)
+                                })
+                                .or_else(|| {
+                                    managed_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        pointer,
+                                    )
+                                })
+                                .or_else(|| {
+                                    raw_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        pointer,
+                                    )
+                                });
+                        let access = pointee_type.and_then(|pointee_type| {
+                            typed_access_for_pointee(self.layouts(), pointee_type)
+                        });
 
-            mir::Instruction::StackDrop { value } => Instruction {
-                operation: InstructionOperation::StackDrop,
-                data: InstructionData::StackDrop { value: *value },
-            },
+                        InstructionData::Store {
+                            pointer,
+                            value,
+                            reference: reference_meta_for_value(self.value_kind_map(), pointer),
+                            access,
+                        }
+                    },
+                }
+            }
+
+            mir::Instruction::RawDrop { value } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "raw drop value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::RawDrop,
+                    data: InstructionData::RawDrop { value },
+                }
+            }
+
+            mir::Instruction::StackDrop { value } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "stack drop value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::StackDrop,
+                    data: InstructionData::StackDrop { value },
+                }
+            }
 
             mir::Instruction::Assume { condition: _ } => Instruction {
                 operation: InstructionOperation::Assume,
@@ -710,24 +1015,35 @@ impl<'a> BlockLowerer<'a> {
                 aggregate,
                 index,
             } => {
-                let field_count = self.field_count_for_value(*aggregate);
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "field get destination".to_string(),
+                        })?;
+                let aggregate = (*aggregate)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "field get aggregate".to_string(),
+                    })?;
+                let field_count = self.field_count_for_value(aggregate);
                 let operation = select_field_get_operation(
                     self.value_kind_map(),
-                    *aggregate,
+                    aggregate,
                     field_count,
                     *index,
                 );
 
                 let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), *aggregate)
+                    managed_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
                         .or_else(|| {
-                            raw_pointee_type_for_value_kind(self.value_kind_map(), *aggregate)
+                            raw_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
                         })
                         .or_else(|| {
-                            managed_pointee_type_for_value(self.tree, self.value_type(), *aggregate)
+                            managed_pointee_type_for_value(self.tree, self.value_type(), aggregate)
                         })
                         .or_else(|| {
-                            raw_pointee_type_for_value(self.tree, self.value_type(), *aggregate)
+                            raw_pointee_type_for_value(self.tree, self.value_type(), aggregate)
                         });
                 let field = pointee_type.and_then(|pointee_type| {
                     field_access_for_pointee(self.layouts(), pointee_type, *index)
@@ -738,8 +1054,8 @@ impl<'a> BlockLowerer<'a> {
                         Instruction {
                             operation,
                             data: InstructionData::FieldGet {
-                                dest: *destination,
-                                composite: *aggregate,
+                                dest: destination,
+                                composite: aggregate,
                                 index: *index,
                             },
                         }
@@ -747,8 +1063,8 @@ impl<'a> BlockLowerer<'a> {
                     _ => Instruction {
                         operation,
                         data: InstructionData::FieldLoad {
-                            dest: *destination,
-                            composite: *aggregate,
+                            dest: destination,
+                            composite: aggregate,
                             index: *index,
                             field_count,
                             field,
@@ -762,70 +1078,117 @@ impl<'a> BlockLowerer<'a> {
                 aggregate,
                 index,
                 ..
-            } => Instruction {
-                operation: select_field_addr_operation(self.value_kind_map(), *aggregate),
-                data: {
-                    let pointee_type =
-                        managed_pointee_type_for_value_kind(self.value_kind_map(), *aggregate)
-                            .or_else(|| {
-                                raw_pointee_type_for_value_kind(self.value_kind_map(), *aggregate)
-                            })
-                            .or_else(|| {
-                                managed_pointee_type_for_value(
-                                    self.tree,
-                                    self.value_type(),
-                                    *aggregate,
-                                )
-                            })
-                            .or_else(|| {
-                                raw_pointee_type_for_value(self.tree, self.value_type(), *aggregate)
-                            });
-                    let field = pointee_type.and_then(|pointee_type| {
-                        field_access_for_pointee(self.layouts(), pointee_type, *index)
-                    });
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "field address destination".to_string(),
+                        })?;
+                let aggregate = (*aggregate)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "field address aggregate".to_string(),
+                    })?;
 
-                    InstructionData::FieldAddr {
-                        dest: *destination,
-                        composite: *aggregate,
-                        index: *index,
-                        reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                        field_count: self.field_count_for_value(*aggregate),
-                        field,
-                    }
-                },
-            },
+                Instruction {
+                    operation: select_field_addr_operation(self.value_kind_map(), aggregate),
+                    data: {
+                        let pointee_type =
+                            managed_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
+                                .or_else(|| {
+                                    raw_pointee_type_for_value_kind(
+                                        self.value_kind_map(),
+                                        aggregate,
+                                    )
+                                })
+                                .or_else(|| {
+                                    managed_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        aggregate,
+                                    )
+                                })
+                                .or_else(|| {
+                                    raw_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        aggregate,
+                                    )
+                                });
+                        let field = pointee_type.and_then(|pointee_type| {
+                            field_access_for_pointee(self.layouts(), pointee_type, *index)
+                        });
+
+                        InstructionData::FieldAddr {
+                            dest: destination,
+                            composite: aggregate,
+                            index: *index,
+                            reference: reference_meta_for_value(self.value_kind_map(), destination),
+                            field_count: self.field_count_for_value(aggregate),
+                            field,
+                        }
+                    },
+                }
+            }
 
             mir::Instruction::FieldSet {
                 destination,
                 aggregate,
                 index,
                 value,
-            } => Instruction {
-                operation: InstructionOperation::FieldSet,
-                data: InstructionData::FieldSet {
-                    dest: *destination,
-                    composite: *aggregate,
-                    index: *index,
-                    value: *value,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "field set destination".to_string(),
+                        })?;
+                let aggregate = (*aggregate)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "field set aggregate".to_string(),
+                    })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "field set value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::FieldSet,
+                    data: InstructionData::FieldSet {
+                        dest: destination,
+                        composite: aggregate,
+                        index: *index,
+                        value,
+                    },
+                }
+            }
 
             mir::Instruction::ElementGet {
                 destination,
                 array,
                 index,
             } => {
-                let operation = select_element_get_operation(self.value_kind_map(), *array);
-                let array_length = self.array_length_for_value(*array);
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "element get destination".to_string(),
+                        })?;
+                let array = (*array).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "element get array".to_string(),
+                })?;
+                let operation = select_element_get_operation(self.value_kind_map(), array);
+                let array_length = self.array_length_for_value(array);
 
                 let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), *array)
-                        .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), *array))
+                    managed_pointee_type_for_value_kind(self.value_kind_map(), array)
+                        .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), array))
                         .or_else(|| {
-                            managed_pointee_type_for_value(self.tree, self.value_type(), *array)
+                            managed_pointee_type_for_value(self.tree, self.value_type(), array)
                         })
                         .or_else(|| {
-                            raw_pointee_type_for_value(self.tree, self.value_type(), *array)
+                            raw_pointee_type_for_value(self.tree, self.value_type(), array)
                         });
                 let element = pointee_type.and_then(|pointee_type| {
                     element_access_for_pointee(self.layouts(), pointee_type)
@@ -835,17 +1198,21 @@ impl<'a> BlockLowerer<'a> {
                     InstructionOperation::ElementGet => Instruction {
                         operation,
                         data: InstructionData::ElementGet {
-                            dest: *destination,
-                            array: *array,
-                            index: *index,
+                            dest: destination,
+                            array,
+                            index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "element get index".to_string(),
+                            })?,
                         },
                     },
                     _ => Instruction {
                         operation,
                         data: InstructionData::ElementLoad {
-                            dest: *destination,
-                            array: *array,
-                            index: *index,
+                            dest: destination,
+                            array,
+                            index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "element load index".to_string(),
+                            })?,
                             array_length,
                             element,
                         },
@@ -858,60 +1225,104 @@ impl<'a> BlockLowerer<'a> {
                 array,
                 index,
                 ..
-            } => Instruction {
-                operation: select_element_addr_operation(self.value_kind_map(), *array),
-                data: {
-                    let pointee_type =
-                        managed_pointee_type_for_value_kind(self.value_kind_map(), *array)
-                            .or_else(|| {
-                                raw_pointee_type_for_value_kind(self.value_kind_map(), *array)
-                            })
-                            .or_else(|| {
-                                managed_pointee_type_for_value(self.tree, self.value_type(), *array)
-                            })
-                            .or_else(|| {
-                                raw_pointee_type_for_value(self.tree, self.value_type(), *array)
-                            });
-                    let element = pointee_type.and_then(|pointee_type| {
-                        element_access_for_pointee(self.layouts(), pointee_type)
-                    });
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "element address destination".to_string(),
+                        })?;
+                let array = (*array).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "element address array".to_string(),
+                })?;
 
-                    InstructionData::ElementAddr {
-                        dest: *destination,
-                        array: *array,
-                        index: *index,
-                        reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                        array_length: self.array_length_for_value(*array),
-                        element,
-                    }
-                },
-            },
+                Instruction {
+                    operation: select_element_addr_operation(self.value_kind_map(), array),
+                    data: {
+                        let pointee_type =
+                            managed_pointee_type_for_value_kind(self.value_kind_map(), array)
+                                .or_else(|| {
+                                    raw_pointee_type_for_value_kind(self.value_kind_map(), array)
+                                })
+                                .or_else(|| {
+                                    managed_pointee_type_for_value(
+                                        self.tree,
+                                        self.value_type(),
+                                        array,
+                                    )
+                                })
+                                .or_else(|| {
+                                    raw_pointee_type_for_value(self.tree, self.value_type(), array)
+                                });
+                        let element = pointee_type.and_then(|pointee_type| {
+                            element_access_for_pointee(self.layouts(), pointee_type)
+                        });
+
+                        InstructionData::ElementAddr {
+                            dest: destination,
+                            array,
+                            index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "element address index".to_string(),
+                            })?,
+                            reference: reference_meta_for_value(self.value_kind_map(), destination),
+                            array_length: self.array_length_for_value(array),
+                            element,
+                        }
+                    },
+                }
+            }
 
             mir::Instruction::ElementSet {
                 destination,
                 array,
                 index,
                 value,
-            } => Instruction {
-                operation: InstructionOperation::ElementSet,
-                data: InstructionData::ElementSet {
-                    dest: *destination,
-                    array: *array,
-                    index: *index,
-                    value: *value,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "element set destination".to_string(),
+                        })?;
+                let array = (*array).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "element set array".to_string(),
+                })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "element set value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::ElementSet,
+                    data: InstructionData::ElementSet {
+                        dest: destination,
+                        array,
+                        index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "element set index".to_string(),
+                        })?,
+                        value,
+                    },
+                }
+            }
 
             mir::Instruction::Struct {
                 destination,
                 fields,
                 ..
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(*fields));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "struct destination".to_string(),
+                        })?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*fields),
+                    "struct field argument",
+                )?;
                 Instruction {
                     operation: InstructionOperation::Composite,
                     data: InstructionData::Composite {
-                        dest: *destination,
+                        dest: destination,
                         elements: args,
                     },
                 }
@@ -922,11 +1333,20 @@ impl<'a> BlockLowerer<'a> {
                 elements,
                 ..
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(*elements));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tuple destination".to_string(),
+                        })?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*elements),
+                    "tuple element argument",
+                )?;
                 Instruction {
                     operation: InstructionOperation::Composite,
                     data: InstructionData::Composite {
-                        dest: *destination,
+                        dest: destination,
                         elements: args,
                     },
                 }
@@ -937,122 +1357,259 @@ impl<'a> BlockLowerer<'a> {
                 elements,
                 ..
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(*elements));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "array destination".to_string(),
+                        })?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*elements),
+                    "array element argument",
+                )?;
                 Instruction {
                     operation: InstructionOperation::Composite,
                     data: InstructionData::Composite {
-                        dest: *destination,
+                        dest: destination,
                         elements: args,
                     },
                 }
             }
 
-            mir::Instruction::VectorSplat { destination, value } => Instruction {
-                operation: InstructionOperation::VectorSplat,
-                data: InstructionData::VectorSplat {
-                    dest: *destination,
-                    value: *value,
-                },
-            },
+            mir::Instruction::VectorSplat { destination, value } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector splat destination".to_string(),
+                        })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector splat value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorSplat,
+                    data: InstructionData::VectorSplat {
+                        dest: destination,
+                        value,
+                    },
+                }
+            }
 
             mir::Instruction::VectorExtract {
                 destination,
                 vector,
                 index,
-            } => Instruction {
-                operation: InstructionOperation::VectorExtract,
-                data: InstructionData::VectorExtract {
-                    dest: *destination,
-                    vector: *vector,
-                    index: *index,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector extract destination".to_string(),
+                        })?;
+                let vector = (*vector)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "vector extract input".to_string(),
+                    })?;
+                let index = (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector extract index".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorExtract,
+                    data: InstructionData::VectorExtract {
+                        dest: destination,
+                        vector,
+                        index,
+                    },
+                }
+            }
 
             mir::Instruction::VectorInsert {
                 destination,
                 vector,
                 index,
                 value,
-            } => Instruction {
-                operation: InstructionOperation::VectorInsert,
-                data: InstructionData::VectorInsert {
-                    dest: *destination,
-                    vector: *vector,
-                    index: *index,
-                    value: *value,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector insert destination".to_string(),
+                        })?;
+                let vector = (*vector)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "vector insert input".to_string(),
+                    })?;
+                let index = (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector insert index".to_string(),
+                })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector insert value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorInsert,
+                    data: InstructionData::VectorInsert {
+                        dest: destination,
+                        vector,
+                        index,
+                        value,
+                    },
+                }
+            }
 
             mir::Instruction::VectorShuffle {
                 destination,
                 left,
                 right,
                 mask,
-            } => Instruction {
-                operation: InstructionOperation::VectorShuffle,
-                data: InstructionData::VectorShuffle {
-                    dest: *destination,
-                    left: *left,
-                    right: *right,
-                    mask: mask.clone(),
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector shuffle destination".to_string(),
+                        })?;
+                let left = (*left).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector shuffle left".to_string(),
+                })?;
+                let right = (*right).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector shuffle right".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorShuffle,
+                    data: InstructionData::VectorShuffle {
+                        dest: destination,
+                        left,
+                        right,
+                        mask: mask.clone(),
+                    },
+                }
+            }
             mir::Instruction::VectorSelect {
                 destination,
                 mask,
                 then_value,
                 else_value,
-            } => Instruction {
-                operation: InstructionOperation::VectorSelect,
-                data: InstructionData::VectorSelect {
-                    dest: *destination,
-                    mask: *mask,
-                    then_value: *then_value,
-                    else_value: *else_value,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector select destination".to_string(),
+                        })?;
+                let mask = (*mask).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector select mask".to_string(),
+                })?;
+                let then_value =
+                    (*then_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector select then value".to_string(),
+                        })?;
+                let else_value =
+                    (*else_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector select else value".to_string(),
+                        })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorSelect,
+                    data: InstructionData::VectorSelect {
+                        dest: destination,
+                        mask,
+                        then_value,
+                        else_value,
+                    },
+                }
+            }
 
             mir::Instruction::VectorReduce {
                 destination,
                 operator,
                 vector,
-            } => Instruction {
-                operation: InstructionOperation::VectorReduce,
-                data: InstructionData::VectorReduce {
-                    dest: *destination,
-                    operator: *operator,
-                    vector: *vector,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector reduce destination".to_string(),
+                        })?;
+                let vector = (*vector)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "vector reduce input".to_string(),
+                    })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorReduce,
+                    data: InstructionData::VectorReduce {
+                        dest: destination,
+                        operator: *operator,
+                        vector,
+                    },
+                }
+            }
 
             mir::Instruction::VectorCompare {
                 destination,
                 operator,
                 left,
                 right,
-            } => Instruction {
-                operation: InstructionOperation::VectorCompare,
-                data: InstructionData::VectorCompare {
-                    dest: *destination,
-                    operator: *operator,
-                    left: *left,
-                    right: *right,
-                },
-            },
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector compare destination".to_string(),
+                        })?;
+                let left = (*left).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector compare left".to_string(),
+                })?;
+                let right = (*right).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "vector compare right".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::VectorCompare,
+                    data: InstructionData::VectorCompare {
+                        dest: destination,
+                        operator: *operator,
+                        left,
+                        right,
+                    },
+                }
+            }
 
             mir::Instruction::VectorConvert {
                 destination,
                 mode,
                 vector,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*vector, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "vector convert destination".to_string(),
+                        })?;
+                let vector = (*vector)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "vector convert input".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(vector)?;
                 Instruction {
                     operation: InstructionOperation::VectorConvert,
                     data: InstructionData::VectorConvert {
-                        dest: *destination,
+                        dest: destination,
                         mode: *mode,
-                        vector: *vector,
+                        vector,
                         source_type,
                         dest_type,
                     },
@@ -1064,15 +1621,27 @@ impl<'a> BlockLowerer<'a> {
                 view,
                 indices,
             } => {
-                let view_type = value_type_for_value(*view, self.value_type());
-                let args = pool.argument_range(self.tree.get_arguments(*indices));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor load destination".to_string(),
+                        })?;
+                let view = (*view).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor load view".to_string(),
+                })?;
+                let view_type = self.value_type_for_value(view)?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*indices),
+                    "tensor load index",
+                )?;
                 let element = tensor_element_type_for_view_type(self.tree, view_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
                     operation: InstructionOperation::TensorLoad,
                     data: InstructionData::TensorLoad {
-                        dest: *destination,
-                        view: *view,
+                        dest: destination,
+                        view,
                         indices: args,
                         view_type,
                         element,
@@ -1085,16 +1654,25 @@ impl<'a> BlockLowerer<'a> {
                 indices,
                 value,
             } => {
-                let view_type = value_type_for_value(*view, self.value_type());
-                let args = pool.argument_range(self.tree.get_arguments(*indices));
+                let view = (*view).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor store view".to_string(),
+                })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor store value".to_string(),
+                })?;
+                let view_type = self.value_type_for_value(view)?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*indices),
+                    "tensor store index",
+                )?;
                 let element = tensor_element_type_for_view_type(self.tree, view_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
                     operation: InstructionOperation::TensorStore,
                     data: InstructionData::TensorStore {
-                        view: *view,
+                        view,
                         indices: args,
-                        value: *value,
+                        value,
                         view_type,
                         element,
                     },
@@ -1102,14 +1680,20 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Instruction::TensorFill { view, value } => {
-                let view_type = value_type_for_value(*view, self.value_type());
+                let view = (*view).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor fill view".to_string(),
+                })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor fill value".to_string(),
+                })?;
+                let view_type = self.value_type_for_value(view)?;
                 let element = tensor_element_type_for_view_type(self.tree, view_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
                     operation: InstructionOperation::TensorFill,
                     data: InstructionData::TensorFill {
-                        view: *view,
-                        value: *value,
+                        view,
+                        value,
                         view_type,
                         element,
                     },
@@ -1117,8 +1701,18 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Instruction::TensorCopy { target, source } => {
-                let target_type = value_type_for_value(*target, self.value_type());
-                let source_type = value_type_for_value(*source, self.value_type());
+                let target = (*target)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor copy target".to_string(),
+                    })?;
+                let source = (*source)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor copy source".to_string(),
+                    })?;
+                let target_type = self.value_type_for_value(target)?;
+                let source_type = self.value_type_for_value(source)?;
                 let target_element = tensor_element_type_for_view_type(self.tree, target_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 let source_element = tensor_element_type_for_view_type(self.tree, source_type)
@@ -1126,8 +1720,8 @@ impl<'a> BlockLowerer<'a> {
                 Instruction {
                     operation: InstructionOperation::TensorCopy,
                     data: InstructionData::TensorCopy {
-                        target: *target,
-                        source: *source,
+                        target,
+                        source,
                         target_type,
                         source_type,
                         target_element,
@@ -1141,13 +1735,27 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 shape,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let args = pool.argument_range(self.tree.get_arguments(*shape));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor reshape destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor reshape source".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*shape),
+                    "tensor reshape shape",
+                )?;
                 Instruction {
                     operation: InstructionOperation::TensorReshape,
                     data: InstructionData::TensorReshape {
-                        dest: *destination,
-                        tensor: *tensor,
+                        dest: destination,
+                        tensor,
                         shape: args,
                         dest_type,
                     },
@@ -1159,13 +1767,24 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 dimensions,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*tensor, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor broadcast destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor broadcast source".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
                     operation: InstructionOperation::TensorBroadcast,
                     data: InstructionData::TensorBroadcast {
-                        dest: *destination,
-                        tensor: *tensor,
+                        dest: destination,
+                        tensor,
                         dimensions: dimensions.clone(),
                         source_type,
                         dest_type,
@@ -1178,13 +1797,24 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 permutation,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*tensor, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor transpose destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor transpose source".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
                     operation: InstructionOperation::TensorTranspose,
                     data: InstructionData::TensorTranspose {
-                        dest: *destination,
-                        tensor: *tensor,
+                        dest: destination,
+                        tensor,
                         permutation: permutation.clone(),
                         source_type,
                         dest_type,
@@ -1200,14 +1830,28 @@ impl<'a> BlockLowerer<'a> {
                 sizes_count,
                 strides_count,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*tensor, self.value_type());
-                let args = pool.argument_range(self.tree.get_arguments(*arguments));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor slice destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor slice source".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*arguments),
+                    "tensor slice argument",
+                )?;
                 Instruction {
                     operation: InstructionOperation::TensorSlice,
                     data: InstructionData::TensorSlice {
-                        dest: *destination,
-                        tensor: *tensor,
+                        dest: destination,
+                        tensor,
                         arguments: args,
                         offsets_count: *offsets_count,
                         sizes_count: *sizes_count,
@@ -1227,19 +1871,36 @@ impl<'a> BlockLowerer<'a> {
                 interior_count,
                 value,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*tensor, self.value_type());
-                let args = pool.argument_range(self.tree.get_arguments(*arguments));
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor pad destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor pad source".to_string(),
+                    })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor pad value".to_string(),
+                })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*arguments),
+                    "tensor pad argument",
+                )?;
                 Instruction {
                     operation: InstructionOperation::TensorPad,
                     data: InstructionData::TensorPad {
-                        dest: *destination,
-                        tensor: *tensor,
+                        dest: destination,
+                        tensor,
                         arguments: args,
                         low_count: *low_count,
                         high_count: *high_count,
                         interior_count: *interior_count,
-                        value: *value,
+                        value,
                         source_type,
                         dest_type,
                     },
@@ -1251,20 +1912,29 @@ impl<'a> BlockLowerer<'a> {
                 tensors,
                 axis,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor concat destination".to_string(),
+                        })?;
+                let dest_type = self.value_type_for_value(destination)?;
                 let tensor_value = self.tree.get_arguments(*tensors);
-                let args = pool.argument_range(tensor_value);
+                let args = pool.argument_reference_range(tensor_value, "tensor concat operand")?;
 
                 let mut tensor_type = Vec::with_capacity(tensor_value.len());
                 for value in tensor_value {
-                    let value_type = value_type_for_value(*value, self.value_type());
+                    let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor concat operand".to_string(),
+                    })?;
+                    let value_type = self.value_type_for_value(value)?;
                     tensor_type.push(value_type);
                 }
 
                 Instruction {
                     operation: InstructionOperation::TensorConcat,
                     data: InstructionData::TensorConcat {
-                        dest: *destination,
+                        dest: destination,
                         tensors: args,
                         tensor_types: tensor_type,
                         axis: *axis,
@@ -1280,15 +1950,31 @@ impl<'a> BlockLowerer<'a> {
                 initial,
                 axes,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*tensor, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor reduce destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor reduce source".to_string(),
+                    })?;
+                let initial = (*initial)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor reduce initial".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
                     operation: InstructionOperation::TensorReduce,
                     data: InstructionData::TensorReduce {
-                        dest: *destination,
+                        dest: destination,
                         operator: *operator,
-                        tensor: *tensor,
-                        initial: *initial,
+                        tensor,
+                        initial,
                         axes: axes.clone(),
                         source_type,
                         dest_type,
@@ -1302,15 +1988,27 @@ impl<'a> BlockLowerer<'a> {
                 right,
                 dimensions,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let left_type = value_type_for_value(*left, self.value_type());
-                let right_type = value_type_for_value(*right, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor dot destination".to_string(),
+                        })?;
+                let left = (*left).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor dot left".to_string(),
+                })?;
+                let right = (*right).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor dot right".to_string(),
+                })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let left_type = self.value_type_for_value(left)?;
+                let right_type = self.value_type_for_value(right)?;
                 Instruction {
                     operation: InstructionOperation::TensorDot,
                     data: InstructionData::TensorDot {
-                        dest: *destination,
-                        left: *left,
-                        right: *right,
+                        dest: destination,
+                        left,
+                        right,
                         dimensions: dimensions.clone(),
                         left_type,
                         right_type,
@@ -1328,15 +2026,29 @@ impl<'a> BlockLowerer<'a> {
                 feature_group_count,
                 batch_group_count,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let input_type = value_type_for_value(*input, self.value_type());
-                let kernel_type = value_type_for_value(*kernel, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor convolution destination".to_string(),
+                        })?;
+                let input = (*input).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor convolution input".to_string(),
+                })?;
+                let kernel = (*kernel)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor convolution kernel".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let input_type = self.value_type_for_value(input)?;
+                let kernel_type = self.value_type_for_value(kernel)?;
                 Instruction {
                     operation: InstructionOperation::TensorConvolution,
                     data: InstructionData::TensorConvolution {
-                        dest: *destination,
-                        input: *input,
-                        kernel: *kernel,
+                        dest: destination,
+                        input,
+                        kernel,
                         dimensions: dimensions.clone(),
                         window: window.clone(),
                         feature_group_count: *feature_group_count,
@@ -1355,15 +2067,31 @@ impl<'a> BlockLowerer<'a> {
                 dimensions,
                 slice_sizes,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let operand_type = value_type_for_value(*operand, self.value_type());
-                let indices_type = value_type_for_value(*indices, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor gather destination".to_string(),
+                        })?;
+                let operand = (*operand)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor gather operand".to_string(),
+                    })?;
+                let indices = (*indices)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor gather indices".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let operand_type = self.value_type_for_value(operand)?;
+                let indices_type = self.value_type_for_value(indices)?;
                 Instruction {
                     operation: InstructionOperation::TensorGather,
                     data: InstructionData::TensorGather {
-                        dest: *destination,
-                        operand: *operand,
-                        indices: *indices,
+                        dest: destination,
+                        operand,
+                        indices,
                         dimensions: dimensions.clone(),
                         slice_sizes: slice_sizes.clone(),
                         operand_type,
@@ -1381,17 +2109,38 @@ impl<'a> BlockLowerer<'a> {
                 dimensions,
                 mode,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let operand_type = value_type_for_value(*operand, self.value_type());
-                let indices_type = value_type_for_value(*indices, self.value_type());
-                let updates_type = value_type_for_value(*updates, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor scatter destination".to_string(),
+                        })?;
+                let operand = (*operand)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor scatter operand".to_string(),
+                    })?;
+                let indices = (*indices)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor scatter indices".to_string(),
+                    })?;
+                let updates = (*updates)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor scatter updates".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let operand_type = self.value_type_for_value(operand)?;
+                let indices_type = self.value_type_for_value(indices)?;
+                let updates_type = self.value_type_for_value(updates)?;
                 Instruction {
                     operation: InstructionOperation::TensorScatter,
                     data: InstructionData::TensorScatter {
-                        dest: *destination,
-                        operand: *operand,
-                        indices: *indices,
-                        updates: *updates,
+                        dest: destination,
+                        operand,
+                        indices,
+                        updates,
                         dimensions: dimensions.clone(),
                         mode: *mode,
                         operand_type,
@@ -1408,16 +2157,28 @@ impl<'a> BlockLowerer<'a> {
                 left,
                 right,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let left_type = value_type_for_value(*left, self.value_type());
-                let right_type = value_type_for_value(*right, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor compare destination".to_string(),
+                        })?;
+                let left = (*left).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor compare left".to_string(),
+                })?;
+                let right = (*right).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor compare right".to_string(),
+                })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let left_type = self.value_type_for_value(left)?;
+                let right_type = self.value_type_for_value(right)?;
                 Instruction {
                     operation: InstructionOperation::TensorCompare,
                     data: InstructionData::TensorCompare {
-                        dest: *destination,
+                        dest: destination,
                         operator: *operator,
-                        left: *left,
-                        right: *right,
+                        left,
+                        right,
                         left_type,
                         right_type,
                         dest_type,
@@ -1430,14 +2191,35 @@ impl<'a> BlockLowerer<'a> {
                 then_value,
                 else_value,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor select destination".to_string(),
+                        })?;
+                let mask = (*mask).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor select mask".to_string(),
+                })?;
+                let then_value =
+                    (*then_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor select then value".to_string(),
+                        })?;
+                let else_value =
+                    (*else_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor select else value".to_string(),
+                        })?;
+                let dest_type = self.value_type_for_value(destination)?;
                 Instruction {
                     operation: InstructionOperation::TensorSelect,
                     data: InstructionData::TensorSelect {
-                        dest: *destination,
-                        mask: *mask,
-                        then_value: *then_value,
-                        else_value: *else_value,
+                        dest: destination,
+                        mask,
+                        then_value,
+                        else_value,
                         dest_type,
                     },
                 }
@@ -1448,14 +2230,25 @@ impl<'a> BlockLowerer<'a> {
                 mode,
                 tensor,
             } => {
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*tensor, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor convert destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor convert source".to_string(),
+                    })?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
                     operation: InstructionOperation::TensorConvert,
                     data: InstructionData::TensorConvert {
-                        dest: *destination,
+                        dest: destination,
                         mode: *mode,
-                        tensor: *tensor,
+                        tensor,
                         source_type,
                         dest_type,
                     },
@@ -1468,8 +2261,16 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::TensorCast,
                 data: InstructionData::TensorCast {
-                    dest: *destination,
-                    tensor: *tensor,
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor cast destination".to_string(),
+                        })?,
+                    tensor: (*tensor)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor cast source".to_string(),
+                        })?,
                 },
             },
 
@@ -1481,16 +2282,28 @@ impl<'a> BlockLowerer<'a> {
                 sizes_count,
                 strides_count,
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(*arguments));
-                let dest_type = value_type_for_value(*destination, self.value_type());
-                let source_type = value_type_for_value(*view, self.value_type());
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor view destination".to_string(),
+                        })?;
+                let view = (*view).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor view source".to_string(),
+                })?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*arguments),
+                    "tensor view argument",
+                )?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(view)?;
                 let element = tensor_element_type_for_view_type(self.tree, source_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
                     operation: InstructionOperation::TensorView,
                     data: InstructionData::TensorView {
-                        dest: *destination,
-                        view: *view,
+                        dest: destination,
+                        view,
                         arguments: args,
                         offsets_count: *offsets_count,
                         sizes_count: *sizes_count,
@@ -1509,11 +2322,32 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::ManagedAlloc,
                 data: InstructionData::ManagedAlloc {
-                    dest: *destination,
-                    reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                    storage_type: *layout,
-                    layout_id: self.tree.type_layout_id(*layout),
-                    byte_len: self.layout_byte_len(*layout),
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "managed alloc destination".to_string(),
+                        })?,
+                    reference: reference_meta_for_value(
+                        self.value_kind_map(),
+                        (*destination)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "managed alloc destination".to_string(),
+                            })?,
+                    ),
+                    storage_type: (*layout).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "managed alloc layout".to_string(),
+                    })?,
+                    layout_id: self.tree.type_layout_id((*layout).ty().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "managed alloc layout".to_string(),
+                        }
+                    })?),
+                    byte_len: self.layout_byte_len((*layout).ty().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "managed alloc layout".to_string(),
+                        }
+                    })?)?,
                 },
             },
 
@@ -1525,10 +2359,27 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::ManagedAllocArray,
                 data: InstructionData::ManagedAllocArray {
-                    dest: *destination,
-                    length: *length,
-                    reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                    element_type: *element,
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "managed alloc array destination".to_string(),
+                        })?,
+                    length: (*length)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "managed alloc array length".to_string(),
+                        })?,
+                    reference: reference_meta_for_value(
+                        self.value_kind_map(),
+                        (*destination)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "managed alloc array destination".to_string(),
+                            })?,
+                    ),
+                    element_type: (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "managed alloc array element".to_string(),
+                    })?,
                 },
             },
 
@@ -1539,15 +2390,36 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::RawAlloc,
                 data: InstructionData::RawAlloc {
-                    dest: *destination,
-                    reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                    byte_len: self.layout_byte_len(*layout),
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "raw alloc destination".to_string(),
+                        })?,
+                    reference: reference_meta_for_value(
+                        self.value_kind_map(),
+                        (*destination)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "raw alloc destination".to_string(),
+                            })?,
+                    ),
+                    byte_len: self.layout_byte_len((*layout).ty().ok_or_else(|| {
+                        Error::ConcreteMirRequired {
+                            context: "raw alloc layout".to_string(),
+                        }
+                    })?)?,
                 },
             },
 
             mir::Instruction::RawFree { pointer } => Instruction {
                 operation: InstructionOperation::RawFree,
-                data: InstructionData::RawFree { pointer: *pointer },
+                data: InstructionData::RawFree {
+                    pointer: (*pointer)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "raw free pointer".to_string(),
+                        })?,
+                },
             },
 
             mir::Instruction::StackAlloc {
@@ -1557,9 +2429,22 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::StackAlloc,
                 data: InstructionData::StackAlloc {
-                    dest: *destination,
-                    reference: reference_meta_for_value(self.value_kind_map(), *destination),
-                    storage_type: *layout,
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "stack alloc destination".to_string(),
+                        })?,
+                    reference: reference_meta_for_value(
+                        self.value_kind_map(),
+                        (*destination)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "stack alloc destination".to_string(),
+                            })?,
+                    ),
+                    storage_type: (*layout).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "stack alloc layout".to_string(),
+                    })?,
                 },
             },
 
@@ -1568,11 +2453,22 @@ impl<'a> BlockLowerer<'a> {
                 intrinsic,
                 arguments,
             } => {
-                let args = pool.argument_range(self.tree.get_arguments(*arguments));
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*arguments),
+                    "intrinsic argument",
+                )?;
                 Instruction {
                     operation: InstructionOperation::Intrinsic,
                     data: InstructionData::Intrinsic {
-                        dest: pack_optional_value(*destination),
+                        dest: pack_optional_value(
+                            (*destination)
+                                .map(|value| {
+                                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "intrinsic destination".to_string(),
+                                    })
+                                })
+                                .transpose()?,
+                        ),
                         intrinsic: *intrinsic,
                         arguments: args,
                     },
@@ -1586,18 +2482,48 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::AtomicLoad,
                 data: InstructionData::AtomicLoad {
-                    dest: *destination,
-                    pointer: *pointer,
-                    raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), *pointer),
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic load destination".to_string(),
+                        })?,
+                    pointer: (*pointer)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic load pointer".to_string(),
+                        })?,
+                    raw_pointee: raw_pointee_type_for_value(
+                        self.tree,
+                        self.value_type(),
+                        (*pointer)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "atomic load pointer".to_string(),
+                            })?,
+                    ),
                 },
             },
 
             mir::Instruction::AtomicStore { pointer, value, .. } => Instruction {
                 operation: InstructionOperation::AtomicStore,
                 data: InstructionData::AtomicStore {
-                    pointer: *pointer,
-                    value: *value,
-                    raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), *pointer),
+                    pointer: (*pointer)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic store pointer".to_string(),
+                        })?,
+                    value: (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "atomic store value".to_string(),
+                    })?,
+                    raw_pointee: raw_pointee_type_for_value(
+                        self.tree,
+                        self.value_type(),
+                        (*pointer)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "atomic store pointer".to_string(),
+                            })?,
+                    ),
                 },
             },
 
@@ -1610,11 +2536,35 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::AtomicCompareExchange,
                 data: InstructionData::AtomicCompareExchange {
-                    dest: *destination,
-                    pointer: *pointer,
-                    expected: *expected,
-                    new_value: *new_value,
-                    raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), *pointer),
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic compare exchange destination".to_string(),
+                        })?,
+                    pointer: (*pointer)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic compare exchange pointer".to_string(),
+                        })?,
+                    expected: (*expected)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic compare exchange expected".to_string(),
+                        })?,
+                    new_value: (*new_value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic compare exchange new value".to_string(),
+                        })?,
+                    raw_pointee: raw_pointee_type_for_value(
+                        self.tree,
+                        self.value_type(),
+                        (*pointer)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "atomic compare exchange pointer".to_string(),
+                            })?,
+                    ),
                 },
             },
 
@@ -1627,11 +2577,29 @@ impl<'a> BlockLowerer<'a> {
             } => Instruction {
                 operation: InstructionOperation::AtomicRmw,
                 data: InstructionData::AtomicRmw {
-                    dest: *destination,
+                    dest: (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic rmw destination".to_string(),
+                        })?,
                     operator: *operator,
-                    pointer: *pointer,
-                    value: *value,
-                    raw_pointee: raw_pointee_type_for_value(self.tree, self.value_type(), *pointer),
+                    pointer: (*pointer)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "atomic rmw pointer".to_string(),
+                        })?,
+                    value: (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "atomic rmw value".to_string(),
+                    })?,
+                    raw_pointee: raw_pointee_type_for_value(
+                        self.tree,
+                        self.value_type(),
+                        (*pointer)
+                            .value()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "atomic rmw pointer".to_string(),
+                            })?,
+                    ),
                 },
             },
 
@@ -1644,7 +2612,7 @@ impl<'a> BlockLowerer<'a> {
                 operation: InstructionOperation::Barrier,
                 data: InstructionData::Barrier,
             },
-        }
+        })
     }
     /// Return one lowered field count for one value.
     fn field_count_for_value(&self, value: mir::Value) -> u32 {
@@ -1663,10 +2631,21 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return one lowered byte length for one layout.
-    fn layout_byte_len(&self, layout: mir::LocalNodeId<mir::Type>) -> usize {
+    fn value_type_for_value(&self, value: mir::Value) -> Result<mir::LocalNodeId<mir::Type>> {
+        lookup_value_type_for_value(value, self.value_type()).ok_or_else(|| {
+            Error::InvariantViolation {
+                context: format!("missing value type for {value:?}"),
+            }
+        })
+    }
+
+    /// Return one lowered byte length for one layout.
+    fn layout_byte_len(&self, layout: mir::LocalNodeId<mir::Type>) -> Result<usize> {
         self.layouts()
             .get(&layout)
             .map(|layout| layout.byte_len)
-            .unwrap_or_else(|| panic!("missing lowered layout for type: {layout:?}"))
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing lowered layout for type: {layout:?}"),
+            })
     }
 }

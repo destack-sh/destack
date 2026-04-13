@@ -8,6 +8,7 @@ use super::layout::{Layout, build_layouts};
 use super::lower::{LoweredValueSlot, analyze_lowered_value_slots, lower_function};
 use super::value::frame_slot_value_class_from_type;
 use super::{CallTarget, Function, FunctionTable};
+use crate::{Error, Result};
 
 /// Immutable runnable lowering and metadata shared across isolates.
 pub struct Executable {
@@ -54,7 +55,7 @@ pub struct Executable {
 
 impl Executable {
     /// Build one executable from one MIR tree and immutable string pool.
-    pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Self {
+    pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Result<Self> {
         ExecutableBuilder::new(tree, strings).build()
     }
 
@@ -136,18 +137,22 @@ impl Executable {
     pub(crate) fn return_destination_for_resume_point(
         &self,
         resume_point: engine::ResumePointId,
-    ) -> Option<mir::Value> {
-        let resume_point = self.resume_point(resume_point)?;
+    ) -> Result<Option<mir::Value>> {
+        let Some(resume_point) = self.resume_point(resume_point) else {
+            return Ok(None);
+        };
 
         // a resume at the start of a block has no preceding call
         if resume_point.mir_instruction_offset == 0 {
-            return None;
+            return Ok(None);
         }
 
         // resolve the preceding MIR instruction in the resumed block
         let block = self.tree.get(resume_point.block);
         let instruction_index = resume_point.mir_instruction_offset as usize - 1;
-        let instruction_id = *block.instructions.get(instruction_index)?;
+        let Some(instruction_id) = block.instructions.get(instruction_index).copied() else {
+            return Ok(None);
+        };
         let instruction = self.tree.get(instruction_id);
 
         // recover the call destination when the resumed instruction follows a call
@@ -155,8 +160,14 @@ impl Executable {
             mir::Instruction::Call { destination, .. }
             | mir::Instruction::CallVirtual { destination, .. }
             | mir::Instruction::CallInterface { destination, .. }
-            | mir::Instruction::CallIndirect { destination, .. } => *destination,
-            _ => None,
+            | mir::Instruction::CallIndirect { destination, .. } => (*destination)
+                .map(|value| {
+                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "call destination".to_string(),
+                    })
+                })
+                .transpose(),
+            _ => Ok(None),
         }
     }
 
@@ -166,8 +177,12 @@ impl Executable {
         function: mir::LocalNodeId<mir::Function>,
         block: mir::LocalNodeId<mir::Block>,
         instruction_offset: u32,
-    ) -> Option<mir::Value> {
-        let resume_point = self.resume_point_for_position(function, block, instruction_offset)?;
+    ) -> Result<Option<mir::Value>> {
+        let Some(resume_point) =
+            self.resume_point_for_position(function, block, instruction_offset)
+        else {
+            return Ok(None);
+        };
         self.return_destination_for_resume_point(resume_point)
     }
 }
@@ -227,15 +242,15 @@ impl ExecutableBuilder {
     }
 
     /// Build the executable.
-    fn build(mut self) -> Executable {
+    fn build(mut self) -> Result<Executable> {
         let function_id_by_name = self.build_function_id_by_name();
         let vtable_id_by_global = self.build_vtable_id_by_global();
         let (lowered_function_ids, target_by_id) = self.build_function_targets();
-        let layouts = build_layouts(&self.tree);
-        let functions = self.build_functions(&lowered_function_ids, &target_by_id, &layouts);
+        let layouts = build_layouts(&self.tree)?;
+        let functions = self.build_functions(&lowered_function_ids, &target_by_id, &layouts)?;
         let functions = FunctionTable::new(functions, target_by_id);
 
-        Executable {
+        Ok(Executable {
             tree: self.tree,
             strings: self.strings,
             function_id_by_name,
@@ -250,7 +265,7 @@ impl ExecutableBuilder {
             layouts,
             resume_point_id_by_position: self.resume_point_id_by_position,
             functions,
-        }
+        })
     }
 
     /// Build the function name lookup table.
@@ -317,18 +332,18 @@ impl ExecutableBuilder {
         lowered_function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ) -> Vec<Function> {
+    ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
 
         let mut functions = Vec::with_capacity(lowered_function_ids.len());
 
         // build one executable function at a time
         for function_id in lowered_function_ids {
-            let function = self.build_function(*function_id, &call_targets, layouts);
+            let function = self.build_function(*function_id, &call_targets, layouts)?;
             functions.push(function);
         }
 
-        functions
+        Ok(functions)
     }
 
     /// Build one lowered function and append its execution metadata.
@@ -337,16 +352,16 @@ impl ExecutableBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ) -> Function {
+    ) -> Result<Function> {
         let function = self.tree.get(function_id);
         let (value_slots, deferred_block_params) =
-            analyze_lowered_value_slots(&self.tree, function);
+            analyze_lowered_value_slots(&self.tree, function)?;
 
         // derive the logical frame shape before lowering
-        let frame_layout = self.build_frame_layout(function_id, function, &value_slots);
+        let frame_layout = self.build_frame_layout(function_id, function, &value_slots)?;
         let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
         let (yield_resume_points, exceptional_call_resume_points) =
-            self.build_resume_points(function_id, &frame_layout, &liveness);
+            self.build_resume_points(function_id, &frame_layout, &liveness)?;
 
         // lower the function with the preassigned yield resume ids
         let lowered_function = lower_function(
@@ -359,8 +374,10 @@ impl ExecutableBuilder {
             layouts,
             &value_slots,
             &deferred_block_params,
-        )
-        .unwrap_or_else(|| panic!("failed to lower executable function: {function_id:?}"));
+        )?
+        .ok_or_else(|| Error::ConcreteMirRequired {
+            context: format!("executable function {function_id:?}"),
+        })?;
 
         // append the frame shape and yield resume transfers first
         self.frame_layout_id_by_function
@@ -387,11 +404,11 @@ impl ExecutableBuilder {
                     (function_id, block.mir_block, instruction_offset as u32),
                     resume_point_id,
                 );
-                self.append_resume_point(&frame_layout, &liveness, &resume_point);
+                self.append_resume_point(&frame_layout, &liveness, &resume_point)?;
             }
         }
 
-        lowered_function
+        Ok(lowered_function)
     }
 
     /// Build one logical frame layout for one function.
@@ -400,7 +417,7 @@ impl ExecutableBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         function: &mir::Function,
         value_slots: &[LoweredValueSlot],
-    ) -> engine::FrameLayout {
+    ) -> Result<engine::FrameLayout> {
         let mut slots = Vec::new();
 
         // value slots
@@ -419,35 +436,45 @@ impl ExecutableBuilder {
         let local_start = slots.len() as u32;
         for local_id in &function.locals {
             let local = self.tree.get(*local_id);
+            let local_type = (local.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "frame local type".to_string(),
+            })?;
             slots.push(engine::FrameSlot {
                 kind: engine::FrameSlotKind::Local,
                 source: engine::FrameSlotSource::Local(*local_id),
-                ty: local.ty,
-                value_class: frame_slot_value_class_from_type(&self.tree, local.ty),
+                ty: local_type,
+                value_class: frame_slot_value_class_from_type(&self.tree, local_type),
             });
         }
         let local_slots = local_start..slots.len() as u32;
 
         // function environment slot
-        let environment_slot = function.environment.map(|environment| {
-            let slot = slots.len() as u32;
-            slots.push(engine::FrameSlot {
-                kind: engine::FrameSlotKind::Environment,
-                source: engine::FrameSlotSource::Environment,
-                ty: environment,
-                value_class: frame_slot_value_class_from_type(&self.tree, environment),
+        let environment_slot = (function.environment)
+            .map(|ty| {
+                ty.ty().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "environment".to_string(),
+                })
+            })
+            .transpose()?
+            .map(|environment| {
+                let slot = slots.len() as u32;
+                slots.push(engine::FrameSlot {
+                    kind: engine::FrameSlotKind::Environment,
+                    source: engine::FrameSlotSource::Environment,
+                    ty: environment,
+                    value_class: frame_slot_value_class_from_type(&self.tree, environment),
+                });
+                slot
             });
-            slot
-        });
 
-        engine::FrameLayout {
+        Ok(engine::FrameLayout {
             id: engine::FrameLayoutId(self.frame_layouts.len() as u32),
             function: function_id,
             slots,
             value_slots,
             local_slots,
             environment_slot,
-        }
+        })
     }
 
     /// Build the semantic resume lookups for one function.
@@ -456,10 +483,10 @@ impl ExecutableBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
-    ) -> (
+    ) -> Result<(
         HashMap<mir::LocalNodeId<mir::Block>, engine::ResumePointId>,
         HashMap<mir::LocalNodeId<mir::Block>, (engine::ResumePointId, engine::ResumePointId)>,
-    ) {
+    )> {
         let block_ids = self.tree.get(function_id).blocks.clone();
         let mut yield_resume_points = HashMap::new();
         let mut exceptional_call_resume_points = HashMap::new();
@@ -471,11 +498,24 @@ impl ExecutableBuilder {
                 let terminator = self.tree.get(block.terminator);
 
                 match terminator {
-                    mir::Terminator::Yield {
-                        resume,
-                        resume_arguments,
-                        ..
-                    } => Some((*resume, resume_arguments.clone())),
+                    mir::Terminator::Yield { resume, .. } => Some((
+                        (resume.block)
+                            .block()
+                            .ok_or_else(|| Error::ConcreteMirRequired {
+                                context: "yield resume target".to_string(),
+                            })?,
+                        resume
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                (*argument)
+                                    .value()
+                                    .ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "yield resume argument".to_string(),
+                                    })
+                            })
+                            .collect::<Result<Vec<_>>>()?,
+                    )),
                     _ => None,
                 }
             };
@@ -483,7 +523,7 @@ impl ExecutableBuilder {
             // yield resumes into one single continuation block
             if let Some((resume, resume_arguments)) = yield_edge {
                 // yield resumes may bind one trailing resume value
-                let resume_value = self.infer_resume_value(resume, resume_arguments.len());
+                let resume_value = self.infer_resume_value(resume, resume_arguments.len())?;
                 let resume_point_id = self.append_resume_entry(
                     function_id,
                     frame_layout,
@@ -491,7 +531,7 @@ impl ExecutableBuilder {
                     resume,
                     &resume_arguments,
                     resume_value,
-                );
+                )?;
 
                 yield_resume_points.insert(block_id, resume_point_id);
                 continue;
@@ -503,36 +543,56 @@ impl ExecutableBuilder {
                 match terminator {
                     mir::Terminator::Invoke {
                         normal_target,
-                        normal_arguments,
                         unwind_target,
-                        unwind_arguments,
                         ..
                     }
                     | mir::Terminator::InvokeIndirect {
                         normal_target,
-                        normal_arguments,
                         unwind_target,
-                        unwind_arguments,
                         ..
                     }
                     | mir::Terminator::InvokeVirtual {
                         normal_target,
-                        normal_arguments,
                         unwind_target,
-                        unwind_arguments,
                         ..
                     }
                     | mir::Terminator::InvokeInterface {
                         normal_target,
-                        normal_arguments,
                         unwind_target,
-                        unwind_arguments,
                         ..
                     } => Some((
-                        *normal_target,
-                        normal_arguments.clone(),
-                        *unwind_target,
-                        unwind_arguments.clone(),
+                        (normal_target.block).block().ok_or_else(|| {
+                            Error::ConcreteMirRequired {
+                                context: "invoke normal target".to_string(),
+                            }
+                        })?,
+                        normal_target
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                (*argument)
+                                    .value()
+                                    .ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "invoke normal argument".to_string(),
+                                    })
+                            })
+                            .collect::<Result<Vec<_>>>()?,
+                        (unwind_target.block).block().ok_or_else(|| {
+                            Error::ConcreteMirRequired {
+                                context: "invoke unwind target".to_string(),
+                            }
+                        })?,
+                        unwind_target
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                (*argument)
+                                    .value()
+                                    .ok_or_else(|| Error::ConcreteMirRequired {
+                                        context: "invoke unwind argument".to_string(),
+                                    })
+                            })
+                            .collect::<Result<Vec<_>>>()?,
                     )),
                     _ => None,
                 }
@@ -544,7 +604,7 @@ impl ExecutableBuilder {
             {
                 // normal and unwind edges may each bind one trailing implicit value
                 let normal_resume_value =
-                    self.infer_resume_value(normal_target, normal_arguments.len());
+                    self.infer_resume_value(normal_target, normal_arguments.len())?;
                 let normal_resume_point_id = self.append_resume_entry(
                     function_id,
                     frame_layout,
@@ -552,10 +612,10 @@ impl ExecutableBuilder {
                     normal_target,
                     &normal_arguments,
                     normal_resume_value,
-                );
+                )?;
 
                 let unwind_resume_value =
-                    self.infer_resume_value(unwind_target, unwind_arguments.len());
+                    self.infer_resume_value(unwind_target, unwind_arguments.len())?;
                 let unwind_resume_point_id = self.append_resume_entry(
                     function_id,
                     frame_layout,
@@ -563,14 +623,14 @@ impl ExecutableBuilder {
                     unwind_target,
                     &unwind_arguments,
                     unwind_resume_value,
-                );
+                )?;
 
                 exceptional_call_resume_points
                     .insert(block_id, (normal_resume_point_id, unwind_resume_point_id));
             }
         }
 
-        (yield_resume_points, exceptional_call_resume_points)
+        Ok((yield_resume_points, exceptional_call_resume_points))
     }
 
     /// Return the trailing implicit resume value for one edge when present.
@@ -578,7 +638,7 @@ impl ExecutableBuilder {
         &self,
         block: mir::LocalNodeId<mir::Block>,
         explicit_argument_count: usize,
-    ) -> Option<mir::Value> {
+    ) -> Result<Option<mir::Value>> {
         let resume_block = self.tree.get(block);
 
         // block edges bind the implicit transferred value after explicit arguments
@@ -586,10 +646,17 @@ impl ExecutableBuilder {
             return resume_block
                 .parameters
                 .last()
-                .map(|parameter| parameter.value);
+                .map(|parameter| {
+                    (parameter.value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "resume parameter".to_string(),
+                        })
+                })
+                .transpose();
         }
 
-        None
+        Ok(None)
     }
 
     /// Append one semantic resume point and transfer for one block entry.
@@ -601,7 +668,7 @@ impl ExecutableBuilder {
         block: mir::LocalNodeId<mir::Block>,
         arguments: &[mir::Value],
         resume_value: Option<mir::Value>,
-    ) -> engine::ResumePointId {
+    ) -> Result<engine::ResumePointId> {
         let resume_block = self.tree.get(block);
         let copy_parameters = if resume_value.is_some() {
             &resume_block.parameters[..resume_block.parameters.len() - 1]
@@ -611,11 +678,20 @@ impl ExecutableBuilder {
         let copies = copy_parameters
             .iter()
             .zip(arguments.iter())
-            .map(|(parameter, argument)| engine::ResumeCopy {
-                source: argument.0,
-                destination: parameter.value.0,
+            .map(|(parameter, argument)| {
+                let destination =
+                    (parameter.value)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "resume parameter".to_string(),
+                        })?;
+
+                Ok(engine::ResumeCopy {
+                    source: argument.0,
+                    destination: destination.0,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         let transfer_id = engine::ResumeTransferId(self.resume_transfers.len() as u32);
         self.resume_transfers.push(engine::ResumeTransfer {
@@ -635,9 +711,9 @@ impl ExecutableBuilder {
             transfer: Some(transfer_id),
         };
 
-        self.append_resume_point(frame_layout, liveness, &resume_point);
+        self.append_resume_point(frame_layout, liveness, &resume_point)?;
 
-        resume_point_id
+        Ok(resume_point_id)
     }
 
     /// Append one semantic resume point and its attached metadata.
@@ -646,11 +722,11 @@ impl ExecutableBuilder {
         frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
         resume_point: &engine::ResumePoint,
-    ) {
+    ) -> Result<()> {
         let safepoint_id = engine::SafepointId(self.safepoints.len() as u32);
         let materialization_map_id =
             engine::MaterializationMapId(self.materialization_maps.len() as u32);
-        let materialized_values = self.materialized_values(liveness, resume_point);
+        let materialized_values = self.materialized_values(liveness, resume_point)?;
         let materialized_locals = self.materialized_locals(liveness, resume_point);
         let slots = frame_layout
             .slots
@@ -692,6 +768,8 @@ impl ExecutableBuilder {
         self.safepoint_id_by_resume_point
             .insert(resume_point.id, safepoint_id);
         self.resume_points.push(resume_point.clone());
+
+        Ok(())
     }
 
     /// Return the values materialized at one resume point.
@@ -699,16 +777,16 @@ impl ExecutableBuilder {
         &self,
         liveness: &mir::FunctionLiveness,
         resume_point: &engine::ResumePoint,
-    ) -> HashSet<mir::Value> {
+    ) -> Result<HashSet<mir::Value>> {
         let Some(resume_transfer) = resume_point
             .transfer
             .and_then(|resume_transfer| self.resume_transfers.get(resume_transfer.0 as usize))
         else {
-            return liveness.value_live_before_instruction(
+            return Ok(liveness.value_live_before_instruction(
                 &self.tree,
                 resume_point.block,
                 resume_point.mir_instruction_offset as usize,
-            );
+            ));
         };
 
         // materialize live in values that survive the resume edge
@@ -717,8 +795,14 @@ impl ExecutableBuilder {
         let parameter_values: HashSet<mir::Value> = resume_block
             .parameters
             .iter()
-            .map(|parameter| parameter.value)
-            .collect();
+            .map(|parameter| {
+                (parameter.value)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "resume block parameter".to_string(),
+                    })
+            })
+            .collect::<Result<HashSet<_>>>()?;
         let mut values: HashSet<mir::Value> =
             live_in.difference(&parameter_values).copied().collect();
 
@@ -731,7 +815,7 @@ impl ExecutableBuilder {
             }
         }
 
-        values
+        Ok(values)
     }
 
     /// Return the locals materialized at one resume point.

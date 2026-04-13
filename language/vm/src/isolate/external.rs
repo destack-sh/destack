@@ -447,9 +447,14 @@ impl<'ctx> ExternalCallContext<'ctx> {
                 actual: format!("{ty:?}"),
             });
         };
+        let signature = (*signature)
+            .ty()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "closure signature".to_string(),
+            })?;
 
-        let signature_size = raw_type_size(&self.executable.tree, *signature)?;
-        let signature_alignment = raw_type_alignment(&self.executable.tree, *signature)?;
+        let signature_size = raw_type_size(&self.executable.tree, signature)?;
+        let signature_alignment = raw_type_alignment(&self.executable.tree, signature)?;
         let environment_size = Value::BYTE_LEN;
         let environment_alignment = std::mem::align_of::<Value>();
 
@@ -458,7 +463,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         let alignment = signature_alignment.max(environment_alignment).max(1);
         let byte_len = align_offset(environment_offset + environment_size, alignment);
 
-        Ok((*signature, function_offset, environment_offset, byte_len))
+        Ok((signature, function_offset, environment_offset, byte_len))
     }
 
     /// Decode one boxed callable payload from one storage byte slice.

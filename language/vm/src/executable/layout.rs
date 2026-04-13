@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use destack_heap::ReferenceMap;
 use destack_mir as mir;
 
+use crate::{Error, Result};
+
 /// One compiled field layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FieldLayout {
@@ -147,20 +149,41 @@ pub(crate) fn repr_type(
             return ty;
         };
 
-        ty = *inner;
+        let Some(inner) = inner.ty() else {
+            return ty;
+        };
+        ty = inner;
+    }
+}
+
+/// Return the concrete representation type for one semantic type.
+fn concrete_repr_type(
+    tree: &mir::NodeTree,
+    mut ty: mir::LocalNodeId<mir::Type>,
+) -> Result<mir::LocalNodeId<mir::Type>> {
+    loop {
+        let mir::Type::Newtype { inner, .. } = tree.get(ty) else {
+            return Ok(ty);
+        };
+
+        ty = (*inner).ty().ok_or_else(|| Error::ConcreteMirRequired {
+            context: "repr newtype inner".to_string(),
+        })?;
     }
 }
 
 /// Build compiled layouts for all MIR types in the tree.
-pub(crate) fn build_layouts(tree: &mir::NodeTree) -> HashMap<mir::LocalNodeId<mir::Type>, Layout> {
+pub(crate) fn build_layouts(
+    tree: &mir::NodeTree,
+) -> Result<HashMap<mir::LocalNodeId<mir::Type>, Layout>> {
     let mut layouts = HashMap::new();
 
     // build one layout entry for every MIR type
     for (type_id, _) in tree.iter_nodes::<mir::Type>() {
-        let _ = build_layout(tree, &mut layouts, type_id);
+        let _ = build_layout(tree, &mut layouts, type_id)?;
     }
 
-    layouts
+    Ok(layouts)
 }
 
 /// Build one compiled layout for one MIR type.
@@ -168,19 +191,19 @@ fn build_layout(
     tree: &mir::NodeTree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
-) -> Layout {
+) -> Result<Layout> {
     // reuse already-built layouts first
     if let Some(layout) = layouts.get(&ty) {
-        return layout.clone();
+        return Ok(layout.clone());
     }
 
     // peel transparent wrappers before choosing the physical representation
-    let repr_ty = repr_type(tree, ty);
+    let repr_ty = concrete_repr_type(tree, ty)?;
     if repr_ty != ty {
-        let layout = build_layout(tree, layouts, repr_ty);
+        let layout = build_layout(tree, layouts, repr_ty)?;
         layouts.insert(ty, layout.clone());
 
-        return layout;
+        return Ok(layout);
     }
 
     // build the canonical physical representation for the repr type
@@ -197,30 +220,67 @@ fn build_layout(
         | mir::Type::Float { .. }
         | mir::Type::TensorReference { .. } => raw_scalar_layout(tree, ty),
         mir::Type::Newtype { .. } => unreachable!("repr_type must peel newtypes"),
-        mir::Type::Struct { fields, .. } => build_record_layout(
-            tree,
-            layouts,
-            ty,
-            fields.iter().map(|field_id| tree.get(*field_id).ty),
-        ),
+        mir::Type::Struct { fields, .. } => {
+            let field_types = fields
+                .iter()
+                .map(|field_id| {
+                    let field = tree.get(*field_id);
+                    (field.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "struct field type".to_string(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            build_record_layout(tree, layouts, ty, field_types)?
+        }
         mir::Type::Tuple { elements, .. } => {
-            build_record_layout(tree, layouts, ty, elements.iter().copied())
+            let element_types = elements
+                .iter()
+                .map(|element| {
+                    (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tuple element type".to_string(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            build_record_layout(tree, layouts, ty, element_types)?
         }
         mir::Type::Array {
             element, length, ..
-        } => build_array_layout(tree, layouts, ty, *element, *length as usize),
+        } => build_array_layout(
+            tree,
+            layouts,
+            ty,
+            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "array element type".to_string(),
+            })?,
+            *length as usize,
+        )?,
         mir::Type::Closure { .. } => {
             scalar_layout(tree.pointer_bytes() as usize, tree.pointer_bytes() as usize)
         }
-        mir::Type::Vector { element, lanes, .. } => {
-            build_vector_layout(tree, layouts, ty, *element, *lanes as usize)
-        }
+        mir::Type::Vector { element, lanes, .. } => build_vector_layout(
+            tree,
+            layouts,
+            ty,
+            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "vector element type".to_string(),
+            })?,
+            *lanes as usize,
+        )?,
         mir::Type::Tensor {
             element,
             shape,
             layout,
             ..
-        } => build_tensor_layout(tree, layouts, ty, *element, shape, layout),
+        } => build_tensor_layout(
+            tree,
+            layouts,
+            ty,
+            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "tensor element type".to_string(),
+            })?,
+            shape,
+            layout,
+        )?,
     };
 
     // publish one placeholder first so recursive tracing can see the shape graph
@@ -230,7 +290,7 @@ fn build_layout(
     layout.reference_map = build_reference_map(tree, layouts, ty);
     layouts.insert(ty, layout.clone());
 
-    layout
+    Ok(layout)
 }
 
 /// Convert one field layout into one component layout.
@@ -319,31 +379,29 @@ fn build_record_layout(
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>> + Clone,
-) -> Layout {
+) -> Result<Layout> {
     // ensure all child layouts exist before choosing the representation
     for field_type in field_types.clone() {
-        let _ = build_layout(tree, layouts, field_type);
+        let _ = build_layout(tree, layouts, field_type)?;
     }
 
     // switch to the VM field layout when raw MIR layout cannot represent boxed callables
-    if field_types
-        .clone()
-        .into_iter()
-        .any(|field_type| contains_boxed_function_value(tree, field_type))
-    {
-        return build_vm_fields_layout(tree, layouts, ty, field_types);
+    for field_type in field_types.clone() {
+        if contains_boxed_function_value(tree, field_type)? {
+            return build_vm_fields_layout(tree, layouts, ty, field_types);
+        }
     }
 
     // otherwise mirror the canonical MIR record layout directly
-    let raw_layout = raw_layout_entry(tree, ty);
+    let raw_layout = raw_layout_entry(tree, ty)?;
     let fields = raw_fields_from_layout(raw_layout);
 
-    Layout {
+    Ok(Layout {
         byte_len: raw_layout.size as usize,
         shape: LayoutShape::Fields(fields),
         reference_map: ReferenceMap::empty(),
         alignment: raw_layout.alignment as usize,
-    }
+    })
 }
 
 /// Build one array layout.
@@ -353,12 +411,12 @@ fn build_array_layout(
     ty: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
     length: usize,
-) -> Layout {
-    let element_layout = build_layout(tree, layouts, element_type);
+) -> Result<Layout> {
+    let element_layout = build_layout(tree, layouts, element_type)?;
 
     // switch to the VM repeated layout when raw MIR layout cannot represent boxed callables
-    if contains_boxed_function_value(tree, element_type) {
-        return repeated_layout(
+    if contains_boxed_function_value(tree, element_type)? {
+        return Ok(repeated_layout(
             element_type,
             &element_layout,
             element_layout.stride(),
@@ -366,14 +424,14 @@ fn build_array_layout(
             stride_byte_len(length, element_layout.stride()),
             element_layout.alignment,
             |element| LayoutShape::Array { element, length },
-        );
+        ));
     }
 
     // otherwise mirror the canonical MIR array stride and size
-    let raw_layout = raw_layout_entry(tree, ty);
-    let stride = raw_array_stride(raw_layout);
+    let raw_layout = raw_layout_entry(tree, ty)?;
+    let stride = raw_array_stride(raw_layout)?;
 
-    repeated_layout(
+    Ok(repeated_layout(
         element_type,
         &element_layout,
         stride,
@@ -381,7 +439,7 @@ fn build_array_layout(
         raw_layout.size as usize,
         raw_layout.alignment as usize,
         |element| LayoutShape::Array { element, length },
-    )
+    ))
 }
 
 /// Build one vector layout.
@@ -391,13 +449,13 @@ fn build_vector_layout(
     ty: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
     lanes: usize,
-) -> Layout {
-    let element_layout = build_layout(tree, layouts, element_type);
+) -> Result<Layout> {
+    let element_layout = build_layout(tree, layouts, element_type)?;
     let stride = element_layout.stride();
 
     // switch to the VM repeated layout when raw MIR layout cannot represent boxed callables
-    if contains_boxed_function_value(tree, element_type) {
-        return repeated_layout(
+    if contains_boxed_function_value(tree, element_type)? {
+        return Ok(repeated_layout(
             element_type,
             &element_layout,
             stride,
@@ -405,7 +463,7 @@ fn build_vector_layout(
             stride_byte_len(lanes, stride),
             element_layout.alignment,
             |element| LayoutShape::Vector { element, lanes },
-        );
+        ));
     }
 
     // otherwise prefer canonical MIR vector size and alignment when available
@@ -418,7 +476,7 @@ fn build_vector_layout(
         .map(|layout| layout.alignment as usize)
         .unwrap_or(element_layout.alignment);
 
-    repeated_layout(
+    Ok(repeated_layout(
         element_type,
         &element_layout,
         stride,
@@ -426,7 +484,7 @@ fn build_vector_layout(
         byte_len,
         alignment,
         |element| LayoutShape::Vector { element, lanes },
-    )
+    ))
 }
 
 /// Build one tensor layout.
@@ -437,14 +495,14 @@ fn build_tensor_layout(
     element_type: mir::LocalNodeId<mir::Type>,
     shape: &[mir::TensorDimension],
     tensor_layout: &mir::TensorLayout,
-) -> Layout {
-    let element_layout = build_layout(tree, layouts, element_type);
+) -> Result<Layout> {
+    let element_layout = build_layout(tree, layouts, element_type)?;
     let element_count = compute_tensor_element_count(shape, tensor_layout);
     let stride = element_layout.stride();
 
     // switch to the VM repeated layout when raw MIR layout cannot represent boxed callables
-    if contains_boxed_function_value(tree, element_type) {
-        return repeated_layout(
+    if contains_boxed_function_value(tree, element_type)? {
+        return Ok(repeated_layout(
             element_type,
             &element_layout,
             stride,
@@ -455,7 +513,7 @@ fn build_tensor_layout(
                 element,
                 element_count,
             },
-        );
+        ));
     }
 
     // otherwise prefer canonical MIR tensor size and alignment when available
@@ -468,7 +526,7 @@ fn build_tensor_layout(
         .map(|layout| layout.alignment as usize)
         .unwrap_or(element_layout.alignment);
 
-    repeated_layout(
+    Ok(repeated_layout(
         element_type,
         &element_layout,
         stride,
@@ -479,7 +537,7 @@ fn build_tensor_layout(
             element,
             element_count,
         },
-    )
+    ))
 }
 
 /// Build one repeated element layout.
@@ -514,22 +572,53 @@ fn stride_byte_len(element_count: usize, stride: usize) -> usize {
 }
 
 /// Report whether the repr type contains one boxed callable value.
-fn contains_boxed_function_value(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> bool {
-    let ty = repr_type(tree, ty);
+fn contains_boxed_function_value(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<bool> {
+    let ty = concrete_repr_type(tree, ty)?;
 
     match tree.get(ty) {
-        mir::Type::Closure { .. } => true,
-        mir::Type::Struct { fields, .. } => fields.iter().any(|field_id| {
-            let field_type = tree.get(*field_id).ty;
-            contains_boxed_function_value(tree, field_type)
-        }),
-        mir::Type::Tuple { elements, .. } => elements
-            .iter()
-            .any(|element_type| contains_boxed_function_value(tree, *element_type)),
+        mir::Type::Closure { .. } => Ok(true),
+        mir::Type::Struct { fields, .. } => {
+            for field_id in fields {
+                let field_type = tree.get(*field_id).ty;
+                let field_type = (field_type)
+                    .ty()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "struct field type".to_string(),
+                    })?;
+                if contains_boxed_function_value(tree, field_type)? {
+                    return Ok(true);
+                }
+            }
+
+            Ok(false)
+        }
+        mir::Type::Tuple { elements, .. } => {
+            for element_type in elements {
+                let element_type =
+                    (*element_type)
+                        .ty()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tuple element type".to_string(),
+                        })?;
+                if contains_boxed_function_value(tree, element_type)? {
+                    return Ok(true);
+                }
+            }
+
+            Ok(false)
+        }
         mir::Type::Array { element, .. }
         | mir::Type::Vector { element, .. }
-        | mir::Type::Tensor { element, .. } => contains_boxed_function_value(tree, *element),
-        _ => false,
+        | mir::Type::Tensor { element, .. } => contains_boxed_function_value(
+            tree,
+            (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "element type".to_string(),
+            })?,
+        ),
+        _ => Ok(false),
     }
 }
 
@@ -551,9 +640,11 @@ fn is_managed_reference_repr(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
 }
 
 /// Return the raw MIR layout entry for one type.
-fn raw_layout_entry(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> &mir::Layout {
+fn raw_layout_entry(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Result<&mir::Layout> {
     tree.type_layout(ty)
-        .unwrap_or_else(|| panic!("missing MIR raw layout metadata for {ty:?}"))
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing MIR raw layout metadata for {ty:?}"),
+        })
 }
 
 /// Extract ordered field layouts from one raw MIR layout.
@@ -581,12 +672,14 @@ fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
 }
 
 /// Return the raw MIR array stride.
-fn raw_array_stride(layout: &mir::Layout) -> usize {
+fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
     let mir::LayoutKind::Array { element_stride, .. } = &layout.kind else {
-        panic!("missing MIR array layout stride")
+        return Err(Error::InvariantViolation {
+            context: "missing MIR array layout stride".to_string(),
+        });
     };
 
-    *element_stride as usize
+    Ok(*element_stride as usize)
 }
 
 /// Build one VM field layout for one record with boxed callable children.
@@ -595,14 +688,14 @@ fn build_vm_fields_layout(
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>>,
-) -> Layout {
+) -> Result<Layout> {
     let mut fields = Vec::new();
     let mut next_offset = 0usize;
     let mut alignment = 1usize;
 
     // lay out each field using its already-lowered VM representation
     for field_type in field_types {
-        let field_layout = build_layout(tree, layouts, field_type);
+        let field_layout = build_layout(tree, layouts, field_type)?;
         let offset = align_offset(next_offset, field_layout.alignment);
 
         fields.push(FieldLayout {
@@ -624,9 +717,9 @@ fn build_vm_fields_layout(
         alignment,
     };
 
-    debug_assert!(layout.byte_len <= raw_layout_entry(tree, ty).size as usize);
+    debug_assert!(layout.byte_len <= raw_layout_entry(tree, ty)?.size as usize);
 
-    layout
+    Ok(layout)
 }
 
 /// Align one byte offset up to the requested alignment.
@@ -785,7 +878,10 @@ mod tests {
     ) -> mir::LocalNodeId<Type> {
         for (_, type_alias) in tree.iter_nodes::<TypeAlias>() {
             if strings.get(type_alias.name) == name {
-                return type_alias.ty;
+                return type_alias
+                    .ty
+                    .ty()
+                    .expect("type alias should be concrete after validation");
             }
         }
 
@@ -797,13 +893,13 @@ mod tests {
     fn test_build_layout_imports_raw_struct_layout() {
         let mir_text = r#"
 type Mixed {
-    a: uint8;
-    b: int64;
-    c: uint8;
+    first: uint8;
+    second: int64;
+    third: uint8;
 }"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
-        let layouts = build_layouts(&tree);
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
         let raw_layout = tree.type_layout(ty).expect("missing MIR raw layout");
 
@@ -822,13 +918,13 @@ type Mixed {
     fn test_build_layout_uses_canonical_struct_reference_offsets() {
         let mir_text = r#"
 type Packed {
-    a: uint8;
-    b: ref<int32, managed, readonly>;
-    c: uint8;
+    first: uint8;
+    inner: ref<int32, managed, readonly>;
+    third: uint8;
 }"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Packed");
-        let layouts = build_layouts(&tree);
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
 
         // struct fields follow the canonical runtime layout
@@ -851,7 +947,7 @@ type Packed {
 type Vec = vector<ref<int32, managed, readonly>, 2>"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Vec");
-        let layouts = build_layouts(&tree);
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
         let element = layout.element().expect("missing element layout");
 
@@ -883,7 +979,7 @@ type Holder {
 }"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
-        let layouts = build_layouts(&tree);
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
 
         // newtype-wrapped managed refs should still appear in the trace map
@@ -897,10 +993,10 @@ type Holder {
     #[test]
     fn test_build_layout_boxes_function_value() {
         let mir_text = r#"
-type Closure = closure() -> int32"#;
+type Closure = () => int32"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Closure");
-        let layouts = build_layouts(&tree);
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
 
         // closure fields store one managed reference to one boxed callable object
@@ -916,14 +1012,14 @@ type Closure = closure() -> int32"#;
     #[test]
     fn test_build_layout_traces_boxed_function_value_fields() {
         let mir_text = r#"
-type Closure = closure() -> int32;
+type Closure = () => int32;
 type Holder {
     pad: uint8;
     action: Closure;
 }"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
-        let layouts = build_layouts(&tree);
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
 
         // the boxed callable field should stay traced after the VM field rewrite

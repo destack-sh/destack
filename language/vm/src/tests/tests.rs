@@ -62,6 +62,8 @@ impl TestIsolate {
             .get(argument_index)
             .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
             .ty
+            .ty()
+            .expect("function parameter type should be concrete after validation")
     }
 
     /// Materialize one typed value for the given MIR type.
@@ -126,6 +128,7 @@ impl TestIsolate {
     pub(crate) fn collect_garbage(&mut self) -> GcStats {
         self.isolate
             .collect_garbage(&mut self.heap, &mut self.shared)
+            .expect("failed to collect garbage")
     }
 
     /// Collect garbage with continuation roots and return one GC summary.
@@ -133,11 +136,9 @@ impl TestIsolate {
         &mut self,
         continuations: &[Continuation],
     ) -> GcStats {
-        self.isolate.collect_garbage_with_continuations(
-            &mut self.heap,
-            &mut self.shared,
-            continuations,
-        )
+        self.isolate
+            .collect_garbage_with_continuations(&mut self.heap, &mut self.shared, continuations)
+            .expect("failed to collect garbage")
     }
 }
 
@@ -146,10 +147,10 @@ pub(crate) fn stamp_well_known_string_type_for_tests(
     tree: &mut NodeTree,
     strings: &ImmutableStringPool,
 ) {
-    // find the explicit @String alias used by VM test MIR fixtures
+    // find the explicit String alias used by VM test MIR fixtures
     let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {
         if strings.get(type_alias.name) == "String" {
-            Some(type_alias.ty)
+            type_alias.ty.ty()
         } else {
             None
         }
@@ -332,7 +333,7 @@ b0(v0: ref<Box, managed, readonly>):
 #[test]
 fn test_execute_stored_function_value_roundtrip() {
     let mir_text = r#"
-type Fn = fn() -> int32;
+type Fn = () -> int32;
 type Holder {
     action: Fn;
 }
@@ -374,7 +375,7 @@ type GreeterImpl {
     value: int32;
 }
 type Greeter#object {
-    greet: closure() -> int32;
+    greet: () => int32;
 }
 
 global GreeterImpl#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit

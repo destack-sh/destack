@@ -174,7 +174,9 @@ fn bench_memory(c: &mut Criterion) {
             // benchmark with gc before each run
             group.bench_with_input(BenchmarkId::new(program.name, n), &n, |b, _| {
                 b.iter(|| {
-                    let _ = isolate.collect_garbage(&mut heap, &mut shared);
+                    let _ = isolate
+                        .collect_garbage(&mut heap, &mut shared)
+                        .expect("failed to collect garbage");
                     let result =
                         program.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
                     black_box(result)

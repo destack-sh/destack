@@ -476,9 +476,9 @@ b0(v0: int32):
 fn test_managed_nominal_allocation_uses_modulus_alignment() {
     let mir = r#"
 type Packed {
-    a: uint8;
-    b: ref<int32, managed, readonly>;
-    c: uint8;
+    first: uint8;
+    inner: ref<int32, managed, readonly>;
+    third: uint8;
 }
 function allocPacked(): ref<Packed, managed, readonly> {
 b0:
@@ -915,7 +915,12 @@ b0:
                 return None;
             }
 
-            tree.type_layout_id(alias.ty)
+            let ty = alias
+                .ty
+                .ty()
+                .expect("type alias should be concrete after validation");
+
+            tree.type_layout_id(ty)
         })
         .expect("missing Other layout id");
     let isolate = crate::Isolate::build_with_options(tree, strings, IsolateOptions::test())
@@ -976,9 +981,9 @@ b0:
 fn test_stack_allocate_pointer32_managed_reference_field() {
     let mir = r#"
 type Packed {
-    a: uint8;
-    b: ref<int32, managed, readonly>;
-    c: uint8;
+    first: uint8;
+    inner: ref<int32, managed, readonly>;
+    third: uint8;
 }
 function stackPacked(): int32 {
 b0:

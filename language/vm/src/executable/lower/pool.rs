@@ -6,6 +6,7 @@ use super::tree::{BlockParameterMap, ValueDecomposition, ValueTree};
 use crate::executable::{
     ArgumentRange, CallTarget, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase, SwitchRange,
 };
+use crate::{Error, Result};
 
 // switch table density threshold
 const SWITCH_TABLE_MIN_DENSITY: f64 = 0.5;
@@ -50,6 +51,26 @@ impl Pool {
         argument_range(&mut self.argument, arguments)
     }
 
+    /// Return one argument range from recoverable MIR references.
+    pub(super) fn argument_reference_range(
+        &mut self,
+        arguments: &[mir::ValueReference],
+        context: &str,
+    ) -> Result<ArgumentRange> {
+        let arguments = arguments
+            .iter()
+            .map(|argument| {
+                (*argument)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: context.to_string(),
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(argument_range(&mut self.argument, &arguments))
+    }
+
     /// Return one copy range from the pool.
     pub(super) fn copy_range(
         &mut self,
@@ -62,9 +83,9 @@ impl Pool {
     /// Return one parameter copy range from the pool.
     pub(super) fn parameter_copy_range(
         &mut self,
-        parameters: &[mir::TypedValue],
+        parameters: &[mir::Parameter],
         arguments: &[mir::Value],
-    ) -> CopyRange {
+    ) -> Result<CopyRange> {
         parameter_copy_range(&mut self.copy, parameters, arguments)
     }
 
@@ -75,7 +96,7 @@ impl Pool {
         arguments: &[mir::Value],
         value_tree_by_param: Option<&HashMap<mir::Value, ValueTree>>,
         decomposition_by_value: &HashMap<mir::Value, ValueDecomposition>,
-    ) -> CopyRange {
+    ) -> Result<CopyRange> {
         edge_copy_plan(
             &mut self.copy,
             parameters,
@@ -93,7 +114,7 @@ impl Pool {
         cases: &[mir::SwitchCase],
         block_parameter_map: &BlockParameterMap,
         decomposition_by_value: &HashMap<mir::Value, ValueDecomposition>,
-    ) -> SwitchRange {
+    ) -> Result<SwitchRange> {
         switch_case_range(
             &mut self.switch_case,
             &mut self.copy,
@@ -115,7 +136,7 @@ impl Pool {
         default_copies: CopyRange,
         block_parameter_map: &BlockParameterMap,
         decomposition_by_value: &HashMap<mir::Value, ValueDecomposition>,
-    ) -> Option<(i64, SwitchRange)> {
+    ) -> Result<Option<(i64, SwitchRange)>> {
         switch_table_range(
             &mut self.switch_case,
             &mut self.copy,
@@ -244,18 +265,21 @@ fn write_tree_copy(
     target: &ValueTree,
     source: mir::Value,
     decomposed_value_by_slot: &HashMap<mir::Value, ValueDecomposition>,
-) {
+) -> Result<()> {
     if target.child.is_empty() {
         pool.push(CopyPair {
             dest: target.slot.0,
             src: source.0,
         });
-        return;
+        return Ok(());
     }
 
-    let source_components = decomposed_value_by_slot.get(&source).unwrap_or_else(|| {
-        panic!("missing deferred composite for cross block transfer: {source:?}")
-    });
+    let source_components =
+        decomposed_value_by_slot
+            .get(&source)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing deferred composite for cross block transfer: {source:?}"),
+            })?;
 
     debug_assert_eq!(
         source_components.child.len(),
@@ -265,8 +289,10 @@ fn write_tree_copy(
     );
 
     for (component, source_component) in target.child.iter().zip(&source_components.child) {
-        write_tree_copy(pool, component, *source_component, decomposed_value_by_slot);
+        write_tree_copy(pool, component, *source_component, decomposed_value_by_slot)?;
     }
+
+    Ok(())
 }
 
 /// Return one block-edge copy plan, expanding decomposed destination parameters.
@@ -276,9 +302,9 @@ fn edge_copy_plan(
     arguments: &[mir::Value],
     value_tree_by_param: Option<&HashMap<mir::Value, ValueTree>>,
     decomposed_value_by_slot: &HashMap<mir::Value, ValueDecomposition>,
-) -> CopyRange {
+) -> Result<CopyRange> {
     if parameters.is_empty() {
-        return CopyRange::empty();
+        return Ok(CopyRange::empty());
     }
 
     let start = pool.len();
@@ -286,7 +312,7 @@ fn edge_copy_plan(
     for (index, parameter) in parameters.iter().enumerate() {
         if let Some(target) = value_tree_by_param.and_then(|targets| targets.get(parameter)) {
             if let Some(source) = arguments.get(index) {
-                write_tree_copy(pool, target, *source, decomposed_value_by_slot);
+                write_tree_copy(pool, target, *source, decomposed_value_by_slot)?;
             } else {
                 write_undefined_tree_copy(pool, target);
             }
@@ -301,24 +327,24 @@ fn edge_copy_plan(
         });
     }
 
-    CopyRange {
+    Ok(CopyRange {
         start: start as u32,
         len: (pool.len() - start) as u32,
         is_contiguous: false,
         contiguous_src: 0,
         contiguous_dest: 0,
-    }
+    })
 }
 
 /// Return one parameter copy range from the pool.
 fn parameter_copy_range(
     pool: &mut Vec<CopyPair>,
-    parameters: &[mir::TypedValue],
+    parameters: &[mir::Parameter],
     arguments: &[mir::Value],
-) -> CopyRange {
+) -> Result<CopyRange> {
     // fast path: no parameters
     if parameters.is_empty() {
-        return CopyRange::empty();
+        return Ok(CopyRange::empty());
     }
 
     // detect contiguous copy pairs
@@ -337,9 +363,14 @@ fn parameter_copy_range(
 
     // append copy pairs
     for (index, param) in parameters.iter().enumerate() {
+        let parameter = (param.value)
+            .value()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "function parameter value".to_string(),
+            })?;
         let src = copy_source(arguments, index);
         if index == 0 {
-            contiguous_dest = param.value.0;
+            contiguous_dest = parameter.0;
             contiguous_src = src;
             if src == INVALID_VALUE_ID {
                 is_contiguous = false;
@@ -347,24 +378,24 @@ fn parameter_copy_range(
         } else if is_contiguous {
             let expected_src = contiguous_src + index as u32;
             let expected_dest = contiguous_dest + index as u32;
-            if src != expected_src || param.value.0 != expected_dest {
+            if src != expected_src || parameter.0 != expected_dest {
                 is_contiguous = false;
             }
         }
         pool.push(CopyPair {
-            dest: param.value.0,
+            dest: parameter.0,
             src,
         });
     }
 
     // return range
-    CopyRange {
+    Ok(CopyRange {
         start: start as u32,
         len: parameters.len() as u32,
         is_contiguous,
         contiguous_src: if is_contiguous { contiguous_src } else { 0 },
         contiguous_dest: if is_contiguous { contiguous_dest } else { 0 },
-    }
+    })
 }
 
 /// Resolve one call target for the given function id.
@@ -384,10 +415,10 @@ fn switch_case_range(
     cases: &[mir::SwitchCase],
     block_param_tree: &BlockParameterMap,
     decomposed_value_by_slot: &HashMap<mir::Value, ValueDecomposition>,
-) -> SwitchRange {
+) -> Result<SwitchRange> {
     // fast path: no cases
     if cases.is_empty() {
-        return SwitchRange::empty();
+        return Ok(SwitchRange::empty());
     }
 
     // compute range start
@@ -401,31 +432,52 @@ fn switch_case_range(
 
     // append cases
     for case in cases {
-        let target_index = block_index_map[&case.target];
+        let target = (case.target.block)
+            .block()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "switch case target".to_string(),
+            })?;
+        let target_index = block_index_map[&target];
         let target_parameters = block_parameters
             .get(target_index)
             .map(|params| params.as_slice())
             .unwrap_or_default();
-        let value_tree_by_param = block_param_tree.tree_by_block.get(&case.target);
+        let value_tree_by_param = block_param_tree.tree_by_block.get(&target);
+        let arguments = case
+            .target
+            .arguments
+            .iter()
+            .map(|argument| {
+                (*argument)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "switch case argument".to_string(),
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
         let copies = edge_copy_plan(
             copy_pool,
             target_parameters,
-            &case.arguments,
+            &arguments,
             value_tree_by_param,
             decomposed_value_by_slot,
-        );
+        )?;
         switch_case_pool.push(SwitchCase {
-            value: case.value,
+            value: (case.value)
+                .integer()
+                .ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "switch case value".to_string(),
+                })?,
             target: target_index as u32,
             copies,
         });
     }
 
     // return range
-    SwitchRange {
+    Ok(SwitchRange {
         start: start as u32,
         len: cases.len() as u32,
-    }
+    })
 }
 
 /// Return one switch-table range when density is high enough.
@@ -439,37 +491,46 @@ fn switch_table_range(
     default_copies: CopyRange,
     block_param_tree: &BlockParameterMap,
     decomposed_value_by_slot: &HashMap<mir::Value, ValueDecomposition>,
-) -> Option<(i64, SwitchRange)> {
+) -> Result<Option<(i64, SwitchRange)>> {
     // bail if there are no cases
     if cases.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     // compute min and max case values
-    let mut min_value = cases[0].value;
-    let mut max_value = cases[0].value;
+    let mut min_value = (cases[0].value)
+        .integer()
+        .ok_or_else(|| Error::ConcreteMirRequired {
+            context: "switch table min value".to_string(),
+        })?;
+    let mut max_value = min_value;
     for case in cases {
-        min_value = min_value.min(case.value);
-        max_value = max_value.max(case.value);
+        let value = (case.value)
+            .integer()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "switch table case value".to_string(),
+            })?;
+        min_value = min_value.min(value);
+        max_value = max_value.max(value);
     }
 
     // compute range length with overflow protection
     let range_len = i128::from(max_value) - i128::from(min_value) + 1;
     if range_len <= 0 {
-        return None;
+        return Ok(None);
     }
     if range_len > SWITCH_TABLE_MAX_RANGE as i128 {
-        return None;
+        return Ok(None);
     }
     if range_len > u32::MAX as i128 {
-        return None;
+        return Ok(None);
     }
 
     // require sufficient density
     let range_len = range_len as usize;
     let density = cases.len() as f64 / range_len as f64;
     if density < SWITCH_TABLE_MIN_DENSITY {
-        return None;
+        return Ok(None);
     }
 
     // reserve table slots
@@ -491,32 +552,54 @@ fn switch_table_range(
 
     // populate explicit cases
     for case in cases {
-        let target_index = block_index_map[&case.target];
+        let case_value = (case.value)
+            .integer()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "switch table case value".to_string(),
+            })?;
+        let target = (case.target.block)
+            .block()
+            .ok_or_else(|| Error::ConcreteMirRequired {
+                context: "switch table target".to_string(),
+            })?;
+        let target_index = block_index_map[&target];
         let target_parameters = block_parameters
             .get(target_index)
             .map(|params| params.as_slice())
             .unwrap_or_default();
-        let value_tree_by_param = block_param_tree.tree_by_block.get(&case.target);
+        let value_tree_by_param = block_param_tree.tree_by_block.get(&target);
+        let arguments = case
+            .target
+            .arguments
+            .iter()
+            .map(|argument| {
+                (*argument)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "switch table argument".to_string(),
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
         let copies = edge_copy_plan(
             copy_pool,
             target_parameters,
-            &case.arguments,
+            &arguments,
             value_tree_by_param,
             decomposed_value_by_slot,
-        );
-        let offset = (case.value - min_value) as usize;
+        )?;
+        let offset = (case_value - min_value) as usize;
         let slot = &mut switch_case_pool[start + offset];
-        slot.value = case.value;
+        slot.value = case_value;
         slot.target = target_index as u32;
         slot.copies = copies;
     }
 
     // return table range
-    Some((
+    Ok(Some((
         min_value,
         SwitchRange {
             start: start as u32,
             len: range_len as u32,
         },
-    ))
+    )))
 }

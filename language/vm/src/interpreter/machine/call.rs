@@ -57,7 +57,12 @@ fn load_receiver_field(
             };
 
             // resolve the receiver field descriptor and load directly
-            let handle = receiver.as_managed_reference().unwrap();
+            let handle = receiver
+                .as_managed_reference()
+                .ok_or_else(|| Error::TypeMismatch {
+                    expected: "composite".to_string(),
+                    actual: format!("{receiver:?}"),
+                })?;
             let field = receiver_field_access(state, managed_pointee, field_index)?;
             access::load_field_managed(state, handle, field, field_index, UNKNOWN_FIELD_COUNT)
         }
@@ -66,7 +71,12 @@ fn load_receiver_field(
                 return access::get_field(state, receiver, field_index);
             };
 
-            let pointer = receiver.as_stack_pointer().unwrap();
+            let pointer = receiver
+                .as_stack_pointer()
+                .ok_or_else(|| Error::TypeMismatch {
+                    expected: "composite".to_string(),
+                    actual: format!("{receiver:?}"),
+                })?;
             let field = receiver_field_access(state, managed_pointee, field_index)?;
             access::load_field_stack(state, pointer, field, field_index, UNKNOWN_FIELD_COUNT)
         }
