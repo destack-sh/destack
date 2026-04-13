@@ -7,7 +7,7 @@ use crate::{
     FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GenericArgument, GlobalSymbolId,
     IfCondition, ImportTarget, Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind,
     MatchCase, MatchKind, MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property,
-    TemplateLiteral, TypeExpression, TypeProperty, UnaryOperator,
+    TemplateLiteral, TupleElement, TypeExpression, TypeProperty, UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -1624,9 +1624,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 self.build_declaration_expression(*declaration, current_block_id)
             }
             Expression::UnresolvedImport {
-                target,
-                arguments,
-                ..
+                target, arguments, ..
             } => {
                 let current_block_id = match target {
                     ImportTarget::String(_) => Some(current_block_id),
@@ -1909,13 +1907,40 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         // evaluate the argument payload
         match argument {
-            GenericArgument::Type { value, .. } | GenericArgument::SpreadType { value, .. } => {
-                self.build_type_expression(*value, current_block_id)
-            }
-            GenericArgument::Value { value, .. } | GenericArgument::SpreadValue { value, .. } => {
+            GenericArgument::Positional { value } | GenericArgument::Spread { value } => {
                 self.build_expression(*value, current_block_id)
             }
             GenericArgument::Error => Some(current_block_id),
+        }
+    }
+
+    /// Build a list of tuple elements.
+    fn build_tuple_elements(
+        &mut self,
+        elements: &[LocalNodeId<TupleElement>],
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        let mut element_block_id = current_block_id;
+        for element_id in elements {
+            element_block_id = self.build_tuple_element(*element_id, element_block_id)?;
+        }
+        Some(element_block_id)
+    }
+
+    /// Build a single tuple element.
+    fn build_tuple_element(
+        &mut self,
+        element_id: LocalNodeId<TupleElement>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        self.record_node(current_block_id, element_id.into_any());
+        let element = self.tree.get(element_id);
+
+        match element {
+            TupleElement::Element { value, .. } | TupleElement::Spread { value, .. } => {
+                self.build_type_expression(*value, current_block_id)
+            }
+            TupleElement::Error => Some(current_block_id),
         }
     }
 
@@ -1939,7 +1964,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | TypeExpression::Missing
             | TypeExpression::Error => Some(current_block_id),
             TypeExpression::Tuple { elements } => {
-                self.build_generic_arguments(elements.as_slice(), current_block_id)
+                self.build_tuple_elements(elements, current_block_id)
             }
             TypeExpression::Array { element } => {
                 self.build_type_expression(*element, current_block_id)
@@ -1984,6 +2009,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             TypeExpression::Readonly { target_type }
             | TypeExpression::KeyOf { target_type }
             | TypeExpression::Must { target_type }
+            | TypeExpression::AsComptime { target_type }
             | TypeExpression::Not { target_type }
             | TypeExpression::ValueOf { target_type, .. }
             | TypeExpression::ReferenceOf { target_type, .. }
@@ -2229,7 +2255,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 let key_block_id = self.build_key(key, current_block_id)?;
                 self.build_expression(*value, key_block_id)
             }
-            Property::Method { key, .. } => self.build_key(key, current_block_id),
+            Property::Method { key, .. } => key
+                .as_ref()
+                .and_then(|key| self.build_key(key, current_block_id))
+                .or(Some(current_block_id)),
             Property::Spread { value, .. } => self.build_expression(*value, current_block_id),
             Property::Error { .. } => Some(current_block_id),
         }

@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, DependencyKind, DependencySource, ExportMode, GenericArgument,
-    GlobalSymbolId, ImportAttributeClause, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
+    Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument, GlobalSymbolId,
+    ImportAttributeClause, ImportSource, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
     LocalTypeId, MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeTree,
     NodeType, OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
     StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeExpression, TypeLiteral,
@@ -31,7 +31,7 @@ pub enum Expression {
 
     /// Unresolved import dependency declaration (like `import "foo"`).
     UnresolvedImport {
-        source: DependencySource,
+        source: ImportSource,
         kind: DependencyKind,
         target: ImportTarget,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
@@ -47,7 +47,7 @@ pub enum Expression {
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {
-        source: DependencySource,
+        source: ImportSource,
         kind: DependencyKind,
         target: StringId,
         target_module: ModuleTarget,

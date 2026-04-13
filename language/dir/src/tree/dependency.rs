@@ -3,32 +3,9 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleResolution, ModuleTarget, Name,
-    Node, NodeType,
+    Expression, GlobalSymbolId, ImportSource, LocalNodeId, LocalSymbolId, ModuleResolution,
+    ModuleTarget, Name, Node, NodeType,
 };
-
-/// The source of a dependency.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum DependencySource {
-    /// Plain import statement (like `import "foo"`).
-    ImportStatement,
-    /// TypeScript triple-slash `reference path` directive.
-    ReferencePathDirective,
-    /// TypeScript triple-slash `reference types` directive.
-    ReferenceTypesDirective,
-    /// TypeScript triple-slash `reference lib` directive.
-    ReferenceLibDirective,
-    /// Import-equals statement (like `import foo = require("foo")`).
-    ImportEquals,
-    /// Re-export statement (like `export { bar } from "foo"`).
-    ExportStatement,
-    /// Import call (like `await import("foo")`).
-    ImportCall,
-    /// Require call (like `require("foo")`).
-    RequireCall,
-    /// Value expression (like `export = foo`).
-    ValueExpression,
-}
 
 /// The mode of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
@@ -66,7 +43,7 @@ pub enum DependencyItem {
     Error,
     /// Unresolved remote item aliased to a local item from a target.
     UnresolvedRemote {
-        source: DependencySource,
+        source: ImportSource,
         mode: DependencyMode,
         kind: DependencyKind,
         name: Option<Name>,

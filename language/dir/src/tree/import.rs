@@ -4,6 +4,29 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Name, ScalarLiteral};
 
+/// The source of an import or dependency declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
+pub enum ImportSource {
+    /// Standard import statement.
+    ImportStatement,
+    /// TypeScript triple-slash `reference path` directive.
+    ReferencePathDirective,
+    /// TypeScript triple-slash `reference types` directive.
+    ReferenceTypesDirective,
+    /// TypeScript triple-slash `reference lib` directive.
+    ReferenceLibDirective,
+    /// Legacy import-equals expression used by older lowerings.
+    ImportEquals,
+    /// Dynamic import call (`import("mod")`).
+    ImportCall,
+    /// Re-export statement (like `export { bar } from "foo"`).
+    ExportStatement,
+    /// Require call (like `require("foo")`).
+    RequireCall,
+    /// Value expression dependency (like `export = foo`).
+    ValueExpression,
+}
+
 /// The target of an import declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum ImportTarget {

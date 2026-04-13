@@ -3,7 +3,7 @@ use crate::{
     ForEachBinding, FunctionSignature, GenericArgument, GenericParameter, IfCondition,
     ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree,
     NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
-    TypeExpression, TypeProperty, WhereClause,
+    TupleElement, TypeExpression, TypeProperty, WhereClause,
 };
 
 /// Walk any node.
@@ -66,6 +66,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::GenericArgument => {
             let generic_argument = tree.generic_arguments.get(local_idx);
             walk_generic_argument(visitor, tree, LocalNodeId::new(node_id), generic_argument);
+        }
+        NodeType::TupleElement => {
+            let tuple_element = tree.tuple_elements.get(local_idx);
+            walk_tuple_element(visitor, tree, LocalNodeId::new(node_id), tuple_element);
         }
         NodeType::Argument => {
             let argument = tree.arguments.get(local_idx);
@@ -174,15 +178,29 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::GenericArgument, id.id);
 
     match generic_argument {
-        GenericArgument::Type { value, .. } | GenericArgument::SpreadType { value, .. } => {
-            let value_node = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_node);
-        }
-        GenericArgument::Value { value, .. } | GenericArgument::SpreadValue { value, .. } => {
+        GenericArgument::Positional { value } | GenericArgument::Spread { value } => {
             let value_node = tree.get(*value);
             visitor.visit_expression(tree, *value, value_node);
         }
         GenericArgument::Error => {}
+    }
+}
+
+/// Walk the TupleElement.
+pub fn walk_tuple_element<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<TupleElement>,
+    tuple_element: &TupleElement,
+) {
+    visitor.visit_any(tree, NodeType::TupleElement, id.id);
+
+    match tuple_element {
+        TupleElement::Element { value, .. } | TupleElement::Spread { value, .. } => {
+            let value_node = tree.get(*value);
+            visitor.visit_type_expression(tree, *value, value_node);
+        }
+        TupleElement::Error => {}
     }
 }
 
@@ -209,7 +227,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Tuple { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
-                visitor.visit_generic_argument(tree, *element_id, element);
+                visitor.visit_tuple_element(tree, *element_id, element);
             }
         }
         TypeExpression::Array { element } => {
@@ -290,6 +308,9 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             target_type: right, ..
         }
         | TypeExpression::Must {
+            target_type: right, ..
+        }
+        | TypeExpression::AsComptime {
             target_type: right, ..
         }
         | TypeExpression::Not {
@@ -1278,11 +1299,15 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             body,
             symbol: _,
         } => {
-            walk_key(visitor, tree, key);
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
             walk_function_signature(visitor, tree, signature);
 
-            let body_expr = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expr);
+            if let Some(body) = body {
+                let body_expr = tree.get(*body);
+                visitor.visit_expression(tree, *body, body_expr);
+            }
         }
         Property::Spread { value, symbol: _ } => {
             let value_expr = tree.get(*value);
@@ -1517,6 +1542,9 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     match parameter {
         Parameter::Named {
             name: _,
+            visibility: _,
+            is_readonly: _,
+            is_optional: _,
             declared_type,
             default,
             symbol: _,
@@ -1532,6 +1560,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         }
         Parameter::Pattern {
             pattern,
+            is_optional: _,
             declared_type,
             symbol: _,
             default,
@@ -1549,6 +1578,8 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         }
         Parameter::VariadicNamed {
             name: _,
+            visibility: _,
+            is_readonly: _,
             declared_type,
             symbol: _,
         } => {
