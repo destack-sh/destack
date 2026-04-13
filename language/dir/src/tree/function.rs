@@ -1,7 +1,9 @@
 use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
-use crate::{Asynchrony, Expression, FunctionMode, Generics, LocalNodeId, Parameter};
+use crate::{
+    Asynchrony, FunctionMode, GenericParameter, LocalNodeId, Parameter, TypeExpression, WhereClause,
+};
 
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
@@ -12,33 +14,22 @@ pub enum FunctionCardinality {
     Generator,
 }
 
-/// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum FunctionAbstraction {
-    /// Abstract declaration.
-    Abstract,
-    /// Abstract override.
-    AbstractOverride,
-    /// Concrete override.
-    ConcreteOverride,
-    /// Concrete declaration.
-    Concrete,
-}
-
 /// The style of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum FunctionKind {
-    /// Function with a body.
+    /// A normal function.
     Function,
-    /// Lambda function with a return type.
+    /// A lambda function.
     Lambda,
 }
 
 /// The signature of a function.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct FunctionSignature {
-    /// The abstraction level of the function.
-    pub abstraction: FunctionAbstraction,
+    /// Whether the function is abstract.
+    pub is_abstract: bool,
+    /// Whether the function is an override.
+    pub is_override: bool,
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,
     /// The cardinality of the function.
@@ -47,12 +38,14 @@ pub struct FunctionSignature {
     pub mode: Option<FunctionMode>,
     /// The kind of the function.
     pub kind: FunctionKind,
-    /// The generics of the function.
-    pub generics: Option<Generics>,
+    /// The generic parameters of the function.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the function.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The optional `this` parameter.
     pub this_parameter: Option<LocalNodeId<Parameter>>,
-    /// The dynamic parameters of the function.
-    pub dynamic_parameters: Vec<LocalNodeId<Parameter>>,
+    /// The runtime parameters of the function.
+    pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
-    pub return_type: Option<LocalNodeId<Expression>>,
+    pub return_type: Option<LocalNodeId<TypeExpression>>,
 }

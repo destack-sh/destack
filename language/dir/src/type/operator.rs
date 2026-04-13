@@ -20,23 +20,17 @@ pub enum TypeUnaryOperator {
     Keyof,
     /// `as comptime`
     AsComptime,
-    /// `as const`
-    AsConst,
 }
 
 /// A TypeBinaryOperator is a type binary operator.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeBinaryOperator {
-    /// `as`
-    Cast,
     /// `in`
     In,
     /// `is`
     Is,
     /// `instanceof`
     InstanceOf,
-    /// `satisfies`
-    Satisfies,
     /// `extends`
     Extends,
     /// `implements`

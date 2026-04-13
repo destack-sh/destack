@@ -2,7 +2,7 @@ use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, BindingCategory, DependencyMode, LocalMergeGroupId, LocalNodeId, LocalScopeId,
+    Arena, BindingCategory, ExportMode, LocalMergeGroupId, LocalNodeId, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol,
     SymbolBinding, SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType,
 };
@@ -137,7 +137,7 @@ impl SymbolTable {
         binding: SymbolBinding,
         key: Option<StaticKey>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let symbol_id = LocalSymbolId::new_typed(self.next_symbol_id, ty);
         self.next_symbol_id += 1;

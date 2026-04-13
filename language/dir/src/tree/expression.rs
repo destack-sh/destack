@@ -3,45 +3,24 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator, CastSource,
-    Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
-    DependencySource, GlobalSymbolId, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
+    Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+    Declarator, DependencyItem, DependencyKind, DependencySource, ExportMode, GenericArgument,
+    GlobalSymbolId, ImportAttributeClause, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
     LocalTypeId, MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeTree,
     NodeType, OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
-    StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeExpression, TypeLiteral,
+    UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
-
-/// The kind of one dependency attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum DependencyAttributeClauseKind {
-    /// The standard `with` attribute clause keyword.
-    With,
-    /// The legacy `assert` attribute clause keyword.
-    Assert,
-}
-
-/// One dependency attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub struct DependencyAttributeClause {
-    /// The clause introducer.
-    pub kind: DependencyAttributeClauseKind,
-    /// The attribute arguments inside the clause body.
-    pub arguments: Vec<LocalNodeId<Argument>>,
-}
 
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Expression {
     /// Declaration as a value (with a name or anonymous).
-    Declaration {
-        declaration: LocalNodeId<Declaration>,
-    },
+    Declaration(LocalNodeId<Declaration>),
 
     /// Block of "statements" (inside `{}` usually).
-    Block { block: LocalNodeId<Block> },
+    Block(LocalNodeId<Block>),
 
     /// Labelled statement (like `label: stmt` in JavaScript).
     Labelled {
@@ -56,7 +35,7 @@ pub enum Expression {
         kind: DependencyKind,
         target: ImportTarget,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Unresolved re-export dependency declaration (like `export { bar } from foo`).
@@ -64,7 +43,7 @@ pub enum Expression {
         target: StringId,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {
@@ -73,7 +52,7 @@ pub enum Expression {
         target: StringId,
         target_module: ModuleTarget,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
@@ -82,93 +61,46 @@ pub enum Expression {
         target_module: ModuleTarget,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<DependencyAttributeClause>,
+        attributes: Option<ImportAttributeClause>,
     },
     /// Export the module namespace as a global name (declaration files only).
     ExportNamespace { name: StringId },
 
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
-        descriptor: DeclarationDescriptor,
+        export: Option<ExportMode>,
+        ambient: Ambientness,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Using binding for explicit resource management.
     Using {
         asynchrony: Asynchrony,
-        descriptor: DeclarationDescriptor,
+        export: Option<ExportMode>,
+        ambient: Ambientness,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
 
-    /// Type unary operation.
-    TypeUnary {
-        operator: TypeUnaryOperator,
-        right: LocalNodeId<Expression>,
-    },
-    /// Type binary operation.
-    TypeBinary {
-        left: LocalNodeId<Expression>,
-        operator: TypeBinaryOperator,
-        right: LocalNodeId<Expression>,
-    },
-    /// Type conditional expression.
-    TypeConditional {
-        left: LocalNodeId<Expression>,
-        right: LocalNodeId<Expression>,
-        then_type: LocalNodeId<Expression>,
-        else_type: LocalNodeId<Expression>,
-    },
-    /// Type mapped expression.
-    TypeMapped {
-        parameter: TypeMappedParameterExpression,
-        modifiers: TypeMappedModifiers,
-        value: LocalNodeId<Expression>,
-    },
-    /// Type index expression.
-    TypeIndex {
-        left: LocalNodeId<Expression>,
-        index: LocalNodeId<Expression>,
-    },
-    /// Type template literal expression.
-    TypeTemplateLiteral {
-        strings: Vec<StringId>,
-        spans: Vec<LocalNodeId<Expression>>,
-    },
-    /// Type import expression.
-    TypeImport {
-        target: LocalNodeId<Expression>,
-        arguments: Vec<LocalNodeId<Argument>>,
-        qualifier: Option<Path>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-    /// Type infer binding.
-    TypeInfer {
-        name: StringId,
-        constraint: Option<LocalNodeId<Expression>>,
-    },
-    /// Type predicate expression.
-    TypePredicate {
-        asserts: bool,
-        subject: TypePredicateSubject,
-        target: Option<LocalNodeId<Expression>>,
+    /// TypeScript-style `as` assertion.
+    As {
+        /// The source expression.
+        expression: LocalNodeId<Expression>,
+        /// The target type.
+        target_type: LocalNodeId<TypeExpression>,
     },
 
-    /// Cast a value expression to a target type.
-    Cast {
-        /// The cast operator to apply.
-        operator: CastOperator,
-        /// The origin of the cast in source.
-        source: CastSource,
-        /// The value to cast.
-        value: LocalNodeId<Expression>,
-        /// The target type expression.
-        target_type: LocalNodeId<Expression>,
+    /// Check a value expression against a target type without changing its type.
+    Satisfies {
+        /// The source expression.
+        expression: LocalNodeId<Expression>,
+        /// The target type.
+        target_type: LocalNodeId<TypeExpression>,
     },
 
     /// Cast a value expression to a target ownership form.
@@ -225,18 +157,18 @@ pub enum Expression {
     Member {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
     /// Private member access (like `a.#foo` or `a.#foo<T>`).
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
     /// Call to a function.
     Call {
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index into an array or slice.
@@ -247,7 +179,7 @@ pub enum Expression {
     /// Instantiation expression (TypeScript).
     Instantiation {
         left: LocalNodeId<Expression>,
-        static_arguments: Vec<LocalNodeId<Argument>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
     /// Maybe unwrap an expression with `?` and propagate.
     Maybe { left: LocalNodeId<Expression> },
@@ -256,7 +188,7 @@ pub enum Expression {
     /// New constructor call.
     New {
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Delete expression.
@@ -269,25 +201,25 @@ pub enum Expression {
     /// Unresolved path.
     UnresolvedPath {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         space_order: SymbolSpaceOrder,
     },
     /// Local reference.
     LocalReference {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         target_symbol: GlobalSymbolId,
     },
     /// Module reference.
     ModuleReference {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         target_symbol: GlobalSymbolId,
     },
     /// Global reference.
     GlobalReference {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         target_symbol: GlobalSymbolId,
     },
     /// Private identifier.
@@ -308,7 +240,10 @@ pub enum Expression {
     TypeLiteral { value: TypeLiteral },
 
     /// Type as a value.
-    Type { value: LocalTypeId },
+    Type {
+        value: LocalNodeId<TypeExpression>,
+        resolved_type: LocalTypeId,
+    },
     /// Template expression.
     TemplateExpression { value: TemplateLiteral },
     /// Tagged template expression.
@@ -330,6 +265,7 @@ pub enum Expression {
     },
     /// Object expression (anonymous).
     ObjectExpression {
+        ty: Option<LocalNodeId<TypeExpression>>,
         properties: Vec<LocalNodeId<Property>>,
     },
     /// Tree expression.
@@ -340,17 +276,17 @@ pub enum Expression {
     },
     /// Tagged scalar expression for newtype construction (e.g., `UserId(20)`).
     TaggedScalarExpression {
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         value: LocalNodeId<Expression>,
     },
     /// Tagged tuple expression for newtype construction (e.g., `Point(1, 2)`).
     TaggedTupleExpression {
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         elements: Vec<LocalNodeId<Argument>>,
     },
     /// Tagged object expression for nominal struct construction (e.g., `Vector3 { x: 1, y: 2 }`).
     TaggedObjectExpression {
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         properties: Vec<LocalNodeId<Property>>,
     },
     /// Parenthesized expression.
@@ -398,7 +334,7 @@ pub enum Expression {
     Try {
         try_expression: LocalNodeId<Expression>,
         catch_pattern: Option<LocalNodeId<Pattern>>,
-        catch_ty: Option<LocalNodeId<Expression>>,
+        catch_ty: Option<LocalNodeId<TypeExpression>>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
         scope: LocalScopeId,
@@ -456,7 +392,7 @@ pub enum Expression {
     /// Missing expression child.
     Missing,
 
-    /// Stub placeholder for annotation-only files.
+    /// Stub placeholder for decorator-only files.
     Stub,
 
     /// Error expression.
@@ -482,7 +418,7 @@ impl Expression {
     /// Get the name of this kind of expression.
     pub fn kind_name(&self) -> &'static str {
         match self {
-            Expression::Declaration { .. } => "declaration",
+            Expression::Declaration(..) => "declaration",
             Expression::UnresolvedImport { .. } => "unresolved import",
             Expression::UnresolvedReExport { .. } => "unresolved re-export",
             Expression::Import { .. } => "import",
@@ -490,23 +426,14 @@ impl Expression {
             Expression::Export { .. } => "export",
             Expression::ExportNamespace { .. } => "export namespace",
 
-            Expression::Block { .. } => "block",
+            Expression::Block(..) => "block",
             Expression::Labelled { .. } => "labelled",
 
             Expression::Let { .. } => "let",
             Expression::Using { .. } => "using",
 
-            Expression::TypeUnary { .. } => "type unary",
-            Expression::TypeBinary { .. } => "type binary",
-            Expression::TypeConditional { .. } => "type conditional",
-            Expression::TypeMapped { .. } => "type mapped",
-            Expression::TypeIndex { .. } => "type index",
-            Expression::TypeTemplateLiteral { .. } => "type template literal",
-            Expression::TypeImport { .. } => "type import",
-            Expression::TypeInfer { .. } => "type infer",
-            Expression::TypePredicate { .. } => "type predicate",
-
-            Expression::Cast { .. } => "cast",
+            Expression::As { .. } => "as",
+            Expression::Satisfies { .. } => "satisfies",
             Expression::OwnershipCast { .. } => "ownership cast",
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
@@ -590,8 +517,8 @@ impl Expression {
     /// Get the symbol of the expression.
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            Expression::Let { descriptor, .. } => Some(descriptor.symbol),
-            Expression::Using { descriptor, .. } => Some(descriptor.symbol),
+            Expression::Let { .. } => None,
+            Expression::Using { .. } => None,
             _ => None,
         }
     }
@@ -606,39 +533,36 @@ impl Expression {
         }
     }
 
-    /// Get the static arguments attached to the expression, when present.
-    pub fn static_arguments(&self) -> Option<&[LocalNodeId<Argument>]> {
+    /// Get the generic arguments attached to the expression, when present.
+    pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
         match self {
-            Expression::TypeImport {
-                static_arguments, ..
-            }
-            | Expression::UnresolvedPath {
-                static_arguments, ..
+            Expression::UnresolvedPath {
+                generic_arguments, ..
             }
             | Expression::LocalReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::ModuleReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::GlobalReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::Member {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::PrivateMember {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::Call {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::New {
-                static_arguments, ..
-            } => static_arguments.as_deref(),
+                generic_arguments, ..
+            } => Some(generic_arguments.as_slice()),
             Expression::Instantiation {
-                static_arguments, ..
-            } => Some(static_arguments.as_slice()),
+                generic_arguments, ..
+            } => Some(generic_arguments.as_slice()),
             _ => None,
         }
     }
@@ -760,6 +684,17 @@ pub enum IfKind {
     Ternary,
 }
 
+/// The kind of a let/var/const binding.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+pub enum LetKind {
+    /// `let` binding.
+    Let,
+    /// `var` binding.
+    Var,
+    /// `const` binding.
+    Const,
+}
+
 /// The condition for an if expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum IfCondition {
@@ -767,6 +702,8 @@ pub enum IfCondition {
     Expression { condition: LocalNodeId<Expression> },
     /// A let binding condition.
     Let {
+        /// The keyword used for the let binding.
+        kind: LetKind,
         /// The mutability derived from the binding keyword.
         mutability: Mutability,
         /// The declarator for the binding.
@@ -833,24 +770,11 @@ pub struct WhereClause {
     /// The target to constrain (like `T` in `T: int32`).
     pub left: StringId,
     /// The constraint type (like `int32` in `T: int32`).
-    pub right: LocalNodeId<Expression>,
+    pub right: LocalNodeId<TypeExpression>,
 }
 
 impl Node for WhereClause {
     const TYPE: NodeType = NodeType::WhereClause;
-}
-
-/// A mapped type parameter for expressions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub struct TypeMappedParameterExpression {
-    /// The parameter name (like `K`).
-    pub name: StringId,
-    /// The parameter symbol.
-    pub symbol: LocalSymbolId,
-    /// The constraint type (like `keyof T`).
-    pub constraint: LocalNodeId<Expression>,
-    /// The optional key remap (like `as Foo<K>`).
-    pub key_remap: Option<LocalNodeId<Expression>>,
 }
 
 /// The addressability of an expression.

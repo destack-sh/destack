@@ -1,6 +1,6 @@
 use crate::{
-    LocalTypeId, StaticArgument, StaticExpression, StaticProperty, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeMappedParameter, TypeTable, TypeVisitor,
+    LocalTypeId, MappedTypeParameter, StaticArgument, StaticExpression, StaticProperty, Type,
+    TypeElement, TypeField, TypeIndexSignature, TypeTable, TypeVisitor,
 };
 
 /// Walk a type id.
@@ -250,7 +250,7 @@ pub fn walk_static_property<V: TypeVisitor + ?Sized>(
 fn walk_type_mapped_parameter<V: TypeVisitor + ?Sized>(
     visitor: &mut V,
     types: &TypeTable,
-    parameter: &TypeMappedParameter,
+    parameter: &MappedTypeParameter,
 ) {
     visitor.visit_type_id(types, parameter.constraint);
     if let Some(remap) = parameter.key_remap.as_ref() {

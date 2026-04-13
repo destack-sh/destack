@@ -2,7 +2,7 @@ use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Mutability, Node,
+    ExportMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Mutability, Node,
     NodeType, StaticKey, StringId, SymbolDecorators,
 };
 
@@ -302,7 +302,7 @@ pub struct Symbol {
     /// The module id of the scope.
     pub module_id: ModuleId,
     /// The export mode of the symbol.
-    pub export: Option<DependencyMode>,
+    pub export: Option<ExportMode>,
     /// The main declaration node of the symbol.
     pub primary_declaration: Option<GlobalNodeIdAny>,
     /// Secondary declaration nodes of the symbol (for merging with other symbols within this module).

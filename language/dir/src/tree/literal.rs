@@ -6,6 +6,8 @@ use crate::{Argument, LocalNodeId, StringId};
 /// A ScalarLiteral is literal scalar value.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize, AdaptImage)]
 pub enum ScalarLiteral {
+    /// Null value.
+    Null,
     /// Boolean value.
     Boolean(bool),
     /// Integer value.

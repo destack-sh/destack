@@ -412,6 +412,20 @@ impl Dump for Name {
     }
 }
 
+/// Dump ambientness as a structured representation.
+impl Dump for Ambientness {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Ambientness::Ambient => {
+                dumper.object("Ambientness::Ambient").end();
+            }
+            Ambientness::Concrete => {
+                dumper.object("Ambientness::Concrete").end();
+            }
+        }
+    }
+}
+
 /// Dump a NodeId<T> as the node it points to.
 impl<T: Node + Clone + Dump> Dump for LocalNodeId<T>
 where
@@ -431,26 +445,18 @@ impl Dump for ModuleId {
 }
 
 impl_dump_display! {
-    AccessorKind,
-    AnnotationPosition,
     Asynchrony,
     AssignOperator,
-    AbstractionModifier,
-    BindingKind,
-    BindingOperator,
-    BindingAnchor,
     BinaryOperator,
-    CastOperator,
-    CastSource,
-    DeclarationAbstraction,
-    DeclarationKind,
+    DecoratorPosition,
+    ImportAttributeClauseKind,
     NamespaceKind,
     DependencyKind,
     DependencySource,
     DependencyMode,
+    ExportMode,
     EnumKind,
     ForEachKind,
-    FunctionAbstraction,
     FunctionCardinality,
     FunctionKind,
     FunctionMode,
@@ -468,10 +474,22 @@ impl_dump_display! {
     TypeKind,
     VarianceModifier,
     VarianceBound,
-    Timing,
     Visibility,
     WhileKind,
     YieldCardinality,
+}
+
+/// Dump an import attribute clause as a structured representation.
+impl Dump for ImportAttributeClause {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let attribute_count = self.attributes.len() as u32;
+
+        dumper
+            .object("ImportAttributeClause")
+            .field("kind", &self.kind)
+            .field("attribute_count", &attribute_count)
+            .end();
+    }
 }
 
 /// Dump an ImportAliasTarget as a structured representation.
@@ -484,10 +502,10 @@ impl Dump for ImportAliasTarget {
                     .field("target", target)
                     .end();
             }
-            ImportAliasTarget::Path { value } => {
+            ImportAliasTarget::Path { path } => {
                 dumper
                     .object("ImportAliasTarget::Path")
-                    .field("value_id", &value.id)
+                    .field("path", path)
                     .end();
             }
         }
@@ -514,121 +532,66 @@ impl Dump for ImportTarget {
     }
 }
 
-/// Dump a BindingModifier as a string.
-impl Dump for BindingModifier {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("BindingModifier")
-            .field_optional("kind", &self.kind)
-            .field_optional("declaration", &self.declaration)
-            .field_optional("abstraction", &self.abstraction)
-            .field_optional("variance", &self.variance)
-            .field_optional("anchor", &self.anchor)
-            .field_optional("mutability", &self.mutability)
-            .field_optional("visibility", &self.visibility)
-            .field_optional("operator", &self.operator)
-            .field_optional("accessor", &self.accessor)
-            .field_optional("timing", &self.timing)
-            .end();
-    }
-}
-
-/// Dump a TypeModifier as a structured representation.
-impl Dump for TypeModifier {
+/// Dump a MappedTypeModifier as a structured representation.
+impl Dump for MappedTypeModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TypeModifier::Add => dumper.object("TypeModifier::Add").end(),
-            TypeModifier::Remove => dumper.object("TypeModifier::Remove").end(),
-            TypeModifier::None => dumper.object("TypeModifier::None").end(),
+            MappedTypeModifier::Present => dumper.object("MappedTypeModifier::Present").end(),
+            MappedTypeModifier::Add => dumper.object("MappedTypeModifier::Add").end(),
+            MappedTypeModifier::Remove => dumper.object("MappedTypeModifier::Remove").end(),
+            MappedTypeModifier::None => dumper.object("MappedTypeModifier::None").end(),
         };
     }
 }
 
-/// Dump a TypeMappedModifiers as a structured representation.
-impl Dump for TypeMappedModifiers {
+/// Dump a MappedTypeModifiers as a structured representation.
+impl Dump for MappedTypeModifiers {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("TypeMappedModifiers")
+            .object("MappedTypeModifiers")
             .field("readonly", &self.readonly)
             .field("optional", &self.optional)
             .end();
     }
 }
 
-/// Dump a TypePredicateSubject as a structured representation.
-impl Dump for TypePredicateSubject {
+/// Dump a PredicateSubject as a structured representation.
+impl Dump for PredicateSubject {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TypePredicateSubject::Unresolved(name) => {
+            PredicateSubject::Unresolved(name) => {
                 dumper
-                    .object("TypePredicateSubject::Unresolved")
+                    .object("PredicateSubject::Unresolved")
                     .value(name)
                     .end();
             }
-            TypePredicateSubject::Symbol(symbol) => {
+            PredicateSubject::Symbol(symbol) => {
                 dumper
-                    .object("TypePredicateSubject::Symbol")
+                    .object("PredicateSubject::Symbol")
                     .value(symbol)
                     .end();
             }
-            TypePredicateSubject::This => {
-                dumper.object("TypePredicateSubject::This").end();
+            PredicateSubject::This => {
+                dumper.object("PredicateSubject::This").end();
             }
         }
-    }
-}
-
-/// Dump a DeclarationDescriptor as a structured object.
-impl Dump for DeclarationDescriptor {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("DeclarationDescriptor")
-            .field("kind", &self.kind)
-            .field("abstraction", &self.abstraction)
-            .field_optional("name", &self.name)
-            .field_optional("export", &self.export)
-            .field("symbol", &self.symbol)
-            .end();
     }
 }
 
 /// Dump a Key as a structured representation.
-impl Dump for DynamicKey {
+impl Dump for Key {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            DynamicKey::Name(name) => {
+            Key::Name(name) => {
                 dumper.object("Key::Name").value(name).end();
             }
-            DynamicKey::Private(name) => {
+            Key::Private(name) => {
                 dumper.object("Key::Private").value(name).end();
             }
-            DynamicKey::Number(name) => {
-                dumper.object("Key::Number").value(name).end();
-            }
-            DynamicKey::Expression(_) => {
+            Key::Expression(_) => {
                 dumper.object("Key::Expression").end();
             }
-            DynamicKey::NamedExpression { name, key: _ } => {
-                dumper
-                    .object("Key::NamedExpression")
-                    .field("name", name)
-                    .end();
-            }
         }
-    }
-}
-
-/// Dump a Generics as a structured object.
-impl Dump for Generics {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("Generics").end();
-    }
-}
-
-/// Dump a Heritage as a structured object.
-impl Dump for Heritage {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("Heritage").end();
     }
 }
 
@@ -637,11 +600,17 @@ impl Dump for FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .object("FunctionSignature")
-            .field("abstraction", &self.abstraction)
+            .field("is_abstract", &self.is_abstract)
+            .field("is_override", &self.is_override)
             .field("asynchrony", &self.asynchrony)
             .field("cardinality", &self.cardinality)
             .field_optional("mode", &self.mode)
             .field("kind", &self.kind)
+            .field(
+                "generic_parameter_count",
+                &(self.generic_parameters.len() as u32),
+            )
+            .field("where_clause_count", &(self.where_clauses.len() as u32))
             .field_optional("this_parameter", &self.this_parameter.map(|id| id.id))
             .end();
     }
@@ -810,6 +779,9 @@ impl Dump for TypeLiteral {
 impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            ScalarLiteral::Null => {
+                dumper.object("ScalarLiteral::Null").end();
+            }
             ScalarLiteral::Boolean(value) => {
                 dumper.object("ScalarLiteral::Boolean").value(value).end();
             }
@@ -873,10 +845,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
-        let annotations = tree.get_annotations(id);
-        for annotation_id in annotations {
-            let annotation = tree.get(annotation_id);
-            self.visit_annotation(tree, annotation_id, annotation);
+        let decorators = tree.get_decorators(id);
+        for decorator_id in decorators {
+            let decorator = tree.get(decorator_id);
+            self.visit_decorator(tree, decorator_id, decorator);
         }
     }
 
@@ -887,10 +859,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
-            Expression::Declaration { declaration: _ } => {
+            Expression::Declaration(_) => {
                 self.node("Expression::Declaration", id.id).end();
             }
-            Expression::Block { block: _ } => {
+            Expression::Block(_) => {
                 self.node("Expression::Block", id.id).end();
             }
             Expression::Labelled {
@@ -973,32 +945,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Let {
-                descriptor,
+                export,
+                ambient,
                 mutability,
                 declarators: _,
             } => {
                 self.node("Expression::Let", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("ambient", ambient)
                     .field("mutability", mutability)
                     .end();
             }
             Expression::Using {
                 asynchrony,
-                descriptor,
+                export,
+                ambient,
                 declarators: _,
             } => {
                 self.node("Expression::Using", id.id)
                     .field("asynchrony", asynchrony)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("ambient", ambient)
                     .end();
             }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-            Expression::TypeUnary { operator, right: _ } => {
-                self.node("Expression::TypeUnary", id.id)
                     .field("operator", operator)
                     .end();
             }
@@ -1039,79 +1010,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeBinary {
-                left: _,
-                operator,
-                right: _,
-            } => {
-                self.node("Expression::TypeBinary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-            Expression::TypeConditional {
-                left: _,
-                right: _,
-                then_type: _,
-                else_type: _,
-            } => {
-                self.node("Expression::TypeConditional", id.id).end();
-            }
-            Expression::TypeMapped {
-                parameter: _,
-                modifiers,
-                value: _,
-            } => {
-                self.node("Expression::TypeMapped", id.id)
-                    .field("modifiers", modifiers)
-                    .end();
-            }
-            Expression::TypeIndex { left: _, index: _ } => {
-                self.node("Expression::TypeIndex", id.id).end();
-            }
-            Expression::TypeTemplateLiteral {
-                strings: _,
-                spans: _,
-            } => {
-                self.node("Expression::TypeTemplateLiteral", id.id).end();
-            }
-            Expression::TypeImport {
-                target: _,
-                arguments: _,
-                qualifier,
-                static_arguments: _,
-            } => {
-                self.node("Expression::TypeImport", id.id)
-                    .field_optional("qualifier", qualifier)
-                    .end();
-            }
-            Expression::TypeInfer {
-                name,
-                constraint: _,
-            } => {
-                self.node("Expression::TypeInfer", id.id)
-                    .field("name", name)
-                    .end();
-            }
-            Expression::TypePredicate {
-                asserts,
-                subject,
-                target: _,
-            } => {
-                self.node("Expression::TypePredicate", id.id)
-                    .field("asserts", asserts)
-                    .field("subject", subject)
-                    .end();
-            }
-            Expression::Cast {
-                operator,
-                source,
-                value: _,
+            Expression::As {
+                expression: _,
                 target_type: _,
             } => {
-                self.node("Expression::Cast", id.id)
-                    .field("operator", operator)
-                    .field("source", source)
-                    .end();
+                self.node("Expression::As", id.id).end();
+            }
+            Expression::Satisfies {
+                expression: _,
+                target_type: _,
+            } => {
+                self.node("Expression::Satisfies", id.id).end();
             }
             Expression::OwnershipCast {
                 operator,
@@ -1138,7 +1047,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Member {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::Member", id.id)
                     .field("name", name)
@@ -1147,7 +1056,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::PrivateMember {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::PrivateMember", id.id)
                     .field("name", name)
@@ -1155,20 +1064,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Instantiation {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("Expression::Instantiation", id.id).end();
             }
             Expression::Call {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::Call", id.id).end();
             }
             Expression::New {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::New", id.id).end();
@@ -1189,7 +1098,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
             Expression::UnresolvedPath {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
                 space_order: _,
             } => {
                 self.node("Expression::UnresolvedPath", id.id)
@@ -1198,7 +1107,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::LocalReference {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
                 target_symbol,
             } => {
                 self.node("Expression::LocalReference", id.id)
@@ -1208,7 +1117,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::ModuleReference {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
                 target_symbol,
             } => {
                 self.node("Expression::ModuleReference", id.id)
@@ -1218,7 +1127,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::GlobalReference {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
                 target_symbol,
             } => {
                 self.node("Expression::GlobalReference", id.id)
@@ -1244,7 +1153,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Super", id.id).end();
             }
 
-            Expression::Type { value: _ } => {
+            Expression::Type {
+                value: _,
+                resolved_type: _,
+            } => {
                 self.node("Expression::Type", id.id).end();
             }
             Expression::ScalarLiteral { value } => {
@@ -1276,7 +1188,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::SequenceExpression { expressions: _ } => {
                 self.node("Expression::SequenceExpression", id.id).end();
             }
-            Expression::ObjectExpression { properties: _ } => {
+            Expression::ObjectExpression {
+                ty: _,
+                properties: _,
+            } => {
                 self.node("Expression::ObjectExpression", id.id).end();
             }
             Expression::TreeExpression {
@@ -1466,144 +1381,150 @@ impl<'a> NodeVisitor for Dumper<'a> {
         declaration: &Declaration,
     ) {
         match declaration {
-            Declaration::Global {
-                descriptor,
-                expressions: _,
-                scope,
-            } => {
+            Declaration::Global(declaration) => {
                 self.node("Declaration::Global", id.id)
-                    .field("descriptor", descriptor)
-                    .field("scope", scope)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field("scope", &declaration.scope)
                     .end();
             }
-            Declaration::Namespace {
-                descriptor,
-                kind,
-                generics,
-                expressions: _,
-                scope,
-            } => {
-                self.node("Declaration::Module", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field("generics", generics)
-                    .field("scope", scope)
+            Declaration::Namespace(declaration) => {
+                self.node("Declaration::Namespace", id.id)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field("kind", &declaration.kind)
+                    .field(
+                        "generic_parameter_count",
+                        &(declaration.generic_parameters.len() as u32),
+                    )
+                    .field(
+                        "where_clause_count",
+                        &(declaration.where_clauses.len() as u32),
+                    )
+                    .field("scope", &declaration.scope)
                     .end();
             }
-            Declaration::Type {
-                descriptor,
-                kind,
-                mutability,
-                static_parameters: _,
-                value: _,
-            } => {
+            Declaration::Type(declaration) => {
                 self.node("Declaration::Type", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field_optional("mutability", mutability)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field("is_nominal", &declaration.is_nominal)
+                    .field_optional("mutability", &declaration.mutability)
                     .end();
             }
-            Declaration::ImportAlias {
-                descriptor,
-                kind,
-                target,
-            } => {
+            Declaration::ImportAlias(declaration) => {
                 self.node("Declaration::ImportAlias", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field("target", target)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field("kind", &declaration.kind)
+                    .field("target", &declaration.target)
                     .end();
             }
-            Declaration::Struct {
-                descriptor,
-                generics,
-                heritage,
-                members: _,
-                scope,
-            } => {
+            Declaration::Struct(declaration) => {
                 self.node("Declaration::Struct", id.id)
-                    .field("descriptor", descriptor)
-                    .field("generics", generics)
-                    .field("heritage", heritage)
-                    .field("scope", scope)
+                    .field("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field(
+                        "generic_parameter_count",
+                        &(declaration.generic_parameters.len() as u32),
+                    )
+                    .field(
+                        "where_clause_count",
+                        &(declaration.where_clauses.len() as u32),
+                    )
+                    .field("scope", &declaration.scope)
                     .end();
             }
-            Declaration::Class {
-                descriptor,
-                self_symbol: _,
-                generics,
-                heritage,
-                members: _,
-                scope,
-            } => {
+            Declaration::Class(declaration) => {
                 self.node("Declaration::Class", id.id)
-                    .field("descriptor", descriptor)
-                    .field("generics", generics)
-                    .field("heritage", heritage)
-                    .field("scope", scope)
+                    .field("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field_optional("self_symbol", &declaration.self_symbol)
+                    .field("is_abstract", &declaration.is_abstract)
+                    .field(
+                        "generic_parameter_count",
+                        &(declaration.generic_parameters.len() as u32),
+                    )
+                    .field(
+                        "where_clause_count",
+                        &(declaration.where_clauses.len() as u32),
+                    )
+                    .field("scope", &declaration.scope)
                     .end();
             }
-            Declaration::Enum {
-                descriptor,
-                kind,
-                generics,
-                heritage,
-                fields: _,
-                members: _,
-                scope,
-            } => {
+            Declaration::Enum(declaration) => {
                 self.node("Declaration::Enum", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field("generics", generics)
-                    .field("heritage", heritage)
-                    .field("scope", scope)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field("kind", &declaration.kind)
+                    .field(
+                        "generic_parameter_count",
+                        &(declaration.generic_parameters.len() as u32),
+                    )
+                    .field(
+                        "where_clause_count",
+                        &(declaration.where_clauses.len() as u32),
+                    )
+                    .field("scope", &declaration.scope)
                     .end();
             }
-            Declaration::Interface {
-                descriptor,
-                kind,
-                generics,
-                heritage,
-                members: _,
-                scope,
-            } => {
+            Declaration::Interface(declaration) => {
                 self.node("Declaration::Interface", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field("generics", generics)
-                    .field("heritage", heritage)
-                    .field("scope", scope)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field("is_nominal", &declaration.is_nominal)
+                    .field(
+                        "generic_parameter_count",
+                        &(declaration.generic_parameters.len() as u32),
+                    )
+                    .field(
+                        "where_clause_count",
+                        &(declaration.where_clauses.len() as u32),
+                    )
+                    .field("scope", &declaration.scope)
                     .end();
             }
-            Declaration::Function {
-                descriptor,
-                self_symbol: _,
-                signature,
-                body: _,
-                scope,
-            } => {
-                self.node("Declaration::Function", id.id)
-                    .field("descriptor", descriptor)
-                    .field("signature", signature)
-                    .field("scope", scope)
-                    .end();
-            }
-            Declaration::Extension {
-                descriptor,
-                generics,
-                target_type: _,
-                target_symbol,
-                heritage,
-                members: _,
-                scope,
-            } => {
+            Declaration::Extension(declaration) => {
                 self.node("Declaration::Extension", id.id)
-                    .field("descriptor", descriptor)
-                    .field("generics", generics)
-                    .field_optional("target_symbol", target_symbol)
-                    .field("heritage", heritage)
-                    .field("scope", scope)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field(
+                        "generic_parameter_count",
+                        &(declaration.generic_parameters.len() as u32),
+                    )
+                    .field(
+                        "where_clause_count",
+                        &(declaration.where_clauses.len() as u32),
+                    )
+                    .field_optional("target_symbol", &declaration.target_symbol)
+                    .field("scope", &declaration.scope)
+                    .end();
+            }
+            Declaration::Function(declaration) => {
+                self.node("Declaration::Function", id.id)
+                    .field_optional("name", &declaration.name)
+                    .field_optional("export", &declaration.export)
+                    .field("ambient", &declaration.ambient)
+                    .field("symbol", &declaration.symbol)
+                    .field_optional("self_symbol", &declaration.self_symbol)
+                    .field("signature", &declaration.signature)
+                    .field("scope", &declaration.scope)
                     .end();
             }
         }
@@ -1632,39 +1553,29 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
             Property::Field {
-                modifiers,
                 key,
                 value: _,
-                default: _,
                 symbol,
             } => {
                 self.node("Property::Field", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
+                    .field("key", key)
                     .field("symbol", symbol)
                     .end();
             }
             Property::Method {
-                modifiers,
                 key,
                 signature,
                 body: _,
                 symbol,
             } => {
                 self.node("Property::Method", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
+                    .field("key", key)
                     .field("signature", signature)
                     .field("symbol", symbol)
                     .end();
             }
-            Property::Spread {
-                modifiers,
-                value: _,
-                symbol,
-            } => {
+            Property::Spread { value: _, symbol } => {
                 self.node("Property::Spread", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }
@@ -1682,85 +1593,123 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
         match member {
             Member::Type {
-                modifiers,
                 name: _,
-                static_parameters: _,
+                generic_parameters: _,
                 where_clauses: _,
-                ty: _,
+                declared_type: _,
                 value: _,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
                 symbol,
             } => {
                 self.node("Member::Type", id.id)
-                    .field_optional("modifiers", modifiers)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_abstract", is_abstract)
+                    .field("is_override", is_override)
+                    .field("is_static", is_static)
                     .field("symbol", symbol)
                     .end();
             }
             Member::ComptimeConst {
-                modifiers,
                 name: _,
-                ty: _,
+                declared_type: _,
                 value: _,
+                visibility,
+                ambient,
+                is_static,
                 symbol,
             } => {
                 self.node("Member::ComptimeConst", id.id)
-                    .field_optional("modifiers", modifiers)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_static", is_static)
                     .field("symbol", symbol)
                     .end();
             }
             Member::Field {
-                modifiers,
                 key,
-                value: _,
+                declared_type: _,
                 default: _,
+                is_optional,
+                is_readonly,
+                mutability,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_const_asserted,
+                is_accessor,
+                is_comptime,
                 symbol,
             } => {
                 self.node("Member::Field", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
+                    .field("key", key)
+                    .field("is_optional", is_optional)
+                    .field("is_readonly", is_readonly)
+                    .field_optional("mutability", mutability)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_abstract", is_abstract)
+                    .field("is_override", is_override)
+                    .field("is_static", is_static)
+                    .field("is_const_asserted", is_const_asserted)
+                    .field("is_accessor", is_accessor)
+                    .field("is_comptime", is_comptime)
                     .field("symbol", symbol)
                     .end();
             }
             Member::Method {
-                modifiers,
                 key,
                 signature,
                 body: _,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_accessor,
+                is_comptime,
                 symbol,
             } => {
                 self.node("Member::Method", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("signature", signature)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_abstract", is_abstract)
+                    .field("is_override", is_override)
+                    .field("is_static", is_static)
+                    .field("is_accessor", is_accessor)
+                    .field("is_comptime", is_comptime)
                     .field("symbol", symbol)
                     .end();
             }
             Member::Embed {
-                modifiers,
                 value: _,
+                visibility,
+                ambient,
+                is_static,
                 symbol,
             } => {
                 self.node("Member::Embed", id.id)
-                    .field_optional("modifiers", modifiers)
+                    .field_optional("visibility", visibility)
+                    .field("ambient", ambient)
+                    .field("is_static", is_static)
                     .field("symbol", symbol)
                     .end();
             }
-            Member::StaticBlock {
-                modifiers,
-                body: _,
-                symbol,
-            } => {
+            Member::StaticBlock { body: _, symbol } => {
                 self.node("Member::StaticBlock", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }
-            Member::ComptimeBlock {
-                modifiers,
-                body: _,
-                symbol,
-            } => {
+            Member::ComptimeBlock { body: _, symbol } => {
                 self.node("Member::ComptimeBlock", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }
@@ -1783,7 +1732,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         self.node("EnumField", id.id)
             .field("name", &enum_field.name)
-            .field("symbol", &enum_field.symbol)
             .end();
         self.with_depth(|dumper| {
             walk_enum_field(dumper, tree, id, enum_field);
@@ -1907,46 +1855,42 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match parameter {
             Parameter::Named {
-                modifiers,
                 name,
+                declared_type: _,
                 symbol,
                 default: _,
             } => {
                 self.node("Parameter::Scalar", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .field("symbol", symbol)
                     .end();
             }
             Parameter::Pattern {
-                modifiers,
                 pattern: _,
+                declared_type: _,
                 symbol,
                 default: _,
             } => {
                 self.node("Parameter::Pattern", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }
             Parameter::VariadicNamed {
-                modifiers,
                 name,
+                declared_type: _,
                 symbol,
             } => {
                 self.node("Parameter::VariadicNamed", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .field("symbol", symbol)
                     .end();
             }
             Parameter::VariadicPattern {
-                modifiers,
                 pattern: _,
+                declared_type: _,
                 symbol,
             } => {
                 self.node("Parameter::VariadicPattern", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }
@@ -2064,6 +2008,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Expression { value: _ } => {
                 self.node("Pattern::Expression", id.id).end();
             }
+            Pattern::TypeExpression { value: _ } => {
+                self.node("Pattern::TypeExpression", id.id).end();
+            }
             Pattern::Tuple { fields: _ } => {
                 self.node("Pattern::Tuple", id.id).end();
             }
@@ -2153,25 +2100,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_annotation(
+    fn visit_decorator(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
+        id: LocalNodeId<Decorator>,
+        decorator: &Decorator,
     ) {
-        match annotation {
-            Annotation::Decorator {
-                position,
-                expression,
-            } => {
-                self.node("Annotation::Decorator", id.id)
-                    .field("position", position)
-                    .field("expression", &expression.id)
-                    .end();
-            }
-        }
+        self.node("Decorator", id.id)
+            .field("position", &decorator.position)
+            .field("expression", &decorator.expression.id)
+            .end();
+
         self.with_depth(|dumper| {
-            walk_annotation(dumper, tree, id, annotation);
+            walk_decorator(dumper, tree, id, decorator);
         });
     }
 }

@@ -3,11 +3,11 @@ use indexmap::IndexMap;
 use destack_source::ModuleId;
 
 use crate::{
-    Argument, BinaryOperator, Block, Declaration, Declarator, DynamicKey, Expression, FlowBlock,
-    FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GlobalSymbolId,
-    IfCondition, ImportTarget, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase,
-    MatchKind, MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property,
-    TemplateLiteral, UnaryOperator,
+    Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FlowBlock, FlowBlockId,
+    FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GenericArgument, GlobalSymbolId,
+    IfCondition, ImportTarget, Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind,
+    MatchCase, MatchKind, MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property,
+    TemplateLiteral, TypeExpression, TypeProperty, UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -224,7 +224,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         // dispatch based on expression kind
         match expression {
-            Expression::Block { block } => self.build_block(*block, current_block_id),
+            Expression::Block(block) => self.build_block(*block, current_block_id),
             Expression::Labelled { body, symbol, .. } => {
                 self.build_labelled_expression(*symbol, *body, current_block_id)
             }
@@ -1620,12 +1620,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
     ) -> Option<FlowBlockId> {
         // walk child expressions based on expression shape
         match expression {
-            Expression::Declaration { declaration } => {
+            Expression::Declaration(declaration) => {
                 self.build_declaration_expression(*declaration, current_block_id)
             }
             Expression::UnresolvedImport {
                 target,
-                attributes,
                 arguments,
                 ..
             } => {
@@ -1636,53 +1635,25 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     }
                 };
                 let current_block_id = current_block_id?;
-                let current_block_id = self.build_arguments(
-                    attributes
-                        .as_ref()
-                        .map(|attributes| attributes.arguments.as_slice()),
-                    current_block_id,
-                )?;
                 self.build_arguments(arguments.as_deref(), current_block_id)
             }
-            Expression::Import {
-                attributes,
-                arguments,
-                ..
-            } => {
-                let current_block_id = self.build_arguments(
-                    attributes
-                        .as_ref()
-                        .map(|attributes| attributes.arguments.as_slice()),
-                    current_block_id,
-                )?;
+            Expression::Import { arguments, .. } => {
                 self.build_arguments(arguments.as_deref(), current_block_id)
             }
-            Expression::UnresolvedReExport { attributes, .. }
-            | Expression::ReExport { attributes, .. }
-            | Expression::Export { attributes, .. } => self.build_arguments(
-                attributes
-                    .as_ref()
-                    .map(|attributes| attributes.arguments.as_slice()),
-                current_block_id,
-            ),
+            Expression::UnresolvedReExport { .. }
+            | Expression::ReExport { .. }
+            | Expression::Export { .. } => Some(current_block_id),
             Expression::ExportNamespace { .. } => Some(current_block_id),
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
                 self.build_declarators(declarators, current_block_id)
             }
-            Expression::TypeBinary { left, .. } => self.build_expression(*left, current_block_id),
-            Expression::TypeUnary { .. }
-            | Expression::TypeConditional { .. }
-            | Expression::TypeMapped { .. }
-            | Expression::TypeIndex { .. }
-            | Expression::TypeTemplateLiteral { .. }
-            | Expression::TypeImport { .. }
-            | Expression::TypeInfer { .. }
-            | Expression::TypePredicate { .. }
-            | Expression::PointerOf { .. } => Some(current_block_id),
-            Expression::Cast {
-                operator: _,
-                source: _,
-                value,
+            Expression::PointerOf { right, .. } => self.build_expression(*right, current_block_id),
+            Expression::As {
+                expression: value,
+                target_type: _,
+            }
+            | Expression::Satisfies {
+                expression: value,
                 target_type: _,
             }
             | Expression::OwnershipCast {
@@ -1703,33 +1674,33 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             Expression::Member {
                 left,
-                static_arguments,
+                generic_arguments,
                 ..
             }
             | Expression::PrivateMember {
                 left,
-                static_arguments,
+                generic_arguments,
                 ..
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
-                self.build_arguments(static_arguments.as_deref(), left_block_id)
+                self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)
             }
             Expression::Instantiation {
                 left,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
-                self.build_arguments(Some(static_arguments.as_slice()), left_block_id)
+                self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)
             }
             Expression::Call {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
-                let static_block_id =
-                    self.build_arguments(static_arguments.as_deref(), left_block_id)?;
-                self.build_arguments(Some(dynamic_arguments.as_slice()), static_block_id)
+                let generic_block_id =
+                    self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)?;
+                self.build_arguments(Some(dynamic_arguments.as_slice()), generic_block_id)
             }
             Expression::Index { left, right } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
@@ -1740,13 +1711,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             Expression::New {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
-                let static_block_id =
-                    self.build_arguments(static_arguments.as_deref(), left_block_id)?;
-                self.build_arguments(Some(dynamic_arguments), static_block_id)
+                let generic_block_id =
+                    self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)?;
+                self.build_arguments(Some(dynamic_arguments.as_slice()), generic_block_id)
             }
             Expression::Delete { value } => self.build_expression(*value, current_block_id),
             Expression::Await { expression }
@@ -1755,24 +1726,24 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 self.build_expression(*expression, current_block_id)
             }
             Expression::UnresolvedPath {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::LocalReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::ModuleReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::GlobalReference {
-                static_arguments, ..
-            } => self.build_arguments(static_arguments.as_deref(), current_block_id),
+                generic_arguments, ..
+            } => self.build_generic_arguments(generic_arguments.as_slice(), current_block_id),
             Expression::PrivateIdentifier { .. }
             | Expression::ImportMeta
             | Expression::NewTarget
             | Expression::This
             | Expression::Super => Some(current_block_id),
-            Expression::Type { .. }
-            | Expression::ScalarLiteral { .. }
+            Expression::Type { value, .. } => self.build_type_expression(*value, current_block_id),
+            Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }
             | Expression::Debugger
             | Expression::Missing
@@ -1791,7 +1762,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
             Expression::SequenceExpression { expressions } => {
                 self.build_expression_sequence(expressions, current_block_id)
             }
-            Expression::ObjectExpression { properties } => {
+            Expression::ObjectExpression { ty, properties } => {
+                let current_block_id = if let Some(type_id) = ty {
+                    self.build_type_expression(*type_id, current_block_id)?
+                } else {
+                    current_block_id
+                };
+
                 self.build_properties(properties, current_block_id)
             }
             Expression::TreeExpression {
@@ -1807,15 +1784,15 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 self.build_arguments(elements.as_deref(), tree_block_id)
             }
             Expression::TaggedScalarExpression { ty, value } => {
-                let ty_block_id = self.build_expression(*ty, current_block_id)?;
+                let ty_block_id = self.build_type_expression(*ty, current_block_id)?;
                 self.build_expression(*value, ty_block_id)
             }
             Expression::TaggedTupleExpression { ty, elements } => {
-                let ty_block_id = self.build_expression(*ty, current_block_id)?;
+                let ty_block_id = self.build_type_expression(*ty, current_block_id)?;
                 self.build_arguments(Some(elements.as_slice()), ty_block_id)
             }
             Expression::TaggedObjectExpression { ty, properties } => {
-                let ty_block_id = self.build_expression(*ty, current_block_id)?;
+                let ty_block_id = self.build_type_expression(*ty, current_block_id)?;
                 self.build_properties(properties, ty_block_id)
             }
             Expression::Parenthesized { expression } => {
@@ -1827,7 +1804,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 }
                 Some(current_block_id)
             }
-            Expression::Block { .. }
+            Expression::Block(..)
             | Expression::Labelled { .. }
             | Expression::If { .. }
             | Expression::Loop { .. }
@@ -1855,9 +1832,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
         let declaration = self.tree.get(declaration_id);
 
         match declaration {
-            Declaration::Global { expressions, .. }
-            | Declaration::Namespace { expressions, .. } => {
-                self.build_expression_sequence(expressions, current_block_id)
+            Declaration::Global(declaration) => {
+                self.build_expression_sequence(&declaration.expressions, current_block_id)
+            }
+            Declaration::Namespace(declaration) => {
+                self.build_expression_sequence(&declaration.expressions, current_block_id)
             }
             _ => {
                 // skip declaration bodies for now
@@ -1903,6 +1882,175 @@ impl<'tree> FlowGraphBuilder<'tree> {
         }
 
         Some(declarator_block_id)
+    }
+
+    /// Build a list of generic arguments.
+    fn build_generic_arguments(
+        &mut self,
+        arguments: &[LocalNodeId<GenericArgument>],
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        // evaluate each argument in order
+        let mut argument_block_id = current_block_id;
+        for argument_id in arguments {
+            argument_block_id = self.build_generic_argument(*argument_id, argument_block_id)?;
+        }
+        Some(argument_block_id)
+    }
+
+    /// Build a single generic argument.
+    fn build_generic_argument(
+        &mut self,
+        argument_id: LocalNodeId<GenericArgument>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        self.record_node(current_block_id, argument_id.into_any());
+        let argument = self.tree.get(argument_id);
+
+        // evaluate the argument payload
+        match argument {
+            GenericArgument::Type { value, .. } | GenericArgument::SpreadType { value, .. } => {
+                self.build_type_expression(*value, current_block_id)
+            }
+            GenericArgument::Value { value, .. } | GenericArgument::SpreadValue { value, .. } => {
+                self.build_expression(*value, current_block_id)
+            }
+            GenericArgument::Error => Some(current_block_id),
+        }
+    }
+
+    /// Build a type expression.
+    fn build_type_expression(
+        &mut self,
+        type_expression_id: LocalNodeId<TypeExpression>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        self.record_node(current_block_id, type_expression_id.into_any());
+        let type_expression = self.tree.get(type_expression_id);
+
+        match type_expression {
+            TypeExpression::Parenthesized { expression } => {
+                self.build_type_expression(*expression, current_block_id)
+            }
+            TypeExpression::ScalarLiteral { .. }
+            | TypeExpression::Literal { .. }
+            | TypeExpression::Const
+            | TypeExpression::This
+            | TypeExpression::Missing
+            | TypeExpression::Error => Some(current_block_id),
+            TypeExpression::Tuple { elements } => {
+                self.build_generic_arguments(elements.as_slice(), current_block_id)
+            }
+            TypeExpression::Array { element } => {
+                self.build_type_expression(*element, current_block_id)
+            }
+            TypeExpression::Object { properties } => {
+                self.build_type_properties(properties, current_block_id)
+            }
+            TypeExpression::Declaration { declaration } => {
+                self.build_declaration_expression(*declaration, current_block_id)
+            }
+            TypeExpression::Reference {
+                generic_arguments, ..
+            } => self.build_generic_arguments(generic_arguments.as_slice(), current_block_id),
+            TypeExpression::LocalReference {
+                generic_arguments, ..
+            }
+            | TypeExpression::ModuleReference {
+                generic_arguments, ..
+            }
+            | TypeExpression::GlobalReference {
+                generic_arguments, ..
+            } => self.build_generic_arguments(generic_arguments.as_slice(), current_block_id),
+            TypeExpression::Member {
+                left,
+                generic_arguments,
+                ..
+            } => {
+                let left_block_id = self.build_type_expression(*left, current_block_id)?;
+                self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)
+            }
+            TypeExpression::Import {
+                target,
+                arguments,
+                generic_arguments,
+                ..
+            } => {
+                let target_block_id = self.build_expression(*target, current_block_id)?;
+                let argument_block_id =
+                    self.build_arguments(Some(arguments.as_slice()), target_block_id)?;
+                self.build_generic_arguments(generic_arguments.as_slice(), argument_block_id)
+            }
+            TypeExpression::Readonly { target_type }
+            | TypeExpression::KeyOf { target_type }
+            | TypeExpression::Must { target_type }
+            | TypeExpression::Not { target_type }
+            | TypeExpression::ValueOf { target_type, .. }
+            | TypeExpression::ReferenceOf { target_type, .. }
+            | TypeExpression::PointerOf { target_type, .. } => {
+                self.build_type_expression(*target_type, current_block_id)
+            }
+            TypeExpression::TypeOfValue { value } => {
+                self.build_expression(*value, current_block_id)
+            }
+            TypeExpression::Index { left, index: right } => {
+                let left_block_id = self.build_type_expression(*left, current_block_id)?;
+                self.build_type_expression(*right, left_block_id)
+            }
+            TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+                let mut element_block_id = current_block_id;
+                for element_id in elements {
+                    element_block_id = self.build_type_expression(*element_id, element_block_id)?;
+                }
+                Some(element_block_id)
+            }
+            TypeExpression::Conditional {
+                left,
+                extends_type,
+                then_type,
+                else_type,
+            } => {
+                let left_block_id = self.build_type_expression(*left, current_block_id)?;
+                let right_block_id = self.build_type_expression(*extends_type, left_block_id)?;
+                let then_block_id = self.build_type_expression(*then_type, right_block_id)?;
+                self.build_type_expression(*else_type, then_block_id)
+            }
+            TypeExpression::Mapped {
+                parameter, value, ..
+            } => {
+                let source_block_id =
+                    self.build_type_expression(parameter.source_type, current_block_id)?;
+
+                let key_remap_block_id = if let Some(key_remap) = parameter.key_remap {
+                    self.build_type_expression(key_remap, source_block_id)?
+                } else {
+                    source_block_id
+                };
+
+                self.build_type_expression(*value, key_remap_block_id)
+            }
+            TypeExpression::TemplateLiteral { spans, .. } => {
+                let mut span_block_id = current_block_id;
+                for span_id in spans {
+                    span_block_id = self.build_type_expression(*span_id, span_block_id)?;
+                }
+                Some(span_block_id)
+            }
+            TypeExpression::Infer { constraint, .. } => {
+                if let Some(constraint) = constraint {
+                    return self.build_type_expression(*constraint, current_block_id);
+                }
+
+                Some(current_block_id)
+            }
+            TypeExpression::Predicate { target, .. } => {
+                if let Some(target) = target {
+                    return self.build_type_expression(*target, current_block_id);
+                }
+
+                Some(current_block_id)
+            }
+        }
     }
 
     /// Build a list of arguments.
@@ -1958,11 +2106,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 Some(current_block_id)
             }
             Pattern::Expression { value } => self.build_expression(*value, current_block_id),
+            Pattern::TypeExpression { value } => {
+                self.build_type_expression(*value, current_block_id)
+            }
             Pattern::Tuple { fields } | Pattern::Array { fields } | Pattern::Object { fields } => {
                 self.build_pattern_fields(fields, current_block_id)
             }
             Pattern::TaggedTuple { ty, fields } | Pattern::TaggedObject { ty, fields } => {
-                let ty_block_id = self.build_expression(*ty, current_block_id)?;
+                let ty_block_id = self.build_type_expression(*ty, current_block_id)?;
                 self.build_pattern_fields(fields, ty_block_id)
             }
             Pattern::Union { patterns } => {
@@ -2074,50 +2225,81 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         // walk the property shape
         match property {
-            Property::Field {
-                key,
-                value,
-                default,
-                ..
-            } => {
-                let mut property_block_id =
-                    self.build_dynamic_key(key.as_ref(), current_block_id)?;
-                if let Some(value_id) = value {
-                    property_block_id = self.build_expression(*value_id, property_block_id)?;
-                }
-                if let Some(default_id) = default {
-                    return self.build_expression(*default_id, property_block_id);
-                }
-                Some(property_block_id)
+            Property::Field { key, value, .. } => {
+                let key_block_id = self.build_key(key, current_block_id)?;
+                self.build_expression(*value, key_block_id)
             }
-            Property::Method { key, .. } => self.build_dynamic_key(key.as_ref(), current_block_id),
+            Property::Method { key, .. } => self.build_key(key, current_block_id),
             Property::Spread { value, .. } => self.build_expression(*value, current_block_id),
             Property::Error { .. } => Some(current_block_id),
         }
     }
 
-    /// Build a dynamic key expression.
-    fn build_dynamic_key(
+    /// Build a list of type properties.
+    fn build_type_properties(
         &mut self,
-        key: Option<&DynamicKey>,
+        properties: &[LocalNodeId<TypeProperty>],
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
-        // no key means no work
+        let mut property_block_id = current_block_id;
+        for property_id in properties {
+            property_block_id = self.build_type_property(*property_id, property_block_id)?;
+        }
+        Some(property_block_id)
+    }
+
+    /// Build a type property.
+    fn build_type_property(
+        &mut self,
+        property_id: LocalNodeId<TypeProperty>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        self.record_node(current_block_id, property_id.into_any());
+        let property = self.tree.get(property_id);
+
+        match property {
+            TypeProperty::Field {
+                key, declared_type, ..
+            } => {
+                let key_block_id = self.build_key(key, current_block_id)?;
+                self.build_type_expression(*declared_type, key_block_id)
+            }
+            TypeProperty::Method {
+                key, signature: _, ..
+            } => self.build_optional_key(key.as_ref(), current_block_id),
+            TypeProperty::IndexSignature {
+                name: _,
+                key_type,
+                value_type,
+                ..
+            } => {
+                let key_block_id = self.build_type_expression(*key_type, current_block_id)?;
+                self.build_type_expression(*value_type, key_block_id)
+            }
+            TypeProperty::Error => Some(current_block_id),
+        }
+    }
+
+    /// Build an optional key.
+    fn build_optional_key(
+        &mut self,
+        key: Option<&Key>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
         let Some(key) = key else {
             return Some(current_block_id);
         };
 
-        // evaluate computed key expressions
+        self.build_key(key, current_block_id)
+    }
+
+    /// Build a key payload.
+    fn build_key(&mut self, key: &Key, current_block_id: FlowBlockId) -> Option<FlowBlockId> {
         match key {
-            DynamicKey::Expression(expression_id) => {
+            Key::Expression(expression_id) => {
                 self.build_expression(*expression_id, current_block_id)
             }
-            DynamicKey::NamedExpression { key, .. } => {
-                self.build_expression(*key, current_block_id)
-            }
-            DynamicKey::Name(_) | DynamicKey::Private(_) | DynamicKey::Number(_) => {
-                Some(current_block_id)
-            }
+            Key::Name(_) | Key::Private(_) => Some(current_block_id),
         }
     }
 

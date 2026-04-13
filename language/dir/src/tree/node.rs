@@ -11,20 +11,24 @@ use serde::{Deserialize, Serialize};
 )]
 pub enum NodeType {
     Expression,
+    TypeExpression,
     Block,
     Declaration,
     Declarator,
     Property,
+    TypeProperty,
     Member,
     EnumField,
     WhereClause,
     DependencyItem,
+    GenericParameter,
     Parameter,
+    GenericArgument,
     Argument,
     MatchCase,
     Pattern,
     PatternField,
-    Annotation,
+    Decorator,
 }
 
 impl NodeType {
@@ -33,20 +37,24 @@ impl NodeType {
     pub fn name(&self) -> &'static str {
         match self {
             NodeType::Expression => "expression",
+            NodeType::TypeExpression => "type expression",
             NodeType::Block => "block",
             NodeType::Declaration => "declaration",
             NodeType::Declarator => "declarator",
             NodeType::Property => "property",
+            NodeType::TypeProperty => "type property",
             NodeType::Member => "member",
             NodeType::EnumField => "enum field",
             NodeType::WhereClause => "where clause",
             NodeType::DependencyItem => "dependency item",
+            NodeType::GenericParameter => "generic parameter",
             NodeType::Parameter => "parameter",
+            NodeType::GenericArgument => "generic argument",
             NodeType::Argument => "argument",
             NodeType::MatchCase => "match case",
             NodeType::Pattern => "pattern",
             NodeType::PatternField => "pattern field",
-            NodeType::Annotation => "annotation",
+            NodeType::Decorator => "decorator",
         }
     }
 }
@@ -505,6 +513,23 @@ pub enum Asynchrony {
     Sync,
     /// Asynchronous function.
     Async,
+}
+
+/// Whether syntax is ambient or concrete.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+pub enum Ambientness {
+    /// Ambient syntax declared with `declare`.
+    Ambient,
+    /// Concrete syntax with a body or emitted value.
+    Concrete,
+}
+
+impl Ambientness {
+    /// Return whether the syntax is ambient.
+    #[inline]
+    pub fn is_ambient(self) -> bool {
+        matches!(self, Self::Ambient)
+    }
 }
 
 /// The reference type of a binding.

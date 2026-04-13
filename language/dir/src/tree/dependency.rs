@@ -30,15 +30,6 @@ pub enum DependencySource {
     ValueExpression,
 }
 
-/// The target of an import declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum ImportTarget {
-    /// Static import target string (like `"foo"`).
-    String(StringId),
-    /// Dynamic import target expression (like `join(base, name)`).
-    Expression { target: LocalNodeId<Expression> },
-}
-
 /// The mode of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum DependencyMode {
@@ -48,6 +39,15 @@ pub enum DependencyMode {
     Default,
     /// Namespace (`export * from "foo"` or `export = foo`)
     Namespace,
+}
+
+/// The export mode of a declaration or binding.
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
+pub enum ExportMode {
+    /// Named export (`export const foo = 1`).
+    Named,
+    /// Default export (`export default foo`).
+    Default,
 }
 
 /// The type of a dependency item.

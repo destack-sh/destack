@@ -2,8 +2,8 @@ use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability, Path,
-    ScalarLiteral, StaticArgument, StaticKey, StringId, VarianceBound,
+    Asynchrony, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability, Path, ScalarLiteral,
+    StaticArgument, StaticKey, StringId, TypeExpression, VarianceBound,
 };
 
 use super::{PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
@@ -53,10 +53,12 @@ pub enum IntrinsicType {
     BuiltinIteratorReturn,
 }
 
-/// A type modifier for mapped types.
+/// A mapped-type modifier in evaluated type space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum TypeModifier {
-    /// Add a modifier (like `readonly` or `?`).
+pub enum MappedTypeModifier {
+    /// The plain modifier without an explicit sign.
+    Present,
+    /// Add a modifier with an explicit `+` sign.
     Add,
     /// Remove a modifier (like `-readonly` or `-?`).
     Remove,
@@ -64,18 +66,18 @@ pub enum TypeModifier {
     None,
 }
 
-/// Mapped type modifiers.
+/// Evaluated mapped-type modifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub struct TypeMappedModifiers {
+pub struct MappedTypeModifiers {
     /// The readonly modifier.
-    pub readonly: TypeModifier,
+    pub readonly: MappedTypeModifier,
     /// The optional modifier.
-    pub optional: TypeModifier,
+    pub optional: MappedTypeModifier,
 }
 
-/// A mapped type parameter.
+/// An evaluated mapped-type parameter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub struct TypeMappedParameter {
+pub struct MappedTypeParameter {
     /// The parameter name (like `K`).
     pub name: StringId,
     /// The parameter symbol.
@@ -86,9 +88,9 @@ pub struct TypeMappedParameter {
     pub key_remap: Option<LocalTypeId>,
 }
 
-/// A type predicate subject.
+/// A predicate subject in evaluated type space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum TypePredicateSubject {
+pub enum PredicateSubject {
     /// Unresolved identifier subject (like `x` in `x is T`).
     Unresolved(StringId),
     /// Symbol subject (like `x` in `x is T`).
@@ -130,8 +132,8 @@ pub enum Type {
         symbol: GlobalSymbolId,
         static_arguments: Option<Vec<StaticArgument>>,
     },
-    /// Unevaluated expression that resolves to a type (needs compile-time evaluation).
-    Unevaluated(LocalNodeId<Expression>),
+    /// Unevaluated type expression that resolves to a type.
+    Unevaluated(LocalNodeId<TypeExpression>),
 
     /// Type conditional expression.
     Conditional {
@@ -143,8 +145,8 @@ pub enum Type {
     },
     /// Type mapped expression.
     Mapped {
-        parameter: TypeMappedParameter,
-        modifiers: TypeMappedModifiers,
+        parameter: MappedTypeParameter,
+        modifiers: MappedTypeModifiers,
         value: LocalTypeId,
     },
     /// Type index expression.
@@ -171,7 +173,7 @@ pub enum Type {
     /// Type predicate expression.
     Predicate {
         asserts: bool,
-        subject: TypePredicateSubject,
+        subject: PredicateSubject,
         target: Option<LocalTypeId>,
     },
 
