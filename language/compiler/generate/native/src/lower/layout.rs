@@ -112,7 +112,11 @@ pub(crate) fn compute_type_layout(
             length,
             copyability: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let element = element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: array element type"
+                    .into(),
+            })?;
+            let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
             let size = element_layout.size * (*length as u32);
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
@@ -121,7 +125,19 @@ pub(crate) fn compute_type_layout(
         mir::Type::Tuple {
             elements,
             copyability: _,
-        } => compute_tuple_layout(tree, elements, pointer_bytes),
+        } => {
+            let elements = elements
+                .iter()
+                .map(|element| {
+                    element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                        message:
+                            "missing or malformed MIR type in native lowering: tuple element type"
+                                .into(),
+                    })
+                })
+                .collect::<CodegenCraneliftResult<Vec<_>>>()?;
+            compute_tuple_layout(tree, &elements, pointer_bytes)
+        }
 
         // structs: read canonical layout metadata
         mir::Type::Struct {
@@ -149,7 +165,13 @@ pub(crate) fn compute_type_layout(
         }
 
         // newtypes are transparent
-        mir::Type::Newtype { inner, .. } => compute_type_layout(tree, *inner, pointer_bytes),
+        mir::Type::Newtype { inner, .. } => {
+            let inner = inner.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: newtype inner type"
+                    .into(),
+            })?;
+            compute_type_layout(tree, inner, pointer_bytes)
+        }
 
         // vectors: treat as packed elements for now
         mir::Type::Vector {
@@ -157,7 +179,11 @@ pub(crate) fn compute_type_layout(
             lanes,
             copyability: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let element = element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: vector element type"
+                    .into(),
+            })?;
+            let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
             let size = element_layout.size * *lanes;
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
@@ -169,7 +195,11 @@ pub(crate) fn compute_type_layout(
             layout,
             copyability: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let element = element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: tensor element type"
+                    .into(),
+            })?;
+            let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
             let element_count = compute_tensor_element_count(shape, layout);
             if let Some(element_count) = element_count {
                 let size = element_layout.size * (element_count as u32);
