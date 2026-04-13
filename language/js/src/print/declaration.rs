@@ -327,7 +327,7 @@ impl<'a> Printer<'a> {
 
                 if let Some(value) = value {
                     self.write_punct(":");
-                    self.print_expression_id(*value)?;
+                    self.print_type_id(*value)?;
                 }
 
                 if let Some(default) = default {
@@ -447,7 +447,7 @@ impl<'a> Printer<'a> {
                 self.write_punct("[");
                 self.write_name(name);
                 self.write_punct(":");
-                self.print_expression_id(key)?;
+                self.print_type_id(key)?;
                 self.write_punct("]");
             }
         }

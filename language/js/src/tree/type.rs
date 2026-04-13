@@ -96,7 +96,9 @@ pub enum TypeBinaryOperator {
 /// One mapped type modifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeModifier {
-    /// Add the modifier.
+    /// Emit the plain modifier without an explicit sign.
+    Present,
+    /// Add the modifier with an explicit `+` sign.
     Add,
     /// Remove the modifier.
     Remove,

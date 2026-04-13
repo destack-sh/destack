@@ -911,7 +911,7 @@ pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: 
         }
         Key::NamedExpression { name: _, key } => {
             let key_expr = tree.get(*key);
-            visitor.visit_expression(tree, *key, key_expr);
+            visitor.visit_type(tree, *key, key_expr);
         }
     }
 }
@@ -1012,7 +1012,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             }
             if let Some(value) = value {
                 let value_expr = tree.get(*value);
-                visitor.visit_expression(tree, *value, value_expr);
+                visitor.visit_type(tree, *value, value_expr);
             }
             if let Some(default) = default {
                 let default_expr = tree.get(*default);
