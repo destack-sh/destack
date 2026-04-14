@@ -27,10 +27,6 @@ pub enum TypeUnaryOperator {
 pub enum TypeBinaryOperator {
     /// `in`
     In,
-    /// `is`
-    Is,
-    /// `instanceof`
-    InstanceOf,
     /// `extends`
     Extends,
     /// `implements`

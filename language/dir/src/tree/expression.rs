@@ -103,6 +103,18 @@ pub enum Expression {
         target_type: LocalNodeId<TypeExpression>,
     },
 
+    /// Runtime type guard.
+    Is {
+        value: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
+    /// Runtime constructor guard.
+    InstanceOf {
+        value: LocalNodeId<Expression>,
+        target: LocalNodeId<Expression>,
+    },
+
     /// Cast a value expression to a target ownership form.
     OwnershipCast {
         /// The ownership cast operator to apply.
@@ -434,6 +446,8 @@ impl Expression {
 
             Expression::As { .. } => "as",
             Expression::Satisfies { .. } => "satisfies",
+            Expression::Is { .. } => "is",
+            Expression::InstanceOf { .. } => "instanceof",
             Expression::OwnershipCast { .. } => "ownership cast",
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",

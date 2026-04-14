@@ -968,6 +968,40 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("ambient", ambient)
                     .end();
             }
+            Expression::As {
+                expression: _,
+                target_type: _,
+            } => {
+                self.node("Expression::As", id.id).end();
+            }
+            Expression::Satisfies {
+                expression: _,
+                target_type: _,
+            } => {
+                self.node("Expression::Satisfies", id.id).end();
+            }
+            Expression::Is {
+                value: _,
+                target_type: _,
+            } => {
+                self.node("Expression::Is", id.id).end();
+            }
+            Expression::InstanceOf {
+                value: _,
+                target: _,
+            } => {
+                self.node("Expression::InstanceOf", id.id).end();
+            }
+            Expression::OwnershipCast {
+                operator,
+                source,
+                value: _,
+            } => {
+                self.node("Expression::OwnershipCast", id.id)
+                    .field("operator", operator)
+                    .field("source", source)
+                    .end();
+            }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
@@ -1008,28 +1042,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Binary", id.id)
                     .field("operator", operator)
-                    .end();
-            }
-            Expression::As {
-                expression: _,
-                target_type: _,
-            } => {
-                self.node("Expression::As", id.id).end();
-            }
-            Expression::Satisfies {
-                expression: _,
-                target_type: _,
-            } => {
-                self.node("Expression::Satisfies", id.id).end();
-            }
-            Expression::OwnershipCast {
-                operator,
-                source,
-                value: _,
-            } => {
-                self.node("Expression::OwnershipCast", id.id)
-                    .field("operator", operator)
-                    .field("source", source)
                     .end();
             }
             Expression::Assign { left: _, right: _ } => {

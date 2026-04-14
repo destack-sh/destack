@@ -19,7 +19,6 @@ pub enum StaticProperty {
     Field {
         key: Key,
         value: StaticExpression,
-        default: Option<StaticExpression>,
         symbol: LocalSymbolId,
     },
     /// Evaluated static member function.
@@ -29,6 +28,11 @@ pub enum StaticProperty {
         body: StaticExpression,
         symbol: LocalSymbolId,
     },
+    /// Evaluated static spread.
+    Spread {
+        value: StaticExpression,
+        symbol: LocalSymbolId,
+    },
 }
 
 impl StaticProperty {
@@ -36,10 +40,9 @@ impl StaticProperty {
     pub fn is_evaluated(&self) -> bool {
         match self {
             StaticProperty::Unevaluated { .. } => false,
-            StaticProperty::Field { value, default, .. } => {
-                value.is_evaluated() && default.as_ref().is_none_or(|value| value.is_evaluated())
-            }
+            StaticProperty::Field { value, .. } => value.is_evaluated(),
             StaticProperty::Method { body, .. } => body.is_evaluated(),
+            StaticProperty::Spread { value, .. } => value.is_evaluated(),
         }
     }
 }

@@ -139,6 +139,18 @@ impl Node for TupleElement {
     const TYPE: NodeType = NodeType::TupleElement;
 }
 
+impl TupleElement {
+    /// Get the value type expression when one exists.
+    pub fn value(&self) -> Option<LocalNodeId<TypeExpression>> {
+        match self {
+            TupleElement::Element { value, .. } | TupleElement::Spread { value, .. } => {
+                Some(*value)
+            }
+            TupleElement::Error => None,
+        }
+    }
+}
+
 /// An argument to a runtime call or tree construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Argument {
