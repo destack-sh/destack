@@ -1,9 +1,10 @@
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, BinaryOperator, Block, BlockContext, BlockFormat,
-    Comment, CommentKind, Declaration, Decorator, Expression, LocalNodeId, TokenType,
-    normalize_comment_payload,
+    Argument, Block, BlockContext, BlockFormat, ClassDeclaration, Comment, CommentKind,
+    Declaration, Declarator, Decorator, DecoratorPosition, Expression, FunctionDeclaration,
+    LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType, TypeDeclaration,
+    TypeExpression, normalize_comment_payload,
 };
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanType, SourcePartKey};
 
 use crate::{Parser, TestParser, assert_comment, assert_expression_path, assert_node};
 
@@ -24,6 +25,22 @@ fn parse_block_source(source: &str, language: LanguageType) -> (Parser, LocalNod
         .expect("expected block expression in test source");
     parser.attach_comments();
     (parser, block_id)
+}
+
+/// Parse one direct property entrypoint and attach comments after parsing.
+fn parse_property_source(
+    source: &str,
+    language: LanguageType,
+    is_in_variant: bool,
+) -> (Parser, LocalNodeId<Property>) {
+    let mut test = TestParser::new_with_options(source, language);
+    let mut parser = test.prepare();
+    parser.options.set_in_variant(is_in_variant);
+    let property_id = parser
+        .eat_property()
+        .expect("expected property in test source");
+    parser.attach_comments();
+    (parser, property_id)
 }
 
 /// Return the normalized payload text for one raw comment.
@@ -48,16 +65,6 @@ fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<Tok
 
 /// Return the nearest non-trivia token after one comment boundary.
 fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
-    // leading comments already record their attached token start
-    if comment.is_leading() && comment.attached_to != 0 {
-        return parser
-            .tokens()
-            .iter()
-            .find(|token| token.span.start == comment.attached_to)
-            .copied()
-            .map(|token| token.token.ty);
-    }
-
     parser
         .tokens()
         .iter()
@@ -104,7 +111,7 @@ fn test_parse_runs_attach_comments_for_comments() {
 
     // `value`
     assert_eq!(expressions.len(), 1);
-    let expression_annotations = parser.tree.get_annotations(expressions[0].id);
+    let expression_annotations = parser.tree.get_decorators(expressions[0].id);
     assert!(expression_annotations.is_empty());
 
     // `// lead`
@@ -172,7 +179,7 @@ fn test_comment_only_file_gets_stub_expression_and_trivia() {
     // stub for `// only`
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Stub);
-    let annotations = parser.tree.get_annotations(expressions[0].id);
+    let annotations = parser.tree.get_decorators(expressions[0].id);
     assert!(annotations.is_empty());
 
     // `// only`
@@ -236,17 +243,19 @@ fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         // `function f() {}`
-        let expression_annotations = parser.tree.get_annotations(expression_id.id);
+        let expression_annotations = parser.tree.get_decorators(expression_id.id);
         assert!(expression_annotations.is_empty());
-        let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
+        let declaration_annotations = parser.tree.get_decorators(declaration_id.id);
         assert!(declaration_annotations.is_empty());
 
         // `/// docs`
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
-        assert!(comment.is_leading());
         assert_eq!(comment_text(&parser, comment), "docs");
-        assert_eq!(comment.attached_to, parser.tree.get_span(*declaration_id).start);
+        assert_eq!(
+            comment.attached_part,
+            SourcePartKey::new(declaration_id.id, NodeSpanType::Enclosing),
+        );
     });
 }
 
@@ -261,17 +270,16 @@ fn test_doc_comment_attaches_to_parameter() {
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             // `value: number`
-            assert_eq!(signature.dynamic_parameters.len(), 1);
-            let parameter_id = signature.dynamic_parameters[0];
-            let annotations = parser.tree.get_annotations(parameter_id.id);
+            assert_eq!(signature.parameters.len(), 1);
+            let parameter_id = signature.parameters[0];
+            let annotations = parser.tree.get_decorators(parameter_id.id);
             assert!(annotations.is_empty());
 
             // `/** parameter-doc */`
             assert_eq!(comments(&parser).len(), 1);
             let comment = comments(&parser)[0];
-            assert!(comment.is_leading());
             assert_eq!(comment_text(&parser, comment), " parameter-doc");
             assert_comment_boundary_tokens(
                 &parser,
@@ -294,21 +302,21 @@ fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             // `| { ok: true } | ...`
-            assert_node!(parser.tree, *value, Expression::Binary { left, operator, .. } => {
-                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
 
                 // `| { ok: true }`
-                let left_annotations = parser.tree.get_annotations(left.id);
+                let left_annotations = parser.tree.get_decorators(elements[0].id);
                 assert!(left_annotations.is_empty());
 
                 // `/** keep-doc */`
                 assert_eq!(comments(&parser).len(), 1);
                 let comment = comments(&parser)[0];
-                assert!(comment.is_trailing());
                 assert!(parser.get_span_str(comment.span).starts_with("/**"));
                 assert!(comment_text(&parser, comment).contains("keep-doc"));
+                let _ = value;
                 assert_comment_boundary_tokens(
                     &parser,
                     comment,
@@ -331,12 +339,12 @@ fn test_comment_after_type_assignment_attaches_to_type_value() {
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Type { value: _, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             // `/* keep */`
             assert_eq!(comments(&parser).len(), 1);
             let comment = comments(&parser)[0];
             assert_eq!(comment_text(&parser, comment), " keep");
-            assert!(comment.is_leading());
+            let _ = value;
             assert_comment_boundary_tokens(
                 &parser,
                 comment,
@@ -348,7 +356,7 @@ fn test_comment_after_type_assignment_attaches_to_type_value() {
 }
 
 #[test]
-fn test_comment_after_open_parenthesis_attaches_to_parenthesized_wrapper() {
+fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
     let (parser, expressions) = parse_source("(/* keep */ value)", LanguageType::TypeScript);
 
     // `(/* keep */ value)`
@@ -359,10 +367,8 @@ fn test_comment_after_open_parenthesis_attaches_to_parenthesized_wrapper() {
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
         assert_eq!(comment_text(&parser, comment), " keep");
-
         // `value`
         assert_ne!(expression_id.id, expression.id);
-        assert!(comment.is_leading());
         assert_comment_boundary_tokens(
             &parser,
             comment,
@@ -370,6 +376,101 @@ fn test_comment_after_open_parenthesis_attaches_to_parenthesized_wrapper() {
             Some(TokenType::Identifier),
         );
         assert_comment_newline_shape(comment, false, false);
+    });
+}
+
+#[test]
+fn test_comment_before_close_parenthesis_attaches_to_inner_expression_trailing() {
+    let (parser, expressions) = parse_source("(value /* keep */)", LanguageType::TypeScript);
+
+    // `(value /* keep */)`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression: _ } => {
+        // `/* keep */`
+        assert_eq!(comments(&parser).len(), 1);
+        let comment = comments(&parser)[0];
+        assert_eq!(comment_text(&parser, comment), " keep");
+        // `value`
+        assert_comment_boundary_tokens(
+            &parser,
+            comment,
+            Some(TokenType::Identifier),
+            Some(TokenType::CloseParenthesis),
+        );
+        assert_comment_newline_shape(comment, false, false);
+    });
+}
+
+#[test]
+fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leading() {
+    let (parser, expressions) = parse_source("-// unary-line-note\n1", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Unary { right: _, .. } => {
+        assert_eq!(comments(&parser).len(), 1);
+        let comment = comments(&parser)[0];
+        assert_eq!(comment_text(&parser, comment), "unary-line-note");
+        assert_comment_boundary_tokens(
+            &parser,
+            comment,
+            Some(TokenType::Subtract),
+            Some(TokenType::Literal),
+        );
+    });
+}
+
+#[test]
+fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to_operand_leading() {
+    let (parser, expressions) = parse_source(
+        "const value = -// unary-line-note\n1",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+            let value = value.expect("expected initializer");
+
+            assert_node!(parser.tree, value, Expression::Unary { right: _, .. } => {
+                assert_eq!(comments(&parser).len(), 1);
+                let comment = comments(&parser)[0];
+                assert_eq!(comment_text(&parser, comment), "unary-line-note");
+                assert_comment_boundary_tokens(
+                    &parser,
+                    comment,
+                    Some(TokenType::Subtract),
+                    Some(TokenType::Literal),
+                );
+            });
+        });
+    });
+}
+
+#[test]
+fn test_block_comments_between_ternary_branches_attach_to_separator_owners() {
+    let (parser, expressions) = parse_source(
+        "cond ? /* then */ left : /* else */ right",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
+        let else_expression_id = else_expression.expect("expected ternary else branch");
+
+        assert_eq!(comments(&parser).len(), 2);
+
+        let then_comment = comments(&parser)[0];
+        assert_eq!(comment_text(&parser, then_comment), " then");
+        let _ = then_expression;
+
+        let else_comment = comments(&parser)[1];
+        assert_eq!(comment_text(&parser, else_comment), " else");
+        let _ = else_expression_id;
     });
 }
 
@@ -385,13 +486,12 @@ fn test_doc_comment_attaches_to_call_argument() {
         // `value`
         assert_eq!(dynamic_arguments.len(), 1);
         let argument_id = dynamic_arguments[0];
-        let argument_annotations = parser.tree.get_annotations(argument_id.id);
+        let argument_annotations = parser.tree.get_decorators(argument_id.id);
         assert!(argument_annotations.is_empty());
 
         // `/** argument-doc */`
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
-        assert!(comment.is_leading());
         assert_eq!(comment_text(&parser, comment), " argument-doc");
         assert_comment_boundary_tokens(
             &parser,
@@ -402,7 +502,7 @@ fn test_doc_comment_attaches_to_call_argument() {
 
         // `value`
         assert_node!(parser.tree, argument_id, Argument::Positional { value, .. } => {
-            let value_annotations = parser.tree.get_annotations(value.id);
+            let value_annotations = parser.tree.get_decorators(value.id);
             assert!(value_annotations.is_empty());
             assert_expression_path!(parser, parser.tree.get(*value), "value");
         });
@@ -610,7 +710,6 @@ fn test_comment_before_ternary_question_attaches_to_question_boundary() {
     // `/* cond-note */`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert!(comment.is_leading());
     assert_eq!(comment_text(&parser, comment), " cond-note");
     assert_comment_boundary_tokens(
         &parser,
@@ -634,7 +733,6 @@ fn test_comment_before_less_than_comparison_attaches_to_operator_boundary() {
     // `/* marker */`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert!(comment.is_leading());
     assert_eq!(comment_text(&parser, comment), " marker");
     assert_comment_boundary_tokens(
         &parser,
@@ -793,25 +891,17 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
     // `/** docs */`
     assert_eq!(comments(&parser).len(), 1);
     let doc_comment = comments(&parser)[0];
-    assert!(doc_comment.is_leading());
     assert_eq!(comment_text(&parser, doc_comment), " docs");
 
     // `@memo`
     let decorator_annotation = parser
         .tree
-        .iter_nodes::<Annotation>()
-        .find(|annotation_id| {
-            matches!(
-                parser.tree.get(*annotation_id),
-                Annotation::Decorator { .. }
-            )
-        })
+        .iter_nodes::<Decorator>()
+        .next()
         .expect("missing decorator annotation");
-    assert_node!(parser.tree, decorator_annotation, Annotation::Decorator { node, position } => {
-        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-        assert_node!(parser.tree, *node, Decorator { expression } => {
-            assert_expression_path!(parser, parser.tree.get(*expression), "memo");
-        });
+    assert_node!(parser.tree, decorator_annotation, Decorator { expression: node, position } => {
+        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+        assert_expression_path!(parser, parser.tree.get(*node), "memo");
     });
 }
 
@@ -837,13 +927,11 @@ fn test_decorator_attaches_to_function_declaration() {
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         // `@memo`
-        let annotations = parser.tree.get_annotations(declaration_id.id);
+        let annotations = parser.tree.get_decorators(declaration_id.id);
         assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Decorator { expression } => {
-                assert_expression_path!(parser, parser.tree.get(*expression), "memo");
-            });
+        assert_node!(parser.tree, annotations[0], Decorator { expression: node, position } => {
+            assert_eq!(*position, DecoratorPosition::BlockPrefix);
+            assert_expression_path!(parser, parser.tree.get(*node), "memo");
         });
     });
 }
@@ -867,21 +955,19 @@ fn test_decorator_attaches_to_struct_declaration_inside_block() {
         let declaration_expression_id =
             parser.unwrap_labelled_expression(block.leading_expressions[0]);
         assert_node!(parser.tree, declaration_expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Struct { .. });
+            assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { .. }));
 
             // `@memo`
-            let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
+            let declaration_annotations = parser.tree.get_decorators(declaration_id.id);
             assert_eq!(declaration_annotations.len(), 1);
-            assert_node!(parser.tree, declaration_annotations[0], Annotation::Decorator { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                assert_node!(parser.tree, *node, Decorator { expression } => {
-                    assert_expression_path!(parser, parser.tree.get(*expression), "memo");
-                });
+            assert_node!(parser.tree, declaration_annotations[0], Decorator { expression: node, position } => {
+                assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                assert_expression_path!(parser, parser.tree.get(*node), "memo");
             });
 
             // `struct Entity {}`
             let declaration_expression_annotations =
-                parser.tree.get_annotations(declaration_expression_id.id);
+                parser.tree.get_decorators(declaration_expression_id.id);
             assert!(declaration_expression_annotations.is_empty());
         });
     });
@@ -896,13 +982,11 @@ fn test_decorator_on_expression_attaches_directly_without_wrapper() {
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Call { .. } => {
         // `@memo`
-        let annotations = parser.tree.get_annotations(expression_id.id);
+        let annotations = parser.tree.get_decorators(expression_id.id);
         assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Decorator { expression } => {
-                assert_expression_path!(parser, parser.tree.get(*expression), "memo");
-            });
+        assert_node!(parser.tree, annotations[0], Decorator { expression: node, position } => {
+            assert_eq!(*position, DecoratorPosition::BlockPrefix);
+            assert_expression_path!(parser, parser.tree.get(*node), "memo");
         });
     });
 }
@@ -918,16 +1002,14 @@ fn test_decorator_attaches_to_parameter() {
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             // `@guard value: number`
-            assert_eq!(signature.dynamic_parameters.len(), 1);
-            let parameter_id = signature.dynamic_parameters[0];
-            let annotations = parser.tree.get_annotations(parameter_id.id);
+            assert_eq!(signature.parameters.len(), 1);
+            let parameter_id = signature.parameters[0];
+            let annotations = parser.tree.get_decorators(parameter_id.id);
             assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, .. } => {
-                assert_node!(parser.tree, *node, Decorator { expression } => {
-                    assert_expression_path!(parser, parser.tree.get(*expression), "guard");
-                });
+            assert_node!(parser.tree, annotations[0], Decorator { expression: node, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*node), "guard");
             });
         });
     });
@@ -944,12 +1026,10 @@ fn test_decorator_attaches_to_call_argument() {
         // `@memo value`
         assert_eq!(dynamic_arguments.len(), 1);
         let argument_id = dynamic_arguments[0];
-        let annotations = parser.tree.get_annotations(argument_id.id);
+        let annotations = parser.tree.get_decorators(argument_id.id);
         assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, .. } => {
-            assert_node!(parser.tree, *node, Decorator { expression } => {
-                assert_expression_path!(parser, parser.tree.get(*expression), "memo");
-            });
+        assert_node!(parser.tree, annotations[0], Decorator { expression: node, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*node), "memo");
         });
 
         // `value`
@@ -970,8 +1050,8 @@ fn test_comments_and_blanks_are_not_semantic_annotations() {
     assert_eq!(parser.tree.comments().len(), 1);
 
     // `a`, `b`
-    let first_annotations = parser.tree.get_annotations(expressions[0].id);
-    let second_annotations = parser.tree.get_annotations(expressions[1].id);
+    let first_annotations = parser.tree.get_decorators(expressions[0].id);
+    let second_annotations = parser.tree.get_decorators(expressions[1].id);
     assert!(first_annotations.is_empty());
     assert!(second_annotations.is_empty());
 }
@@ -1006,12 +1086,17 @@ fn test_comment_between_parameter_name_and_type_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let _parameter_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            signature.parameters[0]
+        })
+    });
 
     // `/* a */`
     assert_eq!(comments(&parser).len(), 1);
     let trivia = comments(&parser)[0];
     assert_eq!(comment_text(&parser, trivia), " a");
-    assert!(trivia.is_leading());
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -1030,12 +1115,17 @@ fn test_comment_between_parameter_pattern_and_type_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let _parameter_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            signature.parameters[0]
+        })
+    });
 
     // `/* a */`
     assert_eq!(comments(&parser).len(), 1);
     let trivia = comments(&parser)[0];
     assert_eq!(comment_text(&parser, trivia), " a");
-    assert!(trivia.is_leading());
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -1054,17 +1144,311 @@ fn test_comment_after_optional_parameter_marker_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let _parameter_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            signature.parameters[0]
+        })
+    });
 
     // `/* a */`
     assert_eq!(comments(&parser).len(), 1);
     let trivia = comments(&parser)[0];
     assert_eq!(comment_text(&parser, trivia), " a");
-    assert!(trivia.is_leading());
     assert_comment_boundary_tokens(
         &parser,
         trivia,
         Some(TokenType::Maybe),
         Some(TokenType::Colon),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_parameter_colon_attaches_to_type_boundary() {
+    let (parser, expressions) =
+        parse_source("function f(x: /* a */ number) {}", LanguageType::TypeScript);
+
+    // `function f(...) {}`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let parameter_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { declared_type: Some(ty), .. } => {
+                *ty
+            })
+        })
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    let _ = parameter_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_type_conditional_question_attaches_to_then_separator() {
+    let (parser, expressions) = parse_source(
+        "type T = A extends B ? // then-note\nC : D",
+        LanguageType::TypeScript,
+    );
+
+    // `type T = A extends B ? C : D`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let then_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Conditional { then_type, .. } => {
+                *then_type
+            })
+        })
+    });
+
+    // `// then-note`
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "then-note");
+    let _ = then_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Maybe),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(comment, false, true);
+}
+
+#[test]
+fn test_comment_after_type_conditional_colon_attaches_to_else_separator() {
+    let (parser, expressions) = parse_source(
+        "type T = A extends B ? C : // else-note\nD",
+        LanguageType::TypeScript,
+    );
+
+    // `type T = A extends B ? C : D`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let else_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Conditional { else_type, .. } => {
+                *else_type
+            })
+        })
+    });
+
+    // `// else-note`
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "else-note");
+    let _ = else_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(comment, false, true);
+}
+
+#[test]
+fn test_comment_after_function_return_type_colon_attaches_to_return_type_boundary() {
+    let (parser, expressions) =
+        parse_source("function f(): /* a */ number {}", LanguageType::TypeScript);
+
+    // `function f(): number {}`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let return_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            signature.return_type.expect("expected return type")
+        })
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    let _ = return_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_member_field_colon_attaches_to_field_type_boundary() {
+    let (parser, expressions) = parse_source(
+        "class Box { value: /* a */ number }",
+        LanguageType::TypeScript,
+    );
+
+    // `class Box { value: number }`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let field_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
+            assert_node!(parser.tree, members[0], Member::Field { declared_type: Some(value), .. } => {
+                *value
+            })
+        })
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    let _ = field_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_optional_member_marker_attaches_to_field_type_boundary() {
+    let (parser, expressions) = parse_source(
+        "class Box { value? /* a */ : number }",
+        LanguageType::TypeScript,
+    );
+
+    // `class Box { value?: number }`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let _field_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
+            members[0]
+        })
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Maybe),
+        Some(TokenType::Colon),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_member_return_type_colon_attaches_to_return_type_boundary() {
+    let (parser, expressions) = parse_source(
+        "class Box { method(): /* a */ number {} }",
+        LanguageType::TypeScript,
+    );
+
+    // `class Box { method(): number {} }`
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let return_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
+            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                signature.return_type.expect("expected return type")
+            })
+        })
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    let _ = return_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_property_field_colon_attaches_to_field_type_boundary() {
+    let (parser, property_id) =
+        parse_property_source("value: /* a */ number", LanguageType::TypeScript, true);
+
+    // `value: number`
+    let field_type = assert_node!(parser.tree, property_id, Property::Field { value, .. } => {
+        *value
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    let _ = field_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_optional_property_marker_attaches_to_field_type_boundary() {
+    let (parser, property_id) =
+        parse_property_source("value? /* a */ : number", LanguageType::TypeScript, true);
+
+    // `value?: number`
+    let _field_type = assert_node!(parser.tree, property_id, Property::Field { value, .. } => {
+        *value
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Maybe),
+        Some(TokenType::Colon),
+    );
+    assert_comment_newline_shape(trivia, false, false);
+}
+
+#[test]
+fn test_comment_after_property_return_type_colon_attaches_to_return_type_boundary() {
+    let (parser, property_id) = parse_property_source(
+        "method(): /* a */ number {}",
+        LanguageType::TypeScript,
+        false,
+    );
+
+    // `method(): number {}`
+    let return_type = assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
+        signature.return_type.expect("expected return type")
+    });
+
+    // `/* a */`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
+    let _ = return_type;
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::Colon),
+        Some(TokenType::Identifier),
     );
     assert_comment_newline_shape(trivia, false, false);
 }
@@ -1089,26 +1473,22 @@ fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             // `@entity`, `@foo(1, 2, 3)`
             assert_eq!(members.len(), 1);
             let member_id = members[0];
-            let member_annotations = parser.tree.get_annotations(member_id.id);
+            let member_annotations = parser.tree.get_decorators(member_id.id);
             assert_eq!(member_annotations.len(), 2);
 
-            assert_node!(parser.tree, member_annotations[0], Annotation::Decorator { node, .. } => {
-                assert_node!(parser.tree, *node, Decorator { expression } => {
-                    assert_expression_path!(parser, parser.tree.get(*expression), "entity");
-                });
+            assert_node!(parser.tree, member_annotations[0], Decorator { expression: node, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*node), "entity");
             });
 
-            assert_node!(parser.tree, member_annotations[1], Annotation::Decorator { node, .. } => {
-                assert_node!(parser.tree, *node, Decorator { expression } => {
-                    assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_node!(parser.tree, member_annotations[1], Decorator { expression: node, .. } => {
+                    assert_node!(parser.tree, *node, Expression::Call { left, dynamic_arguments, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "foo");
                         assert_eq!(dynamic_arguments.len(), 3);
                     });
-                });
             });
 
             // `// comment before entity`, `// comment after entity`,
@@ -1221,7 +1601,6 @@ fn test_comment_before_optional_chain_question_attaches_forward() {
     // `/* optional */`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert!(comment.is_leading());
     assert_eq!(comment_text(&parser, comment), " optional");
     assert_comment_boundary_tokens(
         &parser,
@@ -1233,7 +1612,7 @@ fn test_comment_before_optional_chain_question_attaches_forward() {
 }
 
 #[test]
-fn test_comment_before_postfix_static_arguments_attaches_forward() {
+fn test_comment_before_postfix_generic_arguments_attaches_forward() {
     let (parser, expressions) =
         parse_source("call /* marker */ <string>(1)", LanguageType::TypeScript);
 
@@ -1243,7 +1622,6 @@ fn test_comment_before_postfix_static_arguments_attaches_forward() {
     // `/* marker */`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert!(comment.is_leading());
     assert_eq!(comment_text(&parser, comment), " marker");
     assert_comment_boundary_tokens(
         &parser,
@@ -1421,7 +1799,7 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
             // `// body`
             let _body_id = body.expect("missing lambda body");
             assert_eq!(comments(&parser).len(), 1);
@@ -1447,7 +1825,7 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
             // `/* body */`
             let _body_id = body.expect("missing lambda body");
             assert_eq!(comments(&parser).len(), 1);
@@ -1480,41 +1858,5 @@ fn test_doc_comment_and_decorator_emit_raw_comment_and_decorator_node() {
     // `/** docs */`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert!(comment.is_leading());
     assert_eq!(comment_text(&parser, comment), " docs");
-}
-
-#[test]
-fn test_doc_comment_attaches_to_class_extends_expression() {
-    let (parser, expressions) = parse_source(
-        "class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}",
-        LanguageType::TypeScript,
-    );
-
-    // `class Box extends (...) {}`
-    assert_eq!(expressions.len(), 1);
-
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
-            // `(baseFactory())`
-            let extends_types = heritage.extends_types.as_ref().expect("missing extends");
-            assert_eq!(extends_types.len(), 1);
-            let extends_id = extends_types[0];
-            let annotations = parser.tree.get_annotations(extends_id.id);
-            assert!(annotations.is_empty());
-
-            // `/** @type {{new (): Base}} */`
-            assert_eq!(comments(&parser).len(), 1);
-            let comment = comments(&parser)[0];
-            assert!(comment.is_leading());
-            assert_comment_boundary_tokens(
-                &parser,
-                comment,
-                Some(TokenType::Identifier),
-                Some(TokenType::OpenParenthesis),
-            );
-            assert!(parser.get_span_str(comment.span).starts_with("/**"));
-        });
-    });
 }

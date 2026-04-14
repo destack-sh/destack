@@ -1,0 +1,370 @@
+use crate::tests::*;
+use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
+use destack_ast::*;
+use destack_source::LanguageType;
+
+/// TSX generic arrows with extends constraints should parse as functions.
+#[test]
+fn test_parse_tsx_generic_arrow_with_extends() {
+    let mut test = TestParser::new_with_options(
+        "<P extends object>(x: P) => <Foo />",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            let generic_parameters = &signature.generic_parameters;
+            assert_eq!(generic_parameters.len(), 1);
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
+                assert_string!(parser, *name, "P");
+                assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Object);
+                });
+            });
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
+                    assert_path!(parser, *path, "P");
+                });
+            });
+            let body_id = body.expect("expected body");
+            assert_node!(parser.tree, body_id, Expression::TreeExpression { left, arguments, elements } => {
+                let left_id = left.expect("expected tag");
+                assert_expression_path!(parser, parser.tree.get(left_id), "Foo");
+                assert!(arguments.as_ref().is_none_or(|items| items.is_empty()));
+                assert!(elements.as_ref().is_none_or(|items| items.is_empty()));
+            });
+        });
+    });
+}
+
+/// Parse map callbacks with parenthesized TSX element bodies.
+#[test]
+fn test_parse_tsx_parenthesized_tree_callback_body() {
+    let mut test = TestParser::new_with_options(
+        "items.map((item) => (<option>{item}</option>))",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "items.map");
+        assert_eq!(dynamic_arguments.len(), 1);
+
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.parameters.len(), 1);
+
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
+                        assert_string!(parser, *name, "item");
+                    });
+
+                    assert_node!(parser.tree, *body, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "option");
+                            assert!(arguments.is_none());
+
+                            let elements = elements.as_ref().expect("expected option children");
+                            assert_eq!(elements.len(), 1);
+                            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "item");
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse TSX generic arrows without explicit disambiguators.
+#[test]
+fn test_parse_tsx_generic_arrow_without_disambiguator() {
+    let mut test = TestParser::new_with_options("<R>(x: R) => x", LanguageType::TypeScriptXml);
+    let mut parser = test.prepare();
+
+    let result = parser.eat_expression(parser.options);
+    assert!(result.is_err());
+}
+
+/// Parse TSX generic arrows with trailing comma disambiguators.
+#[test]
+fn test_parse_tsx_generic_arrow_with_trailing_comma() {
+    let mut test = TestParser::new_with_options("<T,>(x: T): T => x", LanguageType::TypeScriptXml);
+    let mut parser = test.prepare();
+
+    // <T,>(x: T): T => x
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            let generic_parameters = &signature.generic_parameters;
+            assert_eq!(generic_parameters.len(), 1);
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: None, default: None, .. } => {
+                assert_string!(parser, *name, "T");
+            });
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
+                    assert_path!(parser, *path, "T");
+                });
+            });
+            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, .. } => {
+                assert_path!(parser, *path, "T");
+            });
+            assert_node!(parser.tree, body.unwrap(), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
+            });
+        });
+    });
+}
+
+/// Parse ternaries with typed arrow functions in TSX context.
+#[test]
+fn test_parse_tsx_ternary_typed_arrow_function() {
+    let mut test = TestParser::new_with_options(
+        r#"Math.random() > 0.5
+    ? (): void => foo()
+    : (): void => bar()"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
+        assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(condition, IfCondition::Expression { condition } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+            });
+        });
+        assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Void);
+                });
+            });
+        });
+        let else_id = else_expression.expect("expected else branch");
+        assert_node!(parser.tree, else_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Void);
+                });
+            });
+        });
+    });
+}
+
+/// Parse ternaries with parenthesized typed arrow branches in TSX context.
+#[test]
+fn test_parse_tsx_ternary_parenthesized_typed_arrow_function() {
+    let mut test = TestParser::new_with_options(
+        r#"Math.random() > 0.5
+    ? ((): void => foo())
+    : ((): void => bar())"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
+        assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(condition, IfCondition::Expression { condition } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+            });
+        });
+        assert_node!(parser.tree, *then_expression, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Void);
+                    });
+                });
+            });
+        });
+        let else_id = else_expression.expect("expected else branch");
+        assert_node!(parser.tree, else_id, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Void);
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse TSX tree attributes with typed arrow function values.
+#[test]
+fn test_parse_tsx_tree_attribute_typed_arrow_value() {
+    let mut test = TestParser::new_with_options(
+        "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::TreeExpression { arguments, .. } => {
+        let arguments = arguments.as_ref().expect("expected arguments");
+        let class_name_argument = arguments.iter().copied().find(|argument_id| {
+            matches!(
+                parser.tree.get(*argument_id),
+                Argument::Named { name, .. } if parser.strings.get(name.string()) == "className"
+            )
+        });
+        let class_name_argument = class_name_argument.expect("expected className argument");
+        assert_node!(parser.tree, class_name_argument, Argument::Named { name, value, .. } => {
+            assert_name!(parser, *name, "className");
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    let return_type = signature.return_type.expect("expected return type");
+                    assert_node!(parser.tree, return_type, TypeExpression::Object { .. });
+                });
+            });
+        });
+    });
+}
+
+/// Parse ternaries with typed arrow functions inside TSX tree attributes.
+#[test]
+fn test_parse_tsx_ternary_tree_attribute_typed_arrow() {
+    let mut test = TestParser::new_with_options(
+        "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
+        assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(parser.tree, *then_expression, Expression::TreeExpression { arguments, .. } => {
+            let arguments = arguments.as_ref().expect("expected arguments");
+            let class_name_argument = arguments.iter().copied().find(|argument_id| {
+                matches!(
+                    parser.tree.get(*argument_id),
+                    Argument::Named { name, .. } if parser.strings.get(name.string()) == "className"
+                )
+            });
+            let class_name_argument = class_name_argument.expect("expected className argument");
+            assert_node!(parser.tree, class_name_argument, Argument::Named { name, value, .. } => {
+                assert_name!(parser, *name, "className");
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        let return_type = signature.return_type.expect("expected return type");
+                        assert_node!(parser.tree, return_type, TypeExpression::Object { .. });
+                    });
+                });
+            });
+        });
+        assert!(else_expression.is_some());
+    });
+}
+
+/// Parse TSX attributes whose values are direct nested tree literals.
+#[test]
+fn test_parse_tsx_tree_attribute_direct_nested_tree_value() {
+    let mut test = TestParser::new_with_options(
+        "<Foo prop=<Bar><Baz /></Bar> />;",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
+        let arguments = arguments.as_ref().expect("expected tree arguments");
+        let prop_argument = arguments.iter().copied().find(|argument_id| {
+            matches!(
+                parser.tree.get(*argument_id),
+                Argument::Named { name, .. } if parser.strings.get(name.string()) == "prop"
+            )
+        });
+        let prop_argument = prop_argument.expect("expected prop argument");
+
+        assert_node!(parser.tree, prop_argument, Argument::Named { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { left, elements, .. } => {
+                let left = left.expect("expected nested tree path");
+                assert_expression_path!(parser, parser.tree.get(left), "Bar");
+
+                let elements = elements.as_ref().expect("expected nested children");
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TreeExpression { left, .. } => {
+                        let left = left.expect("expected child tree path");
+                        assert_expression_path!(parser, parser.tree.get(left), "Baz");
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse TSX closing tags with a trailing line comment before `>`.
+#[test]
+fn test_parse_tsx_closing_tag_with_trailing_line_comment_before_greater_than() {
+    let mut test = TestParser::new_with_options("<a></a // line\n>;", LanguageType::TypeScriptXml);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { left, .. } => {
+        let left = left.expect("expected tag path");
+        assert_expression_path!(parser, parser.tree.get(left), "a");
+    });
+}
+
+/// Parse TSX typed arrow parameters whose type is a generic function type.
+#[test]
+fn test_parse_tsx_typed_arrow_parameter_with_generic_function_target_type() {
+    let mut test = TestParser::new_with_options(
+        "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
+        assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
+            assert_eq!(signature.parameters.len(), 2);
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "AutoAbortedAPMClient");
+            assert_expression_path!(parser, parser.tree.get(*body), "signal");
+
+            // signal: AbortSignal
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                assert_string!(parser, *name, "signal");
+                assert_expression_path!(parser, parser.tree.get(*declared_type), "AbortSignal");
+            });
+
+            // addInspectorRequest: <Data>(result: FetcherResult<Data>) => void
+            assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                assert_string!(parser, *name, "addInspectorRequest");
+                assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: nested_function_id } => {
+                    assert_node!(parser.tree, *nested_function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                        let nested_generic_parameters = &signature.generic_parameters;
+                        assert_eq!(nested_generic_parameters.len(), 1);
+
+                        assert_eq!(signature.parameters.len(), 1);
+                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(_), .. } => {
+                            assert_string!(parser, *name, "result");
+                        });
+
+                        assert_node!(parser.tree, signature.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::Void);
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
