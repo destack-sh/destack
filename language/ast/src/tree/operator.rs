@@ -6,23 +6,23 @@ use crate::{Keyword, TokenType};
 ///
 /// Precedence:
 /// ```
-/// x() x[] x{} x? x! x++ x--          // postfix
-/// !x -x -%x ~x *x &x ..x ++x --x     // prefix
-/// type readonly typeof keyof         // type unary operator
-/// * / % *% *|                        // multiplication
-/// + - +% -% +| -|                    // addition
-/// << >> <<|                          // shift
-/// & ^ |                              // elementwise
-/// == != < > <= >=                    // comparison
-/// && || ??                           // boolean
-/// in of                              // container
-/// in is instanceof extends implements // type binary operator
-/// =                                  // assignment
-/// *= /= %= **= *%= *|=               // assignment multiplication
-/// += -= +%= -%= +|= -|=              // assignment addition
-/// <<= >>= <<|=                       // assignment shift
-/// &= ^= |=                           // assignment elementwise
-/// &&= ||=                            // assignment logical
+/// x() x[] x{} x? x! x++ x--            // postfix
+/// !x -x -%x ~x *x &x ..x ++x --x       // prefix
+/// type readonly typeof keyof           // type unary operator
+/// * / % *% *|                          // multiplication
+/// + - +% -% +| -|                      // addition
+/// << >> <<|                            // shift
+/// & ^ |                                // elementwise
+/// == != < > <= >=                      // comparison
+/// && || ??                             // boolean
+/// in of                                // container
+/// in extends implements                // type binary operator
+/// =                                    // assignment
+/// *= /= %= **= *%= *|=                 // assignment multiplication
+/// += -= +%= -%= +|= -|=                // assignment addition
+/// <<= >>= <<|=                         // assignment shift
+/// &= ^= |=                             // assignment elementwise
+/// &&= ||=                              // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OperatorPrecedence {
@@ -57,7 +57,7 @@ pub enum OperatorPrecedence {
     /// `in` `of`
     Container = 1100,
     /// Type binary operators.
-    /// `in is instanceof extends implements`
+    /// `in extends implements`
     TypeBinary = 1000,
     /// Assignment-related binary operators.
     /// `=`
@@ -273,10 +273,6 @@ impl UnaryOperator {
 pub enum TypeBinaryOperator {
     /// `in`
     In = 1006,
-    /// `is`
-    Is = 1005,
-    /// `instanceof`
-    InstanceOf = 1004,
     /// `extends`
     Extends = 1002,
     /// `implements`
@@ -302,8 +298,6 @@ impl TypeBinaryOperator {
     pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeBinaryOperator> {
         match token_str {
             "in" => Some(TypeBinaryOperator::In),
-            "is" => Some(TypeBinaryOperator::Is),
-            "instanceof" => Some(TypeBinaryOperator::InstanceOf),
             "extends" => Some(TypeBinaryOperator::Extends),
             "implements" => Some(TypeBinaryOperator::Implements),
             _ => None,
@@ -394,8 +388,6 @@ pub enum BinaryOperator {
     // container
     /// `in`
     In = 1102,
-    /// `instanceof`
-    InstanceOf = 1101,
 }
 
 impl BinaryOperator {
@@ -449,7 +441,6 @@ impl BinaryOperator {
 
             // container
             BinaryOperator::In => OperatorPrecedence::Container,
-            BinaryOperator::InstanceOf => OperatorPrecedence::Container,
         }
     }
 
@@ -509,7 +500,6 @@ impl BinaryOperator {
 
             // container
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
-            TokenType::Identifier if token_str == "instanceof" => Some(BinaryOperator::InstanceOf),
 
             _ => None,
         }
