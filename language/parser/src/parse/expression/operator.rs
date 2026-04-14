@@ -3,28 +3,55 @@ use std::str::FromStr;
 use crate::{ParseError, ParseResult, Parser};
 
 use super::common::{
-    NOT_IN_FOR_EACH_BINARY_OPERATORS, NOT_IN_STATIC_BINARY_OPERATORS, NOT_IN_TREE_BINARY_OPERATORS,
+    NOT_IN_FOR_EACH_BINARY_OPERATORS, NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS,
+    NOT_IN_TREE_BINARY_OPERATORS,
 };
 
 use destack_ast::{
-    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, LocalNodeId, TokenSpan,
-    TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    AssignOperator, BinaryOperator, Expression, Keyword, LocalNodeId, TokenSpan, TokenType,
+    TypeBinaryOperator, TypeExpression, TypeUnaryOperator, UnaryOperator,
 };
 use destack_source::Span;
+
+const AS_ASSERTION_PRECEDENCE: u16 = 1355;
+const SATISFIES_ASSERTION_PRECEDENCE: u16 = 1003;
+
+/// One parser-local infix continuation operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(super) enum ParseInfixOperator {
+    /// A binary operator continuation.
+    Binary(BinaryOperator),
+    /// One `as` assertion continuation.
+    As,
+    /// One `satisfies` assertion continuation.
+    Satisfies,
+    /// A type binary operator continuation.
+    TypeBinary(TypeBinaryOperator),
+    /// An assignment operator continuation.
+    Assign(AssignOperator),
+}
+
+impl ParseInfixOperator {
+    /// Return the parser precedence for one infix continuation operator.
+    #[inline]
+    pub(super) fn precedence(self) -> u16 {
+        match self {
+            ParseInfixOperator::Binary(binary_operator) => binary_operator.precedence(),
+            ParseInfixOperator::As => AS_ASSERTION_PRECEDENCE,
+            ParseInfixOperator::Satisfies => SATISFIES_ASSERTION_PRECEDENCE,
+            ParseInfixOperator::TypeBinary(type_binary_operator) => {
+                type_binary_operator.precedence()
+            }
+            ParseInfixOperator::Assign(assign_operator) => assign_operator.precedence(),
+        }
+    }
+}
 
 impl Parser {
     /// Return the current token span or EOF span when unavailable.
     #[inline]
     fn current_span_or_eof(&mut self) -> Span {
         self.peek()
-            .map(|token| token.span)
-            .unwrap_or(self.eof_span())
-    }
-
-    /// Return the next token span or EOF span when unavailable.
-    #[inline]
-    fn next_span_or_eof(&mut self) -> Span {
-        self.peek_next()
             .map(|token| token.span)
             .unwrap_or(self.eof_span())
     }
@@ -53,29 +80,6 @@ impl Parser {
         has_member_after_keyword || has_optional_member_after_keyword
     }
 
-    /// Return true when a contextual cast keyword should parse as an identifier.
-    #[inline]
-    fn contextual_type_operator_is_identifier_continuation(
-        &self,
-        type_binary_operator: TypeBinaryOperator,
-        next_token_type: TokenType,
-        next_next_token_type: TokenType,
-    ) -> bool {
-        let keyword = match type_binary_operator {
-            TypeBinaryOperator::Cast => Some(Keyword::As),
-            TypeBinaryOperator::Satisfies => Some(Keyword::Satisfies),
-            _ => None,
-        };
-
-        keyword.is_some_and(|keyword| {
-            self.contextual_cast_keyword_continues_identifier(
-                keyword,
-                next_token_type,
-                next_next_token_type,
-            )
-        })
-    }
-
     /// Return the keyword token text for identifier based infix operators.
     #[inline]
     fn infix_identifier_keyword_text(keyword: Keyword) -> Option<&'static str> {
@@ -92,16 +96,16 @@ impl Parser {
     }
 
     /// Make an infix operator from the current parser context.
-    fn to_infix_operator(
+    fn classify_infix_operator(
         &self,
         token_str: &str,
         token: &TokenSpan,
         next_token: Option<&TokenSpan>,
         next_next_token: Option<&TokenSpan>,
         has_newline: bool,
-    ) -> ParseResult<(InfixOperator, u8)> {
+    ) -> ParseResult<(ParseInfixOperator, u8)> {
         // regular binary operator
-        // (only a subset of binary operators are allowed in static and tree contexts)
+        // (only a subset of binary operators are allowed in generic argument and tree contexts)
         if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
             && (!self.options.is_in_type()
                 || self.options.is_in_static()
@@ -110,13 +114,45 @@ impl Parser {
                     BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
                 ))
             && (!self.options.is_in_static()
-                || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
+                || !NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS.contains(&binary_operator))
             && (!self.options.is_in_tree_literal()
                 || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
             && (!self.options.is_in_for_each()
                 || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
         {
-            return Ok((InfixOperator::Binary(binary_operator), 1));
+            return Ok((ParseInfixOperator::Binary(binary_operator), 1));
+        }
+
+        // assertion operators in value expressions
+        if !self.options.is_in_super_type()
+            && !self.options.is_in_type()
+            && token.token.ty == TokenType::Identifier
+            && let Some(keyword) = Keyword::from_str(token_str).ok()
+            && matches!(keyword, Keyword::As | Keyword::Satisfies)
+            && (self.language.is_destack() || !has_newline)
+        {
+            let next_token_type = next_token
+                .map(|next| next.token.ty)
+                .unwrap_or(TokenType::End);
+            let next_next_token_type = next_next_token
+                .map(|next| next.token.ty)
+                .unwrap_or(TokenType::End);
+
+            if self.contextual_cast_keyword_continues_identifier(
+                keyword,
+                next_token_type,
+                next_next_token_type,
+            ) {
+                return Err(ParseError::unexpected(token.span));
+            }
+
+            let operator = match keyword {
+                Keyword::As => ParseInfixOperator::As,
+                Keyword::Satisfies => ParseInfixOperator::Satisfies,
+                _ => unreachable!("checked assertion keyword"),
+            };
+
+            return Ok((operator, 1));
         }
 
         // regular type binary operator
@@ -124,14 +160,8 @@ impl Parser {
         if !self.options.is_in_super_type()
             && let Some(type_binary_operator) =
                 TypeBinaryOperator::from_token(token_str, token.token.ty)
-            && (!self.options.is_in_type_mapped_constraint()
-                || type_binary_operator != TypeBinaryOperator::Cast)
             && (!self.options.is_in_for_each() || type_binary_operator != TypeBinaryOperator::In)
             && (self.options.is_in_type()
-                || matches!(
-                    type_binary_operator,
-                    TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-                )
                 || (self.language.is_destack()
                     && matches!(
                         type_binary_operator,
@@ -141,22 +171,7 @@ impl Parser {
                     )))
             && (self.language.is_destack() || !has_newline)
         {
-            // contextual type operators must not steal identifier continuations like `as.length`
-            let next_token_type = next_token
-                .map(|next| next.token.ty)
-                .unwrap_or(TokenType::End);
-            let next_next_token_type = next_next_token
-                .map(|next| next.token.ty)
-                .unwrap_or(TokenType::End);
-            if self.contextual_type_operator_is_identifier_continuation(
-                type_binary_operator,
-                next_token_type,
-                next_next_token_type,
-            ) {
-                return Err(ParseError::unexpected(token.span));
-            }
-
-            return Ok((InfixOperator::TypeBinary(type_binary_operator), 1));
+            return Ok((ParseInfixOperator::TypeBinary(type_binary_operator), 1));
         }
 
         // regular assign operator
@@ -166,7 +181,7 @@ impl Parser {
             && !self.options.is_in_tree_literal()
             && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
         {
-            return Ok((InfixOperator::Assign(assign_operator), 1));
+            return Ok((ParseInfixOperator::Assign(assign_operator), 1));
         }
 
         Err(ParseError::unexpected(token.span))
@@ -241,7 +256,7 @@ impl Parser {
             return None;
         }
 
-        // allow `as const` and `as comptime` across line breaks
+        // allow `as comptime` across line breaks
         let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
         if self.token_type_at(next_index) != TokenType::Identifier {
             return None;
@@ -249,7 +264,6 @@ impl Parser {
 
         let next_keyword = self.keyword_for_index(next_index);
         match next_keyword {
-            Some(Keyword::Const) => Some(TypeUnaryOperator::AsConst),
             Some(Keyword::Comptime) => Some(TypeUnaryOperator::AsComptime),
             _ => None,
         }
@@ -335,7 +349,7 @@ impl Parser {
         &mut self,
         index: usize,
         has_newline: bool,
-    ) -> Option<(InfixOperator, u8)> {
+    ) -> Option<(ParseInfixOperator, u8)> {
         let token = *self.token_ref_at(index)?;
         let token_type = token.token.ty;
         let (next_token, next_next_token) =
@@ -350,7 +364,7 @@ impl Parser {
         } else {
             ""
         };
-        self.to_infix_operator(
+        self.classify_infix_operator(
             token_str,
             &token,
             next_token.as_ref(),
@@ -360,122 +374,107 @@ impl Parser {
         .ok()
     }
 
-    /// Peek an infix operator.
-    #[inline]
-    pub fn peek_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        self.peek_infix_operator_at_index_maybe(self.pos_index(), false)
-    }
-
-    /// Peek an infix operator.
-    #[inline]
-    pub fn peek_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
-        self.peek_infix_operator_maybe()
-            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
-    }
-
-    /// Peek a next infix operator.
-    #[inline]
-    pub fn peek_next_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        self.peek_infix_operator_at_index_maybe(self.index_for_next(), true)
-    }
-
-    /// Peek a next infix operator.
-    #[inline]
-    pub fn peek_next_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
-        self.peek_next_infix_operator_maybe()
-            .ok_or(ParseError::unexpected(self.next_span_or_eof()))
-    }
-
-    /// Peek an infix operator after any newlines.
-    #[inline]
-    pub fn peek_infix_operator_after_newlines_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        let cursor = self.scanner_cursor_from(self.pos_index().saturating_add(1));
-        self.peek_infix_operator_at_index_maybe(cursor.index, true)
-    }
-
-    /// Peek an infix operator after any newlines.
-    #[inline]
-    pub fn peek_infix_operator_after_newlines(&mut self) -> ParseResult<(InfixOperator, u8)> {
-        self.peek_infix_operator_after_newlines_maybe()
-            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
-    }
     /// Make an expression from an infix operator.
     #[inline]
     pub(super) fn make_infix_expression(
-        &self,
+        &mut self,
         left: LocalNodeId<Expression>,
-        operator: InfixOperator,
+        operator: ParseInfixOperator,
         right: LocalNodeId<Expression>,
-    ) -> Expression {
-        match operator {
-            InfixOperator::Binary(binary_operator) => Expression::Binary {
-                left,
-                operator: binary_operator,
-                right,
-            },
-            InfixOperator::TypeBinary(type_binary_operator) => {
+    ) -> ParseResult<Expression> {
+        Ok(match operator {
+            ParseInfixOperator::Binary(binary_operator) => {
                 if self.options.is_in_type()
-                    && type_binary_operator == TypeBinaryOperator::Is
-                    && let Some(subject) = self.type_predicate_subject_from_expression(left)
+                    && matches!(
+                        binary_operator,
+                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                    )
                 {
-                    return Expression::TypePredicate {
-                        asserts: false,
-                        subject,
-                        target: Some(right),
-                    };
-                }
-                Expression::TypeBinary {
-                    left,
-                    operator: type_binary_operator,
-                    right,
+                    let left_type = self.expect_type_expression_value(left)?;
+                    let right_type = self.expect_type_expression_value(right)?;
+                    let type_expression_id = self.append_type_chain_element(
+                        left,
+                        binary_operator,
+                        left_type,
+                        right_type,
+                    );
+
+                    Expression::Type {
+                        value: type_expression_id,
+                    }
+                } else {
+                    Expression::Binary {
+                        left,
+                        operator: binary_operator,
+                        right,
+                    }
                 }
             }
-            InfixOperator::Assign(assign_operator) => Expression::Assign {
+            ParseInfixOperator::As | ParseInfixOperator::Satisfies => {
+                unreachable!("assertion operators are built in continuation parsing")
+            }
+            ParseInfixOperator::TypeBinary(type_binary_operator) => {
+                if self.options.is_in_type()
+                    && type_binary_operator == TypeBinaryOperator::Is
+                    && let Some(subject) = self.type_predicate_subject_maybe(left)
+                {
+                    let target = self.expect_type_expression_value(right)?;
+                    let predicate_id = self.insert_node(
+                        TypeExpression::Predicate {
+                            asserts: false,
+                            subject,
+                            target: Some(target),
+                        },
+                        self.tree.get_span(left),
+                    );
+
+                    return Ok(Expression::Type {
+                        value: predicate_id,
+                    });
+                }
+                return Err(ParseError::unexpected(self.tree.get_span(right)));
+            }
+            ParseInfixOperator::Assign(assign_operator) => Expression::Assign {
                 left,
                 operator: assign_operator,
                 right,
             },
-        }
+        })
     }
 
-    /// Extract the subject and constraint for a type conditional.
-    /// Pull union and intersection chains into the right side when they wrap `extends`.
-    /// #Architecture: split_type_conditional_operands is localized reassociation for conditional types.
-    /// Since we parse type expressions and expressions in the same pass, we have to post patch type precedence.
-    pub(super) fn split_type_conditional_operands(
+    /// Append one type element to a union or intersection chain.
+    fn append_type_chain_element(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<(LocalNodeId<Expression>, LocalNodeId<Expression>)> {
-        let (operator, left_id, _right_id) = match self.tree.get(expression_id) {
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Extends,
-                left,
-                right,
-            } => {
-                return Some((*left, *right));
+        source_id: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
+    ) -> LocalNodeId<TypeExpression> {
+        match (operator, self.tree.get(left).clone()) {
+            (BinaryOperator::ElementwiseOr, TypeExpression::Union { mut elements }) => {
+                elements.push(right);
+                self.insert_wrapped_type_expression(source_id, TypeExpression::Union { elements })
             }
-            Expression::Binary {
-                operator,
-                left,
-                right,
-            } => (*operator, *left, *right),
-            _ => return None,
-        };
-
-        // only normalize union and intersection chains
-        if !matches!(
-            operator,
-            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-        ) {
-            return None;
+            (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { mut elements }) => {
+                elements.push(right);
+                self.insert_wrapped_type_expression(
+                    source_id,
+                    TypeExpression::Intersection { elements },
+                )
+            }
+            (BinaryOperator::ElementwiseOr, _) => self.insert_wrapped_type_expression(
+                source_id,
+                TypeExpression::Union {
+                    elements: vec![left, right],
+                },
+            ),
+            (BinaryOperator::ElementwiseAnd, _) => self.insert_wrapped_type_expression(
+                source_id,
+                TypeExpression::Intersection {
+                    elements: vec![left, right],
+                },
+            ),
+            _ => unreachable!(),
         }
-
-        // peel a left leaning extends and reattach the union or intersection on the right
-        let (extends_left, extends_right) = self.split_type_conditional_operands(left_id)?;
-        if let Expression::Binary { left, .. } = self.tree.get_mut(expression_id) {
-            *left = extends_right;
-        }
-
-        Some((extends_left, expression_id))
     }
 }

@@ -1,12 +1,15 @@
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, BindingAnchor, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    DependencyMode, Expression, Keyword, LiteralType, TokenType,
+    Ambientness, Asynchrony, DependencyMode, ExportMode, Expression, Keyword, LiteralType,
+    TokenType,
 };
 
 use super::super::PendingDecorators;
-use super::common::{DescriptorHead, is_declaration_keyword};
+use super::common::{
+    DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead, is_declaration_keyword,
+    is_type_relation_keyword,
+};
 
 impl Parser {
     /// Return true when declaration modifier parsing is needed in this context.
@@ -205,7 +208,7 @@ impl Parser {
     /// Check whether a using declaration can be parsed at the current position.
     pub(super) fn can_parse_using_declaration(
         &mut self,
-        _descriptor: &DeclarationDescriptor,
+        _header: &DeclarationHeader,
         asynchrony: Asynchrony,
     ) -> bool {
         // reject impossible using starts with scanner-level checks
@@ -228,23 +231,17 @@ impl Parser {
         &mut self,
         start: &ParserMark,
     ) -> ParseResult<DescriptorHead> {
-        let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
+        let mut header: DeclarationHeader = DeclarationHeader::default();
         let mut decorators = PendingDecorators::new();
 
         // decorators parse as expressions only
         if self.options.is_in_decorator() {
-            return Ok(DescriptorHead::Descriptor {
-                descriptor,
-                decorators,
-            });
+            return Ok(DescriptorHead::Header { header, decorators });
         }
 
         // declaration modifiers only start on identifiers
         if !self.peek_is(TokenType::Identifier) {
-            return Ok(DescriptorHead::Descriptor {
-                descriptor,
-                decorators,
-            });
+            return Ok(DescriptorHead::Header { header, decorators });
         }
 
         // check for a modifier keyword or a global or module identifier
@@ -267,10 +264,7 @@ impl Parser {
             && self.is_module_identifier_at(pos);
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
-            return Ok(DescriptorHead::Descriptor {
-                descriptor,
-                decorators,
-            });
+            return Ok(DescriptorHead::Header { header, decorators });
         }
 
         // export modifier
@@ -339,7 +333,11 @@ impl Parser {
                 return Ok(DescriptorHead::Expression(export));
             }
 
-            descriptor.export = export_mode;
+            header.export = match export_mode {
+                Some(DependencyMode::Default) => Some(ExportMode::Default),
+                Some(DependencyMode::Item) => Some(ExportMode::Named),
+                Some(DependencyMode::Namespace) | None => None,
+            };
 
             // parse decorators after export so descriptor modifiers still parse correctly
             if self.peek_is(TokenType::At) {
@@ -349,7 +347,7 @@ impl Parser {
         }
 
         // skip newlines after export before declaration-style heads
-        if descriptor.export.is_some() && self.peek_is(TokenType::Newline) {
+        if header.export.is_some() && self.peek_is(TokenType::Newline) {
             let next_index = self.next_non_newline_index_from(self.pos_index());
             let next_token_type = self.token_type_at(next_index);
             let next_keyword = if next_token_type == TokenType::Identifier {
@@ -431,48 +429,34 @@ impl Parser {
         }
 
         let declare_has_target = declare_target_index.is_some();
-        descriptor.kind = if is_declare && declare_has_target {
+        header.ambient = if is_declare && declare_has_target {
             self.bump(); // eat declare
-            DeclarationKind::Declaration
+            Ambientness::Ambient
         } else {
-            DeclarationKind::Definition
+            Ambientness::Concrete
         };
 
         // abstraction modifier
-        descriptor.abstraction = if self.is_keyword(Keyword::Abstract)
+        header.is_abstract = self.is_keyword(Keyword::Abstract)
             && !self.options.is_in_variant()
             && !self.peek_next_is(TokenType::Newline)
             && self
                 .peek_next_any_keyword()
-                .is_ok_and(is_declaration_keyword)
-        {
+                .is_ok_and(is_declaration_keyword);
+        if header.is_abstract {
             self.bump(); // eat abstract
-            DeclarationAbstraction::Abstract
-        } else {
-            DeclarationAbstraction::Concrete
-        };
-
-        // anchor modifier
-        descriptor.anchor = if self.is_keyword(Keyword::Static) {
-            self.bump(); // eat static
-            BindingAnchor::Static
-        } else {
-            BindingAnchor::Instance
-        };
+        }
 
         // global declaration
-        if (descriptor.kind == DeclarationKind::Declaration
+        if (header.ambient == Ambientness::Ambient
             || self.language.is_declaration()
             || self.options.is_in_declare_context())
             && self.is_global_identifier_at(self.pos_index())
             && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
         {
-            let mut global_descriptor = descriptor;
-            if global_descriptor.kind == DeclarationKind::Definition {
-                // global declarations are always declarations
-                global_descriptor.kind = DeclarationKind::Declaration;
-            }
-            let global_id = self.eat_global(start, global_descriptor)?;
+            let mut global_header = header;
+            global_header.ambient = Ambientness::Ambient;
+            let global_id = self.eat_global(start, global_header)?;
             let expression_id = self.insert_node(
                 Expression::Declaration(global_id),
                 self.get_span_from(start),
@@ -480,16 +464,61 @@ impl Parser {
             return Ok(DescriptorHead::Expression(expression_id));
         }
 
-        Ok(DescriptorHead::Descriptor {
-            descriptor,
-            decorators,
-        })
+        Ok(DescriptorHead::Header { header, decorators })
     }
 
     /// Check whether a token index starts a declare target keyword.
     pub(super) fn is_declare_keyword_target_at(&mut self, index: usize) -> bool {
-        let keyword = self.keyword_for_index(index);
-        keyword.is_some_and(|kw| kw != Keyword::Declare && is_declaration_keyword(kw))
+        let Some(keyword) = self.keyword_for_index(index) else {
+            return false;
+        };
+
+        if keyword == Keyword::Declare || !is_declaration_keyword(keyword) {
+            return false;
+        }
+
+        let next_cursor = self.scanner_cursor_from(index + 1);
+        let next_token_type = next_cursor.token_type;
+        let next_token_index = next_cursor.index;
+        let next_has_line_break = next_cursor.has_line_break_before;
+        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
+
+        match keyword {
+            // ambient async heads only exist for `async function`
+            Keyword::Async => {
+                !next_has_line_break
+                    && next_token_type == TokenType::Identifier
+                    && self.keyword_for_index(next_token_index) == Some(Keyword::Function)
+            }
+
+            // ambient const, let, and var declarations commit immediately
+            Keyword::Const | Keyword::Let | Keyword::Var => true,
+
+            // ambient nominal and structural declarations keep their existing heads
+            Keyword::Class
+            | Keyword::Function
+            | Keyword::Interface
+            | Keyword::Struct
+            | Keyword::Extension
+            | Keyword::Union
+            | Keyword::Newtype => true,
+
+            // enum declarations must stay on the same line as the head keyword
+            Keyword::Enum => is_declaration_start && !next_has_line_break,
+
+            // namespace declarations only accept identifier names
+            Keyword::Namespace => {
+                !next_has_line_break
+                    && next_token_type == TokenType::Identifier
+                    && !is_type_relation_keyword(self.keyword_for_index(next_token_index))
+            }
+
+            // type aliases require a contiguous identifier name
+            Keyword::Type => !next_has_line_break && next_token_type == TokenType::Identifier,
+
+            // the remaining declaration keywords are contextual modifiers, not ambient heads
+            _ => false,
+        }
     }
 
     /// Check whether a token index starts a declare identifier target.

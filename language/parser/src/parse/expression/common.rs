@@ -1,8 +1,8 @@
 use crate::Parser;
 
 use destack_ast::{
-    BinaryOperator, Declaration, DeclarationDescriptor, Expression, FunctionKind, Keyword,
-    LocalNodeId, TokenType,
+    Ambientness, BinaryOperator, Declaration, ExportMode, Expression, FunctionDeclaration,
+    FunctionKind, Keyword, LocalNodeId, TokenType,
 };
 
 use super::super::PendingDecorators;
@@ -25,9 +25,9 @@ pub static PATTERN_START_TOKENS: [TokenType; 6] = [
     TokenType::OpenBracket,
 ];
 
-// can't use anything with `<` or `>` in static arguments
+// can't use anything with `<` or `>` in generic arguments
 // (to avoid parsing ambiguity with `<>` brackets)
-pub(super) static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 8] = [
+pub(super) static NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS: [BinaryOperator; 8] = [
     // shift
     BinaryOperator::ShiftLeft,
     BinaryOperator::SaturatingShiftLeft,
@@ -59,12 +59,33 @@ pub(super) static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 9] = [
 // can't use `in` in for each expressions
 pub(super) static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [BinaryOperator::In];
 
+/// Parsed declaration prefix shared across declaration forms.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct DeclarationHeader {
+    /// The export mode for the declaration.
+    pub export: Option<ExportMode>,
+    /// Whether the declaration is ambient.
+    pub ambient: Ambientness,
+    /// Whether the declaration is abstract.
+    pub is_abstract: bool,
+}
+
+impl Default for DeclarationHeader {
+    fn default() -> Self {
+        Self {
+            export: None,
+            ambient: Ambientness::Concrete,
+            is_abstract: false,
+        }
+    }
+}
+
 /// Result of parsing declaration modifiers.
 pub(super) enum DescriptorHead {
-    /// Parsed declaration descriptor.
-    Descriptor {
-        /// The parsed declaration descriptor.
-        descriptor: DeclarationDescriptor,
+    /// Parsed declaration header.
+    Header {
+        /// The parsed declaration header.
+        header: DeclarationHeader,
         /// Decorators parsed between declaration modifiers and the declaration head.
         decorators: PendingDecorators,
     },
@@ -148,7 +169,7 @@ impl Parser {
             Expression::Declaration(declaration_id)
                 if matches!(
                     self.tree.get(*declaration_id),
-                    Declaration::Function { signature, .. }
+                    Declaration::Function(FunctionDeclaration { signature, .. })
                         if signature.kind == FunctionKind::Lambda
                 )
         )

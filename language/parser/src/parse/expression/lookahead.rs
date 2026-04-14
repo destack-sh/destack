@@ -110,8 +110,8 @@ impl Parser {
             return Ok(DelimiterAnalysis::default());
         }
 
-        let close_index = self.find_matching_close_for_parenthesized_group(open_index as u32)?;
-        let Some(close_index) = close_index else {
+        let Some(close_index) = self.find_matching_close_for_parenthesized_group(open_index as u32)
+        else {
             return Ok(DelimiterAnalysis::default());
         };
 
@@ -153,10 +153,7 @@ impl Parser {
     }
 
     /// Find the matching close token for the current parenthesized group.
-    fn find_matching_close_for_parenthesized_group(
-        &mut self,
-        open_pos: u32,
-    ) -> ParseResult<Option<usize>> {
+    fn find_matching_close_for_parenthesized_group(&mut self, open_pos: u32) -> Option<usize> {
         let open_index = open_pos as usize;
 
         // tree literals can contain raw `)` text, so groups that start as tree literals use expression matching
@@ -165,12 +162,12 @@ impl Parser {
             && (self.options.is_in_tree_literal()
                 || self.parenthesized_group_starts_with_tree_literal(open_index));
         if needs_tree_aware_parenthesis_matching {
-            let close_pos = self.find_matching_close_in_expression(
+            let close_pos = self.find_matching_close_in_expression_maybe(
                 open_pos,
                 TokenType::OpenParenthesis,
                 TokenType::CloseParenthesis,
             )?;
-            return Ok(Some(close_pos as usize));
+            return Some(close_pos as usize);
         }
 
         if self
@@ -178,15 +175,15 @@ impl Parser {
             .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
             && let Some(close_index) = self.matching_pair_or_lex(open_index)
         {
-            return Ok(Some(close_index));
+            return Some(close_index);
         }
 
-        let close_pos = self.find_matching_close(
+        let close_pos = self.find_matching_close_maybe(
             Some(open_pos),
             TokenType::OpenParenthesis,
             TokenType::CloseParenthesis,
         )?;
-        Ok(Some(close_pos as usize))
+        Some(close_pos as usize)
     }
 
     /// Return true when the immediate parenthesized payload starts with a tree literal.
