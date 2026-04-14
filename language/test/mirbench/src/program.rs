@@ -951,7 +951,7 @@ fn calibrate_scale(
         if needs_gc {
             let _ = isolate
                 .collect_garbage(heap, shared)
-                .expect("failed to collect garbage");
+                .expect("managed collection should succeed");
         }
         let start = Instant::now();
         let _ = program.run_or_panic(isolate, heap, shared, entry_id, args);
@@ -1649,7 +1649,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 if needs_gc {
                     let _ = isolate
                         .collect_garbage(&mut heap, &mut shared)
-                        .expect("failed to collect garbage");
+                        .expect("managed collection should succeed");
                 }
                 let _ = entry.program.run_or_panic(
                     &mut isolate,
@@ -1679,7 +1679,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 if needs_gc {
                     let gc = isolate
                         .collect_garbage(&mut heap, &mut shared)
-                        .expect("failed to collect garbage");
+                        .expect("managed collection should succeed");
                     gc_collections += 1;
                     gc_freed_cells += gc.freed_allocations as u64;
                 }
@@ -1736,7 +1736,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                     if needs_gc {
                         let _ = isolate
                             .collect_garbage(&mut heap, &mut shared)
-                            .expect("failed to collect garbage");
+                            .expect("managed collection should succeed");
                     }
                     let _ = entry.program.run_or_panic(
                         &mut isolate,
