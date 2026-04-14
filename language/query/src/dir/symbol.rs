@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    self as dir, DependencyItem, DynamicKey, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member,
-    NodeType, SymbolSpace,
+    self as dir, DependencyItem, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType,
+    SymbolSpace,
 };
 use destack_source::{ModuleId, Span};
 use destack_workspace::{Repository, Revision};
@@ -166,8 +166,8 @@ pub(crate) fn build_symbol_index_entries_for_module(
             }
         }
 
-        if let dir::Declaration::Enum { fields, .. } = declaration {
-            for field_id in fields {
+        if let dir::Declaration::Enum(declaration) = declaration {
+            for field_id in &declaration.fields {
                 let Some(entry) =
                     enum_field_to_symbol_index_entry(repository, &ctx, dir_tree, *field_id, &name)
                 else {
@@ -182,13 +182,15 @@ pub(crate) fn build_symbol_index_entries_for_module(
     entries
 }
 
-/// Resolve a static member name from a dynamic key.
-pub(crate) fn member_key_name(repository: &Repository, key: &DynamicKey) -> Option<String> {
+/// Resolve a member name from a key.
+pub(crate) fn member_key_name(repository: &Repository, key: &dir::Key) -> Option<String> {
     match key {
-        DynamicKey::Name(name_id) | DynamicKey::Number(name_id) => {
-            Some(repository.strings.get(*name_id).to_string())
+        dir::Key::Name(name) => Some(repository.strings.get(name.string()).to_string()),
+        dir::Key::Private(name) => {
+            let name = repository.strings.get(*name).to_string();
+            Some(format!("#{name}"))
         }
-        _ => None,
+        dir::Key::Expression(_) => None,
     }
 }
 
@@ -355,7 +357,7 @@ fn enum_field_to_symbol_index_entry(
     let range = symbol_index_range(ctx, dir_tree, field_id.id)?;
 
     Some(SymbolIndexEntry {
-        name: repository.strings.get(field.name).to_string(),
+        name: repository.strings.get(field.name.string()).to_string(),
         kind: SymbolIndexKind::EnumMember,
         module_id: ctx.module_id(),
         file_id: ctx.file_id(),

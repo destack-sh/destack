@@ -133,8 +133,8 @@ fn document_symbols_with_dir(
             }
 
             // add enum field children
-            if let Declaration::Enum { fields, .. } = declaration {
-                for field_id in fields {
+            if let Declaration::Enum(declaration) = declaration {
+                for field_id in &declaration.fields {
                     if let Some(child) =
                         enum_field_to_document_symbol(dir_tree, *field_id, &ctx, repository)
                     {
@@ -178,25 +178,41 @@ fn document_symbols_with_ast(
 
             // add children for declarations with members
             match declaration {
-                ast::Declaration::Struct { members, .. }
-                | ast::Declaration::Class { members, .. }
-                | ast::Declaration::Interface { members, .. }
-                | ast::Declaration::Extension { members, .. } => {
-                    for member_id in members {
+                ast::Declaration::Struct(declaration) => {
+                    for member_id in &declaration.members {
                         if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
                             symbol = symbol.with_child(child);
                         }
                     }
                 }
-                ast::Declaration::Enum {
-                    fields, members, ..
-                } => {
-                    for member_id in members {
+                ast::Declaration::Class(declaration) => {
+                    for member_id in &declaration.members {
                         if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
                             symbol = symbol.with_child(child);
                         }
                     }
-                    for field_id in fields {
+                }
+                ast::Declaration::Interface(declaration) => {
+                    for member_id in &declaration.members {
+                        if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                            symbol = symbol.with_child(child);
+                        }
+                    }
+                }
+                ast::Declaration::Extension(declaration) => {
+                    for member_id in &declaration.members {
+                        if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                            symbol = symbol.with_child(child);
+                        }
+                    }
+                }
+                ast::Declaration::Enum(declaration) => {
+                    for member_id in &declaration.members {
+                        if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                            symbol = symbol.with_child(child);
+                        }
+                    }
+                    for field_id in &declaration.fields {
                         if let Some(child) = enum_field_to_document_symbol_ast(ast, *field_id) {
                             symbol = symbol.with_child(child);
                         }
@@ -261,7 +277,7 @@ fn enum_field_to_document_symbol(
     let field = dir_tree.get::<EnumField>(field_id);
 
     // get the field name
-    let name = repository.strings.get(field.name).to_string();
+    let name = repository.strings.get(field.name.string()).to_string();
 
     // get spans
     let range = span_for_dir_node(ctx.ast(), dir_tree, field_id.into());
@@ -279,14 +295,13 @@ fn enum_field_to_document_symbol(
 /// Resolve the display name for an AST declaration.
 fn declaration_display_name_ast(strings: &StringPool, declaration: &ast::Declaration) -> String {
     // default global declarations to the keyword label
-    if matches!(declaration, ast::Declaration::Global { .. }) {
+    if matches!(declaration, ast::Declaration::Global(_)) {
         return "global".to_string();
     }
 
-    // prefer descriptor name when available
-    let descriptor = declaration.descriptor();
-    descriptor
-        .name
+    // prefer the explicit declaration name when available
+    declaration
+        .name()
         .map(|name| strings.get(name.string()).to_string())
         .unwrap_or_else(|| "<anonymous>".to_string())
 }
@@ -294,19 +309,19 @@ fn declaration_display_name_ast(strings: &StringPool, declaration: &ast::Declara
 /// Map an AST declaration to a symbol kind.
 fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
     match declaration {
-        ast::Declaration::Global { .. } => SymbolKind::Namespace,
-        ast::Declaration::Function { .. } => SymbolKind::Function,
-        ast::Declaration::Struct { .. } => SymbolKind::Struct,
-        ast::Declaration::Class { .. } => SymbolKind::Class,
-        ast::Declaration::Interface { .. } => SymbolKind::Interface,
-        ast::Declaration::Enum { .. } => SymbolKind::Enum,
-        ast::Declaration::Namespace { .. } => SymbolKind::Namespace,
-        ast::Declaration::Type { .. } => SymbolKind::TypeParameter,
-        ast::Declaration::ImportAlias { kind, .. } => match kind {
+        ast::Declaration::Global(_) => SymbolKind::Namespace,
+        ast::Declaration::Function(_) => SymbolKind::Function,
+        ast::Declaration::Struct(_) => SymbolKind::Struct,
+        ast::Declaration::Class(_) => SymbolKind::Class,
+        ast::Declaration::Interface(_) => SymbolKind::Interface,
+        ast::Declaration::Enum(_) => SymbolKind::Enum,
+        ast::Declaration::Namespace(_) => SymbolKind::Namespace,
+        ast::Declaration::Type(_) => SymbolKind::TypeParameter,
+        ast::Declaration::ImportAlias(declaration) => match declaration.kind {
             ast::DependencyKind::Type => SymbolKind::TypeParameter,
             ast::DependencyKind::Value => SymbolKind::Variable,
         },
-        ast::Declaration::Extension { .. } => SymbolKind::Class,
+        ast::Declaration::Extension(_) => SymbolKind::Class,
     }
 }
 
@@ -329,7 +344,6 @@ fn member_to_document_symbol_ast(
             (name, SymbolKind::Constant)
         }
         ast::Member::Field { key, .. } => {
-            let key = key.as_ref()?;
             let name = member_key_name_ast(ast, key)?;
             (name, SymbolKind::Field)
         }
@@ -382,7 +396,6 @@ fn member_key_name_ast(ast: AstQuery<'_>, key: &ast::Key) -> Option<String> {
             let name = ast.strings().get(*name).to_string();
             Some(format!("#{name}"))
         }
-        ast::Key::NamedExpression { name, .. } => Some(ast.strings().get(*name).to_string()),
         ast::Key::Expression(_) => None,
     }
 }

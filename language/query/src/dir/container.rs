@@ -4,6 +4,7 @@ use destack_dir::{GlobalSymbolId, NodeType};
 use destack_workspace::{Repository, Revision};
 
 use crate::core::query_context_for_module_id;
+use crate::dir::declaration_name;
 
 /// Resolve the container name for a symbol when it belongs to a type scope.
 pub(crate) fn container_name_for_symbol(
@@ -44,8 +45,7 @@ pub(crate) fn container_name_for_node(
                 continue;
             };
             let parent_decl = dir_tree.get(decl_id);
-            let descriptor = parent_decl.descriptor();
-            if let Some(name) = descriptor.name {
+            if let Some(name) = declaration_name(parent_decl) {
                 return Some(strings.get(name.string()).to_string());
             }
         }

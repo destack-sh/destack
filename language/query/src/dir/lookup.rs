@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DependencyItem, EnumField, Expression, GlobalSymbolId, LocalNodeIdAny, Parameter,
-    Pattern, PatternField,
+    Declaration, DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, Parameter, Pattern,
+    PatternField,
 };
 use destack_source::{FileId, NodeSpanType, Span};
 use std::str::FromStr;
@@ -533,21 +533,7 @@ fn find_symbol_at_offset_impl(
             }
 
             dir::NodeType::EnumField => {
-                let Ok(field_id) = dir_node_id.try_into() else {
-                    continue;
-                };
-                let field = dir_tree.get::<EnumField>(field_id);
-                let symbol_id = global_symbol(dir.module_id(), field.symbol);
-                let span = get_node_tree_main_span(ast, dir.tree(), dir_node_id);
-                if !offset_matches_symbol_span(offset, span) {
-                    continue;
-                }
-
-                return Some(SymbolAtOffset {
-                    symbol_id,
-                    node_id: dir_node_id,
-                    span,
-                });
+                continue;
             }
 
             dir::NodeType::Parameter => {
@@ -813,7 +799,7 @@ fn static_parameter_symbol_at_offset(
 
     let dir_tree = dir.tree();
     for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
-        let Some(parameters) = declaration.static_parameters() else {
+        let Some(parameters) = declaration.generic_parameters() else {
             continue;
         };
 
@@ -823,7 +809,7 @@ fn static_parameter_symbol_at_offset(
                 .tree()
                 .get_main_span_by_id(ast_node_id)
                 .unwrap_or_else(|| ast.tree().source_map.get_main_or_enclosing(ast_node_id));
-            let parameter = dir_tree.get::<Parameter>(*parameter_id);
+            let parameter = dir_tree.get::<dir::GenericParameter>(*parameter_id);
             let span = Span::new(ast.file_id(), main_span.start, main_span.end);
             if !offset_matches_symbol_span(offset, span) {
                 continue;
@@ -848,15 +834,16 @@ fn static_parameter_symbol_at_offset(
     None
 }
 
-/// Resolve the declared name for a static parameter when available.
-fn static_parameter_name(repository: &Repository, parameter: &Parameter) -> Option<String> {
+/// Resolve the declared name for a generic parameter when available.
+fn static_parameter_name(
+    repository: &Repository,
+    parameter: &dir::GenericParameter,
+) -> Option<String> {
     match parameter {
-        Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
+        dir::GenericParameter::Type { name, .. } | dir::GenericParameter::Value { name, .. } => {
             Some(repository.strings.get(*name).to_string())
         }
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } | Parameter::Error { .. } => {
-            None
-        }
+        dir::GenericParameter::Error { .. } => None,
     }
 }
 
@@ -941,6 +928,7 @@ fn pattern_symbol_at_offset(
         | Pattern::ValueOf { right: inner, .. } => {
             pattern_symbol_at_offset(repository, ast, dir, dir_tree, *inner, offset)
         }
+        Pattern::TypeExpression { .. } => None,
         Pattern::Tuple { fields }
         | Pattern::TaggedTuple { fields, .. }
         | Pattern::Array { fields }

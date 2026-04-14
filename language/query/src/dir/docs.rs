@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use destack_ast::normalize_comment_payload;
 use destack_dir as dir;
+use destack_source::NodeSpanType;
 use destack_workspace::{Repository, Revision};
 
 use crate::core::{AstQuery, query_context_for_module_id};
@@ -15,9 +16,16 @@ pub(crate) fn doc_strings_for_node(ast: AstQuery<'_>, source: &str, node_id: u32
         .iter()
         .copied()
         .filter(|comment| {
-            comment.is_leading()
-                && comment.span.file == node_span.file
-                && comment.attached_to == node_span.start
+            let attached_span = ast.source_map().get_side_or_enclosing(
+                comment.attached_part.source_id,
+                comment.attached_part.span_type,
+            );
+
+            matches!(
+                comment.attached_part.span_type,
+                NodeSpanType::Enclosing | NodeSpanType::Leading
+            ) && attached_span.file == node_span.file
+                && attached_span.start == node_span.start
         })
         .filter_map(|comment| {
             let start = usize::try_from(comment.span.start).ok()?;

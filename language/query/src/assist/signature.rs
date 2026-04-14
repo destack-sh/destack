@@ -244,7 +244,7 @@ fn signature_info_for_symbol(
         NodeType::Declaration => {
             let declaration_id = declaration_ref.local_id.try_into_typed().ok()?;
             let declaration = dir_tree.get::<Declaration>(declaration_id);
-            let Declaration::Function { signature, .. } = declaration else {
+            let Declaration::Function(declaration) = declaration else {
                 return None;
             };
             let ast_node_id = dir_tree.get_source(declaration_id.id);
@@ -254,7 +254,7 @@ fn signature_info_for_symbol(
                 ast_node_id,
                 &["@param", "@return", "@returns"],
             );
-            (signature, doc_text)
+            (&declaration.signature, doc_text)
         }
         // handle method members
         NodeType::Member => {

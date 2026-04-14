@@ -348,13 +348,10 @@ fn has_decorator_named(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
 
 /// Check whether a decorator is attached directly to a node.
 fn decorator_on_node(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
-    // scan annotations attached to the node
-    let annotations = ast.tree().get_annotations(node_id);
-    for annotation_id in annotations {
-        let annotation = ast.tree().get::<ast::Annotation>(annotation_id);
-        let ast::Annotation::Decorator { node, .. } = annotation;
-
-        let decorator = ast.tree().get::<ast::Decorator>(*node);
+    // scan decorators attached to the node
+    let decorators = ast.tree().get_decorators(node_id);
+    for decorator_id in decorators {
+        let decorator = ast.tree().get::<ast::Decorator>(decorator_id);
         let Some(decorator_name_id) = decorator_name_id(ast, decorator) else {
             continue;
         };

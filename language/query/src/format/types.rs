@@ -449,6 +449,7 @@ pub fn format_primitive_type(prim: &dir::PrimitiveType) -> String {
 /// Format a ScalarLiteral.
 pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) -> String {
     match scalar {
+        dir::ScalarLiteral::Null => "null".to_string(),
         dir::ScalarLiteral::Boolean(b) => b.to_string(),
         dir::ScalarLiteral::Integer(i) => i.to_string(),
         dir::ScalarLiteral::Bigint(i) => format!("{i}n"),
@@ -502,6 +503,7 @@ pub fn format_type_for_inlay_hint(
 /// Map a scalar literal type to its default primitive display name.
 pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
     match value {
+        dir::ScalarLiteral::Null => "null",
         dir::ScalarLiteral::Boolean(_) => DEFAULT_BOOLEAN_DISPLAY,
         dir::ScalarLiteral::String(_) | dir::ScalarLiteral::RegexString { .. } => {
             DEFAULT_STRING_DISPLAY
@@ -795,7 +797,6 @@ fn format_type_unary(
         dir::TypeUnaryOperator::Typeof => format!("typeof {right_str}"),
         dir::TypeUnaryOperator::Keyof => format!("keyof {right_str}"),
         dir::TypeUnaryOperator::AsComptime => format!("{right_str} as comptime"),
-        dir::TypeUnaryOperator::AsConst => format!("{right_str} as const"),
     }
 }
 
@@ -810,19 +811,21 @@ fn format_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
     }
 }
 
-fn format_type_mapped_modifier_prefix(modifier: dir::TypeModifier) -> &'static str {
+fn format_type_mapped_modifier_prefix(modifier: dir::MappedTypeModifier) -> &'static str {
     match modifier {
-        dir::TypeModifier::Add => "readonly ",
-        dir::TypeModifier::Remove => "-readonly ",
-        dir::TypeModifier::None => "",
+        dir::MappedTypeModifier::Present => "readonly ",
+        dir::MappedTypeModifier::Add => "+readonly ",
+        dir::MappedTypeModifier::Remove => "-readonly ",
+        dir::MappedTypeModifier::None => "",
     }
 }
 
-fn format_type_mapped_modifier_suffix(modifier: dir::TypeModifier) -> &'static str {
+fn format_type_mapped_modifier_suffix(modifier: dir::MappedTypeModifier) -> &'static str {
     match modifier {
-        dir::TypeModifier::Add => "?",
-        dir::TypeModifier::Remove => "-?",
-        dir::TypeModifier::None => "",
+        dir::MappedTypeModifier::Present => "?",
+        dir::MappedTypeModifier::Add => "+?",
+        dir::MappedTypeModifier::Remove => "-?",
+        dir::MappedTypeModifier::None => "",
     }
 }
 
@@ -865,15 +868,15 @@ fn format_path(path: &dir::Path, strings: &StringPool) -> String {
 }
 
 fn format_type_predicate_subject(
-    subject: dir::TypePredicateSubject,
+    subject: dir::PredicateSubject,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
 ) -> String {
     match subject {
-        dir::TypePredicateSubject::This => "this".to_string(),
-        dir::TypePredicateSubject::Unresolved(name) => strings.get(name).to_string(),
-        dir::TypePredicateSubject::Symbol(symbol_id) => {
+        dir::PredicateSubject::This => "this".to_string(),
+        dir::PredicateSubject::Unresolved(name) => strings.get(name).to_string(),
+        dir::PredicateSubject::Symbol(symbol_id) => {
             format_symbol_name(symbol_id, repository, revision, strings)
         }
     }
@@ -892,11 +895,9 @@ fn format_type_binary(
     let left_str = format_local_type(left, types, repository, revision, strings);
     let right_str = format_local_type(right, types, repository, revision, strings);
     let op_str = match operator {
-        dir::TypeBinaryOperator::Cast => "as",
         dir::TypeBinaryOperator::In => "in",
         dir::TypeBinaryOperator::Is => "is",
         dir::TypeBinaryOperator::InstanceOf => "instanceof",
-        dir::TypeBinaryOperator::Satisfies => "satisfies",
         dir::TypeBinaryOperator::Extends => "extends",
         dir::TypeBinaryOperator::Implements => "implements",
     };

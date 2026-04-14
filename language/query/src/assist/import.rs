@@ -141,9 +141,7 @@ fn import_clause_info(
     let ast::Expression::Import { items, kind, .. } = expr else {
         return None;
     };
-    let Some(items) = items.as_ref() else {
-        return None;
-    };
+    let items = items.as_ref()?;
 
     // resolve the import clause braces before the target string
     let bounds = import_clause_bounds(ast, import_span, target_span)?;

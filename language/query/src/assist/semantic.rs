@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
 use crate::core::query_context;
+use crate::dir::{declaration_export, declaration_is_abstract};
 
 /// Semantic token type for LSP semantic highlighting.
 ///
@@ -143,8 +144,6 @@ pub fn semantic_tokens(
 
     // collect declaration tokens (these are definition sites)
     for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
-        let descriptor = declaration.descriptor();
-
         // get the main span (identifier) for the declaration
         let ast_node_id = dir_tree.get_source(decl_id.id);
         let Some(main_span) = ctx
@@ -157,33 +156,33 @@ pub fn semantic_tokens(
 
         // determine token type from declaration kind
         let token_type = match declaration {
-            dir::Declaration::Global { .. } => SemanticTokenType::Namespace,
-            dir::Declaration::Function { .. } => SemanticTokenType::Function,
-            dir::Declaration::Struct { .. } => SemanticTokenType::Struct,
-            dir::Declaration::Class { .. } => SemanticTokenType::Class,
-            dir::Declaration::Interface { .. } => SemanticTokenType::Interface,
-            dir::Declaration::Enum { .. } => SemanticTokenType::Enum,
-            dir::Declaration::Namespace { .. } => SemanticTokenType::Namespace,
-            dir::Declaration::Type { .. } => SemanticTokenType::Type,
-            dir::Declaration::ImportAlias { kind, .. } => match kind {
+            dir::Declaration::Global(_) => SemanticTokenType::Namespace,
+            dir::Declaration::Function(_) => SemanticTokenType::Function,
+            dir::Declaration::Struct(_) => SemanticTokenType::Struct,
+            dir::Declaration::Class(_) => SemanticTokenType::Class,
+            dir::Declaration::Interface(_) => SemanticTokenType::Interface,
+            dir::Declaration::Enum(_) => SemanticTokenType::Enum,
+            dir::Declaration::Namespace(_) => SemanticTokenType::Namespace,
+            dir::Declaration::Type(_) => SemanticTokenType::Type,
+            dir::Declaration::ImportAlias(declaration) => match declaration.kind {
                 dir::DependencyKind::Type => SemanticTokenType::Type,
                 dir::DependencyKind::Value => SemanticTokenType::Namespace,
             },
-            dir::Declaration::Extension { .. } => SemanticTokenType::Type,
+            dir::Declaration::Extension(_) => SemanticTokenType::Type,
         };
 
         // build modifiers
         let mut modifiers = SemanticTokenModifiers::DECLARATION;
-        if descriptor.export.is_some() {
+        if declaration_export(declaration).is_some() {
             modifiers = modifiers.union(SemanticTokenModifiers::DEFINITION);
         }
-        if descriptor.abstraction == dir::DeclarationAbstraction::Abstract {
+        if declaration_is_abstract(declaration) {
             modifiers = modifiers.union(SemanticTokenModifiers::ABSTRACT);
         }
 
         // check for async on functions
-        if let dir::Declaration::Function { signature, .. } = declaration
-            && signature.asynchrony == dir::Asynchrony::Async
+        if let dir::Declaration::Function(declaration) = declaration
+            && declaration.signature.asynchrony == dir::Asynchrony::Async
         {
             modifiers = modifiers.union(SemanticTokenModifiers::ASYNC);
         }
@@ -205,10 +204,8 @@ pub fn semantic_tokens(
 
         let mut modifiers = SemanticTokenModifiers::DECLARATION;
 
-        // check for readonly via immutable mutability
-        if let Some(binding_mod) = parameter.modifiers()
-            && binding_mod.mutability == Some(dir::Mutability::Immutable)
-        {
+        // mark readonly parameters directly from their final fields
+        if parameter_is_readonly(parameter) {
             modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
         }
 
@@ -355,6 +352,7 @@ pub fn semantic_tokens(
             // literals
             dir::Expression::ScalarLiteral { value } => {
                 let token_type = match value {
+                    dir::ScalarLiteral::Null => SemanticTokenType::Keyword,
                     dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Character(_) => {
                         SemanticTokenType::String
                     }
@@ -406,34 +404,40 @@ pub fn semantic_tokens(
         };
 
         let (token_type, modifiers) = match member {
-            dir::Member::Type { modifiers, .. } => {
-                let mods = modifiers_from_binding(modifiers, true);
+            dir::Member::Type {
+                is_static,
+                is_abstract,
+                ..
+            } => {
+                let mods = modifiers_from_member_flags(true, false, *is_static, *is_abstract);
                 (SemanticTokenType::Type, mods)
             }
-            dir::Member::ComptimeConst { modifiers, .. } => {
-                let mut mods = modifiers_from_binding(modifiers, true);
+            dir::Member::ComptimeConst { is_static, .. } => {
+                let mut mods = modifiers_from_member_flags(true, true, *is_static, false);
                 mods = mods.union(SemanticTokenModifiers::READONLY);
                 mods = mods.union(SemanticTokenModifiers::STATIC);
                 (SemanticTokenType::Property, mods)
             }
-            dir::Member::Field { modifiers, .. } => {
-                let mods = modifiers_from_binding(modifiers, true);
+            dir::Member::Field {
+                is_readonly,
+                mutability,
+                is_static,
+                is_abstract,
+                ..
+            } => {
+                let is_readonly = *is_readonly || *mutability == Some(dir::Mutability::Immutable);
+                let mods = modifiers_from_member_flags(true, is_readonly, *is_static, *is_abstract);
                 (SemanticTokenType::Property, mods)
             }
             dir::Member::Method {
-                modifiers,
                 signature,
+                is_static,
                 ..
             } => {
-                let mut mods = modifiers_from_binding(modifiers, true);
+                let mut mods =
+                    modifiers_from_member_flags(true, false, *is_static, signature.is_abstract);
                 if signature.asynchrony == dir::Asynchrony::Async {
                     mods = mods.union(SemanticTokenModifiers::ASYNC);
-                }
-                if matches!(
-                    signature.abstraction,
-                    dir::FunctionAbstraction::Abstract | dir::FunctionAbstraction::AbstractOverride
-                ) {
-                    mods = mods.union(SemanticTokenModifiers::ABSTRACT);
                 }
                 (SemanticTokenType::Method, mods)
             }
@@ -464,44 +468,8 @@ pub fn semantic_tokens(
 
     // collect type parameter tokens from declarations with generics
     for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
-        let generics = match declaration {
-            dir::Declaration::Function { signature, .. } => signature.generics.as_ref(),
-            dir::Declaration::Struct { generics, .. }
-            | dir::Declaration::Class { generics, .. }
-            | dir::Declaration::Interface { generics, .. }
-            | dir::Declaration::Enum { generics, .. }
-            | dir::Declaration::Namespace { generics, .. } => Some(generics),
-            dir::Declaration::Global { .. } => None,
-            dir::Declaration::Type {
-                static_parameters, ..
-            } => {
-                // type aliases have inline static parameters
-                if let Some(params) = static_parameters {
-                    for parameter_id in params {
-                        let ast_node_id = dir_tree.get_source(parameter_id.id);
-                        if let Some(main_span) = ctx
-                            .ast()
-                            .tree()
-                            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
-                        {
-                            tokens.push(
-                                SemanticToken::new(main_span, SemanticTokenType::TypeParameter)
-                                    .with_modifiers(SemanticTokenModifiers::DECLARATION),
-                            );
-                        }
-                    }
-                }
-                None
-            }
-            dir::Declaration::ImportAlias { .. } => None,
-            dir::Declaration::Extension { generics, .. } => Some(generics),
-        };
-
-        // collect type parameter tokens from static parameters
-        if let Some(generics) = generics
-            && let Some(static_params) = &generics.static_parameters
-        {
-            for parameter_id in static_params {
+        if let Some(generic_parameters) = declaration.generic_parameters() {
+            for parameter_id in generic_parameters {
                 let ast_node_id = dir_tree.get_source(parameter_id.id);
                 if let Some(main_span) = ctx
                     .ast()
@@ -518,23 +486,19 @@ pub fn semantic_tokens(
     }
 
     // collect decorator tokens
-    for (annotation_id, annotation) in dir_tree.iter_nodes_of_type::<dir::Annotation>() {
-        let ast_node_id = dir_tree.get_source(annotation_id.id);
+    for (decorator_id, _decorator) in dir_tree.iter_nodes_of_type::<dir::Decorator>() {
+        let ast_node_id = dir_tree.get_source(decorator_id.id);
         let span = ctx.ast().tree().get_span_by_id(ast_node_id);
 
-        match annotation {
-            dir::Annotation::Decorator { .. } => {
-                // for decorators, highlight the whole thing or just the name
-                if let Some(main_span) = ctx
-                    .ast()
-                    .tree()
-                    .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
-                {
-                    tokens.push(SemanticToken::new(main_span, SemanticTokenType::Decorator));
-                } else {
-                    tokens.push(SemanticToken::new(span, SemanticTokenType::Decorator));
-                }
-            }
+        // for decorators, highlight the whole thing or just the name
+        if let Some(main_span) = ctx
+            .ast()
+            .tree()
+            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+        {
+            tokens.push(SemanticToken::new(main_span, SemanticTokenType::Decorator));
+        } else {
+            tokens.push(SemanticToken::new(span, SemanticTokenType::Decorator));
         }
     }
 
@@ -619,10 +583,12 @@ pub fn semantic_tokens_range(
         .collect()
 }
 
-/// Extract modifiers from a BindingModifier.
-fn modifiers_from_binding(
-    binding: &Option<dir::BindingModifier>,
+/// Extract modifiers from explicit member flags.
+fn modifiers_from_member_flags(
     is_declaration: bool,
+    is_readonly: bool,
+    is_static: bool,
+    is_abstract: bool,
 ) -> SemanticTokenModifiers {
     let mut modifiers = if is_declaration {
         SemanticTokenModifiers::DECLARATION
@@ -630,16 +596,28 @@ fn modifiers_from_binding(
         SemanticTokenModifiers::NONE
     };
 
-    if let Some(binding) = binding {
-        if binding.mutability == Some(dir::Mutability::Immutable) {
-            modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
-        }
-        if binding.anchor == Some(dir::BindingAnchor::Static) {
-            modifiers = modifiers.union(SemanticTokenModifiers::STATIC);
-        }
+    if is_readonly {
+        modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
+    }
+    if is_static {
+        modifiers = modifiers.union(SemanticTokenModifiers::STATIC);
+    }
+    if is_abstract {
+        modifiers = modifiers.union(SemanticTokenModifiers::ABSTRACT);
     }
 
     modifiers
+}
+
+/// Return whether a parameter is readonly.
+fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
+    match parameter {
+        dir::Parameter::Named { is_readonly, .. }
+        | dir::Parameter::VariadicNamed { is_readonly, .. } => *is_readonly,
+        dir::Parameter::Pattern { .. }
+        | dir::Parameter::VariadicPattern { .. }
+        | dir::Parameter::Error { .. } => false,
+    }
 }
 
 /// Map SymbolType to SemanticTokenType.

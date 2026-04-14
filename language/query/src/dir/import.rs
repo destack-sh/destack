@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_ast::{
     DependencyItem, DependencyKind, DependencyMode as AstDependencyMode, Expression, ImportTarget,
-    NodeTree, ScalarLiteral, TokenType,
+    NodeTree, ScalarLiteral, TokenType, TypeExpression,
 };
 use destack_core::StringId;
 use destack_dir::{
@@ -139,11 +139,11 @@ pub(crate) fn resolve_local_import_alias_name(
         let declaration_id: LocalNodeId<Declaration> = declaration.local_id.try_into().ok()?;
         let dir_tree = ctx.dir().tree();
         let declaration = dir_tree.get::<Declaration>(declaration_id);
-        let Declaration::ImportAlias { descriptor, .. } = declaration else {
+        let Declaration::ImportAlias(declaration) = declaration else {
             return None;
         };
 
-        let name_id = descriptor.name?.string();
+        let name_id = declaration.name.string();
         return Some(repository.strings.get(name_id).to_string());
     }
 
@@ -451,7 +451,11 @@ pub(crate) fn module_specifier_in_expression(
             ..
         } => Some((*target, *kind)),
         Expression::Export { target, kind, .. } => target.map(|target| (target, *kind)),
-        Expression::TypeImport { target, .. } => {
+        Expression::Type { value } => {
+            let TypeExpression::Import { target, .. } = tree.get(*value) else {
+                return None;
+            };
+
             if let Expression::ScalarLiteral(ScalarLiteral::String(target)) = tree.get(*target) {
                 Some((*target, DependencyKind::Type))
             } else {

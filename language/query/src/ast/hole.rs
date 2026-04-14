@@ -113,10 +113,6 @@ fn expression_slot_owner_for_missing_node(
             let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
             let declarator = ast_tree.get(declarator_id);
 
-            if declarator.ty == Some(expr_id) {
-                return Some(ExpressionSlotOwner::Type);
-            }
-
             if declarator.value == Some(expr_id) {
                 return Some(ExpressionSlotOwner::DeclaratorValue(declarator_id));
             }
@@ -253,24 +249,14 @@ fn expression_slot_position_in_parameter(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match parameter {
-        ast::Parameter::Named { ty, default, .. } | ast::Parameter::Pattern { ty, default, .. } => {
-            if *ty == Some(expr_id) {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
+        ast::Parameter::Named { default, .. } | ast::Parameter::Pattern { default, .. } => {
             if *default == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Parameter::VariadicNamed { ty, .. } | ast::Parameter::VariadicPattern { ty, .. } => {
-            if *ty == Some(expr_id) {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
+        ast::Parameter::VariadicNamed { .. } | ast::Parameter::VariadicPattern { .. } => None,
         ast::Parameter::Error => None,
     }
 }
@@ -301,8 +287,8 @@ fn expression_slot_position_in_property(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match property {
-        ast::Property::Field { value, default, .. } => {
-            if *value == Some(expr_id) || *default == Some(expr_id) {
+        ast::Property::Field { value, .. } => {
+            if *value == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
@@ -332,19 +318,16 @@ fn expression_slot_position_in_member(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match member {
-        ast::Member::Type { ty, value, .. } | ast::Member::ComptimeConst { ty, value, .. } => {
-            if *ty == Some(expr_id) {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
+        ast::Member::Type { .. } => None,
+        ast::Member::ComptimeConst { value, .. } => {
             if *value == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Member::Field { value, default, .. } => {
-            if *value == Some(expr_id) || *default == Some(expr_id) {
+        ast::Member::Field { default, .. } => {
+            if *default == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
@@ -357,13 +340,7 @@ fn expression_slot_position_in_member(
 
             None
         }
-        ast::Member::Embed { value, .. } => {
-            if *value == expr_id {
-                return Some(ExpressionSlotPosition::Value);
-            }
-
-            None
-        }
+        ast::Member::Embed { .. } => None,
         ast::Member::StaticBlock { body, .. } | ast::Member::ComptimeBlock { body, .. } => {
             if *body == expr_id {
                 return Some(ExpressionSlotPosition::Value);
@@ -381,13 +358,7 @@ fn expression_slot_position_in_expression(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match expression {
-        ast::Expression::ObjectExpression { ty, .. } => {
-            if *ty == Some(expr_id) {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
+        ast::Expression::ObjectExpression { .. } => None,
         ast::Expression::Parenthesized { expression }
         | ast::Expression::Comptime { body: expression }
         | ast::Expression::Await { expression }
@@ -463,78 +434,9 @@ fn expression_slot_position_in_expression(
 
             None
         }
-        ast::Expression::TypeUnary { right, .. } => {
-            if *right == expr_id {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeBinary { left, right, .. } => {
-            if *left == expr_id {
+        ast::Expression::As { expression, .. } | ast::Expression::Satisfies { expression, .. } => {
+            if *expression == expr_id {
                 return Some(ExpressionSlotPosition::Value);
-            }
-
-            if *right == expr_id {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeConditional {
-            left,
-            right,
-            then_type,
-            else_type,
-        } => {
-            if *left == expr_id
-                || *right == expr_id
-                || *then_type == expr_id
-                || *else_type == expr_id
-            {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeMapped { value, .. } => {
-            if *value == expr_id {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeIndex { left, index } => {
-            if *left == expr_id || *index == expr_id {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeTemplateLiteral { spans, .. } => {
-            if spans.contains(&expr_id) {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeImport { target, .. } => {
-            if *target == expr_id {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypeInfer { constraint, .. } => {
-            if *constraint == Some(expr_id) {
-                return Some(ExpressionSlotPosition::Type);
-            }
-
-            None
-        }
-        ast::Expression::TypePredicate { target, .. } => {
-            if *target == Some(expr_id) {
-                return Some(ExpressionSlotPosition::Type);
             }
 
             None
@@ -696,6 +598,8 @@ fn collect_pattern_binding_names(
                 collect_pattern_binding_names(ast_tree, *pattern_id, names);
             }
         }
-        ast::Pattern::Wildcard | ast::Pattern::Expression { .. } => {}
+        ast::Pattern::Wildcard
+        | ast::Pattern::Expression { .. }
+        | ast::Pattern::TypeExpression { .. } => {}
     }
 }

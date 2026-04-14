@@ -528,11 +528,11 @@ fn is_type_declaration_value_position(
         let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(enc.idx);
         let declaration = ast.tree().get(declaration_id);
 
-        let ast::Declaration::Type { value, .. } = declaration else {
+        let ast::Declaration::Type(declaration) = declaration else {
             continue;
         };
 
-        let span = ast.tree().source_map.get(value.id);
+        let span = ast.tree().source_map.get(declaration.value.id);
         if span.contains(offset) || span.contains(previous_offset) {
             return true;
         }
@@ -543,18 +543,5 @@ fn is_type_declaration_value_position(
 
 /// Check whether the expression is one known type expression form.
 fn is_type_expression(expr: &ast::Expression) -> bool {
-    // match the known type expression variants
-    matches!(
-        expr,
-        ast::Expression::TypeLiteral(_)
-            | ast::Expression::TypeUnary { .. }
-            | ast::Expression::TypeBinary { .. }
-            | ast::Expression::TypeConditional { .. }
-            | ast::Expression::TypeMapped { .. }
-            | ast::Expression::TypeIndex { .. }
-            | ast::Expression::TypeTemplateLiteral { .. }
-            | ast::Expression::TypeImport { .. }
-            | ast::Expression::TypeInfer { .. }
-            | ast::Expression::TypePredicate { .. }
-    )
+    matches!(expr, ast::Expression::Type { .. })
 }

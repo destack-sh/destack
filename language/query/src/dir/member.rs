@@ -1,8 +1,8 @@
 use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
-    Declaration, DynamicKey, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral,
-    StaticKey, SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
+    Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral, StaticKey,
+    SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
@@ -463,9 +463,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
                     continue;
                 };
                 let name = match key {
-                    DynamicKey::Name(name_id) | DynamicKey::Number(name_id) => {
-                        repository.strings.get(*name_id).to_string()
-                    }
+                    dir::Key::Name(name) => repository.strings.get(name.string()).to_string(),
                     _ => continue,
                 };
 
@@ -563,6 +561,7 @@ fn primitive_members(
         },
         // scalar literals (string literals, number literals) use the same backing types
         TypeLiteral::ScalarLiteral(scalar) => match scalar {
+            ScalarLiteral::Null => None,
             ScalarLiteral::String(_) => Some(WellKnownSymbol::String),
             ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => Some(WellKnownSymbol::Number),
             ScalarLiteral::Boolean(_) => Some(WellKnownSymbol::Boolean),
