@@ -116,7 +116,7 @@ pub(crate) fn allocate_function_value(
     bytes[environment_offset..environment_end].copy_from_slice(&environment_bytes);
 
     let reference_map = ReferenceMap::ValueOffsets {
-        offsets: vec![environment_offset as u32],
+        offsets: vec![environment_offset as u32].into_boxed_slice(),
     };
     let layout_id = state.tree().type_layout_id(ty);
     let handle = state
