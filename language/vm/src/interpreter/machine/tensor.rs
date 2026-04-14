@@ -330,27 +330,30 @@ pub(crate) fn offset_pointer(
     }
 
     // preserve reference metadata
-    let reference = value.reference_meta();
+    let reference_meta = value.reference_meta();
 
     // offset the pointer according to its storage class
     match value.tag() {
         ValueTag::ManagedReference => {
-            let Some(handle) = value.as_managed_reference() else {
+            let Some(reference) = value.as_managed_reference() else {
                 return Err(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 });
             };
 
-            let base = handle.byte_offset();
+            let base = reference.byte_offset();
             let byte_offset = base
                 .checked_add(offset.saturating_mul(element.byte_stride))
                 .and_then(|byte_offset| u32::try_from(byte_offset).ok())
                 .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 })?;
-            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
+            let reference = ManagedReference::with_byte_offset(reference.id(), byte_offset);
 
-            Ok(Value::managed_reference_with_meta(handle, reference))
+            Ok(Value::managed_reference_with_meta(
+                reference,
+                reference_meta,
+            ))
         }
         ValueTag::RawPointer => {
             let Some(pointer) = value.as_raw_pointer() else {
@@ -367,7 +370,7 @@ pub(crate) fn offset_pointer(
                 })?;
             let pointer = RawPointer::with_byte_offset(pointer.id(), byte_offset);
 
-            Ok(Value::raw_pointer_with_meta(pointer, reference))
+            Ok(Value::raw_pointer_with_meta(pointer, reference_meta))
         }
         ValueTag::StackPointer => {
             let Some(pointer) = value.as_stack_pointer() else {
@@ -381,7 +384,7 @@ pub(crate) fn offset_pointer(
                 .saturating_add(offset.saturating_mul(element.byte_stride));
             let pointer = StackPointer::with_offset(pointer.frame_idx, pointer.slot, slot);
 
-            Ok(Value::stack_pointer_with_meta(pointer, reference))
+            Ok(Value::stack_pointer_with_meta(pointer, reference_meta))
         }
         ValueTag::LocalPointer => {
             let Some(pointer) = value.as_local_pointer() else {
@@ -393,7 +396,7 @@ pub(crate) fn offset_pointer(
             let slot = pointer.slot_offset.saturating_add(offset);
             let pointer = LocalPointer::with_offset(pointer.frame_idx, pointer.local, slot);
 
-            Ok(Value::local_pointer_with_meta(pointer, reference))
+            Ok(Value::local_pointer_with_meta(pointer, reference_meta))
         }
         ValueTag::GlobalPointer => {
             let Some(pointer) = value.as_global_pointer() else {
@@ -404,7 +407,11 @@ pub(crate) fn offset_pointer(
 
             let slot = pointer.slot_offset.saturating_add(offset);
 
-            Ok(Value::global_pointer_with_meta(pointer.id, slot, reference))
+            Ok(Value::global_pointer_with_meta(
+                pointer.id,
+                slot,
+                reference_meta,
+            ))
         }
 
         // reject non pointer values loudly

@@ -106,12 +106,12 @@ fn actual_reference_type(
 ) -> Result<Option<mir::LocalNodeId<mir::Type>>, Error> {
     let value = state.get(value_id);
 
-    if let Some(handle) = value.as_managed_reference() {
-        if handle.is_null() {
+    if let Some(reference) = value.as_managed_reference() {
+        if reference.is_null() {
             return Ok(None);
         }
 
-        if let Some(type_id) = state.heap().managed_type_id(handle) {
+        if let Some(type_id) = state.heap().managed_type_id(reference) {
             return Ok(Some(mir::LocalNodeId::new(type_id)));
         }
     }
@@ -255,8 +255,8 @@ fn evaluate_check_constraint(
                 context: "null check value".to_string(),
             })?);
 
-            if let Some(handle) = value.as_managed_reference() {
-                return Ok(!handle.is_null());
+            if let Some(reference) = value.as_managed_reference() {
+                return Ok(!reference.is_null());
             }
 
             if let Some(pointer) = value.as_raw_pointer() {

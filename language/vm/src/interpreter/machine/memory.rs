@@ -941,7 +941,7 @@ pub(crate) fn step_managed_alloc(
     };
 
     // allocate managed storage
-    let handle = {
+    let managed_reference = {
         let heap = state.heap_mut();
         if heap.managed_allocation_count() >= max_managed_allocations {
             return Transfer::Error(Error::AllocationFailed);
@@ -949,15 +949,15 @@ pub(crate) fn step_managed_alloc(
 
         heap.allocate_managed_zeroed_borrowed_typed(*byte_len, trace, *layout_id, storage_type.id)
     };
-    let handle = match handle {
-        Ok(handle) => handle,
+    let managed_reference = match managed_reference {
+        Ok(reference) => reference,
         Err(error) => return Transfer::Error(Error::from(error)),
     };
 
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
     }
-    let value = Value::managed_reference_with_meta(handle, *reference);
+    let value = Value::managed_reference_with_meta(managed_reference, *reference);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
@@ -996,7 +996,7 @@ pub(crate) fn step_managed_alloc_array(
     };
 
     // resolve managed array layout facts before taking the heap borrow
-    let handle = {
+    let managed_reference = {
         let element_stride = match state.storage_stride(*element_type) {
             Ok(stride) => stride,
             Err(error) => return Transfer::Error(error),
@@ -1055,14 +1055,14 @@ pub(crate) fn step_managed_alloc_array(
             }
         }
     };
-    let handle = match handle {
-        Ok(handle) => handle,
+    let managed_reference = match managed_reference {
+        Ok(reference) => reference,
         Err(error) => return Transfer::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
     }
-    let value = Value::managed_reference_with_meta(handle, *reference);
+    let value = Value::managed_reference_with_meta(managed_reference, *reference);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
@@ -1138,7 +1138,7 @@ pub(crate) fn step_raw_free(
 
     // accept raw pointer values
     if let Some(p) = ptr.as_raw_pointer() {
-        // report invalid handle
+        // report invalid reference
         let heap = state.heap_mut();
         if !heap.free_raw(p) {
             return Transfer::Error(Error::InvalidManagedReference);
@@ -1173,7 +1173,7 @@ pub(crate) fn step_raw_drop(
 
     // accept raw pointer values - deallocate like raw_free
     if let Some(p) = ptr.as_raw_pointer() {
-        // report invalid handle
+        // report invalid reference
         let heap = state.heap_mut();
         if !heap.free_raw(p) {
             return Transfer::Error(Error::InvalidManagedReference);

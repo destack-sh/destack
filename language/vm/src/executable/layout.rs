@@ -751,7 +751,9 @@ fn build_reference_map(
     if offsets.is_empty() {
         ReferenceMap::empty()
     } else {
-        ReferenceMap::ReferenceOffsets { offsets }
+        ReferenceMap::ReferenceOffsets {
+            offsets: offsets.into_boxed_slice(),
+        }
     }
 }
 
@@ -936,7 +938,9 @@ type Packed {
         // reference tracing should point at the managed reference field
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::ReferenceOffsets { offsets: vec![8] }
+            ReferenceMap::ReferenceOffsets {
+                offsets: vec![8].into_boxed_slice(),
+            }
         );
     }
 
@@ -964,7 +968,7 @@ type Vec = vector<ref<int32, managed, readonly>, 2>"#;
         assert_eq!(
             layout.reference_map,
             ReferenceMap::ReferenceOffsets {
-                offsets: vec![0, 8],
+                offsets: vec![0, 8].into_boxed_slice(),
             }
         );
     }
@@ -985,7 +989,9 @@ type Holder {
         // newtype-wrapped managed refs should still appear in the trace map
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::ReferenceOffsets { offsets: vec![0] }
+            ReferenceMap::ReferenceOffsets {
+                offsets: vec![0].into_boxed_slice(),
+            }
         );
     }
 
@@ -1004,7 +1010,9 @@ type Closure = () => int32"#;
         assert_eq!(layout.byte_len, tree.pointer_bytes() as usize);
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::ReferenceOffsets { offsets: vec![0] }
+            ReferenceMap::ReferenceOffsets {
+                offsets: vec![0].into_boxed_slice(),
+            }
         );
     }
 
@@ -1025,7 +1033,9 @@ type Holder {
         // the boxed callable field should stay traced after the VM field rewrite
         assert_eq!(
             layout.reference_map,
-            ReferenceMap::ReferenceOffsets { offsets: vec![8] }
+            ReferenceMap::ReferenceOffsets {
+                offsets: vec![8].into_boxed_slice(),
+            }
         );
     }
 }

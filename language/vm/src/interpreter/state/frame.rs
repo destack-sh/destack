@@ -318,11 +318,15 @@ impl Frame {
                     ),
                 })?;
 
-            layout.reference_map.for_each_reference(
+            let trace_result = layout.reference_map.trace_references(
                 allocation.bytes(),
                 executable.tree.metadata.layout.storage.native_pointer_bytes,
                 |reference| roots.push(reference),
             );
+
+            if let Err(error) = trace_result {
+                panic!("stack allocation root scan failed: {error}");
+            }
         }
 
         Ok(())
