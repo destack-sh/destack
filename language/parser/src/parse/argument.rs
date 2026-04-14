@@ -1,8 +1,7 @@
 use destack_ast::{
-    AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, DeclarationKind, Expression, Keyword, LiteralType, LocalNodeId, Mutability,
-    Name, NodeType, Parameter, Pattern, PostfixPosition, ScalarLiteral, StringId, Timing,
-    TokenType, VarianceModifier,
+    Argument, Expression, GenericArgument, GenericParameter, Keyword, LiteralType, LocalNodeId,
+    Name, NodeType, Parameter, Pattern, PostfixPosition, ScalarLiteral, StringId, TokenType,
+    TypeExpression, VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanType, Span};
 
@@ -13,8 +12,44 @@ use crate::{ParseError, ParseResult, Parser};
 /// Parsed parameter head as either one pattern or one named binding.
 type ParsedParameterPatternOrName = (Option<LocalNodeId<Pattern>>, Option<StringId>, Option<Span>);
 
+/// Parsed modifiers for one binding-like head.
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub(crate) struct BindingModifiers {
+    /// The visibility modifier.
+    pub visibility: Option<Visibility>,
+    /// The variance modifier.
+    pub variance: Option<VarianceModifier>,
+    /// Whether `declare` was present.
+    pub is_ambient: bool,
+    /// Whether `static` was present.
+    pub is_static: bool,
+    /// Whether `abstract` was present.
+    pub is_abstract: bool,
+    /// Whether `override` was present.
+    pub is_override: bool,
+    /// Whether `readonly` was present.
+    pub is_readonly: bool,
+    /// Whether `const` was present.
+    pub is_const_asserted: bool,
+    /// Whether `accessor` was present.
+    pub is_accessor: bool,
+    /// Whether `comptime` was present.
+    pub is_comptime: bool,
+    /// Whether `?` was present.
+    pub is_optional: bool,
+    /// Whether `!` was present.
+    pub is_definite: bool,
+}
+
+impl BindingModifiers {
+    /// Return whether the modifier set is empty.
+    pub(crate) fn is_empty(self) -> bool {
+        self == Self::default()
+    }
+}
+
 impl Parser {
-    /// Eat a committed static argument close token or recover one missing `>`.
+    /// Eat a committed generic argument close token or recover one missing `>`.
     fn eat_type_angle_close_or_recover_missing(&mut self, owner: NodeType) -> ParseResult<()> {
         if matches!(
             self.peek_token_type(),
@@ -30,69 +65,11 @@ impl Parser {
         }
 
         let token_type = self.peek_token_type();
-        let is_recoverable_boundary = self.can_follow_type_arguments_at_index(self.pos_index())
+        let is_recoverable_boundary = self
+            .can_follow_generic_arguments_at_index(self.pos_index(), false)
             || Self::is_close_delimiter_token(token_type);
 
         self.recover_missing_token_here(TokenType::GreaterThan, owner, is_recoverable_boundary)
-    }
-
-    /// Return parser contexts for pattern-shaped parameters.
-    #[inline]
-    fn parameter_pattern_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.with_before_type(true);
-        let expression_context = self.options;
-        (ambient_context, expression_context)
-    }
-
-    /// Return parser contexts for static parameter lists.
-    #[inline]
-    fn static_parameter_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let mut ambient_context = self.options.nested().with_static(true);
-        if self.options.is_in_type()
-            || self.options.is_in_decorator()
-            || self.language.is_typescript()
-        {
-            ambient_context = ambient_context.with_type(true);
-        }
-        let expression_context = self.options.nested();
-        (ambient_context, expression_context)
-    }
-
-    /// Return parser contexts for dynamic parameter lists.
-    #[inline]
-    fn dynamic_parameter_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let mut ambient_context = self.options.nested();
-        if self.options.is_in_type() {
-            ambient_context = ambient_context.with_type(true);
-        }
-        if self.options.is_in_variant() {
-            ambient_context = ambient_context.with_variant(true);
-        }
-        let expression_context = self.options.nested();
-        (ambient_context, expression_context)
-    }
-
-    /// Return parser contexts for static type arguments.
-    #[inline]
-    fn static_argument_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let mut ambient_context = self.options.nested().with_static(true);
-        if self.options.is_in_type()
-            || self.options.is_in_decorator()
-            || self.language.is_destack()
-            || self.language.is_typescript()
-        {
-            ambient_context = ambient_context.with_type(true);
-        }
-        let expression_context = self.options.nested();
-        (ambient_context, expression_context)
-    }
-
-    /// Return parser contexts for dynamic arguments.
-    #[inline]
-    fn dynamic_argument_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.nested();
-        let expression_context = self.options.nested();
-        (ambient_context, expression_context)
     }
 
     /// Return the common context for non-sequence argument values.
@@ -118,7 +95,7 @@ impl Parser {
         }
 
         // only newline led keywords can start a following statement
-        if !self.has_line_terminator_before_current_token() {
+        if !self.input_has_line_terminator_before_current_token() {
             return false;
         }
 
@@ -185,7 +162,7 @@ impl Parser {
     ) -> bool {
         is_recovered_argument
             && self.options.is_in_statement_context()
-            && self.has_line_terminator_before_current_token()
+            && self.input_has_line_terminator_before_current_token()
     }
 
     /// Return true when one parsed argument came from a recovered missing or error slot.
@@ -208,16 +185,17 @@ impl Parser {
 
     /// Parse a parameter type annotation expression.
     #[inline]
-    fn eat_parameter_type_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_parameter_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         let ambient_context = self.options.with_type(true);
         let mut expression_context = self.options.not_in_position().not_in_left_precedence();
         if self.options.is_in_type_conditional_right() {
             expression_context = expression_context.in_type_conditional_right();
         }
-        self.eat_expression(
+        self.eat_type_expression_node_or_recover_missing(
             self.options
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
+            NodeType::Parameter,
         )
     }
 
@@ -298,16 +276,16 @@ impl Parser {
     }
 
     /// Eat a binding modifiers prefix when present.
-    pub fn eat_binding_modifiers_prefix_maybe(
+    pub(crate) fn eat_binding_modifiers_prefix_maybe(
         &mut self,
         allow_readonly_key: bool,
         allow_accessor_modifier: bool,
         allow_variance_modifier: bool,
         allow_declare_modifier: bool,
         validate_modifier_order: bool,
-    ) -> ParseResult<Option<BindingModifier>> {
+    ) -> ParseResult<Option<BindingModifiers>> {
         // initialize modifier state
-        let mut modifiers = BindingModifier::default();
+        let mut modifiers = BindingModifiers::default();
         let mut has_modifiers = false;
 
         // modifier ordering for TS compatibility
@@ -355,7 +333,7 @@ impl Parser {
             // modifier disambiguation for abstraction keywords
             let abstraction_is_modifier = self.can_parse_abstraction_modifier();
 
-            // variance for static parameters
+            // variance for generic parameters
             if allow_variance_modifier {
                 // handle 'in' variance modifier
                 if current_keyword == Some(Keyword::In) {
@@ -422,25 +400,25 @@ impl Parser {
                 }
                 let span = self.peek()?.span;
                 self.bump(); // eat declare
-                if modifiers.declaration.is_some() {
+                if modifiers.is_ambient {
                     if validate_modifier_order {
                         self.error(&ParseError::unexpected(span));
                     }
                 } else {
-                    modifiers.declaration = Some(DeclarationKind::Declaration);
+                    modifiers.is_ambient = true;
                 }
                 has_modifiers = true;
                 progress = true;
             }
 
             // scope modifiers (static)
-            if modifiers.anchor.is_none() && self.is_keyword(Keyword::Static) {
+            if !modifiers.is_static && self.is_keyword(Keyword::Static) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
                 self.bump(); // eat static
-                modifiers.anchor = Some(BindingAnchor::Static);
+                modifiers.is_static = true;
                 if validate_modifier_order && seen_override {
                     self.error(&ParseError::unexpected(span));
                 }
@@ -458,14 +436,7 @@ impl Parser {
                     break;
                 }
                 self.bump(); // eat abstract
-                modifiers.abstraction = Some(match modifiers.abstraction {
-                    None => AbstractionModifier::Abstract,
-                    Some(AbstractionModifier::Override) => AbstractionModifier::AbstractOverride,
-                    Some(AbstractionModifier::Abstract) => AbstractionModifier::Abstract,
-                    Some(AbstractionModifier::AbstractOverride) => {
-                        AbstractionModifier::AbstractOverride
-                    }
-                });
+                modifiers.is_abstract = true;
                 has_modifiers = true;
                 progress = true;
             }
@@ -477,14 +448,7 @@ impl Parser {
                 }
                 let span = self.peek()?.span;
                 self.bump(); // eat override
-                modifiers.abstraction = Some(match modifiers.abstraction {
-                    None => AbstractionModifier::Override,
-                    Some(AbstractionModifier::Abstract) => AbstractionModifier::AbstractOverride,
-                    Some(AbstractionModifier::Override) => AbstractionModifier::Override,
-                    Some(AbstractionModifier::AbstractOverride) => {
-                        AbstractionModifier::AbstractOverride
-                    }
-                });
+                modifiers.is_override = true;
                 if validate_modifier_order && seen_readonly {
                     self.error(&ParseError::unexpected(span));
                 }
@@ -500,24 +464,22 @@ impl Parser {
             } else {
                 true
             };
-            if modifiers.mutability.is_none()
-                && self.is_keyword(Keyword::Readonly)
-                && readonly_is_modifier
+            if !modifiers.is_readonly && self.is_keyword(Keyword::Readonly) && readonly_is_modifier
             {
                 self.bump(); // eat readonly
-                modifiers.mutability = Some(Mutability::Immutable);
+                modifiers.is_readonly = true;
                 seen_readonly = true;
                 has_modifiers = true;
                 progress = true;
             }
 
             // operator modifiers (const)
-            if modifiers.operator.is_none() && self.is_keyword(Keyword::Const) {
+            if !modifiers.is_const_asserted && self.is_keyword(Keyword::Const) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat const
-                modifiers.operator = Some(BindingOperator::AsConst);
+                modifiers.is_const_asserted = true;
                 has_modifiers = true;
                 progress = true;
             }
@@ -529,24 +491,24 @@ impl Parser {
                 && !self.peek_next_is(TokenType::Maybe)
                 && !self.peek_next_is(TokenType::LessThan)
                 && !self.peek_next_is(TokenType::OpenParenthesis);
-            if modifiers.accessor.is_none() && accessor_is_modifier {
+            if !modifiers.is_accessor && accessor_is_modifier {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat accessor
-                modifiers.accessor = Some(AccessorKind::Accessor);
+                modifiers.is_accessor = true;
                 seen_accessor = true;
                 has_modifiers = true;
                 progress = true;
             }
 
             // timing modifiers (comptime)
-            if modifiers.timing.is_none() && self.is_keyword(Keyword::Comptime) {
+            if !modifiers.is_comptime && self.is_keyword(Keyword::Comptime) {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat comptime
-                modifiers.timing = Some(Timing::Comptime);
+                modifiers.is_comptime = true;
                 has_modifiers = true;
                 progress = true;
             }
@@ -557,7 +519,7 @@ impl Parser {
             }
         }
 
-        if has_modifiers {
+        if has_modifiers && !modifiers.is_empty() {
             Ok(Some(modifiers))
         } else {
             Ok(None)
@@ -565,44 +527,17 @@ impl Parser {
     }
 
     /// Eat a binding modifiers postfix (maybe).
-    pub fn eat_binding_modifiers_postfix_maybe(
+    pub(crate) fn eat_binding_modifiers_postfix_maybe(
         &mut self,
-        modifiers: Option<BindingModifier>,
-    ) -> ParseResult<Option<BindingModifier>> {
+        modifiers: Option<BindingModifiers>,
+    ) -> ParseResult<Option<BindingModifiers>> {
         if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat maybe
-            if let Some(modifiers) = modifiers {
-                Ok(Some(BindingModifier {
-                    kind: Some(BindingKind::Maybe),
-                    ..modifiers
-                }))
-            } else {
-                Ok(Some(BindingModifier {
-                    kind: Some(BindingKind::Maybe),
-                    ..BindingModifier::default()
-                }))
-            }
+            let mut modifiers = modifiers.unwrap_or_default();
+            modifiers.is_optional = true;
+            Ok(Some(modifiers))
         } else {
             Ok(modifiers)
-        }
-    }
-
-    /// Eat a binding modifiers postfix.
-    pub fn eat_binding_modifiers_postfix(
-        &mut self,
-        modifiers: Option<BindingModifier>,
-    ) -> ParseResult<Option<BindingModifier>> {
-        self.eat_token(TokenType::Maybe)?;
-        if let Some(modifiers) = modifiers {
-            Ok(Some(BindingModifier {
-                kind: Some(BindingKind::Maybe),
-                ..modifiers
-            }))
-        } else {
-            Ok(Some(BindingModifier {
-                kind: Some(BindingKind::Maybe),
-                ..BindingModifier::default()
-            }))
         }
     }
 
@@ -659,18 +594,16 @@ impl Parser {
             } else {
                 self.eat_parameter_pattern_or_name()?
             };
-
         // ? maybe
         if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat maybe
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
+            let mut modifier_set = modifiers.unwrap_or_default();
+            modifier_set.is_optional = true;
+            modifiers = Some(modifier_set);
         }
 
         // : type (or keyword for #Compatibility)
-        let (ty, ty_span) = {
+        let (declared_type, ty_span) = {
             // type markers can start on the next line
             let annotation_index = self.next_non_newline_index_from(self.pos_index());
             let annotation_token_type = self.token_type_at(annotation_index);
@@ -691,22 +624,26 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
-                let ty = if self.peek_is(TokenType::Assign)
+                let declared_type = if self.peek_is(TokenType::Assign)
                     || self.peek_is(TokenType::Comma)
                     || self.peek_is(TokenType::CloseParenthesis)
                     || self.peek_starts_type_angle_close()
                     || self.peek_is(TokenType::End)
                 {
-                    self.recover_missing_expression_here(NodeType::Parameter)
+                    self.recover_missing_type_expression_here(NodeType::Parameter)
                 } else {
-                    self.eat_parameter_type_expression()
-                        .for_node_type(NodeType::Parameter)?
+                    self.eat_parameter_type_expression()?
                 };
-                (Some(ty), Some(self.get_span_from(&type_start)))
+                let type_span = self.get_span_from(&type_start);
+                (Some(declared_type), Some(type_span))
             } else {
                 (None, None)
             }
         };
+
+        let visibility = modifiers.and_then(|modifier_set| modifier_set.visibility);
+        let is_readonly = modifiers.is_some_and(|modifier_set| modifier_set.is_readonly);
+        let is_optional = modifiers.is_some_and(|modifier_set| modifier_set.is_optional);
 
         // = value
         let parameter = {
@@ -733,18 +670,20 @@ impl Parser {
                 // named with default
                 if let Some(name) = name {
                     Parameter::Named {
-                        modifiers,
                         name,
-                        ty,
+                        visibility,
+                        is_readonly,
+                        is_optional,
+                        declared_type,
                         default: Some(value),
                     }
                 }
                 // pattern with default
                 else {
                     Parameter::Pattern {
-                        modifiers,
                         pattern: pattern.expect("peeked"),
-                        ty,
+                        is_optional,
+                        declared_type,
                         default: Some(value),
                     }
                 }
@@ -753,15 +692,15 @@ impl Parser {
             else if is_variadic {
                 if let Some(name) = name {
                     Parameter::VariadicNamed {
-                        modifiers,
                         name,
-                        ty,
+                        visibility,
+                        is_readonly,
+                        declared_type,
                     }
                 } else {
                     Parameter::VariadicPattern {
-                        modifiers,
                         pattern: pattern.expect("peeked"),
-                        ty,
+                        declared_type,
                     }
                 }
             }
@@ -770,18 +709,20 @@ impl Parser {
                 // named without default
                 if let Some(name) = name {
                     Parameter::Named {
-                        modifiers,
                         name,
-                        ty,
+                        visibility,
+                        is_readonly,
+                        is_optional,
+                        declared_type,
                         default: None,
                     }
                 }
                 // pattern without default
                 else {
                     Parameter::Pattern {
-                        modifiers,
                         pattern: pattern.expect("peeked"),
-                        ty,
+                        is_optional,
+                        declared_type,
                         default: None,
                     }
                 }
@@ -818,7 +759,8 @@ impl Parser {
             TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
         ) || self.language.is_destack() && self.peek_identifier_str_is("_")
         {
-            let (ambient_context, expression_context) = self.parameter_pattern_contexts();
+            let ambient_context = self.options.with_before_type(true);
+            let expression_context = self.options;
             let pattern = self.with_options(
                 self.options
                     .with_ambient_context(ambient_context)
@@ -948,35 +890,193 @@ impl Parser {
                 if !is_recovered_parameter {
                     continue;
                 }
+
+                if self.current_keyword_starts_parameter_recovery_boundary() {
+                    break;
+                }
+
+                if !self.can_continue_after_recovered_item(
+                    if self.options.is_in_static() {
+                        TokenType::GreaterThan
+                    } else {
+                        TokenType::CloseParenthesis
+                    },
+                    is_recovered_parameter,
+                ) {
+                    break;
+                }
+
+                continue;
             }
             // recovered parameter lists should stop before a newline led keyword statement
-            else if is_recovered_parameter
-                && self.current_keyword_starts_parameter_recovery_boundary()
-            {
-                break;
-            }
             // recovered slots may continue across newline separators only
-            else if !self.can_continue_after_recovered_item(
-                if self.options.is_in_static() {
-                    TokenType::GreaterThan
-                } else {
-                    TokenType::CloseParenthesis
-                },
-                is_recovered_parameter,
-            ) {
+            else if is_recovered_parameter
+                && (self.current_keyword_starts_parameter_recovery_boundary()
+                    || !self.can_continue_after_recovered_item(
+                        if self.options.is_in_static() {
+                            TokenType::GreaterThan
+                        } else {
+                            TokenType::CloseParenthesis
+                        },
+                        is_recovered_parameter,
+                    ))
+            {
                 break;
             }
         }
         Ok(parameters)
     }
 
-    /// Eat static parameters (including the `<` and `>` tokens) if they exist.
+    /// Parse one generic parameter in a generic parameter list.
+    fn eat_generic_parameter(&mut self) -> ParseResult<LocalNodeId<GenericParameter>> {
+        let start = self.mark_span();
+
+        // generic parameters accept only the dedicated generic modifiers
+        let mut variance = None;
+        let mut is_comptime = false;
+
+        loop {
+            if self.is_keyword(Keyword::In) {
+                self.bump(); // eat in
+                variance = Some(match variance {
+                    Some(VarianceModifier::Out) => VarianceModifier::InOut,
+                    Some(VarianceModifier::InOut) => VarianceModifier::InOut,
+                    _ => VarianceModifier::In,
+                });
+                continue;
+            }
+
+            let position_index = self.pos_index();
+            let is_out_modifier = self.peek_is(TokenType::Identifier)
+                && self.identifier_equals_at(position_index, "out")
+                && self.peek_next_is(TokenType::Identifier);
+            if is_out_modifier {
+                self.bump(); // eat out
+                variance = Some(match variance {
+                    Some(VarianceModifier::In) => VarianceModifier::InOut,
+                    Some(VarianceModifier::InOut) => VarianceModifier::InOut,
+                    _ => VarianceModifier::Out,
+                });
+                continue;
+            }
+
+            if self.is_keyword(Keyword::Comptime) || self.is_keyword(Keyword::Const) {
+                self.bump(); // eat comptime or const
+                is_comptime = true;
+                continue;
+            }
+
+            break;
+        }
+
+        // generic parameters are always named
+        let (name, name_span) = self.eat_binding_identifier_with_span()?;
+
+        // generic parameters are type parameters by default
+        // value parameters must opt in with `comptime` or `const`
+        let annotation_index = self.next_non_newline_index_from(self.pos_index());
+        let annotation_token_type = self.token_type_at(annotation_index);
+        let annotation_keyword = if annotation_token_type == TokenType::Identifier {
+            self.keyword_for_index(annotation_index)
+        } else {
+            None
+        };
+        let has_colon_annotation = annotation_token_type == TokenType::Colon;
+        let has_type_constraint = matches!(
+            annotation_keyword,
+            Some(Keyword::Extends | Keyword::Implements)
+        );
+        let has_annotation = has_colon_annotation || has_type_constraint;
+        let is_value_parameter = is_comptime;
+
+        let (declared_type, declared_type_span) = if has_annotation {
+            let type_start = self.mark_span();
+            self.eat_newlines_maybe()?;
+            self.bump(); // eat colon or relation keyword
+            self.eat_newlines_maybe()?;
+            let declared_type = if self.peek_is(TokenType::Assign)
+                || self.peek_is(TokenType::Comma)
+                || self.peek_starts_type_angle_close()
+                || self.peek_is(TokenType::End)
+            {
+                self.recover_missing_type_expression_here(NodeType::GenericParameter)
+            } else {
+                self.eat_parameter_type_expression()?
+            };
+            (Some(declared_type), Some(self.get_span_from(&type_start)))
+        } else {
+            (None, None)
+        };
+
+        // type parameters default in type space, value parameters default in expression space
+        let default = if self.peek_is(TokenType::Assign)
+            || self.peek_is(TokenType::Newline)
+                && self.is_token_after_newlines(self.pos(), TokenType::Assign)
+        {
+            self.eat_newlines_maybe()?;
+            self.bump(); // eat =
+            self.eat_newlines_maybe()?;
+
+            if is_value_parameter {
+                let value = if self.peek_is(TokenType::Comma)
+                    || self.peek_starts_type_angle_close()
+                    || self.peek_is(TokenType::End)
+                {
+                    self.recover_missing_expression_here(NodeType::GenericParameter)
+                } else {
+                    self.eat_parameter_default_expression()?
+                };
+                Ok::<_, ParseError>((Some(value), None))
+            } else {
+                let value = if self.peek_is(TokenType::Comma)
+                    || self.peek_starts_type_angle_close()
+                    || self.peek_is(TokenType::End)
+                {
+                    self.recover_missing_type_expression_here(NodeType::GenericParameter)
+                } else {
+                    self.eat_parameter_type_expression()?
+                };
+                Ok::<_, ParseError>((None, Some(value)))
+            }?
+        } else {
+            (None, None)
+        };
+
+        // generic value parameters must be marked comptime
+        let parameter = if is_value_parameter {
+            GenericParameter::Value {
+                name,
+                declared_type,
+                default: default.0,
+                is_comptime,
+            }
+        } else {
+            GenericParameter::Type {
+                name,
+                variance,
+                constraint: declared_type,
+                default: default.1,
+            }
+        };
+
+        let parameter_id = self.insert_node(parameter, self.get_span_from(&start));
+        self.tree.set_main_span(parameter_id, name_span);
+
+        if let Some(span) = declared_type_span {
+            self.tree
+                .set_side_span(parameter_id, NodeSpanType::Type, span);
+        }
+
+        Ok(parameter_id)
+    }
+
+    /// Eat generic parameters, including the `<` and `>` tokens, if they exist.
     ///
     /// `allow_empty_parameters` accepts `<>` as an empty parameter list.
-    pub fn eat_static_parameters_maybe(
+    pub fn eat_generic_parameters_maybe(
         &mut self,
         allow_empty_parameters: bool,
-    ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
+    ) -> ParseResult<Option<Vec<LocalNodeId<GenericParameter>>>> {
         let start_index = self.pos_index();
         let static_index = self.next_non_newline_index_from(start_index);
         if self.token_type_at(static_index) != TokenType::LessThan {
@@ -987,21 +1087,21 @@ impl Parser {
             self.eat_newlines_maybe()?;
         }
 
-        Ok(Some(self.eat_static_parameters(allow_empty_parameters)?))
+        Ok(Some(self.eat_generic_parameters(allow_empty_parameters)?))
     }
 
-    /// Eat static parameters (including the `<` and `>` tokens).
+    /// Eat generic parameters, including the `<` and `>` tokens.
     ///
     /// `allow_empty_parameters` accepts `<>` as an empty parameter list.
-    pub fn eat_static_parameters(
+    pub fn eat_generic_parameters(
         &mut self,
         allow_empty_parameters: bool,
-    ) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
+    ) -> ParseResult<Vec<LocalNodeId<GenericParameter>>> {
         let start = self.mark_span();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
-        // optionally accept empty static parameters
+        // optionally accept empty generic parameters
         if self.peek_starts_type_angle_close() {
             self.eat_type_angle_close()?;
             if allow_empty_parameters {
@@ -1013,13 +1113,48 @@ impl Parser {
             ));
         }
 
-        // regular static parameters
-        let (ambient_context, expression_context) = self.static_parameter_contexts();
+        // regular generic parameters
+        let mut ambient_context = self.options.nested().with_static(true);
+        if self.options.is_in_type()
+            || self.options.is_in_decorator()
+            || self.language.is_typescript()
+        {
+            ambient_context = ambient_context.with_type(true);
+        }
+        let expression_context = self.options.nested();
         let parameters = self.with_options(
             self.options
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
-            |parser| parser.eat_parameters_body(),
+            |parser| {
+                let mut parameters = Vec::new();
+                parser.eat_newlines_maybe()?;
+                while parser.has_more_tokens() {
+                    if parser.peek_starts_type_angle_close() {
+                        break;
+                    }
+
+                    let parameter = parser
+                        .eat_generic_parameter()
+                        .for_node_type(NodeType::GenericParameter)?;
+                    parameters.push(parameter);
+
+                    parser.eat_newlines_maybe()?;
+                    if parser.peek_starts_type_angle_close() {
+                        break;
+                    }
+
+                    if parser.peek_is(TokenType::Comma) {
+                        parser.bump(); // eat comma
+                        parser.eat_newlines_maybe()?;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                Ok(parameters)
+            },
         )?;
         self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
         Ok(parameters)
@@ -1047,7 +1182,14 @@ impl Parser {
         }
 
         // regular dynamic parameters
-        let (ambient_context, expression_context) = self.dynamic_parameter_contexts();
+        let mut ambient_context = self.options.nested();
+        if self.options.is_in_type() {
+            ambient_context = ambient_context.with_type(true);
+        }
+        if self.options.is_in_variant() {
+            ambient_context = ambient_context.with_variant(true);
+        }
+        let expression_context = self.options.nested();
         let parameters = self.with_options(
             self.options
                 .with_ambient_context(ambient_context)
@@ -1090,7 +1232,7 @@ impl Parser {
     }
 
     /// Eat a positional argument (positional, spread, or labeled tuple element).
-    /// Used for dynamic arguments, static arguments, and tuple literals.
+    /// Used for dynamic arguments, generic arguments, and tuple literals.
     ///
     /// Examples:
     /// ```
@@ -1106,22 +1248,20 @@ impl Parser {
             && !self.peek_is(TokenType::At)
             && !self.peek_is(TokenType::Spread)
         {
+            // empty slots should recover as argument list errors, not expression errors
+            if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             let value = self.eat_expression_with_context_unchecked(
                 self.current_positional_argument_context(),
             )?;
             let value_span = self.tree.get_span(value);
-            let argument_id = self.insert_node(
-                Argument::Positional {
-                    modifiers: None,
-                    value,
-                },
-                value_span,
-            );
+            let argument_id = self.insert_node(Argument::Positional { value }, value_span);
             return Ok(argument_id);
         }
 
         let start = self.mark_span();
-        let mut modifiers = None;
         let decorators = if !self.options.is_in_type() {
             self.eat_decorators_maybe()?
         } else {
@@ -1129,13 +1269,13 @@ impl Parser {
         };
 
         // readonly tuple element modifiers in type context
-        if self.options.is_in_type() && self.is_keyword(Keyword::Readonly) {
+        let has_readonly_prefix = if self.options.is_in_type() && self.is_keyword(Keyword::Readonly)
+        {
             self.bump(); // eat readonly
-            modifiers = Some(BindingModifier {
-                mutability: Some(Mutability::Immutable),
-                ..BindingModifier::default()
-            });
-        }
+            true
+        } else {
+            false
+        };
 
         // detect labeled tuple element heads like `label: Type` and `label?: Type`
         let has_labeled_tuple_head = self.options.is_in_type()
@@ -1159,20 +1299,28 @@ impl Parser {
                 let (label, label_span) = self.eat_identifier_with_span()?;
 
                 // spread optional label marker
-                if self.peek_is(TokenType::Maybe) {
+                let is_optional = if self.peek_is(TokenType::Maybe) {
                     self.bump(); // eat ?
-                    if modifiers.is_none() {
-                        modifiers = Some(BindingModifier::default());
-                    }
-                    modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
-                }
+                    true
+                } else {
+                    false
+                };
 
                 // spread labeled value
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                let value = self.eat_expression_with_context_unchecked(
+                let mut value = self.eat_expression_with_context_unchecked(
                     self.current_positional_argument_context(),
                 )?;
+                if is_optional {
+                    value = self.insert_node(
+                        Expression::Maybe {
+                            position: PostfixPosition::Direct,
+                            left: value,
+                        },
+                        self.tree.get_span(value),
+                    );
+                }
                 (Some(label), Some(label_span), value)
             } else {
                 // spread positional value
@@ -1185,11 +1333,7 @@ impl Parser {
 
             // build spread argument
             let argument_id = self.insert_node(
-                Argument::Spread {
-                    modifiers,
-                    label,
-                    value,
-                },
+                Argument::Spread { label, value },
                 self.get_span_from(&start),
             );
             if let Some(label_span) = label_span {
@@ -1204,28 +1348,44 @@ impl Parser {
             let (label, label_span) = self.eat_identifier_with_span()?;
 
             // optional tuple label marker
-            if self.peek_is(TokenType::Maybe) {
+            let is_optional = if self.peek_is(TokenType::Maybe) {
                 self.bump(); // eat ?
-                if modifiers.is_none() {
-                    modifiers = Some(BindingModifier::default());
-                }
-                modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
-            }
+                true
+            } else {
+                false
+            };
 
             // parse labeled tuple value
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
-            let value = self.eat_expression_with_context_unchecked(
+            let mut value = self.eat_expression_with_context_unchecked(
                 self.current_non_sequence_argument_context(),
             )?;
 
+            // readonly is modeled on the inner type before tuple optionality wraps it
+            if has_readonly_prefix {
+                let target_type = self.expect_type_expression_value(value)?;
+                let readonly_id = self.insert_node(
+                    TypeExpression::Readonly { target_type },
+                    self.tree.get_span(value),
+                );
+                value = self.insert_type_expression_value(readonly_id);
+            }
+
+            // optional tuple elements wrap the finished type value
+            if is_optional {
+                value = self.insert_node(
+                    Expression::Maybe {
+                        position: PostfixPosition::Direct,
+                        left: value,
+                    },
+                    self.tree.get_span(value),
+                );
+            }
+
             // build labeled argument
             let argument_id = self.insert_node(
-                Argument::Labeled {
-                    modifiers,
-                    label,
-                    value,
-                },
+                Argument::Labeled { label, value },
                 self.get_span_from(&start),
             );
             self.tree.set_main_span(argument_id, label_span);
@@ -1237,38 +1397,35 @@ impl Parser {
         let mut value =
             self.eat_expression_with_context_unchecked(self.current_positional_argument_context())?;
 
+        // preserve readonly tuple element modifiers in value form
+        if has_readonly_prefix {
+            let target_type = self.expect_type_expression_value(value)?;
+            let readonly_id = self.insert_node(
+                TypeExpression::Readonly { target_type },
+                self.tree.get_span(value),
+            );
+            value = self.insert_type_expression_value(readonly_id);
+        }
+
         // tuple optional marker after positional element
         if self.options.is_in_type() && self.peek_is(TokenType::Maybe) {
             let is_tuple_optional = self.is_token_after_newlines(self.pos(), TokenType::Comma)
                 || self.is_token_after_newlines(self.pos(), TokenType::CloseBracket);
             if is_tuple_optional {
                 self.bump(); // eat ?
-                if modifiers.is_none() {
-                    modifiers = Some(BindingModifier::default());
-                }
-                modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
+                value = self.insert_node(
+                    Expression::Maybe {
+                        position: PostfixPosition::Direct,
+                        left: value,
+                    },
+                    self.tree.get_span(value),
+                );
             }
-        }
-
-        // normalize direct postfix maybe expressions into tuple modifiers
-        if self.options.is_in_type()
-            && let Expression::Maybe {
-                position: PostfixPosition::Direct,
-                left,
-            } = self.tree.get(value)
-        {
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
-            value = *left;
         }
 
         // build positional argument
-        let argument_id = self.insert_node(
-            Argument::Positional { modifiers, value },
-            self.get_span_from(&start),
-        );
+        let argument_id =
+            self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
         self.attach_decorators(argument_id.id, decorators);
         Ok(argument_id)
     }
@@ -1306,14 +1463,8 @@ impl Parser {
             let value = self.eat_expression_with_context_unchecked(
                 self.current_positional_argument_context(),
             )?;
-            let argument_id = self.insert_node(
-                Argument::Named {
-                    modifiers: None,
-                    name,
-                    value,
-                },
-                self.get_span_from(&start),
-            );
+            let argument_id =
+                self.insert_node(Argument::Named { name, value }, self.get_span_from(&start));
             self.tree.set_main_span(argument_id, name_span);
             Ok(argument_id)
         }
@@ -1324,11 +1475,7 @@ impl Parser {
                 self.current_positional_argument_context(),
             )?;
             let argument_id = self.insert_node(
-                Argument::Spread {
-                    modifiers: None,
-                    label: None,
-                    value,
-                },
+                Argument::Spread { label: None, value },
                 self.get_span_from(&start),
             );
             Ok(argument_id)
@@ -1345,13 +1492,8 @@ impl Parser {
                     .insert(Expression::Stub, self.get_span_from(&start));
 
                 self.bump(); // eat }
-                let argument_id = self.insert_node(
-                    Argument::Positional {
-                        modifiers: None,
-                        value,
-                    },
-                    self.get_span_from(&start),
-                );
+                let argument_id =
+                    self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
                 return Ok(argument_id);
             }
 
@@ -1374,14 +1516,13 @@ impl Parser {
                 if in_tree_child {
                     self.expect_tree_child(TokenType::CloseBrace)?;
                 } else {
-                    self.eat_token(TokenType::CloseBrace)?;
+                    self.eat_close_token_or_recover_missing(
+                        TokenType::CloseBrace,
+                        NodeType::Argument,
+                    )?;
                 }
                 let argument_id = self.insert_node(
-                    Argument::Spread {
-                        modifiers: None,
-                        label: None,
-                        value,
-                    },
+                    Argument::Spread { label: None, value },
                     self.get_span_from(&start),
                 );
                 return Ok(argument_id);
@@ -1403,15 +1544,10 @@ impl Parser {
             if in_tree_child {
                 self.expect_tree_child(TokenType::CloseBrace)?;
             } else {
-                self.eat_token(TokenType::CloseBrace)?;
+                self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Argument)?;
             }
-            let argument_id = self.insert_node(
-                Argument::Positional {
-                    modifiers: None,
-                    value,
-                },
-                self.get_span_from(&start),
-            );
+            let argument_id =
+                self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
             Ok(argument_id)
         }
         // positional argument (bare expression like nested <Element />)
@@ -1436,13 +1572,8 @@ impl Parser {
 
                 if is_tree_text {
                     let value = self.eat_tree_child_scalar_expression(in_tree_child)?;
-                    let argument_id = self.insert_node(
-                        Argument::Positional {
-                            modifiers: None,
-                            value,
-                        },
-                        self.get_span_from(&start),
-                    );
+                    let argument_id = self
+                        .insert_node(Argument::Positional { value }, self.get_span_from(&start));
                     return Ok(argument_id);
                 }
             }
@@ -1454,13 +1585,8 @@ impl Parser {
                     self.options.not_in_position().not_in_sequence_expression();
                 self.eat_expression_with_context_unchecked(value_expression_context)?
             };
-            let argument_id = self.insert_node(
-                Argument::Positional {
-                    modifiers: None,
-                    value,
-                },
-                self.get_span_from(&start),
-            );
+            let argument_id =
+                self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
             Ok(argument_id)
         }
     }
@@ -1483,11 +1609,7 @@ impl Parser {
             let value_expression_context = self.options.with_statement_position(true);
             let value = self.eat_expression_with_context_unchecked(value_expression_context)?;
             let argument_id = self.insert_node(
-                Argument::Spread {
-                    modifiers: None,
-                    label: None,
-                    value,
-                },
+                Argument::Spread { label: None, value },
                 self.get_span_from(&start),
             );
             Ok(argument_id)
@@ -1511,13 +1633,9 @@ impl Parser {
                     .with_expression_context(value_expression_context),
             )?;
             self.eat_newlines_maybe()?;
-            self.eat_token(TokenType::CloseBrace)?;
+            self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Argument)?;
             let argument_id = self.insert_node(
-                Argument::Spread {
-                    modifiers: None,
-                    label: None,
-                    value,
-                },
+                Argument::Spread { label: None, value },
                 self.get_span_from(&start),
             );
             Ok(argument_id)
@@ -1552,7 +1670,10 @@ impl Parser {
                             .with_expression_context(value_expression_context),
                     )?;
                     self.eat_newlines_maybe()?;
-                    self.eat_token(TokenType::CloseBrace)?;
+                    self.eat_close_token_or_recover_missing(
+                        TokenType::CloseBrace,
+                        NodeType::Argument,
+                    )?;
                     value
                 }
                 // string literal attribute
@@ -1605,7 +1726,6 @@ impl Parser {
 
             let argument_id = self.insert_node(
                 Argument::Named {
-                    modifiers: None,
                     name: Name::Identifier(name),
                     value,
                 },
@@ -1636,13 +1756,13 @@ impl Parser {
                     || self.is_token_after_newlines(self.pos(), TokenType::Assign))
     }
 
-    /// Eat static arguments (including the `<` and `>` tokens) if they exist.
+    /// Eat generic arguments, including the `<` and `>` tokens, if they exist.
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
-    pub fn eat_static_arguments_maybe(
+    pub fn eat_generic_arguments_maybe(
         &mut self,
-    ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
+    ) -> ParseResult<Option<Vec<LocalNodeId<GenericArgument>>>> {
         if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
-            return Ok(Some(self.eat_static_arguments()?));
+            return Ok(Some(self.eat_generic_arguments()?));
         }
         Ok(None)
     }
@@ -1655,13 +1775,10 @@ impl Parser {
                 || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon))
     }
 
-    /// Eat top-level static type arguments.
-    ///
-    /// Type argument lists accept types only, so tuple labels and spread
-    /// are only valid in nested tuple literals, not at the top level.
+    /// Eat top-level generic arguments.
     #[inline]
-    fn eat_static_type_arguments_body(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
-        let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
+    fn eat_generic_arguments_body(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
+        let mut arguments = smallvec::SmallVec::<[LocalNodeId<GenericArgument>; 4]>::new();
         self.eat_newlines_maybe()?;
 
         while self.has_more_tokens() {
@@ -1673,13 +1790,35 @@ impl Parser {
             // one argument slot
             let argument_start = self.mark_span();
             let mut is_recovered_argument = false;
-            let argument_id = match self.eat_positional_argument() {
-                Ok(argument_id) => {
-                    if self.peek_is(TokenType::Spread) || self.starts_labeled_tuple_head() {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
-                    argument_id
+            let argument_id = match (|| {
+                if self.peek_is(TokenType::Spread) {
+                    self.bump(); // eat spread
+                    self.eat_newlines_maybe()?;
+
+                    let value = self.eat_expression_with_context_unchecked(
+                        self.current_non_sequence_argument_context(),
+                    )?;
+
+                    return Ok(self.insert_node(
+                        GenericArgument::Spread { value },
+                        self.get_span_from(&argument_start),
+                    ));
                 }
+
+                if self.starts_labeled_tuple_head() {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                let value = self.eat_expression_with_context_unchecked(
+                    self.current_non_sequence_argument_context(),
+                )?;
+
+                Ok(self.insert_node(
+                    GenericArgument::Positional { value },
+                    self.get_span_from(&argument_start),
+                ))
+            })() {
+                Ok(argument) => argument,
                 Err(error) => {
                     is_recovered_argument = true;
                     self.try_recover_in_item_list(
@@ -1688,7 +1827,7 @@ impl Parser {
                         Some(error),
                     )?;
 
-                    self.insert_node(Argument::Error, self.get_span_from(&argument_start))
+                    self.insert_node(GenericArgument::Error, self.get_span_from(&argument_start))
                 }
             };
 
@@ -1710,12 +1849,13 @@ impl Parser {
         Ok(arguments.into_vec())
     }
 
-    /// Eat static arguments (including the `<` and `>` tokens).
+    /// Eat generic arguments, including the `<` and `>` tokens.
     /// Only positional and spread arguments are allowed (no named arguments).
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
-    pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+    pub fn eat_generic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
         let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
         let start = self.mark_span();
+        let used_shift_left_start = self.peek_is(TokenType::ShiftLeft);
 
         // handle both `<` and `<<` (ShiftLeft) as opening token
         // `<<` occurs when the first argument is a generic arrow function like `<T>() => ...`
@@ -1732,17 +1872,17 @@ impl Parser {
         }
         self.eat_newlines_maybe()?;
 
-        // empty static arguments only recover in committed type-like contexts
-        let allow_empty_static_arguments =
+        // empty generic arguments only recover in committed type-like contexts
+        let allow_empty_generic_arguments =
             self.options.is_in_type() || self.options.is_in_decorator();
-        let has_empty_static_arguments = if allow_empty_static_arguments {
+        let has_empty_generic_arguments = if allow_empty_generic_arguments {
             self.peek_starts_type_angle_close()
         } else {
             self.peek_starts_expression_type_angle_close()
         };
 
-        let static_arguments = if has_empty_static_arguments {
-            if !allow_empty_static_arguments {
+        let generic_arguments = if has_empty_generic_arguments {
+            if !allow_empty_generic_arguments {
                 return Err(ParseError::expected(
                     self.get_span_from(&start),
                     TokenType::Identifier,
@@ -1753,21 +1893,30 @@ impl Parser {
             self.error(&error);
 
             let argument_start = self.mark_span();
-            vec![self.insert_node(Argument::Error, self.get_span_from(&argument_start))]
+            vec![self.insert_node(GenericArgument::Error, self.get_span_from(&argument_start))]
         }
-        // regular static arguments (positional/spread only)
+        // regular generic arguments: positional or spread only
         else {
-            let (ambient_context, expression_context) = self.static_argument_contexts();
+            let mut ambient_context = self.options.nested().with_static(true);
+            if self.options.is_in_type()
+                || self.options.is_in_decorator()
+                || self.language.is_destack()
+                || self.language.is_typescript()
+            {
+                ambient_context = ambient_context.with_type(true);
+            }
+            let expression_context = self.options.nested();
             self.with_options(
                 self.options
                     .with_ambient_context(ambient_context)
                     .with_expression_context(expression_context),
-                |parser| parser.eat_static_type_arguments_body(),
+                |parser| parser.eat_generic_arguments_body(),
             )?
         };
 
         // committed type-like contexts can consume glued right-angle tails
-        let allow_glued_type_close = self.options.is_in_type() || self.options.is_in_decorator();
+        let allow_glued_type_close =
+            self.options.is_in_type() || self.options.is_in_decorator() || used_shift_left_start;
         let allow_missing_type_close = self.options.is_in_type() || self.options.is_in_decorator();
 
         self.eat_newlines_maybe()?;
@@ -1780,7 +1929,7 @@ impl Parser {
         } else {
             self.eat_expression_type_angle_close()?;
         }
-        Ok(static_arguments)
+        Ok(generic_arguments)
     }
 
     /// Eat dynamic arguments (including the `(` and `)` tokens) if they exist.
@@ -1807,7 +1956,8 @@ impl Parser {
         }
 
         // regular dynamic arguments
-        let (ambient_context, expression_context) = self.dynamic_argument_contexts();
+        let ambient_context = self.options.nested();
+        let expression_context = self.options.nested();
         let dynamic_arguments = self.with_options(
             self.options
                 .with_ambient_context(ambient_context)
@@ -1871,15 +2021,25 @@ impl Parser {
                 if !is_recovered_argument {
                     continue;
                 }
+
+                if self
+                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+                {
+                    break;
+                }
+
+                if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
+                    break;
+                }
+
+                continue;
             }
             // recovered statement calls should stop before the next newline led statement
+            // recovered slots may continue across newline separators only
             else if self
                 .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+                || !self.can_continue_after_recovered_item(terminator, is_recovered_argument)
             {
-                break;
-            }
-            // recovered slots may continue across newline separators only
-            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
                 break;
             }
         }
@@ -1934,15 +2094,25 @@ impl Parser {
                 if !is_recovered_argument {
                     continue;
                 }
+
+                if self
+                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+                {
+                    break;
+                }
+
+                if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
+                    break;
+                }
+
+                continue;
             }
             // recovered statement calls should stop before the next newline led statement
+            // recovered slots may continue across newline separators only
             else if self
                 .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+                || !self.can_continue_after_recovered_item(terminator, is_recovered_argument)
             {
-                break;
-            }
-            // recovered slots may continue across newline separators only
-            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
                 break;
             }
         }
@@ -1953,15 +2123,16 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator, BindingKind,
-        BindingOperator, Declaration, Decorator, Expression, FunctionMode, IfKind, IntType, Member,
-        Mutability, Name, NodeType, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
-        TokenType, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
+        Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
+        DecoratorPosition, Expression, FunctionDeclaration, FunctionMode, GenericArgument,
+        GenericParameter, IfKind, IntType, Member, Name, NodeType, Parameter, Pattern,
+        PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+        TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
+        assert_string,
     };
 
     /// Return the source text covered by one parser node span.
@@ -1975,9 +2146,9 @@ mod tests {
         let mut test = TestParser::new("T");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
             assert_string!(parser, *name, "T");
-            assert!(ty.is_none());
+            assert!(declared_type.is_none());
             assert!(default.is_none());
         });
     }
@@ -1988,12 +2159,12 @@ mod tests {
         let mut test = TestParser::new("x: int32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
+            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
-            })));
+            }) });
             assert!(default.is_none());
         });
     }
@@ -2004,13 +2175,13 @@ mod tests {
         let mut test = TestParser::new("x?: int32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, is_optional, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "x");
-            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
+            assert!(*is_optional);
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
-            })));
+            }) });
         });
     }
 
@@ -2020,9 +2191,9 @@ mod tests {
         let mut test = TestParser::new("validate: boolean = false");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
             assert_string!(parser, *name, "validate");
-            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::Boolean });
             assert!(default.is_some());
         });
     }
@@ -2038,9 +2209,9 @@ mod tests {
         test.assert_error_leaves(&parser, &[(Some(NodeType::Parameter), None, "")]);
 
         // x:
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty: Some(ty), default: None } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *ty, Expression::Missing);
+            assert_node!(parser.tree, *declared_type, TypeExpression::Missing);
         });
     }
 
@@ -2054,10 +2225,10 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
 
         // parameter default should parse as an async lambda value
-        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty: Some(_), default: Some(default), .. } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(_), default: Some(default), .. } => {
             assert_string!(parser, *name, "loadFonts");
             assert_node!(parser.tree, *default, Expression::Declaration(default_declaration_id) => {
-                assert_node!(parser.tree, *default_declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_node!(parser.tree, *default_declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
                     assert_eq!(signature.asynchrony, Asynchrony::Async);
                     assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                         let block = parser.tree.get(*block_id);
@@ -2078,7 +2249,7 @@ mod tests {
         let mut test = TestParser::new("{ x = 4 }: boolean = false");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Pattern { modifiers: _, pattern, ty: Some(ty), default: Some(default) } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, declared_type: Some(declared_type), default: Some(default), .. } => {
             // { x = 4 }
             assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                 assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: Some(default) } => {
@@ -2089,7 +2260,7 @@ mod tests {
                 });
             });
             // boolean
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Boolean });
             // = false
             assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
         });
@@ -2101,8 +2272,8 @@ mod tests {
         let mut test = TestParser::new_with_options("[]?", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Pattern { modifiers: Some(modifiers), pattern, .. } => {
-            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+        assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, is_optional, .. } => {
+            assert!(*is_optional);
             assert_node!(parser.tree, *pattern, Pattern::Array { .. } => {});
         });
     }
@@ -2113,9 +2284,9 @@ mod tests {
         let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
             assert_string!(parser, *name, "_");
-            assert!(ty.is_none());
+            assert!(declared_type.is_none());
             assert!(default.is_none());
         });
     }
@@ -2126,9 +2297,9 @@ mod tests {
         let mut test = TestParser::new("...args");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, declared_type, .. } => {
             assert_string!(parser, *name, "args");
-            assert!(ty.is_none());
+            assert!(declared_type.is_none());
         });
     }
 
@@ -2138,9 +2309,9 @@ mod tests {
         let mut test = TestParser::new("...args: int32[]");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, declared_type, .. } => {
             assert_string!(parser, *name, "args");
-            assert!(ty.is_some());
+            assert!(declared_type.is_some());
         });
     }
 
@@ -2150,8 +2321,7 @@ mod tests {
         let mut test = TestParser::new_with_options("...args?", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: Some(modifiers), name, .. } => {
-            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, .. } => {
             assert_string!(parser, *name, "args");
         });
     }
@@ -2163,9 +2333,9 @@ mod tests {
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, declared_type, .. } => {
             assert_string!(parser, *name, "value");
-            assert!(ty.is_some());
+            assert!(declared_type.is_some());
         });
     }
 
@@ -2175,8 +2345,8 @@ mod tests {
         let mut test = TestParser::new_with_options("...[first, second]", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty } => {
-            assert!(ty.is_none());
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
+            assert!(declared_type.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
                 assert_eq!(fields.len(), 2);
             });
@@ -2192,7 +2362,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
             // [body, init]
             assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
                 assert_eq!(fields.len(), 2);
@@ -2207,16 +2377,15 @@ mod tests {
             });
 
             // ConstructorParameters<typeof Response>
-            let ty = ty.expect("expected variadic tuple type annotation");
-            assert_node!(parser.tree, ty, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
+            let declared_type = declared_type.expect("expected variadic tuple type annotation");
+            assert_node!(parser.tree, declared_type, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "ConstructorParameters");
-                assert_eq!(static_arguments.len(), 1);
+                assert_eq!(generic_arguments.len(), 1);
 
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
-                        assert_eq!(*operator, TypeUnaryOperator::Typeof);
-                        assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: None } => {
-                            assert_path!(parser, *path, "Response");
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "Response");
                         });
                     });
                 });
@@ -2236,7 +2405,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty: Some(ty) } => {
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type: Some(declared_type), .. } => {
             // [src, { ... } = {} as any]
             assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
                 assert_eq!(fields.len(), 2);
@@ -2257,20 +2426,19 @@ mod tests {
                         });
                     });
 
-                    assert_node!(parser.tree, *default, Expression::TypeBinary { operator, left, right } => {
-                        assert_eq!(*operator, TypeBinaryOperator::Cast);
-                        assert_node!(parser.tree, *left, Expression::ObjectExpression { properties, .. } => {
+                    assert_node!(parser.tree, *default, Expression::As { expression, target_type } => {
+                        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
                             assert!(properties.is_empty());
                         });
-                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Any));
+                        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value: TypeLiteral::Any });
                     });
                 });
             });
 
             // SpawnArguments<TContext, TExpressionEvent, TEvent, TActor>
-            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
+            assert_node!(parser.tree, *declared_type, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "SpawnArguments");
-                assert_eq!(static_arguments.len(), 4);
+                assert_eq!(generic_arguments.len(), 4);
             });
         });
     }
@@ -2282,8 +2450,8 @@ mod tests {
             TestParser::new_with_options("...{ value: alias }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty } => {
-            assert!(ty.is_none());
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
+            assert!(declared_type.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                 assert_eq!(fields.len(), 1);
             });
@@ -2296,12 +2464,12 @@ mod tests {
         let mut test = TestParser::new("x:\n\tint32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty: Some(ty), default: None } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
-            })));
+            }) });
         });
     }
 
@@ -2312,15 +2480,15 @@ mod tests {
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
 
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), .. } => {
-            assert_eq!(modifiers.visibility, Some(Visibility::Private));
-            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
-            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+        assert_node!(parser.tree, parameter_id, Parameter::Named { visibility, is_readonly, declared_type: Some(declared_type), .. } => {
+            assert_eq!(*visibility, Some(Visibility::Private));
+            assert!(*is_readonly);
+            assert_node!(parser.tree, *declared_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
         });
     }
 
     #[test]
-    fn test_parse_static_parameters_multiline_union_constraint_with_default_typescript() {
+    fn test_parse_generic_parameters_multiline_union_constraint_with_default_typescript() {
         let mut test = TestParser::new_with_options(
             r#"<
   Return extends ReturnType<onRequestHookHandler<RawServer>>
@@ -2330,30 +2498,35 @@ mod tests {
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        let static_parameters = parser.eat_static_parameters(true).unwrap();
+        let generic_parameters = parser.eat_generic_parameters(true).unwrap();
 
         // Return extends ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>> = ReturnType<onRequestHookHandler<RawServer>>
-        assert_eq!(static_parameters.len(), 1);
-        assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers, name, ty: Some(ty), default: Some(default) } => {
-            assert!(modifiers.is_none());
+        assert_eq!(generic_parameters.len(), 1);
+        assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), default: Some(default), .. } => {
             assert_string!(parser, *name, "Return");
 
             // ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>>
-            assert_node!(parser.tree, *ty, Expression::Binary { operator, left, right } => {
-                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            assert_node!(parser.tree, *constraint, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
 
                 // ReturnType<onRequestHookHandler<RawServer>>
-                assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
+                assert_node!(parser.tree, elements[0], TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "ReturnType");
-                    assert_eq!(static_arguments.len(), 1);
+                    assert_eq!(generic_arguments.len(), 1);
 
-                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
-                            assert_path!(parser, *path, "onRequestHookHandler");
-                            assert_eq!(static_arguments.len(), 1);
-                            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
-                                    assert_path!(parser, *path, "RawServer");
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                assert_path!(parser, *path, "onRequestHookHandler");
+                                assert_eq!(generic_arguments.len(), 1);
+
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                            assert_path!(parser, *path, "RawServer");
+                                            assert!(generic_arguments.is_empty());
+                                        });
+                                    });
                                 });
                             });
                         });
@@ -2361,17 +2534,23 @@ mod tests {
                 });
 
                 // ReturnType<onRequestAsyncHookHandler<RawServer>>
-                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "ReturnType");
-                    assert_eq!(static_arguments.len(), 1);
+                    assert_eq!(generic_arguments.len(), 1);
 
-                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
-                            assert_path!(parser, *path, "onRequestAsyncHookHandler");
-                            assert_eq!(static_arguments.len(), 1);
-                            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
-                                    assert_path!(parser, *path, "RawServer");
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                assert_path!(parser, *path, "onRequestAsyncHookHandler");
+                                assert_eq!(generic_arguments.len(), 1);
+
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                            assert_path!(parser, *path, "RawServer");
+                                            assert!(generic_arguments.is_empty());
+                                        });
+                                    });
                                 });
                             });
                         });
@@ -2380,17 +2559,22 @@ mod tests {
             });
 
             // ReturnType<onRequestHookHandler<RawServer>>
-            assert_node!(parser.tree, *default, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
+            assert_node!(parser.tree, *default, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "ReturnType");
-                assert_eq!(static_arguments.len(), 1);
+                assert_eq!(generic_arguments.len(), 1);
 
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
-                        assert_path!(parser, *path, "onRequestHookHandler");
-                        assert_eq!(static_arguments.len(), 1);
-                        assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                            assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
-                                assert_path!(parser, *path, "RawServer");
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                            assert_path!(parser, *path, "onRequestHookHandler");
+                            assert_eq!(generic_arguments.len(), 1);
+                            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                                assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                    assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                        assert_path!(parser, *path, "RawServer");
+                                        assert!(generic_arguments.is_empty());
+                                    });
+                                });
                             });
                         });
                     });
@@ -2400,65 +2584,107 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_static_parameters_missing_close_angle() {
+    fn test_parse_generic_parameters_missing_close_angle() {
         // <T
         let mut test = TestParser::new("<T");
         let mut parser = test.prepare();
-        let parameters = parser.eat_static_parameters(true).unwrap();
+        let parameters = parser.eat_generic_parameters(true).unwrap();
 
         // diagnostics
         test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
         // <T
         assert_eq!(parameters.len(), 1);
-        assert_node!(parser.tree, parameters[0], Parameter::Named { modifiers: _, name, ty: None, default: None } => {
+        assert_node!(parser.tree, parameters[0], GenericParameter::Type { name, constraint: None, default: None, .. } => {
             assert_string!(parser, *name, "T");
         });
     }
 
     #[test]
-    fn test_parse_static_arguments_missing_close_angle_in_type_context() {
+    fn test_parse_generic_arguments_missing_close_angle_in_type_context() {
         // <string, number
         let mut test = TestParser::new("<string, number");
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
-        let arguments = parser.eat_static_arguments().unwrap();
+        let arguments = parser.eat_generic_arguments().unwrap();
 
         // diagnostics
         test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
         // <string, number
         assert_eq!(arguments.len(), 2);
-        assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+        assert_node!(parser.tree, arguments[0], GenericArgument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+            });
         });
-        assert_node!(parser.tree, arguments[1], Argument::Positional { modifiers: _, value } => {
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+        assert_node!(parser.tree, arguments[1], GenericArgument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+            });
         });
     }
 
     #[test]
-    fn test_parse_static_arguments_empty_in_type_context_recovers_error_slot() {
+    fn test_parse_generic_arguments_empty_in_type_context_recovers_error_slot() {
         // <>
         let mut test = TestParser::new("<>");
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
-        let arguments = parser.eat_static_arguments().unwrap();
+        let arguments = parser.eat_generic_arguments().unwrap();
 
         // diagnostics
         test.assert_error_leaves(&parser, &[(None, Some(TokenType::Identifier), "<")]);
 
         // <>
         assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Error);
+        assert_node!(parser.tree, arguments[0], GenericArgument::Error);
     }
 
     #[test]
-    fn test_reject_static_arguments_missing_close_angle_in_value_context() {
+    fn test_parse_generic_arguments_first_value_with_boundary_comment() {
+        let source = "<\n  // first-type-arg\n  string | number\n>";
+        let mut test = TestParser::new_with_options(source, LanguageType::TypeScriptDeclaration);
+        let mut parser = test.prepare();
+        parser.options.set_in_type(true);
+        let arguments = parser.eat_generic_arguments().unwrap();
+        parser.attach_comments();
+
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], GenericArgument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Union { .. });
+            });
+        });
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "first-type-arg");
+    }
+
+    #[test]
+    fn test_parse_generic_arguments_following_value_with_boundary_comment() {
+        let source = "<string,\n  // second-type-arg\n  number>";
+        let mut test = TestParser::new_with_options(source, LanguageType::TypeScriptDeclaration);
+        let mut parser = test.prepare();
+        parser.options.set_in_type(true);
+        let arguments = parser.eat_generic_arguments().unwrap();
+        parser.attach_comments();
+
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[1], GenericArgument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+            });
+        });
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "second-type-arg");
+    }
+
+    #[test]
+    fn test_reject_generic_arguments_missing_close_angle_in_value_context() {
         // <string, number
         let mut test = TestParser::new_with_options("<string, number", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let result = parser.eat_static_arguments();
+        let result = parser.eat_generic_arguments();
 
         assert!(result.is_err());
     }
@@ -2475,11 +2701,11 @@ mod tests {
         test.assert_error_leaves(&parser, &[(None, None, "public")]);
 
         // readonly public x: number
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { visibility, is_readonly, name, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "x");
-            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
-            assert_eq!(modifiers.visibility, Some(Visibility::Public));
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+            assert_eq!(*visibility, Some(Visibility::Public));
+            assert!(*is_readonly);
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Number });
         });
     }
 
@@ -2500,18 +2726,18 @@ mod tests {
         assert_eq!(expressions.len(), 1);
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
                 assert_eq!(members.len(), 1);
 
                 assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
                     assert_eq!(signature.mode, Some(FunctionMode::Constructor));
-                    assert_eq!(signature.dynamic_parameters.len(), 1);
+                    assert_eq!(signature.parameters.len(), 1);
 
-                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { visibility, is_readonly, name, declared_type: Some(declared_type), default: None, .. } => {
                         assert_string!(parser, *name, "x");
-                        assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
-                        assert_eq!(modifiers.visibility, Some(Visibility::Public));
-                        assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+                        assert_eq!(*visibility, Some(Visibility::Public));
+                        assert!(*is_readonly);
+                        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Number });
                     });
                 });
             });
@@ -2524,14 +2750,12 @@ mod tests {
         let mut test = TestParser::new("readonly: int32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers, name, ty, default: None } => {
-            assert!(modifiers.is_none());
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "readonly");
-            let ty = ty.expect("expected type annotation");
-            assert_node!(parser.tree, ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
-            })));
+            }) });
         });
     }
 
@@ -2541,9 +2765,12 @@ mod tests {
         let mut test = TestParser::new("comptime n: int32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), .. } => {
             assert_string!(parser, *name, "n");
-            assert_eq!(modifiers.timing, Some(Timing::Comptime));
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
+                width: Some(32),
+                is_signed: true
+            }) });
         });
     }
 
@@ -2566,90 +2793,78 @@ class Test {
         // class Test { ... }
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
                 assert_eq!(members.len(), 2);
 
                 // constructor(@p1 t1, @p2 t2, @p3 ...t3)
                 assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
                     assert_eq!(signature.mode, Some(FunctionMode::Constructor));
-                    assert_eq!(signature.dynamic_parameters.len(), 3);
+                    assert_eq!(signature.parameters.len(), 3);
 
                     // @p1 t1
-                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: None, name, ty: None, default: None } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: None, default: None, .. } => {
                         assert_string!(parser, *name, "t1");
                     });
-                    let t1_annotations = parser.tree.get_annotations(signature.dynamic_parameters[0].id);
+                    let t1_annotations = parser.tree.get_decorators(signature.parameters[0].id);
                     assert_eq!(t1_annotations.len(), 1);
-                    assert_node!(parser.tree, t1_annotations[0], Annotation::Decorator { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Decorator { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "p1");
-                        });
+                    assert_node!(parser.tree, t1_annotations[0], Decorator { expression, position } => {
+                        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                        assert_expression_path!(parser, parser.tree.get(*expression), "p1");
                     });
 
                     // @p2 t2
-                    assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { modifiers: Some(modifiers), name, ty: None, default: None } => {
+                    assert_node!(parser.tree, signature.parameters[1], Parameter::Named { visibility, name, declared_type: None, default: None, .. } => {
                         assert_string!(parser, *name, "t2");
-                        assert_eq!(modifiers.visibility, Some(Visibility::Private));
+                        assert_eq!(*visibility, Some(Visibility::Private));
                     });
-                    let t2_annotations = parser.tree.get_annotations(signature.dynamic_parameters[1].id);
+                    let t2_annotations = parser.tree.get_decorators(signature.parameters[1].id);
                     assert_eq!(t2_annotations.len(), 1);
-                    assert_node!(parser.tree, t2_annotations[0], Annotation::Decorator { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Decorator { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "p2");
-                        });
+                    assert_node!(parser.tree, t2_annotations[0], Decorator { expression, position } => {
+                        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                        assert_expression_path!(parser, parser.tree.get(*expression), "p2");
                     });
 
                     // @p3 ...t3
-                    assert_node!(parser.tree, signature.dynamic_parameters[2], Parameter::VariadicNamed { modifiers: None, name, ty: None } => {
+                    assert_node!(parser.tree, signature.parameters[2], Parameter::VariadicNamed { name, declared_type: None, .. } => {
                         assert_string!(parser, *name, "t3");
                     });
-                    let t3_annotations = parser.tree.get_annotations(signature.dynamic_parameters[2].id);
+                    let t3_annotations = parser.tree.get_decorators(signature.parameters[2].id);
                     assert_eq!(t3_annotations.len(), 1);
-                    assert_node!(parser.tree, t3_annotations[0], Annotation::Decorator { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Decorator { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "p3");
-                        });
+                    assert_node!(parser.tree, t3_annotations[0], Decorator { expression, position } => {
+                        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                        assert_expression_path!(parser, parser.tree.get(*expression), "p3");
                     });
                 });
 
                 // method(@p1 t1, @p2 ...t2)
                 assert_node!(parser.tree, members[1], Member::Method { signature, .. } => {
                     assert_eq!(signature.mode, None);
-                    assert_eq!(signature.dynamic_parameters.len(), 2);
+                    assert_eq!(signature.parameters.len(), 2);
 
                     // @p1 t1
-                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: None, name, ty: None, default: None } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: None, default: None, .. } => {
                         assert_string!(parser, *name, "t1");
                     });
-                    let method_t1_annotations = parser.tree.get_annotations(signature.dynamic_parameters[0].id);
+                    let method_t1_annotations = parser.tree.get_decorators(signature.parameters[0].id);
                     assert_eq!(method_t1_annotations.len(), 1);
-                    assert_node!(parser.tree, method_t1_annotations[0], Annotation::Decorator { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Decorator { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "p1");
-                        });
+                    assert_node!(parser.tree, method_t1_annotations[0], Decorator { expression, position } => {
+                        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                        assert_expression_path!(parser, parser.tree.get(*expression), "p1");
                     });
 
                     // @p2 ...t2
-                    assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::VariadicNamed { modifiers: None, name, ty: None } => {
+                    assert_node!(parser.tree, signature.parameters[1], Parameter::VariadicNamed { name, declared_type: None, .. } => {
                         assert_string!(parser, *name, "t2");
                     });
-                    let method_t2_annotations = parser.tree.get_annotations(signature.dynamic_parameters[1].id);
+                    let method_t2_annotations = parser.tree.get_decorators(signature.parameters[1].id);
                     assert_eq!(method_t2_annotations.len(), 2);
-                    assert_node!(parser.tree, method_t2_annotations[0], Annotation::Decorator { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Decorator { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "p1");
-                        });
+                    assert_node!(parser.tree, method_t2_annotations[0], Decorator { expression, position } => {
+                        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                        assert_expression_path!(parser, parser.tree.get(*expression), "p1");
                     });
-                    assert_node!(parser.tree, method_t2_annotations[1], Annotation::Decorator { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Decorator { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "p2");
-                        });
+                    assert_node!(parser.tree, method_t2_annotations[1], Decorator { expression, position } => {
+                        assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                        assert_expression_path!(parser, parser.tree.get(*expression), "p2");
                     });
                 });
             });
@@ -2662,7 +2877,7 @@ class Test {
         let mut test = TestParser::new("x: 1");
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             // x
             assert_string!(parser, *name, "x");
             // 1
@@ -2681,7 +2896,7 @@ class Test {
         let mut test = TestParser::new("\"Content-Type\": 1");
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::String(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::String(name), value } => {
             assert_string!(parser, *name, "Content-Type");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
@@ -2698,7 +2913,7 @@ class Test {
         let mut test = TestParser::new("title=\"hello\"");
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_literal_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "title");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
                 assert_string!(parser, *string, "hello");
@@ -2715,7 +2930,7 @@ class Test {
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_literal_argument().unwrap();
 
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "onBroadcastSelected");
             assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
                 assert_node!(parser.tree, *left, Expression::This);
@@ -2729,7 +2944,7 @@ class Test {
         let mut test = TestParser::new_with_options("panose-1=\"test\"", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_literal_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "panose1");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
                 assert_string!(parser, *string, "test");
@@ -2745,7 +2960,7 @@ class Test {
         );
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_literal_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "dataNextjsContainerErrorsPseudoHtmlDiff");
             assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
                 assert_eq!(*kind, IfKind::Ternary);
@@ -2760,7 +2975,7 @@ class Test {
         let mut parser = test.prepare();
         let argument_id = parser.eat_positional_argument().unwrap();
 
-        assert_node!(parser.tree, argument_id, Argument::Positional { modifiers: _, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
             // 3
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
@@ -2807,11 +3022,11 @@ class Test {
 
         // (x, =, y)
         assert_eq!(parameters.len(), 3);
-        assert_node!(parser.tree, parameters[0], Parameter::Named { modifiers: _, name, ty: None, default: None } => {
+        assert_node!(parser.tree, parameters[0], Parameter::Named { name, declared_type: None, default: None, .. } => {
             assert_string!(parser, *name, "x");
         });
         assert_node!(parser.tree, parameters[1], Parameter::Error);
-        assert_node!(parser.tree, parameters[2], Parameter::Named { modifiers: _, name, ty: None, default: None } => {
+        assert_node!(parser.tree, parameters[2], Parameter::Named { name, declared_type: None, default: None, .. } => {
             assert_string!(parser, *name, "y");
         });
     }
@@ -2965,15 +3180,17 @@ class Test {
             &[
                 (Some(NodeType::Expression), None, "var"),
                 (None, None, "var"),
+                (Some(NodeType::Expression), None, ";"),
             ],
         );
 
         // foo(a,b var;
-        assert_eq!(expressions.len(), 1);
+        assert_eq!(expressions.len(), 2);
         let call_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 2);
         });
+        assert_node!(parser.tree, expressions[1], Expression::Error);
     }
 
     #[test]
@@ -3029,21 +3246,25 @@ foo (,,b);
             &[
                 (Some(NodeType::Expression), None, "var"),
                 (None, None, "var"),
+                (Some(NodeType::Expression), None, ";"),
                 (None, None, ","),
                 (None, None, ","),
             ],
         );
 
         // foo(a,b var;
+        // Error
         // foo (,,b);
-        assert_eq!(expressions.len(), 2);
+        assert_eq!(expressions.len(), 3);
 
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 2);
         });
 
-        let second_call_id = parser.unwrap_labelled_expression(expressions[1]);
+        assert_node!(parser.tree, expressions[1], Expression::Error);
+
+        let second_call_id = parser.unwrap_labelled_expression(expressions[2]);
         assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 3);
         });
@@ -3065,11 +3286,12 @@ foo (a, ...);
             &[
                 (Some(NodeType::Expression), None, "var"),
                 (None, None, "var"),
+                (Some(NodeType::Expression), None, ";"),
                 (None, None, ")"),
             ],
         );
 
-        assert_eq!(expressions.len(), 2);
+        assert_eq!(expressions.len(), 3);
 
         // foo(a,b var;
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
@@ -3077,8 +3299,11 @@ foo (a, ...);
             assert_eq!(dynamic_arguments.len(), 2);
         });
 
+        // Error
+        assert_node!(parser.tree, expressions[1], Expression::Error);
+
         // foo (a, ...);
-        let second_call_id = parser.unwrap_labelled_expression(expressions[1]);
+        let second_call_id = parser.unwrap_labelled_expression(expressions[2]);
         assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 2);
         });
@@ -3157,7 +3382,7 @@ const value = 1;
         let mut test = TestParser::new("...args");
         let mut parser = test.prepare();
         let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Spread { label, value } => {
             // ...args
             assert!(label.is_none());
             assert_node!(parser.tree, *value, Expression::Identifier { name } => {
@@ -3167,16 +3392,14 @@ const value = 1;
     }
 
     #[test]
-    fn test_parse_spread_argument_with_comment_newline() {
-        // .../** @type {number[]} */\nargs
-        let mut test = TestParser::new_with_options(
-            ".../** @type {number[]} */\nargs",
-            LanguageType::JavaScript,
-        );
+    fn test_parse_spread_argument_with_doc_block_comment_newline() {
+        // .../** comment */\nargs
+        let mut test =
+            TestParser::new_with_options(".../** comment */\nargs", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let argument_id = parser.eat_positional_argument().unwrap();
 
-        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Spread { label, value } => {
             assert!(label.is_none());
             assert_node!(parser.tree, *value, Expression::Identifier { name } => {
                 assert_string!(parser, *name, "args");
@@ -3191,9 +3414,11 @@ const value = 1;
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
         let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Spread { label, value } => {
             assert_string!(parser, label.unwrap(), "args");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+            });
         });
 
         let main_span = parser
@@ -3209,9 +3434,11 @@ const value = 1;
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
         let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Labeled { modifiers: _, label, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Labeled { label, value } => {
             assert_string!(parser, *label, "label");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+            });
         });
 
         let main_span = parser
@@ -3227,30 +3454,37 @@ const value = 1;
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
         let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Labeled { modifiers: Some(modifiers), label, value } => {
-            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+        assert_node!(parser.tree, argument_id, Argument::Labeled { label, value } => {
             assert_string!(parser, *label, "options");
-            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
-                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            assert_node!(parser.tree, *value, Expression::Maybe { left, .. } => {
+                assert_node!(parser.tree, *left, Expression::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                        assert_eq!(elements.len(), 2);
+                        assert_expression_path!(parser, parser.tree.get(elements[0]), "SkipToken");
+                        assert_expression_path!(parser, parser.tree.get(elements[1]), "OtherOption");
+                    });
+                });
             });
         });
     }
 
     #[test]
-    fn test_parse_static_arguments_with_nested_generics_and_union() {
+    fn test_parse_generic_arguments_with_nested_generics_and_union() {
         let mut test = TestParser::new_with_options(
             "<keyof ServerReservedEventsMap<never, never, never, never> | keyof NamespaceReservedEventsMap<never, never, never, never>>",
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let static_arguments = parser.eat_static_arguments().unwrap();
+        let generic_arguments = parser.eat_generic_arguments().unwrap();
 
-        assert_eq!(static_arguments.len(), 1);
-        assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: None, value } => {
-            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
-                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
-                assert_node!(parser.tree, *left, Expression::TypeUnary { .. });
-                assert_node!(parser.tree, *right, Expression::TypeUnary { .. });
+        assert_eq!(generic_arguments.len(), 1);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    assert!(matches!(parser.tree.get(elements[0]), TypeExpression::KeyOf { .. }));
+                    assert!(matches!(parser.tree.get(elements[1]), TypeExpression::KeyOf { .. }));
+                });
             });
         });
     }

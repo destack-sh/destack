@@ -28,10 +28,6 @@ pub struct ParserSpeculationStats {
     pub statement_keyword_dispatch_direct_hits: u64,
     /// The number of direct statement keyword misses.
     pub statement_keyword_dispatch_direct_misses: u64,
-    /// The number of fallback keyword parser hits.
-    pub statement_keyword_dispatch_fallback_hits: u64,
-    /// The number of fallback keyword parser misses.
-    pub statement_keyword_dispatch_fallback_misses: u64,
     /// The number of parenthesized expression plain-path calls.
     pub parenthesized_expression_plain_calls: u64,
     /// The number of parenthesized expression plain-path hits.

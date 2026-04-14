@@ -149,14 +149,12 @@ fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
         stats.with_options_calls, stats.rewind_calls, stats.restore_calls
     );
     eprintln!(
-        "  statement dispatch: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={} fallback_hits={} fallback_misses={}",
+        "  statement dispatch: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={}",
         stats.statement_keyword_dispatch_calls,
         stats.statement_keyword_dispatch_prefilter_rejects,
         stats.statement_keyword_dispatch_keyword_rejects,
         stats.statement_keyword_dispatch_direct_hits,
         stats.statement_keyword_dispatch_direct_misses,
-        stats.statement_keyword_dispatch_fallback_hits,
-        stats.statement_keyword_dispatch_fallback_misses,
     );
     eprintln!(
         "  parenthesized plain: calls={} hits={} misses={}",

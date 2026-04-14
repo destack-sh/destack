@@ -229,8 +229,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Block, CommentKind, Declaration, Declarator, Expression, FunctionKind,
-        IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
+        BinaryOperator, Block, CommentKind, Declaration, Declarator, Expression,
+        FunctionDeclaration, FunctionKind, IfCondition, LetKind, Mutability, Pattern, PatternField,
+        ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -758,9 +759,9 @@ else
                 let else_item = expressions[0];
                 match parser.tree.get(else_item) {
                     Expression::Declaration(declaration_id) => {
-                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                             assert_eq!(signature.kind, FunctionKind::Lambda);
-                            assert_eq!(signature.dynamic_parameters.len(), 1);
+                            assert_eq!(signature.parameters.len(), 1);
                         });
                     }
                     _ => panic!("expected lambda declaration in else branch"),
@@ -864,7 +865,7 @@ else
                 IfCondition::Let { .. } => panic!("expected expression condition"),
             };
 
-            let annotations = parser.tree.get_annotations(condition_id.id);
+            let annotations = parser.tree.get_decorators(condition_id.id);
             assert!(annotations.is_empty());
         });
 
@@ -873,7 +874,7 @@ else
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let then_annotations = parser.tree.get_annotations(expressions[0].id);
+                    let then_annotations = parser.tree.get_decorators(expressions[0].id);
                     assert!(then_annotations.is_empty());
                 });
             });
@@ -902,7 +903,7 @@ else
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             let else_expression_id = else_expression.expect("expected else expression");
-            let annotations = parser.tree.get_annotations(else_expression_id.id);
+            let annotations = parser.tree.get_decorators(else_expression_id.id);
             assert!(annotations.is_empty());
         });
 

@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{Key, Keyword, LiteralType, Name, ScalarLiteral, TokenSpan, TokenType};
+use destack_ast::{Key, Keyword, LiteralType, Name, NodeType, ScalarLiteral, TokenSpan, TokenType};
 use destack_core::StringId;
 use destack_source::Span;
 
@@ -91,17 +91,7 @@ impl Parser {
             return false;
         }
 
-        let index = self.pos_index();
-        // avoid interning for common literal identifier checks
-        if matches!(string, "global" | "module" | "_") {
-            return self.identifier_equals_at(index, string);
-        }
-
-        let Some(token) = self.token_at(index) else {
-            return false;
-        };
-
-        self.get_token_str(token) == string
+        self.identifier_equals_at(self.pos_index(), string)
     }
 
     // identifier keyword check with unicode escape decoding
@@ -592,24 +582,17 @@ impl Parser {
             self.bump(); // eat open bracket
             self.eat_newlines_maybe()?;
 
-            // name: type
+            // typed index signatures are parsed by the dedicated type property entrypoint
             let has_named_type_head = self.peek_is(TokenType::Identifier)
                 && (self.peek_next_is(TokenType::Colon)
                     || self.is_token_after_newlines(self.pos(), TokenType::Colon));
             if has_named_type_head {
-                let name = self.eat_identifier()?;
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::Colon)?;
-                self.eat_newlines_maybe()?;
-                let key_options = self.options.not_in_left_precedence().in_type();
-                let key_type =
-                    self.with_options(key_options, |parser| parser.eat_expression(parser.options))?;
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBracket)?;
-                Ok(Key::NamedExpression {
-                    name,
-                    key: key_type,
-                })
+                let colon_index = self.next_non_newline_index_from(self.pos_index() + 1);
+                let colon_span = self
+                    .token_ref_at(colon_index)
+                    .map(|token| token.span)
+                    .unwrap_or(self.peek()?.span);
+                Err(ParseError::unexpected(colon_span))
             }
             // expression
             else {
@@ -620,7 +603,17 @@ impl Parser {
                         .not_in_sequence_expression(),
                 )?;
                 self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBracket)?;
+                self.eat_close_token_or_recover_missing_with(
+                    TokenType::CloseBracket,
+                    NodeType::Expression,
+                    |_, token_type| {
+                        Self::is_close_delimiter_boundary_token(token_type)
+                            || matches!(
+                                token_type,
+                                TokenType::Colon | TokenType::Maybe | TokenType::OpenParenthesis
+                            )
+                    },
+                )?;
                 Ok(Key::Expression(key))
             }
         }
@@ -664,27 +657,17 @@ impl Parser {
             self.bump(); // eat open bracket
             self.eat_newlines_maybe()?;
 
-            // name: type
+            // typed index signatures are parsed by the dedicated type property entrypoint
             let has_named_type_head = self.peek_is(TokenType::Identifier)
                 && (self.peek_next_is(TokenType::Colon)
                     || self.is_token_after_newlines(self.pos(), TokenType::Colon));
             if has_named_type_head {
-                let name = self.eat_identifier()?;
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::Colon)?;
-                self.eat_newlines_maybe()?;
-                let key_options = self.options.not_in_left_precedence().in_type();
-                let key_type =
-                    self.with_options(key_options, |parser| parser.eat_expression(parser.options))?;
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBracket)?;
-                Ok((
-                    Key::NamedExpression {
-                        name,
-                        key: key_type,
-                    },
-                    self.get_span_from(&start),
-                ))
+                let colon_index = self.next_non_newline_index_from(self.pos_index() + 1);
+                let colon_span = self
+                    .token_ref_at(colon_index)
+                    .map(|token| token.span)
+                    .unwrap_or(self.peek()?.span);
+                Err(ParseError::unexpected(colon_span))
             }
             // expression
             else {
@@ -695,7 +678,17 @@ impl Parser {
                         .not_in_sequence_expression(),
                 )?;
                 self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBracket)?;
+                self.eat_close_token_or_recover_missing_with(
+                    TokenType::CloseBracket,
+                    NodeType::Expression,
+                    |_, token_type| {
+                        Self::is_close_delimiter_boundary_token(token_type)
+                            || matches!(
+                                token_type,
+                                TokenType::Colon | TokenType::Maybe | TokenType::OpenParenthesis
+                            )
+                    },
+                )?;
                 Ok((Key::Expression(key), self.get_span_from(&start)))
             }
         }
@@ -744,25 +737,19 @@ mod tests {
     use crate::{assert_expression_path, assert_node, assert_string};
 
     #[test]
-    fn test_parse_key_named_expression_with_multiline_type() {
+    fn test_reject_key_named_type_expression_with_multiline_type() {
         let mut test = TestParser::new(
             r#"[key:
     | string
     | number]"#,
         );
         let mut parser = test.prepare();
-        let (key, _span) = parser.eat_key_with_span().unwrap();
-        match key {
-            Key::NamedExpression { name, key } => {
-                assert_string!(parser, name, "key");
-                assert_node!(parser.tree, key, Expression::Binary { .. });
-            }
-            _ => panic!("expected NamedExpression"),
-        }
+        let error = parser.eat_key_with_span().unwrap_err();
+        assert_eq!(parser.get_span_str(error.leaf_span()), ":");
     }
 
     #[test]
-    fn test_parse_key_named_expression_with_newlines_before_colon_and_close_bracket() {
+    fn test_reject_key_named_type_expression_with_newlines_before_colon_and_close_bracket() {
         let mut test = TestParser::new(
             r#"[key
 :
@@ -770,15 +757,8 @@ string
 ]"#,
         );
         let mut parser = test.prepare();
-        let (key, _span) = parser.eat_key_with_span().unwrap();
-
-        match key {
-            Key::NamedExpression { name, key } => {
-                assert_string!(parser, name, "key");
-                assert_node!(parser.tree, key, Expression::TypeLiteral(_));
-            }
-            _ => panic!("expected NamedExpression"),
-        }
+        let error = parser.eat_key_with_span().unwrap_err();
+        assert_eq!(parser.get_span_str(error.leaf_span()), ":");
     }
 
     /// Reject computed keys with sequence expressions in javascript.

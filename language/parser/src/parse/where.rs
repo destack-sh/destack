@@ -1,8 +1,8 @@
-//! Parse use and where declarations.
+// parse use and where declarations
 use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
 
-use destack_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
+use destack_ast::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
 use destack_source::NodeSpanType;
 
 impl Parser {
@@ -74,7 +74,10 @@ impl Parser {
                     self.eat_token(TokenType::Comma)?;
                 }
             }
-            self.eat_token(TokenType::CloseParenthesis)?;
+            self.eat_close_token_or_recover_missing(
+                TokenType::CloseParenthesis,
+                NodeType::WhereClause,
+            )?;
         }
         // plain list separated by commas
         else {
@@ -104,7 +107,11 @@ impl Parser {
         // constraint type
         let type_start = self.mark_span();
         self.eat_token(TokenType::Colon)?;
-        let right = self.eat_expression(self.options.in_type())?;
+        self.eat_newlines_maybe()?;
+        let right = self.eat_type_expression_node_or_recover_missing(
+            self.options.in_type(),
+            NodeType::WhereClause,
+        )?;
         let clause = self
             .tree
             .insert(WhereClause { left, right }, self.get_span_from(&start));
@@ -120,10 +127,10 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, IntType, TypeLiteral, WhereClause};
+    use destack_ast::{CommentKind, IntType, NodeType, TypeExpression, TypeLiteral, WhereClause};
     use destack_source::NodeSpanType;
 
-    use crate::{TestParser, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_where_type_assertion() {
@@ -135,7 +142,15 @@ mod tests {
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
             assert_string!(parser, *left, "T");
-            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            assert_node!(parser.tree, *right, TypeExpression::Literal { value } => {
+                assert_eq!(
+                    *value,
+                    TypeLiteral::Int(IntType::Arbitrary {
+                        width: Some(32),
+                        is_signed: true,
+                    })
+                );
+            });
         });
     }
 
@@ -150,19 +165,19 @@ mod tests {
 
         assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
             assert_string!(parser, *left, "T");
-            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Numeric");
             });
         });
         assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
             assert_string!(parser, *left, "U");
-            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Copy");
             });
         });
         assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
             assert_string!(parser, *left, "V");
-            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Comparable");
             });
         });
@@ -183,20 +198,46 @@ mod tests {
 
         assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
             assert_string!(parser, *left, "T");
-            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Numeric");
             });
         });
         assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
             assert_string!(parser, *left, "U");
-            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Copy");
             });
         });
         assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
             assert_string!(parser, *left, "V");
-            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Comparable");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
+        let mut test = TestParser::new("where (T: Numeric, U: Copy");
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+
+        test.assert_error_leaves(&parser, &[(Some(NodeType::WhereClause), None, "")]);
+        assert_eq!(clauses.len(), 2);
+
+        // T: Numeric
+        assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+            assert_string!(parser, *left, "T");
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
+                assert_path!(parser, *path, "Numeric");
+            });
+        });
+
+        // U: Copy
+        assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
+            assert_string!(parser, *left, "U");
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
+                assert_path!(parser, *path, "Copy");
             });
         });
     }
@@ -222,5 +263,35 @@ mod tests {
             .get_side_span(clause_id, NodeSpanType::Type)
             .expect("expected type span");
         assert_eq!(parser.get_span_str(type_span), ": Numeric");
+    }
+
+    #[test]
+    fn test_where_clause_constraint_with_boundary_comment() {
+        let source = "where T: // bound-note\nNumeric";
+        let mut test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+        parser.attach_comments();
+
+        assert_eq!(clauses.len(), 1);
+
+        // T: Numeric
+        assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+            assert_string!(parser, *left, "T");
+            assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
+                assert_path!(parser, *path, "Numeric");
+            });
+        });
+
+        // : // bound-note\nNumeric
+        let type_span = parser
+            .tree
+            .get_side_span(clauses[0], NodeSpanType::Type)
+            .expect("expected where type span");
+        assert_eq!(parser.get_span_str(type_span), ": // bound-note\nNumeric");
+
+        // // bound-note
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "bound-note");
     }
 }

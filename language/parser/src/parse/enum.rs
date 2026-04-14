@@ -1,11 +1,12 @@
 use super::PendingDecorators;
+use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, DeclarationDescriptor, EnumField, EnumKind, Generics, Heritage, Keyword,
-    LiteralType, LocalNodeId, Member, Name, NodeType, TemplateLiteral, TokenType,
+    Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LiteralType, LocalNodeId, Member,
+    Name, NodeType, TemplateLiteral, TokenType,
 };
 use destack_source::Span;
 
@@ -48,27 +49,26 @@ impl Parser {
     ///     C = 3
     /// }
     /// ```
-    pub fn eat_enum(
+    pub(crate) fn eat_enum(
         &mut self,
         start: &ParserMark,
         kind: EnumKind,
-        mut descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_ENUM);
         // keyword
         self.eat_keyword(Keyword::Enum)?;
 
         // optional name
-        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
-            descriptor = descriptor.with_name(name);
-            Some(span)
+        let (name, name_span) = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            (Some(name), Some(span))
         } else {
-            None
+            (None, None)
         };
 
-        // optional static parameters: < ... >
-        let static_parameters = self
-            .eat_static_parameters_maybe(false)
+        // optional generic parameters: < ... >
+        let generic_parameters = self
+            .eat_generic_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
 
         // optional extends types
@@ -91,19 +91,20 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
         let (fields, members) = self.eat_enum_body().for_node_type(NodeType::Declaration)?;
-        self.eat_token(TokenType::CloseBrace)?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
-        let generics = Generics::new(static_parameters, where_clauses);
-        let heritage = Heritage::new(extends_types, implements_types);
         let enum_id = self.insert_node(
-            Declaration::Enum {
-                descriptor,
+            Declaration::Enum(EnumDeclaration {
+                name,
+                export: header.export,
+                ambient: header.ambient,
                 kind,
-                generics,
-                heritage,
+                generic_parameters: generic_parameters.unwrap_or_default(),
+                where_clauses: where_clauses.unwrap_or_default(),
+                implements_types: implements_types.or(extends_types).unwrap_or_default(),
                 fields,
                 members,
-            },
+            }),
             self.get_span_from(start),
         );
 
@@ -255,7 +256,7 @@ impl Parser {
             };
 
             self.eat_newlines_maybe()?;
-            self.eat_token(TokenType::CloseBracket)?;
+            self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
             Ok((name, self.get_span_from(&start)))
         } else if self.peek_numeric_literal_is() {
             let token = *self.peek_numeric_literal()?;
@@ -272,11 +273,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, CommentKind, Declaration, DeclarationDescriptor,
-        DeclarationKind, Decorator, EnumField, EnumKind, Expression, Parameter, ScalarLiteral,
-        WhereClause,
+        CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField,
+        EnumKind, Expression, GenericParameter, ScalarLiteral, TypeExpression, WhereClause,
     };
 
+    use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
 
     #[test]
@@ -291,20 +292,15 @@ enum Foo extends Day {}
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, heritage, fields, members, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+        assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, generic_parameters, implements_types, fields, members, .. }) => {
+            assert_string!(parser, name.unwrap().string(), "Foo");
             assert!(members.is_empty());
             assert!(fields.is_empty());
-            assert!(generics.is_empty());
-
-            assert!(heritage.implements_types.is_none());
-
-            let supers = heritage.extends_types.as_ref().expect("expected extends types");
-            assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
+            assert!(generic_parameters.is_empty());
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Day");
             });
         });
@@ -325,11 +321,10 @@ enum {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(descriptor.name.is_none());
+        assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, fields, .. }) => {
+            assert!(name.is_none());
             assert_eq!(fields.len(), 2);
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
@@ -361,22 +356,18 @@ enum Foo extends Day {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, generics, heritage, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+        assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, fields, generic_parameters, implements_types, .. }) => {
             // Foo
-            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+            assert_string!(parser, name.unwrap().string(), "Foo");
 
             // extends: Day
-            assert!(generics.is_empty());
-
-            let supers = heritage.extends_types.as_ref().expect("expected extends types");
-            assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
+            assert!(generic_parameters.is_empty());
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Day");
             });
-            assert!(heritage.implements_types.is_none());
 
             assert_eq!(fields.len(), 2);
 
@@ -410,9 +401,9 @@ enum CHAR {
         parser.eat_newline().unwrap();
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { fields, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
             assert_eq!(fields.len(), 3);
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
                 assert_string!(parser, name.string(), "\\v");
@@ -430,7 +421,7 @@ enum CHAR {
     }
 
     #[test]
-    fn test_parse_enum_with_static_parameters() {
+    fn test_parse_enum_with_generic_parameters() {
         let mut test = TestParser::new(
             r###"
 enum Machine<T: int32 = 3, IsSomething: boolean = true> {
@@ -446,24 +437,20 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+        assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, generic_parameters, fields, .. }) => {
             // Machine
-            assert_string!(parser, descriptor.name.unwrap().string(), "Machine");
+            assert_string!(parser, name.unwrap().string(), "Machine");
 
             // <T: int32 = 3, IsSomething: boolean = true>
-            assert!(!generics.is_empty());
-            assert!(generics.static_parameters.is_some());
-            let static_parameters = generics.static_parameters.as_ref().unwrap();
-            assert_eq!(static_parameters.len(), 2);
+            assert_eq!(generic_parameters.len(), 2);
             // T: int32 = 3
-            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, .. } => {
                 assert_string!(parser, *name, "T");
             });
             // IsSomething: boolean = true
-            assert_node!(parser.tree, static_parameters[1], Parameter::Named { name, .. } => {
+            assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, .. } => {
                 assert_string!(parser, *name, "IsSomething");
             });
 
@@ -485,18 +472,15 @@ enum Foo where Requirement: Interface {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(!generics.is_empty());
+        assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { where_clauses, fields, .. }) => {
+            assert_eq!(where_clauses.len(), 1);
 
             // where Requirement: Interface
-            let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");
-            assert_eq!(where_clauses.len(), 1);
             assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
-                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+                assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "Interface");
                 });
             });
@@ -528,17 +512,17 @@ enum Value {
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert!(
-                parser.tree.get_annotations(declaration_id.id).is_empty(),
+                parser.tree.get_decorators(declaration_id.id).is_empty(),
                 "expected no annotations on enum declaration owner"
             );
-            assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, members, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, members, .. }) => {
                 assert!(fields.is_empty());
                 assert!(members.is_empty());
             });
         });
 
         assert!(
-            parser.tree.get_annotations(expression_id.id).is_empty(),
+            parser.tree.get_decorators(expression_id.id).is_empty(),
             "expected no attached annotation nodes for dangling decorator"
         );
     }
@@ -567,27 +551,23 @@ Entry
 
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
                 assert_eq!(fields.len(), 1);
 
-                let annotations = parser.tree.get_annotations(fields[0].id);
+                let annotations = parser.tree.get_decorators(fields[0].id);
                 assert_eq!(annotations.len(), 2);
 
-                assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                assert_node!(parser.tree, annotations[0], Decorator { expression, position } => {
+                    assert_eq!(*position, DecoratorPosition::BlockPrefix);
                         assert_node!(parser.tree, *expression, Expression::Identifier { name } => {
                             assert_string!(parser, *name, "first");
                         });
-                    });
                 });
-                assert_node!(parser.tree, annotations[1], Annotation::Decorator { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                assert_node!(parser.tree, annotations[1], Decorator { expression, position } => {
+                    assert_eq!(*position, DecoratorPosition::BlockPrefix);
                         assert_node!(parser.tree, *expression, Expression::Identifier { name } => {
                             assert_string!(parser, *name, "second");
                         });
-                    });
                 });
             });
         });
@@ -619,13 +599,13 @@ B
 
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
                 assert_eq!(fields.len(), 2);
 
-                let first_annotations = parser.tree.get_annotations(fields[0].id);
+                let first_annotations = parser.tree.get_decorators(fields[0].id);
                 assert!(first_annotations.is_empty());
 
-                let second_annotations = parser.tree.get_annotations(fields[1].id);
+                let second_annotations = parser.tree.get_decorators(fields[1].id);
                 assert!(second_annotations.is_empty());
             });
         });
@@ -648,7 +628,7 @@ B
 
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(_declaration_id) => {
-            let annotations = parser.tree.get_annotations(expression_id.id);
+            let annotations = parser.tree.get_decorators(expression_id.id);
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comments().len(), 1);
