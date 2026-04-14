@@ -1,4 +1,5 @@
 mod r#async;
+mod call;
 mod cast;
 mod class;
 mod function;

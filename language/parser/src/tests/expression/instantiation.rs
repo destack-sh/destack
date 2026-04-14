@@ -366,7 +366,7 @@ await fetchListResult<{
     });
 }
 
-/// Parse a TypeScript call with shift-left static arguments.
+/// Parse a TypeScript call with shift-left generic arguments.
 #[test]
 fn test_parse_call_with_shift_left_generic_arguments() {
     let mut test = TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
@@ -375,9 +375,9 @@ fn test_parse_call_with_shift_left_generic_arguments() {
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
         assert!(dynamic_arguments.is_empty());
-        let static_args = generic_arguments.as_slice();
-        assert_eq!(static_args.len(), 1);
-        assert_node!(parser.tree, static_args[0], GenericArgument::Positional { value, .. } => {
+        let generic_arguments = generic_arguments.as_slice();
+        assert_eq!(generic_arguments.len(), 1);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -390,7 +390,7 @@ fn test_parse_call_with_shift_left_generic_arguments() {
     });
 }
 
-/// Parse shift-left static arguments in decorator context.
+/// Parse shift-left generic arguments in decorator context.
 #[test]
 fn test_parse_call_with_shift_left_generic_arguments_in_decorator_context() {
     let mut test = TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
@@ -405,12 +405,12 @@ fn test_parse_call_with_shift_left_generic_arguments_in_decorator_context() {
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
         assert!(dynamic_arguments.is_empty());
-        let static_args = generic_arguments.as_slice();
-        assert_eq!(static_args.len(), 1);
+        let generic_arguments = generic_arguments.as_slice();
+        assert_eq!(generic_arguments.len(), 1);
     });
 }
 
-/// Comparison operators should not be parsed as static arguments.
+/// Comparison operators should not be parsed as generic arguments.
 #[test]
 fn test_parse_generic_arguments_disambiguate_relational() {
     let mut test = TestParser::new("fn(x < y, x > y)");

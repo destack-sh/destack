@@ -379,7 +379,7 @@ fn test_parse_nested_generic_closings_in_type() {
     });
 }
 
-/// Tuple expressions inside static arguments should parse as a single argument.
+/// Tuple expressions inside generic arguments should parse as a single argument.
 #[test]
 fn test_parse_tuple_generic_argument() {
     let mut test = TestParser::new_with_options(
@@ -412,7 +412,7 @@ fn test_parse_tuple_generic_argument() {
     });
 }
 
-/// Parenthesized union expressions inside static arguments should stay grouped.
+/// Parenthesized union expressions inside generic arguments should stay grouped.
 #[test]
 fn test_parse_parenthesized_union_generic_argument() {
     let mut test = TestParser::new_with_options(
@@ -447,7 +447,7 @@ fn test_parse_parenthesized_union_generic_argument() {
     });
 }
 
-/// Nested generic arguments inside tuple static arguments should stay grouped.
+/// Nested generic arguments inside tuple generic arguments should stay grouped.
 #[test]
 fn test_parse_tuple_generic_argument_with_nested_generics() {
     let mut test = TestParser::new_with_options(
@@ -473,7 +473,7 @@ fn test_parse_tuple_generic_argument_with_nested_generics() {
     });
 }
 
-/// Tuple static arguments inside a conditional type should stay grouped.
+/// Tuple generic arguments inside a conditional type should stay grouped.
 #[test]
 fn test_parse_tuple_generic_argument_in_type_conditional() {
     let mut test = TestParser::new_with_options(

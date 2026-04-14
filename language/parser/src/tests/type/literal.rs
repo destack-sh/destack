@@ -644,11 +644,37 @@ fn test_parse_intrinsic_type_alias() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
+    test.assert_no_errors(&parser);
+
     // type Uppercase<S extends string> = intrinsic
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Intrinsic(intrinsic) } => {
-                assert_eq!(*intrinsic, IntrinsicType::Uppercase);
+            assert_node!(parser.tree, *value, TypeExpression::Intrinsic);
+        });
+    });
+}
+
+#[test]
+fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
+    let mut test = TestParser::new("type Uppercase<S extends string> = intrinsic<string>");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type Uppercase<S extends string> = intrinsic<string>
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "intrinsic");
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::String);
+                        });
+                    });
+                });
             });
         });
     });
