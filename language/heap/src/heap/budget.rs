@@ -3,40 +3,9 @@ use std::error::Error;
 use std::fmt;
 
 use super::{
-    HeapLimitError, HeapLimits, HeapUsage, ManagedLimits, MemoryUsage, RawLimits, SharedSpaceUsage,
+    Heap, HeapLimitError, HeapLimits, HeapUsage, ManagedLimits, MemoryUsage, RawLimits,
+    SharedSpaceUsage,
 };
-
-/// Hard limits for world-shared memory.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct SharedLimits {
-    /// Optional hard limit for active shared-memory bytes.
-    pub max_bytes: Option<u64>,
-}
-
-impl SharedLimits {
-    /// Check exact active shared-memory bytes against these limits.
-    pub fn check(&self, active_bytes: u64) -> Result<(), SharedLimitError> {
-        if let Some(max_bytes) = self.max_bytes
-            && active_bytes > max_bytes
-        {
-            return Err(SharedLimitError {
-                used_bytes: active_bytes,
-                max_bytes,
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Check active shared-memory bytes after one requested reservation.
-    pub fn check_active_reservation(
-        &self,
-        active_bytes: u64,
-        active_reservation: i64,
-    ) -> Result<(), SharedLimitError> {
-        self.check(apply_reservation(active_bytes, active_reservation))
-    }
-}
 
 /// Combined memory limits across local heap and shared memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -46,27 +15,6 @@ pub struct MemoryLimits {
     /// The shared-memory limits.
     pub shared: SharedLimits,
 }
-
-/// One shared-memory hard-limit violation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SharedLimitError {
-    /// The exact active shared-memory bytes.
-    pub used_bytes: u64,
-    /// The configured hard limit in bytes.
-    pub max_bytes: u64,
-}
-
-impl fmt::Display for SharedLimitError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "shared memory limit exceeded: using {} bytes with limit {}",
-            self.used_bytes, self.max_bytes,
-        )
-    }
-}
-
-impl Error for SharedLimitError {}
 
 /// One live admission budget for local heap operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -141,6 +89,28 @@ impl HeapBudget {
     pub fn refresh(&mut self, managed_active_bytes: u64, raw_active_bytes: u64) {
         self.managed.active_bytes = managed_active_bytes;
         self.raw.active_bytes = raw_active_bytes;
+    }
+}
+
+impl Heap {
+    /// Replace the heap hard limits.
+    pub fn set_limits(&mut self, limits: HeapLimits) -> Result<(), HeapLimitError> {
+        self.limits = limits;
+        self.check_limits()
+    }
+
+    /// Check the configured heap hard limits against current usage.
+    pub fn check_limits(&self) -> Result<(), HeapLimitError> {
+        self.budget().check_active_reservation(0, 0)
+    }
+
+    /// Return the current live heap budget.
+    pub fn budget(&self) -> HeapBudget {
+        HeapBudget::new(
+            self.limits,
+            self.managed.active_bytes(),
+            self.raw.active_bytes(),
+        )
     }
 }
 
@@ -219,3 +189,56 @@ fn apply_reservation(current: u64, reservation: i64) -> u64 {
         current.saturating_sub(reservation.unsigned_abs())
     }
 }
+
+/// Hard limits for world-shared memory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SharedLimits {
+    /// Optional hard limit for active shared-memory bytes.
+    pub max_bytes: Option<u64>,
+}
+
+impl SharedLimits {
+    /// Check exact active shared-memory bytes against these limits.
+    pub fn check(&self, active_bytes: u64) -> Result<(), SharedLimitError> {
+        if let Some(max_bytes) = self.max_bytes
+            && active_bytes > max_bytes
+        {
+            return Err(SharedLimitError {
+                used_bytes: active_bytes,
+                max_bytes,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Check active shared-memory bytes after one requested reservation.
+    pub fn check_active_reservation(
+        &self,
+        active_bytes: u64,
+        active_reservation: i64,
+    ) -> Result<(), SharedLimitError> {
+        self.check(apply_reservation(active_bytes, active_reservation))
+    }
+}
+
+/// One shared-memory hard-limit violation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SharedLimitError {
+    /// The exact active shared-memory bytes.
+    pub used_bytes: u64,
+    /// The configured hard limit in bytes.
+    pub max_bytes: u64,
+}
+
+impl fmt::Display for SharedLimitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "shared memory limit exceeded: using {} bytes with limit {}",
+            self.used_bytes, self.max_bytes,
+        )
+    }
+}
+
+impl Error for SharedLimitError {}

@@ -1,114 +1,30 @@
-use std::mem::size_of;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-
-use super::super::SharedSpace;
+use super::SharedSpace;
 use super::region::SharedRegion;
-use crate::heap::ImageAccounting;
+use crate::alloc::{Arena, PageId, PageMap};
 
-/// Approximate control-block bytes for one arc allocation.
-const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
-
-/// One serialized shared-memory region snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedRegionSnapshot {
-    /// Whether this region id is currently allocated.
-    pub is_allocated: bool,
-    /// The flattened shared-memory bytes for this region id.
-    pub bytes: Vec<u8>,
-}
-
-/// Serialized shared-memory snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedSpaceSnapshot {
-    /// Flattened shared-memory regions keyed by region id minus one.
-    pub regions: Vec<SharedRegionSnapshot>,
-    /// The next shared-memory region id to allocate.
-    pub next_unused_id: u64,
-    /// Flattened free shared-memory region ids.
-    pub free_ids: Vec<u64>,
-    /// The number of allocated shared-memory regions.
-    pub allocated_count: usize,
-    /// The number of allocated shared-memory bytes.
-    pub allocated_bytes: u64,
-    /// The configured shared page width.
-    pub page_bytes: usize,
-}
-
-/// One immutable shared-memory region image.
+/// One frozen shared-memory region root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRegionImage {
     /// Whether this region id is currently allocated.
     pub is_allocated: bool,
     /// The logical byte length of this region.
     pub len: usize,
-    /// The page width used by this region.
-    pub page_bytes: usize,
-    /// The immutable chunk leaves captured for this region id.
-    pub(crate) chunks: Vec<Arc<[u8]>>,
+    /// The page run for this region.
+    pub pages: PageMap,
 }
 
-impl SharedRegionImage {
-    /// Report whether this region image shares immutable chunk storage with another image.
-    pub fn shares_storage_with(&self, other: &Self) -> bool {
-        self.is_allocated == other.is_allocated
-            && self.len == other.len
-            && self.page_bytes == other.page_bytes
-            && self.chunks.len() == other.chunks.len()
-            && self
-                .chunks
-                .iter()
-                .zip(other.chunks.iter())
-                .all(|(left, right)| Arc::ptr_eq(left, right))
-    }
-
-    /// Flatten this region image into one contiguous byte vector.
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.len);
-
-        for chunk in self.chunks.iter() {
-            bytes.extend_from_slice(chunk.as_ref());
-        }
-
-        bytes.truncate(self.len);
-        bytes
-    }
-
-    /// Return the exact owned bytes for this durable region image.
-    pub fn image_bytes(&self) -> usize {
-        let mut image_bytes = size_of::<Self>();
-        image_bytes += self.chunks.len() * size_of::<Arc<[u8]>>();
-
-        for chunk in self.chunks.iter() {
-            image_bytes += ARC_CONTROL_BLOCK_BYTES + chunk.len();
-        }
-
-        image_bytes
-    }
-
-    /// Account this region image into deduplicated retained-image bytes.
-    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
-        let mut image_bytes = size_of::<Self>();
-        image_bytes += self.chunks.len() * size_of::<Arc<[u8]>>();
-
-        for chunk in self.chunks.iter() {
-            image_bytes += accounting.account_arc_bytes(chunk);
-        }
-
-        image_bytes
-    }
-}
-
-/// Immutable shared-memory image.
+/// One frozen shared-memory root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedImage {
+pub struct SharedSpaceImage {
     /// Captured shared-memory regions keyed by region id minus one.
-    regions: Vec<SharedRegionImage>,
+    regions: Box<[SharedRegionImage]>,
     /// The next shared-memory region id to allocate.
     next_unused_id: u64,
     /// The captured free shared-memory region ids.
-    free_ids: Arc<[u64]>,
+    free_ids: Box<[u64]>,
     /// The number of allocated shared-memory regions.
     allocated_count: usize,
     /// The number of allocated shared-memory bytes.
@@ -117,33 +33,45 @@ pub struct SharedImage {
     page_bytes: usize,
 }
 
-impl SharedImage {
+impl SharedSpaceImage {
+    /// Create one frozen shared-memory root.
+    pub fn new(
+        regions: Box<[SharedRegionImage]>,
+        next_unused_id: u64,
+        free_ids: Box<[u64]>,
+        allocated_count: usize,
+        allocated_bytes: u64,
+        page_bytes: usize,
+    ) -> Self {
+        Self {
+            regions,
+            next_unused_id,
+            free_ids,
+            allocated_count,
+            allocated_bytes,
+            page_bytes,
+        }
+    }
+
     /// Return one shared region image by index.
     pub fn region(&self, index: usize) -> Option<&SharedRegionImage> {
         self.regions.get(index)
     }
 
-    /// Build one shared-memory image from one shared-memory snapshot.
+    /// Build one shared-memory image from one serialized snapshot.
     pub fn from_snapshot(snapshot: &SharedSpaceSnapshot) -> Self {
+        // restore the frozen region roots first
         let regions = snapshot
             .regions
             .iter()
-            .map(|region| SharedRegionImage {
-                is_allocated: region.is_allocated,
-                len: region.bytes.len(),
-                page_bytes: snapshot.page_bytes,
-                chunks: region
-                    .bytes
-                    .chunks(snapshot.page_bytes)
-                    .map(|chunk| Arc::from(chunk.to_vec().into_boxed_slice()))
-                    .collect::<Vec<_>>(),
-            })
-            .collect::<Vec<_>>();
+            .map(Self::restore_region_image)
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
 
         Self {
             regions,
             next_unused_id: snapshot.next_unused_id,
-            free_ids: Arc::from(snapshot.free_ids.as_slice()),
+            free_ids: snapshot.free_ids.clone(),
             allocated_count: snapshot.allocated_count,
             allocated_bytes: snapshot.allocated_bytes,
             page_bytes: snapshot.page_bytes,
@@ -156,96 +84,170 @@ impl SharedImage {
             regions: self
                 .regions
                 .iter()
-                .map(|region| SharedRegionSnapshot {
-                    is_allocated: region.is_allocated,
-                    bytes: region.to_vec(),
-                })
-                .collect(),
+                .map(Self::capture_region_snapshot)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
             next_unused_id: self.next_unused_id,
-            free_ids: self.free_ids.iter().copied().collect(),
+            free_ids: self.free_ids.clone(),
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
             page_bytes: self.page_bytes,
         }
     }
 
-    /// Return the exact owned bytes for this durable shared-memory image.
-    pub fn image_bytes(&self) -> usize {
-        let mut image_bytes = size_of::<Self>();
-        image_bytes += self.regions.capacity() * size_of::<SharedRegionImage>();
-        image_bytes += ARC_CONTROL_BLOCK_BYTES + self.free_ids.len() * size_of::<u64>();
-
-        for region in &self.regions {
-            image_bytes += region.image_bytes();
-        }
-
-        image_bytes
+    /// Return the frozen shared-memory regions.
+    pub fn regions(&self) -> &[SharedRegionImage] {
+        &self.regions
     }
 
-    /// Account this shared image into deduplicated retained-image bytes.
-    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
-        let mut image_bytes = size_of::<Self>();
-        image_bytes += self.regions.capacity() * size_of::<SharedRegionImage>();
-        image_bytes += accounting.account_arc_u64_slice(&self.free_ids);
+    /// Return the next shared-memory region id.
+    pub const fn next_unused_id(&self) -> u64 {
+        self.next_unused_id
+    }
 
-        for region in &self.regions {
-            image_bytes += region.retained_image_bytes(accounting);
+    /// Return the frozen free region ids.
+    pub fn free_ids(&self) -> &[u64] {
+        &self.free_ids
+    }
+
+    /// Return the number of allocated regions.
+    pub const fn allocated_count(&self) -> usize {
+        self.allocated_count
+    }
+
+    /// Return the allocated shared bytes.
+    pub const fn allocated_bytes(&self) -> u64 {
+        self.allocated_bytes
+    }
+
+    /// Return the shared page width.
+    pub const fn page_bytes(&self) -> usize {
+        self.page_bytes
+    }
+
+    /// Return every arena page reachable from this shared-memory image.
+    pub fn page_ids(&self) -> Vec<PageId> {
+        let mut pages = Vec::new();
+
+        // collect every frozen region page
+        for region in &*self.regions {
+            pages.extend(region.pages.page_ids());
         }
 
-        image_bytes
+        pages
+    }
+
+    /// Restore one frozen shared region from one serialized snapshot.
+    fn restore_region_image(region: &SharedRegionSnapshot) -> SharedRegionImage {
+        SharedRegionImage {
+            is_allocated: region.is_allocated,
+            len: region.len,
+            pages: region.pages.clone(),
+        }
+    }
+
+    /// Capture one serialized shared region snapshot.
+    fn capture_region_snapshot(region: &SharedRegionImage) -> SharedRegionSnapshot {
+        SharedRegionSnapshot {
+            is_allocated: region.is_allocated,
+            len: region.len,
+            pages: region.pages.clone(),
+        }
     }
 }
 
+/// One serialized shared-memory region snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedRegionSnapshot {
+    /// Whether this region id is currently allocated.
+    pub is_allocated: bool,
+    /// The logical byte length of this region.
+    pub len: usize,
+    /// The page run for this region.
+    pub pages: PageMap,
+}
+
+/// One serialized shared-memory snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedSpaceSnapshot {
+    /// Serialized shared-memory regions keyed by region id minus one.
+    pub regions: Box<[SharedRegionSnapshot]>,
+    /// The next shared-memory region id to allocate.
+    pub next_unused_id: u64,
+    /// Serialized free shared-memory region ids.
+    pub free_ids: Box<[u64]>,
+    /// The number of allocated shared-memory regions.
+    pub allocated_count: usize,
+    /// The number of allocated shared-memory bytes.
+    pub allocated_bytes: u64,
+    /// The configured shared page width.
+    pub page_bytes: usize,
+}
+
 impl SharedSpace {
-    /// Create one shared-memory space directly from one shared-memory image.
-    pub fn from_image(image: &SharedImage) -> Self {
-        let regions = image
-            .regions
+    /// Create one shared-memory space from one frozen shared-memory root.
+    pub fn from_image(image: &SharedSpaceImage) -> Self {
+        let arena = Arc::new(Arena::with_page_bytes(image.page_bytes()));
+
+        Self::from_image_with_arena(arena, image)
+    }
+
+    /// Create one shared-memory space from one frozen shared-memory root over one shared arena.
+    pub fn from_image_with_arena(arena: Arc<Arena>, image: &SharedSpaceImage) -> Self {
+        // retain the shared backing first
+        Self::retain_image_pages(&arena, image);
+
+        // rebuild the live root over the retained pages
+        let mut space = Self::with_arena(arena);
+        space.regions = image
+            .regions()
             .iter()
             .map(SharedRegion::from_image)
-            .collect::<Vec<_>>();
-        let free_ids = image.free_ids.iter().copied().collect();
-
-        let mut space = Self {
-            page_bytes: image.page_bytes,
-            regions,
-            page_arena: crate::alloc::PageArena::with_page_bytes(image.page_bytes),
-            free_ids,
-            next_unused_id: image.next_unused_id,
-            allocated_count: image.allocated_count,
-            allocated_bytes: image.allocated_bytes,
-            retained_bytes: 0,
-        };
-
-        // exact retained bytes
-        space.recompute_retained_bytes();
-
+            .collect();
+        space.next_unused_id = image.next_unused_id();
+        space.free_ids = image.free_ids().to_vec();
+        space.allocated_count = image.allocated_count();
+        space.allocated_bytes = image.allocated_bytes();
         space
     }
 
-    /// Capture one immutable shared-memory section.
-    pub fn image(&mut self, base: Option<&SharedImage>) -> SharedImage {
-        let regions = self
-            .regions
-            .iter_mut()
-            .enumerate()
-            .map(|(index, region)| {
-                region.image(
-                    &mut self.page_arena,
-                    base.and_then(|image| image.regions.get(index)),
-                )
-            })
-            .collect::<Vec<_>>();
-        let _ = base;
-        let free_ids = Arc::from(self.free_ids.as_slice());
+    /// Return one frozen shared-memory root.
+    pub fn image(&self) -> SharedSpaceImage {
+        // capture the live regions directly
+        let regions = self.capture_region_images();
 
-        SharedImage {
+        SharedSpaceImage::new(
             regions,
-            next_unused_id: self.next_unused_id,
-            free_ids,
-            allocated_count: self.allocated_count,
-            allocated_bytes: self.allocated_bytes,
-            page_bytes: self.page_bytes,
+            self.next_unused_id,
+            self.free_ids.clone().into_boxed_slice(),
+            self.allocated_count,
+            self.allocated_bytes,
+            self.page_bytes(),
+        )
+    }
+
+    /// Retain every arena page reachable from one frozen shared-space root.
+    fn retain_image_pages(arena: &Arc<Arena>, image: &SharedSpaceImage) {
+        for region in image.regions() {
+            arena.retain_pages(&region.pages);
+        }
+    }
+
+    /// Capture every live shared region image.
+    fn capture_region_images(&self) -> Box<[SharedRegionImage]> {
+        self.regions
+            .iter()
+            .map(Self::capture_region_image)
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
+    }
+
+    /// Capture one live shared region image.
+    fn capture_region_image(region: &SharedRegion) -> SharedRegionImage {
+        SharedRegionImage {
+            is_allocated: region.is_allocated,
+            len: region.len,
+            pages: region.pages.clone(),
         }
     }
 }

@@ -1,11 +1,13 @@
+mod arena;
 mod bitmap;
 mod card;
-mod chunk;
 mod class;
 mod page;
+mod segment;
 
+pub use arena::*;
 pub use bitmap::*;
 pub(crate) use card::*;
-pub(crate) use chunk::*;
 pub use class::*;
 pub use page::*;
+pub(crate) use segment::*;

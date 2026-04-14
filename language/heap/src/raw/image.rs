@@ -1,155 +1,387 @@
-use std::mem::size_of;
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 
-use super::{RawHandleEntry, RawLargeAllocationImage, RawSpace, RawSpanImage};
-use crate::alloc::SizeClassTable;
-use crate::heap::ImageAccounting;
+use std::sync::Arc;
 
-/// Approximate control-block bytes for one arc allocation.
-const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
+use super::{Allocation, AllocationImage, RawPointerRecord, RawSpace, Span, SpanImage};
+use crate::alloc::{Arena, SizeClassTable};
 
-/// One immutable raw-space image.
+/// One frozen raw-space root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RawSpaceImage {
+    /// The configured size-class table.
+    size_classes: SizeClassTable,
+    /// The configured small-space span width.
+    small_bytes: usize,
+    /// The configured local page width.
+    page_bytes: usize,
+    /// The captured raw spans.
+    spans: Box<[SpanImage]>,
+    /// The captured raw allocations in large space.
+    allocations: Box<[AllocationImage]>,
+    /// Dense raw pointer metadata keyed by allocation id minus one.
+    pointers: Box<[RawPointerRecord]>,
+    /// The next raw allocation id to allocate.
+    next_unused_pointer_id: u64,
+    /// The next raw allocation id to allocate in large space.
+    next_unused_allocation_id: u64,
+    /// The number of live raw allocations.
+    allocated_count: usize,
+    /// The number of live raw bytes.
+    allocated_bytes: u64,
+}
+
+/// One serialized raw-space snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RawImage {
+pub(crate) struct RawSpaceSnapshot {
     /// The configured size-class table.
     pub(crate) size_classes: SizeClassTable,
     /// The configured small-space span width.
     pub(crate) small_bytes: usize,
     /// The configured local page width.
     pub(crate) page_bytes: usize,
-    /// The captured raw spans.
-    pub(crate) spans: Vec<RawSpanImage>,
-    /// The captured raw large allocations.
-    pub(crate) large_allocations: Vec<RawLargeAllocationImage>,
-    /// Dense raw handle metadata keyed by allocation id minus one.
-    pub(crate) handles: Arc<[RawHandleEntry]>,
-    /// The free raw allocation id at the head of the intrusive free list.
-    pub(crate) free_handle_head: u64,
-    /// The captured free raw large-allocation ids.
-    pub(crate) free_large_allocation_ids: Arc<[u64]>,
+    /// The serialized raw spans.
+    pub(crate) spans: Box<[SpanImage]>,
+    /// The serialized raw allocations in large space.
+    pub(crate) allocations: Box<[AllocationImage]>,
+    /// Dense raw pointer metadata keyed by allocation id minus one.
+    pub(crate) pointers: Box<[RawPointerRecord]>,
     /// The next raw allocation id to allocate.
-    pub(crate) next_unused_id: u64,
-    /// The next raw large-allocation id to allocate.
-    pub(crate) next_unused_large_allocation_id: u64,
+    pub(crate) next_unused_pointer_id: u64,
+    /// The next raw allocation id to allocate in large space.
+    pub(crate) next_unused_allocation_id: u64,
     /// The number of live raw allocations.
     pub(crate) allocated_count: usize,
     /// The number of live raw bytes.
     pub(crate) allocated_bytes: u64,
 }
 
-/// One serialized raw-space snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RawSpaceSnapshot {
-    /// The configured size-class table.
-    pub size_classes: SizeClassTable,
-    /// The configured small-space span width.
-    pub small_bytes: usize,
-    /// The configured local page width.
-    pub page_bytes: usize,
-    /// The flattened raw spans.
-    pub spans: Vec<RawSpanImage>,
-    /// The flattened raw large allocations.
-    pub large_allocations: Vec<RawLargeAllocationImage>,
-    /// Dense raw handle metadata keyed by allocation id minus one.
-    pub handles: Vec<RawHandleEntry>,
-    /// The free raw allocation id at the head of the intrusive free list.
-    pub free_handle_head: u64,
-    /// The flattened free raw large-allocation ids.
-    pub free_large_allocation_ids: Vec<u64>,
-    /// The next raw allocation id to allocate.
-    pub next_unused_id: u64,
-    /// The next raw large-allocation id to allocate.
-    pub next_unused_large_allocation_id: u64,
-    /// The number of live raw allocations.
-    pub allocated_count: usize,
-    /// The number of live raw bytes.
-    pub allocated_bytes: u64,
-}
+impl RawSpaceImage {
+    /// Create one frozen raw-space root.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        size_classes: SizeClassTable,
+        small_bytes: usize,
+        page_bytes: usize,
+        spans: Box<[SpanImage]>,
+        allocations: Box<[AllocationImage]>,
+        pointers: Box<[RawPointerRecord]>,
+        next_unused_pointer_id: u64,
+        next_unused_allocation_id: u64,
+        allocated_count: usize,
+        allocated_bytes: u64,
+    ) -> Self {
+        Self {
+            size_classes,
+            small_bytes,
+            page_bytes,
+            spans,
+            allocations,
+            pointers,
+            next_unused_pointer_id,
+            next_unused_allocation_id,
+            allocated_count,
+            allocated_bytes,
+        }
+    }
 
-impl RawImage {
-    /// Build one raw-space image from one serialized snapshot.
+    /// Build one frozen raw-space root from one serialized snapshot.
     pub(crate) fn from_snapshot(snapshot: &RawSpaceSnapshot) -> Self {
         Self {
             size_classes: snapshot.size_classes.clone(),
             small_bytes: snapshot.small_bytes,
             page_bytes: snapshot.page_bytes,
             spans: snapshot.spans.clone(),
-            large_allocations: snapshot.large_allocations.clone(),
-            handles: Arc::from(snapshot.handles.as_slice()),
-            free_handle_head: snapshot.free_handle_head,
-            free_large_allocation_ids: Arc::from(snapshot.free_large_allocation_ids.as_slice()),
-            next_unused_id: snapshot.next_unused_id,
-            next_unused_large_allocation_id: snapshot.next_unused_large_allocation_id,
+            allocations: snapshot.allocations.clone(),
+            pointers: snapshot.pointers.clone(),
+            next_unused_pointer_id: snapshot.next_unused_pointer_id,
+            next_unused_allocation_id: snapshot.next_unused_allocation_id,
             allocated_count: snapshot.allocated_count,
             allocated_bytes: snapshot.allocated_bytes,
         }
     }
 
-    /// Flatten one raw-space image into one serialized snapshot.
+    /// Flatten one frozen raw-space root into one serialized snapshot.
     pub(crate) fn snapshot(&self) -> RawSpaceSnapshot {
         RawSpaceSnapshot {
             size_classes: self.size_classes.clone(),
             small_bytes: self.small_bytes,
             page_bytes: self.page_bytes,
-            spans: self.spans.to_vec(),
-            large_allocations: self.large_allocations.to_vec(),
-            handles: self.handles.iter().copied().collect(),
-            free_handle_head: self.free_handle_head,
-            free_large_allocation_ids: self.free_large_allocation_ids.iter().copied().collect(),
-            next_unused_id: self.next_unused_id,
-            next_unused_large_allocation_id: self.next_unused_large_allocation_id,
+            spans: self.spans.clone(),
+            allocations: self.allocations.clone(),
+            pointers: self.pointers.clone(),
+            next_unused_pointer_id: self.next_unused_pointer_id,
+            next_unused_allocation_id: self.next_unused_allocation_id,
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
         }
     }
 
-    /// Return the exact owned bytes for this durable raw-space image.
-    pub fn image_bytes(&self) -> usize {
-        let mut image_bytes = size_of::<Self>();
-        image_bytes += self.spans.capacity() * size_of::<RawSpanImage>();
-        image_bytes += self.large_allocations.capacity() * size_of::<RawLargeAllocationImage>();
-        image_bytes += ARC_CONTROL_BLOCK_BYTES + self.handles.len() * size_of::<RawHandleEntry>();
-        image_bytes +=
-            ARC_CONTROL_BLOCK_BYTES + self.free_large_allocation_ids.len() * size_of::<u64>();
-        image_bytes += self.size_classes.retained_bytes();
-
-        for span in &self.spans {
-            image_bytes += span.image_bytes();
-        }
-
-        for large_allocation in &self.large_allocations {
-            image_bytes += large_allocation.image_bytes();
-        }
-
-        image_bytes
+    /// Return the captured raw spans.
+    pub(crate) fn spans(&self) -> &[SpanImage] {
+        &self.spans
     }
 
-    /// Account this raw image into deduplicated retained-image bytes.
-    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
-        let mut image_bytes = size_of::<Self>();
-        image_bytes += self.spans.capacity() * size_of::<RawSpanImage>();
-        image_bytes += self.large_allocations.capacity() * size_of::<RawLargeAllocationImage>();
-        image_bytes += accounting.account_raw_handles(&self.handles);
-        image_bytes += accounting.account_arc_u64_slice(&self.free_large_allocation_ids);
-        image_bytes += self.size_classes.retained_bytes();
+    /// Return the captured raw allocations in large space.
+    pub(crate) fn allocations(&self) -> &[AllocationImage] {
+        &self.allocations
+    }
 
-        for span in &self.spans {
-            image_bytes += span.retained_image_bytes(accounting);
-        }
+    /// Return the configured size-class table.
+    pub(crate) fn size_classes(&self) -> &SizeClassTable {
+        &self.size_classes
+    }
 
-        for large_allocation in &self.large_allocations {
-            image_bytes += large_allocation.retained_image_bytes(accounting);
-        }
+    /// Return the configured small-space span width.
+    pub(crate) const fn small_bytes(&self) -> usize {
+        self.small_bytes
+    }
 
-        image_bytes
+    /// Return the configured local page width.
+    pub(crate) const fn page_bytes(&self) -> usize {
+        self.page_bytes
+    }
+
+    /// Return the captured raw pointer table.
+    pub(crate) fn pointers(&self) -> &[RawPointerRecord] {
+        &self.pointers
+    }
+
+    /// Return the next raw allocation id.
+    pub(crate) const fn next_unused_pointer_id(&self) -> u64 {
+        self.next_unused_pointer_id
+    }
+
+    /// Return the next raw allocation id in large space.
+    pub(crate) const fn next_unused_allocation_id(&self) -> u64 {
+        self.next_unused_allocation_id
+    }
+
+    /// Return the number of live raw allocations.
+    pub(crate) const fn allocated_count(&self) -> usize {
+        self.allocated_count
+    }
+
+    /// Return the number of live raw bytes.
+    pub(crate) const fn allocated_bytes(&self) -> u64 {
+        self.allocated_bytes
     }
 }
 
 impl RawSpace {
-    /// Restore one raw space from one serialized snapshot.
-    pub fn from_snapshot(snapshot: &RawSpaceSnapshot) -> Self {
-        Self::from_image(&RawImage::from_snapshot(snapshot))
+    /// Restore one raw space from one frozen raw-space root.
+    pub(crate) fn from_image(arena: Arc<Arena>, image: &RawSpaceImage) -> Self {
+        // retain the shared backing first
+        Self::retain_image_pages(&arena, image);
+
+        // rebuild the dense metadata tables
+        let pointers = Self::restore_pointer_table(image);
+        let free_pointer_ids = Self::free_pointer_ids(image);
+
+        // rebuild each live raw storage partition
+        let small = Self::restore_small_space(image);
+        let large = Self::restore_large_space(image);
+
+        // rebuild the live root over the shared arena
+        Self {
+            arena,
+            small,
+            large,
+            pointers,
+            free_pointer_ids,
+            next_unused_pointer_id: image.next_unused_pointer_id(),
+            allocated_count: image.allocated_count(),
+            allocated_bytes: image.allocated_bytes(),
+        }
+    }
+
+    /// Return one frozen raw-space root.
+    pub(crate) fn image(&self) -> RawSpaceImage {
+        // capture the live raw storage directly
+        let spans = self.capture_span_images();
+        let allocations = self.capture_allocation_images();
+        let pointers = self.capture_pointer_table();
+
+        // freeze the current raw root
+        RawSpaceImage::new(
+            self.small.size_classes.clone(),
+            self.small.span_bytes,
+            self.large.page_bytes,
+            spans,
+            allocations,
+            pointers,
+            self.next_unused_pointer_id,
+            self.large.next_unused_allocation_id,
+            self.allocated_count,
+            self.allocated_bytes,
+        )
+    }
+
+    /// Retain every arena page reachable from one frozen raw-space root.
+    fn retain_image_pages(arena: &Arc<Arena>, image: &RawSpaceImage) {
+        // retain every captured span root
+        for span in image.spans() {
+            arena.retain_pages(&span.pages);
+        }
+
+        // retain every captured large allocation root
+        for allocation in image.allocations() {
+            arena.retain_pages(&allocation.pages);
+        }
+    }
+
+    /// Rebuild the dense raw pointer table from one frozen image.
+    fn restore_pointer_table(image: &RawSpaceImage) -> Vec<RawPointerRecord> {
+        image.pointers().to_vec()
+    }
+
+    /// Restore the raw small-allocation space from one frozen image.
+    fn restore_small_space(image: &RawSpaceImage) -> super::SmallSpace {
+        // restore the captured span roots first
+        let spans = image
+            .spans()
+            .iter()
+            .map(Self::restore_span)
+            .collect::<Vec<_>>();
+
+        let mut small = super::SmallSpace {
+            size_classes: image.size_classes().clone(),
+            span_bytes: image.small_bytes(),
+            spans,
+            available_spans: vec![Vec::new(); image.size_classes().classes.len()],
+        };
+
+        // rebuild the derived span occupancy state
+        Self::restore_available_spans(&mut small);
+
+        small
+    }
+
+    /// Rebuild the derived reusable-span state for one restored small space.
+    fn restore_available_spans(small: &mut super::SmallSpace) {
+        for (span_index, span) in small.spans.iter_mut().enumerate() {
+            // rebuild the derived per-span occupancy counters
+            span.occupied_count = span.occupied.count_ones();
+            span.next_free_slot = span.occupied.first_clear_from(0).unwrap_or(span.slot_count);
+
+            // requeue every non-full span under its size class
+            if span.occupied_count >= span.slot_count {
+                continue;
+            }
+
+            let Some(class_index) = small.size_classes.class_index_for(span.size_class) else {
+                continue;
+            };
+
+            small.available_spans[class_index].push(span_index);
+        }
+    }
+
+    /// Restore one raw span from one frozen span root.
+    fn restore_span(span: &SpanImage) -> Span {
+        Span {
+            size_class: span.size_class,
+            slot_count: span.slot_count,
+            occupied_count: 0,
+            next_free_slot: 0,
+            lengths: span.lengths.clone(),
+            occupied: span.occupied.clone(),
+            pages: span.pages.clone(),
+        }
+    }
+
+    /// Restore the raw large space from one frozen image.
+    fn restore_large_space(image: &RawSpaceImage) -> super::LargeSpace {
+        // rebuild the captured allocation roots first
+        let allocations = image
+            .allocations()
+            .iter()
+            .map(Self::restore_allocation)
+            .collect();
+
+        // rebuild the reusable allocation ids from the frozen table
+        let free_allocation_ids = Self::free_allocation_ids(image);
+
+        super::LargeSpace {
+            page_bytes: image.page_bytes(),
+            allocations,
+            free_allocation_ids,
+            next_unused_allocation_id: image.next_unused_allocation_id(),
+        }
+    }
+
+    /// Restore one raw allocation from one frozen allocation root.
+    fn restore_allocation(allocation: &AllocationImage) -> Allocation {
+        Allocation {
+            is_allocated: allocation.is_allocated,
+            len: allocation.len,
+            pages: allocation.pages.clone(),
+        }
+    }
+
+    /// Return the reusable raw allocation ids from one frozen image.
+    fn free_allocation_ids(image: &RawSpaceImage) -> Vec<u64> {
+        image
+            .allocations()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, allocation)| {
+                (!allocation.is_allocated).then_some(index as u64 + 1)
+            })
+            .collect()
+    }
+
+    /// Return the reusable raw pointer ids from one frozen image.
+    fn free_pointer_ids(image: &RawSpaceImage) -> Vec<u64> {
+        image
+            .pointers()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, record)| record.is_vacant().then_some(index as u64 + 1))
+            .collect()
+    }
+
+    /// Capture the dense raw pointer table.
+    fn capture_pointer_table(&self) -> Box<[RawPointerRecord]> {
+        self.pointers.clone().into_boxed_slice()
+    }
+
+    /// Capture every live raw span image.
+    fn capture_span_images(&self) -> Box<[SpanImage]> {
+        self.small
+            .spans
+            .iter()
+            .map(Self::capture_span_image)
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
+    }
+
+    /// Capture one live raw span image.
+    fn capture_span_image(span: &Span) -> SpanImage {
+        SpanImage {
+            size_class: span.size_class,
+            slot_count: span.slot_count,
+            lengths: span.lengths.clone(),
+            occupied: span.occupied.clone(),
+            pages: span.pages.clone(),
+        }
+    }
+
+    /// Capture every live raw allocation image in large space.
+    fn capture_allocation_images(&self) -> Box<[AllocationImage]> {
+        self.large
+            .allocations
+            .iter()
+            .map(Self::capture_allocation_image)
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
+    }
+
+    /// Capture one live raw allocation image in large space.
+    fn capture_allocation_image(allocation: &Allocation) -> AllocationImage {
+        AllocationImage {
+            is_allocated: allocation.is_allocated,
+            len: allocation.len,
+            pages: allocation.pages.clone(),
+        }
     }
 }

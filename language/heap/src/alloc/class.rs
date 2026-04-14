@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::{DEFAULT_SIZE_CLASS_BYTES, DEFAULT_SIZE_CLASS_TABLE_NAME};
+
 /// One fixed-size small allocation class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SizeClass {
@@ -40,6 +42,20 @@ impl SizeClassTable {
         })
     }
 
+    /// Return the built-in default size-class table.
+    pub fn default_table() -> Self {
+        debug_assert!(Self::validate(DEFAULT_SIZE_CLASS_BYTES).is_ok());
+
+        Self {
+            name: DEFAULT_SIZE_CLASS_TABLE_NAME.to_string(),
+            classes: DEFAULT_SIZE_CLASS_BYTES
+                .iter()
+                .copied()
+                .map(SizeClass::new)
+                .collect(),
+        }
+    }
+
     /// Return the largest span-allocated payload size in bytes.
     pub fn max_small_allocation_bytes(&self) -> usize {
         self.classes
@@ -71,17 +87,6 @@ impl SizeClassTable {
         self.name.capacity() + self.classes.capacity() * std::mem::size_of::<SizeClass>()
     }
 
-    /// Return the built-in default size-class table.
-    pub fn default_table() -> Self {
-        Self::new(
-            "default",
-            [
-                16, 24, 32, 48, 64, 80, 96, 128, 160, 192, 256, 320, 384, 512, 768, 1024, 1536,
-                2048, 3072, 4096,
-            ],
-        )
-        .expect("default size-class table must be valid")
-    }
 
     /// Resolve one configured size-class selection.
     pub fn from_selection(
@@ -104,7 +109,6 @@ impl SizeClassTable {
         }
 
         let mut previous = 0usize;
-
         for &bytes in classes {
             if bytes == 0 {
                 return Err(SizeClassTableError::ZeroClass);

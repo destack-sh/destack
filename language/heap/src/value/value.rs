@@ -60,15 +60,15 @@ impl std::fmt::Debug for Value {
                 write!(f, "Char('{char_val}')")
             }
             ValueTag::ManagedReference => {
-                let handle = self.as_managed_reference().unwrap();
-                if handle.slot_offset() == 0 {
-                    write!(f, "ManagedReference({})", handle.id())
+                let reference = self.as_managed_reference().unwrap();
+                if reference.slot_offset() == 0 {
+                    write!(f, "ManagedReference({})", reference.id())
                 } else {
                     write!(
                         f,
                         "ManagedReference({}, slot {})",
-                        handle.id(),
-                        handle.slot_offset()
+                        reference.id(),
+                        reference.slot_offset()
                     )
                 }
             }
@@ -308,17 +308,17 @@ impl Value {
 
     /// Create a managed heap reference value.
     #[inline]
-    pub const fn managed_reference(handle: ManagedReference) -> Self {
+    pub const fn managed_reference(reference: ManagedReference) -> Self {
         Self {
-            data: handle.0,
+            data: reference.0,
             meta: Self::make_meta(ValueTag::ManagedReference, 0),
         }
     }
 
     /// Create a managed heap reference value with explicit metadata.
     #[inline]
-    pub fn managed_reference_with_meta(handle: ManagedReference, meta: ReferenceMeta) -> Self {
-        Self::managed_reference(handle).with_reference_meta(meta)
+    pub fn managed_reference_with_meta(reference: ManagedReference, meta: ReferenceMeta) -> Self {
+        Self::managed_reference(reference).with_reference_meta(meta)
     }
 
     /// Create a raw pointer value.

@@ -1,6 +1,7 @@
-mod heap;
+mod bytes;
 mod image;
 mod region;
+mod space;
 
-pub use heap::*;
 pub use image::*;
+pub use space::*;
