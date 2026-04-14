@@ -1,747 +1,281 @@
-use std::mem;
+use std::collections::VecDeque;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 
-use super::super::value::{ManagedReference, Value};
-use super::{GcKind, GcPhase, GcStats, ManagedLocation, ManagedSpace, YOUNG_PROMOTION_AGE};
+use super::{GcKind, GcStats, ManagedLocation, ManagedSpace, ManagedYoungId, ReferenceMapError};
+use crate::value::ManagedReference;
+
+/// Managed collection failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ManagedCollectError {
+    /// One managed payload failed to trace its references.
+    Trace {
+        /// The managed allocation being traced.
+        reference: ManagedReference,
+        /// The underlying tracing failure.
+        error: ReferenceMapError,
+    },
+}
+
+impl Display for ManagedCollectError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Trace { reference, error } => {
+                write!(
+                    formatter,
+                    "managed heap tracing failed for reference {}: {error}",
+                    reference.id()
+                )
+            }
+        }
+    }
+}
+
+impl Error for ManagedCollectError {}
 
 impl ManagedSpace {
-    /// Begin one full GC cycle.
-    pub fn begin_gc_cycle(&mut self, roots: impl IntoIterator<Item = Value>) {
-        if self.gc_state.phase != GcPhase::Idle {
-            return;
-        }
-
-        self.begin_collection(GcKind::Full);
-
-        // explicit roots
-        for root in roots {
-            self.mark_value(root);
-        }
+    /// Return the currently allocated managed references.
+    pub fn allocated_references(&self) -> Vec<ManagedReference> {
+        // compact the dense table back into stable live references
+        self.references
+            .iter()
+            .enumerate()
+            .filter_map(|(index, record)| {
+                (!record.is_vacant()).then_some(ManagedReference::new(index as u64 + 1))
+            })
+            .collect()
     }
 
-    /// Begin one young-generation GC cycle.
-    pub fn begin_minor_gc_cycle(&mut self, roots: impl IntoIterator<Item = ManagedReference>) {
-        if self.gc_state.phase != GcPhase::Idle {
-            return;
-        }
+    /// Perform one young-generation collection over explicit managed roots.
+    pub fn collect_young_references<I>(&mut self, roots: I) -> Result<GcStats, ManagedCollectError>
+    where
+        I: IntoIterator<Item = ManagedReference>,
+    {
+        // begin one minor cycle
+        self.gc_state.begin_cycle(GcKind::Minor);
 
-        let (dirty_spans, dirty_large_allocations) = self.begin_collection(GcKind::Minor);
+        // trace every reachable managed allocation from the explicit roots
+        let reachable = self.reachable_reference_ids(roots)?;
+        let live_references = self.allocated_references();
+        let (freed_allocations, freed_bytes) =
+            self.promote_or_free_young_references(&reachable, &live_references);
 
-        // explicit roots
-        for root in roots {
-            self.seed_minor_root(root);
-        }
+        // reset the nursery after promotion and sweeping
+        self.reset_young_space();
 
-        // dirty mature regions
-        self.scan_minor_dirty_spans(dirty_spans);
-        self.scan_minor_dirty_large_allocations(dirty_large_allocations);
-    }
-
-    /// Advance one incremental GC step.
-    pub fn gc_step(&mut self, budget: usize) {
-        let mut remaining = budget;
-
-        if remaining == 0 {
-            return;
-        }
-
-        // drain the current mark queue within the requested budget
-        if self.gc_state.phase == GcPhase::Mark {
-            while remaining > 0 {
-                let Some(handle) = self.mark_queue.pop() else {
-                    self.gc_state.phase = GcPhase::Sweep;
-                    break;
-                };
-
-                remaining -= 1;
-                self.trace_pointer(handle);
-            }
-        }
-
-        // complete sweep once marking is done
-        if self.gc_state.phase == GcPhase::Sweep {
-            self.finish_gc_cycle();
-        }
-    }
-
-    /// Run one full GC cycle immediately.
-    pub fn collect_handles(
-        &mut self,
-        roots: impl IntoIterator<Item = ManagedReference>,
-    ) -> GcStats {
-        self.begin_gc_cycle(roots.into_iter().map(Value::managed_reference));
-        self.finish_gc_cycle();
-
-        self.gc_state.last_stats.unwrap_or_default()
-    }
-
-    /// Run one young-generation collection immediately.
-    pub fn collect_young_handles(
-        &mut self,
-        roots: impl IntoIterator<Item = ManagedReference>,
-    ) -> GcStats {
-        self.begin_minor_gc_cycle(roots);
-        self.finish_gc_cycle();
-
-        self.gc_state.last_stats.unwrap_or_default()
-    }
-
-    /// Complete one GC cycle immediately.
-    pub fn finish_gc_cycle(&mut self) {
-        if self.gc_state.phase == GcPhase::Idle {
-            return;
-        }
-
-        // drain any remaining mark work before sweeping
-        while let Some(handle) = self.mark_queue.pop() {
-            self.trace_pointer(handle);
-        }
-
-        let kind = self.gc_state.kind.unwrap_or(GcKind::Full);
-        let stats = match kind {
-            GcKind::Full => self.finish_full_collection(),
-            GcKind::Minor => self.finish_minor_collection(),
-        };
+        // finalize the completed minor-cycle statistics
+        let stats = self.stats_after_collection(freed_allocations, freed_bytes);
 
         self.gc_state.finish_cycle(stats);
-        self.mark_queue.clear();
-        self.young.clear_marks();
-        if let Some(mut from_space) = self.young_from.take() {
-            from_space.reset(&mut self.page_arena);
-        }
-        self.dirty_spans = mem::take(&mut self.dirty_next_spans);
-        self.dirty_large_allocations = mem::take(&mut self.dirty_next_large_allocations);
-        self.mark_retained_bytes_dirty();
-        self.refresh_retained_bytes();
+
+        Ok(stats)
     }
 
-    /// Clear pending mark work without completing a collection cycle.
-    pub(crate) fn clear_mark_queue(&mut self) {
-        self.mark_queue.clear();
+    /// Perform one full managed collection over explicit managed roots.
+    pub fn collect_references<I>(&mut self, roots: I) -> Result<GcStats, ManagedCollectError>
+    where
+        I: IntoIterator<Item = ManagedReference>,
+    {
+        // materialize roots once for the minor and full passes
+        let roots = roots.into_iter().collect::<Vec<_>>();
+        let _minor = self.collect_young_references(roots.iter().copied())?;
+
+        // begin one full-cycle mark and sweep
+        self.gc_state.begin_cycle(GcKind::Full);
+
+        // trace every reachable mature allocation from the explicit roots
+        let reachable = self.reachable_reference_ids(roots.iter().copied())?;
+        let live_references = self.allocated_references();
+        let (freed_allocations, freed_bytes) =
+            self.free_unreachable_references(&reachable, &live_references);
+
+        // finalize the completed full-cycle statistics
+        let stats = self.stats_after_collection(freed_allocations, freed_bytes);
+
+        self.gc_state.finish_cycle(stats);
+
+        Ok(stats)
     }
 
-    /// Mark one managed reference if it has not already been marked this cycle.
-    pub fn mark_reference(&mut self, handle: ManagedReference) {
-        match self.gc_state.kind {
-            Some(GcKind::Full) => {
-                let _ = self.mark_reference_full(handle);
-            }
-            Some(GcKind::Minor) => {
-                let _ = self.mark_reference_minor(handle);
-            }
-            None => {}
-        }
-    }
-
-    /// Mark one runtime value if it contains one managed reference.
-    pub fn mark_value(&mut self, value: Value) {
-        if let Some(handle) = value.as_managed_reference() {
-            self.mark_reference(handle);
-        }
-    }
-
-    // collection setup
-
-    fn begin_collection(
-        &mut self,
-        kind: GcKind,
-    ) -> (Vec<usize>, Vec<super::ManagedLargeAllocationId>) {
-        self.gc_state.begin_cycle(kind);
-        self.clear_mark_queue();
-        self.dirty_next_spans.clear();
-        self.dirty_next_large_allocations.clear();
-        self.mark_retained_bytes_dirty();
-
-        let dirty_spans = mem::take(&mut self.dirty_spans);
-        let dirty_large_allocations = mem::take(&mut self.dirty_large_allocations);
-
-        // clear queue flags before rebuilding dirty mature regions
-        for span_index in dirty_spans.iter().copied() {
-            let Some(span) = self.small.spans.get_mut(span_index) else {
-                continue;
-            };
-            span.set_dirty_queued(false);
-        }
-
-        for large_allocation_id in dirty_large_allocations.iter().copied() {
-            let Some(large_allocation) = self.large_allocation_mut(large_allocation_id) else {
-                continue;
-            };
-            large_allocation.set_dirty_queued(false);
-        }
-
-        // clear mature marks before one full cycle
-        if kind == GcKind::Full {
-            for span in &mut self.small.spans {
-                span.clear_marks();
-            }
-
-            for large_allocation in &mut self.large.large_allocations {
-                large_allocation.clear_mark();
-            }
-        }
-
-        // flip the active young generation into from-space
-        let successor = self.young.successor();
-        let from_space = mem::replace(&mut self.young, successor);
-        self.young_from = Some(from_space);
-
-        (dirty_spans, dirty_large_allocations)
-    }
-
-    fn seed_minor_root(&mut self, handle: ManagedReference) {
-        let base = ManagedReference::new(handle.id());
-        let Some(location) = self.location(base) else {
+    /// Promote one live young allocation into the mature spaces.
+    fn promote_young_allocation(&mut self, reference: ManagedReference, young_id: ManagedYoungId) {
+        // skip stale nursery ids that disappeared during the cycle
+        let Some(allocation) = self.young_allocation(young_id).cloned() else {
             return;
         };
 
-        match location {
-            ManagedLocation::Vacant => {}
-            ManagedLocation::Young(_) => {
-                let _ = self.mark_reference_minor(base);
-            }
-            ManagedLocation::Small(_) | ManagedLocation::Large(_) => {
-                self.mark_queue.push(base);
-            }
-        }
-    }
+        // materialize the nursery bytes before relocating the allocation
+        let bytes = self.arena().bytes_to_vec_from(
+            &self.young.pages,
+            self.young_allocation_offset(&allocation),
+            allocation.byte_len,
+        );
+        let layout_id = allocation.layout_id.to_option();
 
-    // sweep
-
-    fn finish_full_collection(&mut self) -> GcStats {
-        let live_handles = self.live_handles.clone();
-        let from_generation = self
-            .young_from
-            .as_ref()
-            .map(|space| space.generation())
-            .unwrap_or_default();
-        let mut freed_allocations = 0usize;
-        let mut freed_bytes = 0u64;
-
-        // sweep only live handles from this cycle
-        for reference_id in live_handles {
-            let handle = ManagedReference::new(reference_id);
-            let Some(location) = self.location(handle) else {
-                continue;
-            };
-
-            // live current-young survivors stay as-is
-            if let ManagedLocation::Young(young_id) = location
-                && young_id.generation() != from_generation
-            {
-                continue;
-            }
-
-            let is_dead = match location {
-                ManagedLocation::Vacant => false,
-                ManagedLocation::Young(young_id) => {
-                    young_id.generation() == from_generation && self.is_young_allocated(young_id)
-                }
-                ManagedLocation::Small(slot) => {
-                    let Some(span) = self.small.spans.get(slot.span_index()) else {
-                        continue;
-                    };
-
-                    span.is_occupied(slot.slot_index()) && !span.is_marked(slot.slot_index())
-                }
-                ManagedLocation::Large(large_allocation_id) => {
-                    let Some(large_allocation) = self.large_allocation(large_allocation_id) else {
-                        continue;
-                    };
-
-                    large_allocation.is_allocated() && !large_allocation.is_marked()
-                }
-            };
-
-            if !is_dead {
-                continue;
-            }
-
-            let Some(allocation_bytes) = self.byte_len(handle).map(|len| len as u64) else {
-                continue;
-            };
-            self.free_storage(location);
-            self.release_dead_handle(handle.id(), allocation_bytes);
-
-            freed_allocations += 1;
-            freed_bytes = freed_bytes.saturating_add(allocation_bytes);
-        }
-
-        GcStats {
-            freed_allocations,
-            live_allocations: self.allocated_count,
-            freed_bytes,
-            allocated_bytes: self.allocated_bytes,
-            active_bytes: self.active_bytes(),
-        }
-    }
-
-    fn finish_minor_collection(&mut self) -> GcStats {
-        let live_handles = self.live_handles.clone();
-        let from_generation = self
-            .young_from
-            .as_ref()
-            .map(|space| space.generation())
-            .unwrap_or_default();
-        let mut freed_allocations = 0usize;
-        let mut freed_bytes = 0u64;
-
-        // free dead from-space handles while keeping mature allocations untouched
-        for reference_id in live_handles {
-            let handle = ManagedReference::new(reference_id);
-            let Some(ManagedLocation::Young(young_id)) = self.location(handle) else {
-                continue;
-            };
-
-            if young_id.generation() != from_generation || !self.is_young_allocated(young_id) {
-                continue;
-            }
-
-            let Some(allocation_bytes) = self.byte_len(handle).map(|len| len as u64) else {
-                continue;
-            };
-            self.free_storage(ManagedLocation::Young(young_id));
-            self.release_dead_handle(handle.id(), allocation_bytes);
-
-            freed_allocations += 1;
-            freed_bytes = freed_bytes.saturating_add(allocation_bytes);
-        }
-
-        GcStats {
-            freed_allocations,
-            live_allocations: self.allocated_count,
-            freed_bytes,
-            allocated_bytes: self.allocated_bytes,
-            active_bytes: self.active_bytes(),
-        }
-    }
-
-    fn release_dead_handle(&mut self, handle_id: u64, allocation_bytes: u64) {
-        self.remove_live_handle(handle_id);
-        let next_free = self.free_handle_head;
-        let Some(entry) = self.handle_entry_mut(handle_id) else {
-            return;
-        };
-        *entry = super::ManagedHandleEntry::Free { next_free };
-        self.free_handle_head = handle_id;
-        self.allocated_count = self.allocated_count.saturating_sub(1);
-        self.allocated_bytes = self.allocated_bytes.saturating_sub(allocation_bytes);
-    }
-
-    // mark and evacuation
-
-    fn mark_reference_full(&mut self, handle: ManagedReference) -> bool {
-        let base = ManagedReference::new(handle.id());
-        let Some(location) = self.location(base) else {
-            return false;
-        };
-
-        match location {
-            ManagedLocation::Vacant => false,
-            ManagedLocation::Young(_) => self.evacuate_young_reference(base),
-            ManagedLocation::Small(slot) => {
-                let Some(span) = self.small.spans.get_mut(slot.span_index()) else {
-                    return false;
-                };
-
-                if !span.is_occupied(slot.slot_index()) || span.is_marked(slot.slot_index()) {
-                    return false;
-                }
-
-                span.mark(slot.slot_index());
-                self.mark_queue.push(base);
-                false
-            }
-            ManagedLocation::Large(large_allocation_id) => {
-                let Some(large_allocation) = self.large_allocation_mut(large_allocation_id) else {
-                    return false;
-                };
-
-                if !large_allocation.is_allocated() || large_allocation.is_marked() {
-                    return false;
-                }
-
-                large_allocation.mark();
-                self.mark_queue.push(base);
-                false
-            }
-        }
-    }
-
-    fn mark_reference_minor(&mut self, handle: ManagedReference) -> bool {
-        let base = ManagedReference::new(handle.id());
-        let Some(location) = self.location(base) else {
-            return false;
-        };
-
-        match location {
-            ManagedLocation::Young(_) => self.evacuate_young_reference(base),
-            ManagedLocation::Vacant | ManagedLocation::Small(_) | ManagedLocation::Large(_) => {
-                false
-            }
-        }
-    }
-
-    fn evacuate_young_reference(&mut self, handle: ManagedReference) -> bool {
-        let base = ManagedReference::new(handle.id());
-        let Some(ManagedLocation::Young(young_id)) = self.location(base) else {
-            return false;
-        };
-
-        // already evacuated into the current young generation
-        if self.young.is_allocated(young_id) {
-            return true;
-        }
-
-        let Some(byte_len) = self.young_byte_len(young_id) else {
-            return false;
-        };
-        let Some(trace_id) = self.young_trace_id(young_id) else {
-            return false;
-        };
-        let layout_id = self.young_layout_id(young_id);
-        let age = self.young_age(young_id).unwrap_or(0).saturating_add(1);
-        let Some(bytes) = self.young_bytes(young_id).map(ToOwned::to_owned) else {
-            return false;
-        };
-
-        let stays_small = self.small.size_classes.class_index_for(byte_len).is_some();
-        let should_stay_young = stays_small && age < YOUNG_PROMOTION_AGE;
-
-        if should_stay_young
-            && let Some(survivor_id) =
-                self.young
-                    .allocate_survivor(&bytes, trace_id, layout_id, age, &mut self.page_arena)
+        // prefer one mature small slot before falling back to one allocation in large space
+        let location = if let Some(slot) =
+            self.allocate_small_slot(&bytes, allocation.trace_id, layout_id)
         {
-            let Some(entry) = self.handle_mut(base) else {
-                return false;
-            };
-            entry.location = ManagedLocation::Young(survivor_id);
-            self.mark_queue.push(base);
+            ManagedLocation::Small(slot)
+        } else {
+            let pages = self.arena().allocate_bytes(&bytes);
+            let allocation_id =
+                self.allocate_allocation_slot(bytes.len(), pages, allocation.trace_id, layout_id);
 
-            return true;
-        }
-
-        let location = self.allocate_mature_location(&bytes, trace_id, layout_id);
-
-        // mature allocations created during a full cycle count as marked immediately
-        if self.gc_state.kind == Some(GcKind::Full) {
-            match location {
-                ManagedLocation::Small(slot) => {
-                    if let Some(span) = self.small.spans.get_mut(slot.span_index()) {
-                        span.mark(slot.slot_index());
-                    }
-                }
-                ManagedLocation::Large(large_allocation_id) => {
-                    if let Some(large_allocation) = self.large_allocation_mut(large_allocation_id) {
-                        large_allocation.mark();
-                    }
-                }
-                ManagedLocation::Vacant | ManagedLocation::Young(_) => {}
-            }
-        }
-
-        let Some(entry) = self.handle_mut(base) else {
-            return false;
-        };
-        entry.location = location;
-        self.mark_queue.push(base);
-
-        false
-    }
-
-    // tracing
-
-    fn trace_pointer(&mut self, handle: ManagedReference) {
-        let Some(kind) = self.gc_state.kind else {
-            return;
-        };
-        let base = ManagedReference::new(handle.id());
-        let is_mature_parent = matches!(
-            self.location(base),
-            Some(ManagedLocation::Small(_) | ManagedLocation::Large(_))
-        );
-        let mut references = std::mem::take(&mut self.trace_scratch);
-        references.clear();
-
-        self.collect_outgoing_references(handle, &mut references);
-
-        let mut keeps_young_edges = false;
-
-        for reference in references.iter().copied() {
-            let reaches_young = match kind {
-                GcKind::Full => self.mark_reference_full(reference),
-                GcKind::Minor => self.mark_reference_minor(reference),
-            };
-
-            keeps_young_edges |= is_mature_parent && reaches_young;
-        }
-
-        if is_mature_parent && keeps_young_edges {
-            self.mark_mature_allocation_dirty(base);
-        }
-
-        self.trace_scratch = references;
-    }
-
-    fn collect_outgoing_references(
-        &self,
-        handle: ManagedReference,
-        references: &mut Vec<ManagedReference>,
-    ) {
-        let base = ManagedReference::new(handle.id());
-        let Some(byte_len) = self.handle(base).map(|handle| handle.byte_len) else {
-            return;
-        };
-        let Some(location) = self.location(base) else {
-            return;
+            ManagedLocation::Large(allocation_id)
         };
 
-        let Some(reference_map) = self.reference_map(handle) else {
-            return;
-        };
-
-        // young and small storage are contiguous, so trace directly from the slot bytes
-        match location {
-            ManagedLocation::Young(young_id) => {
-                let Some(bytes) = self.young_bytes(young_id) else {
-                    return;
-                };
-
-                reference_map.for_each_reference(
-                    bytes,
-                    self.managed_reference_bytes,
-                    |reference| {
-                        references.push(reference);
-                    },
-                );
-            }
-            ManagedLocation::Small(slot) => {
-                let Some(span) = self.small.spans.get(slot.span_index()) else {
-                    return;
-                };
-                let Some(bytes) = span.bytes(&self.page_arena, slot.slot_index(), byte_len) else {
-                    return;
-                };
-
-                reference_map.for_each_reference(
-                    &bytes,
-                    self.managed_reference_bytes,
-                    |reference| {
-                        references.push(reference);
-                    },
-                );
-            }
-            // large-allocation storage may be chunked, so read only the traced windows
-            ManagedLocation::Large(large_allocation_id) => {
-                let Some(large_allocation) = self.large_allocation(large_allocation_id) else {
-                    return;
-                };
-
-                reference_map.for_each_reference_in_reader(
-                    self.managed_reference_bytes,
-                    |start, dest| large_allocation.read_window(&self.page_arena, start, dest),
-                    |reference| references.push(reference),
-                );
-            }
-            ManagedLocation::Vacant => {}
+        // rewrite the live reference to point at its mature location
+        if let Some(record) = self.reference_mut(reference) {
+            record.set_location(location);
         }
     }
 
-    fn scan_minor_dirty_spans(&mut self, dirty_spans: Vec<usize>) {
-        for span_index in dirty_spans {
-            let mut card_index = 0usize;
-
-            loop {
-                let next_card = self
-                    .small
-                    .spans
-                    .get(span_index)
-                    .and_then(|span| span.first_dirty_card_from(card_index));
-                let Some(card_index_found) = next_card else {
-                    break;
-                };
-
-                let keeps_young = self.scan_minor_dirty_span_card(span_index, card_index_found);
-                let Some(span) = self.small.spans.get_mut(span_index) else {
-                    break;
-                };
-
-                span.clear_dirty_card(card_index_found);
-                if keeps_young {
-                    span.mark_dirty_card(card_index_found);
-                }
-
-                card_index = card_index_found.saturating_add(1);
-            }
-
-            let should_requeue = self
-                .small
-                .spans
-                .get(span_index)
-                .map(|span| span.has_dirty_cards())
-                .unwrap_or(false);
-            if should_requeue {
-                self.enqueue_dirty_span(span_index);
-            }
-        }
-    }
-
-    fn scan_minor_dirty_large_allocations(
+    /// Promote or free every young reference seen during one minor collection.
+    fn promote_or_free_young_references(
         &mut self,
-        dirty_large_allocations: Vec<super::ManagedLargeAllocationId>,
-    ) {
-        for large_allocation_id in dirty_large_allocations {
-            let mut card_index = 0usize;
+        reachable: &[usize],
+        live_references: &[ManagedReference],
+    ) -> (usize, u64) {
+        let mut freed_allocations = 0usize;
+        let mut freed_bytes = 0u64;
 
-            loop {
-                let next_card =
-                    self.large_allocation(large_allocation_id)
-                        .and_then(|large_allocation| {
-                            large_allocation.first_dirty_card_from(card_index)
-                        });
-                let Some(card_index_found) = next_card else {
-                    break;
-                };
-
-                let keeps_young = self
-                    .scan_minor_dirty_large_allocation_card(large_allocation_id, card_index_found);
-                let Some(large_allocation) = self.large_allocation_mut(large_allocation_id) else {
-                    break;
-                };
-
-                large_allocation.clear_dirty_card(card_index_found);
-                if keeps_young {
-                    large_allocation.mark_dirty_card(card_index_found);
-                }
-
-                card_index = card_index_found.saturating_add(1);
-            }
-
-            let should_requeue = self
-                .large_allocation(large_allocation_id)
-                .map(|large_allocation| large_allocation.has_dirty_cards())
-                .unwrap_or(false);
-            if should_requeue {
-                self.enqueue_dirty_large_allocation(large_allocation_id);
-            }
-        }
-    }
-
-    fn scan_minor_dirty_span_card(&mut self, span_index: usize, card_index: usize) -> bool {
-        let Some((card_start, card_len, slot_count, size_class)) =
-            self.small.spans.get(span_index).map(|span| {
-                (
-                    span.dirty_card_start(card_index),
-                    span.dirty_card_len(card_index),
-                    span.slot_count(),
-                    span.size_class(),
-                )
-            })
-        else {
-            return false;
-        };
-
-        let card_end = card_start.saturating_add(card_len);
-        let first_slot = card_start / size_class;
-        let last_slot = (card_end.saturating_sub(1)) / size_class;
-        let mut keeps_young = false;
-
-        for slot_index in first_slot..=last_slot.min(slot_count.saturating_sub(1)) {
-            let Some(span) = self.small.spans.get(span_index) else {
-                return keeps_young;
-            };
-            if !span.is_occupied(slot_index) {
-                continue;
-            }
-
-            let slot_start = slot_index.saturating_mul(size_class);
-            let overlap_start = card_start.max(slot_start).saturating_sub(slot_start);
-            let overlap_end = card_end
-                .min(slot_start + size_class)
-                .saturating_sub(slot_start);
-            let overlap_len = overlap_end.saturating_sub(overlap_start);
-            let Some(reference_map) = span
-                .trace_id(slot_index)
-                .and_then(|trace_id| self.reference_map_table.get(trace_id))
-                .cloned()
-            else {
+        // walk every currently live managed reference
+        for &reference in live_references {
+            let Some(record) = self.reference(reference).copied() else {
                 continue;
             };
 
-            if !reference_map.touches_managed_range(
-                overlap_start,
-                overlap_len,
-                self.managed_reference_bytes,
-            ) {
+            // skip mature references during the young pass
+            let ManagedLocation::Young(young_id) = record.location() else {
+                continue;
+            };
+
+            // promote reachable nursery allocations
+            if reachable.contains(&(reference.id() as usize)) {
+                self.promote_young_allocation(reference, young_id);
                 continue;
             }
 
-            let mut references = Vec::new();
-
-            reference_map.for_each_reference_in_reader_range(
-                overlap_start,
-                overlap_len,
-                self.managed_reference_bytes,
-                |start, dest| {
-                    let Some(span) = self.small.spans.get(span_index) else {
-                        return false;
-                    };
-
-                    span.read_window(&self.page_arena, slot_start + start, dest)
-                },
-                |reference| references.push(reference),
-            );
-
-            for reference in references {
-                keeps_young |= self.mark_reference_minor(reference);
+            // otherwise free unreachable nursery allocations
+            if self.free(reference) {
+                freed_allocations = freed_allocations.saturating_add(1);
+                freed_bytes = freed_bytes.saturating_add(record.byte_len() as u64);
             }
         }
 
-        keeps_young
+        (freed_allocations, freed_bytes)
     }
 
-    fn scan_minor_dirty_large_allocation_card(
+    /// Free every unreachable managed reference during one full collection.
+    fn free_unreachable_references(
         &mut self,
-        large_allocation_id: super::ManagedLargeAllocationId,
-        card_index: usize,
-    ) -> bool {
-        let Some((card_start, card_len, trace_id)) = self
-            .large_allocation(large_allocation_id)
-            .map(|large_allocation| {
-                (
-                    large_allocation.dirty_card_start(card_index),
-                    large_allocation.dirty_card_len(card_index),
-                    large_allocation.trace_id(),
-                )
-            })
-        else {
-            return false;
-        };
-        let Some(reference_map) = self.reference_map_table.get(trace_id).cloned() else {
-            return false;
-        };
-        let mut keeps_young = false;
+        reachable: &[usize],
+        live_references: &[ManagedReference],
+    ) -> (usize, u64) {
+        let mut freed_allocations = 0usize;
+        let mut freed_bytes = 0u64;
 
-        let mut references = Vec::new();
+        // walk every currently live managed reference
+        for &reference in live_references {
+            // keep reachable references intact
+            if reachable.contains(&(reference.id() as usize)) {
+                continue;
+            }
 
-        reference_map.for_each_reference_in_reader_range(
-            card_start,
-            card_len,
-            self.managed_reference_bytes,
-            |start, dest| {
-                let Some(large_allocation) = self.large_allocation(large_allocation_id) else {
-                    return false;
-                };
+            let Some(record) = self.reference(reference).copied() else {
+                continue;
+            };
 
-                large_allocation.read_window(&self.page_arena, start, dest)
-            },
-            |reference| references.push(reference),
-        );
-
-        for reference in references {
-            keeps_young |= self.mark_reference_minor(reference);
+            // free unreachable references and charge the reclaimed bytes
+            if self.free(reference) {
+                freed_allocations = freed_allocations.saturating_add(1);
+                freed_bytes = freed_bytes.saturating_add(record.byte_len() as u64);
+            }
         }
 
-        keeps_young
+        (freed_allocations, freed_bytes)
+    }
+
+    /// Reset the nursery after one collection cycle.
+    fn reset_young_space(&mut self) {
+        // clone the shared arena handle once for the reset path
+        let arena = self.arena().clone();
+
+        // rebuild the nursery over the same arena
+        self.young.reset(&arena);
+    }
+
+    /// Walk one managed allocation and return every reachable managed reference id.
+    fn reachable_reference_ids<I>(&self, roots: I) -> Result<Vec<usize>, ManagedCollectError>
+    where
+        I: IntoIterator<Item = ManagedReference>,
+    {
+        // track one mark bit for each stable managed reference id
+        let mut reachable = vec![false; self.references.len().saturating_add(1)];
+
+        // seed the work queue from the explicit roots
+        let mut pending = roots
+            .into_iter()
+            .filter(|reference| !reference.is_null())
+            .collect::<VecDeque<_>>();
+
+        // drain the explicit root queue and trace each reachable payload once
+        while let Some(reference) = pending.pop_front() {
+            let reference_id = reference.id() as usize;
+
+            // skip references that are already marked or outside the stable table
+            if reference_id >= reachable.len() || reachable[reference_id] {
+                continue;
+            }
+
+            // skip dead reference slots
+            let Some(record) = self.reference(reference).copied() else {
+                continue;
+            };
+
+            // mark this reference before walking its outgoing edges
+            reachable[reference_id] = true;
+
+            // skip allocations with no tracing metadata or no accessible payload
+            let Some(trace_id) = self.location_trace_id(record.location()) else {
+                continue;
+            };
+            let Some(reference_map) = self.reference_map_table.map(trace_id) else {
+                continue;
+            };
+            let Some(bytes) = self.bytes(reference) else {
+                continue;
+            };
+
+            // enqueue every non-null edge discovered in this payload
+            reference_map
+                .trace_references(&bytes, self.managed_reference_bytes, |reference| {
+                    if !reference.is_null() {
+                        pending.push_back(reference);
+                    }
+                })
+                .map_err(|error| ManagedCollectError::Trace { reference, error })?;
+        }
+
+        // compact the mark bits back into stable reference ids
+        let reachable = reachable
+            .into_iter()
+            .enumerate()
+            .filter_map(|(reference_id, is_reachable)| is_reachable.then_some(reference_id))
+            .collect();
+
+        Ok(reachable)
+    }
+
+    /// Build one GC statistics snapshot after one collection pass.
+    fn stats_after_collection(&self, freed_allocations: usize, freed_bytes: u64) -> GcStats {
+        GcStats {
+            freed_allocations,
+            live_allocations: self.allocated_count,
+            freed_bytes,
+            allocated_bytes: self.allocated_bytes,
+            active_bytes: self.active_bytes(),
+        }
     }
 }

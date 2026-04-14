@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::Heap;
+
 /// Exact managed-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ManagedSpaceUsage {
@@ -120,5 +122,30 @@ impl MemoryUsage {
         self.heap
             .borrowed_bytes()
             .saturating_add(self.shared.borrowed_bytes)
+    }
+}
+
+impl Heap {
+    /// Return the number of allocated managed bytes.
+    pub fn managed_allocated_bytes(&self) -> u64 {
+        self.managed.allocated_bytes()
+    }
+
+    /// Return the exact live usage for this heap.
+    pub fn usage(&self) -> HeapUsage {
+        HeapUsage {
+            managed: self.managed.usage(),
+            raw: self.raw.usage(),
+        }
+    }
+
+    /// Return the number of live managed allocations.
+    pub fn managed_allocation_count(&self) -> usize {
+        self.managed.allocation_count()
+    }
+
+    /// Return the number of live raw allocations.
+    pub fn raw_allocation_count(&self) -> usize {
+        self.raw.allocation_count()
     }
 }
