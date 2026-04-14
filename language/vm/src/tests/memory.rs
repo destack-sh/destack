@@ -5,7 +5,7 @@ use crate::tests::{
     run_mir_with, run_mir_with_ok, stamp_well_known_string_type_for_tests,
 };
 use destack_heap::{
-    Heap, HeapLayoutOptions, HeapLimits, LayoutId, MemoryContext, RawPointer, ReferenceMap,
+    Heap, HeapLayout, HeapLimits, LayoutId, MemoryContext, RawPointer, ReferenceMap,
     STRING_TYPE_ALIAS, SharedSpace, StringLayout, Value, ValueTag,
 };
 use destack_mir::parse::{ParseOptions, Parser};
@@ -34,7 +34,7 @@ fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate 
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::with_limits_and_layout(
         HeapLimits::default(),
-        HeapLayoutOptions {
+        HeapLayout {
             managed_reference_bytes: storage.managed_reference_layout.bytes,
             ..Default::default()
         },

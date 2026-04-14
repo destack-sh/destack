@@ -512,6 +512,26 @@ impl From<heap::HeapLimitError> for Box<RuntimeError> {
     }
 }
 
+impl From<heap::HeapLayoutError> for Box<RuntimeError> {
+    /// Convert one heap layout failure into one runtime error.
+    fn from(error: heap::HeapLayoutError) -> Self {
+        RuntimeError::Internal {
+            message: error.to_string(),
+        }
+        .boxed()
+    }
+}
+
+impl From<heap::ManagedCollectError> for Box<RuntimeError> {
+    /// Convert one managed collection failure into one runtime error.
+    fn from(error: heap::ManagedCollectError) -> Self {
+        RuntimeError::Internal {
+            message: error.to_string(),
+        }
+        .boxed()
+    }
+}
+
 impl From<heap::SharedLimitError> for Box<RuntimeError> {
     /// Convert one shared-memory limit violation into one runtime error.
     fn from(error: heap::SharedLimitError) -> Self {

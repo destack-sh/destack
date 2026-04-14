@@ -217,7 +217,12 @@ impl Agent {
         gc.configure(options.heap.clone());
         let managed_reference_bytes = engine.heap_managed_reference_bytes();
         let heap_options = resolve_heap_options(&options.heap, managed_reference_bytes)?;
-        let heap = heap::Heap::with_limits_and_layout(heap_options.limits, heap_options.layout);
+        let heap = heap::Heap::with_arena_limits_and_layout(
+            world.arena(),
+            heap_options.limits,
+            heap_options.layout,
+        )
+        .map_err(Box::<RuntimeError>::from)?;
 
         let mut event_loop = Box::new(EventLoop::default());
         event_loop.configure(options.scheduler.clone())?;
@@ -554,19 +559,21 @@ impl Agent {
     }
 
     /// Run garbage collection using the current root set.
-    pub fn collect(&mut self) -> heap::GcStats {
-        // gather managed handles from root visitors
+    pub fn collect(&mut self) -> RuntimeResult<heap::GcStats> {
+        // gather managed references from root visitors
         let roots = self.collect_roots();
-        let handles = roots.handles();
+        let references = roots.handles();
 
         // run young collection first under ordinary heap pressure
         let stats = self
             .heap
-            .collect_young_managed_handles(handles.iter().copied());
+            .collect_young_managed_references(references.iter().copied())?;
 
         // escalate to one full cycle if mature pressure is still high
         let stats = if self.gc.should_collect(self.heap.managed_allocated_bytes()) {
-            self.heap.collect_managed_handles(handles.iter().copied())
+            self.heap
+                .collect_managed_references(references.iter().copied())
+                .map_err(Box::<RuntimeError>::from)?
         } else {
             stats
         };
@@ -574,7 +581,7 @@ impl Agent {
         // update runtime gc pacing from cycle results
         self.gc.on_cycle_complete(stats);
 
-        stats
+        Ok(stats)
     }
 
     /// Check configured retained-heap limits for this agent.
@@ -652,7 +659,8 @@ impl Agent {
         let mut event_loop = Box::new(EventLoop::default());
 
         // heap and engine
-        let mut heap = heap::Heap::from_image(&image.heap_image);
+        let mut heap = heap::Heap::from_image(&image.heap_image.with_arena(world.arena()))
+            .map_err(Box::<RuntimeError>::from)?;
         heap.set_limits(heap::HeapLimits {
             max_bytes: image.options.heap.max_bytes,
             managed: heap::ManagedLimits {

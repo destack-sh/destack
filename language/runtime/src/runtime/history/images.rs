@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -25,6 +26,8 @@ pub(crate) struct ImageStore {
 /// Durable image-store payload captured in one world snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageStoreSnapshot {
+    /// The serialized arena pages reachable from this image store.
+    pub arena: heap::ArenaSnapshot,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
     /// The known image payloads keyed by image identifier.
@@ -50,7 +53,20 @@ impl ImageStore {
     }
 
     /// Capture one durable image-store snapshot.
-    pub(crate) fn snapshot(&self) -> ImageStoreSnapshot {
+    pub(crate) fn snapshot(&self, arena: &Arc<heap::Arena>) -> ImageStoreSnapshot {
+        let mut reachable_pages = Vec::new();
+
+        for image in self.images.values() {
+            reachable_pages.extend(image.shared.page_ids());
+
+            for agent in image.agents.values() {
+                reachable_pages.extend(agent.heap_image.page_ids());
+            }
+        }
+
+        reachable_pages.sort_unstable();
+        reachable_pages.dedup();
+
         let images = self
             .images
             .iter()
@@ -63,6 +79,7 @@ impl ImageStore {
             .collect();
 
         ImageStoreSnapshot {
+            arena: arena.snapshot_pages_from_ids(&reachable_pages),
             next_image_id: self.next_image_id,
             images,
             trace_images,
@@ -70,11 +87,18 @@ impl ImageStore {
     }
 
     /// Rebuild one image store from one durable snapshot.
-    pub(crate) fn from_snapshot(snapshot: ImageStoreSnapshot) -> Self {
+    pub(crate) fn from_snapshot(snapshot: ImageStoreSnapshot) -> (Arc<heap::Arena>, Self) {
+        let arena = Arc::new(heap::Arena::from_snapshot(&snapshot.arena));
         let images = snapshot
             .images
             .into_iter()
-            .map(|(image_id, image)| (image_id, Arc::new(image)))
+            .map(|(image_id, mut image)| {
+                for agent in image.agents.values_mut() {
+                    agent.heap_image = agent.heap_image.with_arena(arena.clone());
+                }
+
+                (image_id, Arc::new(image))
+            })
             .collect();
         let trace_images = snapshot
             .trace_images
@@ -82,11 +106,14 @@ impl ImageStore {
             .map(|(revision_id, trace_image)| (revision_id, Arc::new(trace_image)))
             .collect();
 
-        Self {
-            next_image_id: snapshot.next_image_id,
-            images,
-            trace_images,
-        }
+        (
+            arena,
+            Self {
+                next_image_id: snapshot.next_image_id,
+                images,
+                trace_images,
+            },
+        )
     }
 
     /// Allocate one new image identifier.

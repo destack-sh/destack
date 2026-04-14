@@ -538,7 +538,11 @@ impl TestWorld {
     }
 
     /// Allocate one managed heap value in the primary agent VM isolate.
-    pub(super) fn allocate_vm_managed_value(&mut self, runtime_id: RuntimeId, value: heap::Value) {
+    pub(super) fn allocate_vm_managed_value(
+        &mut self,
+        runtime_id: RuntimeId,
+        value: heap::Value,
+    ) -> heap::ManagedReference {
         let runtime = self
             .world_mut()
             .runtime_mut(runtime_id)
@@ -552,15 +556,18 @@ impl TestWorld {
             .downcast_mut::<vm::Isolate>()
             .expect("agent should use a vm engine");
         let bytes = value.to_byte_array();
-        let _ = agent
+        agent
             .heap
             .allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)
-            .expect("managed allocation should succeed");
+            .expect("managed allocation should succeed")
     }
 
     /// Allocate one managed heap value in the primary agent VM isolate.
-    pub(super) fn allocate_vm_heap_allocation(&mut self, runtime_id: RuntimeId) {
-        self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7));
+    pub(super) fn allocate_vm_heap_allocation(
+        &mut self,
+        runtime_id: RuntimeId,
+    ) -> heap::ManagedReference {
+        self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7))
     }
 
     /// Return the managed heap allocation count for the primary agent VM isolate.

@@ -263,7 +263,7 @@ impl Agent {
 
         // run one gc cycle when pacing says a cycle is due
         if self.should_collect() {
-            let _stats = self.collect();
+            let _stats = self.collect()?;
             progressed = true;
         }
 

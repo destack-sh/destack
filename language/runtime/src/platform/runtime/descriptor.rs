@@ -312,14 +312,14 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned heap descriptor from one captured agent image.
     pub(crate) fn heap_descriptor(agent: &runtime::AgentImage) -> RuntimeResult<HeapDescriptor> {
-        let page_count = u32::try_from(agent.heap_image.leaf_count()).map_err(|_| {
+        let page_count = u32::try_from(agent.heap_image.page_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "pageCount",
                 "heap page count exceeds uint32",
             ))
             .boxed()
         })?;
-        let shared_page_count = u32::try_from(agent.heap_image.raw_leaf_count()).map_err(|_| {
+        let shared_page_count = u32::try_from(agent.heap_image.raw_page_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "sharedPageCount",
                 "shared heap page count exceeds uint32",

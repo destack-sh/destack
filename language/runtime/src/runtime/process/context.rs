@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::mem::{align_of, needs_drop, size_of};
 use std::ptr;
 
-use destack_heap::{DEFAULT_PAGE_BYTES, allocate_page_block_bytes, free_page_block_bytes};
+use destack_heap::{DEFAULT_PAGE_BYTES, allocate_page_segment_bytes, free_page_segment_bytes};
 use serde::{Deserialize, Serialize};
 
 use super::agent::Agent;
@@ -234,7 +234,7 @@ impl CallBlock {
     /// Create one empty block with the given byte length.
     fn new(byte_len: usize) -> Self {
         Self {
-            data: allocate_page_block_bytes(byte_len),
+            data: allocate_page_segment_bytes(byte_len),
             byte_len,
             used: 0,
         }
@@ -263,7 +263,7 @@ impl CallBlock {
 impl Drop for CallBlock {
     /// Release the owned block pages.
     fn drop(&mut self) {
-        free_page_block_bytes(self.data, self.byte_len);
+        free_page_segment_bytes(self.data, self.byte_len);
     }
 }
 
