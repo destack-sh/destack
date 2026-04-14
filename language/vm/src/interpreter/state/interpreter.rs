@@ -603,8 +603,12 @@ impl Interpreter {
         // collect roots from interned string literals
         string_interner.collect_roots(&mut roots);
 
-        // perform staged collection
-        let stats = memory.heap().collect_managed_handles_staged(roots);
+        // perform full collection over the assembled root set
+        let stats = memory
+            .heap()
+            .collect_managed_references(roots)
+            .map_err(Error::from)
+            .map_err(|error| self.make_error(executable, error))?;
 
         // sweep raw payload buffers for freed strings
         string_interner.sweep_buffers(memory.heap());
