@@ -23,7 +23,9 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> ManagedReference
     let reference_map = if offsets.is_empty() {
         ReferenceMap::empty()
     } else {
-        ReferenceMap::ValueOffsets { offsets }
+        ReferenceMap::ValueOffsets {
+            offsets: offsets.into_boxed_slice(),
+        }
     };
 
     heap.allocate_managed_bytes(&bytes, reference_map, None)
@@ -31,8 +33,8 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> ManagedReference
 }
 
 /// Return whether one managed cell exists.
-fn contains(heap: &Heap, handle: ManagedReference) -> bool {
-    heap.is_managed_allocated(handle)
+fn contains(heap: &Heap, reference: ManagedReference) -> bool {
+    heap.is_managed_allocated(reference)
 }
 
 /// Return the managed allocation count for tests.
@@ -51,7 +53,8 @@ fn test_gc_collects_unreachable() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_managed_handles([handle1, handle2]);
+    heap.collect_managed_references([handle1, handle2])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
     assert!(contains(&heap, handle1));
@@ -66,7 +69,8 @@ fn test_gc_preserves_reachable() {
     let handle1 = allocate(&mut heap);
     let handle2 = allocate(&mut heap);
 
-    heap.collect_managed_handles([handle1, handle2]);
+    heap.collect_managed_references([handle1, handle2])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
     assert!(contains(&heap, handle1));
@@ -85,7 +89,8 @@ fn test_gc_follows_references() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_managed_handles([root]);
+    heap.collect_managed_references([root])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 3);
     assert!(contains(&heap, root));
@@ -101,14 +106,18 @@ fn test_gc_handles_cycles() {
     let a = heap
         .allocate_managed_zeroed(
             Value::BYTE_LEN,
-            ReferenceMap::ValueOffsets { offsets: vec![0] },
+            ReferenceMap::ValueOffsets {
+                offsets: vec![0].into_boxed_slice(),
+            },
             None,
         )
         .expect("managed allocation should succeed");
     let b = heap
         .allocate_managed_zeroed(
             Value::BYTE_LEN,
-            ReferenceMap::ValueOffsets { offsets: vec![0] },
+            ReferenceMap::ValueOffsets {
+                offsets: vec![0].into_boxed_slice(),
+            },
             None,
         )
         .expect("managed allocation should succeed");
@@ -121,7 +130,8 @@ fn test_gc_handles_cycles() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_managed_handles([a]);
+    heap.collect_managed_references([a])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
     assert!(contains(&heap, a));
@@ -139,7 +149,8 @@ fn test_gc_empty_roots() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_managed_handles([]);
+    heap.collect_managed_references([])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 0);
 }
@@ -155,7 +166,8 @@ fn test_gc_multiple_references_to_same_cell() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_managed_handles([holder1, holder2]);
+    heap.collect_managed_references([holder1, holder2])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 3);
     assert!(contains(&heap, shared));
@@ -179,7 +191,8 @@ fn test_gc_handles_aggregates() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_managed_handles([parent]);
+    heap.collect_managed_references([parent])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 3);
     assert!(contains(&heap, parent));
@@ -187,7 +200,7 @@ fn test_gc_handles_aggregates() {
     assert!(contains(&heap, child));
 }
 
-/// Garbage collection ignores invalid handles in the roots list.
+/// Garbage collection ignores invalid references in the roots list.
 #[test]
 fn test_gc_invalid_root_ignored() {
     let mut heap = Heap::new();
@@ -197,7 +210,8 @@ fn test_gc_invalid_root_ignored() {
 
     assert_eq!(allocation_count(&heap), 1);
 
-    heap.collect_managed_handles([valid, invalid]);
+    heap.collect_managed_references([valid, invalid])
+        .expect("managed collection should succeed");
 
     assert_eq!(allocation_count(&heap), 1);
     assert!(contains(&heap, valid));
@@ -211,12 +225,14 @@ fn test_gc_repeated_collection() {
     let root = allocate(&mut heap);
     let _garbage = allocate(&mut heap);
 
-    heap.collect_managed_handles([root]);
+    heap.collect_managed_references([root])
+        .expect("managed collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 
     let _more_garbage = allocate(&mut heap);
     let _even_more = allocate(&mut heap);
 
-    heap.collect_managed_handles([root]);
+    heap.collect_managed_references([root])
+        .expect("managed collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 }

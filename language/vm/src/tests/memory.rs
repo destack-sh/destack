@@ -426,14 +426,14 @@ b0:
     let output = isolate
         .run_function_by_name("allocBox", &[])
         .expect("execution failed");
-    let handle = output
+    let reference = output
         .value
         .as_managed_reference()
         .expect("managed allocation should return a managed reference");
 
     // layout backed objects should keep byte storage and ref offsets
     assert_eq!(
-        isolate.heap.reference_map(handle).cloned(),
+        isolate.heap.reference_map(reference).cloned(),
         Some(ReferenceMap::empty())
     );
 }
@@ -458,16 +458,16 @@ b0(v0: int32):
     let output = isolate
         .run_function_by_name("makeBox", &[Value::int32(9)])
         .expect("execution failed");
-    let handle = output
+    let reference = output
         .value
         .as_managed_reference()
         .expect("managed allocation should return a managed reference");
     let bytes = isolate
         .heap
-        .managed_bytes_to_vec(handle)
+        .managed_bytes_to_vec(reference)
         .expect("managed object bytes should be readable");
 
-    // the payload should be stored as raw layout bytes, not a boxed aggregate handle
+    // the payload should be stored as raw layout bytes, not a boxed aggregate reference
     assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 9);
 }
 
@@ -498,16 +498,18 @@ b0:
     let output = isolate
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
-    let handle = output
+    let reference = output
         .value
         .as_managed_reference()
         .expect("managed allocation should return a managed reference");
 
     // pointer-shaped managed refs should follow the canonical aggregate layout
-    assert_eq!(isolate.heap.managed_byte_len(handle), Some(24));
+    assert_eq!(isolate.heap.managed_byte_len(reference), Some(24));
     assert_eq!(
-        isolate.heap.reference_map(handle).cloned(),
-        Some(ReferenceMap::ReferenceOffsets { offsets: vec![8] })
+        isolate.heap.reference_map(reference).cloned(),
+        Some(ReferenceMap::ReferenceOffsets {
+            offsets: vec![8].into_boxed_slice(),
+        })
     );
 }
 
@@ -534,19 +536,19 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let handle = output
+    let reference = output
         .value
         .as_managed_reference()
         .expect("managed allocation should return a managed reference");
 
     // pointer-shaped managed refs should use pointer-sized repeated elements
-    assert_eq!(isolate.heap.managed_byte_len(handle), Some(16));
+    assert_eq!(isolate.heap.managed_byte_len(reference), Some(16));
     assert_eq!(
-        isolate.heap.reference_map(handle).cloned(),
+        isolate.heap.reference_map(reference).cloned(),
         Some(ReferenceMap::RepeatedReferenceOffsets {
             count: 2,
             element_size: 8,
-            offsets: vec![0],
+            offsets: vec![0].into_boxed_slice(),
         })
     );
 }
@@ -803,11 +805,11 @@ b0:
     let mut isolate = create_isolate(&mir);
     let byte_len = StringLayout::new(8).byte_len();
     let bytes = vec![0u8; byte_len];
-    let handle = isolate
+    let reference = isolate
         .heap
         .allocate_managed_bytes(&bytes, ReferenceMap::empty(), Some(LayoutId::new(99)))
         .expect("managed allocation should succeed");
-    let value = Value::managed_reference(handle);
+    let value = Value::managed_reference(reference);
     let error = isolate
         .isolate
         .string_value(&isolate.heap, value)
@@ -871,11 +873,11 @@ fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
 
     assert!(wrote_length_utf16 && wrote_length_bytes && wrote_data);
 
-    let handle = heap
+    let reference = heap
         .allocate_managed_bytes(&header, ReferenceMap::empty(), Some(layout_id))
         .expect("canonical string allocation should succeed");
-    assert!(heap.set_managed_type_id(handle, string_type_id));
-    let value = Value::managed_reference(handle);
+    assert!(heap.set_managed_type_id(reference, string_type_id));
+    let value = Value::managed_reference(reference);
 
     // canonical String layout objects should decode even outside the literal interner
     assert_eq!(
@@ -928,10 +930,10 @@ b0:
     let mut heap = Heap::new();
     let byte_len = StringLayout::new(8).byte_len();
     let bytes = vec![0u8; byte_len];
-    let handle = heap
+    let reference = heap
         .allocate_managed_bytes(&bytes, ReferenceMap::empty(), Some(other_layout_id))
         .expect("managed allocation should succeed");
-    let value = Value::managed_reference(handle);
+    let value = Value::managed_reference(reference);
     let error = isolate
         .string_value(&heap, value)
         .expect_err("structurally matching non-builtin layout should not decode as string");

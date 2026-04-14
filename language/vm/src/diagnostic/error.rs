@@ -316,6 +316,14 @@ impl From<heap::SharedLimitError> for Error {
     }
 }
 
+impl From<heap::ManagedCollectError> for Error {
+    fn from(error: heap::ManagedCollectError) -> Self {
+        Self::Panic {
+            message: error.to_string(),
+        }
+    }
+}
+
 /// A runtime error with call stack and location information.
 #[derive(Debug, Clone)]
 pub struct RuntimeError {

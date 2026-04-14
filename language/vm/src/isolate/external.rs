@@ -694,7 +694,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
                 let (_, _, environment_offset, byte_len) =
                     self.function_value_payload_layout(*ty)?;
                 let reference_map = ReferenceMap::ValueOffsets {
-                    offsets: vec![environment_offset as u32],
+                    offsets: vec![environment_offset as u32].into_boxed_slice(),
                 };
                 self.heap()
                     .allocate_managed_zeroed_borrowed_typed(
@@ -944,7 +944,9 @@ impl<'ctx> ExternalCallContext<'ctx> {
             offsets.push((index * Value::BYTE_LEN) as u32);
         }
 
-        ReferenceMap::ValueOffsets { offsets }
+        ReferenceMap::ValueOffsets {
+            offsets: offsets.into_boxed_slice(),
+        }
     }
 
     /// Write runtime ABI component values back into one managed handle.

@@ -86,9 +86,9 @@ pub(crate) fn capture_transferred_value(
     }
 
     // clone managed whole-object storage eagerly
-    if let Some(handle) = value.as_managed_reference() {
+    if let Some(reference) = value.as_managed_reference() {
         let source_type = heap
-            .managed_type_id(handle)
+            .managed_type_id(reference)
             .map(mir::LocalNodeId::new)
             .ok_or(Error::InvalidManagedReference)?;
         if source_type != ty {
@@ -99,7 +99,7 @@ pub(crate) fn capture_transferred_value(
         }
 
         let bytes = heap
-            .managed_bytes(handle)
+            .managed_bytes(reference)
             .ok_or(Error::InvalidManagedReference)?
             .into_owned();
         if bytes.len() != layout.byte_len {
@@ -183,7 +183,7 @@ pub(crate) fn materialize_transferred_value_for_escape(
         TransferredValue::TypedStorage { ty, bytes } => {
             let layout = executable.layout(ty).ok_or(Error::InvalidInstruction)?;
             let layout_id = executable.tree.type_layout_id(ty);
-            let handle = heap
+            let reference = heap
                 .allocate_managed_bytes_borrowed_typed(
                     &bytes,
                     &layout.reference_map,
@@ -192,7 +192,7 @@ pub(crate) fn materialize_transferred_value_for_escape(
                 )
                 .map_err(Error::from)?;
 
-            Ok(Value::managed_reference(handle))
+            Ok(Value::managed_reference(reference))
         }
     }
 }
