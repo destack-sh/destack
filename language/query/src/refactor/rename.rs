@@ -396,14 +396,12 @@ fn resolve_name_from_primary_declaration(
         dir::NodeType::EnumField => {
             let field_id = declaration.local_id.try_into().ok()?;
             let field = dir_tree.get::<dir::EnumField>(field_id);
-            Some(repository.strings.get(field.name).to_string())
+            Some(repository.strings.get(field.name.string()).to_string())
         }
         dir::NodeType::Declaration => {
             let declaration_id = declaration.local_id.try_into().ok()?;
             let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
-            declaration
-                .descriptor()
-                .name
+            crate::dir::declaration_name(declaration)
                 .map(|name| repository.strings.get(name.string()).to_string())
         }
         dir::NodeType::Parameter => {
@@ -492,7 +490,7 @@ fn resolve_interface_member_target(
     let member = dir_tree.get::<dir::Member>(member_id);
     let (member_kind, member_key) = match member {
         dir::Member::Method { key, .. } => (InterfaceMemberKind::Method, key.as_ref()?),
-        dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key.as_ref()?),
+        dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key),
         _ => return None,
     };
     let member_name = member_key_name(repository, member_key)?;
@@ -506,15 +504,13 @@ fn resolve_interface_member_target(
         return None;
     };
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
-    let descriptor = match declaration {
-        dir::Declaration::Interface { descriptor, .. } => descriptor,
-        _ => return None,
+    let dir::Declaration::Interface(declaration) = declaration else {
+        return None;
     };
-
     let interface_symbol = get_canonical_symbol(
         repository,
         revision,
-        dir::GlobalSymbolId::new(ctx.module_id(), descriptor.symbol),
+        dir::GlobalSymbolId::new(ctx.module_id(), declaration.symbol),
     );
 
     Some(InterfaceMemberTarget {
@@ -572,13 +568,13 @@ fn collect_interface_member_implementations(
                 continue;
             };
             let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
-            let descriptor = match declaration {
-                dir::Declaration::Class { descriptor, .. }
-                | dir::Declaration::Struct { descriptor, .. }
-                | dir::Declaration::Interface { descriptor, .. } => descriptor,
+            let owner_symbol = match declaration {
+                dir::Declaration::Class(declaration) => declaration.symbol,
+                dir::Declaration::Struct(declaration) => declaration.symbol,
+                dir::Declaration::Interface(declaration) => declaration.symbol,
                 _ => continue,
             };
-            if !implementing_symbols.contains(&descriptor.symbol) {
+            if !implementing_symbols.contains(&owner_symbol) {
                 continue;
             }
 
@@ -589,12 +585,7 @@ fn collect_interface_member_implementations(
                     };
                     (InterfaceMemberKind::Method, key)
                 }
-                dir::Member::Field { key, .. } => {
-                    let Some(key) = key.as_ref() else {
-                        continue;
-                    };
-                    (InterfaceMemberKind::Field, key)
-                }
+                dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key),
                 _ => continue,
             };
             if member_kind != target.member_kind {

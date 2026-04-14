@@ -279,7 +279,7 @@ fn should_skip_parameter_hint(
     }
 
     // skip arguments that already carry labels
-    if argument.is_named() {
+    if matches!(argument, Argument::Named { .. } | Argument::Labeled { .. }) {
         return true;
     }
 

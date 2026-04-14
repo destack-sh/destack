@@ -313,12 +313,7 @@ fn collect_inline_reference_entries(
 
     let symbols = ctx.dir().symbols();
     for (property_id, property) in dir_tree.iter_nodes_of_type::<dir::Property>() {
-        let dir::Property::Field {
-            key: Some(key),
-            value: None,
-            ..
-        } = property
-        else {
+        let dir::Property::Field { key, value, .. } = property else {
             continue;
         };
 
@@ -326,6 +321,14 @@ fn collect_inline_reference_entries(
             continue;
         };
         if key_name != reference_name {
+            continue;
+        }
+        let value = dir_tree.get::<dir::Expression>(*value);
+        let Some(target_symbol) = value.target_symbol() else {
+            continue;
+        };
+        let target_symbol = get_canonical_symbol(repository, ctx.revision(), target_symbol);
+        if target_symbol != canonical_id {
             continue;
         }
 
@@ -414,7 +417,9 @@ fn collect_pattern_bindings(
                 collect_pattern_bindings(dir_tree, *pattern_id, bindings);
             }
         }
-        dir::Pattern::Wildcard | dir::Pattern::Expression { .. } => {}
+        dir::Pattern::Wildcard
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::TypeExpression { .. } => {}
     }
 }
 
@@ -494,7 +499,9 @@ fn pattern_access_path(
             }
             resolved
         }
-        dir::Pattern::Wildcard | dir::Pattern::Expression { .. } => None,
+        dir::Pattern::Wildcard
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::TypeExpression { .. } => None,
     }
 }
 
@@ -666,12 +673,14 @@ fn property_parent_expression(
     None
 }
 
-/// Resolve a static key for a dynamic key when possible.
-fn key_name_key(key: &dir::DynamicKey) -> Option<dir::StaticKey> {
+/// Resolve a static key for a property key when possible.
+fn key_name_key(key: &dir::Key) -> Option<dir::StaticKey> {
     // resolve a static key for shorthand property matching
     match key {
-        dir::DynamicKey::Name(name) => Some(dir::StaticKey::Name(*name)),
-        dir::DynamicKey::Number(name) => Some(dir::StaticKey::Number(*name)),
+        dir::Key::Name(dir::Name::Identifier(name) | dir::Name::String(name)) => {
+            Some(dir::StaticKey::Name(*name))
+        }
+        dir::Key::Name(dir::Name::Number(name)) => Some(dir::StaticKey::Number(*name)),
         _ => None,
     }
 }

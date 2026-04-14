@@ -6,6 +6,9 @@ use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
 
 use super::types::format_local_type;
+use crate::dir::{
+    declaration_display_name, declaration_export, declaration_is_abstract, declaration_is_ambient,
+};
 use destack_source::ProfileId;
 use destack_workspace::Module;
 
@@ -49,22 +52,16 @@ pub fn format_declaration_signature(
 
     // resolve declaration metadata
     let kind = declaration.kind_name();
-    let descriptor = declaration.descriptor();
-
-    // resolve the declaration name
-    let name = descriptor
-        .name
-        .map(|name| strings.get(name.string()).to_string())
-        .unwrap_or_else(|| "<anonymous>".to_string());
+    let name = declaration_display_name(strings, declaration);
 
     // resolve the declaration prefix
-    let declaration_prefix = format_declaration_prefix(descriptor);
+    let declaration_prefix = format_declaration_prefix(declaration);
 
     // format the signature text by declaration kind
     let text = match declaration {
-        dir::Declaration::Function { signature, .. } => format_function(
+        dir::Declaration::Function(declaration) => format_function(
             &name,
-            signature,
+            &declaration.signature,
             &declaration_prefix,
             module_id,
             dir_tree,
@@ -73,38 +70,56 @@ pub fn format_declaration_signature(
             revision,
             strings,
         ),
-        dir::Declaration::Global { .. } => format!("{declaration_prefix}global"),
-        dir::Declaration::ImportAlias { kind, .. } => {
-            format_import_alias(&name, *kind, &declaration_prefix)
+        dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
+        dir::Declaration::ImportAlias(declaration) => {
+            format_import_alias(&name, declaration.kind, &declaration_prefix)
         }
-        dir::Declaration::Struct { generics, .. } => {
+        dir::Declaration::Struct(declaration) => {
             let generics_text = format_generics(
-                generics, module_id, dir_tree, types, repository, revision, strings,
+                &declaration.generic_parameters,
+                module_id,
+                dir_tree,
+                types,
+                repository,
+                revision,
+                strings,
             );
             format!("{declaration_prefix}struct {name}{generics_text}")
         }
-        dir::Declaration::Class { generics, .. } => {
+        dir::Declaration::Class(declaration) => {
             let generics_text = format_generics(
-                generics, module_id, dir_tree, types, repository, revision, strings,
+                &declaration.generic_parameters,
+                module_id,
+                dir_tree,
+                types,
+                repository,
+                revision,
+                strings,
             );
             format!("{declaration_prefix}class {name}{generics_text}")
         }
-        dir::Declaration::Interface { generics, .. } => {
+        dir::Declaration::Interface(declaration) => {
             let generics_text = format_generics(
-                generics, module_id, dir_tree, types, repository, revision, strings,
+                &declaration.generic_parameters,
+                module_id,
+                dir_tree,
+                types,
+                repository,
+                revision,
+                strings,
             );
             format!("{declaration_prefix}interface {name}{generics_text}")
         }
-        dir::Declaration::Enum { .. } => {
+        dir::Declaration::Enum(_) => {
             format!("{declaration_prefix}enum {name}")
         }
-        dir::Declaration::Type { .. } => {
+        dir::Declaration::Type(_) => {
             format!("{declaration_prefix}type {name}")
         }
-        dir::Declaration::Namespace { .. } => {
+        dir::Declaration::Namespace(_) => {
             format!("{declaration_prefix}namespace {name}")
         }
-        dir::Declaration::Extension { .. } => {
+        dir::Declaration::Extension(_) => {
             format!("{declaration_prefix}extension {name}")
         }
     };
@@ -132,16 +147,20 @@ fn format_function(
     };
 
     // format generic parameters
-    let generics_text = signature
-        .generics
-        .as_ref()
-        .map(|g| format_generics(g, module_id, dir_tree, types, repository, revision, strings))
-        .unwrap_or_default();
+    let generics_text = format_generics(
+        &signature.generic_parameters,
+        module_id,
+        dir_tree,
+        types,
+        repository,
+        revision,
+        strings,
+    );
 
     // format dynamic parameters
     let parameters_text = format_parameters(
         signature.this_parameter,
-        &signature.dynamic_parameters,
+        &signature.parameters,
         module_id,
         dir_tree,
         types,
@@ -174,21 +193,21 @@ fn format_function(
     )
 }
 
-/// Format the declaration prefix keywords for a declaration descriptor.
-fn format_declaration_prefix(descriptor: &dir::DeclarationDescriptor) -> String {
-    let export_prefix = if descriptor.export.is_some() {
+/// Format the declaration prefix keywords for a declaration.
+fn format_declaration_prefix(declaration: &dir::Declaration) -> String {
+    let export_prefix = if declaration_export(declaration).is_some() {
         "export "
     } else {
         ""
     };
 
-    let declare_prefix = if descriptor.kind == dir::DeclarationKind::Declaration {
+    let declare_prefix = if declaration_is_ambient(declaration) {
         "declare "
     } else {
         ""
     };
 
-    let abstract_prefix = if descriptor.abstraction == dir::DeclarationAbstraction::Abstract {
+    let abstract_prefix = if declaration_is_abstract(declaration) {
         "abstract "
     } else {
         ""
@@ -225,11 +244,15 @@ pub fn format_call_signature(
     };
 
     // format generic parameters
-    let generics_text = signature
-        .generics
-        .as_ref()
-        .map(|g| format_generics(g, module_id, dir_tree, types, repository, revision, strings))
-        .unwrap_or_default();
+    let generics_text = format_generics(
+        &signature.generic_parameters,
+        module_id,
+        dir_tree,
+        types,
+        repository,
+        revision,
+        strings,
+    );
 
     // choose dynamic parameters
     let this_parameter = if include_this {
@@ -241,7 +264,7 @@ pub fn format_call_signature(
     // format parameter labels
     let parameter_labels = format_parameter_labels(
         this_parameter,
-        &signature.dynamic_parameters,
+        &signature.parameters,
         module_id,
         dir_tree,
         types,
@@ -281,7 +304,7 @@ pub fn format_call_signature(
 
 /// Format generic type parameters.
 fn format_generics(
-    generics: &dir::Generics,
+    generics: &[dir::LocalNodeId<dir::GenericParameter>],
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -289,19 +312,16 @@ fn format_generics(
     revision: Revision,
     strings: &StringPool,
 ) -> String {
-    // read generic parameters
-    let Some(parameters) = &generics.static_parameters else {
-        return String::new();
-    };
-    if parameters.is_empty() {
+    // skip empty generic lists
+    if generics.is_empty() {
         return String::new();
     }
 
     // format each generic parameter
-    let formatted: Vec<_> = parameters
+    let formatted: Vec<_> = generics
         .iter()
         .map(|parameter_id| {
-            format_parameter(
+            format_generic_parameter(
                 *parameter_id,
                 module_id,
                 dir_tree,
@@ -315,6 +335,26 @@ fn format_generics(
 
     // return the formatted generics list
     format!("<{}>", formatted.join(", "))
+}
+
+/// Format a single generic parameter.
+fn format_generic_parameter(
+    parameter_id: dir::LocalNodeId<dir::GenericParameter>,
+    _module_id: ModuleId,
+    dir_tree: &dir::NodeTree,
+    _types: &dir::TypeTable,
+    _repository: &Repository,
+    _revision: Revision,
+    strings: &StringPool,
+) -> String {
+    let parameter = dir_tree.get::<dir::GenericParameter>(parameter_id);
+
+    match parameter {
+        dir::GenericParameter::Type { name, .. } | dir::GenericParameter::Value { name, .. } => {
+            strings.get(*name).to_string()
+        }
+        dir::GenericParameter::Error { .. } => "<error>".to_string(),
+    }
 }
 
 /// Format function parameters with their types.
@@ -451,16 +491,10 @@ pub fn format_symbol_signature(
     // resolve type table and metadata
     let types = &dir.types;
     let kind = declaration.kind_name();
-    let descriptor = declaration.descriptor();
-
-    // resolve the declaration name
-    let name = descriptor
-        .name
-        .map(|name| strings.get(name.string()).to_string())
-        .unwrap_or_else(|| "<anonymous>".to_string());
+    let name = declaration_display_name(strings, declaration);
 
     // resolve the declaration prefix
-    let declaration_prefix = format_declaration_prefix(descriptor);
+    let declaration_prefix = format_declaration_prefix(declaration);
 
     // resolve the module id for global ids
     let module_id = repository
@@ -471,9 +505,9 @@ pub fn format_symbol_signature(
 
     // format the signature text by declaration kind
     let text = match declaration {
-        dir::Declaration::Function { signature, .. } => format_function(
+        dir::Declaration::Function(declaration) => format_function(
             &name,
-            signature,
+            &declaration.signature,
             &declaration_prefix,
             module_id,
             dir_tree,
@@ -482,32 +516,50 @@ pub fn format_symbol_signature(
             revision,
             strings,
         ),
-        dir::Declaration::Global { .. } => format!("{declaration_prefix}global"),
-        dir::Declaration::ImportAlias { kind, .. } => {
-            format_import_alias(&name, *kind, &declaration_prefix)
+        dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
+        dir::Declaration::ImportAlias(declaration) => {
+            format_import_alias(&name, declaration.kind, &declaration_prefix)
         }
-        dir::Declaration::Struct { generics, .. } => {
+        dir::Declaration::Struct(declaration) => {
             let generics_text = format_generics(
-                generics, module_id, dir_tree, types, repository, revision, strings,
+                &declaration.generic_parameters,
+                module_id,
+                dir_tree,
+                types,
+                repository,
+                revision,
+                strings,
             );
             format!("{declaration_prefix}struct {name}{generics_text}")
         }
-        dir::Declaration::Class { generics, .. } => {
+        dir::Declaration::Class(declaration) => {
             let generics_text = format_generics(
-                generics, module_id, dir_tree, types, repository, revision, strings,
+                &declaration.generic_parameters,
+                module_id,
+                dir_tree,
+                types,
+                repository,
+                revision,
+                strings,
             );
             format!("{declaration_prefix}class {name}{generics_text}")
         }
-        dir::Declaration::Interface { generics, .. } => {
+        dir::Declaration::Interface(declaration) => {
             let generics_text = format_generics(
-                generics, module_id, dir_tree, types, repository, revision, strings,
+                &declaration.generic_parameters,
+                module_id,
+                dir_tree,
+                types,
+                repository,
+                revision,
+                strings,
             );
             format!("{declaration_prefix}interface {name}{generics_text}")
         }
-        dir::Declaration::Enum { .. } => format!("{declaration_prefix}enum {name}"),
-        dir::Declaration::Type { .. } => format!("{declaration_prefix}type {name}"),
-        dir::Declaration::Namespace { .. } => format!("{declaration_prefix}namespace {name}"),
-        dir::Declaration::Extension { .. } => format!("{declaration_prefix}extension {name}"),
+        dir::Declaration::Enum(_) => format!("{declaration_prefix}enum {name}"),
+        dir::Declaration::Type(_) => format!("{declaration_prefix}type {name}"),
+        dir::Declaration::Namespace(_) => format!("{declaration_prefix}namespace {name}"),
+        dir::Declaration::Extension(_) => format!("{declaration_prefix}extension {name}"),
     };
 
     // return the formatted signature

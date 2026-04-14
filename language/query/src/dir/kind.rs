@@ -61,19 +61,19 @@ pub enum SymbolKind {
 /// Map a declaration to its symbol kind.
 pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
     match declaration {
-        Declaration::Global { .. } => SymbolKind::Namespace,
-        Declaration::Function { .. } => SymbolKind::Function,
-        Declaration::Struct { .. } => SymbolKind::Struct,
-        Declaration::Class { .. } => SymbolKind::Class,
-        Declaration::Interface { .. } => SymbolKind::Interface,
-        Declaration::Enum { .. } => SymbolKind::Enum,
-        Declaration::Namespace { .. } => SymbolKind::Namespace,
-        Declaration::Type { .. } => SymbolKind::TypeParameter,
-        Declaration::ImportAlias { kind, .. } => match kind {
+        Declaration::Global(_) => SymbolKind::Namespace,
+        Declaration::Function(_) => SymbolKind::Function,
+        Declaration::Struct(_) => SymbolKind::Struct,
+        Declaration::Class(_) => SymbolKind::Class,
+        Declaration::Interface(_) => SymbolKind::Interface,
+        Declaration::Enum(_) => SymbolKind::Enum,
+        Declaration::Namespace(_) => SymbolKind::Namespace,
+        Declaration::Type(_) => SymbolKind::TypeParameter,
+        Declaration::ImportAlias(declaration) => match declaration.kind {
             DependencyKind::Type => SymbolKind::TypeParameter,
             DependencyKind::Value => SymbolKind::Variable,
         },
-        Declaration::Extension { .. } => SymbolKind::Class,
+        Declaration::Extension(_) => SymbolKind::Class,
     }
 }
 

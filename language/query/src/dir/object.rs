@@ -82,7 +82,7 @@ pub(crate) fn object_literal_cursor_context(
         }
 
         let properties = match dir_expr {
-            dir::Expression::ObjectExpression { properties }
+            dir::Expression::ObjectExpression { properties, .. }
             | dir::Expression::TaggedObjectExpression { properties, .. } => properties,
             _ => continue,
         };
@@ -183,15 +183,13 @@ fn extract_object_property_names(
         let property = dir_tree.get::<dir::Property>(property_id);
         match property {
             dir::Property::Field { key, .. } => {
-                if let Some(dir::DynamicKey::Name(name_id)) = key {
-                    names.push(strings.get(*name_id).to_string());
-                } else if let Some(dir::DynamicKey::Number(name_id)) = key {
-                    names.push(strings.get(*name_id).to_string());
+                if let dir::Key::Name(name) = *key {
+                    names.push(strings.get(name.string()).to_string());
                 }
             }
             dir::Property::Method { key, .. } => {
-                if let Some(dir::DynamicKey::Name(name_id)) = key {
-                    names.push(strings.get(*name_id).to_string());
+                if let Some(dir::Key::Name(name)) = key {
+                    names.push(strings.get(name.string()).to_string());
                 }
             }
             dir::Property::Spread { .. } | dir::Property::Error { .. } => {}
@@ -215,19 +213,10 @@ fn is_object_literal_value_position(
         let property = ast_tree.get(*property_id);
 
         match property {
-            ast::Property::Field { value, default, .. } => {
-                if let Some(value_id) = value {
-                    let span = ast_tree.source_map.get(value_id.id);
-                    if span.contains(cursor) {
-                        return true;
-                    }
-                }
-
-                if let Some(default_id) = default {
-                    let span = ast_tree.source_map.get(default_id.id);
-                    if span.contains(cursor) {
-                        return true;
-                    }
+            ast::Property::Field { value, .. } => {
+                let span = ast_tree.source_map.get(value.id);
+                if span.contains(cursor) {
+                    return true;
                 }
             }
             ast::Property::Method { body, .. } => {

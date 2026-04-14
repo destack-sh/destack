@@ -230,9 +230,9 @@ fn constructor_owner_symbol(
     };
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
     let owner_symbol = match declaration {
-        dir::Declaration::Class { descriptor, .. }
-        | dir::Declaration::Struct { descriptor, .. }
-        | dir::Declaration::Interface { descriptor, .. } => descriptor.symbol,
+        dir::Declaration::Class(declaration) => declaration.symbol,
+        dir::Declaration::Struct(declaration) => declaration.symbol,
+        dir::Declaration::Interface(declaration) => declaration.symbol,
         _ => return None,
     };
 
@@ -403,7 +403,7 @@ fn function_parameter_name_positions(
 
     // collect parameter names in order
     let mut positions = HashMap::new();
-    for (index, param_id) in signature.dynamic_parameters.iter().enumerate() {
+    for (index, param_id) in signature.parameters.iter().enumerate() {
         let parameter = dir_tree.get::<dir::Parameter>(*param_id);
         let name = match parameter {
             dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
@@ -480,7 +480,7 @@ fn function_signature_for_node(
             };
             let declaration = dir_tree.get::<dir::Declaration>(decl_id);
             match declaration {
-                dir::Declaration::Function { signature, .. } => Some(signature),
+                dir::Declaration::Function(declaration) => Some(&declaration.signature),
                 _ => None,
             }
         }
@@ -498,7 +498,7 @@ fn function_signature_for_node(
             let decl_id = function_declaration_from_binding(dir_tree, node_id)?;
             let declaration = dir_tree.get::<dir::Declaration>(decl_id);
             match declaration {
-                dir::Declaration::Function { signature, .. } => Some(signature),
+                dir::Declaration::Function(declaration) => Some(&declaration.signature),
                 _ => None,
             }
         }
@@ -527,7 +527,7 @@ fn function_declaration_from_binding(
     let value_id = declarator.value?;
     let expression = dir_tree.get::<dir::Expression>(value_id);
     match expression {
-        dir::Expression::Declaration { declaration } => Some(*declaration),
+        dir::Expression::Declaration(declaration) => Some(*declaration),
         _ => None,
     }
 }
@@ -727,7 +727,7 @@ fn build_arguments_for_call(
 
         match argument {
             dir::Argument::Named { name, .. } => {
-                let name = repository.strings.get(*name).to_string();
+                let name = repository.strings.get(name.string()).to_string();
                 let value_text = argument_value_text(&source_file, ctx, dir_tree, argument);
                 named_args.insert(name, value_text);
             }

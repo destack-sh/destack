@@ -63,14 +63,12 @@ pub fn format_member_hover(
     let member_name = member
         .key()
         .and_then(|key| match key {
-            dir::DynamicKey::Name(string_id) => Some(strings.get(*string_id).to_string()),
-            dir::DynamicKey::Private(string_id) => {
+            dir::Key::Name(name) => Some(strings.get(name.string()).to_string()),
+            dir::Key::Private(string_id) => {
                 let name = strings.get(*string_id);
                 Some(format!("#{}", name.as_ref()))
             }
-            dir::DynamicKey::Number(string_id) => Some(strings.get(*string_id).to_string()),
-            dir::DynamicKey::NamedExpression { name, .. } => Some(strings.get(*name).to_string()),
-            dir::DynamicKey::Expression(_) => None,
+            dir::Key::Expression(_) => None,
         })
         .unwrap_or_else(|| "<anonymous>".to_string());
 
@@ -141,7 +139,7 @@ pub fn format_enum_field_hover(
     container: Option<&str>,
 ) -> String {
     // resolve the enum field name
-    let field_name = strings.get(field.name).to_string();
+    let field_name = strings.get(field.name.string()).to_string();
 
     // build the qualified name
     let qualified_name = match container {

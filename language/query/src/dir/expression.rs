@@ -46,11 +46,11 @@ pub(crate) fn expression_is_type_position(
                     .tree()
                     .get(ast::LocalNodeId::<ast::Parameter>::new(parent_id));
                 return match parameter {
-                    ast::Parameter::Named { ty, .. }
-                    | ast::Parameter::Pattern { ty, .. }
-                    | ast::Parameter::VariadicNamed { ty, .. }
-                    | ast::Parameter::VariadicPattern { ty, .. } => {
-                        ty.is_some_and(|ty| ty.id == current_id)
+                    ast::Parameter::Named { declared_type, .. }
+                    | ast::Parameter::Pattern { declared_type, .. }
+                    | ast::Parameter::VariadicNamed { declared_type, .. }
+                    | ast::Parameter::VariadicPattern { declared_type, .. } => {
+                        declared_type.is_some_and(|ty| ty.id == current_id)
                     }
                     ast::Parameter::Error => false,
                 };
@@ -60,17 +60,21 @@ pub(crate) fn expression_is_type_position(
                     .tree()
                     .get(ast::LocalNodeId::<ast::Member>::new(parent_id));
                 return match member {
-                    ast::Member::Type { ty, value, .. } => {
-                        ty.is_some_and(|ty| ty.id == current_id)
+                    ast::Member::Type {
+                        declared_type,
+                        value,
+                        ..
+                    } => {
+                        declared_type.is_some_and(|ty| ty.id == current_id)
                             || value.is_some_and(|value| value.id == current_id)
                     }
-                    ast::Member::ComptimeConst { ty, .. } => {
-                        ty.is_some_and(|ty| ty.id == current_id)
+                    ast::Member::ComptimeConst { declared_type, .. } => {
+                        declared_type.is_some_and(|ty| ty.id == current_id)
                     }
-                    ast::Member::Field { value, .. } => {
-                        value.is_some_and(|value| value.id == current_id)
+                    ast::Member::Field { default, .. } => {
+                        default.is_some_and(|value| value.id == current_id)
                     }
-                    ast::Member::Embed { value, .. } => value.id == current_id,
+                    ast::Member::Embed { .. } => false,
                     _ => false,
                 };
             }
@@ -79,7 +83,7 @@ pub(crate) fn expression_is_type_position(
                     .tree()
                     .get(ast::LocalNodeId::<ast::Declaration>::new(parent_id));
                 return match declaration {
-                    ast::Declaration::Type { value, .. } => value.id == current_id,
+                    ast::Declaration::Type(declaration) => declaration.value.id == current_id,
                     _ => false,
                 };
             }

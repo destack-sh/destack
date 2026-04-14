@@ -48,13 +48,13 @@ pub(crate) fn parameter_display_name(repository: &Repository, parameter: &Parame
 }
 
 /// Collect parameter display names from dynamic parameter nodes.
-pub(crate) fn dynamic_parameter_display_names(
+pub(crate) fn parameter_display_names(
     repository: &Repository,
     tree: &NodeTree,
-    dynamic_parameters: &[LocalNodeId<Parameter>],
+    parameters: &[LocalNodeId<Parameter>],
 ) -> Vec<String> {
     // collect parameter display names in declared order
-    dynamic_parameters
+    parameters
         .iter()
         .map(|param_id| {
             let param = tree.get::<Parameter>(*param_id);
@@ -116,17 +116,14 @@ fn parameter_data_for_symbol_with_context(
         NodeType::Declaration => {
             let declaration_id = global_node_id.local_id.try_into_typed().ok()?;
             let declaration = dir_tree.get::<Declaration>(declaration_id);
-            let Declaration::Function { signature, .. } = declaration else {
+            let Declaration::Function(declaration) = declaration else {
                 return None;
             };
 
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
-            let names = dynamic_parameter_display_names(
-                repository,
-                dir_tree,
-                &signature.dynamic_parameters,
-            );
+            let names =
+                parameter_display_names(repository, dir_tree, &declaration.signature.parameters);
 
             Some(ParameterData { names, docs })
         }
@@ -141,11 +138,7 @@ fn parameter_data_for_symbol_with_context(
 
             let ast_node_id = dir_tree.get_source(member_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
-            let names = dynamic_parameter_display_names(
-                repository,
-                dir_tree,
-                &signature.dynamic_parameters,
-            );
+            let names = parameter_display_names(repository, dir_tree, &signature.parameters);
 
             Some(ParameterData { names, docs })
         }
@@ -171,17 +164,17 @@ pub(crate) fn expected_parameter_hint_for_symbol(
         symbol.primary_declaration?
     };
 
-    // resolve the dynamic parameters for the declaration
+    // resolve the parameters for the declaration
     let dir_tree = ctx.dir().tree();
-    let dynamic_parameters = match global_node_id.local_id.ty {
+    let parameters = match global_node_id.local_id.ty {
         NodeType::Declaration => {
             let declaration_id = global_node_id.local_id.try_into_typed().ok()?;
             let declaration = dir_tree.get::<Declaration>(declaration_id);
-            let Declaration::Function { signature, .. } = declaration else {
+            let Declaration::Function(declaration) = declaration else {
                 return None;
             };
 
-            signature.dynamic_parameters.clone()
+            declaration.signature.parameters.clone()
         }
         NodeType::Member => {
             let member_id = global_node_id.local_id.try_into_typed().ok()?;
@@ -190,14 +183,13 @@ pub(crate) fn expected_parameter_hint_for_symbol(
                 return None;
             };
 
-            signature.dynamic_parameters.clone()
+            signature.parameters.clone()
         }
         _ => return None,
     };
 
     // resolve the active parameter node
-    let parameter_id =
-        resolve_expected_parameter_id(dir_tree, &dynamic_parameters, parameter_index)?;
+    let parameter_id = resolve_expected_parameter_id(dir_tree, &parameters, parameter_index)?;
     let parameter = dir_tree.get::<Parameter>(parameter_id);
     let name = Some(parameter_display_name(repository, parameter));
 

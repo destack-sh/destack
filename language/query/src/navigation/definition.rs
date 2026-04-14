@@ -402,7 +402,7 @@ fn overload_declaration_span_for_signature(
     None
 }
 
-/// Resolve declared dynamic parameter type ids for a declaration or method member.
+/// Resolve declared parameter type ids for a declaration or method member.
 fn declaration_parameter_type_ids(
     ctx: &QueryContext,
     declaration_id: dir::LocalNodeIdAny,
@@ -410,14 +410,14 @@ fn declaration_parameter_type_ids(
     let dir_tree = ctx.dir().tree();
     let types = ctx.dir().types();
 
-    let dynamic_parameters = match declaration_id.ty {
+    let parameters = match declaration_id.ty {
         NodeType::Declaration => {
             let declaration_id = declaration_id.try_into().ok()?;
             let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
-            let dir::Declaration::Function { signature, .. } = declaration else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 return None;
             };
-            signature.dynamic_parameters.clone()
+            declaration.signature.parameters.clone()
         }
         NodeType::Member => {
             let member_id = declaration_id.try_into().ok()?;
@@ -425,13 +425,13 @@ fn declaration_parameter_type_ids(
             let dir::Member::Method { signature, .. } = member else {
                 return None;
             };
-            signature.dynamic_parameters.clone()
+            signature.parameters.clone()
         }
         _ => return None,
     };
 
-    let mut parameter_types = Vec::with_capacity(dynamic_parameters.len());
-    for parameter_id in dynamic_parameters {
+    let mut parameter_types = Vec::with_capacity(parameters.len());
+    for parameter_id in parameters {
         let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
         let type_id = types.get_declared_type_id(global_parameter_id)?;
         parameter_types.push(type_id);
