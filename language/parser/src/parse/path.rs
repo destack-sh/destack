@@ -9,7 +9,7 @@ use destack_ast::{Expression, LocalNodeId, Path, TokenType};
 impl Parser {
     /// Return true when a semantic token has leading comment trivia.
     #[inline]
-    fn token_has_leading_comment(&mut self, token_index: usize) -> bool {
+    pub(crate) fn token_has_leading_comment(&mut self, token_index: usize) -> bool {
         // fast path: no comment side tokens have been seen yet
         if !self.lexer.has_comment_tokens() {
             return false;
@@ -300,8 +300,7 @@ impl Parser {
         let last_span = *segment_spans.last().expect("path has no segments");
 
         self.tree.set_main_span(expression_id, last_span);
-        self.tree
-            .set_side_span(expression_id, NodeSpanType::Leading, first_span);
+        self.tree.set_head_span(expression_id, first_span);
 
         // record each path segment so semantic consumers can target the exact token
         for (index, segment_span) in segment_spans.iter().copied().enumerate() {

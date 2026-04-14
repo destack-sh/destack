@@ -1,14 +1,13 @@
+use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
-use destack_ast::{
-    Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
-    TokenType,
-};
+use destack_ast::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
 use destack_source::NodeSpanType;
 
 impl Parser {
     /// Eat an extension (incl. `extension` keyword).
+    /// FUGU: change `extension for T` to `extension of T`?
     ///
     /// Examples:
     /// ```
@@ -32,37 +31,41 @@ impl Parser {
     ///     ...
     /// }
     /// ```
-    pub fn eat_extension(
+    pub(crate) fn eat_extension(
         &mut self,
         start: &ParserMark,
-        mut descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         // keyword
         self.eat_keyword(Keyword::Extension)?;
 
-        // name and static parameters
-        let (static_parameters, name, name_span) =
+        // name and generic parameters
+        let (generic_parameters, name, name_span) =
             // named extension
             if self.peek_name_is() && !self.is_keyword(Keyword::For) {
                 let (name, span) = self.eat_name_with_span()?;
-                let static_parameters = self.eat_static_parameters_maybe(false)?;
-                (static_parameters, Some(name), Some(span))
+                let generic_parameters = self.eat_generic_parameters_maybe(false)?;
+                (generic_parameters, Some(name), Some(span))
             }
             // anonymous extension
             else {
-                let static_parameters = self.eat_static_parameters_maybe(false)?;
-                (static_parameters, None, None)
+                let generic_parameters = self.eat_generic_parameters_maybe(false)?;
+                (generic_parameters, None, None)
             };
-
-        descriptor.name = name;
 
         // `for` keyword (required)
         self.eat_keyword(Keyword::For)?;
 
         // target type
         let target_start = self.mark_span();
-        let target_type =
-            self.eat_expression(self.options.nested().in_super_type().in_before_block())?;
+        let target_type = self.eat_type_expression_node_or_recover_missing(
+            self.options
+                .nested()
+                .in_super_type()
+                .in_before_block()
+                .in_type(),
+            NodeType::Declaration,
+        )?;
 
         // record the full type span for the target type
         self.tree.set_side_span(
@@ -82,19 +85,20 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
         let members = self.eat_members(false)?;
-        self.eat_token(TokenType::CloseBrace)?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         // extension
-        let generics = Generics::new(static_parameters, where_clauses);
-        let heritage = Heritage::new(None, implements_types);
         let extension_id = self.insert_node(
-            Declaration::Extension {
-                descriptor,
-                generics,
+            Declaration::Extension(ExtensionDeclaration {
+                name,
+                export: header.export,
+                ambient: header.ambient,
+                generic_parameters: generic_parameters.unwrap_or_default(),
+                where_clauses: where_clauses.unwrap_or_default(),
                 target_type,
-                heritage,
+                implements_types: implements_types.unwrap_or_default(),
                 members,
-            },
+            }),
             self.get_span_from(start),
         );
 
@@ -110,11 +114,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Member,
-        Parameter, TypeLiteral, WhereClause,
+        Declaration, Expression, ExtensionDeclaration, GenericArgument, GenericParameter, IntType,
+        Member, Parameter, TypeExpression, TypeLiteral, WhereClause,
     };
     use destack_source::NodeSpanType;
 
+    use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
@@ -130,15 +135,14 @@ extension for Foo {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(generics.is_empty());
-            assert!(heritage.is_empty());
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { generic_parameters, implements_types, target_type, .. }) => {
+            assert!(generic_parameters.is_empty());
+            assert!(implements_types.is_empty());
 
             // Foo
-            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
         });
@@ -157,7 +161,7 @@ extension for Foo {
         parser.eat_newline().unwrap();
 
         let start = parser.mark();
-        let result = parser.eat_extension(&start, DeclarationDescriptor::default());
+        let result = parser.eat_extension(&start, DeclarationHeader::default());
         assert!(result.is_err());
     }
 
@@ -168,11 +172,11 @@ extension for Foo {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
 
         // target type span
-        assert_node!(parser.tree, extension_id, Declaration::Extension { target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { target_type, .. }) => {
             let span = parser
                 .tree
                 .get_side_span(*target_type, NodeSpanType::Type)
@@ -182,7 +186,7 @@ extension for Foo {
     }
 
     #[test]
-    fn test_parse_extension_with_static_arguments_and_alias() {
+    fn test_parse_extension_with_generic_arguments_and_alias() {
         let mut test = TestParser::new(
             r###"
 extension MyExt for Foo<int32> {
@@ -194,25 +198,25 @@ extension MyExt for Foo<int32> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert_string!(parser, descriptor.name.unwrap().string(), "MyExt");
-            assert!(generics.is_empty());
-            assert!(heritage.is_empty());
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
+            assert_string!(parser, name.unwrap().string(), "MyExt");
+            assert!(generic_parameters.is_empty());
+            assert!(implements_types.is_empty());
 
             // Foo<int32>
-            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Foo");
 
-                let static_args = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(static_args.len(), 1);
+                assert_eq!(generic_arguments.len(), 1);
                 // int32
-                assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width, is_signed }) } => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
+                    });
                     });
                 });
             });
@@ -232,41 +236,37 @@ extension for Bar<int32> implements Baz {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(generics.is_empty());
-            assert!(!heritage.is_empty());
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { generic_parameters, implements_types, target_type, .. }) => {
+            assert!(generic_parameters.is_empty());
+            assert!(!implements_types.is_empty());
 
             // Bar<int32>
-            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Bar");
 
-                let static_args = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(static_args.len(), 1);
+                assert_eq!(generic_arguments.len(), 1);
                 // int32
-                assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width, is_signed }) } => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
+                    });
                     });
                 });
             });
 
-            let implements = heritage
-                .implements_types
-                .as_ref()
-                .expect("expected implements types");
-            assert_eq!(implements.len(), 1);
-            assert_node!(parser.tree, implements[0], Expression::QualifiedReference { path, .. } => {
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Baz");
             });
         });
     }
 
     #[test]
-    fn test_parse_extension_with_static_parameters() {
+    fn test_parse_extension_with_generic_parameters() {
         let mut test = TestParser::new(
             r###"
 extension<U> for Bar<T> implements Baz<T> {
@@ -278,55 +278,46 @@ extension<U> for Bar<T> implements Baz<T> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(descriptor.name.is_none()); // anonymous
-            assert!(!generics.is_empty());
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
+            assert!(name.is_none()); // anonymous
+            assert_eq!(generic_parameters.len(), 1);
 
             // extension<U>
-            let static_parameters = generics
-                .static_parameters
-                .as_ref()
-                .expect("expected static parameters");
-            assert_eq!(static_parameters.len(), 1);
-            assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers: None, name, ty, default } => {
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
                 assert_string!(parser, *name, "U");
-                assert!(ty.is_none());
+                assert!(constraint.is_none());
                 assert!(default.is_none());
             });
 
             // Bar<T>
-            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                 // Bar
                 assert_path!(parser, *path, "Bar");
                 // <T>
-                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
                         assert_path!(parser, *path, "T");
+                    });
                     });
                 });
             });
 
             // : Baz<T>
-            assert!(!heritage.is_empty());
-            let implements = heritage
-                .implements_types
-                .as_ref()
-                .expect("expected implements types");
-            assert_eq!(implements.len(), 1);
-            assert_node!(parser.tree, implements[0], Expression::QualifiedReference { path, static_arguments } => {
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, generic_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>
-                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
                         assert_path!(parser, *path, "T");
+                    });
                     });
                 });
             });
@@ -334,7 +325,7 @@ extension<U> for Bar<T> implements Baz<T> {
     }
 
     #[test]
-    fn test_parse_extension_named_with_static_parameters() {
+    fn test_parse_extension_named_with_generic_parameters() {
         let mut test = TestParser::new(
             r###"
 extension MyExt<U> for Bar<T> implements Baz<T> {
@@ -346,55 +337,46 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert_string!(parser, descriptor.name.unwrap().string(), "MyExt"); // named
-            assert!(!generics.is_empty());
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
+            assert_string!(parser, name.unwrap().string(), "MyExt"); // named
+            assert_eq!(generic_parameters.len(), 1);
 
             // MyExt<U>
-            let static_parameters = generics
-                .static_parameters
-                .as_ref()
-                .expect("expected static parameters");
-            assert_eq!(static_parameters.len(), 1);
-            assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers: None, name, ty, default } => {
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
                 assert_string!(parser, *name, "U");
-                assert!(ty.is_none());
+                assert!(constraint.is_none());
                 assert!(default.is_none());
             });
 
             // Bar<T>
-            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                 // Bar
                 assert_path!(parser, *path, "Bar");
                 // <T>
-                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
                         assert_path!(parser, *path, "T");
+                    });
                     });
                 });
             });
 
             // implements Baz<T>
-            assert!(!heritage.is_empty());
-            let implements = heritage
-                .implements_types
-                .as_ref()
-                .expect("expected implements types");
-            assert_eq!(implements.len(), 1);
-            assert_node!(parser.tree, implements[0], Expression::QualifiedReference { path, static_arguments } => {
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, generic_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>
-                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
                         assert_path!(parser, *path, "T");
+                    });
                     });
                 });
             });
@@ -414,22 +396,19 @@ extension for Foo where Guard: Limit {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, target_type, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(!generics.is_empty());
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { where_clauses, target_type, .. }) => {
+            assert_eq!(where_clauses.len(), 1);
 
             // where Guard: Limit
-            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
-            assert_eq!(where_items.len(), 1);
-            assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
+            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Guard");
                 assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
 
             // Foo target_type
-            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, .. } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
         });
@@ -451,25 +430,25 @@ extension<T> for Slice<T> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(&start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
 
-        assert_node!(parser.tree, extension_id, Declaration::Extension { members, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { members, .. }) => {
             assert_eq!(members.len(), 1);
             assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
                 assert!(signature.this_parameter.is_some());
-                assert_eq!(signature.dynamic_parameters.len(), 2);
+                assert_eq!(signature.parameters.len(), 2);
 
                 let this_parameter_id = signature.this_parameter.expect("expected explicit this parameter");
-                assert_node!(parser.tree, this_parameter_id, Parameter::Named { name, ty, .. } => {
+                assert_node!(parser.tree, this_parameter_id, Parameter::Named { name, declared_type, .. } => {
                     assert_string!(parser, *name, "this");
-                    assert!(ty.is_some());
+                    assert!(declared_type.is_some());
                 });
 
-                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
                     assert_string!(parser, *name, "i");
                 });
-                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, .. } => {
+                assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, .. } => {
                     assert_string!(parser, *name, "value");
                 });
             });

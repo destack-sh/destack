@@ -78,7 +78,7 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::MatchCase)?;
         let cases_id = self.eat_match_cases(kind)?;
-        self.eat_token(TokenType::CloseBrace)?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::MatchCase)?;
 
         // match
         let match_id = self.insert_node(
@@ -905,20 +905,20 @@ switch (value) {
             assert_eq!(*kind, MatchKind::Switch);
             assert_eq!(cases.len(), 2);
 
-            let first_case_annotations = parser.tree.get_annotations(cases[0].id);
+            let first_case_annotations = parser.tree.get_decorators(cases[0].id);
             assert!(first_case_annotations.is_empty());
 
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
                 assert_node!(parser.tree, *body, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
-                    let start_annotations = parser.tree.get_annotations(expressions[0].id);
+                    let start_annotations = parser.tree.get_decorators(expressions[0].id);
                     assert!(start_annotations.is_empty());
                 });
             });
 
             assert_node!(parser.tree, cases[1], MatchCase::Expression { body, .. } => {
-                let default_annotations = parser.tree.get_annotations(body.id);
+                let default_annotations = parser.tree.get_decorators(body.id);
                 assert!(default_annotations.is_empty());
             });
         });

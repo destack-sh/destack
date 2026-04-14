@@ -2,39 +2,44 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BlockContext, BlockFormat, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
-    Generics, Keyword, LocalNodeId, Name, NamespaceKind, NodeType, TokenType,
+    Ambientness, BlockContext, BlockFormat, Declaration, Expression, GlobalDeclaration, Keyword,
+    LocalNodeId, Name, NamespaceDeclaration, NamespaceKind, NodeType, TokenType,
 };
+
+use super::expression::common::DeclarationHeader;
 
 impl Parser {
     /// Eat a global augmentation declaration (like `declare global { ... }`).
-    pub fn eat_global(
+    pub(crate) fn eat_global(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         self.eat_identifier_str("global")?;
         self.eat_newlines_maybe()?;
 
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
-            .eat_block_body_with_context(BlockFormat::Explicit, BlockContext::Statement)
+            .eat_block_body_in_context(BlockFormat::Explicit, BlockContext::Statement)
             .for_node_type(NodeType::Block)?;
-        self.eat_token(TokenType::CloseBrace)
-            .for_node_type(NodeType::Declaration)?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
-        let global = Declaration::Global {
-            descriptor,
+        let global = Declaration::Global(GlobalDeclaration {
+            ambient: if header.ambient == Ambientness::Ambient {
+                Ambientness::Ambient
+            } else {
+                Ambientness::Concrete
+            },
             expressions,
-        };
+        });
         Ok(self.insert_node(global, self.get_span_from(start)))
     }
 
     /// Eat a namespace declaration (incl. `namespace` or `module` keyword).
-    pub fn eat_namespace(
+    pub(crate) fn eat_namespace(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_NAMESPACE);
         // keyword
@@ -63,13 +68,17 @@ impl Parser {
                 (Vec::new(), None)
             };
 
+        // namespaces always need a name
+        if names.is_empty() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         // where
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        let generics = Generics::new(None, where_clauses);
         // propagate ambient declaration contexts into module bodies
-        let body_options = if descriptor.kind == DeclarationKind::Declaration {
+        let body_options = if header.ambient == Ambientness::Ambient {
             self.options.in_declare_context()
         } else {
             self.options
@@ -81,11 +90,10 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
             let expressions_result = self.with_options(body_options, |parser| {
-                parser.eat_block_body_with_context(BlockFormat::Explicit, BlockContext::Statement)
+                parser.eat_block_body_in_context(BlockFormat::Explicit, BlockContext::Statement)
             })?;
             let expressions = expressions_result;
-            self.eat_token(TokenType::CloseBrace)
-                .for_node_type(NodeType::Declaration)?;
+            self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
             expressions
         } else {
             vec![]
@@ -109,23 +117,25 @@ impl Parser {
         // build nested namespaces from dot separated names
         let mut nested_expressions = expressions;
         let mut namespace_id = None;
-        let base_descriptor = descriptor;
+        let base_header = header;
         for (index, (name, span)) in names.into_iter().enumerate().rev() {
-            let mut local_descriptor = if index == 0 {
-                base_descriptor
+            let local_header = if index == 0 {
+                base_header
             } else {
-                let mut inner_descriptor = base_descriptor;
-                inner_descriptor.export = None;
-                inner_descriptor
+                let mut inner_header = base_header;
+                inner_header.export = None;
+                inner_header
             };
-            local_descriptor = local_descriptor.with_name(name);
 
-            let namespace = Declaration::Namespace {
-                descriptor: local_descriptor,
+            let namespace = Declaration::Namespace(NamespaceDeclaration {
+                name,
+                export: local_header.export,
+                ambient: local_header.ambient,
                 kind: namespace_kind,
-                generics: generics.clone(),
+                generic_parameters: vec![],
+                where_clauses: where_clauses.clone().unwrap_or_default(),
                 expressions: nested_expressions,
-            };
+            });
             let current_id = self.insert_node(namespace, self.get_span_from(start));
             self.tree.set_main_span(current_id, span);
             namespace_id = Some(current_id);
@@ -143,28 +153,19 @@ impl Parser {
             self.tree.set_main_span(namespace_id, span);
         }
 
-        Ok(namespace_id.unwrap_or_else(|| {
-            self.insert_node(
-                Declaration::Namespace {
-                    descriptor: base_descriptor,
-                    kind: namespace_kind,
-                    generics,
-                    expressions: nested_expressions,
-                },
-                self.get_span_from(start),
-            )
-        }))
+        Ok(namespace_id.expect("namespace name was validated above"))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Declaration, DeclarationDescriptor, DeclarationKind, DependencyMode, Expression, Name,
-        NamespaceKind, WhereClause,
+        Ambientness, Declaration, ExportMode, Expression, GlobalDeclaration, Name,
+        NamespaceDeclaration, NamespaceKind, TypeExpression, WhereClause,
     };
     use destack_source::LanguageType;
 
+    use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
@@ -183,10 +184,8 @@ declare global {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Global { descriptor, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
-                assert!(descriptor.name.is_none());
-                assert!(descriptor.export.is_none());
+            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Ambient);
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -207,9 +206,8 @@ global {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Global { descriptor, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
-                assert!(descriptor.name.is_none());
+            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Ambient);
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -230,15 +228,32 @@ declare module "foo" {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, kind, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, kind, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Ambient);
                 assert_eq!(*kind, NamespaceKind::Module);
                 assert_eq!(expressions.len(), 1);
-                let name = descriptor.name.expect("expected name");
                 assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, name_id, "foo");
+                    assert_string!(parser, *name_id, "foo");
                 });
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_namespace_with_missing_close_brace() {
+        let mut test = TestParser::new("namespace Foo { interface Bar { }");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let namespace_id = parser
+            .eat_namespace(&start, DeclarationHeader::default())
+            .unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, expressions, .. }) => {
+            assert_string!(parser, name.string(), "Foo");
+            assert_eq!(expressions.len(), 1);
         });
     }
 
@@ -261,7 +276,7 @@ declare module A {
         // declare module A { ... }
         assert_eq!(expressions.len(), 1);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Namespace { expressions, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Namespace(NamespaceDeclaration { expressions, .. }) => {
                 assert_eq!(expressions.len(), 3);
 
                 // "name": "troublesome-lib",
@@ -331,19 +346,17 @@ declare module "buffer" {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
-                let name = descriptor.name.expect("expected name");
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Ambient);
                 assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, name_id, "buffer");
+                    assert_string!(parser, *name_id, "buffer");
                 });
                 assert_eq!(expressions.len(), 1);
 
                 let nested_id = expressions[0];
                 assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
-                    assert_node!(parser.tree, *global_id, Declaration::Global { descriptor, expressions, .. } => {
-                        assert_eq!(descriptor.kind, DeclarationKind::Declaration);
-                        assert!(descriptor.name.is_none());
+                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
+                        assert_eq!(*ambient, Ambientness::Ambient);
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -368,19 +381,17 @@ declare module "m" {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
-                let name = descriptor.name.expect("expected name");
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Ambient);
                 assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, name_id, "m");
+                    assert_string!(parser, *name_id, "m");
                 });
                 assert_eq!(expressions.len(), 1);
 
                 let nested_id = expressions[0];
                 assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
-                    assert_node!(parser.tree, *global_id, Declaration::Global { descriptor, expressions, .. } => {
-                        assert_eq!(descriptor.kind, DeclarationKind::Declaration);
-                        assert!(descriptor.name.is_none());
+                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
+                        assert_eq!(*ambient, Ambientness::Ambient);
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -403,13 +414,12 @@ module "foo" {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, kind, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, kind, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Concrete);
                 assert_eq!(*kind, NamespaceKind::Module);
                 assert_eq!(expressions.len(), 1);
-                let name = descriptor.name.expect("expected name");
                 assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, name_id, "foo");
+                    assert_string!(parser, *name_id, "foo");
                 });
             });
         });
@@ -430,12 +440,11 @@ module "foo" {
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
-                assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
+                assert_eq!(*ambient, Ambientness::Concrete);
                 assert_eq!(expressions.len(), 1);
-                let name = descriptor.name.expect("expected name");
                 assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, name_id, "foo");
+                    assert_string!(parser, *name_id, "foo");
                 });
             });
         });
@@ -454,17 +463,8 @@ module "foo" {
         let mut test = TestParser::new("namespace { }");
         let mut parser = test.prepare();
         let start = parser.mark();
-        let namespace_id = parser
-            .eat_namespace(&start, DeclarationDescriptor::default())
-            .unwrap();
-        assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, kind, expressions, generics, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert_eq!(*kind, NamespaceKind::Namespace);
-            assert!(descriptor.name.is_none());
-            assert!(descriptor.export.is_none());
-            assert!(expressions.is_empty());
-            assert!(generics.is_empty());
-        });
+        let result = parser.eat_namespace(&start, DeclarationHeader::default());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -480,20 +480,18 @@ namespace Foo where Guard: Limit {
 
         let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(&start, DeclarationDescriptor::default())
+            .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, kind, expressions, generics, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, export, ambient, kind, expressions, where_clauses, .. }) => {
+            assert_eq!(*ambient, Ambientness::Concrete);
             assert_eq!(*kind, NamespaceKind::Namespace);
-            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(descriptor.export.is_none());
+            assert_string!(parser, name.string(), "Foo");
+            assert!(export.is_none());
             assert!(expressions.is_empty());
-            assert!(!generics.is_empty());
-            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
-            assert_eq!(where_items.len(), 1);
+            assert_eq!(where_clauses.len(), 1);
 
             // where Guard: Limit
-            assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
+            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Guard");
                 assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
@@ -506,23 +504,21 @@ namespace Foo where Guard: Limit {
         let mut parser = test.prepare();
         let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(&start, DeclarationDescriptor::default())
+            .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();
 
-        assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, kind, expressions, generics, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, export, ambient, kind, expressions, where_clauses, .. }) => {
+            assert_eq!(*ambient, Ambientness::Concrete);
             assert_eq!(*kind, NamespaceKind::Namespace);
-            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(descriptor.export.is_none());
+            assert_string!(parser, name.string(), "Foo");
+            assert!(export.is_none());
             assert!(expressions.is_empty());
-            assert!(!generics.is_empty());
-            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
-            assert_eq!(where_items.len(), 1);
+            assert_eq!(where_clauses.len(), 1);
 
             // where Requirement: Interface
-            assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
+            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
-                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
+                assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "Interface");
                 });
             });
@@ -545,11 +541,11 @@ namespace M {
         assert_eq!(expressions.len(), 1);
 
         assert_node!(parser.tree, expressions[0], Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace { expressions, .. } => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { expressions, .. }) => {
                 assert_eq!(expressions.len(), 2);
                 assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(_) => {});
-                assert_node!(parser.tree, expressions[1], Expression::Let { descriptor, .. } => {
-                    assert_eq!(descriptor.export, Some(DependencyMode::Item));
+                assert_node!(parser.tree, expressions[1], Expression::Let { export, .. } => {
+                    assert_eq!(*export, Some(ExportMode::Named));
                 });
             });
         });

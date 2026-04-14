@@ -3,7 +3,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
     Expression, LiteralType, LocalNodeId, Name, NodeType, Pattern, PatternField, ScalarLiteral,
-    TokenType, TypeLiteral,
+    TokenType, TypeExpression, TypeLiteral,
 };
 use destack_source::Span;
 
@@ -74,7 +74,10 @@ impl Parser {
                 })?;
                 let fields = fields_result;
                 let pattern = Pattern::Tuple { fields };
-                self.eat_token(TokenType::CloseParenthesis)?;
+                self.eat_close_token_or_recover_missing(
+                    TokenType::CloseParenthesis,
+                    NodeType::Pattern,
+                )?;
                 self.insert_node(pattern, self.get_span_from(&start))
             }
             // struct (without type)
@@ -87,7 +90,7 @@ impl Parser {
                 })?;
                 let fields = fields_result;
                 let pattern = Pattern::Object { fields };
-                self.eat_token(TokenType::CloseBrace)?;
+                self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Pattern)?;
                 self.insert_node(pattern, self.get_span_from(&start))
             }
             // array or slice
@@ -100,7 +103,10 @@ impl Parser {
                 })?;
                 let fields = fields_result;
                 self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBracket)?;
+                self.eat_close_token_or_recover_missing(
+                    TokenType::CloseBracket,
+                    NodeType::Pattern,
+                )?;
                 self.tree
                     .insert(Pattern::Array { fields }, self.get_span_from(&start))
             }
@@ -123,22 +129,29 @@ impl Parser {
             else if self.peek_identifier_str_is("null")
                 || self.peek_identifier_str_is("undefined")
             {
-                let literal = if self.peek_identifier_str_is("null") {
-                    TypeLiteral::Null
-                } else {
-                    TypeLiteral::Undefined
-                };
+                let is_null = self.peek_identifier_str_is("null");
                 self.bump(); // eat literal identifier
 
-                let expression_id = self
-                    .tree
-                    .insert(Expression::TypeLiteral(literal), self.get_span_from(&start));
-                self.insert_node(
+                let pattern = if is_null {
+                    let expression_id = self.tree.insert(
+                        Expression::ScalarLiteral(ScalarLiteral::Null),
+                        self.get_span_from(&start),
+                    );
                     Pattern::Expression {
                         value: expression_id,
-                    },
-                    self.get_span_from(&start),
-                )
+                    }
+                } else {
+                    let expression_id = self.tree.insert(
+                        TypeExpression::Literal {
+                            value: TypeLiteral::Undefined,
+                        },
+                        self.get_span_from(&start),
+                    );
+                    Pattern::TypeExpression {
+                        value: expression_id,
+                    }
+                };
+                self.insert_node(pattern, self.get_span_from(&start))
             }
             // binding with expression or pattern
             else if !self.options.is_in_before_type()
@@ -175,18 +188,20 @@ impl Parser {
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Pattern)?;
                     let expression_id = self.insert_node(
-                        Expression::QualifiedReference {
+                        TypeExpression::Reference {
                             path,
-                            static_arguments: None,
+                            generic_arguments: vec![],
                         },
                         self.get_span_from(&start),
                     );
-                    self.set_path_expression_spans(expression_id, &segment_spans);
                     let pattern = Pattern::TaggedTuple {
                         ty: expression_id,
                         fields,
                     };
-                    self.eat_token(TokenType::CloseParenthesis)?;
+                    self.eat_close_token_or_recover_missing(
+                        TokenType::CloseParenthesis,
+                        NodeType::Pattern,
+                    )?;
                     self.insert_node(pattern, self.get_span_from(&start))
                 }
                 // struct with path
@@ -197,15 +212,17 @@ impl Parser {
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
                         .for_node_type(NodeType::Pattern)?;
                     let ty_id = self.insert_node(
-                        Expression::QualifiedReference {
+                        TypeExpression::Reference {
                             path,
-                            static_arguments: None,
+                            generic_arguments: vec![],
                         },
                         self.get_span_from(&start),
                     );
-                    self.set_path_expression_spans(ty_id, &segment_spans);
                     let pattern = Pattern::TaggedObject { ty: ty_id, fields };
-                    self.eat_token(TokenType::CloseBrace)?;
+                    self.eat_close_token_or_recover_missing(
+                        TokenType::CloseBrace,
+                        NodeType::Pattern,
+                    )?;
                     self.insert_node(pattern, self.get_span_from(&start))
                 }
                 // path
@@ -213,7 +230,7 @@ impl Parser {
                     let expression_id = self.insert_node(
                         Expression::QualifiedReference {
                             path,
-                            static_arguments: None,
+                            generic_arguments: vec![],
                         },
                         self.get_span_from(&start),
                     );
@@ -229,23 +246,29 @@ impl Parser {
                 else if path.segments[0] == self.state.type_literal_identifiers.null_
                     || path.segments[0] == self.state.type_literal_identifiers.undefined
                 {
-                    let type_literal =
-                        if path.segments[0] == self.state.type_literal_identifiers.null_ {
-                            TypeLiteral::Null
-                        } else {
-                            TypeLiteral::Undefined
-                        };
-                    let expression_id = self.insert_node(
-                        Expression::TypeLiteral(type_literal),
-                        self.get_span_from(&start),
-                    );
-                    self.tree.set_main_span(expression_id, last_span);
-                    self.insert_node(
+                    let is_null = path.segments[0] == self.state.type_literal_identifiers.null_;
+                    let pattern = if is_null {
+                        let expression_id = self.insert_node(
+                            Expression::ScalarLiteral(ScalarLiteral::Null),
+                            self.get_span_from(&start),
+                        );
+                        self.tree.set_main_span(expression_id, last_span);
                         Pattern::Expression {
                             value: expression_id,
-                        },
-                        self.get_span_from(&start),
-                    )
+                        }
+                    } else {
+                        let expression_id = self.insert_node(
+                            TypeExpression::Literal {
+                                value: TypeLiteral::Undefined,
+                            },
+                            self.get_span_from(&start),
+                        );
+                        self.tree.set_main_span(expression_id, last_span);
+                        Pattern::TypeExpression {
+                            value: expression_id,
+                        }
+                    };
+                    self.insert_node(pattern, self.get_span_from(&start))
                 }
                 // identifier
                 else {
@@ -349,7 +372,14 @@ impl Parser {
                     let key = self.eat_expression(
                         self.options.not_in_position().not_in_sequence_expression(),
                     )?;
-                    self.eat_token(TokenType::CloseBracket)?;
+                    self.eat_close_token_or_recover_missing_with(
+                        TokenType::CloseBracket,
+                        NodeType::PatternField,
+                        |_, token_type| {
+                            Self::is_close_delimiter_boundary_token(token_type)
+                                || token_type == TokenType::Colon
+                        },
+                    )?;
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::Colon)?;
                     self.eat_newlines_maybe()?;
@@ -600,7 +630,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, Mutability, Name, Pattern, PatternField, ScalarLiteral};
+    use destack_ast::{
+        Expression, Mutability, Name, Pattern, PatternField, ScalarLiteral, TypeExpression,
+    };
     use destack_source::LanguageType;
 
     use crate::{
@@ -624,6 +656,38 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Binding { mutability: None, name, pattern: None } => {
             assert_string!(parser, *name, "_");
+        });
+    }
+
+    #[test]
+    fn test_parse_tuple_pattern_with_missing_close_parenthesis() {
+        let mut test = TestParser::new("(first, second");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
+            assert_eq!(fields.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_parse_computed_pattern_field_with_missing_close_bracket() {
+        let mut test = TestParser::new("{ [key: value }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Computed { key, pattern: Some(pattern), .. } => {
+                assert_expression_path!(parser, parser.tree.get(*key), "key");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
+            });
         });
     }
 
@@ -1019,7 +1083,7 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
 
         assert_node!(parser.tree, pattern_id, Pattern::TaggedObject { ty, fields } => {
-            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: None } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                 assert_path!(parser, *path, "Vector2");
             });
             assert_eq!(fields.len(), 2);

@@ -3,10 +3,12 @@ use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId,
-    Mutability, NodeType, Pattern, TokenType,
+    Asynchrony, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability, NodeType,
+    Pattern, TokenType,
 };
 use destack_source::NodeSpanType;
+
+use super::expression::common::DeclarationHeader;
 
 impl Parser {
     /// Return the `using` keyword index for an async or sync using head at the current position.
@@ -86,7 +88,7 @@ impl Parser {
     fn eat_let_after_keyword(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
         kind: LetKind,
         mutability: Mutability,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -114,7 +116,8 @@ impl Parser {
         let let_id = self.insert_node(
             Expression::Let {
                 kind,
-                descriptor,
+                export: header.export,
+                ambient: header.ambient,
                 mutability,
                 declarators,
             },
@@ -164,7 +167,7 @@ impl Parser {
     pub(crate) fn eat_let_from_keyword(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
         keyword: Keyword,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LET);
@@ -176,7 +179,7 @@ impl Parser {
         };
 
         self.bump();
-        self.eat_let_after_keyword(start, descriptor, kind, mutability)
+        self.eat_let_after_keyword(start, header, kind, mutability)
     }
 
     /// Eat a mutability modifier.
@@ -245,14 +248,15 @@ impl Parser {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(
+    #[cfg(test)]
+    pub(crate) fn eat_let(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LET);
         let (kind, mutability) = self.eat_let_kind()?;
-        self.eat_let_after_keyword(start, descriptor, kind, mutability)
+        self.eat_let_after_keyword(start, header, kind, mutability)
     }
 
     /// Eat a using binding (incl. `using` keyword and optional `await`).
@@ -263,10 +267,10 @@ impl Parser {
     /// await using conn = openConnection()
     /// using a = openA(), b = openB()
     /// ```
-    pub fn eat_using(
+    pub(crate) fn eat_using(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
         asynchrony: Asynchrony,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_USING);
@@ -296,7 +300,8 @@ impl Parser {
         let using_id = self.insert_node(
             Expression::Using {
                 asynchrony,
-                descriptor,
+                export: header.export,
+                ambient: header.ambient,
                 declarators,
             },
             self.get_span_from(start),
@@ -305,6 +310,15 @@ impl Parser {
     }
 
     /// Eat a single declarator with an optional value unless `require_value` is set.
+    ///
+    /// Examples:
+    /// ```
+    /// value
+    /// value = 1
+    /// { x, y }: Point = point
+    /// [head, ...tail] = values
+    /// readonly buffer: Buffer
+    /// ```
     pub(super) fn eat_declarator(
         &mut self,
         require_value: bool,
@@ -395,8 +409,8 @@ impl Parser {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             let type_options = self.options.not_in_position().in_type();
-            let ty =
-                self.eat_type_expression_or_recover_missing(type_options, NodeType::Declarator)?;
+            let ty = self
+                .eat_type_expression_node_or_recover_missing(type_options, NodeType::Declarator)?;
             (Some(ty), Some(self.get_span_from(&type_start)))
         } else {
             (None, None)
@@ -457,7 +471,7 @@ impl Parser {
     /// Return true when the current token can terminate a declaration statement.
     fn declarator_has_statement_boundary(&mut self) -> bool {
         self.is_statement_stop()
-            || self.has_line_terminator_before_current_token()
+            || self.input_has_line_terminator_before_current_token()
             || self.peek_is(TokenType::CloseBrace)
             || self.peek_is(TokenType::CloseParenthesis)
     }
@@ -466,6 +480,7 @@ impl Parser {
     fn declarator_pattern_is_valid_binding(&self, pattern_id: LocalNodeId<Pattern>) -> bool {
         match self.tree.get(pattern_id) {
             Pattern::Expression { value } => self.declarator_expression_is_valid_binding(*value),
+            Pattern::TypeExpression { .. } => false,
             _ => true,
         }
     }
@@ -475,22 +490,20 @@ impl Parser {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        match self.tree.get(expression_id) {
-            Expression::Identifier { .. } => true,
-            _ => false,
-        }
+        matches!(self.tree.get(expression_id), Expression::Identifier { .. })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Declarator,
-        Expression, FunctionKind, IntType, Key, LetKind, Mutability, Name, Parameter, Pattern,
-        PatternField, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        Asynchrony, Declaration, Declarator, Expression, FunctionDeclaration, FunctionKind,
+        GenericArgument, GenericParameter, IntType, Key, LetKind, Mutability, Name, Parameter,
+        Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeProperty,
     };
     use destack_source::LanguageType;
 
+    use crate::parse::expression::common::DeclarationHeader;
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
@@ -507,7 +520,7 @@ const x: int32 = 1
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -522,7 +535,7 @@ const x: int32 = 1
 
                 // int32
                 let ty_id = ty.expect("expected explicit type");
-                assert_node!(parser.tree, ty_id, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, ty_id, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }) });
 
                 // 1
                 let value_id = value.expect("expected value");
@@ -546,7 +559,7 @@ const constants:
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -554,8 +567,8 @@ const constants:
             assert_node!(parser.tree, declarators[0], Declarator { ty, value, .. } => {
                 assert!(value.is_none());
                 let ty_id = ty.expect("expected explicit type");
-                assert_node!(parser.tree, ty_id, Expression::Binary { operator, .. } => {
-                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                assert_node!(parser.tree, ty_id, TypeExpression::Intersection { elements } => {
+                    assert_eq!(elements.len(), 2);
                 });
             });
         });
@@ -576,7 +589,7 @@ const constants:
                 });
 
                 let ty = ty.expect("expected recovered type");
-                assert_node!(parser.tree, ty, Expression::Missing);
+                assert_node!(parser.tree, ty, TypeExpression::Missing);
                 assert!(value.is_none());
             });
         });
@@ -597,7 +610,7 @@ const constants:
                 });
 
                 let ty = ty.expect("expected recovered type");
-                assert_node!(parser.tree, ty, Expression::Missing);
+                assert_node!(parser.tree, ty, TypeExpression::Missing);
 
                 let value = value.expect("expected initializer");
                 assert_node!(parser.tree, value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -638,7 +651,7 @@ using x = open()
 
         let start = parser.mark();
         let using_id = parser
-            .eat_using(&start, DeclarationDescriptor::default(), Asynchrony::Sync)
+            .eat_using(&start, DeclarationHeader::default(), Asynchrony::Sync)
             .unwrap();
 
         assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
@@ -671,27 +684,25 @@ using x = open()
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "foo");
                 });
-                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "Tmp");
                 });
                 let value_id = value.expect("expected value");
                 assert_node!(parser.tree, value_id, Expression::Declaration(declaration_id) => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                         assert_eq!(signature.kind, FunctionKind::Lambda);
-                        let generics = signature.generics.as_ref().expect("expected generics");
-                        let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
-                        assert_eq!(static_parameters.len(), 1);
-                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
+                        assert_eq!(signature.generic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, .. } => {
                             assert_string!(parser, *name, "T");
                         });
-                        assert_eq!(signature.dynamic_parameters.len(), 1);
-                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                        assert_eq!(signature.parameters.len(), 1);
+                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                             assert_string!(parser, *name, "str");
-                            assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
+                            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
                                 assert_path!(parser, *path, "T");
                             });
                         });
-                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, .. } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, .. } => {
                             assert_path!(parser, *path, "T");
                         });
                     });
@@ -710,7 +721,7 @@ using x = open()
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -739,7 +750,7 @@ using x = open()
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -773,7 +784,7 @@ await using conn = openConnection()
 
         let start = parser.mark();
         let using_id = parser
-            .eat_using(&start, DeclarationDescriptor::default(), Asynchrony::Async)
+            .eat_using(&start, DeclarationHeader::default(), Asynchrony::Async)
             .unwrap();
 
         assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
@@ -794,7 +805,7 @@ using a = openA(), b = openB()
 
         let start = parser.mark();
         let using_id = parser
-            .eat_using(&start, DeclarationDescriptor::default(), Asynchrony::Sync)
+            .eat_using(&start, DeclarationHeader::default(), Asynchrony::Sync)
             .unwrap();
 
         assert_node!(parser.tree, using_id, Expression::Using { declarators, .. } => {
@@ -814,7 +825,7 @@ var x: float64[3] = undefined
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -830,11 +841,11 @@ var x: float64[3] = undefined
 
                 // float64[3]
                 let ty_id = ty.expect("expected explicit type");
-                assert_node!(parser.tree, ty_id, Expression::TypeIndex { left, index } => {
-                    assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::Float(float_ty)) => {
+                assert_node!(parser.tree, ty_id, TypeExpression::Index { left, index } => {
+                    assert_node!(parser.tree, *left, TypeExpression::Literal { value: TypeLiteral::Float(float_ty) } => {
                         assert_eq!(float_ty.width, Some(64));
                     });
-                    assert_node!(parser.tree, *index, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+                    assert_node!(parser.tree, *index, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(3) });
                 });
             });
         });
@@ -852,7 +863,7 @@ const (x, y) = foo()
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -889,7 +900,7 @@ const (x, y) = foo()
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -909,7 +920,7 @@ const (x, y) = foo()
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         // let x: int32
@@ -941,7 +952,7 @@ const x =
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         // const x = foo.parse()
@@ -955,7 +966,7 @@ const x =
                 });
                 // foo.parse()
                 assert!(value.is_some());
-                assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, static_arguments: _, dynamic_arguments: _ } => {
+                assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, generic_arguments: _, dynamic_arguments: _ } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "foo.parse");
                 });
             });
@@ -963,7 +974,7 @@ const x =
     }
 
     #[test]
-    fn test_parse_let_multiline_with_static_arguments() {
+    fn test_parse_let_multiline_with_generic_arguments() {
         let mut test = TestParser::new(
             r###"
 const registry: Map<
@@ -992,28 +1003,34 @@ const registry: Map<
                 });
 
                 // Map<string, Set<{count: number}>>
-                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, static_arguments } => {
+                assert_node!(parser.tree, ty.unwrap(), TypeExpression::Reference { path, generic_arguments } => {
                     // Map
                     assert_path!(parser, *path, "Map");
                     // <string, Set<{count: number}>>
                     // string
-                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+                        });
                     });
                     // Set<{count: number}>
-                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { modifiers: _, value } => {
-                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
+                    assert_node!(parser.tree, generic_arguments[1], GenericArgument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                             // Set
                             assert_path!(parser, *path, "Set");
                             // <{count: number}>
-                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                                assert_node!(parser.tree, *value, Expression::ObjectExpression { ty: None, properties, .. } => {
+                            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                                assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                    assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
                                     assert_eq!(properties.len(), 1);
-                                    assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
+                                    assert_node!(parser.tree, properties[0], TypeProperty::Field { key: Key::Name(Name::Identifier(name)), .. } => {
                                         assert_string!(parser, *name, "count");
                                     });
                                 });
+                                });
                             });
+                        });
                         });
                     });
                 });
@@ -1027,7 +1044,7 @@ const registry: Map<
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Mutable);
@@ -1061,7 +1078,7 @@ const registry: Map<
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         // parse both declarators split by a newline before the comma
@@ -1097,7 +1114,7 @@ const registry: Map<
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         // parse two declarators split across newlines after const
@@ -1132,7 +1149,7 @@ const registry: Map<
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
         // const declarator stops before return after line terminator trivia
@@ -1145,8 +1162,7 @@ const registry: Map<
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Expression::Return { value } => {
             let value = value.expect("expected return value");
-            assert_node!(parser.tree, value, Expression::TypeBinary { operator, .. } => {
-                assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_node!(parser.tree, value, Expression::As { .. } => {
             });
         });
     }
@@ -1158,7 +1174,7 @@ const registry: Map<
         let mut parser = test.prepare();
         let start = parser.mark();
         let error = parser
-            .eat_let(&start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationHeader::default())
             .unwrap_err();
 
         // [
@@ -1183,7 +1199,7 @@ const registry: Map<
                     assert_string!(parser, *name, "f1");
                 });
                 assert_node!(parser.tree, value.expect("expected initializer"), Expression::Declaration(declaration_id) => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                         assert_eq!(signature.kind, FunctionKind::Lambda);
                     });
                 });
@@ -1194,7 +1210,7 @@ const registry: Map<
                 assert!(dynamic_arguments.is_empty());
                 assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                     assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                             assert_eq!(signature.kind, FunctionKind::Function);
                         });
                     });

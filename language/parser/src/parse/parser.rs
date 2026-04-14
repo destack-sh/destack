@@ -1,8 +1,8 @@
 use crate::{Lexer, LexerSnapshot, is_semantic};
 use core::fmt;
 use destack_ast::{
-    BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeTreeMark,
-    NodeType, StringId, Token, TokenSpan, TokenType,
+    BlockFormat, Comment, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl,
+    NodeTreeMark, NodeType, StringId, Token, TokenSpan, TokenType, TypeExpression,
 };
 use destack_core::LocalStringPool;
 use destack_source::{
@@ -1005,6 +1005,24 @@ impl Debug for Parser {
 }
 
 impl Parser {
+    /// Return true when raw input before one token stream index contains a line terminator.
+    #[inline]
+    pub(crate) fn input_has_line_terminator_before_index(&mut self, index: usize) -> bool {
+        if self.lexer.materialized_line_terminator_before(index) {
+            return true;
+        }
+
+        self.tokens()
+            .get(index.saturating_sub(1))
+            .is_some_and(|token| token.token.ty == TokenType::Newline)
+    }
+
+    /// Return true when raw input before the current token contains a line terminator.
+    #[inline]
+    pub(crate) fn input_has_line_terminator_before_current_token(&mut self) -> bool {
+        self.input_has_line_terminator_before_index(self.pos_index())
+    }
+
     /// Create one parser for a file before lexing begins.
     fn parser_for_file(file: Arc<File>, language: LanguageType) -> Self {
         // initialize the lexer for lazy lexing
@@ -1108,10 +1126,10 @@ impl Parser {
         Self::compute_side_span_from_tree(&self.tree)
     }
 
-    /// Get the span of all side annotations from a tree.
+    /// Get the span of all side decorators from a tree.
     #[inline]
     pub fn compute_side_span_from_tree(tree: &NodeTree) -> MultiSpan {
-        MultiSpan::new(tree.get_side_annotation_spans())
+        MultiSpan::new(tree.get_side_decorator_spans())
     }
 
     /// Reset the parser.
@@ -1652,9 +1670,16 @@ impl Parser {
             self.ensure_token(index);
         }
 
-        self.tokens().get(index).is_some_and(|token| {
-            token.token.ty == TokenType::Identifier && self.file.span_str(token.span) == expected
-        })
+        let Some(token) = self.tokens().get(index) else {
+            return false;
+        };
+        if token.token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        let expected = self.strings.intern(expected);
+
+        self.identifier_for_index(index) == Some(expected)
     }
 
     /// Return true when the identifier token at index is `global`.
@@ -1762,7 +1787,7 @@ impl Parser {
         // materialize the full stream before trivia ownership checks
         self.lexer.lex_to_end();
 
-        // skip files without raw comments
+        // skip files without retained comments
         if !self.lexer.has_comment_tokens() {
             return;
         }
@@ -1796,7 +1821,7 @@ impl Parser {
         self.pos as u32
     }
 
-    /// Attach raw comments after parsing when needed.
+    /// Attach retained comments after parsing when needed.
     pub fn attach_comments(&mut self) {
         // skip comment output when trivia retention is disabled
         if !self.lexer.retains_trivia_tokens() {
@@ -1817,8 +1842,24 @@ impl Parser {
             return;
         }
 
-        // copy lexer owned comments into the parse result
-        for comment in self.lexer.comments().iter().copied() {
+        // structural comment owners
+        let comment_owners = self
+            .lexer
+            .trivia_comments()
+            .iter()
+            .map(|comment| {
+                comment
+                    .attached_part(&self.tree.source_map)
+                    .expect("every retained comment must have a structural source owner")
+            })
+            .collect::<Vec<_>>();
+
+        // finalize structural comments in parse order
+        for (raw_comment, attached_part) in self.lexer.trivia_comments().iter().zip(comment_owners)
+        {
+            let mut comment = Comment::new(raw_comment.span, raw_comment.kind, attached_part);
+            comment.newlines = raw_comment.newlines;
+            comment.content = raw_comment.content;
             self.tree.push_comment(comment);
         }
     }
@@ -2602,6 +2643,14 @@ impl Parser {
         self.insert_node(Expression::Missing, missing_span)
     }
 
+    /// Insert one missing type expression node at the current cursor position.
+    pub(crate) fn insert_missing_type_expression_here(&mut self) -> LocalNodeId<TypeExpression> {
+        let anchor_span = self.anchor_span_here();
+        let missing_span = Span::new(anchor_span.file, anchor_span.start, anchor_span.start);
+
+        self.insert_node(TypeExpression::Missing, missing_span)
+    }
+
     /// Return the best local anchor span at the current cursor position.
     pub(crate) fn anchor_span_here(&mut self) -> Span {
         if let Ok(token) = self.peek() {
@@ -2642,17 +2691,35 @@ impl Parser {
         self.insert_missing_expression_here()
     }
 
+    /// Report one committed missing type expression slot and insert the missing node.
+    pub(crate) fn recover_missing_type_expression_here(
+        &mut self,
+        owner: NodeType,
+    ) -> LocalNodeId<TypeExpression> {
+        self.report_unexpected_for_here(owner);
+        self.insert_missing_type_expression_here()
+    }
+
     /// Eat one committed type expression or recover one missing child at a type boundary.
     pub(crate) fn eat_type_expression_or_recover_missing(
         &mut self,
         options: ParserOptions,
         owner: NodeType,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
         if self.is_type_expression_boundary() {
-            return Ok(self.recover_missing_expression_here(owner));
+            return Ok(self.recover_missing_type_expression_here(owner));
         }
 
-        self.eat_expression(options)
+        self.with_options(options, |parser| parser.eat_type_expression())
+    }
+
+    /// Eat one committed type expression node or recover one missing child at a type boundary.
+    pub(crate) fn eat_type_expression_node_or_recover_missing(
+        &mut self,
+        options: ParserOptions,
+        owner: NodeType,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        self.eat_type_expression_or_recover_missing(options, owner)
     }
 
     /// Eat one committed expression or recover one missing child at an expression boundary.
@@ -2674,13 +2741,25 @@ impl Parser {
         expected: TokenType,
         owner: NodeType,
     ) -> ParseResult<()> {
+        self.eat_close_token_or_recover_missing_with(expected, owner, |_, token_type| {
+            Self::is_close_delimiter_boundary_token(token_type)
+        })
+    }
+
+    /// Eat one close token or recover one committed missing close delimiter with custom boundaries.
+    pub(crate) fn eat_close_token_or_recover_missing_with(
+        &mut self,
+        expected: TokenType,
+        owner: NodeType,
+        is_recoverable_boundary: impl FnOnce(&mut Self, TokenType) -> bool,
+    ) -> ParseResult<()> {
         if self.peek_is(expected) {
             self.bump();
             return Ok(());
         }
 
         let token_type = self.peek_token_type();
-        let is_recoverable_boundary = Self::is_close_delimiter_boundary_token(token_type);
+        let is_recoverable_boundary = is_recoverable_boundary(self, token_type);
 
         self.recover_missing_token_here(expected, owner, is_recoverable_boundary)
     }
@@ -2706,15 +2785,9 @@ impl Parser {
         expected: TokenType,
         owner: NodeType,
     ) -> ParseResult<()> {
-        if self.peek_is(expected) {
-            self.bump();
-            return Ok(());
-        }
-
-        let token_type = self.peek_token_type();
-        let is_recoverable_boundary = Self::is_type_container_boundary_token(token_type);
-
-        self.recover_missing_token_here(expected, owner, is_recoverable_boundary)
+        self.eat_close_token_or_recover_missing_with(expected, owner, |_, token_type| {
+            Self::is_type_container_boundary_token(token_type)
+        })
     }
 
     /// Get the node starting at a token.

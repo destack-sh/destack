@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{Annotation, AnnotationPosition, Decorator, LocalNodeId, TokenType};
+use destack_ast::{Decorator, DecoratorPosition, LocalNodeId, TokenType};
 use smallvec::SmallVec;
 
 const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;
@@ -74,9 +74,13 @@ impl Parser {
         let expression = self.eat_expression(decorator_options)?;
 
         // store decorator side node
-        let decorator = self
-            .tree
-            .insert(Decorator { expression }, self.get_span_from(&start));
+        let decorator = self.tree.insert(
+            Decorator {
+                expression,
+                position: DecoratorPosition::BlockPrefix,
+            },
+            self.get_span_from(&start),
+        );
         let main_span = self
             .tree
             .get_main_span(expression)
@@ -91,14 +95,6 @@ impl Parser {
         target_node_id: u32,
         decorator_id: LocalNodeId<Decorator>,
     ) {
-        let span = self.tree.get_span(decorator_id);
-        let annotation_id = self.insert_node(
-            Annotation::Decorator {
-                node: decorator_id,
-                position: AnnotationPosition::BlockPrefix,
-            },
-            span,
-        );
-        self.tree.append_annotation(target_node_id, annotation_id);
+        self.tree.append_decorator(target_node_id, decorator_id);
     }
 }

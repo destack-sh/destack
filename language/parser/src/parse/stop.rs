@@ -53,7 +53,7 @@ impl Parser {
     /// Return true when a committed close delimiter can recover a missing token here.
     #[inline]
     pub(crate) const fn is_close_delimiter_boundary_token(token_type: TokenType) -> bool {
-        Self::is_close_delimiter_token(token_type) || Self::is_any_stop_token(token_type)
+        Self::is_close_delimiter_token(token_type) || Self::is_statement_stop_token(token_type)
     }
 
     /// Return true when a committed type expression can recover a missing child here.
@@ -412,6 +412,19 @@ impl Parser {
         Err(ParseError::expected(self.eof_span(), open_token))
     }
 
+    /// Find a matching close token, returning `None` when the close token is missing.
+    pub fn find_matching_close_maybe(
+        &mut self,
+        pos: Option<u32>,
+        open_token: TokenType,
+        close_token: TokenType,
+    ) -> Option<u32> {
+        let mark = self.mark_rewind();
+        let result = self.find_matching_close(pos, open_token, close_token).ok();
+        self.rewind(mark);
+        result
+    }
+
     /// Find a matching close token in expression contexts with tree literal awareness.
     pub fn find_matching_close_in_expression(
         &mut self,
@@ -422,6 +435,21 @@ impl Parser {
         let mark = self.mark_rewind();
         let result =
             self.find_matching_close_in_expression_inner(open_pos, open_token, close_token);
+        self.rewind(mark);
+        result
+    }
+
+    /// Find a matching close token in expression contexts, returning `None` when the close token is missing.
+    pub fn find_matching_close_in_expression_maybe(
+        &mut self,
+        open_pos: u32,
+        open_token: TokenType,
+        close_token: TokenType,
+    ) -> Option<u32> {
+        let mark = self.mark_rewind();
+        let result = self
+            .find_matching_close_in_expression_inner(open_pos, open_token, close_token)
+            .ok();
         self.rewind(mark);
         result
     }
@@ -465,18 +493,17 @@ impl Parser {
                     last_semantic_index,
                     prev_semantic_index,
                 );
-                if can_start_expression {
-                    if let Some(tree_end) = self.tree_literal_end_index_at(pos) {
-                        if tree_end > pos {
-                            let last_tree_index = tree_end - 1;
+                if can_start_expression
+                    && let Some(tree_end) = self.tree_literal_end_index_at(pos)
+                    && tree_end > pos
+                {
+                    let last_tree_index = tree_end - 1;
 
-                            last_non_whitespace_index = Some(last_tree_index);
-                            prev_semantic_index = last_semantic_index;
-                            last_semantic_index = Some(last_tree_index);
-                            pos = tree_end;
-                            continue;
-                        }
-                    }
+                    last_non_whitespace_index = Some(last_tree_index);
+                    prev_semantic_index = last_semantic_index;
+                    last_semantic_index = Some(last_tree_index);
+                    pos = tree_end;
+                    continue;
                 }
             }
 
@@ -595,18 +622,17 @@ impl Parser {
                     last_semantic_index,
                     prev_semantic_index,
                 );
-                if can_start_expression {
-                    if let Some(tree_end) = self.tree_literal_end_index_at(pos) {
-                        if tree_end > pos {
-                            let last_tree_index = tree_end - 1;
+                if can_start_expression
+                    && let Some(tree_end) = self.tree_literal_end_index_at(pos)
+                    && tree_end > pos
+                {
+                    let last_tree_index = tree_end - 1;
 
-                            last_non_whitespace_index = Some(last_tree_index);
-                            prev_semantic_index = last_semantic_index;
-                            last_semantic_index = Some(last_tree_index);
-                            pos = tree_end;
-                            continue;
-                        }
-                    }
+                    last_non_whitespace_index = Some(last_tree_index);
+                    prev_semantic_index = last_semantic_index;
+                    last_semantic_index = Some(last_tree_index);
+                    pos = tree_end;
+                    continue;
                 }
             }
 

@@ -2,7 +2,7 @@
 
 use destack_ast::{
     Asynchrony, BlockContext, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind,
-    Keyword, LocalNodeId, Pattern, TokenType, WhileKind,
+    Keyword, LocalNodeId, NodeType, Pattern, TokenType, WhileKind,
 };
 
 use crate::{ParseError, ParseResult, Parser};
@@ -74,12 +74,22 @@ impl Parser {
         let in_parenthesis = self.peek_is(TokenType::OpenParenthesis);
         let has_top_level_semicolon = if in_parenthesis {
             let open_pos = self.pos();
-            let close_pos = self.find_matching_close_in_expression(
+            let close_pos = self.find_matching_close_in_expression_maybe(
                 open_pos,
                 TokenType::OpenParenthesis,
                 TokenType::CloseParenthesis,
-            )?;
-            self.has_token_before_matching_close(open_pos, close_pos, TokenType::Semicolon, false)?
+            );
+
+            if let Some(close_pos) = close_pos {
+                self.has_token_before_matching_close(
+                    open_pos,
+                    close_pos,
+                    TokenType::Semicolon,
+                    false,
+                )?
+            } else {
+                false
+            }
         } else {
             false
         };
@@ -123,7 +133,13 @@ impl Parser {
 
             // close parenthesis
             self.eat_newlines_maybe()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
+            self.eat_close_token_or_recover_missing_with(
+                TokenType::CloseParenthesis,
+                NodeType::Expression,
+                |parser, token_type| {
+                    Self::is_close_delimiter_boundary_token(token_type) || parser.is_block_start()
+                },
+            )?;
 
             // body
             let body_id = self.eat_block_or_statement()?;
@@ -178,7 +194,14 @@ impl Parser {
             if in_parenthesis {
                 // close parenthesis
                 self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
+                self.eat_close_token_or_recover_missing_with(
+                    TokenType::CloseParenthesis,
+                    NodeType::Expression,
+                    |parser, token_type| {
+                        Self::is_close_delimiter_boundary_token(token_type)
+                            || parser.is_block_start()
+                    },
+                )?;
             }
 
             // body
@@ -390,8 +413,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding,
-        ForEachDeclarationKind, ForEachKind, Keyword, Mutability, Name, Pattern, PatternField,
-        ScalarLiteral, TokenType, TypeLiteral, UnaryOperator, WhileKind,
+        ForEachDeclarationKind, ForEachKind, GenericArgument, Keyword, Mutability, Name, Pattern,
+        PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, UnaryOperator,
+        WhileKind,
     };
     use destack_source::LanguageType;
 
@@ -440,6 +464,24 @@ for (const item in items) {
             });
             // items
             assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_missing_close_parenthesis() {
+        let mut test = TestParser::new("for (item in items { body }");
+        let mut parser = test.prepare();
+        let for_id = parser.eat_for().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body, .. } => {
+            assert_eq!(*declaration_kind, None);
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "item");
+            });
+            assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+            let _body = parser.tree.get(*body);
         });
     }
 
@@ -604,22 +646,25 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
             // await fetchList<{ item: string }>(values)
             assert_node!(parser.tree, *iterator, Expression::Await { expression } => {
-                assert_node!(parser.tree, *expression, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "fetchList");
                     assert_eq!(dynamic_arguments.len(), 1);
                     assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "values");
                     });
 
-                    let static_arguments = static_arguments.as_ref().expect("expected static arguments");
-                    assert_eq!(static_arguments.len(), 1);
+                    assert_eq!(generic_arguments.len(), 1);
 
-                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::ObjectExpression { ty: None, properties } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
                             assert_eq!(properties.len(), 1);
-                            assert_node!(parser.tree, properties[0], destack_ast::Property::Field { key: Some(destack_ast::Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                            assert_node!(parser.tree, properties[0], destack_ast::TypeProperty::Field { key: destack_ast::Key::Name(Name::Identifier(name)), declared_type: value, .. } => {
                                 assert_string!(parser, *name, "item");
-                                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                                    assert_eq!(*value, TypeLiteral::String);
+                                });
+                            });
                             });
                         });
                     });
