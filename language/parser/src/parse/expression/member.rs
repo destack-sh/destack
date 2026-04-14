@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
-    Expression, Keyword, LiteralType, LocalNodeId, NumberBase, ScalarLiteral, TokenType,
+    Expression, Keyword, LiteralType, LocalNodeId, NodeType, NumberBase, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
 use destack_source::Span;
@@ -146,7 +146,10 @@ impl Parser {
             let expression_id = self.eat_expression(self.options)?;
             self.eat_newlines_maybe()?;
 
-            self.eat_token(TokenType::CloseParenthesis)?;
+            self.eat_close_token_or_recover_missing(
+                TokenType::CloseParenthesis,
+                NodeType::Expression,
+            )?;
             Ok(expression_id)
         } else {
             self.eat_expression(self.options)

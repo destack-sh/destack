@@ -1,9 +1,10 @@
+use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression, Keyword,
-    LocalNodeId, OperatorPrecedence, Path, TokenType, TypeKind, TypeLiteral,
+    Asynchrony, Declaration, EnumKind, ExportMode, Expression, Keyword, LocalNodeId,
+    OperatorPrecedence, Path, ScalarLiteral, TokenType, TypeExpression, TypeKind,
 };
 use smallvec::smallvec;
 
@@ -30,7 +31,7 @@ impl Parser {
         // async (...) must be followed by an arrow or return type to form a lambda
         if next_token_type == TokenType::OpenParenthesis {
             let open_index = self.index_for_next() as u32;
-            let Ok(close_pos) = self.find_matching_close(
+            let Some(close_pos) = self.find_matching_close_maybe(
                 Some(open_index),
                 TokenType::OpenParenthesis,
                 TokenType::CloseParenthesis,
@@ -79,15 +80,25 @@ impl Parser {
 
     /// Wrap a declaration node in an expression with the current span.
     #[inline]
-    fn insert_declaration_expression(
+    pub(super) fn insert_declaration_expression(
         &mut self,
         start: &ParserMark,
         declaration_id: LocalNodeId<Declaration>,
     ) -> LocalNodeId<Expression> {
-        self.insert_node(
-            Expression::Declaration(declaration_id),
-            self.get_span_from(start),
-        )
+        if self.options.is_in_type() {
+            let type_expression_id = self.insert_node(
+                TypeExpression::Declaration {
+                    declaration: declaration_id,
+                },
+                self.get_span_from(start),
+            );
+            self.insert_type_expression_value(type_expression_id)
+        } else {
+            self.insert_node(
+                Expression::Declaration(declaration_id),
+                self.get_span_from(start),
+            )
+        }
     }
 
     /// Return whether the current keyword is followed by `.<member>` for any expected member name.
@@ -163,7 +174,7 @@ impl Parser {
         };
         let expression = Expression::QualifiedReference {
             path,
-            static_arguments: None,
+            generic_arguments: vec![],
         };
         let expression_id = self.insert_node(expression, self.get_span_from(start));
 
@@ -198,7 +209,7 @@ impl Parser {
         next_raw_token_type: TokenType,
         next_cursor: NonNewlineTokenCursor,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        let descriptor = DeclarationDescriptor::default();
+        let header = DeclarationHeader::default();
         let next_token_type = next_cursor.token_type;
         let next_token_index = next_cursor.index;
         let next_has_line_break = next_cursor.has_line_break_before;
@@ -221,32 +232,31 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, descriptor, false, false)?;
+                let function_id = self.eat_function(start, header, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             Keyword::Class => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = !self.options.is_in_statement_position()
-                    || descriptor.export == Some(DependencyMode::Default);
-                let struct_id =
-                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
+                    || header.export == Some(ExportMode::Default);
+                let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             Keyword::Struct
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
+                let struct_id = self.eat_struct_or_class(start, header, false)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             Keyword::Enum if is_declaration_start && !next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
+                let enum_id = self.eat_enum(start, EnumKind::Enum, header)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
             }
             Keyword::Interface if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
+                let interface_id = self.eat_interface(start, header, TypeKind::Structural)?;
                 Ok(Some(
                     self.insert_declaration_expression(start, interface_id),
                 ))
@@ -258,14 +268,14 @@ impl Parser {
                     && !is_type_relation_keyword(next_keyword) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let namespace_id = self.eat_namespace(start, descriptor)?;
+                let namespace_id = self.eat_namespace(start, header)?;
                 Ok(Some(
                     self.insert_declaration_expression(start, namespace_id),
                 ))
             }
             Keyword::Extension if self.language.is_destack() && is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let extension_id = self.eat_extension(start, descriptor)?;
+                let extension_id = self.eat_extension(start, header)?;
                 Ok(Some(
                     self.insert_declaration_expression(start, extension_id),
                 ))
@@ -304,7 +314,7 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                Ok(Some(self.eat_type(start, descriptor)?))
+                Ok(Some(self.eat_type(start, header)?))
             }
             Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
@@ -403,27 +413,27 @@ impl Parser {
             }
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                Ok(Some(self.eat_let_from_keyword(start, descriptor, keyword)?))
+                Ok(Some(self.eat_let_from_keyword(start, header, keyword)?))
             }
             Keyword::Const => {
                 if next_raw_keyword == Some(Keyword::Enum) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Const)?;
-                    let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
+                    let enum_id = self.eat_enum(start, EnumKind::Const, header)?;
                     Ok(Some(self.insert_declaration_expression(start, enum_id)))
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                     Ok(Some(self.eat_let_from_keyword(
                         start,
-                        descriptor,
+                        header,
                         Keyword::Const,
                     )?))
                 }
             }
             Keyword::Using => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                if self.can_parse_using_declaration(&descriptor, Asynchrony::Sync) {
-                    Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                if self.can_parse_using_declaration(&header, Asynchrony::Sync) {
+                    Ok(Some(self.eat_using(start, header, Asynchrony::Sync)?))
                 } else {
                     Ok(None)
                 }
@@ -434,14 +444,10 @@ impl Parser {
                 }
 
                 if self.can_start_await_using()
-                    && self.can_parse_using_declaration(&descriptor, Asynchrony::Async)
+                    && self.can_parse_using_declaration(&header, Asynchrony::Async)
                 {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                    Ok(Some(self.eat_using(
-                        start,
-                        descriptor,
-                        Asynchrony::Async,
-                    )?))
+                    Ok(Some(self.eat_using(start, header, Asynchrony::Async)?))
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                     Ok(Some(self.eat_await()?))
@@ -453,21 +459,21 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, descriptor, false, false)?;
+                let function_id = self.eat_function(start, header, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             _ => Ok(None),
         }
     }
 
-    /// Return true when a keyword token should fall back to an identifier for type predicates.
-    fn keyword_falls_back_to_type_predicate_identifier(
+    /// Return true when a keyword token should parse as a type predicate subject identifier.
+    fn keyword_parses_as_type_predicate_subject_identifier(
         &mut self,
         keyword: Keyword,
         next_token_type: TokenType,
         next_token_index: usize,
     ) -> bool {
-        // this fallback only applies inside type expressions
+        // this path only applies inside type expressions
         if !self.options.is_in_type() {
             return false;
         }
@@ -486,10 +492,20 @@ impl Parser {
     }
 
     /// Eat a keyword-led expression when possible.
+    ///
+    /// Examples:
+    /// ```
+    /// async () => value
+    /// function named() {}
+    /// import.meta
+    /// import("pkg")
+    /// export { a, b }
+    /// class Box<T> {}
+    /// ```
     pub(super) fn eat_keyword_expression(
         &mut self,
         start: &ParserMark,
-        descriptor: DeclarationDescriptor,
+        header: DeclarationHeader,
         keyword: Keyword,
         next_token_type: TokenType,
         next_token_index: usize,
@@ -498,7 +514,7 @@ impl Parser {
         is_declaration_start: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // parse contextual keyword subjects like `override is X` as identifiers
-        if self.keyword_falls_back_to_type_predicate_identifier(
+        if self.keyword_parses_as_type_predicate_subject_identifier(
             keyword,
             next_token_type,
             next_token_index,
@@ -521,7 +537,7 @@ impl Parser {
                     && !is_type_relation_keyword(next_keyword) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let namespace_id = self.eat_namespace(start, descriptor)?;
+                let namespace_id = self.eat_namespace(start, header)?;
                 Ok(Some(
                     self.insert_declaration_expression(start, namespace_id),
                 ))
@@ -532,24 +548,22 @@ impl Parser {
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = !self.options.is_in_statement_position()
-                    || descriptor.export == Some(DependencyMode::Default);
-                let struct_id =
-                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
+                    || header.export == Some(ExportMode::Default);
+                let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             // class declaration
             Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = descriptor.export == Some(DependencyMode::Default)
+                let allow_anonymous_class = header.export == Some(ExportMode::Default)
                     || !self.options.is_in_statement_position();
-                let struct_id =
-                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
+                let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             // enum declaration
             Keyword::Enum if is_declaration_start && !next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
+                let enum_id = self.eat_enum(start, EnumKind::Enum, header)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
             }
             // const enum or binding declaration
@@ -558,14 +572,14 @@ impl Parser {
                 if next_keyword == Some(Keyword::Enum) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Const)?;
-                    let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
+                    let enum_id = self.eat_enum(start, EnumKind::Const, header)?;
                     Ok(Some(self.insert_declaration_expression(start, enum_id)))
                 // otherwise parse binding declaration
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                     Ok(Some(self.eat_let_from_keyword(
                         start,
-                        descriptor,
+                        header,
                         Keyword::Const,
                     )?))
                 }
@@ -576,7 +590,7 @@ impl Parser {
                 if next_keyword == Some(Keyword::Interface) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Newtype)?;
-                    let interface_id = self.eat_interface(start, descriptor, TypeKind::Nominal)?;
+                    let interface_id = self.eat_interface(start, header, TypeKind::Nominal)?;
                     Ok(Some(
                         self.insert_declaration_expression(start, interface_id),
                     ))
@@ -595,7 +609,7 @@ impl Parser {
                     // parse the alias when it can start
                     if can_start_type_alias {
                         let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                        Ok(Some(self.eat_type(start, descriptor)?))
+                        Ok(Some(self.eat_type(start, header)?))
                     // otherwise bail
                     } else {
                         Ok(None)
@@ -605,7 +619,7 @@ impl Parser {
             // interface declaration
             Keyword::Interface if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
+                let interface_id = self.eat_interface(start, header, TypeKind::Structural)?;
                 Ok(Some(
                     self.insert_declaration_expression(start, interface_id),
                 ))
@@ -617,7 +631,7 @@ impl Parser {
                     && is_declaration_start =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let extension_id = self.eat_extension(start, descriptor)?;
+                let extension_id = self.eat_extension(start, header)?;
                 Ok(Some(
                     self.insert_declaration_expression(start, extension_id),
                 ))
@@ -656,7 +670,7 @@ impl Parser {
 
                 // parse async declaration directly after scanner disambiguation
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, descriptor, false, false)?;
+                let function_id = self.eat_function(start, header, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // override is contextual in value expressions
@@ -665,7 +679,7 @@ impl Parser {
             Keyword::Abstract
                 if !self.options.is_in_type()
                     && !self.options.is_in_statement_position()
-                    && descriptor.export.is_none() =>
+                    && header.export.is_none() =>
             {
                 Ok(None)
             }
@@ -690,7 +704,7 @@ impl Parser {
 
                 // parse function declaration
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, descriptor, false, false)?;
+                let function_id = self.eat_function(start, header, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // new signature declaration in type positions
@@ -700,7 +714,7 @@ impl Parser {
                 if can_start_signature {
                     // parse constructor signature
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                    let function_id = self.eat_function(start, descriptor, false, false)?;
+                    let function_id = self.eat_function(start, header, false, false)?;
                     Ok(Some(self.insert_declaration_expression(start, function_id)))
                 // otherwise bail
                 } else {
@@ -717,17 +731,25 @@ impl Parser {
 
                 // parse variant method declaration
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, descriptor, false, false)?;
+                let function_id = self.eat_function(start, header, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // this expression
             Keyword::This => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 self.bump(); // eat this
-                Ok(Some(
-                    self.tree
-                        .insert(Expression::This, self.get_span_from(start)),
-                ))
+
+                // type positions use the dedicated type node directly
+                if self.options.is_in_type() {
+                    let type_expression_id =
+                        self.insert_node(TypeExpression::This, self.get_span_from(start));
+                    Ok(Some(self.insert_type_expression_value(type_expression_id)))
+                } else {
+                    Ok(Some(
+                        self.tree
+                            .insert(Expression::This, self.get_span_from(start)),
+                    ))
+                }
             }
             // super expression
             Keyword::Super => {
@@ -742,10 +764,23 @@ impl Parser {
             Keyword::Null => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 self.bump(); // eat null
-                Ok(Some(self.insert_node(
-                    Expression::TypeLiteral(TypeLiteral::Null),
-                    self.get_span_from(start),
-                )))
+
+                // type positions keep `null` in type space
+                if self.options.is_in_type() {
+                    let type_expression_id = self.insert_node(
+                        TypeExpression::ScalarLiteral {
+                            value: ScalarLiteral::Null,
+                        },
+                        self.get_span_from(start),
+                    );
+
+                    Ok(Some(self.insert_type_expression_value(type_expression_id)))
+                } else {
+                    Ok(Some(self.insert_node(
+                        Expression::ScalarLiteral(ScalarLiteral::Null),
+                        self.get_span_from(start),
+                    )))
+                }
             }
             // new expression
             Keyword::New if !self.options.is_in_type() => {
@@ -822,8 +857,8 @@ impl Parser {
 
                 // parse import or export import equals declaration
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
-                if descriptor.export.is_some() && self.peek_import_equals_after_import() {
-                    Ok(Some(self.eat_export_import_equals(start, descriptor)?))
+                if header.export.is_some() && self.peek_import_equals_after_import() {
+                    Ok(Some(self.eat_export_import_equals(start, header)?))
                 } else {
                     Ok(Some(self.eat_import()?))
                 }
@@ -845,13 +880,13 @@ impl Parser {
             // let or var binding declaration
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                Ok(Some(self.eat_let_from_keyword(start, descriptor, keyword)?))
+                Ok(Some(self.eat_let_from_keyword(start, header, keyword)?))
             }
             // using declaration
             Keyword::Using => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                if self.can_parse_using_declaration(&descriptor, Asynchrony::Sync) {
-                    Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                if self.can_parse_using_declaration(&header, Asynchrony::Sync) {
+                    Ok(Some(self.eat_using(start, header, Asynchrony::Sync)?))
                 // otherwise bail
                 } else {
                     Ok(None)
@@ -867,7 +902,7 @@ impl Parser {
                 // ts and js parse readonly as a type unary in type positions
                 if self.options.is_in_type() {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                    return Ok(Some(self.eat_type(start, descriptor)?));
+                    return Ok(Some(self.eat_type(start, header)?));
                 }
 
                 // value positions keep readonly contextual
@@ -921,7 +956,7 @@ impl Parser {
                 // parse type alias when it can start
                 if can_start_type_alias {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                    Ok(Some(self.eat_type(start, descriptor)?))
+                    Ok(Some(self.eat_type(start, header)?))
                 // otherwise bail
                 } else {
                     Ok(None)
@@ -986,14 +1021,10 @@ impl Parser {
 
                 // parse await using when allowed
                 if self.can_start_await_using()
-                    && self.can_parse_using_declaration(&descriptor, Asynchrony::Async)
+                    && self.can_parse_using_declaration(&header, Asynchrony::Async)
                 {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                    Ok(Some(self.eat_using(
-                        start,
-                        descriptor,
-                        Asynchrony::Async,
-                    )?))
+                    Ok(Some(self.eat_using(start, header, Asynchrony::Async)?))
                 // otherwise parse await expression
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);

@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{Keyword, LiteralType, Path, TokenType};
 
@@ -53,7 +53,7 @@ impl Parser {
             return self.skip_tree_element(in_tree_child);
         }
 
-        Err(crate::ParseError::unexpected(self.peek()?.span))
+        Err(ParseError::unexpected(self.peek()?.span))
     }
 
     /// Skip one tree fragment after `<`.
@@ -76,13 +76,13 @@ impl Parser {
     fn skip_tree_opening_element(&mut self, in_tree_child: bool) -> ParseResult<(Path, bool)> {
         let path = self.eat_tree_literal_path()?;
         if self.tree_literal_path_has_namespace_member(&path) {
-            return Err(crate::ParseError::unexpected(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
         self.eat_newlines_maybe()?;
 
-        // static arguments
+        // generic arguments
         if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
-            self.skip_tree_static_arguments()?;
+            self.skip_tree_generic_arguments()?;
         }
         self.eat_newlines_maybe()?;
 
@@ -153,7 +153,7 @@ impl Parser {
         // closing fragment
         if self.peek_starts_tree_tag_close() {
             if path.is_some() {
-                return Err(crate::ParseError::unexpected(self.peek()?.span));
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
 
             self.eat_tree_tag_close(in_tree_child)?;
@@ -162,12 +162,12 @@ impl Parser {
 
         // closing element
         let Some(path) = path else {
-            return Err(crate::ParseError::unexpected(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         };
 
         let closing_path = self.eat_tree_literal_path()?;
         if self.tree_literal_path_has_namespace_member(&closing_path) {
-            return Err(crate::ParseError::unexpected(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
 
         self.skip_tree_whitespace()?;
@@ -177,7 +177,7 @@ impl Parser {
             return Ok(());
         }
 
-        Err(crate::ParseError::unexpected(self.peek()?.span))
+        Err(ParseError::unexpected(self.peek()?.span))
     }
 
     /// Skip one tree child item.
@@ -211,7 +211,7 @@ impl Parser {
             return Ok(());
         }
 
-        Err(crate::ParseError::unexpected(token.span))
+        Err(ParseError::unexpected(token.span))
     }
 
     /// Skip one tree header argument.
@@ -264,10 +264,10 @@ impl Parser {
                 return Ok(());
             }
 
-            return Err(crate::ParseError::unexpected(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        Err(crate::ParseError::unexpected(self.peek()?.span))
+        Err(ParseError::unexpected(self.peek()?.span))
     }
 
     /// Skip a balanced expression delimiter in non-child mode.
@@ -319,19 +319,19 @@ impl Parser {
         Ok(())
     }
 
-    /// Skip one static argument list on a tree head.
-    fn skip_tree_static_arguments(&mut self) -> ParseResult<()> {
+    /// Skip one generic argument list on a tree head.
+    fn skip_tree_generic_arguments(&mut self) -> ParseResult<()> {
         // opening angle
         if self.peek_is(TokenType::LessThan) {
             self.bump();
         } else if self.peek_is(TokenType::ShiftLeft) {
             if !self.re_lex_ts_l_angle() {
-                return Err(crate::ParseError::unexpected(self.peek()?.span));
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
 
             self.bump();
         } else {
-            return Err(crate::ParseError::unexpected(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
         self.eat_newlines_maybe()?;
 
@@ -363,7 +363,7 @@ impl Parser {
         }
 
         if angle_depth == 0 || !self.peek_starts_expression_type_angle_close() {
-            return Err(crate::ParseError::unexpected(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
 
         self.eat_expression_type_angle_close()
@@ -394,7 +394,7 @@ impl Parser {
         if !self.peek_is(TokenType::LessThan) {
             return false;
         }
-        if self.language.supports_jsx() && self.has_shift_left_tree_static_arguments() {
+        if self.language.supports_jsx() && self.has_shift_left_tree_generic_arguments() {
             return false;
         }
         if self.language.supports_jsx() && self.can_start_tree_literal() {
@@ -415,7 +415,7 @@ impl Parser {
         if !self.peek_is(TokenType::LessThan) {
             return false;
         }
-        if self.has_shift_left_tree_static_arguments() {
+        if self.has_shift_left_tree_generic_arguments() {
             return self.peek_tree_literal_in_value_position();
         }
 
@@ -465,8 +465,8 @@ impl Parser {
         })
     }
 
-    /// Return true when `<Identifier <<` starts tree static arguments.
-    pub(super) fn has_shift_left_tree_static_arguments(&mut self) -> bool {
+    /// Return true when `<Identifier <<` starts tree generic arguments.
+    pub(super) fn has_shift_left_tree_generic_arguments(&mut self) -> bool {
         // snapshot parser state for lookahead
         let mark = self.mark_rewind();
 
@@ -510,13 +510,13 @@ impl Parser {
 
         // locate the matching close brace
         let open_index = self.index_for_next();
-        let matching = match self.find_matching_close(
+        let matching = match self.find_matching_close_maybe(
             Some(open_index as u32),
             TokenType::OpenBrace,
             TokenType::CloseBrace,
         ) {
-            Ok(pos) => pos,
-            Err(_) => return false,
+            Some(pos) => pos,
+            None => return false,
         };
 
         // skip newlines after the block
