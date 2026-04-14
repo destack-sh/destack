@@ -31,13 +31,10 @@ impl World {
 
     /// Execute one world tick across all stored runtimes in stable order.
     pub fn tick(&mut self) -> RuntimeResult<TickOutcome> {
-        // resolve and record the authoritative tick before executing it
         let input = self.resolve_input(Input::Tick)?;
-
         if self.trace.mode() == ExecutionMode::Record {
             self.ingest(input.clone())?;
         }
-
         self.tick_inner()
     }
 

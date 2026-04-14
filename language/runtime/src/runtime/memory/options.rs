@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use destack_heap::{HeapLayoutOptions, HeapLimits, ManagedLimits, RawLimits, SizeClassTable};
+use destack_heap::{HeapLayout, HeapLimits, ManagedLimits, RawLimits, SizeClassTable};
 use destack_workspace::{HeapOptions, HeapSizeClasses};
 
 /// Resolved heap construction options for one agent heap.
@@ -8,7 +8,7 @@ pub struct ResolvedHeapOptions {
     /// The exact retained-byte limits for this heap.
     pub limits: HeapLimits,
     /// The local heap layout configuration for this heap.
-    pub layout: HeapLayoutOptions,
+    pub layout: HeapLayout,
 }
 
 /// Resolve runtime heap options into heap-construction settings.
@@ -47,7 +47,7 @@ pub fn resolve_heap_options(
                 max_bytes: options.max_raw_bytes,
             },
         },
-        layout: HeapLayoutOptions {
+        layout: HeapLayout {
             size_classes,
             managed_reference_bytes,
             managed_young_bytes: options.managed_young_bytes,

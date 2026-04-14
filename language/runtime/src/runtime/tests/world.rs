@@ -51,7 +51,7 @@ fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
 
     // set one hard limit just above bootstrap usage so the entrypoint allocation trips it
     let baseline_usage = runtime.heap_usage();
-    let max_managed_bytes = baseline_usage.managed.active_bytes + 8 * 1024;
+    let max_managed_bytes = baseline_usage.managed.active_bytes + 4 * 1024;
     let max_total_bytes = baseline_usage.active_bytes() + 1024 * 1024;
     runtime.set_heap_limits(heap::HeapLimits {
         max_bytes: Some(max_total_bytes),
@@ -516,8 +516,8 @@ fn test_world_fork_shares_heap_leaves_before_mutation() {
     let mut test = TestWorld::new();
     let runtime_id = test.spawn_vm_runtime(&options);
 
-    test.allocate_vm_heap_allocation(runtime_id);
-    let _ = test.allocate_vm_raw_bytes(runtime_id, &[1, 2, 3]);
+    let managed = test.allocate_vm_heap_allocation(runtime_id);
+    let raw = test.allocate_vm_raw_bytes(runtime_id, &[1, 2, 3]);
     let checkpoint_id = test
         .world_mut()
         .checkpoint("shared-heap")
@@ -532,13 +532,8 @@ fn test_world_fork_shares_heap_leaves_before_mutation() {
     let mut child_test = TestWorld::from_world(child);
     let child_heap = child_test.runtime_heap_image(runtime_id);
 
-    assert!(
-        parent_heap
-            .managed_span(0)
-            .unwrap()
-            .shares_storage_with(child_heap.managed_span(0).unwrap())
-    );
-    assert!(parent_heap.raw_span_shares_with(&child_heap, 0));
+    assert!(parent_heap.shares_managed_allocation_with(&child_heap, managed));
+    assert!(parent_heap.shares_raw_allocation_with(&child_heap, raw));
 }
 
 /// Ensures child heap mutation detaches the touched raw span after fork.
@@ -565,11 +560,11 @@ fn test_world_fork_detaches_touched_raw_span() {
     let mutated = child_test.runtime_heap_image(runtime_id);
     let parent = test.runtime_heap_image(runtime_id);
 
-    // raw heap snapshots are span-granular: mutating one allocation detaches its containing span
-    assert!(!baseline.raw_span_shares_with(&mutated, 0));
+    // raw heap snapshots are allocation-granular
+    assert!(!baseline.shares_raw_allocation_with(&mutated, first));
 
-    // the fork baseline should still share the original raw span with the parent snapshot
-    assert!(baseline.raw_span_shares_with(&parent, 0));
+    // the fork baseline should still share the original raw allocation with the parent snapshot
+    assert!(baseline.shares_raw_allocation_with(&parent, first));
 }
 
 /// Ensures rewind restores live heaps from the checkpoint image leaves.
@@ -579,7 +574,7 @@ fn test_world_rewind_restores_checkpoint_heap_leaves() {
     let mut test = TestWorld::new();
     let runtime_id = test.spawn_vm_runtime(&options);
 
-    test.allocate_vm_heap_allocation(runtime_id);
+    let managed = test.allocate_vm_heap_allocation(runtime_id);
     let _ = test.allocate_vm_raw_bytes(runtime_id, &[0xCA, 0xFE, 0xBA, 0xBE]);
     let checkpoint_id = test
         .world_mut()
@@ -612,13 +607,8 @@ fn test_world_rewind_restores_checkpoint_heap_leaves() {
         .expect("agent image should exist")
         .heap_image;
 
-    assert!(
-        restored_heap
-            .managed_span(0)
-            .unwrap()
-            .shares_storage_with(stored_heap.managed_span(0).unwrap())
-    );
-    assert!(restored_heap.raw_span_shares_with(stored_heap, 0));
+    assert!(restored_heap.shares_managed_allocation_with(stored_heap, managed));
+    assert!(restored_heap.shares_raw_allocation_with(stored_heap, heap::RawPointer::new(1)));
 }
 
 /// Ensures one committed branch moment can restore intermediate state from trace.

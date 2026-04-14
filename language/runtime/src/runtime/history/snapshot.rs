@@ -77,7 +77,7 @@ pub struct Image {
     /// Captured world random state.
     pub(crate) random: RandomImage,
     /// Captured world shared-memory state.
-    pub(crate) shared: heap::SharedImage,
+    pub(crate) shared: heap::SharedSpaceImage,
     /// Captured runtime metadata keyed by runtime id.
     pub(crate) runtimes: BTreeMap<RuntimeId, RuntimeImage>,
     /// Captured agent metadata keyed by agent id.
@@ -387,7 +387,11 @@ impl World {
                 .boxed()
             })?;
 
-            (revision_id, lineage.snapshot(), images.snapshot())
+            (
+                revision_id,
+                lineage.snapshot(),
+                images.snapshot(&self.arena),
+            )
         };
 
         Ok(Snapshot::new(
@@ -444,7 +448,7 @@ impl World {
         let image =
             self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
         let lineage_snapshot = self.lineage.read().snapshot();
-        let mut image_snapshot = self.images.read().snapshot();
+        let mut image_snapshot = self.images.read().snapshot(&self.arena);
         image_snapshot.images.insert(revision.image_id, image);
 
         Ok(Snapshot::new(
@@ -511,7 +515,9 @@ impl World {
         }
 
         *self.lineage.write() = Lineage::from_snapshot(snapshot.lineage.clone());
-        *self.images.write() = ImageStore::from_snapshot(snapshot.images.clone());
+        let (arena, images) = ImageStore::from_snapshot(snapshot.images.clone());
+        self.arena = arena;
+        *self.images.write() = images;
         let (image, trace_image) = {
             let (_, image, trace_image) = self.revision_data(snapshot.revision_id)?;
 
@@ -543,7 +549,7 @@ impl World {
             simulation: self.simulation.clone(),
             clock: self.clock.snapshot(),
             random: self.random.snapshot(),
-            shared: self.shared.image(None),
+            shared: self.shared.image(),
             runtimes: runtime_images,
             agents: agent_images,
         })
@@ -563,7 +569,7 @@ impl World {
         self.resources = image.resources.clone();
         self.simulation = image.simulation.clone();
 
-        self.shared = heap::SharedSpace::from_image(&image.shared);
+        self.shared = heap::SharedSpace::from_image_with_arena(self.arena.clone(), &image.shared);
 
         self.clock.restore_snapshot(&image.clock);
         self.random.restore_snapshot(&image.random)?;

@@ -38,6 +38,8 @@ pub(crate) struct WorldRef {
     pub(crate) time_mode: TimeMode,
     /// Effective world random mode after execution-mode resolution.
     pub(crate) random_mode: RandomMode,
+    /// Shared page arena for every branchable world allocation.
+    arena: *const Arc<heap::Arena>,
     /// Exact hard limits for world-owned shared memory.
     pub(crate) shared_limits: heap::SharedLimits,
     /// Shared simulation state for all agents using this world.
@@ -70,6 +72,7 @@ impl WorldRef {
         branch_id: BranchId,
         time_mode: TimeMode,
         random_mode: RandomMode,
+        arena: &Arc<heap::Arena>,
         shared_limits: heap::SharedLimits,
         simulation: &mut Simulation,
         policy: &mut PolicyState,
@@ -87,6 +90,7 @@ impl WorldRef {
             branch_id,
             time_mode,
             random_mode,
+            arena,
             shared_limits,
             simulation,
             policy,
@@ -156,6 +160,13 @@ impl WorldRef {
     pub(crate) fn random(&self) -> &Random {
         // safety: the execution scope owns the live world borrow
         unsafe { &*self.random }
+    }
+
+    /// Return the shared page arena for this execution scope.
+    #[inline]
+    pub(crate) fn arena(&self) -> Arc<heap::Arena> {
+        // safety: the execution scope owns the live world borrow
+        unsafe { (&*self.arena).clone() }
     }
 
     /// Borrow the shared trace controller.
@@ -387,6 +398,8 @@ pub struct World {
     pub(crate) trace: Trace,
     /// Emitted observation log (separate from causal trace).
     pub(crate) observations: Observations,
+    /// Shared page arena for every branchable world allocation.
+    pub(crate) arena: Arc<heap::Arena>,
     /// World-owned lineage metadata.
     pub(crate) lineage: Arc<RwLock<Lineage>>,
     /// World-owned retained image payloads.
@@ -460,7 +473,8 @@ impl World {
         let policy = Policy::from_workspace_rules(&options.rules);
         let trace = Trace::new(options.execution, trace_header);
         let topology = Topology::new();
-        let mut shared = heap::SharedSpace::with_page_bytes(options.heap.page_bytes);
+        let arena = Arc::new(heap::Arena::with_page_bytes(options.heap.page_bytes));
+        let shared = heap::SharedSpace::with_arena(arena.clone());
         let shared_limits = heap::SharedLimits {
             max_bytes: options.heap.max_shared_bytes,
         };
@@ -477,7 +491,7 @@ impl World {
             simulation: Simulation::default(),
             clock: clock.snapshot(),
             random: random.snapshot(),
-            shared: shared.image(None),
+            shared: shared.image(),
             runtimes: BTreeMap::new(),
             agents: BTreeMap::new(),
         });
@@ -507,6 +521,7 @@ impl World {
             random,
             trace,
             observations: Observations::default(),
+            arena,
             lineage,
             images,
             shared,
@@ -597,6 +612,7 @@ impl World {
             self.branch_id,
             self.time_mode,
             self.random_mode,
+            &self.arena,
             self.shared_limits,
             &mut self.simulation,
             &mut self.policy,

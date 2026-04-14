@@ -544,9 +544,10 @@ impl World {
             random,
             trace: Trace::new(trace_mode, trace_header),
             observations: Observations::default(),
+            arena: self.arena.clone(),
             lineage: self.lineage.clone(),
             images: self.images.clone(),
-            shared: heap::SharedSpace::with_page_bytes(self.shared.page_bytes()),
+            shared: heap::SharedSpace::with_arena(self.arena.clone()),
             shared_limits: self.shared_limits,
         }
     }
