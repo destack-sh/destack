@@ -116,8 +116,6 @@ pub enum BinaryOperator {
     // container
     /// `in`
     In,
-    /// `instanceof`
-    InstanceOf,
 }
 
 /// An AssignOperator is an assignment type.

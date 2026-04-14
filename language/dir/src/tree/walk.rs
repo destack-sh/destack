@@ -220,6 +220,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         }
         TypeExpression::ScalarLiteral { .. }
         | TypeExpression::Literal { .. }
+        | TypeExpression::Intrinsic
         | TypeExpression::Const
         | TypeExpression::This
         | TypeExpression::Missing
@@ -595,6 +596,20 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *expression, expression_node);
                 let target_expression = tree.get(*target_type);
                 visitor.visit_type_expression(tree, *target_type, target_expression);
+            }
+            Expression::Is { value, target_type } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+
+                let target_type_expression = tree.get(*target_type);
+                visitor.visit_type_expression(tree, *target_type, target_type_expression);
+            }
+            Expression::InstanceOf { value, target } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+
+                let target_expression = tree.get(*target);
+                visitor.visit_expression(tree, *target, target_expression);
             }
             Expression::OwnershipCast {
                 operator: _,

@@ -862,29 +862,16 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
 ) -> (StaticProperty, bool) {
     match property {
         StaticProperty::Unevaluated { .. } => (property.clone(), false),
-        StaticProperty::Field {
-            key,
-            value,
-            default,
-            symbol,
-        } => {
+        StaticProperty::Field { key, value, symbol } => {
             let (mapped_value, value_changed) =
                 rewrite_static_expression_inner(rewriter, types, value);
-            let (mapped_default, default_changed) = if let Some(default) = default.as_ref() {
-                let (mapped_default, changed) =
-                    rewrite_static_expression_inner(rewriter, types, default);
-                (Some(mapped_default), changed)
-            } else {
-                (None, false)
-            };
-            if !value_changed && !default_changed {
+            if !value_changed {
                 (property.clone(), false)
             } else {
                 (
                     StaticProperty::Field {
                         key: *key,
                         value: mapped_value,
-                        default: mapped_default,
                         symbol: *symbol,
                     },
                     true,
@@ -907,6 +894,21 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
                         key: *key,
                         signature: signature.clone(),
                         body: mapped_body,
+                        symbol: *symbol,
+                    },
+                    true,
+                )
+            }
+        }
+        StaticProperty::Spread { value, symbol } => {
+            let (mapped_value, value_changed) =
+                rewrite_static_expression_inner(rewriter, types, value);
+            if !value_changed {
+                (property.clone(), false)
+            } else {
+                (
+                    StaticProperty::Spread {
+                        value: mapped_value,
                         symbol: *symbol,
                     },
                     true,

@@ -234,15 +234,11 @@ pub fn walk_static_property<V: TypeVisitor + ?Sized>(
 ) {
     match property {
         StaticProperty::Unevaluated { .. } => {}
-        StaticProperty::Field { value, default, .. } => {
-            visitor.visit_static_expression(types, value);
-            if let Some(default) = default.as_ref() {
-                visitor.visit_static_expression(types, default);
-            }
-        }
+        StaticProperty::Field { value, .. } => visitor.visit_static_expression(types, value),
         StaticProperty::Method { body, .. } => {
             visitor.visit_static_expression(types, body);
         }
+        StaticProperty::Spread { value, .. } => visitor.visit_static_expression(types, value),
     }
 }
 

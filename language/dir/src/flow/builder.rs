@@ -1664,6 +1664,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::ReferenceOf { right, .. }
             | Expression::Maybe { left: right }
             | Expression::Must { left: right } => self.build_expression(*right, current_block_id),
+            Expression::Is { value, target_type } => {
+                let value_block_id = self.build_expression(*value, current_block_id)?;
+                self.build_type_expression(*target_type, value_block_id)
+            }
+            Expression::InstanceOf { value, target } => {
+                let value_block_id = self.build_expression(*value, current_block_id)?;
+                self.build_expression(*target, value_block_id)
+            }
             Expression::Binary { left, right, .. }
             | Expression::Assign { left, right }
             | Expression::AssignBinary { left, right, .. } => {
@@ -1959,6 +1967,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             TypeExpression::ScalarLiteral { .. }
             | TypeExpression::Literal { .. }
+            | TypeExpression::Intrinsic
             | TypeExpression::Const
             | TypeExpression::This
             | TypeExpression::Missing
