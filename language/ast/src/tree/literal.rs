@@ -80,7 +80,6 @@ pub enum TemplateLiteral {
 /// boolean
 /// symbol
 /// unique symbol
-/// intrinsic
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeLiteral {

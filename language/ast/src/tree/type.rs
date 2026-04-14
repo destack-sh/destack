@@ -85,6 +85,9 @@ pub enum TypeExpression {
     /// Literal type syntax.
     Literal { value: TypeLiteral },
 
+    /// Bare `intrinsic` marker syntax in type space.
+    Intrinsic,
+
     /// Tuple type syntax.
     Tuple {
         elements: Vec<LocalNodeId<TupleElement>>,

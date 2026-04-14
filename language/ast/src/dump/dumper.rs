@@ -1042,11 +1042,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Comptime { body: _ } => {
                 self.node("Expression::Comptime", _id.id).end();
             }
-            Expression::Unary { operator, right: _ } => {
-                self.node("Expression::Unary", _id.id)
-                    .field("operator", operator)
-                    .end();
-            }
             Expression::As {
                 expression: _,
                 target_type: _,
@@ -1058,6 +1053,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target_type: _,
             } => {
                 self.node("Expression::Satisfies", _id.id).end();
+            }
+            Expression::Is {
+                value: _,
+                target_type: _,
+            } => {
+                self.node("Expression::Is", _id.id).end();
+            }
+            Expression::InstanceOf {
+                value: _,
+                target: _,
+            } => {
+                self.node("Expression::InstanceOf", _id.id).end();
+            }
+            Expression::Unary { operator, right: _ } => {
+                self.node("Expression::Unary", _id.id)
+                    .field("operator", operator)
+                    .end();
             }
             Expression::ValueOf {
                 mutability,
@@ -1205,6 +1217,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("TypeExpression::Literal", id.id)
                     .value(value)
                     .end();
+            }
+            TypeExpression::Intrinsic => {
+                self.node("TypeExpression::Intrinsic", id.id).end();
             }
             TypeExpression::Tuple { elements: _ } => {
                 self.node("TypeExpression::Tuple", id.id).end();

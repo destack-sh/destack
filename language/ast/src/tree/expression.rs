@@ -557,6 +557,32 @@ pub enum Expression {
         target_type: LocalNodeId<TypeExpression>,
     },
 
+    /// Runtime type guard.
+    ///
+    /// Examples:
+    /// ```
+    /// value is User
+    /// item is Some
+    /// unknownValue is string
+    /// ```
+    Is {
+        value: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
+    /// Runtime constructor guard.
+    ///
+    /// Examples:
+    /// ```
+    /// value instanceof User
+    /// error instanceof Error
+    /// node instanceof HTMLElement
+    /// ```
+    InstanceOf {
+        value: LocalNodeId<Expression>,
+        target: LocalNodeId<Expression>,
+    },
+
     /// Unary operation (prefix or postfix).
     ///
     /// Examples:
