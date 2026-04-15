@@ -3,7 +3,7 @@ use crate::{
     ForEachBinding, FunctionSignature, GenericArgument, GenericParameter, IfCondition,
     ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree,
     NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
-    TupleElement, TypeExpression, TypeProperty, WhereClause,
+    TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -35,9 +35,9 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let property = tree.properties.get(local_idx);
             walk_property(visitor, tree, LocalNodeId::new(node_id), property);
         }
-        NodeType::TypeProperty => {
-            let type_property = tree.type_properties.get(local_idx);
-            walk_type_property(visitor, tree, LocalNodeId::new(node_id), type_property);
+        NodeType::TypeMember => {
+            let type_member = tree.type_members.get(local_idx);
+            walk_type_member(visitor, tree, LocalNodeId::new(node_id), type_member);
         }
         NodeType::Member => {
             let member = tree.members.get(local_idx);
@@ -235,10 +235,10 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             let element_node = tree.get(*element);
             visitor.visit_type_expression(tree, *element, element_node);
         }
-        TypeExpression::Object { properties } => {
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_type_property(tree, *property_id, property);
+        TypeExpression::Object { members } => {
+            for member_id in members {
+                let member = tree.get(*member_id);
+                visitor.visit_type_member(tree, *member_id, member);
             }
         }
         TypeExpression::Declaration { declaration } => {
@@ -402,43 +402,53 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the TypeProperty.
-pub fn walk_type_property<V: NodeVisitor + ?Sized>(
+/// Walk the TypeMember.
+pub fn walk_type_member<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: LocalNodeId<TypeProperty>,
-    type_property: &TypeProperty,
+    id: LocalNodeId<TypeMember>,
+    type_member: &TypeMember,
 ) {
-    visitor.visit_any(tree, NodeType::TypeProperty, id.id);
-    match type_property {
-        TypeProperty::Field {
+    visitor.visit_any(tree, NodeType::TypeMember, id.id);
+
+    match type_member {
+        TypeMember::Field {
             is_optional: _,
             is_readonly: _,
             key,
             declared_type,
+            symbol: _,
         } => {
             walk_key(visitor, tree, key);
 
             let declared_type_node = tree.get(*declared_type);
             visitor.visit_type_expression(tree, *declared_type, declared_type_node);
         }
-        TypeProperty::Method {
+        TypeMember::Method {
             is_optional: _,
             key,
             signature,
+            body,
+            symbol: _,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
             }
 
             walk_function_signature(visitor, tree, signature);
+
+            if let Some(body) = body {
+                let body_node = tree.get(*body);
+                visitor.visit_expression(tree, *body, body_node);
+            }
         }
-        TypeProperty::IndexSignature {
+        TypeMember::IndexSignature {
             is_optional: _,
             is_readonly: _,
             name: _,
             key_type,
             value_type,
+            symbol: _,
         } => {
             let key_type_node = tree.get(*key_type);
             visitor.visit_type_expression(tree, *key_type, key_type_node);
@@ -446,7 +456,55 @@ pub fn walk_type_property<V: NodeVisitor + ?Sized>(
             let value_type_node = tree.get(*value_type);
             visitor.visit_type_expression(tree, *value_type, value_type_node);
         }
-        TypeProperty::Error => {}
+        TypeMember::Embed { value, symbol: _ } => {
+            let value_node = tree.get(*value);
+            visitor.visit_type_expression(tree, *value, value_node);
+        }
+        TypeMember::AssociatedType {
+            name: _,
+            generic_parameters,
+            where_clauses,
+            constraint,
+            value,
+            symbol: _,
+        } => {
+            for generic_parameter_id in generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
+
+            for where_clause_id in where_clauses {
+                let where_clause = tree.get(*where_clause_id);
+                visitor.visit_where_clause(tree, *where_clause_id, where_clause);
+            }
+
+            if let Some(constraint) = constraint {
+                let constraint_node = tree.get(*constraint);
+                visitor.visit_type_expression(tree, *constraint, constraint_node);
+            }
+
+            if let Some(value) = value {
+                let value_node = tree.get(*value);
+                visitor.visit_type_expression(tree, *value, value_node);
+            }
+        }
+        TypeMember::AssociatedConst {
+            name: _,
+            declared_type,
+            value,
+            symbol: _,
+        } => {
+            if let Some(declared_type) = declared_type {
+                let declared_type_node = tree.get(*declared_type);
+                visitor.visit_type_expression(tree, *declared_type, declared_type_node);
+            }
+
+            if let Some(value) = value {
+                let value_node = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_node);
+            }
+        }
+        TypeMember::Error { symbol: _ } => {}
     }
 }
 
@@ -1174,9 +1232,9 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                     let where_clause = tree.get(*where_clause_id);
                     visitor.visit_where_clause(tree, *where_clause_id, where_clause);
                 }
-                if let Some(extends_type_id) = declaration.extends_type {
-                    let extends_type = tree.get(extends_type_id);
-                    visitor.visit_type_expression(tree, extends_type_id, extends_type);
+                if let Some(extends_expression_id) = declaration.extends_expression {
+                    let extends_expression = tree.get(extends_expression_id);
+                    visitor.visit_expression(tree, extends_expression_id, extends_expression);
                 }
                 for implements_type_id in &declaration.implements_types {
                     let implements_type = tree.get(*implements_type_id);
@@ -1224,7 +1282,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 }
                 for member_id in &declaration.members {
                     let member = tree.get(*member_id);
-                    visitor.visit_member(tree, *member_id, member);
+                    visitor.visit_type_member(tree, *member_id, member);
                 }
             }
             Declaration::Extension(declaration) => {
@@ -1342,11 +1400,11 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Member, id.id);
     match member {
-        Member::Type {
+        Member::AssociatedType {
             name: _,
             generic_parameters,
             where_clauses,
-            declared_type,
+            constraint,
             value,
             visibility: _,
             ambient: _,
@@ -1363,16 +1421,16 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
                 let where_clause = tree.get(*where_clause_id);
                 visitor.visit_where_clause(tree, *where_clause_id, where_clause);
             }
-            if let Some(declared_type) = declared_type {
-                let declared_type_expr = tree.get(*declared_type);
-                visitor.visit_type_expression(tree, *declared_type, declared_type_expr);
+            if let Some(constraint) = constraint {
+                let constraint_expr = tree.get(*constraint);
+                visitor.visit_type_expression(tree, *constraint, constraint_expr);
             }
             if let Some(value) = value {
                 let value_expr = tree.get(*value);
                 visitor.visit_type_expression(tree, *value, value_expr);
             }
         }
-        Member::ComptimeConst {
+        Member::AssociatedConst {
             name: _,
             declared_type,
             value,

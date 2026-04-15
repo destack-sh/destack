@@ -6,7 +6,7 @@ use crate::{
     StaticArgument, StaticKey, StringId, TypeExpression, VarianceBound,
 };
 
-use super::{PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
+use super::PrimitiveType;
 
 /// A TypeLiteral is a scalar type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
@@ -179,11 +179,16 @@ pub enum Type {
         target: Option<LocalTypeId>,
     },
 
-    /// Type unary operator.
-    Unary {
-        operator: TypeUnaryOperator,
-        right: LocalTypeId,
-    },
+    /// `readonly T`.
+    Readonly { target_type: LocalTypeId },
+    /// `keyof T`.
+    KeyOf { target_type: LocalTypeId },
+    /// `T!`.
+    Must { target_type: LocalTypeId },
+    /// `T as comptime`.
+    AsComptime { target_type: LocalTypeId },
+    /// `!T`.
+    Not { target_type: LocalTypeId },
     /// Value `^T` of a `T`. Or `^readonly T` for a readonly value.
     ValueOf {
         mutability: Option<Mutability>,
@@ -201,10 +206,19 @@ pub enum Type {
         mutability: Option<Mutability>,
         right: LocalTypeId,
     },
-    /// Type binary operator.
-    Binary {
+    /// `left in right`.
+    In {
         left: LocalTypeId,
-        operator: TypeBinaryOperator,
+        right: LocalTypeId,
+    },
+    /// `left extends right`.
+    Extends {
+        left: LocalTypeId,
+        right: LocalTypeId,
+    },
+    /// `left implements right`.
+    Implements {
+        left: LocalTypeId,
         right: LocalTypeId,
     },
 

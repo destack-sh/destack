@@ -2,26 +2,30 @@ use destack_source::{AdaptImage, NodeSpanType};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GlobalSymbolId, Key,
-    LocalNodeId, Mutability, Node, NodeType, Path, ScalarLiteral, StringId, SymbolSpaceOrder,
-    TupleElement, TypeLiteral, VarianceBound,
+    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter,
+    GlobalSymbolId, Key, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, Path,
+    ScalarLiteral, StringId, SymbolSpaceOrder, TupleElement, TypeLiteral, VarianceBound,
+    WhereClause,
 };
 
-/// One object type property.
+/// One type-surface member.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
-pub enum TypeProperty {
+pub enum TypeMember {
     /// Named field.
     Field {
         is_optional: bool,
         is_readonly: bool,
         key: Key,
         declared_type: LocalNodeId<TypeExpression>,
+        symbol: LocalSymbolId,
     },
     /// Named method.
     Method {
         is_optional: bool,
         key: Option<Key>,
         signature: FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
     },
     /// Index signature.
     IndexSignature {
@@ -30,13 +34,77 @@ pub enum TypeProperty {
         name: StringId,
         key_type: LocalNodeId<TypeExpression>,
         value_type: LocalNodeId<TypeExpression>,
+        symbol: LocalSymbolId,
     },
-    /// Malformed type property slot.
-    Error,
+    /// Type embedding.
+    Embed {
+        value: LocalNodeId<TypeExpression>,
+        symbol: LocalSymbolId,
+    },
+    /// Associated type requirement or definition.
+    AssociatedType {
+        name: StringId,
+        generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+        where_clauses: Vec<LocalNodeId<WhereClause>>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
+        value: Option<LocalNodeId<TypeExpression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Associated compile-time constant requirement or definition.
+    AssociatedConst {
+        name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        value: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Malformed type member slot.
+    Error { symbol: LocalSymbolId },
 }
 
-impl Node for TypeProperty {
-    const TYPE: NodeType = NodeType::TypeProperty;
+impl Node for TypeMember {
+    const TYPE: NodeType = NodeType::TypeMember;
+}
+
+impl TypeMember {
+    /// Get the declared name of the type member when one exists.
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            TypeMember::AssociatedType { name, .. } | TypeMember::AssociatedConst { name, .. } => {
+                Some(*name)
+            }
+            _ => None,
+        }
+    }
+
+    /// Get the key of the type member when one exists.
+    pub fn key(&self) -> Option<&Key> {
+        match self {
+            TypeMember::Field { key, .. } => Some(key),
+            TypeMember::Method { key, .. } => key.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Get the function signature of the type member when one exists.
+    pub fn signature(&self) -> Option<&FunctionSignature> {
+        match self {
+            TypeMember::Method { signature, .. } => Some(signature),
+            _ => None,
+        }
+    }
+
+    /// Get the symbol of the type member.
+    pub fn symbol(&self) -> LocalSymbolId {
+        match self {
+            TypeMember::Field { symbol, .. }
+            | TypeMember::Method { symbol, .. }
+            | TypeMember::IndexSignature { symbol, .. }
+            | TypeMember::Embed { symbol, .. }
+            | TypeMember::AssociatedType { symbol, .. }
+            | TypeMember::AssociatedConst { symbol, .. }
+            | TypeMember::Error { symbol } => *symbol,
+        }
+    }
 }
 
 /// A mapped type parameter.
@@ -103,7 +171,7 @@ pub enum TypeExpression {
 
     /// Object type syntax.
     Object {
-        properties: Vec<LocalNodeId<TypeProperty>>,
+        members: Vec<LocalNodeId<TypeMember>>,
     },
 
     /// Embedded declaration type syntax.

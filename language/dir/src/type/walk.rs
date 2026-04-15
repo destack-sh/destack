@@ -80,8 +80,12 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
                 visitor.visit_type_id(types, *target);
             }
         }
-        Type::Unary { right, .. } => {
-            visitor.visit_type_id(types, *right);
+        Type::Readonly { target_type }
+        | Type::KeyOf { target_type }
+        | Type::Must { target_type }
+        | Type::AsComptime { target_type }
+        | Type::Not { target_type } => {
+            visitor.visit_type_id(types, *target_type);
         }
         Type::ValueOf { right, .. } => {
             visitor.visit_type_id(types, *right);
@@ -92,7 +96,9 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
         Type::PointerOf { right, .. } => {
             visitor.visit_type_id(types, *right);
         }
-        Type::Binary { left, right, .. } => {
+        Type::In { left, right }
+        | Type::Extends { left, right }
+        | Type::Implements { left, right } => {
             visitor.visit_type_id(types, *left);
             visitor.visit_type_id(types, *right);
         }

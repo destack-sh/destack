@@ -468,8 +468,6 @@ impl_dump_display! {
     ReferenceType,
     OwnershipCastOperator,
     OwnershipCastSource,
-    TypeBinaryOperator,
-    TypeUnaryOperator,
     UnaryOperator,
     TypeKind,
     VarianceModifier,
@@ -1604,11 +1602,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
         match member {
-            Member::Type {
+            Member::AssociatedType {
                 name: _,
                 generic_parameters: _,
                 where_clauses: _,
-                declared_type: _,
+                constraint: _,
                 value: _,
                 visibility,
                 ambient,
@@ -1617,7 +1615,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 is_static,
                 symbol,
             } => {
-                self.node("Member::Type", id.id)
+                self.node("Member::AssociatedType", id.id)
                     .field_optional("visibility", visibility)
                     .field("ambient", ambient)
                     .field("is_abstract", is_abstract)
@@ -1626,7 +1624,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
-            Member::ComptimeConst {
+            Member::AssociatedConst {
                 name: _,
                 declared_type: _,
                 value: _,
@@ -1635,7 +1633,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 is_static,
                 symbol,
             } => {
-                self.node("Member::ComptimeConst", id.id)
+                self.node("Member::AssociatedConst", id.id)
                     .field_optional("visibility", visibility)
                     .field("ambient", ambient)
                     .field("is_static", is_static)

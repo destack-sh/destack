@@ -3,12 +3,12 @@
 use crate::{
     Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
     GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, NodeTree, NodeType,
-    Parameter, Pattern, PatternField, Property, TupleElement, TypeExpression, TypeProperty,
+    Parameter, Pattern, PatternField, Property, TupleElement, TypeExpression, TypeMember,
     WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
     walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
     walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
-    walk_type_property, walk_where_clause,
+    walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression, walk_type_member,
+    walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -76,14 +76,14 @@ pub trait NodeVisitor {
         walk_property(self, tree, id, property);
     }
 
-    /// Visit a TypeProperty.
-    fn visit_type_property(
+    /// Visit a TypeMember.
+    fn visit_type_member(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<TypeProperty>,
-        type_property: &TypeProperty,
+        id: LocalNodeId<TypeMember>,
+        type_member: &TypeMember,
     ) {
-        walk_type_property(self, tree, id, type_property);
+        walk_type_member(self, tree, id, type_member);
     }
 
     /// Visit a Member.
@@ -280,13 +280,13 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Property, id.id);
     }
 
-    fn visit_type_property(
+    fn visit_type_member(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<TypeProperty>,
-        _type_property: &TypeProperty,
+        id: LocalNodeId<TypeMember>,
+        _type_member: &TypeMember,
     ) {
-        self.visit_any(tree, NodeType::TypeProperty, id.id);
+        self.visit_any(tree, NodeType::TypeMember, id.id);
     }
 
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, _member: &Member) {

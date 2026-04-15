@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Ambientness, DependencyKind, ExportMode, Expression, FunctionSignature, GenericParameter,
     GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node,
-    NodeType, Path, StringId, TypeExpression, WhereClause,
+    NodeType, Path, StringId, TypeExpression, TypeMember, WhereClause,
 };
 
 /// The source keyword used for a namespace declaration.
@@ -150,8 +150,8 @@ pub struct ClassDeclaration {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
-    /// The extended class.
-    pub extends_type: Option<LocalNodeId<TypeExpression>>,
+    /// The extended class expression.
+    pub extends_expression: Option<LocalNodeId<Expression>>,
     /// The implemented interfaces.
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
@@ -217,7 +217,7 @@ pub struct InterfaceDeclaration {
     /// The extended interfaces.
     pub extends_types: Vec<LocalNodeId<TypeExpression>>,
     /// The interface members.
-    pub members: Vec<LocalNodeId<Member>>,
+    pub members: Vec<LocalNodeId<TypeMember>>,
 }
 
 /// An extension declaration.
@@ -298,6 +298,22 @@ impl Node for Declaration {
 }
 
 impl Declaration {
+    /// Get the name of the declaration.
+    pub fn name(&self) -> Option<Name> {
+        match self {
+            Declaration::Global(_) => None,
+            Declaration::Namespace(declaration) => Some(declaration.name),
+            Declaration::Type(declaration) => Some(declaration.name),
+            Declaration::ImportAlias(declaration) => Some(declaration.name),
+            Declaration::Struct(declaration) => Some(declaration.name),
+            Declaration::Class(declaration) => declaration.name,
+            Declaration::Enum(declaration) => declaration.name,
+            Declaration::Interface(declaration) => declaration.name,
+            Declaration::Extension(declaration) => declaration.name,
+            Declaration::Function(declaration) => declaration.name,
+        }
+    }
+
     /// Get the name of this kind of declaration.
     pub fn kind_name(&self) -> &'static str {
         match self {
@@ -364,15 +380,22 @@ impl Declaration {
         }
     }
 
-    /// Get the member ids for structured declarations.
+    /// Get the declaration-body member ids for structured declarations.
     pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
         match self {
             Declaration::Struct(declaration) => Some(&declaration.members),
             Declaration::Class(declaration) => Some(&declaration.members),
             Declaration::Enum(declaration) => Some(&declaration.members),
-            Declaration::Interface(declaration) => Some(&declaration.members),
             Declaration::Extension(declaration) => Some(&declaration.members),
             Declaration::Function(_) => None,
+            _ => None,
+        }
+    }
+
+    /// Get the type-surface member ids for interface declarations.
+    pub fn type_member_ids(&self) -> Option<&[LocalNodeId<TypeMember>]> {
+        match self {
+            Declaration::Interface(declaration) => Some(&declaration.members),
             _ => None,
         }
     }
