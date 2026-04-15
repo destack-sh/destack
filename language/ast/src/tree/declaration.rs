@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Ambientness, DependencyKind, ExportMode, Expression, FunctionSignature, GenericParameter,
     LocalNodeId, Member, Mutability, Name, Node, NodeType, Path, StringId, TypeExpression,
-    WhereClause,
+    TypeMember, WhereClause,
 };
 
 /// The source keyword used for a namespace declaration.
@@ -184,7 +184,7 @@ pub struct InterfaceDeclaration {
     /// The extended interfaces.
     pub extends_types: Vec<LocalNodeId<TypeExpression>>,
     /// The interface members.
-    pub members: Vec<LocalNodeId<Member>>,
+    pub members: Vec<LocalNodeId<TypeMember>>,
 }
 
 /// An extension declaration.
@@ -270,9 +270,31 @@ impl Declaration {
         }
     }
 
+    /// Get the declaration-body member ids for structured declarations.
+    #[inline]
+    pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
+        match self {
+            Declaration::Struct(declaration) => Some(&declaration.members),
+            Declaration::Class(declaration) => Some(&declaration.members),
+            Declaration::Enum(declaration) => Some(&declaration.members),
+            Declaration::Extension(declaration) => Some(&declaration.members),
+            Declaration::Function(_) => None,
+            _ => None,
+        }
+    }
+
+    /// Get the type-surface member ids for interface declarations.
+    #[inline]
+    pub fn type_member_ids(&self) -> Option<&[LocalNodeId<TypeMember>]> {
+        match self {
+            Declaration::Interface(declaration) => Some(&declaration.members),
+            _ => None,
+        }
+    }
+
     /// Get the generic parameters of the declaration.
     #[inline]
-    pub fn generic_parameters(&self) -> Option<&Vec<LocalNodeId<GenericParameter>>> {
+    pub fn generic_parameters(&self) -> Option<&[LocalNodeId<GenericParameter>]> {
         match self {
             Declaration::Namespace(declaration) => Some(&declaration.generic_parameters),
             Declaration::Type(declaration) => Some(&declaration.generic_parameters),

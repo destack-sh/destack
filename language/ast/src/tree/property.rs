@@ -80,15 +80,34 @@ impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 }
 
+impl Property {
+    /// Get the key of the property when one exists.
+    pub fn key(&self) -> Option<&Key> {
+        match self {
+            Property::Field { key, .. } => Some(key),
+            Property::Method { key, .. } => key.as_ref(),
+            Property::Spread { .. } | Property::Error => None,
+        }
+    }
+
+    /// Get the function signature of the property when one exists.
+    pub fn signature(&self) -> Option<&FunctionSignature> {
+        match self {
+            Property::Method { signature, .. } => Some(signature),
+            Property::Field { .. } | Property::Spread { .. } | Property::Error => None,
+        }
+    }
+}
+
 /// A member of a declaration body.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Member {
     /// Associated type alias.
-    Type {
+    AssociatedType {
         name: StringId,
         generic_parameters: Vec<LocalNodeId<GenericParameter>>,
         where_clauses: Vec<LocalNodeId<WhereClause>>,
-        declared_type: Option<LocalNodeId<TypeExpression>>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<TypeExpression>>,
         visibility: Option<Visibility>,
         ambient: Ambientness,
@@ -97,7 +116,7 @@ pub enum Member {
         is_static: bool,
     },
     /// Associated compile-time constant.
-    ComptimeConst {
+    AssociatedConst {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
@@ -152,4 +171,46 @@ pub enum Member {
 
 impl Node for Member {
     const TYPE: NodeType = NodeType::Member;
+}
+
+impl Member {
+    /// Get the declared name of the member when one exists.
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            Member::AssociatedType { name, .. } | Member::AssociatedConst { name, .. } => {
+                Some(*name)
+            }
+            _ => None,
+        }
+    }
+
+    /// Get the key of the member when one exists.
+    pub fn key(&self) -> Option<&Key> {
+        match self {
+            Member::Field { key, .. } => Some(key),
+            Member::Method { key, .. } => key.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Get the function signature of the member when one exists.
+    pub fn signature(&self) -> Option<&FunctionSignature> {
+        match self {
+            Member::Method { signature, .. } => Some(signature),
+            _ => None,
+        }
+    }
+
+    /// Check whether the member is static.
+    pub fn is_static(&self) -> bool {
+        match self {
+            Member::AssociatedType { is_static, .. }
+            | Member::AssociatedConst { is_static, .. }
+            | Member::Field { is_static, .. }
+            | Member::Method { is_static, .. }
+            | Member::Embed { is_static, .. } => *is_static,
+            Member::StaticBlock { .. } => true,
+            Member::ComptimeBlock { .. } | Member::Error => false,
+        }
+    }
 }
