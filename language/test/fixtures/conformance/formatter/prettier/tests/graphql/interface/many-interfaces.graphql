@@ -1,3 +1,0 @@
-type Foo implements InterfaceOne & InterfaceTwo & InterfaceThree & InterfaceFour & InterfaceFive & InterfaceSix {
-  id: ID!
-}

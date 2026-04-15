@@ -1,9 +1,0 @@
-<mj-style>
-  a::before { content: "</p>";
-  }
-</mj-style>
-
-<MJ-STYLE>
-  a::before { content: "</p>";
-  }
-</MJ-STYLE>

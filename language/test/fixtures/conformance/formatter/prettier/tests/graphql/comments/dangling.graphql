@@ -1,7 +1,0 @@
-query {
-  search(filters: {
-    # TODO
-  }) {
-      id
-  }
-}
