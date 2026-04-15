@@ -8,7 +8,7 @@ use crate::{
     Arena, Argument, Block, Comment, Declaration, Declarator, Decorator, DecoratorPosition,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, TupleElement,
-    TypeExpression, TypeProperty, WhereClause,
+    TypeExpression, TypeMember, WhereClause,
 };
 
 /// Dense metadata for one global node id.
@@ -50,7 +50,7 @@ impl NodeIndexEntry {
             3 => NodeType::Declaration,
             4 => NodeType::Declarator,
             5 => NodeType::Property,
-            6 => NodeType::TypeProperty,
+            6 => NodeType::TypeMember,
             7 => NodeType::Member,
             8 => NodeType::EnumField,
             9 => NodeType::WhereClause,
@@ -88,7 +88,7 @@ pub struct NodeTreeMark {
     /// The property arena length.
     properties_len: usize,
     /// The type field arena length.
-    type_properties_len: usize,
+    type_members_len: usize,
     /// The member arena length.
     members_len: usize,
     /// The enum field arena length.
@@ -148,7 +148,7 @@ pub struct NodeTree {
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
-    pub(crate) type_properties: Arena<TypeProperty>,
+    pub(crate) type_members: Arena<TypeMember>,
     pub(crate) members: Arena<Member>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
@@ -203,7 +203,7 @@ impl NodeTree {
             declarations: Arena::with(capacity / 8),
             declarators: Arena::with(capacity / 8),
             properties: Arena::with(capacity / 4),
-            type_properties: Arena::with(capacity / 4),
+            type_members: Arena::with(capacity / 4),
             members: Arena::with(capacity / 8),
             enum_fields: Arena::with(capacity / 16),
             where_clauses: Arena::with(capacity / 16),
@@ -285,7 +285,7 @@ impl NodeTree {
             declarations_len: self.declarations.len(),
             declarators_len: self.declarators.len(),
             properties_len: self.properties.len(),
-            type_properties_len: self.type_properties.len(),
+            type_members_len: self.type_members.len(),
             members_len: self.members.len(),
             enum_fields_len: self.enum_fields.len(),
             where_clauses_len: self.where_clauses.len(),
@@ -317,7 +317,7 @@ impl NodeTree {
         self.declarations.truncate(mark.declarations_len);
         self.declarators.truncate(mark.declarators_len);
         self.properties.truncate(mark.properties_len);
-        self.type_properties.truncate(mark.type_properties_len);
+        self.type_members.truncate(mark.type_members_len);
         self.members.truncate(mark.members_len);
         self.enum_fields.truncate(mark.enum_fields_len);
         self.where_clauses.truncate(mark.where_clauses_len);
@@ -789,7 +789,7 @@ impl_node_tree_stores! {
     Declaration => declarations,
     Declarator => declarators,
     Property => properties,
-    TypeProperty => type_properties,
+    TypeMember => type_members,
     Member => members,
     EnumField => enum_fields,
     WhereClause => where_clauses,

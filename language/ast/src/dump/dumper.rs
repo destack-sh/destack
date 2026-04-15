@@ -466,8 +466,6 @@ impl_dump_display! {
     PostfixPosition,
     ReferenceType,
     IntrinsicType,
-    TypeBinaryOperator,
-    TypeUnaryOperator,
     UnaryOperator,
     TypeKind,
     VarianceModifier,
@@ -1227,7 +1225,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             TypeExpression::Array { element: _ } => {
                 self.node("TypeExpression::Array", id.id).end();
             }
-            TypeExpression::Object { properties: _ } => {
+            TypeExpression::Object { members: _ } => {
                 self.node("TypeExpression::Object", id.id).end();
             }
             TypeExpression::Declaration {
@@ -1503,11 +1501,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
         match member {
-            Member::Type {
+            Member::AssociatedType {
                 name: _,
                 generic_parameters: _,
                 where_clauses: _,
-                declared_type: _,
+                constraint: _,
                 value: _,
                 visibility,
                 ambient,
@@ -1515,7 +1513,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 is_override,
                 is_static,
             } => {
-                self.node("Member::Type", id.id)
+                self.node("Member::AssociatedType", id.id)
                     .field_optional("visibility", visibility)
                     .field("ambient", ambient)
                     .field("is_abstract", is_abstract)
@@ -1523,7 +1521,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_static", is_static)
                     .end();
             }
-            Member::ComptimeConst {
+            Member::AssociatedConst {
                 name: _,
                 declared_type: _,
                 value: _,
@@ -1531,7 +1529,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 ambient,
                 is_static,
             } => {
-                self.node("Member::ComptimeConst", id.id)
+                self.node("Member::AssociatedConst", id.id)
                     .field_optional("visibility", visibility)
                     .field("ambient", ambient)
                     .field("is_static", is_static)

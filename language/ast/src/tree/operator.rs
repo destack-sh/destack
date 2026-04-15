@@ -8,7 +8,6 @@ use crate::{Keyword, TokenType};
 /// ```
 /// x() x[] x{} x? x! x++ x--            // postfix
 /// !x -x -%x ~x *x &x ..x ++x --x       // prefix
-/// type readonly typeof keyof           // type unary operator
 /// * / % *% *|                          // multiplication
 /// + - +% -% +| -|                      // addition
 /// << >> <<|                            // shift
@@ -16,7 +15,6 @@ use crate::{Keyword, TokenType};
 /// == != < > <= >=                      // comparison
 /// && || ??                             // boolean
 /// in of                                // container
-/// in extends implements                // type binary operator
 /// =                                    // assignment
 /// *= /= %= **= *%= *|=                 // assignment multiplication
 /// += -= +%= -%= +|= -|=                // assignment addition
@@ -32,9 +30,6 @@ pub enum OperatorPrecedence {
     /// Unary prefix operators.
     /// `!x -x -%x ~x &x *x ..x ++x --x`
     Prefix = 1900,
-    /// Type unary operators.
-    /// `type readonly typeof keyof as comptime`
-    TypeUnary = 1800,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *| **% **|`
     Multiplication = 1700,
@@ -56,9 +51,6 @@ pub enum OperatorPrecedence {
     /// Container operators.
     /// `in` `of`
     Container = 1100,
-    /// Type binary operators.
-    /// `in extends implements`
-    TypeBinary = 1000,
     /// Assignment-related binary operators.
     /// `=`
     Assignment = 800,
@@ -77,86 +69,6 @@ pub enum OperatorPrecedence {
     /// Assignment logical-related binary operators.
     /// `&&= ||= ??=`
     AssignmentBoolean = 300,
-}
-
-/// A TypeUnaryOperator is a type unary operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TypeUnaryOperator {
-    /// `!T`
-    Not = 1811,
-    /// `T!`
-    Must = 1809,
-    /// `newtype`
-    Newtype = 1808,
-    /// `type`
-    Type = 1807,
-    /// `readonly`
-    Readonly = 1806,
-    /// `typeof`
-    Typeof = 1804,
-    /// `keyof`
-    Keyof = 1803,
-    /// `as comptime`
-    AsComptime = 1802,
-}
-
-impl TypeUnaryOperator {
-    /// Get the precedence of the type unary operator.
-    #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
-        OperatorPrecedence::TypeUnary
-    }
-
-    /// Get the precedence of the type unary operator.
-    #[inline]
-    pub fn precedence(self) -> u16 {
-        // just transmute the enum value to an u16
-        self as u16
-    }
-
-    /// Whether the type unary operator is a prefix operator.
-    #[inline]
-    pub fn is_prefix(&self) -> bool {
-        match self {
-            TypeUnaryOperator::Not
-            | TypeUnaryOperator::Newtype
-            | TypeUnaryOperator::Type
-            | TypeUnaryOperator::Readonly
-            | TypeUnaryOperator::Typeof
-            | TypeUnaryOperator::Keyof => true,
-            TypeUnaryOperator::Must | TypeUnaryOperator::AsComptime => false,
-        }
-    }
-
-    /// Whether the type unary operator is a postfix operator.
-    #[inline]
-    pub fn is_postfix(&self) -> bool {
-        !self.is_prefix()
-    }
-
-    /// Convert a TokenType to a TypeUnaryOperator (if a direct mapping exists).
-    #[inline]
-    pub fn from_prefix_token(token_str: &str, _token_type: TokenType) -> Option<TypeUnaryOperator> {
-        match token_str {
-            // NOTE: newtype | type / readonly are disambiguated separately
-            "typeof" => Some(TypeUnaryOperator::Typeof),
-            "keyof" => Some(TypeUnaryOperator::Keyof),
-            _ => None,
-        }
-    }
-
-    /// Convert a TokenType to a TypeUnaryOperator (if a direct mapping exists).
-    #[inline]
-    pub fn from_postfix_token(
-        token_str: &str,
-        next_token_str: &str,
-        _token_type: TokenType,
-    ) -> Option<TypeUnaryOperator> {
-        match (token_str, next_token_str) {
-            ("as", "comptime") => Some(TypeUnaryOperator::AsComptime),
-            _ => None,
-        }
-    }
 }
 
 /// A UnaryOperator is unary operator.
@@ -263,43 +175,6 @@ impl UnaryOperator {
         match token_type {
             TokenType::Increment => Some(UnaryOperator::PostIncrement),
             TokenType::Decrement => Some(UnaryOperator::PostDecrement),
-            _ => None,
-        }
-    }
-}
-
-/// A TypeBinaryOperator is a type binary operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TypeBinaryOperator {
-    /// `in`
-    In = 1006,
-    /// `extends`
-    Extends = 1002,
-    /// `implements`
-    Implements = 1001,
-}
-
-impl TypeBinaryOperator {
-    /// Get the precedence of the type binary operator.
-    #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
-        OperatorPrecedence::TypeBinary
-    }
-
-    /// Get the precedence of the type binary operator.
-    #[inline]
-    pub fn precedence(self) -> u16 {
-        // just transmute the enum value to an u16
-        self as u16
-    }
-
-    /// Convert a TokenType to a TypeBinaryOperator (if a direct mapping exists).
-    #[inline]
-    pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeBinaryOperator> {
-        match token_str {
-            "in" => Some(TypeBinaryOperator::In),
-            "extends" => Some(TypeBinaryOperator::Extends),
-            "implements" => Some(TypeBinaryOperator::Implements),
             _ => None,
         }
     }
@@ -715,41 +590,6 @@ impl AssignOperator {
             AssignOperator::AndAssign => TokenType::LogicalAndAssign,
             AssignOperator::OrAssign => TokenType::LogicalOrAssign,
             AssignOperator::CoalesceAssign => TokenType::CoalesceAssign,
-        }
-    }
-}
-
-/// An infix operator umbrella for binary, type-binary, and assignment operators.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum InfixOperator {
-    /// A binary operator.
-    Binary(BinaryOperator),
-    /// A type binary operator.
-    TypeBinary(TypeBinaryOperator),
-    /// An assignment operator.
-    Assign(AssignOperator),
-}
-
-impl InfixOperator {
-    /// Get the precedence of the infix operator.
-    #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
-        match self {
-            InfixOperator::Binary(binary_operator) => binary_operator.precedence_group(),
-            InfixOperator::TypeBinary(type_binary_operator) => {
-                type_binary_operator.precedence_group()
-            }
-            InfixOperator::Assign(assign_operator) => assign_operator.precedence_group(),
-        }
-    }
-
-    /// Get the precedence of the infix operator.
-    #[inline]
-    pub fn precedence(self) -> u16 {
-        match self {
-            InfixOperator::Binary(binary_operator) => binary_operator.precedence(),
-            InfixOperator::TypeBinary(type_binary_operator) => type_binary_operator.precedence(),
-            InfixOperator::Assign(assign_operator) => assign_operator.precedence(),
         }
     }
 }

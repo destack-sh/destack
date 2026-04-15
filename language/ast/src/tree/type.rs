@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, Declaration, Expression, FunctionSignature, GenericArgument, Key, LocalNodeId,
-    Mutability, Node, NodeType, Path, ScalarLiteral, StringId, TupleElement, TypeLiteral,
-    VarianceBound,
+    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
+    LocalNodeId, Mutability, Node, NodeType, Path, ScalarLiteral, StringId, TupleElement,
+    TypeLiteral, VarianceBound, WhereClause,
 };
 
-/// One object type property.
+/// One type-surface member.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TypeProperty {
+pub enum TypeMember {
     /// Named field.
     Field {
         is_optional: bool,
@@ -21,6 +21,7 @@ pub enum TypeProperty {
         is_optional: bool,
         key: Option<Key>,
         signature: FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
     },
     /// Index signature.
     IndexSignature {
@@ -30,12 +31,57 @@ pub enum TypeProperty {
         key_type: LocalNodeId<TypeExpression>,
         value_type: LocalNodeId<TypeExpression>,
     },
-    /// Malformed type property slot.
+    /// Type embedding.
+    Embed { value: LocalNodeId<TypeExpression> },
+    /// Associated type requirement or definition.
+    AssociatedType {
+        name: StringId,
+        generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+        where_clauses: Vec<LocalNodeId<WhereClause>>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
+        value: Option<LocalNodeId<TypeExpression>>,
+    },
+    /// Associated compile-time constant requirement or definition.
+    AssociatedConst {
+        name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        value: Option<LocalNodeId<Expression>>,
+    },
+    /// Malformed type member slot.
     Error,
 }
 
-impl Node for TypeProperty {
-    const TYPE: NodeType = NodeType::TypeProperty;
+impl Node for TypeMember {
+    const TYPE: NodeType = NodeType::TypeMember;
+}
+
+impl TypeMember {
+    /// Get the declared name of the type member when one exists.
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            TypeMember::AssociatedType { name, .. } | TypeMember::AssociatedConst { name, .. } => {
+                Some(*name)
+            }
+            _ => None,
+        }
+    }
+
+    /// Get the key of the type member when one exists.
+    pub fn key(&self) -> Option<&Key> {
+        match self {
+            TypeMember::Field { key, .. } => Some(key),
+            TypeMember::Method { key, .. } => key.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Get the function signature of the type member when one exists.
+    pub fn signature(&self) -> Option<&FunctionSignature> {
+        match self {
+            TypeMember::Method { signature, .. } => Some(signature),
+            _ => None,
+        }
+    }
 }
 
 /// A mapped type parameter.
@@ -100,7 +146,7 @@ pub enum TypeExpression {
 
     /// Object type syntax.
     Object {
-        properties: Vec<LocalNodeId<TypeProperty>>,
+        members: Vec<LocalNodeId<TypeMember>>,
     },
 
     /// Embedded declaration type syntax.
