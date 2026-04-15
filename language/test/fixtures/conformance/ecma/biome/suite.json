@@ -16,6 +16,16 @@
         "label": "biome parser",
         "version": "1.x",
         "layout": "strip",
+        "include": [
+          "ok/**/*.js",
+          "ok/**/*.jsx",
+          "ok/**/*.ts",
+          "ok/**/*.tsx",
+          "error/**/*.js",
+          "error/**/*.jsx",
+          "error/**/*.ts",
+          "error/**/*.tsx"
+        ],
         "paths": [
           "crates/biome_js_parser/tests/js_test_suite"
         ]

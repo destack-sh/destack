@@ -16,6 +16,9 @@
         "label": "test262 parser",
         "version": "2026-01-29",
         "layout": "preserve",
+        "include": [
+          "**/*.js"
+        ],
         "paths": [
           "pass",
           "pass-explicit",

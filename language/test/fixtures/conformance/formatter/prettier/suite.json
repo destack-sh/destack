@@ -16,6 +16,16 @@
         "label": "prettier formatter",
         "version": "3.x",
         "layout": "strip",
+        "include": [
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.ts",
+          "**/*.tsx",
+          "**/__snapshots__/format.test.js.snap"
+        ],
+        "exclude": [
+          "**/format.test.js"
+        ],
         "paths": [
           "tests/format"
         ]

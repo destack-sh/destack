@@ -16,6 +16,12 @@
         "label": "swc parser",
         "version": "1.x",
         "layout": "strip",
+        "include": [
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.ts",
+          "**/*.tsx"
+        ],
         "paths": [
           "crates/swc_ecma_parser/tests"
         ]
