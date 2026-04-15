@@ -10,16 +10,8 @@ use crate::{
     Arena, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
     Expression, FunctionMode, GenericArgument, GenericParameter, IfCondition, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor,
-<<<<<<< HEAD
     NodeVisitorOptions, Parameter, Pattern, PatternField, Property, Provenance, ProvenanceId,
-    ProvenanceReason, TypeExpression, TypeProperty, WhereClause,
-||||||| parent of 1ffb34b5c5 (feat(language/dir): mirror tuple elements and align shared AST shapes)
-    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TypeExpression, TypeProperty,
-    WhereClause,
-=======
-    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TupleElement, TypeExpression,
-    TypeProperty, WhereClause,
->>>>>>> 1ffb34b5c5 (feat(language/dir): mirror tuple elements and align shared AST shapes)
+    ProvenanceReason, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 
 /// Normalized semantic documentation attached to one DIR node.
@@ -50,7 +42,7 @@ pub struct NodeTree {
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
-    pub(crate) type_properties: Arena<TypeProperty>,
+    pub(crate) type_members: Arena<TypeMember>,
     pub(crate) members: Arena<Member>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
@@ -115,7 +107,7 @@ impl NodeTree {
             declarations: Arena::new(),
             declarators: Arena::new(),
             properties: Arena::new(),
-            type_properties: Arena::new(),
+            type_members: Arena::new(),
             members: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
@@ -436,9 +428,9 @@ impl NodeTree {
                 let typed_id = LocalNodeId::<Property>::new(node_id.id);
                 visitor.visit_property(self, typed_id, self.get(typed_id));
             }
-            NodeType::TypeProperty => {
-                let typed_id = LocalNodeId::<TypeProperty>::new(node_id.id);
-                visitor.visit_type_property(self, typed_id, self.get(typed_id));
+            NodeType::TypeMember => {
+                let typed_id = LocalNodeId::<TypeMember>::new(node_id.id);
+                visitor.visit_type_member(self, typed_id, self.get(typed_id));
             }
             NodeType::Member => {
                 let typed_id = LocalNodeId::<Member>::new(node_id.id);
@@ -562,14 +554,14 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
-            fn visit_type_property(
+            fn visit_type_member(
                 &mut self,
                 tree: &NodeTree,
-                id: LocalNodeId<TypeProperty>,
-                type_property: &TypeProperty,
+                id: LocalNodeId<TypeMember>,
+                type_member: &TypeMember,
             ) {
                 self.push_node(id.into_any());
-                crate::walk_type_property(self, tree, id, type_property);
+                crate::walk_type_member(self, tree, id, type_member);
                 self.parent_stack.pop();
             }
 
@@ -1269,7 +1261,7 @@ impl_node_tree_stores! {
     Declaration => declarations,
     Declarator => declarators,
     Property => properties,
-    TypeProperty => type_properties,
+    TypeMember => type_members,
     Member => members,
     EnumField => enum_fields,
     WhereClause => where_clauses,

@@ -262,15 +262,66 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
                 )
             }
         }
-        Type::Unary { operator, right } => {
-            let mapped_right = rewriter.rewrite_type_id(types, *right);
-            if mapped_right == *right {
+        Type::Readonly { target_type } => {
+            let mapped_target_type = rewriter.rewrite_type_id(types, *target_type);
+            if mapped_target_type == *target_type {
                 type_id
             } else {
                 types.insert_type_from_type(
-                    Type::Unary {
-                        operator: *operator,
-                        right: mapped_right,
+                    Type::Readonly {
+                        target_type: mapped_target_type,
+                    },
+                    type_id,
+                )
+            }
+        }
+        Type::KeyOf { target_type } => {
+            let mapped_target_type = rewriter.rewrite_type_id(types, *target_type);
+            if mapped_target_type == *target_type {
+                type_id
+            } else {
+                types.insert_type_from_type(
+                    Type::KeyOf {
+                        target_type: mapped_target_type,
+                    },
+                    type_id,
+                )
+            }
+        }
+        Type::Must { target_type } => {
+            let mapped_target_type = rewriter.rewrite_type_id(types, *target_type);
+            if mapped_target_type == *target_type {
+                type_id
+            } else {
+                types.insert_type_from_type(
+                    Type::Must {
+                        target_type: mapped_target_type,
+                    },
+                    type_id,
+                )
+            }
+        }
+        Type::AsComptime { target_type } => {
+            let mapped_target_type = rewriter.rewrite_type_id(types, *target_type);
+            if mapped_target_type == *target_type {
+                type_id
+            } else {
+                types.insert_type_from_type(
+                    Type::AsComptime {
+                        target_type: mapped_target_type,
+                    },
+                    type_id,
+                )
+            }
+        }
+        Type::Not { target_type } => {
+            let mapped_target_type = rewriter.rewrite_type_id(types, *target_type);
+            if mapped_target_type == *target_type {
+                type_id
+            } else {
+                types.insert_type_from_type(
+                    Type::Not {
+                        target_type: mapped_target_type,
                     },
                     type_id,
                 )
@@ -328,20 +379,45 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
                 )
             }
         }
-        Type::Binary {
-            left,
-            operator,
-            right,
-        } => {
+        Type::In { left, right } => {
             let mapped_left = rewriter.rewrite_type_id(types, *left);
             let mapped_right = rewriter.rewrite_type_id(types, *right);
             if mapped_left == *left && mapped_right == *right {
                 type_id
             } else {
                 types.insert_type_from_type(
-                    Type::Binary {
+                    Type::In {
                         left: mapped_left,
-                        operator: *operator,
+                        right: mapped_right,
+                    },
+                    type_id,
+                )
+            }
+        }
+        Type::Extends { left, right } => {
+            let mapped_left = rewriter.rewrite_type_id(types, *left);
+            let mapped_right = rewriter.rewrite_type_id(types, *right);
+            if mapped_left == *left && mapped_right == *right {
+                type_id
+            } else {
+                types.insert_type_from_type(
+                    Type::Extends {
+                        left: mapped_left,
+                        right: mapped_right,
+                    },
+                    type_id,
+                )
+            }
+        }
+        Type::Implements { left, right } => {
+            let mapped_left = rewriter.rewrite_type_id(types, *left);
+            let mapped_right = rewriter.rewrite_type_id(types, *right);
+            if mapped_left == *left && mapped_right == *right {
+                type_id
+            } else {
+                types.insert_type_from_type(
+                    Type::Implements {
+                        left: mapped_left,
                         right: mapped_right,
                     },
                     type_id,

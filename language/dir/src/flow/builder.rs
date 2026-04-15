@@ -4,10 +4,11 @@ use destack_source::ModuleId;
 
 use crate::{
     Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FlowBlock, FlowBlockId,
-    FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GenericArgument, GlobalSymbolId,
-    IfCondition, ImportTarget, Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind,
-    MatchCase, MatchKind, MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property,
-    TemplateLiteral, TupleElement, TypeExpression, TypeProperty, UnaryOperator,
+    FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GenericArgument,
+    GenericParameter, GlobalSymbolId, IfCondition, ImportTarget, Key, LocalNodeId, LocalNodeIdAny,
+    LocalSymbolId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, NodeTree, Pattern,
+    PatternField, Property, TemplateLiteral, TupleElement, TypeExpression, TypeMember,
+    UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -1978,8 +1979,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
             TypeExpression::Array { element } => {
                 self.build_type_expression(*element, current_block_id)
             }
-            TypeExpression::Object { properties } => {
-                self.build_type_properties(properties, current_block_id)
+            TypeExpression::Object { members } => {
+                self.build_type_members(members, current_block_id)
             }
             TypeExpression::Declaration { declaration } => {
                 self.build_declaration_expression(*declaration, current_block_id)
@@ -2273,39 +2274,46 @@ impl<'tree> FlowGraphBuilder<'tree> {
         }
     }
 
-    /// Build a list of type properties.
-    fn build_type_properties(
+    /// Build a list of type members.
+    fn build_type_members(
         &mut self,
-        properties: &[LocalNodeId<TypeProperty>],
+        members: &[LocalNodeId<TypeMember>],
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
-        let mut property_block_id = current_block_id;
-        for property_id in properties {
-            property_block_id = self.build_type_property(*property_id, property_block_id)?;
+        let mut member_block_id = current_block_id;
+        for member_id in members {
+            member_block_id = self.build_type_member(*member_id, member_block_id)?;
         }
-        Some(property_block_id)
+
+        Some(member_block_id)
     }
 
-    /// Build a type property.
-    fn build_type_property(
+    /// Build a type member.
+    fn build_type_member(
         &mut self,
-        property_id: LocalNodeId<TypeProperty>,
+        member_id: LocalNodeId<TypeMember>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
-        self.record_node(current_block_id, property_id.into_any());
-        let property = self.tree.get(property_id);
+        self.record_node(current_block_id, member_id.into_any());
+        let member = self.tree.get(member_id);
 
-        match property {
-            TypeProperty::Field {
+        match member {
+            TypeMember::Field {
                 key, declared_type, ..
             } => {
                 let key_block_id = self.build_key(key, current_block_id)?;
                 self.build_type_expression(*declared_type, key_block_id)
             }
-            TypeProperty::Method {
-                key, signature: _, ..
-            } => self.build_optional_key(key.as_ref(), current_block_id),
-            TypeProperty::IndexSignature {
+            TypeMember::Method { key, body, .. } => {
+                let key_block_id = self.build_optional_key(key.as_ref(), current_block_id)?;
+
+                if let Some(body) = body {
+                    return self.build_expression(*body, key_block_id);
+                }
+
+                Some(key_block_id)
+            }
+            TypeMember::IndexSignature {
                 name: _,
                 key_type,
                 value_type,
@@ -2314,7 +2322,89 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 let key_block_id = self.build_type_expression(*key_type, current_block_id)?;
                 self.build_type_expression(*value_type, key_block_id)
             }
-            TypeProperty::Error => Some(current_block_id),
+            TypeMember::Embed { value, .. } => self.build_type_expression(*value, current_block_id),
+            TypeMember::AssociatedType {
+                generic_parameters,
+                where_clauses,
+                constraint,
+                value,
+                ..
+            } => {
+                let mut member_block_id = current_block_id;
+
+                for generic_parameter_id in generic_parameters {
+                    let generic_parameter = self.tree.get(*generic_parameter_id);
+
+                    match generic_parameter {
+                        GenericParameter::Type {
+                            constraint,
+                            default,
+                            ..
+                        } => {
+                            if let Some(constraint) = constraint {
+                                member_block_id =
+                                    self.build_type_expression(*constraint, member_block_id)?;
+                            }
+
+                            if let Some(default) = default {
+                                member_block_id =
+                                    self.build_type_expression(*default, member_block_id)?;
+                            }
+                        }
+                        GenericParameter::Value {
+                            declared_type,
+                            default,
+                            ..
+                        } => {
+                            if let Some(declared_type) = declared_type {
+                                member_block_id =
+                                    self.build_type_expression(*declared_type, member_block_id)?;
+                            }
+
+                            if let Some(default) = default {
+                                member_block_id =
+                                    self.build_expression(*default, member_block_id)?;
+                            }
+                        }
+                        GenericParameter::Error { .. } => {}
+                    }
+                }
+
+                for where_clause_id in where_clauses {
+                    let where_clause = self.tree.get(*where_clause_id);
+                    member_block_id =
+                        self.build_type_expression(where_clause.right, member_block_id)?;
+                }
+
+                if let Some(constraint) = constraint {
+                    member_block_id = self.build_type_expression(*constraint, member_block_id)?;
+                }
+
+                if let Some(value) = value {
+                    return self.build_type_expression(*value, member_block_id);
+                }
+
+                Some(member_block_id)
+            }
+            TypeMember::AssociatedConst {
+                declared_type,
+                value,
+                ..
+            } => {
+                let mut member_block_id = current_block_id;
+
+                if let Some(declared_type) = declared_type {
+                    member_block_id =
+                        self.build_type_expression(*declared_type, member_block_id)?;
+                }
+
+                if let Some(value) = value {
+                    return self.build_expression(*value, member_block_id);
+                }
+
+                Some(member_block_id)
+            }
+            TypeMember::Error { .. } => Some(current_block_id),
         }
     }
 
