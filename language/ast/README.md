@@ -5,7 +5,7 @@ Pretty classic AST stuff, with a lot of CST shaped metadata like rich annotation
 
 The Destack AST is (mostly) a superset of TypeScript's AST plus Destack-specific constructs (`struct`, `newtype`, `match`, ownership modifiers, etc.).
 Valid modern TypeScript parses to a valid subset of the Destack AST; the same parser handles `.ts`, `.tsx`, `.js`, `.jsx`, and `.ds` files.
-(We measure conformance to this in our various [conformance tests](../test/fixtures/parser/conformance/)).
+(We measure conformance to this in our various [conformance tests](../test/fixtures/conformance/)).
 
 Unlike traditional ASTs, Destack's AST preserves whitespace, comments, and formatting information (closer to a CST).
 This enables the formatter and other tools to reproduce source text faithfully.
