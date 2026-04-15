@@ -228,6 +228,12 @@ pub struct FetchEntry {
     /// The sparse checkout paths for fetched sources.
     #[serde(default)]
     pub paths: Vec<String>,
+    /// The path patterns to keep after fetching one source entry.
+    #[serde(default)]
+    pub include: Vec<String>,
+    /// The path patterns to drop after fetching one source entry.
+    #[serde(default)]
+    pub exclude: Vec<String>,
     /// The declared file mappings.
     #[serde(default)]
     pub files: Vec<FetchFileEntry>,

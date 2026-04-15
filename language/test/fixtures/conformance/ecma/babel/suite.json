@@ -16,6 +16,22 @@
         "label": "babel parser",
         "version": "7.26",
         "layout": "strip",
+        "include": [
+          "typescript/**/input.ts",
+          "typescript/**/input.tsx",
+          "typescript/**/input.js",
+          "typescript/**/input.jsx",
+          "typescript/**/input.mjs",
+          "typescript/**/options.json",
+          "typescript/**/output.json",
+          "jsx/**/input.ts",
+          "jsx/**/input.tsx",
+          "jsx/**/input.js",
+          "jsx/**/input.jsx",
+          "jsx/**/input.mjs",
+          "jsx/**/options.json",
+          "jsx/**/output.json"
+        ],
         "paths": [
           "packages/babel-parser/test/fixtures"
         ]

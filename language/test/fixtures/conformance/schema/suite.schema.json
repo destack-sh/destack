@@ -148,6 +148,22 @@
           },
           "default": []
         },
+        "include": {
+          "description": "The path patterns to keep after fetching one source entry.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "exclude": {
+          "description": "The path patterns to drop after fetching one source entry.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
         "files": {
           "description": "The declared file mappings.",
           "type": "array",
