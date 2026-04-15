@@ -125,8 +125,8 @@ pub struct ClassDeclaration {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
-    /// The extended class.
-    pub extends_type: Option<LocalNodeId<TypeExpression>>,
+    /// The extended class expression.
+    pub extends_expression: Option<LocalNodeId<Expression>>,
     /// The implemented interfaces.
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
