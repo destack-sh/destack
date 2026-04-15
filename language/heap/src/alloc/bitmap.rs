@@ -49,6 +49,43 @@ impl Bitmap {
         self.words[word_index] |= mask;
     }
 
+    /// Set every bit inside the given range.
+    pub fn set_range(&mut self, start: usize, len: usize) {
+        if len == 0 || start >= self.capacity {
+            return;
+        }
+
+        let end = start.saturating_add(len).min(self.capacity);
+        let start_word_index = start / BITMAP_WORD_BITS;
+        let end_word_index = (end - 1) / BITMAP_WORD_BITS;
+        let start_bit_offset = start % BITMAP_WORD_BITS;
+        let end_bit_offset = end % BITMAP_WORD_BITS;
+
+        // handle the single-word case directly
+        if start_word_index == end_word_index {
+            let range_mask = word_range_mask(start_bit_offset, end_bit_offset);
+            self.words[start_word_index] |= range_mask;
+
+            return;
+        }
+
+        // fill the partial first word
+        self.words[start_word_index] |= !low_bit_mask(start_bit_offset);
+
+        // fill any fully covered middle words
+        for word_index in start_word_index + 1..end_word_index {
+            self.words[word_index] = u64::MAX;
+        }
+
+        // fill the partial last word
+        let last_word_mask = if end_bit_offset == 0 {
+            u64::MAX
+        } else {
+            low_bit_mask(end_bit_offset)
+        };
+        self.words[end_word_index] |= last_word_mask;
+    }
+
     /// Clear one bit.
     pub fn clear(&mut self, offset: usize) {
         if offset >= self.capacity {
@@ -81,7 +118,32 @@ impl Bitmap {
             return None;
         }
 
-        (start..self.capacity).find(|&index| !self.contains(index))
+        let mut word_index = start / BITMAP_WORD_BITS;
+        let bit_offset = start % BITMAP_WORD_BITS;
+        let mut word = self.words[word_index] | low_bit_mask(bit_offset);
+
+        loop {
+            let available_bits = !word;
+            if available_bits != 0 {
+                let first_bit = available_bits.trailing_zeros() as usize;
+                let index = word_index
+                    .saturating_mul(BITMAP_WORD_BITS)
+                    .saturating_add(first_bit);
+
+                if index < self.capacity {
+                    return Some(index);
+                }
+
+                return None;
+            }
+
+            word_index = word_index.saturating_add(1);
+            if word_index >= self.words.len() {
+                return None;
+            }
+
+            word = self.words[word_index];
+        }
     }
 
     /// Return the first set bit from the given offset.
@@ -90,11 +152,71 @@ impl Bitmap {
             return None;
         }
 
-        (start..self.capacity).find(|&index| self.contains(index))
+        let mut word_index = start / BITMAP_WORD_BITS;
+        let bit_offset = start % BITMAP_WORD_BITS;
+        let mut word = self.words[word_index] & !low_bit_mask(bit_offset);
+
+        loop {
+            if word != 0 {
+                let first_bit = word.trailing_zeros() as usize;
+                let index = word_index
+                    .saturating_mul(BITMAP_WORD_BITS)
+                    .saturating_add(first_bit);
+
+                if index < self.capacity {
+                    return Some(index);
+                }
+
+                return None;
+            }
+
+            word_index = word_index.saturating_add(1);
+            if word_index >= self.words.len() {
+                return None;
+            }
+
+            word = self.words[word_index];
+        }
     }
 
     /// Return the retained bytes for this bitmap.
     pub fn retained_bytes(&self) -> usize {
         self.words.capacity() * std::mem::size_of::<u64>()
     }
+
+    /// Visit each contiguous set-bit range.
+    pub fn for_each_set_range(&self, mut callback: impl FnMut(usize, usize)) {
+        let mut start = 0usize;
+
+        // walk each retained set-bit run in order
+        while let Some(range_start) = self.first_set_from(start) {
+            let range_end = self.first_clear_from(range_start).unwrap_or(self.capacity);
+
+            callback(range_start, range_end.saturating_sub(range_start));
+            start = range_end;
+        }
+    }
+}
+
+/// Return one mask with every low bit below the offset set.
+fn low_bit_mask(bit_offset: usize) -> u64 {
+    if bit_offset >= BITMAP_WORD_BITS {
+        u64::MAX
+    } else if bit_offset == 0 {
+        0
+    } else {
+        (1_u64 << bit_offset) - 1
+    }
+}
+
+/// Return one mask that covers the half-open bit range inside one word.
+fn word_range_mask(start_bit_offset: usize, end_bit_offset: usize) -> u64 {
+    let low_mask = low_bit_mask(start_bit_offset);
+    let high_mask = if end_bit_offset == 0 {
+        u64::MAX
+    } else {
+        low_bit_mask(end_bit_offset)
+    };
+
+    high_mask & !low_mask
 }
