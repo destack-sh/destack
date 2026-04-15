@@ -1,4 +1,0 @@
-{
-  "sourceType": "module",
-  "throws": "Only expressions, functions or classes are allowed as the `default` export. (1:15)"
-}

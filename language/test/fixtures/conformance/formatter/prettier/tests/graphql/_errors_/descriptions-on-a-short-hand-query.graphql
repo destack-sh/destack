@@ -1,4 +1,0 @@
-# https://github.com/graphql/graphql-js/pull/4482
-
-"""Invalid"""
-{ __typename }
