@@ -68,6 +68,10 @@ format-check:
 # alias for format
 alias fmt := format
 
+# count source-ish code with generated and fixture corpora excluded
+tokei *args:
+    command tokei . {{args}} -e target -e node_modules -e .pnpm-store -e .nx -e language/test/fixtures/conformance -e language/test/fixtures/ecosystem/packages -e 'language/test/fixtures/resolver/**/node_modules' -e 'language/test/fixtures/resolver/**/.yarn' -e '*.generated.rs' -e '*.generated.ts' -e '*.generated.js' -e '*.generated.cpp' -e '*.generated.h' -e '*.generated.kt' -e '*.generated.swift' -e 'language/grammar/**/src/parser.c' -e 'language/grammar/**/src/grammar.json' -e 'language/grammar/**/src/node-types.json' -e language/grammar/destack/node_modules -e language/workspace/generated -e app/cli/generated -e bridge/vscode/destack.schema.json
+
 # run repository static checks
 check:
     just check-hygiene
