@@ -1235,9 +1235,9 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let where_clause = tree.get(*where_clause_id);
                 visitor.visit_where_clause(tree, *where_clause_id, where_clause);
             }
-            if let Some(extends_type_id) = declaration.extends_type {
-                let extends_type = tree.get(extends_type_id);
-                visitor.visit_type_expression(tree, extends_type_id, extends_type);
+            if let Some(extends_expression_id) = declaration.extends_expression {
+                let extends_expression = tree.get(extends_expression_id);
+                visitor.visit_expression(tree, extends_expression_id, extends_expression);
             }
             for expression_id in &declaration.implements_types {
                 let expression = tree.get(*expression_id);
