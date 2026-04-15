@@ -92,7 +92,7 @@ impl DirBase {
             dir::SymbolBinding::Runtime,
             None,
             (namespace_scope_id, dir::LocalScopeMark::end()),
-            Some(dir::DependencyMode::Namespace),
+            Some(dir::ExportMode::Named),
         );
         symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
         let (default_symbol_id, _) = symbols.insert_symbol(
@@ -102,7 +102,7 @@ impl DirBase {
             dir::SymbolBinding::Runtime,
             None,
             (namespace_scope_id, dir::LocalScopeMark::end()),
-            Some(dir::DependencyMode::Default),
+            Some(dir::ExportMode::Default),
         );
         let (export_assignment_symbol_id, _) = symbols.insert_symbol(
             dir::SymbolKind::Namespace,
