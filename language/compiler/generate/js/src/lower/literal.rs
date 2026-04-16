@@ -6,6 +6,7 @@ impl ModuleLowerer<'_> {
     /// Lower a scalar literal from DIR into JS AST.
     pub fn lower_scalar_literal(&mut self, literal: &dir::ScalarLiteral) -> js::ScalarLiteral {
         match literal {
+            dir::ScalarLiteral::Null => js::ScalarLiteral::Null,
             dir::ScalarLiteral::Boolean(boolean) => js::ScalarLiteral::Boolean(*boolean),
             dir::ScalarLiteral::Integer(integer) => js::ScalarLiteral::Number(*integer as f64),
             dir::ScalarLiteral::Bigint(bigint) => js::ScalarLiteral::Number(*bigint as f64),

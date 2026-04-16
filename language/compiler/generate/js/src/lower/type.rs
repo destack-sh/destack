@@ -1,20 +1,23 @@
-use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 use {destack_dir as dir, destack_js as js};
 
 impl ModuleLowerer<'_> {
     /// Lower one type annotation expression into a JS type.
     pub fn lower_type_annotation_expression(
         &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Type>> {
         let global_id = expression_id.into_global_any(self.module.id);
 
-        // prefer the semantic type lane when analysis already declared the annotation
+        // lower through the semantic type lane
         if let Some(type_id) = self.types.get_declared_type_id(global_id) {
             return self.lower_type(type_id);
         }
 
-        self.lower_expression_as_type(expression_id)
+        Err(CodegenJsError::UnsupportedConstruct {
+            node: global_id,
+            message: Some("missing declared type for type annotation".to_string()),
+        })
     }
 
     /// Lower a mutability from DIR into JS AST.
@@ -60,27 +63,120 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(tuple_element, self.module.id, source_id))
     }
 
-    /// Lower generics from DIR into JS AST.
-    pub fn lower_generics(&mut self, generics: &dir::Generics) -> CodegenJsResult<js::Generics> {
-        let static_parameters = generics
-            .static_parameters
-            .as_ref()
-            .map(|static_parameters| {
-                static_parameters
-                    .iter()
-                    .map(|parameter| self.lower_parameter(*parameter))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()
-            })
-            .transpose()?;
-        let generics = js::Generics { static_parameters };
-        Ok(generics)
+    /// Lower generic parameters from DIR into JS static parameters.
+    pub fn lower_generic_parameters(
+        &mut self,
+        parameters: &[dir::LocalNodeId<dir::GenericParameter>],
+    ) -> CodegenJsResult<Option<Vec<js::LocalNodeId<js::Parameter>>>> {
+        if parameters.is_empty() {
+            return Ok(None);
+        }
+
+        let static_parameters = parameters
+            .iter()
+            .map(|parameter_id| self.lower_generic_parameter(*parameter_id))
+            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+
+        Ok(Some(static_parameters))
     }
 
-    /// Lower Heritage from DIR into JS AST.
-    pub fn lower_heritage(&mut self, heritage: &dir::Heritage) -> CodegenJsResult<js::Heritage> {
-        let extends_types = heritage
-            .extends_types
-            .as_ref()
+    /// Lower one generic parameter from DIR into a JS static parameter.
+    fn lower_generic_parameter(
+        &mut self,
+        parameter_id: dir::LocalNodeId<dir::GenericParameter>,
+    ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
+        let parameter = self.dir_tree.get(parameter_id);
+
+        let parameter = match parameter {
+            dir::GenericParameter::Type {
+                name,
+                variance,
+                constraint,
+                default: _,
+                ..
+            } => {
+                let modifiers = variance.map(|variance| js::BindingModifier {
+                    variance: Some(match variance {
+                        dir::VarianceModifier::In => js::VarianceModifier::In,
+                        dir::VarianceModifier::Out => js::VarianceModifier::Out,
+                        dir::VarianceModifier::InOut => js::VarianceModifier::InOut,
+                    }),
+                    ..js::BindingModifier::default()
+                });
+                let name = self.strings.intern_from(self.source_strings, *name);
+                let ty = constraint
+                    .map(|constraint| self.lower_type_annotation_expression(constraint))
+                    .transpose()?;
+
+                js::Parameter::Named {
+                    modifiers,
+                    name,
+                    ty,
+                    default: None,
+                }
+            }
+            dir::GenericParameter::Value {
+                name,
+                declared_type: _,
+                default,
+                ..
+            } => {
+                let name = self.strings.intern_from(self.source_strings, *name);
+                let ty = self
+                    .types
+                    .get_declared_type_id(parameter_id.into_global_any(self.module.id))
+                    .map(|ty| self.lower_type(ty))
+                    .transpose()?;
+                let default = default
+                    .map(|default| {
+                        self.lower_expression(default)
+                            .expect_node::<js::Expression>(
+                                default.into_global_any(self.module.id),
+                                self,
+                            )
+                    })
+                    .transpose()?;
+
+                js::Parameter::Named {
+                    modifiers: None,
+                    name,
+                    ty,
+                    default,
+                }
+            }
+            dir::GenericParameter::Error { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: parameter_id.into_global_any(self.module.id),
+                    message: Some(
+                        "generic parameter error slots are not lowered to js".to_string(),
+                    ),
+                });
+            }
+        };
+
+        Ok(self
+            .tree
+            .insert_from_source(parameter, self.module.id, parameter_id))
+    }
+
+    /// Lower heritage slices from DIR into JS AST.
+    pub fn lower_heritage_slice(
+        &mut self,
+        extends_expression: Option<dir::LocalNodeId<dir::Expression>>,
+        extends_types: Option<&[dir::LocalNodeId<dir::TypeExpression>]>,
+        implements_types: Option<&[dir::LocalNodeId<dir::TypeExpression>]>,
+    ) -> CodegenJsResult<js::Heritage> {
+        let extends_expression = extends_expression
+            .map(|extends_expression| {
+                self.lower_expression(extends_expression)
+                    .expect_node::<js::Expression>(
+                        extends_expression.into_global_any(self.module.id),
+                        self,
+                    )
+            })
+            .transpose()?;
+        let extends_types = extends_types
+            .filter(|extends_types| !extends_types.is_empty())
             .map(|extends_types| {
                 extends_types
                     .iter()
@@ -88,9 +184,8 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()
             })
             .transpose()?;
-        let implements_types = heritage
-            .implements_types
-            .as_ref()
+        let implements_types = implements_types
+            .filter(|implements_types| !implements_types.is_empty())
             .map(|implements_types| {
                 implements_types
                     .iter()
@@ -98,11 +193,21 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()
             })
             .transpose()?;
-        let heritage = js::Heritage {
+
+        Ok(js::Heritage {
+            extends_expression,
             extends_types,
             implements_types,
-        };
-        Ok(heritage)
+        })
+    }
+
+    /// Lower class heritage into JS AST.
+    pub fn lower_heritage(
+        &mut self,
+        extends_expression: Option<dir::LocalNodeId<dir::Expression>>,
+        implements_types: Option<&[dir::LocalNodeId<dir::TypeExpression>]>,
+    ) -> CodegenJsResult<js::Heritage> {
+        self.lower_heritage_slice(extends_expression, None, implements_types)
     }
 
     /// Lower a primitive type from DIR into JS AST.
@@ -171,45 +276,20 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Lower a type unary operator from DIR into JS AST.
-    pub fn lower_type_unary_operator(
-        &self,
-        ty_id: dir::LocalTypeId,
-        operator: dir::TypeUnaryOperator,
-    ) -> CodegenJsResult<js::TypeUnaryOperator> {
-        let operator = match operator {
-            dir::TypeUnaryOperator::Not => js::TypeUnaryOperator::Not,
-            dir::TypeUnaryOperator::Must => js::TypeUnaryOperator::Must,
-            dir::TypeUnaryOperator::Type => js::TypeUnaryOperator::Type,
-            dir::TypeUnaryOperator::Newtype => {
-                let source_id = self.types.get_type_source(ty_id);
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: None,
-                });
-            }
-            dir::TypeUnaryOperator::Readonly => js::TypeUnaryOperator::Readonly,
-            dir::TypeUnaryOperator::Typeof => js::TypeUnaryOperator::Typeof,
-            dir::TypeUnaryOperator::Keyof => js::TypeUnaryOperator::Keyof,
-            dir::TypeUnaryOperator::AsComptime => js::TypeUnaryOperator::AsComptime,
-            dir::TypeUnaryOperator::AsConst => js::TypeUnaryOperator::AsConst,
-        };
-        Ok(operator)
-    }
-
     /// Lower one mapped type modifier from DIR into JS AST.
-    fn lower_type_modifier(&self, modifier: dir::TypeModifier) -> js::TypeModifier {
+    fn lower_type_modifier(&self, modifier: dir::MappedTypeModifier) -> js::TypeModifier {
         match modifier {
-            dir::TypeModifier::Add => js::TypeModifier::Add,
-            dir::TypeModifier::Remove => js::TypeModifier::Remove,
-            dir::TypeModifier::None => js::TypeModifier::None,
+            dir::MappedTypeModifier::Present => js::TypeModifier::Present,
+            dir::MappedTypeModifier::Add => js::TypeModifier::Add,
+            dir::MappedTypeModifier::Remove => js::TypeModifier::Remove,
+            dir::MappedTypeModifier::None => js::TypeModifier::None,
         }
     }
 
     /// Lower one mapped type modifier set from DIR into JS AST.
     fn lower_type_mapped_modifiers(
         &self,
-        modifiers: dir::TypeMappedModifiers,
+        modifiers: dir::MappedTypeModifiers,
     ) -> js::TypeMappedModifiers {
         js::TypeMappedModifiers {
             readonly: self.lower_type_modifier(modifiers.readonly),
@@ -221,14 +301,14 @@ impl ModuleLowerer<'_> {
     fn lower_type_predicate_subject(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        subject: dir::TypePredicateSubject,
+        subject: dir::PredicateSubject,
     ) -> CodegenJsResult<js::TypePredicateSubject> {
         let subject = match subject {
-            dir::TypePredicateSubject::Unresolved(name) => {
+            dir::PredicateSubject::Unresolved(name) => {
                 let name = self.strings.intern_from(self.source_strings, name);
                 js::TypePredicateSubject::Name(name)
             }
-            dir::TypePredicateSubject::Symbol(symbol_id) => {
+            dir::PredicateSubject::Symbol(symbol_id) => {
                 if symbol_id.module_id != self.module.id {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
@@ -254,7 +334,7 @@ impl ModuleLowerer<'_> {
                 let name = self.strings.intern_from(self.source_strings, name);
                 js::TypePredicateSubject::Name(name)
             }
-            dir::TypePredicateSubject::This => js::TypePredicateSubject::This,
+            dir::PredicateSubject::This => js::TypePredicateSubject::This,
         };
 
         Ok(subject)
@@ -288,51 +368,23 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(ty, self.module.id, source_id))
     }
 
-    /// Lower a type binary operator from DIR into JS AST.
-    pub fn lower_type_binary_operator(
-        &self,
-        _ty_id: dir::LocalTypeId,
-        operator: dir::TypeBinaryOperator,
-    ) -> CodegenJsResult<js::TypeBinaryOperator> {
-        let operator = match operator {
-            dir::TypeBinaryOperator::Cast => js::TypeBinaryOperator::Cast,
-            dir::TypeBinaryOperator::In => js::TypeBinaryOperator::In,
-            dir::TypeBinaryOperator::Is => js::TypeBinaryOperator::Is,
-            dir::TypeBinaryOperator::InstanceOf => js::TypeBinaryOperator::InstanceOf,
-            dir::TypeBinaryOperator::Satisfies => js::TypeBinaryOperator::Satisfies,
-            dir::TypeBinaryOperator::Extends => js::TypeBinaryOperator::Extends,
-            dir::TypeBinaryOperator::Implements => js::TypeBinaryOperator::Implements,
-        };
-        Ok(operator)
-    }
-
     /// Lower one DIR static argument into one JS type argument.
     pub(crate) fn lower_static_type_argument(
         &mut self,
-        argument_id: dir::LocalNodeId<dir::Argument>,
+        argument_id: dir::LocalNodeId<dir::GenericArgument>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Type>> {
         let argument = self.dir_tree.get(argument_id);
 
         match argument {
-            dir::Argument::Positional { value, .. } => {
-                self.lower_type_annotation_expression(*value)
-            }
-            dir::Argument::Named { .. } | dir::Argument::Labeled { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: argument_id.into_global_any(self.module.id),
-                    message: Some(
-                        "named static arguments are not lowered to js type arguments".to_string(),
-                    ),
-                });
-            }
-            dir::Argument::Spread { .. } => Err(CodegenJsError::UnsupportedConstruct {
+            dir::GenericArgument::Positional { value, .. } => self.lower_expression_as_type(*value),
+            dir::GenericArgument::Spread { .. } => Err(CodegenJsError::UnsupportedConstruct {
                 node: argument_id.into_global_any(self.module.id),
                 message: Some(
                     "spread static arguments are not lowered to js type arguments".to_string(),
                 ),
             }),
-            dir::Argument::Error { value } => Err(CodegenJsError::UnsupportedConstruct {
-                node: value.into_global_any(self.module.id),
+            dir::GenericArgument::Error => Err(CodegenJsError::UnsupportedConstruct {
+                node: argument_id.into_global_any(self.module.id),
                 message: Some(
                     "argument error slots are not lowered to js type arguments".to_string(),
                 ),
@@ -343,7 +395,7 @@ impl ModuleLowerer<'_> {
     /// Lower one source static argument list into JS type arguments.
     pub(crate) fn lower_static_type_arguments(
         &mut self,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CodegenJsResult<Vec<js::LocalNodeId<js::Type>>> {
         let static_arguments = arguments
             .iter()
@@ -360,9 +412,7 @@ impl ModuleLowerer<'_> {
         value: &dir::StaticExpression,
     ) -> CodegenJsResult<js::LocalNodeId<js::Type>> {
         match value {
-            dir::StaticExpression::Unevaluated { node } => {
-                self.lower_type_annotation_expression(*node)
-            }
+            dir::StaticExpression::Unevaluated { node } => self.lower_expression_as_type(*node),
             dir::StaticExpression::ScalarLiteral { value } => {
                 let literal = self.lower_scalar_literal(value);
                 let ty = js::Type::Scalar(js::TypeLiteral::ScalarLiteral(literal));
@@ -431,11 +481,11 @@ impl ModuleLowerer<'_> {
                     });
                 }
 
-                let Ok(argument_id) = node.try_into_local_typed::<dir::Argument>() else {
+                let Ok(argument_id) = node.try_into_local_typed::<dir::GenericArgument>() else {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
                         message: Some(
-                            "static argument is missing local argument syntax for js type lowering"
+                            "static argument is missing local type argument syntax for js type lowering"
                                 .to_string(),
                         ),
                     });
@@ -517,24 +567,31 @@ impl ModuleLowerer<'_> {
         let (path, static_arguments) = match expression {
             dir::Expression::UnresolvedPath {
                 path,
-                static_arguments,
+                generic_arguments,
                 ..
             }
             | dir::Expression::LocalReference {
                 path,
-                static_arguments,
+                generic_arguments,
                 ..
             }
             | dir::Expression::ModuleReference {
                 path,
-                static_arguments,
+                generic_arguments,
                 ..
             }
             | dir::Expression::GlobalReference {
                 path,
-                static_arguments,
+                generic_arguments,
                 ..
-            } => (path, static_arguments.as_deref()),
+            } => (
+                path,
+                if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(generic_arguments.as_slice())
+                },
+            ),
             _ => return Ok(None),
         };
 
@@ -762,7 +819,9 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(js::Type::This, self.module.id, source_id)
             }
-            dir::Type::Unevaluated(expression) => self.lower_expression_as_type(*expression)?,
+            dir::Type::Unevaluated(expression) => {
+                self.lower_type_annotation_expression(*expression)?
+            }
             dir::Type::Reference {
                 symbol,
                 static_arguments,
@@ -902,24 +961,79 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
 
-            dir::Type::Unary { operator, right } => {
-                let operator = self.lower_type_unary_operator(ty_id, *operator)?;
-                let right = self.lower_type(*right)?;
-                let ty = js::Type::Unary { operator, right };
+            dir::Type::Readonly { target_type } => {
+                let right = self.lower_type(*target_type)?;
+                let ty = js::Type::Unary {
+                    operator: js::TypeUnaryOperator::Readonly,
+                    right,
+                };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
+            dir::Type::KeyOf { target_type } => {
+                let right = self.lower_type(*target_type)?;
+                let ty = js::Type::Unary {
+                    operator: js::TypeUnaryOperator::Keyof,
+                    right,
+                };
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Must { target_type } => {
+                let right = self.lower_type(*target_type)?;
+                let ty = js::Type::Unary {
+                    operator: js::TypeUnaryOperator::Must,
+                    right,
+                };
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::AsComptime { target_type } => {
+                let right = self.lower_type(*target_type)?;
+                let ty = js::Type::Unary {
+                    operator: js::TypeUnaryOperator::AsComptime,
+                    right,
+                };
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Not { target_type } => {
+                let right = self.lower_type(*target_type)?;
+                let ty = js::Type::Unary {
+                    operator: js::TypeUnaryOperator::Not,
+                    right,
+                };
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::In { left, right } => {
                 let left = self.lower_type(*left)?;
-                let operator = self.lower_type_binary_operator(ty_id, *operator)?;
                 let right = self.lower_type(*right)?;
                 let ty = js::Type::Binary {
                     left,
-                    operator,
+                    operator: js::TypeBinaryOperator::In,
+                    right,
+                };
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Extends { left, right } => {
+                let left = self.lower_type(*left)?;
+                let right = self.lower_type(*right)?;
+                let ty = js::Type::Binary {
+                    left,
+                    operator: js::TypeBinaryOperator::Extends,
+                    right,
+                };
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Implements { left, right } => {
+                let left = self.lower_type(*left)?;
+                let right = self.lower_type(*right)?;
+                let ty = js::Type::Binary {
+                    left,
+                    operator: js::TypeBinaryOperator::Implements,
                     right,
                 };
                 self.tree

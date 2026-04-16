@@ -4,6 +4,145 @@ use {destack_dir as dir, destack_js as js};
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
+    /// Lower one import attribute value into a JS expression.
+    fn lower_import_attribute_value(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        value: &dir::ImportAttributeValue,
+    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
+        let expression = match value {
+            dir::ImportAttributeValue::ScalarLiteral(value) => js::Expression::ScalarLiteral {
+                value: self.lower_scalar_literal(value),
+            },
+            dir::ImportAttributeValue::Array(values) => {
+                let elements = values
+                    .iter()
+                    .map(|value| {
+                        let value = self.lower_import_attribute_value(source_id, value)?;
+                        let element = js::ArrayElement::Expression { value };
+
+                        Ok(self
+                            .tree
+                            .insert_from_source_any(element, self.module.id, source_id))
+                    })
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+
+                js::Expression::ArrayLiteral { elements }
+            }
+            dir::ImportAttributeValue::Object(attributes) => {
+                let properties = attributes
+                    .iter()
+                    .map(|attribute| self.lower_import_attribute_property(source_id, attribute))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+
+                js::Expression::ObjectLiteral { properties }
+            }
+            dir::ImportAttributeValue::Error => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: source_id.into_global(self.module.id),
+                    message: Some(
+                        "import attribute error values are not lowered to js".to_string(),
+                    ),
+                });
+            }
+        };
+
+        Ok(self
+            .tree
+            .insert_from_source_any(expression, self.module.id, source_id))
+    }
+
+    /// Lower one import attribute key into a JS expression.
+    fn lower_import_attribute_key(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        key: dir::Name,
+    ) -> js::LocalNodeId<js::Expression> {
+        let expression = match key {
+            dir::Name::Identifier(name) => js::Expression::Path {
+                path: js::Path {
+                    segments: smallvec::smallvec![
+                        self.strings.intern_from(self.source_strings, name)
+                    ],
+                },
+                static_arguments: None,
+            },
+            dir::Name::String(name) => js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::String(
+                    self.strings.intern_from(self.source_strings, name),
+                ),
+            },
+            dir::Name::Number(name) => {
+                let number = self.source_strings.get(name);
+                let number = number.parse::<f64>().unwrap_or(0.0);
+                js::Expression::ScalarLiteral {
+                    value: js::ScalarLiteral::Number(number),
+                }
+            }
+        };
+
+        self.tree
+            .insert_from_source_any(expression, self.module.id, source_id)
+    }
+
+    /// Lower one import attribute entry into a JS object property.
+    fn lower_import_attribute_property(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        attribute: &dir::ImportAttribute,
+    ) -> CodegenJsResult<js::LocalNodeId<js::Property>> {
+        let key = Some(js::Key::Name(self.lower_name(attribute.key)));
+        let value = Some(self.lower_import_attribute_value(source_id, &attribute.value)?);
+        let property = js::Property::Field {
+            modifiers: None,
+            key,
+            value,
+            default: None,
+        };
+
+        Ok(self
+            .tree
+            .insert_from_source_any(property, self.module.id, source_id))
+    }
+
+    /// Lower one import attribute entry into a JS dynamic argument.
+    fn lower_import_attribute_argument(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        attribute: &dir::ImportAttribute,
+    ) -> CodegenJsResult<js::LocalNodeId<js::Argument>> {
+        let key = self.lower_import_attribute_key(source_id, attribute.key);
+        let value = self.lower_import_attribute_value(source_id, &attribute.value)?;
+        let argument = js::Argument::Dynamic { key, value };
+
+        Ok(self
+            .tree
+            .insert_from_source_any(argument, self.module.id, source_id))
+    }
+
+    /// Lower one import attribute clause into a JS dependency attribute clause.
+    fn lower_import_attributes(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        attributes: &dir::ImportAttributeClause,
+    ) -> CodegenJsResult<crate::DependencyAttributeClause> {
+        let arguments = attributes
+            .attributes
+            .iter()
+            .map(|attribute| self.lower_import_attribute_argument(source_id, attribute))
+            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+
+        Ok(crate::DependencyAttributeClause {
+            kind: match attributes.kind {
+                dir::ImportAttributeClauseKind::With => crate::DependencyAttributeClauseKind::With,
+                dir::ImportAttributeClauseKind::Assert => {
+                    crate::DependencyAttributeClauseKind::Assert
+                }
+            },
+            arguments,
+        })
+    }
+
     /// Get the position of a postfix expression.
     fn get_postfix_expression_position(
         &self,
@@ -139,7 +278,8 @@ impl ModuleLowerer<'_> {
 
         match expression {
             dir::Expression::Let {
-                descriptor: _,
+                export: _,
+                ambient: _,
                 mutability,
                 declarators,
             } => {
@@ -273,23 +413,18 @@ impl ModuleLowerer<'_> {
         }
 
         let lowered_id = match expression {
-            dir::Expression::Declaration { declaration } => {
+            dir::Expression::Declaration(declaration) => {
                 let declaration_value = self.dir_tree.get(*declaration);
 
                 // lambda declaration expressions
-                if let dir::Declaration::Function {
-                    descriptor,
-                    signature,
-                    body,
-                    ..
-                } = declaration_value
-                    && signature.kind == dir::FunctionKind::Lambda
-                    && descriptor.name.is_none()
-                    && descriptor.export.is_none()
-                    && descriptor.kind == dir::DeclarationKind::Definition
+                if let dir::Declaration::Function(declaration) = declaration_value
+                    && declaration.signature.kind == dir::FunctionKind::Lambda
+                    && declaration.name.is_none()
+                    && declaration.export.is_none()
+                    && !declaration.ambient.is_ambient()
                 {
-                    let signature = self.lower_function_signature(signature)?;
-                    let Some(body) = *body else {
+                    let signature = self.lower_function_signature(&declaration.signature)?;
+                    let Some(body) = declaration.body else {
                         return Err(CodegenJsError::UnsupportedConstruct {
                             node: expression_id.into_global_any(self.module.id),
                             message: Some(
@@ -311,7 +446,7 @@ impl ModuleLowerer<'_> {
                         .into_any()
                 }
             }
-            dir::Expression::Block { block } => {
+            dir::Expression::Block(block) => {
                 let block_id = self.lower_block(*block)?;
                 self.tree.alias_from(expression_id.id, block_id);
                 block_id.into_any()
@@ -326,7 +461,7 @@ impl ModuleLowerer<'_> {
                 arguments,
             } => {
                 // lower dynamic import calls as expression calls
-                if *source == dir::DependencySource::ImportCall {
+                if *source == dir::ImportSource::ImportCall {
                     let target_expression = match target {
                         dir::ImportTarget::String(target) => {
                             let target = self.strings.intern_from(self.source_strings, *target);
@@ -394,22 +529,7 @@ impl ModuleLowerer<'_> {
                     let attributes = attributes
                         .as_ref()
                         .map(|attributes| {
-                            attributes
-                                .arguments
-                                .iter()
-                                .map(|argument| self.lower_argument(*argument))
-                                .collect::<Result<Vec<_>, CodegenJsError>>()
-                                .map(|arguments| crate::DependencyAttributeClause {
-                                    kind: match attributes.kind {
-                                        dir::DependencyAttributeClauseKind::With => {
-                                            crate::DependencyAttributeClauseKind::With
-                                        }
-                                        dir::DependencyAttributeClauseKind::Assert => {
-                                            crate::DependencyAttributeClauseKind::Assert
-                                        }
-                                    },
-                                    arguments,
-                                })
+                            self.lower_import_attributes(expression_id.into_any(), attributes)
                         })
                         .transpose()?;
                     let kind = self.lower_dependency_kind(*kind);
@@ -435,7 +555,7 @@ impl ModuleLowerer<'_> {
                 arguments,
             } => {
                 // resolved import calls keep expression semantics
-                if *source == dir::DependencySource::ImportCall {
+                if *source == dir::ImportSource::ImportCall {
                     let target = self.strings.intern_from(self.source_strings, *target);
                     let target_expression = self.tree.insert_from_source(
                         js::Expression::ScalarLiteral {
@@ -473,22 +593,7 @@ impl ModuleLowerer<'_> {
                     let attributes = attributes
                         .as_ref()
                         .map(|attributes| {
-                            attributes
-                                .arguments
-                                .iter()
-                                .map(|argument| self.lower_argument(*argument))
-                                .collect::<Result<Vec<_>, CodegenJsError>>()
-                                .map(|arguments| crate::DependencyAttributeClause {
-                                    kind: match attributes.kind {
-                                        dir::DependencyAttributeClauseKind::With => {
-                                            crate::DependencyAttributeClauseKind::With
-                                        }
-                                        dir::DependencyAttributeClauseKind::Assert => {
-                                            crate::DependencyAttributeClauseKind::Assert
-                                        }
-                                    },
-                                    arguments,
-                                })
+                            self.lower_import_attributes(expression_id.into_any(), attributes)
                         })
                         .transpose()?;
                     let kind = self.lower_dependency_kind(*kind);
@@ -515,22 +620,7 @@ impl ModuleLowerer<'_> {
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {
-                        attributes
-                            .arguments
-                            .iter()
-                            .map(|argument| self.lower_argument(*argument))
-                            .collect::<Result<Vec<_>, CodegenJsError>>()
-                            .map(|arguments| crate::DependencyAttributeClause {
-                                kind: match attributes.kind {
-                                    dir::DependencyAttributeClauseKind::With => {
-                                        crate::DependencyAttributeClauseKind::With
-                                    }
-                                    dir::DependencyAttributeClauseKind::Assert => {
-                                        crate::DependencyAttributeClauseKind::Assert
-                                    }
-                                },
-                                arguments,
-                            })
+                        self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
@@ -557,22 +647,7 @@ impl ModuleLowerer<'_> {
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {
-                        attributes
-                            .arguments
-                            .iter()
-                            .map(|argument| self.lower_argument(*argument))
-                            .collect::<Result<Vec<_>, CodegenJsError>>()
-                            .map(|arguments| crate::DependencyAttributeClause {
-                                kind: match attributes.kind {
-                                    dir::DependencyAttributeClauseKind::With => {
-                                        crate::DependencyAttributeClauseKind::With
-                                    }
-                                    dir::DependencyAttributeClauseKind::Assert => {
-                                        crate::DependencyAttributeClauseKind::Assert
-                                    }
-                                },
-                                arguments,
-                            })
+                        self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
@@ -596,22 +671,7 @@ impl ModuleLowerer<'_> {
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {
-                        attributes
-                            .arguments
-                            .iter()
-                            .map(|argument| self.lower_argument(*argument))
-                            .collect::<Result<Vec<_>, CodegenJsError>>()
-                            .map(|arguments| crate::DependencyAttributeClause {
-                                kind: match attributes.kind {
-                                    dir::DependencyAttributeClauseKind::With => {
-                                        crate::DependencyAttributeClauseKind::With
-                                    }
-                                    dir::DependencyAttributeClauseKind::Assert => {
-                                        crate::DependencyAttributeClauseKind::Assert
-                                    }
-                                },
-                                arguments,
-                            })
+                        self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
@@ -628,11 +688,12 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::Let {
-                descriptor,
+                export,
+                ambient,
                 mutability,
                 declarators: dir_declarators,
             } => {
-                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let descriptor = self.lower_declaration_descriptor(None, *export, *ambient, false);
                 let mutability = self.lower_mutability(*mutability);
 
                 let mut declarators = Vec::with_capacity(dir_declarators.len());
@@ -641,10 +702,7 @@ impl ModuleLowerer<'_> {
                     let pattern = self.lower_pattern(dir_declarator.pattern)?;
                     let ty: Option<js::LocalNodeId<js::Type>> = dir_declarator
                         .ty
-                        .map(|ty| {
-                            self.lower_expression(ty)
-                                .expect_node::<js::Type>(ty.into_global_any(self.module.id), self)
-                        })
+                        .map(|ty| self.lower_type_annotation_expression(ty))
                         .transpose()?;
                     let value: Option<js::LocalNodeId<js::Expression>> = dir_declarator
                         .value
@@ -676,11 +734,12 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Using {
                 asynchrony,
-                descriptor,
+                export,
+                ambient,
                 declarators: dir_declarators,
             } => {
                 let asynchrony = self.lower_asynchrony(*asynchrony);
-                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let descriptor = self.lower_declaration_descriptor(None, *export, *ambient, false);
 
                 let mut declarators = Vec::with_capacity(dir_declarators.len());
                 for dir_declarator_id in dir_declarators {
@@ -688,10 +747,7 @@ impl ModuleLowerer<'_> {
                     let pattern = self.lower_pattern(dir_declarator.pattern)?;
                     let ty: Option<js::LocalNodeId<js::Type>> = dir_declarator
                         .ty
-                        .map(|ty| {
-                            self.lower_expression(ty)
-                                .expect_node::<js::Type>(ty.into_global_any(self.module.id), self)
-                        })
+                        .map(|ty| self.lower_type_annotation_expression(ty))
                         .transpose()?;
                     let value: Option<js::LocalNodeId<js::Expression>> = dir_declarator
                         .value
@@ -724,14 +780,15 @@ impl ModuleLowerer<'_> {
 
             dir::Expression::UnresolvedPath {
                 path,
-                static_arguments,
+                generic_arguments,
                 ..
             } => {
                 let path = self.lower_path(expression_id.into_any(), path)?;
-                let static_arguments = static_arguments
-                    .as_ref()
-                    .map(|arguments| self.lower_static_type_arguments(arguments))
-                    .transpose()?;
+                let static_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(self.lower_static_type_arguments(generic_arguments)?)
+                };
                 let expression = js::Expression::Path {
                     path,
                     static_arguments,
@@ -742,24 +799,25 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::LocalReference {
                 path,
-                static_arguments,
+                generic_arguments,
                 target_symbol,
             }
             | dir::Expression::ModuleReference {
                 path,
-                static_arguments,
+                generic_arguments,
                 target_symbol,
             }
             | dir::Expression::GlobalReference {
                 path,
-                static_arguments,
+                generic_arguments,
                 target_symbol,
             } => {
                 let path = self.lower_path(expression_id.into_any(), path)?;
-                let static_arguments = static_arguments
-                    .as_ref()
-                    .map(|arguments| self.lower_static_type_arguments(arguments))
-                    .transpose()?;
+                let static_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(self.lower_static_type_arguments(generic_arguments)?)
+                };
                 let expression = js::Expression::Path {
                     path,
                     static_arguments,
@@ -847,7 +905,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::ObjectExpression { properties }
+            dir::Expression::ObjectExpression { properties, .. }
             | dir::Expression::TaggedObjectExpression { ty: _, properties } => {
                 let properties = properties
                     .iter()
@@ -862,7 +920,13 @@ impl ModuleLowerer<'_> {
                 // newtype wrapping a scalar: just emit the inner value
                 self.lower_expression(*value)?
             }
-            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+            dir::Expression::As {
+                expression: value, ..
+            }
+            | dir::Expression::Satisfies {
+                expression: value, ..
+            }
+            | dir::Expression::OwnershipCast { value, .. } => {
                 // js output erases value casts and ownership casts
                 let lowered_id = self.lower_expression(*value)?;
                 match lowered_id.ty {
@@ -912,16 +976,6 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(ty, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::TypeUnary { operator, right } => self
-                .lower_type_unary_expression(expression_id, *operator, *right)?
-                .into_any(),
-            dir::Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => self
-                .lower_type_binary_expression(expression_id, *left, *operator, *right)?
-                .into_any(),
             dir::Expression::TemplateExpression { value } => {
                 let value = match value {
                     dir::TemplateLiteral::String { string } => js::TemplateLiteral::String {
@@ -969,6 +1023,29 @@ impl ModuleLowerer<'_> {
             dir::Expression::Unary { operator, right } => self
                 .lower_unary_expression(expression_id, *operator, *right)?
                 .into_any(),
+            dir::Expression::Is { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
+                    message: Some("runtime `is` guards are not lowered to JS yet".to_string()),
+                });
+            }
+            dir::Expression::InstanceOf { value, target } => {
+                let value = self
+                    .lower_expression(*value)
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let target = self
+                    .lower_expression(*target)
+                    .expect_node::<js::Expression>(target.into_global_any(self.module.id), self)?;
+
+                let expression = js::Expression::Binary {
+                    left: value,
+                    operator: js::BinaryOperator::InstanceOf,
+                    right: target,
+                };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
             dir::Expression::Binary {
                 left,
                 operator,
@@ -1028,7 +1105,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
@@ -1040,10 +1117,11 @@ impl ModuleLowerer<'_> {
                     });
                 };
                 let name = self.strings.intern_from(self.source_strings, name);
-                let static_arguments = static_arguments
-                    .as_ref()
-                    .map(|arguments| self.lower_static_type_arguments(arguments))
-                    .transpose()?;
+                let static_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(self.lower_static_type_arguments(generic_arguments)?)
+                };
                 let expression = js::Expression::Member {
                     left: left_id,
                     name,
@@ -1056,7 +1134,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::PrivateMember {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
@@ -1068,10 +1146,11 @@ impl ModuleLowerer<'_> {
                     });
                 };
                 let name = self.strings.intern_from(self.source_strings, name);
-                let static_arguments = static_arguments
-                    .as_ref()
-                    .map(|arguments| self.lower_static_type_arguments(arguments))
-                    .transpose()?;
+                let static_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(self.lower_static_type_arguments(generic_arguments)?)
+                };
                 let expression = js::Expression::PrivateMember {
                     left: left_id,
                     name,
@@ -1106,12 +1185,12 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Instantiation {
                 left,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
-                let static_arguments = self.lower_static_type_arguments(static_arguments)?;
+                let static_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Instantiation {
                     left: left_id,
                     static_arguments,
@@ -1123,17 +1202,18 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Call {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
                 let position = self.get_postfix_expression_position(left_id);
-                let static_arguments = static_arguments
-                    .as_ref()
-                    .map(|arguments| self.lower_static_type_arguments(arguments))
-                    .transpose()?;
+                let static_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(self.lower_static_type_arguments(generic_arguments)?)
+                };
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
@@ -1150,16 +1230,17 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::New {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
-                let static_arguments = static_arguments
-                    .as_ref()
-                    .map(|arguments| self.lower_static_type_arguments(arguments))
-                    .transpose()?;
+                let static_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(self.lower_static_type_arguments(generic_arguments)?)
+                };
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))

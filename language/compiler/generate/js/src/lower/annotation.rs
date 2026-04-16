@@ -3,35 +3,34 @@ use {destack_dir as dir, destack_js as js};
 use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
-    /// Lower a DIR annotation position into a JS annotation position.
-    pub fn lower_annotation_position(
+    /// Lower a DIR decorator position into a JS annotation position.
+    pub fn lower_decorator_position(
         &self,
-        position: dir::AnnotationPosition,
+        position: dir::DecoratorPosition,
     ) -> js::AnnotationPosition {
         match position {
-            dir::AnnotationPosition::Prefix => js::AnnotationPosition::Prefix,
-            dir::AnnotationPosition::Infix => js::AnnotationPosition::Infix,
-            dir::AnnotationPosition::Postfix => js::AnnotationPosition::Postfix,
+            dir::DecoratorPosition::BlockPrefix | dir::DecoratorPosition::LinePrefix => {
+                js::AnnotationPosition::Prefix
+            }
+            dir::DecoratorPosition::BlockInfix => js::AnnotationPosition::Infix,
+            dir::DecoratorPosition::BlockPostfix
+            | dir::DecoratorPosition::LinePostfix
+            | dir::DecoratorPosition::LinePostfixBoundary => js::AnnotationPosition::Postfix,
         }
     }
-    /// Lower an annotation from DIR into JS AST.
-    pub fn lower_annotation(
+
+    /// Lower a decorator from DIR into JS AST.
+    pub fn lower_decorator(
         &mut self,
         _scope_id: dir::LocalNodeIdAny,
-        annotation_id: dir::LocalNodeId<dir::Annotation>,
+        decorator_id: dir::LocalNodeId<dir::Decorator>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Annotation>> {
-        match self.dir_tree.get(annotation_id) {
-            dir::Annotation::Decorator {
-                position: _,
-                expression: _,
-            } => {
-                // NOTE #Incomplete: properly generate JS decorators after elaborate phase
-                //  (or would that be a special js::Expression::Decorated or something..?)
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: annotation_id.into_global_any(self.module.id),
-                    message: None,
-                });
-            }
-        }
+        let _ = self.dir_tree.get(decorator_id);
+
+        // NOTE #Incomplete: properly generate JS decorators after elaborate phase
+        Err(CodegenJsError::UnsupportedConstruct {
+            node: decorator_id.into_global_any(self.module.id),
+            message: None,
+        })
     }
 }

@@ -131,21 +131,17 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a key from DIR into JS AST.
-    pub fn lower_key(&mut self, key: dir::DynamicKey) -> CodegenJsResult<js::Key> {
+    pub fn lower_key(&mut self, key: dir::Key) -> CodegenJsResult<js::Key> {
         let key = match key {
-            dir::DynamicKey::Name(name) => {
-                let name = self.lower_string_to_name(name);
+            dir::Key::Name(name) => {
+                let name = self.lower_name(name);
                 js::Key::Name(name)
             }
-            dir::DynamicKey::Private(name) => {
+            dir::Key::Private(name) => {
                 let name = self.strings.intern_from(self.source_strings, name);
                 js::Key::Private(name)
             }
-            dir::DynamicKey::Number(name) => {
-                let name = self.lower_string_to_name(name);
-                js::Key::Name(name)
-            }
-            dir::DynamicKey::Expression(expression_id) => {
+            dir::Key::Expression(expression_id) => {
                 let expression_id = self
                     .lower_expression(expression_id)
                     .expect_node::<js::Expression>(
@@ -153,13 +149,6 @@ impl ModuleLowerer<'_> {
                         self,
                     )?;
                 js::Key::Expression(expression_id)
-            }
-            dir::DynamicKey::NamedExpression { name, key } => {
-                let name = self.lower_string_to_name(name);
-                let key = self
-                    .lower_expression(key)
-                    .expect_node::<js::Expression>(key.into_global_any(self.module.id), self)?;
-                js::Key::NamedExpression { name, key }
             }
         };
 

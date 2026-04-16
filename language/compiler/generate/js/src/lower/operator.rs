@@ -3,84 +3,6 @@ use {destack_dir as dir, destack_js as js};
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
-    /// Lower a DIR type unary operator to a JS type unary operator.
-    pub fn lower_type_unary_expression(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        operator: dir::TypeUnaryOperator,
-        right_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
-        let right_id = self
-            .lower_expression(right_id)
-            .expect_node::<js::Expression>(right_id.into_global_any(self.module.id), self)?;
-
-        // lower a trivial unary expression to a JS unary expression
-        let mut unary = |operator: js::TypeUnaryOperator| -> js::LocalNodeId<js::Expression> {
-            let expression = js::Expression::TypeUnary {
-                operator,
-                right: right_id,
-            };
-            self.tree
-                .insert_from_source(expression, self.module.id, expression_id)
-        };
-
-        let expression_id = match operator {
-            dir::TypeUnaryOperator::Newtype => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some(
-                        "type newtype unary expressions are not lowered to js".to_string(),
-                    ),
-                });
-            }
-            dir::TypeUnaryOperator::Type => unary(js::TypeUnaryOperator::Type),
-            dir::TypeUnaryOperator::Readonly => unary(js::TypeUnaryOperator::Readonly),
-            dir::TypeUnaryOperator::Not => unary(js::TypeUnaryOperator::Not),
-            dir::TypeUnaryOperator::Must => unary(js::TypeUnaryOperator::Must),
-            dir::TypeUnaryOperator::Typeof => unary(js::TypeUnaryOperator::Typeof),
-            dir::TypeUnaryOperator::Keyof => unary(js::TypeUnaryOperator::Keyof),
-            dir::TypeUnaryOperator::AsComptime => unary(js::TypeUnaryOperator::AsComptime),
-            dir::TypeUnaryOperator::AsConst => unary(js::TypeUnaryOperator::AsConst),
-        };
-
-        Ok(expression_id)
-    }
-
-    /// Lower a DIR type binary expression to a JS type binary expression.
-    pub fn lower_type_binary_expression(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        left_id: dir::LocalNodeId<dir::Expression>,
-        operator: dir::TypeBinaryOperator,
-        right_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
-        let left_id = self
-            .lower_expression(left_id)
-            .expect_node::<js::Expression>(left_id.into_global_any(self.module.id), self)?;
-        let right_id = self
-            .lower_expression(right_id)
-            .expect_node::<js::Expression>(right_id.into_global_any(self.module.id), self)?;
-        let operator = match operator {
-            dir::TypeBinaryOperator::Cast => js::TypeBinaryOperator::Cast,
-            dir::TypeBinaryOperator::In => js::TypeBinaryOperator::In,
-            dir::TypeBinaryOperator::Is => js::TypeBinaryOperator::Is,
-            dir::TypeBinaryOperator::InstanceOf => js::TypeBinaryOperator::InstanceOf,
-            dir::TypeBinaryOperator::Satisfies => js::TypeBinaryOperator::Satisfies,
-            dir::TypeBinaryOperator::Extends => js::TypeBinaryOperator::Extends,
-            dir::TypeBinaryOperator::Implements => js::TypeBinaryOperator::Implements,
-        };
-        let expression = js::Expression::TypeBinary {
-            left: left_id,
-            operator,
-            right: right_id,
-        };
-        let expression_id = self
-            .tree
-            .insert_from_source(expression, self.module.id, expression_id);
-
-        Ok(expression_id)
-    }
-
     /// Lower a DIR unary expression to a JS unary expression.
     pub fn lower_unary_expression(
         &mut self,
@@ -185,7 +107,6 @@ impl ModuleLowerer<'_> {
             dir::BinaryOperator::Or => binary(js::BinaryOperator::Or),
             dir::BinaryOperator::Coalesce => binary(js::BinaryOperator::Coalesce),
             dir::BinaryOperator::In => binary(js::BinaryOperator::In),
-            dir::BinaryOperator::InstanceOf => binary(js::BinaryOperator::InstanceOf),
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
