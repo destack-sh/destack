@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expressions_have_equivalent_syntax, is_binary_comparison_operator};
+use crate::rules::common::{
+    expressions_have_equivalent_source_form, is_binary_comparison_operator,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -51,8 +53,8 @@ impl LintRule for NoSelfCompare {
                 continue;
             }
 
-            // require equivalent syntax on both sides
-            if !expressions_have_equivalent_syntax(ctx, *left, *right) {
+            // require equivalent source form on both sides
+            if !expressions_have_equivalent_source_form(ctx, *left, *right) {
                 continue;
             }
 

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_any_typed, expression_target_symbol, expression_type_map,
-    expression_unwrap_transparent, is_any_type, symbol_value_type_id_for, unwrap_value_type_id,
+    expression_declared_or_inferred_type_id, expression_target_symbol, is_any_type,
+    symbol_value_type_id_for, unwrap_value_type_id,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -49,23 +49,9 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                 continue;
             }
 
-            // explicit identity casts are always redundant
-            if assertion.is_explicit_identity {
-                let span = ctx.get_span(expression_id);
-                let diagnostic = redundant_assertion_diagnostic(
-                    ctx,
-                    severity,
-                    span,
-                    assertion.source_expression,
-                    "this assertion does not change the type",
-                    ctx.include_fixes,
-                );
-                ctx.report(diagnostic);
-                continue;
-            }
-
             // require optional structure
-            let Some(target_type_id) = assertion_operand_type_id(ctx, assertion.target_expression)
+            let Some(target_type_id) =
+                assertion_target_type_id(ctx, assertion.target_type_expression)
             else {
                 continue;
             };
@@ -74,7 +60,7 @@ impl LintRule for NoUnnecessaryTypeAssertion {
             let is_redundant = source_expression_matches_target_type(
                 ctx,
                 assertion.source_expression,
-                assertion.target_expression,
+                assertion.target_type_expression,
                 target_type_id,
             );
 
@@ -102,34 +88,53 @@ impl LintRule for NoUnnecessaryTypeAssertion {
 fn source_expression_matches_target_type(
     ctx: &LintModuleDirContext<'_>,
     source_expression_id: dir::LocalNodeId<dir::Expression>,
-    target_expression_id: dir::LocalNodeId<dir::Expression>,
+    target_type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     target_type_id: dir::LocalTypeId,
 ) -> bool {
-    let target_is_any = is_any_type(ctx.types, target_type_id)
-        || assertion_target_is_explicit_any(ctx.tree, target_expression_id);
-
-    // prefer expression type comparisons from the current module
-    if let Some(source_type_id) = assertion_operand_type_id(ctx, source_expression_id)
+    // direct semantic type equality
+    if let Some(source_type_id) = source_expression_type_id(ctx, source_expression_id)
         && dir::are_types_equal(source_type_id, target_type_id, ctx.types)
     {
         return true;
     }
 
-    // preserve `any as any` behavior when flow types are narrower than declared any
-    if target_is_any
-        && expression_is_any_typed(
-            ctx.module_id(),
-            ctx.tree,
-            ctx.symbols,
-            ctx.types,
-            source_expression_id,
-        )
+    // redundant `any as any`
+    let target_is_any = is_any_type(ctx.types, target_type_id)
+        || assertion_target_is_explicit_any(ctx.tree, target_type_expression_id);
+    target_is_any && source_expression_is_declared_any(ctx, source_expression_id)
+}
+
+/// Resolve the semantic type id for one source expression.
+fn source_expression_type_id(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalTypeId> {
+    // keep this rule aligned with explicit expression types only
+    let type_id = expression_declared_or_inferred_type_id(
+        ctx.module_id(),
+        ctx.tree,
+        ctx.types,
+        expression_id,
+    )?;
+
+    Some(unwrap_value_type_id(ctx.types, type_id))
+}
+
+/// Return true when one source expression is explicitly declared as `any`.
+fn source_expression_is_declared_any(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // local expression types are enough when present
+    if let Some(type_id) =
+        expression_declared_or_inferred_type_id(ctx.module_id(), ctx.tree, ctx.types, expression_id)
     {
-        return true;
+        let type_id = unwrap_value_type_id(ctx.types, type_id);
+        return is_any_type(ctx.types, type_id);
     }
 
-    // fallback: compare the source symbol value type when expression types are unavailable
-    let Some(source_symbol_id) = expression_target_symbol(ctx.tree, source_expression_id) else {
+    // symbol backed references can still expose a declared `any` across modules
+    let Some(source_symbol_id) = expression_target_symbol(ctx.tree, expression_id) else {
         return false;
     };
     let Some(source_value_type_id) = symbol_value_type_id_for(
@@ -144,18 +149,13 @@ fn source_expression_matches_target_type(
         return false;
     };
 
-    // same module: compare semantic type equality directly
+    // same module
     if source_value_type_id.module_id == ctx.module_id() {
         let source_type_id = unwrap_value_type_id(ctx.types, source_value_type_id.type_id);
-        return dir::are_types_equal(source_type_id, target_type_id, ctx.types);
+        return is_any_type(ctx.types, source_type_id);
     }
 
-    // cross module fallback: only accept this path for `any as any`
-    if !target_is_any {
-        return false;
-    }
-
-    // read source module types to validate `any as any` cross module
+    // cross module
     let Some(module_dir) = ctx.analyzed_dir(source_value_type_id.module_id) else {
         return false;
     };
@@ -166,13 +166,12 @@ fn source_expression_matches_target_type(
 /// Return true when the target expression is an explicit `any` type literal.
 fn assertion_target_is_explicit_any(
     tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-    let expression = tree.get(expression_id);
+    let expression = tree.get(type_expression_id);
     matches!(
         expression,
-        dir::Expression::TypeLiteral {
+        dir::TypeExpression::Literal {
             value: dir::TypeLiteral::Any
         }
     )
@@ -220,63 +219,34 @@ struct AssertionExpressionOperands {
     /// The asserted value expression.
     source_expression: dir::LocalNodeId<dir::Expression>,
     /// The target type expression.
-    target_expression: dir::LocalNodeId<dir::Expression>,
-    /// Whether this came from an explicit identity cast node.
-    is_explicit_identity: bool,
+    target_type_expression: dir::LocalNodeId<dir::TypeExpression>,
 }
 
-/// Resolve assertion operands for explicit cast nodes and pre reify type binary casts.
+/// Resolve assertion operands for explicit `as` assertions.
 fn assertion_expression_operands(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<AssertionExpressionOperands> {
     let expression = tree.get(expression_id);
     match expression {
-        // explicit cast in reified DIR
-        dir::Expression::Cast {
-            operator,
-            source,
-            value,
+        dir::Expression::As {
+            expression,
             target_type,
-        } => (*source == dir::CastSource::Explicit).then_some(AssertionExpressionOperands {
-            source_expression: *value,
-            target_expression: *target_type,
-            is_explicit_identity: *operator == dir::CastOperator::Identity,
-        }),
-
-        // pre reify `x as T` in analyzed DIR
-        dir::Expression::TypeBinary {
-            left,
-            operator: dir::TypeBinaryOperator::Cast,
-            right,
         } => Some(AssertionExpressionOperands {
-            source_expression: *left,
-            target_expression: *right,
-            is_explicit_identity: false,
+            source_expression: *expression,
+            target_type_expression: *target_type,
         }),
-
         _ => None,
     }
 }
 
-/// Resolve the semantic type id for one assertion operand expression.
-fn assertion_operand_type_id(
+/// Resolve the semantic type id for one assertion target type expression.
+fn assertion_target_type_id(
     ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<dir::LocalTypeId> {
-    let type_id = expression_type_map(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.tree,
-        ctx.symbols,
-        ctx.types,
-        expression_id,
-        |_, type_id| type_id,
-    )?;
-
-    Some(unwrap_value_type_id(ctx.types, type_id))
+    let global_type_expression_id = type_expression_id.into_global_any(ctx.module_id());
+    ctx.types.get_declared_type_id(global_type_expression_id)
 }
 
 #[cfg(test)]
@@ -449,6 +419,28 @@ import { value } from "./fix_source.ds";
 const output = value();
 "#,
             );
+    }
+
+    /// Flag cross module `any as any` assertions through the declared symbol type.
+    #[test]
+    fn test_flags_cross_module_any_assertion() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryTypeAssertion);
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "no_unnecessary_type_assertion/any_source.ds" => r#"
+export let value: any = "ok";
+"#,
+                "no_unnecessary_type_assertion/any_consumer.ds" => r#"
+import { value } from "./any_source.ds";
+
+const output = value as any;
+"#,
+            },
+            "no_unnecessary_type_assertion/any_consumer.ds",
+        );
+
+        test.result(diagnostics)
+            .assert_lint("no-unnecessary-type-assertion");
     }
 
     /// Safely remove a redundant assertion around a compound expression.

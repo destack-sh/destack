@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, Declaration, DeclarationKind, Name, NamespaceKind};
+use destack_ast::{self as ast, Declaration, Name, NamespaceKind};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
@@ -81,14 +81,11 @@ fn namespace_declaration_is_allowed(
     declaration_id: ast::LocalNodeId<ast::Declaration>,
     declaration: &Declaration,
 ) -> bool {
-    let Declaration::Namespace {
-        descriptor, kind, ..
-    } = declaration
-    else {
+    let Declaration::Namespace(declaration) = declaration else {
         return true;
     };
 
-    if namespace_is_external_module(*kind, descriptor.name) {
+    if namespace_is_external_module(declaration.kind, Some(declaration.name)) {
         return true;
     }
 
@@ -96,7 +93,7 @@ fn namespace_declaration_is_allowed(
         return false;
     }
 
-    namespace_is_declaration_context(ctx, declaration_id, *descriptor)
+    namespace_is_declaration_context(ctx, declaration_id, declaration.ambient)
 }
 
 /// Return true when one namespace declaration is an external module declaration.
@@ -108,9 +105,9 @@ fn namespace_is_external_module(kind: NamespaceKind, name: Option<Name>) -> bool
 fn namespace_is_declaration_context(
     ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
-    descriptor: ast::DeclarationDescriptor,
+    ambient: ast::Ambientness,
 ) -> bool {
-    if descriptor.kind == DeclarationKind::Declaration {
+    if ambient.is_ambient() {
         return true;
     }
 
@@ -128,14 +125,10 @@ fn namespace_is_declaration_context(
         }
 
         let parent_declaration_id = ast::LocalNodeId::<ast::Declaration>::new(parent_id);
-        let Declaration::Namespace {
-            descriptor: parent_descriptor,
-            ..
-        } = ctx.tree.get(parent_declaration_id)
-        else {
+        let Declaration::Namespace(parent_declaration) = ctx.tree.get(parent_declaration_id) else {
             continue;
         };
-        if parent_descriptor.kind == DeclarationKind::Declaration {
+        if parent_declaration.ambient.is_ambient() {
             return true;
         }
     }

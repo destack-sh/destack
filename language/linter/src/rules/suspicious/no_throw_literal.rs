@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
@@ -25,7 +26,7 @@ declare_lint! {
 
 impl LintRule for NoThrowLiteral {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoThrowLiteral::meta()
     }
 
@@ -111,27 +112,25 @@ fn thrown_expression_is_undefined_identifier(
         } => true,
         dir::Expression::UnresolvedPath {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         }
         | dir::Expression::LocalReference {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         }
         | dir::Expression::ModuleReference {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         }
         | dir::Expression::GlobalReference {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         } => {
-            static_arguments
-                .as_ref()
-                .is_none_or(|arguments| arguments.is_empty())
+            generic_arguments.is_empty()
                 && path.segments.len() == 1
                 && path.segments[0] == undefined_name
         }
@@ -276,7 +275,7 @@ throw new Error(`failed: ${code}`);
             );
     }
 
-    /// Report and rewrite `throw undefined` for source parity.
+    /// Report and rewrite `throw undefined`.
     #[test]
     fn test_flags_undefined_identifier_throw() {
         let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);

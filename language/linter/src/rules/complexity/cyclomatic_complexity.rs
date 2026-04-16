@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, AssignOperator, BinaryOperator, Expression, FunctionSignature, LocalNodeId,
     MatchKind, NodeTree, NodeVisitor, NodeVisitorOptions, PatternField, walk_expression,
@@ -40,7 +41,7 @@ declare_lint! {
 }
 
 impl LintRule for CyclomaticComplexity {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         CyclomaticComplexity::meta()
     }
 
@@ -53,13 +54,10 @@ impl LintRule for CyclomaticComplexity {
         // check function declarations
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function {
-                signature, body, ..
-            } = declaration
-            else {
+            let ast::Declaration::Function(declaration) = declaration else {
                 continue;
             };
-            let Some(body_id) = body else {
+            let Some(body_id) = declaration.body else {
                 continue;
             };
 
@@ -67,8 +65,8 @@ impl LintRule for CyclomaticComplexity {
                 ctx,
                 meta,
                 declaration_id,
-                *body_id,
-                Some(signature),
+                body_id,
+                Some(&declaration.signature),
                 max_complexity,
                 variant,
             );
@@ -125,7 +123,7 @@ impl LintRule for CyclomaticComplexity {
 /// Report complexity when one callable body exceeds the configured maximum.
 fn report_body_complexity<T: ast::Node>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: LocalNodeId<T>,
     body_expression_id: LocalNodeId<Expression>,
     signature: Option<&FunctionSignature>,
@@ -142,7 +140,7 @@ fn report_body_complexity<T: ast::Node>(
 
     // account for parameter defaults as assignment-pattern branches
     if let Some(signature) = signature {
-        for parameter_id in &signature.dynamic_parameters {
+        for parameter_id in &signature.parameters {
             let parameter = ctx.tree.get(*parameter_id);
             visitor.visit_parameter(ctx.tree, *parameter_id, parameter);
         }
@@ -295,7 +293,7 @@ fn match_case_complexity(
     cases: &[LocalNodeId<ast::MatchCase>],
     variant: CyclomaticComplexityVariant,
 ) -> usize {
-    // keep switch counting aligned to eslint classic variant
+    // count switch cases according to the selected variant
     if kind == MatchKind::Switch {
         if variant == CyclomaticComplexityVariant::Modified {
             return usize::from(!cases.is_empty());

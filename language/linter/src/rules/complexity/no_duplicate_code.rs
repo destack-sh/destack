@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
@@ -33,7 +34,7 @@ declare_lint! {
 }
 
 impl LintRule for NoDuplicateCode {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDuplicateCode::meta()
     }
 
@@ -924,7 +925,9 @@ fn classify_block_expression_owner(
             let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(owner_id);
             let declaration = tree.get(declaration_id);
             match declaration {
-                ast::Declaration::Function { body, .. } if body == &Some(block_expression_id) => {
+                ast::Declaration::Function(declaration)
+                    if declaration.body == Some(block_expression_id) =>
+                {
                     "function body"
                 }
                 _ => "code block",
@@ -1174,16 +1177,12 @@ impl<'a> AstSignatureCollector<'a> {
         }
     }
 
-    /// Push descriptor metadata.
-    fn push_descriptor(&mut self, descriptor: &ast::DeclarationDescriptor) {
-        self.push_debug("descriptor_kind", descriptor.kind);
-        self.push_debug("descriptor_abstraction", descriptor.abstraction);
-        self.push_debug("descriptor_anchor", descriptor.anchor);
-        self.push_debug_optional("descriptor_export", descriptor.export);
-        if let Some(name) = descriptor.name {
-            self.push_name("descriptor_name", name);
+    /// Push declaration name and export metadata.
+    fn push_declaration_name(&mut self, name: Option<ast::Name>) {
+        if let Some(name) = name {
+            self.push_name("declaration_name", name);
         } else {
-            self.push_same("descriptor_name", "None");
+            self.push_same("declaration_name", "None");
         }
     }
 
@@ -1201,16 +1200,13 @@ impl<'a> AstSignatureCollector<'a> {
             ast::Key::Expression(_) => {
                 self.push_same("key_kind", "expr");
             }
-            ast::Key::NamedExpression { name, .. } => {
-                self.push_same("key_kind", "named_expr");
-                self.push_identifier_id("key_name", name);
-            }
         }
     }
 
     /// Push function signature metadata.
     fn push_function_signature(&mut self, signature: &ast::FunctionSignature) {
-        self.push_debug("function_abstraction", signature.abstraction);
+        self.push_debug("function_is_abstract", signature.is_abstract);
+        self.push_debug("function_is_override", signature.is_override);
         self.push_debug("function_asynchrony", signature.asynchrony);
         self.push_debug("function_cardinality", signature.cardinality);
         self.push_debug_optional("function_mode", signature.mode);
@@ -1221,6 +1217,9 @@ impl<'a> AstSignatureCollector<'a> {
     fn push_scalar_literal(&mut self, literal: &ast::ScalarLiteral) {
         self.push_debug("scalar_kind", std::mem::discriminant(literal));
         match literal {
+            ast::ScalarLiteral::Null => {
+                self.push_same("scalar_value", "null");
+            }
             ast::ScalarLiteral::Boolean(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_bool(*value), "$bool");
             }
@@ -1334,22 +1333,13 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_identifier_id("expr_export_namespace", *name);
             }
             ast::Expression::Let {
-                kind,
-                descriptor,
-                mutability,
-                ..
+                kind, mutability, ..
             } => {
                 self.push_debug("expr_let_kind", *kind);
                 self.push_debug("expr_let_mutability", *mutability);
-                self.push_descriptor(descriptor);
             }
-            ast::Expression::Using {
-                asynchrony,
-                descriptor,
-                ..
-            } => {
+            ast::Expression::Using { asynchrony, .. } => {
                 self.push_debug("expr_using_asynchrony", *asynchrony);
-                self.push_descriptor(descriptor);
             }
             ast::Expression::If {
                 kind, condition, ..
@@ -1418,10 +1408,10 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             }
             ast::Expression::QualifiedReference {
                 path,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.push_path(path);
-                self.push_bool("expr_path_static_arguments", static_arguments.is_some());
+                self.push_bool("expr_path_generic_arguments", !generic_arguments.is_empty());
             }
             ast::Expression::PrivateIdentifier { name } => {
                 self.push_identifier_id("expr_private_identifier", *name);
@@ -1429,56 +1419,14 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Expression::ScalarLiteral(literal) => {
                 self.push_scalar_literal(literal);
             }
-            ast::Expression::TypeLiteral(literal) => {
-                self.push_debug("expr_type_literal", literal);
+            ast::Expression::Type { .. } => {
+                self.push_same("expr_type", "type");
             }
             ast::Expression::TemplateExpression { value } => {
                 self.push_template_literal(value);
             }
             ast::Expression::TaggedTemplateExpression { value, .. } => {
                 self.push_template_literal(value);
-            }
-            ast::Expression::TypeUnary { operator, .. } => {
-                self.push_debug("expr_type_unary_operator", *operator);
-            }
-            ast::Expression::TypeBinary { operator, .. } => {
-                self.push_debug("expr_type_binary_operator", *operator);
-            }
-            ast::Expression::TypeMapped {
-                parameter,
-                modifiers,
-                ..
-            } => {
-                self.push_identifier_id("expr_type_mapped_name", parameter.name);
-                self.push_debug("expr_type_mapped_readonly", modifiers.readonly);
-                self.push_debug("expr_type_mapped_optional", modifiers.optional);
-            }
-            ast::Expression::TypeTemplateLiteral { strings, .. } => {
-                self.push_length("expr_type_template_parts", strings.len());
-                for string in strings {
-                    self.push_literal_id("expr_type_template_part", *string, "$str");
-                }
-            }
-            ast::Expression::TypeInfer {
-                name,
-                constraint: _,
-                ..
-            } => {
-                self.push_identifier_id("expr_type_infer_name", *name);
-            }
-            ast::Expression::TypePredicate {
-                asserts, subject, ..
-            } => {
-                self.push_bool("expr_type_predicate_asserts", *asserts);
-                match subject {
-                    ast::TypePredicateSubject::Identifier(name) => {
-                        self.push_same("expr_type_predicate_subject", "identifier");
-                        self.push_identifier_id("expr_type_predicate_name", *name);
-                    }
-                    ast::TypePredicateSubject::This => {
-                        self.push_same("expr_type_predicate_subject", "this");
-                    }
-                }
             }
             ast::Expression::Unary { operator, .. } => {
                 self.push_debug("expr_unary_operator", *operator);
@@ -1547,17 +1495,15 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
         declaration: &ast::Declaration,
     ) {
         self.push_debug("decl_kind", std::mem::discriminant(declaration));
-        self.push_descriptor(declaration.descriptor());
+        self.push_declaration_name(declaration.name());
         match declaration {
-            ast::Declaration::Type {
-                kind, mutability, ..
-            } => {
-                self.push_debug("decl_type_kind", *kind);
-                self.push_debug_optional("decl_type_mutability", *mutability);
+            ast::Declaration::Type(declaration) => {
+                self.push_debug("decl_type_is_nominal", declaration.is_nominal);
+                self.push_debug_optional("decl_type_mutability", declaration.mutability);
             }
-            ast::Declaration::ImportAlias { kind, target, .. } => {
-                self.push_debug("decl_import_alias_kind", *kind);
-                match target {
+            ast::Declaration::ImportAlias(declaration) => {
+                self.push_debug("decl_import_alias_kind", declaration.kind);
+                match &declaration.target {
                     ast::ImportAliasTarget::Require { target } => {
                         self.push_same("decl_import_alias_target_kind", "require");
                         self.push_literal_id("decl_import_alias_target", *target, "$str");
@@ -1567,8 +1513,8 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     }
                 }
             }
-            ast::Declaration::Function { signature, .. } => {
-                self.push_function_signature(signature);
+            ast::Declaration::Function(declaration) => {
+                self.push_function_signature(&declaration.signature);
             }
             _ => {}
         }
@@ -1584,21 +1530,10 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
     ) {
         self.push_debug("property_kind", std::mem::discriminant(property));
         match property {
-            ast::Property::Field { modifiers, key, .. } => {
-                self.push_debug_optional("property_modifiers", *modifiers);
-                if let Some(key) = key {
-                    self.push_key(*key);
-                } else {
-                    self.push_same("property_key", "None");
-                }
+            ast::Property::Field { key, .. } => {
+                self.push_key(*key);
             }
-            ast::Property::Method {
-                modifiers,
-                key,
-                signature,
-                ..
-            } => {
-                self.push_debug_optional("property_modifiers", *modifiers);
+            ast::Property::Method { key, signature, .. } => {
                 if let Some(key) = key {
                     self.push_key(*key);
                 } else {
@@ -1606,9 +1541,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 }
                 self.push_function_signature(signature);
             }
-            ast::Property::Spread { modifiers, .. } => {
-                self.push_debug_optional("property_modifiers", *modifiers);
-            }
+            ast::Property::Spread { .. } => {}
             ast::Property::Error => {}
         }
 
@@ -1623,33 +1556,16 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
     ) {
         self.push_debug("member_kind", std::mem::discriminant(member));
         match member {
-            ast::Member::Type {
-                modifiers, name, ..
-            } => {
-                self.push_debug_optional("member_modifiers", *modifiers);
+            ast::Member::AssociatedType { name, .. } => {
                 self.push_identifier_id("member_name", *name);
             }
-            ast::Member::ComptimeConst {
-                modifiers, name, ..
-            } => {
-                self.push_debug_optional("member_modifiers", *modifiers);
+            ast::Member::AssociatedConst { name, .. } => {
                 self.push_identifier_id("member_name", *name);
             }
-            ast::Member::Field { modifiers, key, .. } => {
-                self.push_debug_optional("member_modifiers", *modifiers);
-                if let Some(key) = key {
-                    self.push_key(*key);
-                } else {
-                    self.push_same("member_key", "None");
-                }
+            ast::Member::Field { key, .. } => {
+                self.push_key(*key);
             }
-            ast::Member::Method {
-                modifiers,
-                key,
-                signature,
-                ..
-            } => {
-                self.push_debug_optional("member_modifiers", *modifiers);
+            ast::Member::Method { key, signature, .. } => {
                 if let Some(key) = key {
                     self.push_key(*key);
                 } else {
@@ -1657,11 +1573,9 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 }
                 self.push_function_signature(signature);
             }
-            ast::Member::Embed { modifiers, .. }
-            | ast::Member::StaticBlock { modifiers, .. }
-            | ast::Member::ComptimeBlock { modifiers, .. } => {
-                self.push_debug_optional("member_modifiers", *modifiers);
-            }
+            ast::Member::Embed { .. }
+            | ast::Member::StaticBlock { .. }
+            | ast::Member::ComptimeBlock { .. } => {}
             ast::Member::Error => {}
         }
 
@@ -1725,18 +1639,32 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
         self.push_debug("parameter_kind", std::mem::discriminant(parameter));
         match parameter {
             ast::Parameter::Named {
-                modifiers, name, ..
-            }
-            | ast::Parameter::VariadicNamed {
-                modifiers, name, ..
+                name,
+                visibility,
+                is_readonly,
+                is_optional,
+                ..
             } => {
-                self.push_debug_optional("parameter_modifiers", *modifiers);
                 self.push_identifier_id("parameter_name", *name);
+                self.push_debug_optional("parameter_visibility", *visibility);
+                self.push_bool("parameter_is_readonly", *is_readonly);
+                self.push_bool("parameter_is_optional", *is_optional);
             }
-            ast::Parameter::Pattern { modifiers, .. }
-            | ast::Parameter::VariadicPattern { modifiers, .. } => {
-                self.push_debug_optional("parameter_modifiers", *modifiers);
+            ast::Parameter::VariadicNamed {
+                name,
+                visibility,
+                is_readonly,
+                ..
+            } => {
+                self.push_identifier_id("parameter_name", *name);
+                self.push_debug_optional("parameter_visibility", *visibility);
+                self.push_bool("parameter_is_readonly", *is_readonly);
+                self.push_bool("parameter_is_optional", false);
             }
+            ast::Parameter::Pattern { is_optional, .. } => {
+                self.push_bool("parameter_is_optional", *is_optional);
+            }
+            ast::Parameter::VariadicPattern { .. } => {}
             ast::Parameter::Error => {}
         }
 
@@ -1751,25 +1679,14 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
     ) {
         self.push_debug("argument_kind", std::mem::discriminant(argument));
         match argument {
-            ast::Argument::Named {
-                modifiers, name, ..
-            } => {
-                self.push_debug_optional("argument_modifiers", *modifiers);
+            ast::Argument::Named { name, .. } => {
                 self.push_name("argument_name", *name);
             }
-            ast::Argument::Labeled {
-                modifiers, label, ..
-            } => {
-                self.push_debug_optional("argument_modifiers", *modifiers);
+            ast::Argument::Labeled { label, .. } => {
                 self.push_identifier_id("argument_label", *label);
             }
-            ast::Argument::Positional { modifiers, .. } => {
-                self.push_debug_optional("argument_modifiers", *modifiers);
-            }
-            ast::Argument::Spread {
-                modifiers, label, ..
-            } => {
-                self.push_debug_optional("argument_modifiers", *modifiers);
+            ast::Argument::Positional { .. } => {}
+            ast::Argument::Spread { label, .. } => {
                 if let Some(label) = label {
                     self.push_identifier_id("argument_label", *label);
                 } else {

@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_statement_ancestor, expression_unwrap_parenthesized_syntax};
+use crate::rules::common::{
+    expression_statement_ancestor, expression_unwrap_parenthesized_source_form,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -87,13 +89,14 @@ fn no_delete_fix(
     let ast::Expression::Delete { value } = ctx.tree.get(delete_id) else {
         return None;
     };
-    let target_id = expression_unwrap_parenthesized_syntax(ctx.tree, *value);
+    let target_id = expression_unwrap_parenthesized_source_form(ctx.tree, *value);
     let target_expression = ctx.tree.get(target_id);
-    let target_is_assignable_property = match target_expression {
-        ast::Expression::Member { .. } | ast::Expression::PrivateMember { .. } => true,
-        ast::Expression::Index { .. } => true,
-        _ => false,
-    };
+    let target_is_assignable_property = matches!(
+        target_expression,
+        ast::Expression::Member { .. }
+            | ast::Expression::PrivateMember { .. }
+            | ast::Expression::Index { .. }
+    );
     if !target_is_assignable_property {
         return None;
     }

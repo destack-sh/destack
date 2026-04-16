@@ -383,22 +383,20 @@ fn async_callable_expression_bodies(
     // collect function declaration expression bodies
     for declaration_id in tree.iter_node_ids_of_type::<dir::Declaration>() {
         let declaration = tree.get(declaration_id);
-        let dir::Declaration::Function {
-            signature,
-            body: Some(body_id),
-            ..
-        } = declaration
-        else {
+        let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
-        if signature.asynchrony != dir::Asynchrony::Async {
+        let Some(body_id) = declaration.body else {
+            continue;
+        };
+        if declaration.signature.asynchrony != dir::Asynchrony::Async {
             continue;
         }
-        if matches!(tree.get(*body_id), dir::Expression::Block { .. }) {
+        if matches!(tree.get(body_id), dir::Expression::Block(..)) {
             continue;
         }
 
-        bodies.push(*body_id);
+        bodies.push(body_id);
     }
 
     // collect member method expression bodies
@@ -415,7 +413,7 @@ fn async_callable_expression_bodies(
         if signature.asynchrony != dir::Asynchrony::Async {
             continue;
         }
-        if matches!(tree.get(*body_id), dir::Expression::Block { .. }) {
+        if matches!(tree.get(*body_id), dir::Expression::Block(..)) {
             continue;
         }
 
@@ -436,7 +434,7 @@ fn async_callable_expression_bodies(
         if signature.asynchrony != dir::Asynchrony::Async {
             continue;
         }
-        if matches!(tree.get(*body_id), dir::Expression::Block { .. }) {
+        if matches!(tree.get(*body_id), dir::Expression::Block(..)) {
             continue;
         }
 

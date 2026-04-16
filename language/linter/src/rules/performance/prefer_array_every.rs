@@ -173,7 +173,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let call_expression = self.ctx.tree.get(call_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } = call_expression
@@ -209,7 +209,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         Some(FilterLengthMatch {
             receiver_path,
             dynamic_arguments: dynamic_arguments.clone(),
-            has_static_arguments: static_arguments.is_some(),
+            has_generic_arguments: !generic_arguments.is_empty(),
         })
     }
 
@@ -244,7 +244,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         filter_match: &FilterLengthMatch,
     ) -> Option<LintFix> {
-        if filter_match.has_static_arguments {
+        if filter_match.has_generic_arguments {
             return None;
         }
 
@@ -324,8 +324,8 @@ struct FilterLengthMatch {
     receiver_path: ReferencePath,
     /// The dynamic arguments passed to filter.
     dynamic_arguments: Vec<dir::LocalNodeId<dir::Argument>>,
-    /// Whether filter has explicit static arguments.
-    has_static_arguments: bool,
+    /// Whether filter has explicit generic arguments.
+    has_generic_arguments: bool,
 }
 
 impl NodeVisitor for PreferArrayEveryVisitor<'_, '_> {

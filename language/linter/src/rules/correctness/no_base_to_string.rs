@@ -267,7 +267,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             return;
         };
 
-        // inspect candidate syntax nodes
+        // inspect candidate nodes
         for argument_id in arguments {
             let argument = self.ctx.tree.get(*argument_id);
             let value_expression_id = argument.value();

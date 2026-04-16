@@ -9,9 +9,9 @@ use crate::rules::common::{expression_type_map, is_array_type, well_known_symbol
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Enforce consistent array type syntax.
+    /// Enforce one consistent array type form.
     ///
-    /// Configure the preferred syntax via `array_type` in linter options.
+    /// Configure the preferred form via `array_type` in linter options.
     /// - `ArrayTypeStyle::Array` prefers `T[]`
     /// - `ArrayTypeStyle::Generic` prefers `Array<T>`
     #[lint(
@@ -27,7 +27,7 @@ declare_lint! {
         declarations = Exclude
     )]
     pub ArrayType,
-    "Enforce consistent array type syntax"
+    "Enforce one consistent array type form"
 }
 
 impl LintRule for ArrayType {
@@ -36,7 +36,7 @@ impl LintRule for ArrayType {
         ArrayType::meta()
     }
 
-    /// Check module DIR nodes for inconsistent array type syntax.
+    /// Check module DIR nodes for inconsistent array type forms.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let preferred_style = ctx.options.style.array_type;
@@ -53,21 +53,21 @@ impl LintRule for ArrayType {
                 continue;
             };
 
-            let Some(syntax) = source_array_syntax(ctx.ast, source_expression_id) else {
+            let Some(form) = source_array_form(ctx.ast, source_expression_id) else {
                 continue;
             };
             if !expression_is_array_semantic(ctx, expression_id, &array_symbols) {
                 continue;
             }
 
-            // only enforce generic syntax when the source expression targets Array directly
-            if matches!(syntax, ArraySyntax::Generic { .. })
-                && !generic_syntax_targets_array_name(ctx, source_expression_id)
+            // only enforce generic form when the source expression targets Array directly
+            if matches!(form, ArrayTypeForm::Generic { .. })
+                && !generic_form_targets_array_name(ctx, source_expression_id)
             {
                 continue;
             }
 
-            if syntax_matches_preference(syntax, preferred_style) {
+            if form_matches_preference(form, preferred_style) {
                 continue;
             }
             if !reported_source_ids.insert(source_expression_id.id) {
@@ -92,8 +92,7 @@ impl LintRule for ArrayType {
             .with_label(mismatch_label(preferred_style));
 
             if ctx.include_fixes
-                && let Some(fix) =
-                    array_type_fix(ctx, source_expression_id, syntax, preferred_style)
+                && let Some(fix) = array_type_fix(ctx, source_expression_id, form, preferred_style)
             {
                 diagnostic = diagnostic.with_fix(fix);
             }
@@ -112,99 +111,102 @@ fn resolve_array_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbo
     well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Array)
 }
 
-/// Array type syntax shape from source.
+/// Array type source form.
 #[derive(Debug, Clone, Copy)]
-enum ArraySyntax {
+enum ArrayTypeForm {
     /// `T[]`.
     Shorthand {
         /// The element type expression.
-        element_type_expression_id: ast::LocalNodeId<ast::Expression>,
+        element_type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
     },
     /// `Array<T>`.
     Generic {
         /// The first type argument expression.
-        type_argument_expression_id: ast::LocalNodeId<ast::Expression>,
+        type_argument_expression_id: ast::LocalNodeId<ast::TypeExpression>,
     },
 }
-/// Return the source array syntax for one AST expression when applicable.
-fn source_array_syntax(
+
+/// Return the source array form for one AST expression when applicable.
+fn source_array_form(
     tree: &ast::NodeTree,
     source_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ArraySyntax> {
+) -> Option<ArrayTypeForm> {
     let expression = tree.get(source_expression_id);
+    let ast::Expression::Type {
+        value: type_expression_id,
+    } = expression
+    else {
+        return None;
+    };
+
+    source_array_type_form(tree, *type_expression_id)
+}
+
+/// Return the source array form for one AST type expression when applicable.
+fn source_array_type_form(
+    tree: &ast::NodeTree,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> Option<ArrayTypeForm> {
+    let type_expression = tree.get(type_expression_id);
 
     // shorthand: T[]
-    if let ast::Expression::Index {
-        left, index: None, ..
-    } = expression
-    {
-        return Some(ArraySyntax::Shorthand {
-            element_type_expression_id: *left,
+    if let ast::TypeExpression::Array { element } = type_expression {
+        return Some(ArrayTypeForm::Shorthand {
+            element_type_expression_id: *element,
         });
     }
 
-    // generic path: Array<T>
-    if let ast::Expression::QualifiedReference {
-        static_arguments: Some(static_arguments),
-        ..
-    } = expression
-        && static_arguments.len() == 1
-    {
-        let type_argument_expression_id = argument_value_expression(tree, static_arguments[0])?;
-        return Some(ArraySyntax::Generic {
-            type_argument_expression_id,
-        });
+    // generic path, member, or import: Array<T>
+    let generic_arguments = match type_expression {
+        ast::TypeExpression::Reference {
+            generic_arguments, ..
+        }
+        | ast::TypeExpression::Member {
+            generic_arguments, ..
+        }
+        | ast::TypeExpression::Import {
+            generic_arguments, ..
+        } => generic_arguments,
+        _ => return None,
+    };
+    if generic_arguments.len() != 1 {
+        return None;
     }
 
-    // generic member: ns.Array<T>
-    if let ast::Expression::Member {
-        static_arguments: Some(static_arguments),
-        ..
-    } = expression
-        && static_arguments.len() == 1
-    {
-        let type_argument_expression_id = argument_value_expression(tree, static_arguments[0])?;
-        return Some(ArraySyntax::Generic {
-            type_argument_expression_id,
-        });
-    }
-
-    // instantiation: Array<T>
-    if let ast::Expression::Instantiation {
-        static_arguments, ..
-    } = expression
-        && static_arguments.len() == 1
-    {
-        let type_argument_expression_id = argument_value_expression(tree, static_arguments[0])?;
-        return Some(ArraySyntax::Generic {
-            type_argument_expression_id,
-        });
-    }
-
-    None
+    let type_argument_expression_id =
+        generic_argument_value_type_expression(tree, generic_arguments[0])?;
+    Some(ArrayTypeForm::Generic {
+        type_argument_expression_id,
+    })
 }
 
-/// Return one expression id from one AST argument.
-fn argument_value_expression(
+/// Return one type expression id from one AST generic argument.
+fn generic_argument_value_type_expression(
     tree: &ast::NodeTree,
-    argument_id: ast::LocalNodeId<ast::Argument>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    argument_id: ast::LocalNodeId<ast::GenericArgument>,
+) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
     let argument = tree.get(argument_id);
-    match argument {
-        ast::Argument::Named { value, .. }
-        | ast::Argument::Labeled { value, .. }
-        | ast::Argument::Positional { value, .. }
-        | ast::Argument::Spread { value, .. } => Some(*value),
-        ast::Argument::Error => None,
-    }
+    let value_expression_id = match argument {
+        ast::GenericArgument::Positional { value } | ast::GenericArgument::Spread { value } => {
+            *value
+        }
+        ast::GenericArgument::Error => return None,
+    };
+
+    let value_expression = tree.get(value_expression_id);
+    let ast::Expression::Type { value } = value_expression else {
+        return None;
+    };
+
+    Some(*value)
 }
 
-/// Return true when the array syntax matches the configured preference.
-fn syntax_matches_preference(syntax: ArraySyntax, preferred_style: ArrayTypeStyle) -> bool {
+/// Return true when the array form matches the configured preference.
+fn form_matches_preference(form: ArrayTypeForm, preferred_style: ArrayTypeStyle) -> bool {
     matches!(
-        (syntax, preferred_style),
-        (ArraySyntax::Shorthand { .. }, ArrayTypeStyle::Array)
-            | (ArraySyntax::Generic { .. }, ArrayTypeStyle::Generic)
+        (form, preferred_style),
+        (ArrayTypeForm::Shorthand { .. }, ArrayTypeStyle::Array)
+            | (ArrayTypeForm::Generic { .. }, ArrayTypeStyle::Generic)
     )
 }
 
@@ -215,11 +217,15 @@ fn expression_is_array_semantic(
     array_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
-    if let dir::Expression::Type { value } = expression {
+    if let dir::Expression::Type {
+        value: _,
+        resolved_type,
+    } = expression
+    {
         return array_symbols
             .iter()
             .copied()
-            .any(|array_symbol| is_array_type(ctx.types, *value, Some(array_symbol)));
+            .any(|array_symbol| is_array_type(ctx.types, *resolved_type, Some(array_symbol)));
     }
 
     expression_type_map(
@@ -241,8 +247,8 @@ fn expression_is_array_semantic(
     .unwrap_or(false)
 }
 
-/// Return true when one generic syntax expression is spelled with `Array`.
-fn generic_syntax_targets_array_name(
+/// Return true when one generic array form is spelled with `Array`.
+fn generic_form_targets_array_name(
     ctx: &LintModuleDirContext<'_>,
     source_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -267,8 +273,8 @@ fn mismatch_message(preferred_style: ArrayTypeStyle) -> &'static str {
 /// Return the mismatch label for one preferred style.
 fn mismatch_label(preferred_style: ArrayTypeStyle) -> &'static str {
     match preferred_style {
-        ArrayTypeStyle::Array => "use shorthand array syntax for this type",
-        ArrayTypeStyle::Generic => "use generic array syntax for this type",
+        ArrayTypeStyle::Array => "use shorthand array form for this type",
+        ArrayTypeStyle::Generic => "use generic array form for this type",
     }
 }
 
@@ -276,12 +282,12 @@ fn mismatch_label(preferred_style: ArrayTypeStyle) -> &'static str {
 fn array_type_fix(
     ctx: &LintModuleDirContext<'_>,
     source_expression_id: ast::LocalNodeId<ast::Expression>,
-    syntax: ArraySyntax,
+    form: ArrayTypeForm,
     preferred_style: ArrayTypeStyle,
 ) -> Option<LintFix> {
-    let replacement = match (syntax, preferred_style) {
+    let replacement = match (form, preferred_style) {
         (
-            ArraySyntax::Shorthand {
+            ArrayTypeForm::Shorthand {
                 element_type_expression_id,
             },
             ArrayTypeStyle::Generic,
@@ -290,7 +296,7 @@ fn array_type_fix(
             format!("Array<{element_type_text}>")
         }
         (
-            ArraySyntax::Generic {
+            ArrayTypeForm::Generic {
                 type_argument_expression_id,
             },
             ArrayTypeStyle::Array,
@@ -309,25 +315,35 @@ fn array_type_fix(
 
     let span = ctx.ast.get_span(source_expression_id);
     let edits = ctx.edit_builder().replace(span, replacement).into_edits();
-    Some(LintFix::safe("Rewrite array type syntax").with_edits(edits))
+    Some(LintFix::safe("Rewrite array type form").with_edits(edits))
 }
 
 /// Return true when one type argument needs parentheses before appending `[]`.
-fn type_argument_needs_parentheses(expression: &ast::Expression) -> bool {
+fn type_argument_needs_parentheses(expression: &ast::TypeExpression) -> bool {
     !matches!(
         expression,
-        ast::Expression::Identifier { .. }
-            | ast::Expression::QualifiedReference { .. }
-            | ast::Expression::TypeLiteral(_)
-            | ast::Expression::Member { .. }
-            | ast::Expression::PrivateMember { .. }
-            | ast::Expression::Index { .. }
-            | ast::Expression::TypeUnary { .. }
-            | ast::Expression::ValueOf { .. }
-            | ast::Expression::ReferenceOf { .. }
-            | ast::Expression::PointerOf { .. }
-            | ast::Expression::Instantiation { .. }
-            | ast::Expression::Parenthesized { .. }
+        ast::TypeExpression::Parenthesized { .. }
+            | ast::TypeExpression::ScalarLiteral { .. }
+            | ast::TypeExpression::Literal { .. }
+            | ast::TypeExpression::Intrinsic
+            | ast::TypeExpression::Tuple { .. }
+            | ast::TypeExpression::Array { .. }
+            | ast::TypeExpression::Object { .. }
+            | ast::TypeExpression::Declaration { .. }
+            | ast::TypeExpression::Reference { .. }
+            | ast::TypeExpression::Member { .. }
+            | ast::TypeExpression::Const
+            | ast::TypeExpression::This
+            | ast::TypeExpression::Import { .. }
+            | ast::TypeExpression::Readonly { .. }
+            | ast::TypeExpression::KeyOf { .. }
+            | ast::TypeExpression::TypeOfValue { .. }
+            | ast::TypeExpression::Must { .. }
+            | ast::TypeExpression::AsComptime { .. }
+            | ast::TypeExpression::Not { .. }
+            | ast::TypeExpression::ValueOf { .. }
+            | ast::TypeExpression::ReferenceOf { .. }
+            | ast::TypeExpression::PointerOf { .. }
     )
 }
 

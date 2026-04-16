@@ -1,11 +1,6 @@
-use destack_ast::{
-    self as ast, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, walk_expression,
-};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
+use destack_ast::{self as ast, LocalNodeId, NodeTree, TypeExpression};
 use destack_workspace::LintSeverity;
-
-use crate::rules::common::expression_is_type_annotation;
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on overly complex type expressions.
@@ -28,7 +23,7 @@ declare_lint! {
 }
 
 impl LintRule for NoComplexType {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoComplexType::meta()
     }
 
@@ -38,22 +33,19 @@ impl LintRule for NoComplexType {
         let max_type_complexity = ctx.options.complexity.max_type_complexity;
 
         // check only top level type annotation roots
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            if !expression_is_type_annotation(ctx.tree, ctx.parents, expression_id) {
-                continue;
-            }
-            if has_type_annotation_expression_parent(ctx, expression_id) {
+        for type_expression_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
+            if has_type_expression_parent(ctx, type_expression_id) {
                 continue;
             }
 
             // compute structural complexity score for this type expression
-            let complexity = type_expression_complexity(ctx.tree, expression_id);
+            let complexity = type_expression_complexity(ctx.tree, type_expression_id);
             if complexity <= max_type_complexity {
                 continue;
             }
 
             // resolve effective severity
-            let severity = ctx.get_effective_severity(meta, expression_id);
+            let severity = ctx.get_effective_severity(meta, type_expression_id);
             if !severity.is_enabled() {
                 continue;
             }
@@ -67,7 +59,7 @@ impl LintRule for NoComplexType {
                     severity,
                     format!("type has complexity {complexity} (max {max_type_complexity})"),
                     ctx.module.file_id,
-                    ctx.tree.get_span(expression_id),
+                    ctx.tree.get_span(type_expression_id),
                 )
                 .with_label("consider extracting a named type alias"),
             );
@@ -76,116 +68,297 @@ impl LintRule for NoComplexType {
 }
 
 /// Return true when one type expression has a parent type expression.
-fn has_type_annotation_expression_parent(
+fn has_type_expression_parent(
     ctx: &LintAstContext<'_>,
-    expression_id: LocalNodeId<Expression>,
+    type_expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
-    // resolve expression parent node
-    let Some(parent_id) = ctx.parents.get(expression_id) else {
+    let Some(parent_id) = ctx.parents.get(type_expression_id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return false;
-    }
 
-    // keep only parents that also live in type annotation positions
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    expression_is_type_annotation(ctx.tree, ctx.parents, parent_expression_id)
+    ctx.tree.get_node_type(parent_id) == ast::NodeType::TypeExpression
 }
 
 /// Compute one nesting style complexity score for a type expression.
-fn type_expression_complexity(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> usize {
-    // initialize complexity visitor state
-    let mut visitor = TypeComplexityVisitor {
-        options: NodeVisitorOptions::default(),
-        current_depth: 0,
-        max_depth: 0,
-    };
-
-    // walk type expression subtree
-    let expression = tree.get(expression_id);
-    visitor.visit_expression(tree, expression_id, expression);
-
-    visitor.max_depth
+fn type_expression_complexity(
+    tree: &NodeTree,
+    type_expression_id: LocalNodeId<TypeExpression>,
+) -> usize {
+    type_expression_complexity_inner(tree, type_expression_id, 0)
 }
 
-/// Visitor that tracks type nesting complexity depth.
-struct TypeComplexityVisitor {
-    /// Traversal options.
-    options: NodeVisitorOptions,
-    /// Current nesting depth.
+/// Compute the maximum type nesting depth below one type expression.
+fn type_expression_complexity_inner(
+    tree: &NodeTree,
+    type_expression_id: LocalNodeId<TypeExpression>,
     current_depth: usize,
-    /// Maximum observed nesting depth.
-    max_depth: usize,
-}
+) -> usize {
+    let type_expression = tree.get(type_expression_id);
+    let increases_depth = matches!(
+        type_expression,
+        TypeExpression::Reference {
+            generic_arguments,
+            ..
+        } if !generic_arguments.is_empty()
+    ) || matches!(
+        type_expression,
+        TypeExpression::Member {
+            generic_arguments,
+            ..
+        } if !generic_arguments.is_empty()
+    ) || matches!(
+        type_expression,
+        TypeExpression::Union { .. }
+            | TypeExpression::Intersection { .. }
+            | TypeExpression::Readonly { .. }
+            | TypeExpression::KeyOf { .. }
+            | TypeExpression::TypeOfValue { .. }
+            | TypeExpression::Must { .. }
+            | TypeExpression::AsComptime { .. }
+            | TypeExpression::Not { .. }
+            | TypeExpression::ValueOf { .. }
+            | TypeExpression::ReferenceOf { .. }
+            | TypeExpression::PointerOf { .. }
+            | TypeExpression::Conditional { .. }
+            | TypeExpression::Mapped { .. }
+            | TypeExpression::Index { .. }
+            | TypeExpression::TemplateLiteral { .. }
+            | TypeExpression::Tuple { .. }
+            | TypeExpression::Object { .. }
+            | TypeExpression::Array { .. }
+    );
+    let current_depth = if increases_depth {
+        current_depth + 1
+    } else {
+        current_depth
+    };
+    let mut max_depth = current_depth;
 
-impl TypeComplexityVisitor {
-    /// Enter one complexity increasing node.
-    fn enter_complexity_node(&mut self) {
-        self.current_depth += 1;
-        self.max_depth = self.max_depth.max(self.current_depth);
-    }
-
-    /// Leave one complexity increasing node.
-    fn leave_complexity_node(&mut self) {
-        self.current_depth -= 1;
-    }
-}
-
-impl NodeVisitor for TypeComplexityVisitor {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // track expressions that increase type nesting depth
-        let increases_depth = matches!(
-            expression,
-            Expression::QualifiedReference {
-                static_arguments: Some(arguments),
-                ..
-            } if !arguments.is_empty()
-        ) || matches!(
-            expression,
-            Expression::Member {
-                static_arguments: Some(arguments),
-                ..
-            } if !arguments.is_empty()
-        ) || matches!(
-            expression,
-            Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-                ..
-            }
-        ) || matches!(
-            expression,
-            Expression::TypeBinary { .. }
-                | Expression::TypeUnary { .. }
-                | Expression::TypeConditional { .. }
-                | Expression::TypeMapped { .. }
-                | Expression::TypeIndex { .. }
-                | Expression::TypeTemplateLiteral { .. }
-                | Expression::TupleExpression { .. }
-                | Expression::ObjectExpression { .. }
-                | Expression::Index { .. }
-        );
-
-        // apply nested depth accounting around child traversal
-        if increases_depth {
-            self.enter_complexity_node();
-            walk_expression(self, tree, expression_id, expression);
-            self.leave_complexity_node();
-            return;
+    match type_expression {
+        TypeExpression::Parenthesized { expression } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *expression,
+                current_depth,
+            ));
         }
+        TypeExpression::Array { element } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *element,
+                current_depth,
+            ));
+        }
+        TypeExpression::Object { members } => {
+            for member_id in members {
+                let member = tree.get(*member_id);
+                match member {
+                    ast::TypeMember::Field { declared_type, .. } => {
+                        max_depth = max_depth.max(type_expression_complexity_inner(
+                            tree,
+                            *declared_type,
+                            current_depth,
+                        ));
+                    }
+                    ast::TypeMember::Method { signature, .. } => {
+                        if let Some(return_type) = signature.return_type {
+                            max_depth = max_depth.max(type_expression_complexity_inner(
+                                tree,
+                                return_type,
+                                current_depth,
+                            ));
+                        }
+                    }
+                    ast::TypeMember::IndexSignature {
+                        key_type,
+                        value_type,
+                        ..
+                    } => {
+                        max_depth = max_depth.max(type_expression_complexity_inner(
+                            tree,
+                            *key_type,
+                            current_depth,
+                        ));
+                        max_depth = max_depth.max(type_expression_complexity_inner(
+                            tree,
+                            *value_type,
+                            current_depth,
+                        ));
+                    }
+                    ast::TypeMember::Embed { value } => {
+                        max_depth = max_depth.max(type_expression_complexity_inner(
+                            tree,
+                            *value,
+                            current_depth,
+                        ));
+                    }
+                    ast::TypeMember::AssociatedType {
+                        constraint, value, ..
+                    } => {
+                        if let Some(constraint) = constraint {
+                            max_depth = max_depth.max(type_expression_complexity_inner(
+                                tree,
+                                *constraint,
+                                current_depth,
+                            ));
+                        }
 
-        // recurse for non complexity increasing nodes
-        walk_expression(self, tree, expression_id, expression);
+                        if let Some(value) = value {
+                            max_depth = max_depth.max(type_expression_complexity_inner(
+                                tree,
+                                *value,
+                                current_depth,
+                            ));
+                        }
+                    }
+                    ast::TypeMember::AssociatedConst { declared_type, .. } => {
+                        if let Some(declared_type) = declared_type {
+                            max_depth = max_depth.max(type_expression_complexity_inner(
+                                tree,
+                                *declared_type,
+                                current_depth,
+                            ));
+                        }
+                    }
+                    ast::TypeMember::Error => {}
+                }
+            }
+        }
+        TypeExpression::Member { left, .. }
+        | TypeExpression::Readonly { target_type: left }
+        | TypeExpression::KeyOf { target_type: left }
+        | TypeExpression::Must { target_type: left }
+        | TypeExpression::AsComptime { target_type: left }
+        | TypeExpression::Not { target_type: left }
+        | TypeExpression::ValueOf {
+            target_type: left, ..
+        }
+        | TypeExpression::ReferenceOf {
+            target_type: left, ..
+        }
+        | TypeExpression::PointerOf {
+            target_type: left, ..
+        } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(tree, *left, current_depth));
+        }
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+            for element_id in elements {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    *element_id,
+                    current_depth,
+                ));
+            }
+        }
+        TypeExpression::Conditional {
+            left,
+            extends_type,
+            then_type,
+            else_type,
+        } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(tree, *left, current_depth));
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *extends_type,
+                current_depth,
+            ));
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *then_type,
+                current_depth,
+            ));
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *else_type,
+                current_depth,
+            ));
+        }
+        TypeExpression::Mapped {
+            parameter, value, ..
+        } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                parameter.source_type,
+                current_depth,
+            ));
+            if let Some(key_remap) = parameter.key_remap {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    key_remap,
+                    current_depth,
+                ));
+            }
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *value,
+                current_depth,
+            ));
+        }
+        TypeExpression::Index { left, index } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(tree, *left, current_depth));
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *index,
+                current_depth,
+            ));
+        }
+        TypeExpression::TemplateLiteral { spans, .. } => {
+            for span_id in spans {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    *span_id,
+                    current_depth,
+                ));
+            }
+        }
+        TypeExpression::Infer { constraint, .. } => {
+            if let Some(constraint) = constraint {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    *constraint,
+                    current_depth,
+                ));
+            }
+        }
+        TypeExpression::Predicate { target, .. } => {
+            if let Some(target) = target {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    *target,
+                    current_depth,
+                ));
+            }
+        }
+        TypeExpression::Tuple { elements } => {
+            for element_id in elements {
+                let element = tree.get(*element_id);
+                match element {
+                    ast::TupleElement::Element { value, .. }
+                    | ast::TupleElement::Spread { value, .. } => {
+                        max_depth = max_depth.max(type_expression_complexity_inner(
+                            tree,
+                            *value,
+                            current_depth,
+                        ));
+                    }
+                    ast::TupleElement::Error => {}
+                }
+            }
+        }
+        TypeExpression::Import { .. }
+        | TypeExpression::ScalarLiteral { .. }
+        | TypeExpression::Literal { .. }
+        | TypeExpression::Intrinsic
+        | TypeExpression::Declaration { .. }
+        | TypeExpression::Reference { .. }
+        | TypeExpression::Const
+        | TypeExpression::This
+        | TypeExpression::TypeOfValue { .. }
+        | TypeExpression::Missing
+        | TypeExpression::Error => {}
     }
+
+    max_depth
 }
 
 #[cfg(test)]

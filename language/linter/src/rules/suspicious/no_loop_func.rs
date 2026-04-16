@@ -188,15 +188,16 @@ impl NodeVisitor for NoLoopFuncVisitor<'_, '_> {
         }
 
         // check function declaration expressions and reset loop context for nested bodies
-        if let dir::Expression::Declaration { declaration } = expression {
+        if let dir::Expression::Declaration(declaration) = expression {
             let declaration_node = tree.get(*declaration);
-            if let dir::Declaration::Function {
-                scope,
-                body: Some(body_expression_id),
-                ..
-            } = declaration_node
+            if let dir::Declaration::Function(function_declaration) = declaration_node
+                && let Some(body_expression_id) = function_declaration.body
             {
-                self.check_loop_function_declaration(id, *scope, *body_expression_id);
+                self.check_loop_function_declaration(
+                    id,
+                    function_declaration.scope,
+                    body_expression_id,
+                );
 
                 let saved_loop_scopes = std::mem::take(&mut self.active_loop_scopes);
                 walk_declaration(self, tree, *declaration, declaration_node);
@@ -310,9 +311,9 @@ impl NodeVisitor for CapturedMutableSymbolCollector<'_> {
         expression: &dir::Expression,
     ) {
         // skip nested function declarations: those captures do not belong to this function body
-        if let dir::Expression::Declaration { declaration } = expression {
+        if let dir::Expression::Declaration(declaration) = expression {
             let declaration = tree.get(*declaration);
-            if matches!(declaration, dir::Declaration::Function { .. }) {
+            if matches!(declaration, dir::Declaration::Function(_)) {
                 return;
             }
         }

@@ -1,7 +1,8 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, AssignOperator, BinaryOperator, UnaryOperator};
 use destack_workspace::{BitwiseOperator, LintSeverity};
 
-use crate::rules::common::expression_unwrap_parenthesized_syntax;
+use crate::rules::common::expression_unwrap_parenthesized_source_form;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -65,7 +66,7 @@ fn expression_is_bitwise_int32_hint(
         return false;
     }
 
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let ast::Expression::Binary { right, .. } = ctx.tree.get(expression_id) else {
         return false;
     };
@@ -78,7 +79,7 @@ fn expression_is_zero_literal(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
 
     match ctx.tree.get(expression_id) {
         ast::Expression::ScalarLiteral(literal) => match literal {
@@ -91,7 +92,7 @@ fn expression_is_zero_literal(
 }
 
 impl LintRule for NoBitwise {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoBitwise::meta()
     }
 

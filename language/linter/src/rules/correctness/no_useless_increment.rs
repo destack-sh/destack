@@ -1,7 +1,9 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_transparent, expressions_have_equivalent_syntax};
+use crate::rules::common::{
+    expression_unwrap_transparent, expressions_have_equivalent_source_form,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -121,7 +123,7 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
         }
 
         // enforce this lint guard
-        if !expressions_have_equivalent_syntax(self.ctx, left_id, *right) {
+        if !expressions_have_equivalent_source_form(self.ctx, left_id, *right) {
             return;
         }
 

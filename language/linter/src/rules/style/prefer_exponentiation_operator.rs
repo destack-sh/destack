@@ -96,7 +96,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // match Math.pow calls
@@ -122,7 +122,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             span,
         )
         .with_label("use base ** exponent instead");
-        if let Some(fix) = self.math_pow_fix(expression_id, static_arguments, dynamic_arguments) {
+        if let Some(fix) = self.math_pow_fix(expression_id, generic_arguments, dynamic_arguments) {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -133,11 +133,11 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
     fn math_pow_fix(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
         // skip static arguments until we support rendering them
-        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+        if !generic_arguments.is_empty() {
             return None;
         }
 
@@ -220,11 +220,11 @@ impl NodeVisitor for ExponentiationVisitor<'_, '_> {
         // check call expressions for Math.pow
         if let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         {
-            self.check_call(id, *left, static_arguments.as_deref(), dynamic_arguments);
+            self.check_call(id, *left, generic_arguments.as_slice(), dynamic_arguments);
         }
 
         // walk expression children

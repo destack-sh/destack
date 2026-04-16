@@ -86,7 +86,7 @@ impl LintRule for NoUselessEscape {
     }
 }
 
-/// Valid string escapes by source rule semantics.
+/// Valid string escapes for this rule.
 const VALID_STRING_ESCAPES: &[char] = &[
     'n', 'r', 't', 'b', 'f', 'v', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\\', '\'',
     '"', '`', 'x', 'u', '\n', '\r',
@@ -192,7 +192,7 @@ fn report_regex_escapes(
     let flags = flags_id.map(|id| ctx.strings.get(id));
     let flags = flags.as_deref();
     let flags = if has_unknown_flags {
-        // match source behavior: unknown runtime flags are treated as no flags
+        // treat unknown runtime flags as no flags
         None
     } else {
         flags
@@ -514,7 +514,7 @@ fn regex_backslash_span(
     raw_literal: &str,
     pattern_backslash_position: usize,
 ) -> Option<Span> {
-    // require slash delimited regex literal syntax
+    // require slash delimited regex literal form
     if !raw_literal.starts_with('/') {
         return None;
     }
@@ -737,10 +737,10 @@ const re = /[\&a]/v;
     }
 
     #[test]
-    fn test_allows_valid_unicode_set_class_syntax_escape() {
+    fn test_allows_valid_unicode_set_class_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
-            "no_useless_escape/test_allows_valid_unicode_set_class_syntax_escape.ds",
+            "no_useless_escape/test_allows_valid_unicode_set_class_escape.ds",
             r#"
 const re = /[\(]/v;
 "#,

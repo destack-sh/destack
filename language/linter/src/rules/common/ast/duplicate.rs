@@ -110,8 +110,8 @@ fn expression_coarse_key(
         ast::Expression::ScalarLiteral(literal) => {
             std::mem::discriminant(literal).hash(&mut hasher);
         }
-        ast::Expression::TypeLiteral(literal) => {
-            std::mem::discriminant(literal).hash(&mut hasher);
+        ast::Expression::Type { value } => {
+            std::mem::discriminant(ctx.tree.get(*value)).hash(&mut hasher);
         }
         ast::Expression::Binary { operator, .. } => {
             hash_debug_into(&mut hasher, operator);
@@ -123,19 +123,19 @@ fn expression_coarse_key(
             hash_debug_into(&mut hasher, operator);
         }
         ast::Expression::Call {
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } => {
-            static_arguments.is_some().hash(&mut hasher);
+            (!generic_arguments.is_empty()).hash(&mut hasher);
             dynamic_arguments.len().hash(&mut hasher);
         }
         ast::Expression::New {
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } => {
-            static_arguments.is_some().hash(&mut hasher);
+            (!generic_arguments.is_empty()).hash(&mut hasher);
             dynamic_arguments.len().hash(&mut hasher);
         }
         ast::Expression::ArrayExpression { elements }
@@ -191,8 +191,8 @@ fn expression_structural_key(
         ast::Expression::ScalarLiteral(literal) => {
             hash_debug_into(&mut hasher, literal);
         }
-        ast::Expression::TypeLiteral(literal) => {
-            hash_debug_into(&mut hasher, literal);
+        ast::Expression::Type { value } => {
+            hash_debug_into(&mut hasher, ctx.tree.get(*value));
         }
         ast::Expression::Binary {
             operator,
@@ -218,18 +218,18 @@ fn expression_structural_key(
         }
         ast::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         }
         | ast::Expression::New {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } => {
             hash_expression_kind(ctx, &mut hasher, *left);
-            static_arguments.is_some().hash(&mut hasher);
+            (!generic_arguments.is_empty()).hash(&mut hasher);
             dynamic_arguments.len().hash(&mut hasher);
             for argument_id in dynamic_arguments {
                 hash_argument_shape(ctx, &mut hasher, *argument_id);

@@ -237,7 +237,14 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 {
                     current_id = parent_id;
                 }
-                dir::Expression::Cast { value, .. }
+                dir::Expression::As {
+                    expression: value,
+                    target_type: _,
+                }
+                | dir::Expression::Satisfies {
+                    expression: value,
+                    target_type: _,
+                }
                 | dir::Expression::OwnershipCast { value, .. }
                     if *value == current_id =>
                 {
@@ -377,14 +384,11 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             let member = module_dir
                 .tree
                 .get(primary_declaration.into_local_typed::<dir::Member>());
-            let dir::Member::Method { modifiers, .. } = member else {
+            let dir::Member::Method { is_static, .. } = member else {
                 return false;
             };
 
-            return !modifiers
-                .as_ref()
-                .and_then(|modifier| modifier.anchor)
-                .is_some_and(|anchor| anchor == dir::BindingAnchor::Static);
+            return !is_static;
         }
 
         // inspect property declarations for method values
@@ -446,7 +450,6 @@ fn binary_operator_is_safe_receiver_test(operator: dir::BinaryOperator) -> bool 
             | dir::BinaryOperator::NotEqual
             | dir::BinaryOperator::EqualStrict
             | dir::BinaryOperator::NotEqualStrict
-            | dir::BinaryOperator::InstanceOf
     )
 }
 

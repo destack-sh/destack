@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression, walk_member, walk_property,
@@ -7,7 +8,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, expression_starts_nested_declaration_scope,
-    expression_unwrap_statement_syntax, for_each_callable_signature,
+    expression_unwrap_statement_source_form, for_each_callable_signature,
 };
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
@@ -32,7 +33,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxStatements {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxStatements::meta()
     }
 
@@ -55,7 +56,7 @@ impl LintRule for MaxStatements {
                 return;
             }
 
-            // mirror eslint here: defer a single top-level function violation
+            // defer a single top-level function violation
             if ctx
                 .options
                 .complexity
@@ -105,7 +106,7 @@ impl LintRule for MaxStatements {
             }
         });
 
-        // eslint ignores exactly one top-level function, not every top-level function
+        // ignore exactly one top-level function, not every top-level function
         if pending_top_level_violations.len() == 1 {
             return;
         }
@@ -158,7 +159,7 @@ fn callable_is_nested_in_enclosing_scope(tree: &NodeTree, owner_span: Span) -> b
     // nested function declarations
     for enclosing_declaration_id in tree.iter_nodes::<ast::Declaration>() {
         let enclosing_declaration = tree.get(enclosing_declaration_id);
-        if !matches!(enclosing_declaration, ast::Declaration::Function { .. }) {
+        if !matches!(enclosing_declaration, ast::Declaration::Function(_)) {
             continue;
         }
 
@@ -232,7 +233,7 @@ fn count_callable_statements(
 /// Report one max-statements violation for a callable owner.
 fn report_statement_limit_violation<T: ast::Node>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     body_id: ast::LocalNodeId<ast::Expression>,
     statement_count: usize,
@@ -282,7 +283,8 @@ impl NodeVisitor for StatementCountVisitor {
     ) {
         // keep nested declaration scopes out of this callable count
         if expression_id != self.root_expression_id {
-            let normalized_expression_id = expression_unwrap_statement_syntax(tree, expression_id);
+            let normalized_expression_id =
+                expression_unwrap_statement_source_form(tree, expression_id);
             let normalized_expression = tree.get(normalized_expression_id);
             if expression_starts_nested_declaration_scope(normalized_expression) {
                 return;

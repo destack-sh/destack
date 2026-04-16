@@ -43,74 +43,79 @@ impl LintRule for PreferSetOverEmptyMap {
         if map_symbols.is_empty() {
             return;
         }
-        let mut reported_expression_ids = HashSet::new();
+        let mut reported_source_ids = HashSet::new();
 
         // type aliases: query alias target types directly from the type table
-        for (_, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
-            let dir::Declaration::Type {
-                descriptor, value, ..
-            } = declaration
-            else {
+        for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+            let dir::Declaration::Type(declaration) = declaration else {
                 continue;
             };
 
-            let type_symbol = descriptor.symbol.into_global(ctx.module_id());
+            let type_symbol = declaration.symbol.into_global(ctx.module_id());
             let Some(alias_target_type_id) = ctx.types.get_alias_target_type_id(type_symbol) else {
                 continue;
             };
             if !contains_map_with_empty_value_type(ctx.types, alias_target_type_id, &map_symbols) {
                 continue;
             }
-            if !reported_expression_ids.insert(value.id) {
+            let source_id = ctx.tree.get_source(declaration.value.id);
+            if !reported_source_ids.insert(source_id) {
                 continue;
             }
 
-            report_prefer_set_over_empty_map(ctx, meta, *value);
+            report_prefer_set_over_empty_map(
+                ctx,
+                meta,
+                declaration_id,
+                ctx.get_span(declaration.value),
+            );
         }
 
         for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             let should_report = match expression {
                 // type annotations are lowered as type values
-                dir::Expression::Type { value } => {
-                    contains_map_with_empty_value_type(ctx.types, *value, &map_symbols)
-                }
-                // type references can carry map static arguments directly
+                dir::Expression::Type {
+                    value: _,
+                    resolved_type,
+                } => contains_map_with_empty_value_type(ctx.types, *resolved_type, &map_symbols),
+                // type references can carry map generic arguments directly
                 dir::Expression::LocalReference {
                     target_symbol,
-                    static_arguments,
+                    generic_arguments,
                     ..
                 }
                 | dir::Expression::ModuleReference {
                     target_symbol,
-                    static_arguments,
+                    generic_arguments,
                     ..
                 }
                 | dir::Expression::GlobalReference {
                     target_symbol,
-                    static_arguments,
+                    generic_arguments,
                     ..
                 } => reference_has_empty_value_argument(
                     ctx,
                     *target_symbol,
-                    static_arguments.as_deref(),
+                    generic_arguments.as_slice(),
                     &map_symbols,
                 ),
                 // constructor calls keep generic arguments on the new expression
                 dir::Expression::New {
                     left,
-                    static_arguments,
+                    generic_arguments,
                     ..
-                } => new_map_has_empty_value_argument(ctx, *left, static_arguments, &map_symbols),
+                } => new_map_has_empty_value_argument(ctx, *left, generic_arguments, &map_symbols),
                 _ => false,
             };
             if !should_report {
                 continue;
             }
-            if !reported_expression_ids.insert(expression_id.id) {
+            let source_id = ctx.tree.get_source(expression_id.id);
+            if !reported_source_ids.insert(source_id) {
                 continue;
             }
 
-            report_prefer_set_over_empty_map(ctx, meta, expression_id);
+            report_prefer_set_over_empty_map(ctx, meta, expression_id, ctx.get_span(expression_id));
         }
     }
 }
@@ -125,17 +130,17 @@ fn resolve_map_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolI
 }
 
 /// Report one prefer-set-over-empty-map diagnostic.
-fn report_prefer_set_over_empty_map(
+fn report_prefer_set_over_empty_map<T: dir::Node>(
     ctx: &mut LintModuleDirContext<'_>,
     meta: &LintMeta,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    node_id: dir::LocalNodeId<T>,
+    span: destack_source::Span,
 ) {
-    let severity = ctx.get_effective_severity(meta, expression_id);
+    let severity = ctx.get_effective_severity(meta, node_id);
     if !severity.is_enabled() {
         return;
     }
 
-    let span = ctx.get_span(expression_id);
     ctx.report(
         LintDiagnostic::new(
             PREFER_SET_OVER_EMPTY_MAP.id,
@@ -154,7 +159,7 @@ fn report_prefer_set_over_empty_map(
 fn new_map_has_empty_value_argument(
     ctx: &LintModuleDirContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
-    static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     map_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
     let callee = ctx.tree.get(callee_expression_id);
@@ -165,15 +170,15 @@ fn new_map_has_empty_value_argument(
         return false;
     }
 
-    let Some(static_arguments) = static_arguments else {
-        return false;
-    };
-    if static_arguments.len() != 2 {
+    if generic_arguments.len() != 2 {
         return false;
     }
 
-    let value_argument = ctx.tree.get(static_arguments[1]);
-    let value_expression_id = value_argument.value();
+    let Some(value_expression_id) =
+        generic_argument_value_expression(ctx.tree, generic_arguments[1])
+    else {
+        return false;
+    };
     expression_is_void_or_never_type(ctx, value_expression_id)
 }
 
@@ -181,23 +186,37 @@ fn new_map_has_empty_value_argument(
 fn reference_has_empty_value_argument(
     ctx: &LintModuleDirContext<'_>,
     target_symbol: dir::GlobalSymbolId,
-    static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     map_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
     if !symbol_is_map(ctx, target_symbol, map_symbols) {
         return false;
     }
 
-    let Some(static_arguments) = static_arguments else {
-        return false;
-    };
-    if static_arguments.len() != 2 {
+    if generic_arguments.len() != 2 {
         return false;
     }
 
-    let value_argument = ctx.tree.get(static_arguments[1]);
-    let value_expression_id = value_argument.value();
+    let Some(value_expression_id) =
+        generic_argument_value_expression(ctx.tree, generic_arguments[1])
+    else {
+        return false;
+    };
     expression_is_void_or_never_type(ctx, value_expression_id)
+}
+
+/// Return the value expression for one generic argument.
+fn generic_argument_value_expression(
+    tree: &dir::NodeTree,
+    generic_argument_id: dir::LocalNodeId<dir::GenericArgument>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let generic_argument = tree.get(generic_argument_id);
+    match generic_argument {
+        dir::GenericArgument::Positional { value } | dir::GenericArgument::Spread { value } => {
+            Some(*value)
+        }
+        dir::GenericArgument::Error => None,
+    }
 }
 
 /// Return true when the expression resolves to `void` or `never`.

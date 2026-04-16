@@ -204,7 +204,7 @@ impl<'a> TaintAnalysis<'a> {
         }
 
         match expression {
-            dir::Expression::Block { block } => {
+            dir::Expression::Block(block) => {
                 // block expressions taint from their last expression value
                 let block = self.tree.get(*block);
                 if let Some(last_expression_id) = block.last_expression() {
@@ -216,7 +216,15 @@ impl<'a> TaintAnalysis<'a> {
                     labels.merge(&block_labels);
                 }
             }
-            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+            dir::Expression::As {
+                expression: value,
+                target_type: _,
+            }
+            | dir::Expression::Satisfies {
+                expression: value,
+                target_type: _,
+            }
+            | dir::Expression::OwnershipCast { value, .. } => {
                 // casts do not sanitize by default
                 let value_labels =
                     self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
@@ -360,29 +368,18 @@ impl<'a> TaintAnalysis<'a> {
                     labels.merge(&last_labels);
                 }
             }
-            dir::Expression::ObjectExpression { properties } => {
+            dir::Expression::ObjectExpression { ty: _, properties } => {
                 // object literals taint from field values and spreads
                 for property_id in properties.iter().copied() {
                     let property = self.tree.get(property_id);
                     match property {
-                        dir::Property::Field { value, default, .. } => {
-                            if let Some(value) = value {
-                                let value_labels = self.expression_taint_labels_inner(
-                                    *value,
-                                    expression_stack,
-                                    symbol_stack,
-                                );
-                                labels.merge(&value_labels);
-                            }
-
-                            if let Some(default) = default {
-                                let default_labels = self.expression_taint_labels_inner(
-                                    *default,
-                                    expression_stack,
-                                    symbol_stack,
-                                );
-                                labels.merge(&default_labels);
-                            }
+                        dir::Property::Field { value, .. } => {
+                            let value_labels = self.expression_taint_labels_inner(
+                                *value,
+                                expression_stack,
+                                symbol_stack,
+                            );
+                            labels.merge(&value_labels);
                         }
                         dir::Property::Method { .. } => {}
                         dir::Property::Spread { value, .. } => {
@@ -450,24 +447,13 @@ impl<'a> TaintAnalysis<'a> {
                 for property_id in properties.iter().copied() {
                     let property = self.tree.get(property_id);
                     match property {
-                        dir::Property::Field { value, default, .. } => {
-                            if let Some(value) = value {
-                                let value_labels = self.expression_taint_labels_inner(
-                                    *value,
-                                    expression_stack,
-                                    symbol_stack,
-                                );
-                                labels.merge(&value_labels);
-                            }
-
-                            if let Some(default) = default {
-                                let default_labels = self.expression_taint_labels_inner(
-                                    *default,
-                                    expression_stack,
-                                    symbol_stack,
-                                );
-                                labels.merge(&default_labels);
-                            }
+                        dir::Property::Field { value, .. } => {
+                            let value_labels = self.expression_taint_labels_inner(
+                                *value,
+                                expression_stack,
+                                symbol_stack,
+                            );
+                            labels.merge(&value_labels);
                         }
                         dir::Property::Method { .. } => {}
                         dir::Property::Spread { value, .. } => {

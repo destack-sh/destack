@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
@@ -5,7 +6,7 @@ use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
-    /// Prefer tuple swap syntax over temporary variable.
+    /// Prefer tuple swap form over a temporary variable.
     ///
     /// Swapping two variables using a temporary variable can be more clearly
     /// expressed using tuple destructuring assignment.
@@ -31,11 +32,11 @@ declare_lint! {
         stability = Stable
     )]
     pub PreferTupleSwap,
-    "Prefer tuple swap syntax"
+    "Prefer tuple swap form"
 }
 
 impl LintRule for PreferTupleSwap {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferTupleSwap::meta()
     }
 

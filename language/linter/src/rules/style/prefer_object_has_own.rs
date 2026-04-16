@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized, positional_argument_value,
+    expression_is_symbol_or_global_qualified_member, expression_unwrap_parenthesized,
+    positional_argument_value,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -113,15 +113,10 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
 
     /// Return true when the expression resolves to the built in Object symbol.
     fn is_object_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id)
-            && symbol == self.object_symbol
-        {
-            return true;
-        }
-
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.object_symbol,
             &self.global_qualifiers,
             self.object_name,
         )

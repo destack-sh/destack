@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Argument, Expression, ScalarLiteral};
 use destack_source::LanguageType;
 use destack_workspace::LintSeverity;
@@ -10,7 +11,7 @@ declare_lint! {
     /// In Destack, tuples are the preferred way to represent fixed-length
     /// collections with different element types. This lint detects array
     /// literals with clearly heterogeneous elements and suggests using
-    /// tuple syntax instead.
+    /// tuple form instead.
     ///
     /// ## Bad
     /// ```
@@ -39,7 +40,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferTuple {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferTuple::meta()
     }
 
@@ -120,7 +121,7 @@ impl LintRule for PreferTuple {
                     ctx.module.file_id,
                     span,
                 )
-                .with_label("use tuple syntax instead")
+                .with_label("use tuple form instead")
                 .with_fix(fix),
             );
         }
@@ -146,6 +147,7 @@ fn get_argument_literal_type(ctx: &LintAstContext<'_>, arg: &Argument) -> Option
     let value = ctx.tree.get(value_id);
     match value {
         Expression::ScalarLiteral(literal) => match literal {
+            ScalarLiteral::Null => None,
             ScalarLiteral::String(_) => Some(LiteralType::String),
             ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_) => {
                 Some(LiteralType::Number)

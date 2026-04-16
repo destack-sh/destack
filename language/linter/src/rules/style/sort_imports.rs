@@ -99,7 +99,7 @@ fn top_level_import_expression_id(
     }
 }
 
-/// Check declaration ordering against the configured syntax ordering.
+/// Check declaration ordering against the configured declaration-form order.
 fn check_declaration_sorting(
     ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
@@ -120,10 +120,10 @@ fn check_declaration_sorting(
             continue;
         };
 
-        let current_group = member_syntax_group(ctx, import);
-        let previous_group = member_syntax_group(ctx, previous);
-        let current_group_index = member_syntax_group_index(ctx, current_group);
-        let previous_group_index = member_syntax_group_index(ctx, previous_group);
+        let current_group = member_form_group(ctx, import);
+        let previous_group = member_form_group(ctx, previous);
+        let current_group_index = member_form_order_index(ctx, current_group);
+        let previous_group_index = member_form_order_index(ctx, previous_group);
 
         if current_group_index < previous_group_index {
             let severity = ctx.get_effective_severity(meta, import.root_expression_id);
@@ -135,14 +135,14 @@ fn check_declaration_sorting(
                         SORT_IMPORTS.category,
                         severity,
                         format!(
-                            "expected `{}` syntax before `{}` syntax",
-                            sort_member_syntax_label(current_group),
-                            sort_member_syntax_label(previous_group),
+                            "expected `{}` form before `{}` form",
+                            member_form_label(current_group),
+                            member_form_label(previous_group),
                         ),
                         ctx.module.file_id,
                         import.span,
                     )
-                    .with_label("import declarations are out of syntax order"),
+                    .with_label("import declarations are out of form order"),
                 );
             }
         } else if current_group_index == previous_group_index {
@@ -301,8 +301,8 @@ fn named_import_items(
         .collect()
 }
 
-/// Return the member syntax group for one import declaration.
-fn member_syntax_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImportsMemberSyntax {
+/// Return the member form group for one import declaration.
+fn member_form_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImportsMemberSyntax {
     if import.items.is_empty() {
         return SortImportsMemberSyntax::None;
     }
@@ -331,8 +331,8 @@ fn item_mode(
     }
 }
 
-/// Return the configured syntax-group index for one import declaration.
-fn member_syntax_group_index(ctx: &LintAstContext<'_>, group: SortImportsMemberSyntax) -> usize {
+/// Return the configured form-group index for one import declaration.
+fn member_form_order_index(ctx: &LintAstContext<'_>, group: SortImportsMemberSyntax) -> usize {
     ctx.options
         .style
         .sort_imports_member_syntax_sort_order
@@ -341,8 +341,8 @@ fn member_syntax_group_index(ctx: &LintAstContext<'_>, group: SortImportsMemberS
         .unwrap_or(usize::MAX)
 }
 
-/// Return the display label for one member syntax group.
-fn sort_member_syntax_label(group: SortImportsMemberSyntax) -> &'static str {
+/// Return the display label for one member form group.
+fn member_form_label(group: SortImportsMemberSyntax) -> &'static str {
     match group {
         SortImportsMemberSyntax::None => "none",
         SortImportsMemberSyntax::All => "all",
@@ -455,12 +455,12 @@ import { a, z } from "foo";
             );
     }
 
-    /// Flag declaration ordering by default syntax order.
+    /// Flag declaration ordering by default declaration-form order.
     #[test]
-    fn test_flags_declaration_syntax_order() {
+    fn test_flags_declaration_form_order() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "sort_imports/test_flags_declaration_syntax_order.ds",
+            "sort_imports/test_flags_declaration_form_order.ds",
             r#"
 import item from "foo"
 import "bar"
@@ -520,9 +520,9 @@ import "bar"
         test.result(result).assert_no_lint("sort-imports");
     }
 
-    /// Allow reversed syntax ordering when configured.
+    /// Allow reversed declaration-form ordering when configured.
     #[test]
-    fn test_allows_custom_member_syntax_order() {
+    fn test_allows_custom_member_form_order() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_member_syntax_sort_order = vec![
                 SortImportsMemberSyntax::Single,
@@ -532,7 +532,7 @@ import "bar"
             ];
         });
         let result = test.lint_ast(
-            "sort_imports/test_allows_custom_member_syntax_order.ds",
+            "sort_imports/test_allows_custom_member_form_order.ds",
             r#"
 import item from "foo"
 import "bar"

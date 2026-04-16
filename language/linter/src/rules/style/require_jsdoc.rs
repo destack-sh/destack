@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for RequireJsdoc {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         RequireJsdoc::meta()
     }
 
@@ -43,16 +44,12 @@ impl LintRule for RequireJsdoc {
             let declaration_id = *decl_id;
             let declaration = ctx.tree.get(declaration_id);
             let (is_exported, decl_type) = match declaration {
-                Declaration::Function { descriptor, .. } => {
-                    (descriptor.export.is_some(), "function")
-                }
-                Declaration::Struct { descriptor, .. } => (descriptor.export.is_some(), "struct"),
-                Declaration::Class { descriptor, .. } => (descriptor.export.is_some(), "class"),
-                Declaration::Enum { descriptor, .. } => (descriptor.export.is_some(), "enum"),
-                Declaration::Interface { descriptor, .. } => {
-                    (descriptor.export.is_some(), "interface")
-                }
-                Declaration::Type { descriptor, .. } => (descriptor.export.is_some(), "type"),
+                Declaration::Function(declaration) => (declaration.export.is_some(), "function"),
+                Declaration::Struct(declaration) => (declaration.export.is_some(), "struct"),
+                Declaration::Class(declaration) => (declaration.export.is_some(), "class"),
+                Declaration::Enum(declaration) => (declaration.export.is_some(), "enum"),
+                Declaration::Interface(declaration) => (declaration.export.is_some(), "interface"),
+                Declaration::Type(declaration) => (declaration.export.is_some(), "type"),
                 _ => continue,
             };
             if !is_exported {

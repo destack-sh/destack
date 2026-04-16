@@ -244,16 +244,13 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         // match call expression
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         else {
             return;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
         if dynamic_arguments.len() != 1 {
@@ -265,7 +262,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
-            static_arguments,
+            generic_arguments,
         } = member_expression
         else {
             return;
@@ -273,10 +270,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         if *name != Some(self.test_name) {
             return;
         }
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -336,16 +330,13 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         else {
             return None;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
         if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
@@ -358,15 +349,12 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_id,
             name,
-            static_arguments,
+            generic_arguments,
         } = member_expression
         else {
             return None;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
         let method = if *name == Some(self.index_of_name) {

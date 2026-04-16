@@ -265,7 +265,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             let mut has_synchronous_callback_expectation = false;
             let mut allows_async_callback = false;
 
-            // inspect candidate syntax nodes
+            // inspect candidate nodes
             for parameter_type_id in parameter_type_ids {
                 if !is_function_type(self.ctx.types, parameter_type_id)
                     || is_any_type(self.ctx.types, parameter_type_id)

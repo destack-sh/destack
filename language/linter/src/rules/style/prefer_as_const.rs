@@ -1,4 +1,5 @@
-use destack_ast::{self as ast, Declarator, Expression, Member, ScalarLiteral, TypeBinaryOperator};
+use crate::LintMeta;
+use destack_ast::{self as ast, Declarator, Expression, Member, ScalarLiteral, TypeExpression};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferAsConst {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferAsConst::meta()
     }
 
@@ -37,16 +38,15 @@ impl LintRule for PreferAsConst {
             let expr = ctx.tree.get(node_id);
 
             // look for type cast expressions
-            let Expression::TypeBinary {
-                left,
-                operator: TypeBinaryOperator::Cast,
-                right,
+            let Expression::As {
+                expression: left,
+                target_type: right,
             } = expr
             else {
                 continue;
             };
 
-            // only report exact literal self assertions, matching source behavior
+            // only report exact literal self assertions
             if !is_exact_literal_self_cast(ctx.tree, *left, *right) {
                 continue;
             }
@@ -116,7 +116,7 @@ impl LintRule for PreferAsConst {
         for member_id in ctx.tree.iter_nodes::<Member>() {
             let member = ctx.tree.get(member_id);
             let Member::Field {
-                value: Some(type_expression_id),
+                declared_type: Some(type_expression_id),
                 default: Some(default_expression_id),
                 ..
             } = member
@@ -198,7 +198,7 @@ fn member_field_literal_annotation_fix(
 ) -> Option<LintFix> {
     let member = ctx.tree.get(member_id);
     let Member::Field {
-        value: Some(type_expression_id),
+        declared_type: Some(type_expression_id),
         default: Some(default_expression_id),
         ..
     } = member
@@ -240,30 +240,40 @@ fn member_field_literal_annotation_fix(
 fn is_exact_literal_self_cast(
     tree: &ast::NodeTree,
     left_id: ast::LocalNodeId<Expression>,
-    right_id: ast::LocalNodeId<Expression>,
+    right_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
     let left = tree.get(left_id);
     let right = tree.get(right_id);
     match (left, right) {
         (
             Expression::ScalarLiteral(ScalarLiteral::String(left)),
-            Expression::ScalarLiteral(ScalarLiteral::String(right)),
+            TypeExpression::ScalarLiteral {
+                value: ScalarLiteral::String(right),
+            },
         ) => left == right,
         (
             Expression::ScalarLiteral(ScalarLiteral::Integer(left)),
-            Expression::ScalarLiteral(ScalarLiteral::Integer(right)),
+            TypeExpression::ScalarLiteral {
+                value: ScalarLiteral::Integer(right),
+            },
         ) => left == right,
         (
             Expression::ScalarLiteral(ScalarLiteral::Boolean(left)),
-            Expression::ScalarLiteral(ScalarLiteral::Boolean(right)),
+            TypeExpression::ScalarLiteral {
+                value: ScalarLiteral::Boolean(right),
+            },
         ) => left == right,
         (
             Expression::ScalarLiteral(ScalarLiteral::Bigint(left)),
-            Expression::ScalarLiteral(ScalarLiteral::Bigint(right)),
+            TypeExpression::ScalarLiteral {
+                value: ScalarLiteral::Bigint(right),
+            },
         ) => left == right,
         (
             Expression::ScalarLiteral(ScalarLiteral::Float(left)),
-            Expression::ScalarLiteral(ScalarLiteral::Float(right)),
+            TypeExpression::ScalarLiteral {
+                value: ScalarLiteral::Float(right),
+            },
         ) => left == right,
         _ => false,
     }

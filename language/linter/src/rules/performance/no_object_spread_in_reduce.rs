@@ -143,14 +143,14 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
 
         // extract the accumulator parameter from function declaration
         let local_symbol = match callback {
-            dir::Expression::Declaration { declaration } => {
+            dir::Expression::Declaration(declaration) => {
                 let decl = tree.get(*declaration);
                 match decl {
-                    Declaration::Function { signature, .. } => {
-                        if signature.dynamic_parameters.is_empty() {
+                    Declaration::Function(declaration) => {
+                        if declaration.signature.parameters.is_empty() {
                             return;
                         }
-                        let param = tree.get(signature.dynamic_parameters[0]);
+                        let param = tree.get(declaration.signature.parameters[0]);
                         param.symbol()
                     }
                     _ => return,
@@ -180,7 +180,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
 
         // match object expression with spread
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::ObjectExpression { properties } = expression else {
+        let dir::Expression::ObjectExpression { ty: _, properties } = expression else {
             return;
         };
 
@@ -269,7 +269,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             return;
         };
         let first_value_expression = self.ctx.tree.get(*first_value);
-        let dir::Expression::ObjectExpression { properties } = first_value_expression else {
+        let dir::Expression::ObjectExpression { ty: _, properties } = first_value_expression else {
             return;
         };
         if !properties.is_empty() {

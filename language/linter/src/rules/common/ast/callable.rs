@@ -35,17 +35,14 @@ pub fn for_each_callable_signature(
     // visit declaration functions
     for declaration_id in tree.iter_nodes::<ast::Declaration>() {
         let declaration = tree.get(declaration_id);
-        let ast::Declaration::Function {
-            signature, body, ..
-        } = declaration
-        else {
+        let ast::Declaration::Function(declaration) = declaration else {
             continue;
         };
 
         callback(
             CallableOwnerId::Declaration(declaration_id),
-            signature,
-            *body,
+            &declaration.signature,
+            declaration.body,
         );
     }
 
@@ -88,12 +85,12 @@ pub fn callable_owner_span(tree: &ast::NodeTree, owner_id: CallableOwnerId) -> S
 /// Return the type expression id of one parameter when it exists.
 pub fn parameter_type_expression_id(
     parameter: &ast::Parameter,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
     match parameter {
-        ast::Parameter::Named { ty, .. }
-        | ast::Parameter::Pattern { ty, .. }
-        | ast::Parameter::VariadicNamed { ty, .. }
-        | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+        ast::Parameter::Named { declared_type, .. }
+        | ast::Parameter::Pattern { declared_type, .. }
+        | ast::Parameter::VariadicNamed { declared_type, .. }
+        | ast::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
         ast::Parameter::Error => None,
     }
 }
@@ -109,7 +106,9 @@ pub fn parameter_is_void_type(tree: &ast::NodeTree, parameter: &ast::Parameter) 
     let type_expression = tree.get(type_expression_id);
     matches!(
         type_expression,
-        ast::Expression::TypeLiteral(ast::TypeLiteral::Void)
+        ast::TypeExpression::Literal {
+            value: ast::TypeLiteral::Void,
+        }
     )
 }
 
@@ -120,7 +119,7 @@ pub fn function_signature_parameter_count(
     this_parameter_count: ThisParameterCount,
 ) -> usize {
     // start from dynamic parameters
-    let dynamic_parameter_count = signature.dynamic_parameters.len();
+    let dynamic_parameter_count = signature.parameters.len();
 
     // resolve optional this-parameter contribution
     let this_parameter_count = signature
@@ -146,10 +145,5 @@ pub fn function_signature_parameter_count(
 
 /// Return static parameter count for one function signature.
 pub fn function_signature_static_parameter_count(signature: &ast::FunctionSignature) -> usize {
-    signature
-        .generics
-        .as_ref()
-        .and_then(|generics| generics.static_parameters.as_ref())
-        .map(|static_parameters| static_parameters.len())
-        .unwrap_or(0)
+    signature.generic_parameters.len()
 }

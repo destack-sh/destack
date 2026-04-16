@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for NoEmptyPattern {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoEmptyPattern::meta()
     }
 
@@ -44,7 +45,7 @@ impl LintRule for NoEmptyPattern {
                 continue;
             }
 
-            // allow parameter object patterns when configured, matching ESLint
+            // allow parameter object patterns when configured
             if matches!(pattern, ast::Pattern::Object { .. })
                 && ctx
                     .options

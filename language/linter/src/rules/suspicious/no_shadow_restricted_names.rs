@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::sync::LazyLock;
 
 use destack_ast as ast;
@@ -73,7 +74,7 @@ fn name_is_undefined(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
 }
 
 impl LintRule for NoShadowRestrictedNames {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoShadowRestrictedNames::meta()
     }
 
@@ -94,7 +95,7 @@ impl LintRule for NoShadowRestrictedNames {
                 continue;
             }
 
-            // keep source parity: allow safe shadowing of `undefined`
+            // allow safe shadowing of `undefined`
             if name_is_undefined(ctx, name) && binding_safely_shadows_undefined(ctx, node_id, name)
             {
                 continue;
@@ -127,7 +128,7 @@ impl LintRule for NoShadowRestrictedNames {
         // check function/class/struct declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            let name = declaration.descriptor().name;
+            let name = declaration.name();
             let Some(name) = name else {
                 continue;
             };
@@ -302,7 +303,7 @@ fn identifier_scope_root(ctx: &LintAstContext<'_>, node_id: u32) -> IdentifierSc
             let declaration = ctx
                 .tree
                 .get(ast::LocalNodeId::<ast::Declaration>::new(parent_id));
-            if matches!(declaration, ast::Declaration::Function { .. }) {
+            if matches!(declaration, ast::Declaration::Function(_)) {
                 return IdentifierScopeRoot::Node(parent_type, parent_id);
             }
         }
@@ -414,7 +415,7 @@ impl ast::NodeVisitor for ScopeReferenceSearchVisitor {
     }
 }
 
-/// Return true when one `undefined` binding follows ESLint safe-shadow semantics.
+/// Return true when one `undefined` binding is safe to shadow.
 fn binding_safely_shadows_undefined(
     ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,

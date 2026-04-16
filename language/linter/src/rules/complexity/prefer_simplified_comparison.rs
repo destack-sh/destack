@@ -1,7 +1,8 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, BinaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_syntax};
+use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_source_form};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferSimplifiedComparison {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferSimplifiedComparison::meta()
     }
 
@@ -143,7 +144,7 @@ fn right_add_or_sub_one(
     expression_id: ast::LocalNodeId<ast::Expression>,
     operator: BinaryOperator,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expression = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let ast::Expression::Binary {
         left,
         operator: inner_operator,
@@ -156,7 +157,7 @@ fn right_add_or_sub_one(
         return None;
     }
 
-    let right_expression = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+    let right_expression = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
     if expression_numeric_value(ctx, right_expression)? != 1.0 {
         return None;
     }

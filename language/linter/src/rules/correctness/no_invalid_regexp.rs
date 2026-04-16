@@ -166,14 +166,14 @@ fn unknown_flags_pattern_error_message(
     ctx: &mut LintAstContext<'_>,
     pattern_id: ast::StringId,
 ) -> Option<String> {
-    let pattern_has_set_notation_syntax = {
+    let pattern_has_set_notation = {
         let pattern_text = ctx.strings.get(pattern_id);
         pattern_text.contains('{') || pattern_text.contains('}')
     };
 
     // keep unknown flags conservative for `{` and `}` because JS `/v` set notation
     // changes parse semantics and `regex_syntax` does not fully model those forms
-    if pattern_has_set_notation_syntax {
+    if pattern_has_set_notation {
         return None;
     }
 

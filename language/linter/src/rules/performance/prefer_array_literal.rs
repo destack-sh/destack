@@ -289,18 +289,14 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
 
             let push_call = self.ctx.tree.get(*push_call_id);
             let dir::Expression::Call {
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
                 ..
             } = push_call
             else {
                 return None;
             };
-            if static_arguments
-                .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty())
-                || dynamic_arguments.len() != 1
-            {
+            if !generic_arguments.is_empty() || dynamic_arguments.len() != 1 {
                 return None;
             }
             let argument = self.ctx.tree.get(dynamic_arguments[0]);

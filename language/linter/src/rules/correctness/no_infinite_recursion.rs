@@ -86,7 +86,7 @@ impl LintRule for NoInfiniteRecursion {
             let cycle_label = format_cycle_path(&cycle_path, &function_by_symbol);
             let is_self_cycle = component.len() == 1;
 
-            // inspect candidate syntax nodes
+            // inspect candidate nodes
             for symbol in component {
                 let Some(function) = function_by_symbol.get(&symbol).copied() else {
                     continue;
@@ -213,19 +213,17 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
     let module_id = ctx.module.id;
     let mut functions = Vec::new();
 
-    // inspect candidate syntax nodes
+    // inspect candidate nodes
     for (decl_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
-        let dir::Declaration::Function {
-            descriptor,
-            body: Some(body_id),
-            ..
-        } = declaration
-        else {
+        let dir::Declaration::Function(declaration) = declaration else {
+            continue;
+        };
+        let Some(body_id) = declaration.body else {
             continue;
         };
 
         // build a readable function name for diagnostics
-        let display_name = descriptor
+        let display_name = declaration
             .name
             .map(|name| {
                 ctx.repository
@@ -235,11 +233,11 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
                     .to_string()
             })
             .unwrap_or_else(|| "<anonymous>".to_string());
-        let symbol = dir::GlobalSymbolId::new(module_id, descriptor.symbol);
+        let symbol = dir::GlobalSymbolId::new(module_id, declaration.symbol);
         functions.push(FunctionInfo {
             decl_id,
             symbol,
-            body_id: *body_id,
+            body_id,
             display_name,
         });
     }

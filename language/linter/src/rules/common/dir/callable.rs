@@ -20,18 +20,6 @@ impl CallableReturnUsage {
     }
 }
 
-/// Return one static string key name when available.
-pub fn dynamic_key_name(key: Option<&dir::DynamicKey>) -> Option<dir::StringId> {
-    let key = key?;
-
-    match key {
-        dir::DynamicKey::Name(name)
-        | dir::DynamicKey::Private(name)
-        | dir::DynamicKey::Number(name) => Some(*name),
-        dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => None,
-    }
-}
-
 /// Analyze return value usage for one callable body.
 pub fn callable_return_usage(
     tree: &dir::NodeTree,
@@ -45,7 +33,7 @@ pub fn callable_return_usage(
     // treat concise lambda bodies as implicit value returns
     let body_expression = tree.get(body_expression_id);
     if signature.kind == dir::FunctionKind::Lambda
-        && !matches!(body_expression, dir::Expression::Block { .. })
+        && !matches!(body_expression, dir::Expression::Block(..))
     {
         return CallableReturnUsage {
             has_return_value: false,

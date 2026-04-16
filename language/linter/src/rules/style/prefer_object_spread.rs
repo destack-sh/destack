@@ -98,7 +98,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non object assign calls
@@ -119,7 +119,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
             return;
         }
 
-        // ignore calls with spread arguments, match ESLint behavior
+        // ignore calls with spread arguments
         if self.has_spread_argument(dynamic_arguments) {
             return;
         }
@@ -148,7 +148,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         )
         .with_label("use { ...value } instead of Object.assign");
         if let Some(fix) =
-            self.object_spread_fix(expression_id, left, static_arguments, dynamic_arguments)
+            self.object_spread_fix(expression_id, left, generic_arguments, dynamic_arguments)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -161,21 +161,19 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         member_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
         // skip static call arguments until static argument rendering is supported
-        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+        if !generic_arguments.is_empty() {
             return None;
         }
 
         // skip static member arguments for Object.assign<T>(...)
         if let dir::Expression::Member {
-            static_arguments, ..
+            generic_arguments, ..
         } = self.ctx.tree.get(member_id)
-            && static_arguments
-                .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty())
+            && !generic_arguments.is_empty()
         {
             return None;
         }
@@ -304,7 +302,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
     ) -> bool {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::ObjectExpression { properties } = expression else {
+        let dir::Expression::ObjectExpression { ty: _, properties } = expression else {
             return false;
         };
 
@@ -328,7 +326,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
     ) -> Option<Vec<String>> {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::ObjectExpression { properties } = expression else {
+        let dir::Expression::ObjectExpression { ty: _, properties } = expression else {
             return None;
         };
 
@@ -342,7 +340,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         Some(entries)
     }
 
-    /// Return true when one spread argument expression needs parentheses for valid syntax.
+    /// Return true when one spread argument expression needs parentheses to stay valid.
     fn spread_argument_needs_parentheses(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -375,12 +373,12 @@ impl NodeVisitor for PreferObjectSpreadVisitor<'_, '_> {
         // check Object.assign calls
         if let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } = expression
         {
-            self.check_assign_call(id, *left, static_arguments.as_deref(), dynamic_arguments);
+            self.check_assign_call(id, *left, generic_arguments.as_slice(), dynamic_arguments);
         }
 
         // walk expression children

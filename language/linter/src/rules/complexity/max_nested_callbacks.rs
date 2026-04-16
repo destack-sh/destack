@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, Argument, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_argument,
@@ -5,7 +6,7 @@ use destack_ast::{
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_unwrap_parenthesized_syntax;
+use crate::rules::common::expression_unwrap_parenthesized_source_form;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxNestedCallbacks {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxNestedCallbacks::meta()
     }
 
@@ -110,7 +111,7 @@ impl CallbackVisitor<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         // normalize parenthesized wrappers before shape checks
-        let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
         let expression = tree.get(expression_id);
 
         // require callable function expressions with a body
@@ -121,7 +122,7 @@ impl CallbackVisitor<'_> {
         let declaration = tree.get(*declaration_id);
         matches!(
             declaration,
-            ast::Declaration::Function { body: Some(_), .. }
+            ast::Declaration::Function(ast::FunctionDeclaration { body: Some(_), .. })
         )
     }
 }
@@ -137,7 +138,7 @@ impl NodeVisitor for CallbackVisitor<'_> {
         argument_id: LocalNodeId<Argument>,
         argument: &Argument,
     ) {
-        // keep eslint parity: only count callback arguments for call expressions
+        // only count callback arguments for call expressions
         if !argument_is_call_dynamic_argument(tree, self.parents, argument_id) {
             walk_argument(self, tree, argument_id, argument);
             return;

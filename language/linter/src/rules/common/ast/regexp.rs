@@ -32,7 +32,7 @@ pub fn regex_pattern_info(
     global_qualifier_names: &[ast::StringId],
 ) -> Option<AstRegexPatternInfo> {
     // normalize expression shape
-    let expression_id = super::expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let expression_id = super::expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // support direct regex literals

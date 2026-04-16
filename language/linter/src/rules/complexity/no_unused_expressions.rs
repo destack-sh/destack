@@ -1,7 +1,10 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_has_side_effects, expression_unwrap_parenthesized_syntax};
+use crate::rules::common::{
+    expression_has_side_effects, expression_unwrap_parenthesized_source_form,
+};
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -24,7 +27,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUnusedExpressions {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUnusedExpressions::meta()
     }
 
@@ -72,14 +75,18 @@ fn collect_statement_expression_ids(
     // namespace and global statement lists
     for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
         let declaration = ctx.tree.get(declaration_id);
-        let (ast::Declaration::Global { expressions, .. }
-        | ast::Declaration::Namespace { expressions, .. }) = declaration
-        else {
-            continue;
-        };
-
-        for statement_expression_id in expressions {
-            statement_expression_ids.push(*statement_expression_id);
+        match declaration {
+            ast::Declaration::Global(declaration) => {
+                for statement_expression_id in &declaration.expressions {
+                    statement_expression_ids.push(*statement_expression_id);
+                }
+            }
+            ast::Declaration::Namespace(declaration) => {
+                for statement_expression_id in &declaration.expressions {
+                    statement_expression_ids.push(*statement_expression_id);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -89,7 +96,7 @@ fn collect_statement_expression_ids(
 /// Check one root or block expression as a statement candidate.
 fn check_statement_candidate(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
     // resolve statement wrapper semantics
@@ -148,7 +155,7 @@ fn expression_statement_is_directive(
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
     inner_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    // allow strict parity callers to disable directive handling
+    // allow callers to disable directive handling
     if !ctx
         .options
         .complexity
@@ -196,7 +203,7 @@ fn expression_is_string_literal_statement(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     matches!(
         ctx.tree.get(expression_id),
         ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
@@ -248,8 +255,8 @@ fn statement_list_owner_expressions(
         StatementListOwner::Declaration(declaration_id) => {
             let declaration = ctx.tree.get(declaration_id);
             match declaration {
-                ast::Declaration::Global { expressions, .. }
-                | ast::Declaration::Namespace { expressions, .. } => expressions.clone(),
+                ast::Declaration::Global(declaration) => declaration.expressions.clone(),
+                ast::Declaration::Namespace(declaration) => declaration.expressions.clone(),
                 _ => Vec::new(),
             }
         }
@@ -302,8 +309,8 @@ fn declaration_statement_list_index(
     let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(declaration_id);
     let declaration = ctx.tree.get(declaration_id);
     let expressions = match declaration {
-        ast::Declaration::Global { expressions, .. }
-        | ast::Declaration::Namespace { expressions, .. } => expressions.as_slice(),
+        ast::Declaration::Global(declaration) => declaration.expressions.as_slice(),
+        ast::Declaration::Namespace(declaration) => declaration.expressions.as_slice(),
         _ => return None,
     };
     let statement_index = expression_index_in_slice(expressions, statement_expression_id)?;
@@ -341,10 +348,10 @@ fn block_statement_list_is_directive_capable(
         let owner = ctx.tree.get(owner_id);
         return matches!(
             owner,
-            ast::Declaration::Function {
+            ast::Declaration::Function(ast::FunctionDeclaration {
                 body: Some(body_expression_id),
                 ..
-            } if *body_expression_id == block_expression_id
+            }) if *body_expression_id == block_expression_id
         );
     }
 
@@ -410,22 +417,25 @@ fn statement_expression_subject_id(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
-    let mut current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let mut current_expression_id =
+        expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
 
     loop {
         let current_expression = ctx.tree.get(current_expression_id);
         match current_expression {
             ast::Expression::Must { left, .. } | ast::Expression::Maybe { left, .. } => {
-                current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+                current_expression_id =
+                    expression_unwrap_parenthesized_source_form(ctx.tree, *left);
             }
             ast::Expression::Instantiation { left, .. } => {
-                current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+                current_expression_id =
+                    expression_unwrap_parenthesized_source_form(ctx.tree, *left);
             }
-            ast::Expression::TypeUnary { right, .. }
-            | ast::Expression::ReferenceOf { right, .. }
+            ast::Expression::ReferenceOf { right, .. }
             | ast::Expression::ValueOf { right, .. }
             | ast::Expression::PointerOf { right, .. } => {
-                current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+                current_expression_id =
+                    expression_unwrap_parenthesized_source_form(ctx.tree, *right);
             }
             _ => return current_expression_id,
         }
@@ -523,16 +533,8 @@ fn expression_is_known_pure_statement(expression: &ast::Expression) -> bool {
             | ast::Expression::PrivateMember { .. }
             | ast::Expression::Index { .. }
             | ast::Expression::Binary { .. }
-            | ast::Expression::TypeBinary { .. }
-            | ast::Expression::TypeConditional { .. }
-            | ast::Expression::TypeMapped { .. }
-            | ast::Expression::TypeIndex { .. }
-            | ast::Expression::TypeTemplateLiteral { .. }
-            | ast::Expression::TypeImport { .. }
-            | ast::Expression::TypeInfer { .. }
-            | ast::Expression::TypePredicate { .. }
+            | ast::Expression::Type { .. }
             | ast::Expression::ScalarLiteral(_)
-            | ast::Expression::TypeLiteral(_)
             | ast::Expression::ArrayExpression { .. }
             | ast::Expression::TupleExpression { .. }
             | ast::Expression::ObjectExpression { .. }

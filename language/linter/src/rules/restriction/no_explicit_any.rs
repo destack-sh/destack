@@ -31,10 +31,15 @@ impl LintRule for NoExplicitAny {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        // inspect candidate type expressions
+        for node_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
             let expression = ctx.tree.get(node_id);
-            if !matches!(expression, ast::Expression::TypeLiteral(TypeLiteral::Any)) {
+            if !matches!(
+                expression,
+                ast::TypeExpression::Literal {
+                    value: TypeLiteral::Any,
+                }
+            ) {
                 continue;
             }
             if ctx.options.restriction.ignore_explicit_any_in_rest_args
@@ -75,9 +80,9 @@ impl LintRule for NoExplicitAny {
 /// Return true when one `any` node belongs to a variadic parameter type annotation.
 fn any_is_in_rest_parameter_type(
     ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
-    let mut current_id = expression_id.id;
+    let mut current_id = type_expression_id.id;
 
     while let Some(parent_id) = ctx.parents.get_by_id(current_id) {
         if ctx.tree.get_node_type(parent_id) != ast::NodeType::Parameter {
@@ -89,9 +94,9 @@ fn any_is_in_rest_parameter_type(
         let parameter = ctx.tree.get(parameter_id);
         return matches!(
             parameter,
-            ast::Parameter::VariadicNamed { ty, .. }
-                | ast::Parameter::VariadicPattern { ty, .. }
-                if ty.is_some()
+            ast::Parameter::VariadicNamed { declared_type, .. }
+                | ast::Parameter::VariadicPattern { declared_type, .. }
+                if declared_type.is_some()
         );
     }
 

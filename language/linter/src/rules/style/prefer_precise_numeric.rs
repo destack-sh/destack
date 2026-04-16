@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, TypeLiteral};
 use destack_workspace::LintSeverity;
 
@@ -24,18 +25,21 @@ declare_lint! {
 }
 
 impl LintRule for PreferPreciseNumeric {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferPreciseNumeric::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
             let expression = ctx.tree.get(node_id);
 
             // look for TypeLiteral::Number expressions
-            let ast::Expression::TypeLiteral(TypeLiteral::Number) = expression else {
+            let ast::TypeExpression::Literal {
+                value: TypeLiteral::Number,
+            } = expression
+            else {
                 continue;
             };
 

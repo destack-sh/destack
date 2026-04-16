@@ -3,9 +3,7 @@ use std::sync::Arc;
 use regex::Regex;
 
 use destack_core::StringId;
-use destack_dir::{
-    self as dir, DependencySource, NodeVisitor, NodeVisitorOptions, walk_expression,
-};
+use destack_dir::{self as dir, ImportSource, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
@@ -18,7 +16,7 @@ use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, d
 declare_lint! {
     /// Disallow CommonJS style `require()` imports.
     ///
-    /// Use ESM import syntax for static analysis, tree shaking, and consistency.
+    /// Use ESM imports for static analysis, tree shaking, and consistency.
     #[lint(
         id = "no-require-imports",
         code = "LR033",
@@ -149,7 +147,7 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
             self.ctx.module.file_id,
             span,
         )
-        .with_label("use ESM import syntax instead of require()");
+        .with_label("use an ESM import instead of require()");
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
@@ -186,17 +184,17 @@ impl NodeVisitor for NoRequireImportsVisitor<'_, '_> {
 
 /// Return true when an expression is `import foo = require("foo")`.
 fn expression_is_require_import_alias(tree: &dir::NodeTree, expression: &dir::Expression) -> bool {
-    let dir::Expression::Declaration { declaration } = expression else {
+    let dir::Expression::Declaration(declaration) = expression else {
         return false;
     };
 
     let declaration = tree.get(*declaration);
     matches!(
         declaration,
-        dir::Declaration::ImportAlias {
+        dir::Declaration::ImportAlias(dir::ImportAliasDeclaration {
             target: dir::ImportAliasTarget::Require { .. },
             ..
-        }
+        })
     )
 }
 
@@ -209,20 +207,19 @@ fn expression_uses_require_import(
 ) -> bool {
     // check require based dependency expressions first
     match expression {
-        dir::Expression::Declaration { declaration } => {
+        dir::Expression::Declaration(declaration) => {
             let declaration = tree.get(*declaration);
-            if let dir::Declaration::ImportAlias {
+            if let dir::Declaration::ImportAlias(dir::ImportAliasDeclaration {
                 target: dir::ImportAliasTarget::Require { .. },
                 ..
-            } = declaration
+            }) = declaration
             {
                 return true;
             }
         }
         dir::Expression::Import { source, .. }
         | dir::Expression::UnresolvedImport { source, .. } => {
-            if *source == DependencySource::RequireCall || *source == DependencySource::ImportEquals
-            {
+            if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals {
                 return true;
             }
         }
@@ -263,12 +260,12 @@ fn require_import_target(
     require_name: StringId,
 ) -> Option<StringId> {
     match expression {
-        dir::Expression::Declaration { declaration } => {
+        dir::Expression::Declaration(declaration) => {
             let declaration = tree.get(*declaration);
-            let dir::Declaration::ImportAlias {
+            let dir::Declaration::ImportAlias(dir::ImportAliasDeclaration {
                 target: dir::ImportAliasTarget::Require { target },
                 ..
-            } = declaration
+            }) = declaration
             else {
                 return None;
             };
@@ -276,14 +273,12 @@ fn require_import_target(
             return Some(*target);
         }
         dir::Expression::Import { source, target, .. }
-            if *source == DependencySource::RequireCall
-                || *source == DependencySource::ImportEquals =>
+            if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals =>
         {
             return Some(*target);
         }
         dir::Expression::UnresolvedImport { source, target, .. }
-            if *source == DependencySource::RequireCall
-                || *source == DependencySource::ImportEquals =>
+            if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals =>
         {
             let dir::ImportTarget::String(target) = target else {
                 return None;
@@ -351,36 +346,34 @@ fn require_import_alias_fix(
     ctx: &LintModuleDirContext<'_>,
     expression: &dir::Expression,
 ) -> Option<LintFix> {
-    let dir::Expression::Declaration { declaration } = expression else {
+    let dir::Expression::Declaration(declaration) = expression else {
         return None;
     };
 
     // resolve declaration id
     let declaration_id = *declaration;
     let declaration = ctx.tree.get(declaration_id);
-    let dir::Declaration::ImportAlias {
-        descriptor,
-        kind,
-        target: dir::ImportAliasTarget::Require { target },
-    } = declaration
-    else {
+    let dir::Declaration::ImportAlias(declaration) = declaration else {
         return None;
     };
 
     // keep non exported canonical aliases only
-    if descriptor.export.is_some() {
+    if declaration.export.is_some() {
         return None;
     }
 
     // require optional structure
-    let Some(dir::Name::Identifier(name_id)) = descriptor.name else {
+    let dir::Name::Identifier(name_id) = declaration.name else {
         return None;
     };
 
     // render the esm import replacement for this alias
     let local_name = ctx.repository.strings.get(name_id);
-    let target_text = escape_import_target(ctx.repository.strings.get(*target).as_ref());
-    let prefix = if *kind == dir::DependencyKind::Type {
+    let dir::ImportAliasTarget::Require { target } = declaration.target else {
+        return None;
+    };
+    let target_text = escape_import_target(ctx.repository.strings.get(target).as_ref());
+    let prefix = if declaration.kind == dir::DependencyKind::Type {
         "import type"
     } else {
         "import"
@@ -404,7 +397,7 @@ fn require_side_effect_fix(
     require_name: StringId,
 ) -> Option<LintFix> {
     let dir::Expression::Call {
-        static_arguments,
+        generic_arguments,
         dynamic_arguments,
         ..
     } = expression
@@ -413,10 +406,7 @@ fn require_side_effect_fix(
     };
 
     // keep call forms without static arguments
-    if static_arguments
-        .as_ref()
-        .is_some_and(|args| !args.is_empty())
-    {
+    if !generic_arguments.is_empty() {
         return None;
     }
 
@@ -504,10 +494,10 @@ const fs = globalThis["require"]("fs");
 
     /// Allow ESM imports.
     #[test]
-    fn test_allows_import_syntax() {
+    fn test_allows_import_declaration() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports);
         let result = test.lint_dir(
-            "no_require_imports/test_allows_import_syntax.ds",
+            "no_require_imports/test_allows_import_declaration.ds",
             r#"
 import { readFile } from "fs";
 readFile;

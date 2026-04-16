@@ -4,9 +4,10 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_static_property_access,
+    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
     expression_target_symbol, expression_unwrap_parenthesized, expression_unwrap_statement,
-    expressions_have_equivalent_syntax, pattern_binding_name_and_symbol, positional_argument_value,
+    expressions_have_equivalent_source_form, pattern_binding_name_and_symbol,
+    positional_argument_value,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -252,15 +253,10 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
 
     /// Return true when one expression resolves to the built in Object value.
     fn is_object_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id)
-            && symbol == self.object_symbol
-        {
-            return true;
-        }
-
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.object_symbol,
             &self.global_qualifiers,
             self.object_name,
         )
@@ -374,7 +370,7 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
         candidate_id: dir::LocalNodeId<dir::Expression>,
         iterator_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        expressions_have_equivalent_syntax(self.ctx, candidate_id, iterator_id)
+        expressions_have_equivalent_source_form(self.ctx, candidate_id, iterator_id)
     }
 
     /// Return true when one expression resolves to the loop binding symbol.
@@ -398,7 +394,7 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
             return true;
         }
 
-        let dir::Expression::Block { block } = expression else {
+        let dir::Expression::Block(block) = expression else {
             return false;
         };
         let block = self.ctx.tree.get(*block);
@@ -501,15 +497,15 @@ fn side_effect_free_iterator_text(
     if !matches!(
         expression,
         dir::Expression::LocalReference {
-            static_arguments: None,
+            generic_arguments,
             ..
         } | dir::Expression::ModuleReference {
-            static_arguments: None,
+            generic_arguments,
             ..
         } | dir::Expression::GlobalReference {
-            static_arguments: None,
+            generic_arguments,
             ..
-        }
+        } if generic_arguments.is_empty()
     ) {
         return None;
     }

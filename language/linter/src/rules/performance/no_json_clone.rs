@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized, expression_unwrap_transparent,
+    expression_is_symbol_or_global_qualified_member, expression_unwrap_parenthesized,
+    expression_unwrap_transparent,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -171,15 +171,11 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             return false;
         }
 
-        // match direct JSON references
-        if expression_target_symbol(self.ctx.tree, *left) == Some(self.json_symbol) {
-            return true;
-        }
-
-        // match global qualified JSON references (e.g., globalThis.JSON)
-        expression_is_global_qualified_member(
+        // match direct and global qualified JSON references
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             *left,
+            self.json_symbol,
             &self.global_qualifiers,
             self.json_name,
         )

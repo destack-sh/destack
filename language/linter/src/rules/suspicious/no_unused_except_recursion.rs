@@ -38,22 +38,19 @@ impl LintRule for NoUnusedExceptRecursion {
         // inspect function declarations
         for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let dir::Declaration::Function {
-                descriptor,
-                signature,
-                body: Some(body_expression),
-                ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
+                continue;
+            };
+            let Some(body_expression) = declaration.body else {
                 continue;
             };
 
             report_recursive_only_parameters(
                 ctx,
                 meta,
-                descriptor.symbol,
-                signature,
-                *body_expression,
+                declaration.symbol,
+                &declaration.signature,
+                body_expression,
             );
         }
 
@@ -86,7 +83,7 @@ fn report_recursive_only_parameters(
     let mut parameter_by_symbol = HashMap::new();
 
     // collect dynamic parameters for this callable
-    for parameter_id in &signature.dynamic_parameters {
+    for parameter_id in &signature.parameters {
         let parameter = ctx.tree.get(*parameter_id);
         parameter_by_symbol.insert(parameter.symbol(), *parameter_id);
     }
@@ -336,7 +333,7 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
         // call arguments need recursive-context tracking
         if let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         {
@@ -347,18 +344,20 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
             let is_recursive_call = self.expression_is_recursive_callee(*left);
 
             // visit static arguments in recursive context when needed
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    if is_recursive_call {
-                        self.recursive_argument_depth += 1;
-                    }
-                    let argument_expression_id = argument.value();
-                    let argument_expression = tree.get(argument_expression_id);
-                    self.visit_expression(tree, argument_expression_id, argument_expression);
-                    if is_recursive_call {
-                        self.recursive_argument_depth -= 1;
-                    }
+            for argument_id in generic_arguments {
+                let argument = tree.get(*argument_id);
+                let argument_expression_id = match argument {
+                    dir::GenericArgument::Positional { value }
+                    | dir::GenericArgument::Spread { value } => *value,
+                    dir::GenericArgument::Error => continue,
+                };
+                if is_recursive_call {
+                    self.recursive_argument_depth += 1;
+                }
+                let argument_expression = tree.get(argument_expression_id);
+                self.visit_expression(tree, argument_expression_id, argument_expression);
+                if is_recursive_call {
+                    self.recursive_argument_depth -= 1;
                 }
             }
 

@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -27,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxStaticParams {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxStaticParams::meta()
     }
 
@@ -41,7 +42,7 @@ impl LintRule for MaxStaticParams {
             let declaration = ctx.tree.get(declaration_id);
 
             // count static parameters
-            let Some(static_params) = declaration.static_parameters() else {
+            let Some(static_params) = declaration.generic_parameters() else {
                 continue;
             };
 
@@ -99,7 +100,7 @@ impl LintRule for MaxStaticParams {
 /// Report static-parameter overflow for one callable method owner.
 fn report_method_static_params<T: ast::Node + Clone>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     param_count: usize,
     max_static_params: usize,

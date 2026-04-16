@@ -137,16 +137,13 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(slice_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         else {
             return None;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
         let [argument_id] = dynamic_arguments.as_slice() else {
@@ -235,16 +232,13 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         // match call expression
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         else {
             return;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
         if dynamic_arguments.len() != 1 {
@@ -256,7 +250,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
-            static_arguments,
+            generic_arguments,
         } = member_expression
         else {
             return;
@@ -264,10 +258,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         if *name != Some(self.test_name) {
             return;
         }
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
 

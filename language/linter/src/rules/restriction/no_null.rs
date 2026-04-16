@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_path_segments, expression_static_property_access_syntax};
+use crate::rules::common::{
+    expression_path_segments, expression_static_property_access_source_form,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -37,7 +39,7 @@ impl LintRule for NoNull {
             let expression = ctx.tree.get(node_id);
             if matches!(
                 expression,
-                ast::Expression::TypeLiteral(ast::TypeLiteral::Null)
+                ast::Expression::ScalarLiteral(ast::ScalarLiteral::Null)
             ) {
                 if is_allowed_null_usage(ctx, node_id) {
                     continue;
@@ -71,7 +73,55 @@ impl LintRule for NoNull {
                 ctx.report(diagnostic);
             }
         }
+
+        // inspect candidate type expressions
+        for node_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
+            let expression = ctx.tree.get(node_id);
+            if !matches!(
+                expression,
+                ast::TypeExpression::Literal {
+                    value: ast::TypeLiteral::Null,
+                }
+            ) {
+                continue;
+            }
+            if is_allowed_type_null_usage(ctx, node_id) {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            let span = ctx.tree.get_span(node_id);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_NULL.id,
+                NO_NULL.code,
+                NO_NULL.category,
+                severity,
+                "use of `null`",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("use `undefined` instead");
+
+            if ctx.compute_fixes {
+                let edits = ctx.edit_builder().replace(span, "undefined").into_edits();
+                let fix = LintFix::r#unsafe("Replace `null` with `undefined`").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
+        }
     }
+}
+
+/// Return true when one type-space null usage should be allowed.
+fn is_allowed_type_null_usage(
+    _ctx: &LintAstContext<'_>,
+    _null_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> bool {
+    false
 }
 
 /// Return true when one null usage should be allowed for runtime semantics.
@@ -221,7 +271,7 @@ fn expression_is_object_create(
 
     // match computed member calls like Object["create"](...)
     let Some((receiver_id, property_name)) =
-        expression_static_property_access_syntax(ctx.tree, expression_id)
+        expression_static_property_access_source_form(ctx.tree, expression_id)
     else {
         return false;
     };
@@ -255,7 +305,7 @@ fn expression_is_use_ref(
 
     // match computed member calls like React["useRef"](...)
     let Some((receiver_id, property_name)) =
-        expression_static_property_access_syntax(ctx.tree, expression_id)
+        expression_static_property_access_source_form(ctx.tree, expression_id)
     else {
         return false;
     };
@@ -286,7 +336,7 @@ fn expression_is_insert_before(
 
     // match computed member calls like parent["insertBefore"](...)
     let Some((_, property_name)) =
-        expression_static_property_access_syntax(ctx.tree, expression_id)
+        expression_static_property_access_source_form(ctx.tree, expression_id)
     else {
         return false;
     };

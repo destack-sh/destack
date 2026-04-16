@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression, MatchCase, Pattern, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
@@ -39,7 +40,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferIfElseOverMatchBool {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferIfElseOverMatchBool::meta()
     }
 

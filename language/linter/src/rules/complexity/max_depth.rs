@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression, walk_member,
@@ -29,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxDepth {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxDepth::meta()
     }
 
@@ -140,18 +141,16 @@ impl NodeVisitor for DepthNodeVisitor<'_> {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        // keep callable boundaries isolated like eslint functionStack semantics
+        // keep callable boundaries isolated
         if let Expression::Declaration(declaration_id) = expression {
             let declaration = tree.get(*declaration_id);
-            if let ast::Declaration::Function {
-                body: Some(body_id),
-                ..
-            } = declaration
+            if let ast::Declaration::Function(declaration) = declaration
+                && let Some(body_id) = declaration.body
             {
                 self.push_callable_depth();
 
-                let body_expression = tree.get(*body_id);
-                self.visit_expression(tree, *body_id, body_expression);
+                let body_expression = tree.get(body_id);
+                self.visit_expression(tree, body_id, body_expression);
 
                 self.pop_callable_depth();
                 return;

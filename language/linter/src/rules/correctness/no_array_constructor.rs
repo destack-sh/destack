@@ -29,7 +29,7 @@ declare_lint! {
 
 impl LintRule for NoArrayConstructor {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoArrayConstructor::meta()
     }
 
@@ -136,10 +136,7 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
         call_like: CallLikeExpressionInfo<'_>,
     ) -> Option<LintFix> {
         // skip static arguments until we support rendering them
-        if call_like
-            .static_arguments
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !call_like.generic_arguments.is_empty() {
             return None;
         }
 

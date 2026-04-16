@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Block, Declaration, Expression, FunctionKind};
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferImplicitReturn {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferImplicitReturn::meta()
     }
 
@@ -35,21 +36,19 @@ impl LintRule for PreferImplicitReturn {
             let decl = ctx.tree.get(node_id);
 
             // look for arrow functions
-            let Declaration::Function {
-                signature,
-                body: Some(body_id),
-                ..
-            } = decl
-            else {
+            let Declaration::Function(declaration) = decl else {
+                continue;
+            };
+            let Some(body_id) = declaration.body else {
                 continue;
             };
 
             // only check lambda functions
-            if signature.kind != FunctionKind::Lambda {
+            if declaration.signature.kind != FunctionKind::Lambda {
                 continue;
             }
 
-            let body_expr = ctx.tree.get(*body_id);
+            let body_expr = ctx.tree.get(body_id);
 
             // check if body is a block with single return statement
             let Expression::Block(block_id) = body_expr else {
@@ -69,7 +68,7 @@ impl LintRule for PreferImplicitReturn {
             }
 
             // build concise expression body replacement
-            let body_span = ctx.tree.get_span(*body_id);
+            let body_span = ctx.tree.get_span(body_id);
             let body_text = ctx.get_span_text(body_span);
             let return_value_span = ctx.tree.get_span(return_value_id);
             let return_value = ctx.tree.get(return_value_id);
@@ -94,7 +93,7 @@ impl LintRule for PreferImplicitReturn {
                 severity,
                 "use implicit return instead of block with return",
                 ctx.module.file_id,
-                ctx.tree.get_span(*body_id),
+                ctx.tree.get_span(body_id),
             )
             .with_label("use `() => x` instead of `() => { return x }`");
             let diagnostic = if let Some(fix) = maybe_fix {

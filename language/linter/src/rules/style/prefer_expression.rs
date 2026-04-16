@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfKind, LetKind,
     LocalNodeId, NodeTree, Pattern,
@@ -49,7 +50,7 @@ struct ExpressionPatternCandidate {
 }
 
 impl LintRule for PreferExpression {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferExpression::meta()
     }
 
@@ -65,7 +66,7 @@ impl LintRule for PreferExpression {
 /// Recursively check expressions for the pattern.
 fn check_expression(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
 ) {
@@ -96,10 +97,10 @@ fn check_expression(
         }
         Expression::Declaration(declaration_id) => {
             let declaration = tree.get(*declaration_id);
-            if let ast::Declaration::Function { body, .. } = declaration
-                && let Some(body_expression_id) = body
+            if let ast::Declaration::Function(declaration) = declaration
+                && let Some(body_expression_id) = declaration.body
             {
-                check_expression(ctx, meta, tree, *body_expression_id);
+                check_expression(ctx, meta, tree, body_expression_id);
             }
         }
         _ => {}
@@ -109,7 +110,7 @@ fn check_expression(
 /// Check a block for the uninitialized-let-then-if pattern.
 fn check_block(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     tree: &NodeTree,
     block_id: LocalNodeId<Block>,
 ) {

@@ -95,32 +95,32 @@ fn check_callback_argument(
     let candidates = callback_candidates(ctx, argument.value());
     for candidate in candidates {
         let declaration = ctx.tree.get(candidate.declaration_id);
-        let dir::Declaration::Function {
-            descriptor,
-            signature,
-            body,
-            ..
-        } = declaration
-        else {
+        let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
 
         // keep callbacks that are already arrows or cannot be arrows
-        if signature.kind == dir::FunctionKind::Lambda
-            || signature.cardinality == dir::FunctionCardinality::Generator
+        if declaration.signature.kind == dir::FunctionKind::Lambda
+            || declaration.signature.cardinality == dir::FunctionCardinality::Generator
         {
             continue;
         }
 
         // keep named callbacks when configured
-        if options.allow_named_functions && descriptor.name.is_some() {
+        if options.allow_named_functions && declaration.name.is_some() {
             continue;
         }
 
         // inspect callback body semantics with DIR level symbol information
-        let function_symbol = descriptor.symbol.into_global(ctx.module_id());
-        let function_name = descriptor.name.map(|name| name.string());
-        let body_usage = callback_body_usage(ctx, body, signature, function_symbol, function_name);
+        let function_symbol = declaration.symbol.into_global(ctx.module_id());
+        let function_name = declaration.name.map(|name| name.string());
+        let body_usage = callback_body_usage(
+            ctx,
+            declaration.body,
+            &declaration.signature,
+            function_symbol,
+            function_name,
+        );
         if body_usage.uses_super
             || body_usage.uses_new_target
             || body_usage.uses_arguments
@@ -141,7 +141,7 @@ fn check_callback_argument(
 
         // keep fixes out of cases where arrow conversion is not source safe
         let can_fix = candidate.can_fix
-            && signature.this_parameter.is_none()
+            && declaration.signature.this_parameter.is_none()
             && (!body_usage.uses_this || candidate.is_lexical_this);
 
         let mut diagnostic = LintDiagnostic::new(
@@ -220,9 +220,9 @@ fn collect_callback_candidates(
     let expression = ctx.tree.get(expression_id);
 
     // match direct function expression callbacks
-    if let dir::Expression::Declaration { declaration } = expression {
+    if let dir::Expression::Declaration(declaration) = expression {
         let declaration_node = ctx.tree.get(*declaration);
-        if matches!(declaration_node, dir::Declaration::Function { .. }) {
+        if matches!(declaration_node, dir::Declaration::Function(_)) {
             push_callback_candidate(
                 candidates,
                 CallbackCandidate {
@@ -307,10 +307,10 @@ fn collect_callback_candidates(
 
     // remove direct `.bind(this)` wrappers around function literals
     if bind_shape.is_lexical_this
-        && let dir::Expression::Declaration { declaration } = bind_target_expression
+        && let dir::Expression::Declaration(declaration) = bind_target_expression
     {
         let declaration_node = ctx.tree.get(*declaration);
-        if matches!(declaration_node, dir::Declaration::Function { .. }) {
+        if matches!(declaration_node, dir::Declaration::Function(_)) {
             push_callback_candidate(
                 candidates,
                 CallbackCandidate {
@@ -378,11 +378,14 @@ fn bind_call_shape(
     let dir::Expression::Member {
         left,
         name,
-        static_arguments: None,
+        generic_arguments,
     } = call_left
     else {
         return None;
     };
+    if !generic_arguments.is_empty() {
+        return None;
+    }
     if *name != Some(bind_name) {
         return None;
     }
@@ -428,7 +431,7 @@ struct CallbackBodyUsage {
 /// Analyze callback body references that affect arrow conversion.
 fn callback_body_usage(
     ctx: &LintModuleDirContext<'_>,
-    body_expression_id: &Option<dir::LocalNodeId<dir::Expression>>,
+    body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
     signature: &dir::FunctionSignature,
     function_symbol: dir::GlobalSymbolId,
     function_name: Option<dir::StringId>,
@@ -445,7 +448,7 @@ fn callback_body_usage(
 
     // walk only the current callback body
     let mut visitor = CallbackBodyUsageVisitor {
-        root_expression_id: *body_expression_id,
+        root_expression_id: body_expression_id,
         function_symbol,
         function_name,
         arguments_name,
@@ -455,8 +458,8 @@ fn callback_body_usage(
         usage: CallbackBodyUsage::default(),
         options: NodeVisitorOptions::default(),
     };
-    let body_expression = ctx.tree.get(*body_expression_id);
-    visitor.visit_expression(ctx.tree, *body_expression_id, body_expression);
+    let body_expression = ctx.tree.get(body_expression_id);
+    visitor.visit_expression(ctx.tree, body_expression_id, body_expression);
 
     visitor.usage
 }
@@ -550,24 +553,24 @@ fn expression_is_single_name_reference(
     match expression {
         dir::Expression::UnresolvedPath {
             path,
-            static_arguments: None,
+            generic_arguments,
             ..
         }
         | dir::Expression::LocalReference {
             path,
-            static_arguments: None,
+            generic_arguments,
             ..
         }
         | dir::Expression::ModuleReference {
             path,
-            static_arguments: None,
+            generic_arguments,
             ..
         }
         | dir::Expression::GlobalReference {
             path,
-            static_arguments: None,
+            generic_arguments,
             ..
-        } => path.segments.len() == 1 && path.segments[0] == name,
+        } => generic_arguments.is_empty() && path.segments.len() == 1 && path.segments[0] == name,
         _ => false,
     }
 }
@@ -592,14 +595,11 @@ fn callback_fix(ctx: &LintModuleDirContext<'_>, candidate: &CallbackCandidate) -
     // slice the declaration text around the actual body span
     let declaration_text = ctx.get_span_text(declaration_span);
     let declaration = ctx.tree.get(candidate.declaration_id);
-    let dir::Declaration::Function {
-        body: Some(body_expression_id),
-        ..
-    } = declaration
-    else {
+    let dir::Declaration::Function(declaration) = declaration else {
         return None;
     };
-    let body_span = ctx.get_span(*body_expression_id);
+    let body_expression_id = declaration.body?;
+    let body_span = ctx.get_span(body_expression_id);
     if body_span.start < declaration_span.start || body_span.start > declaration_span.end {
         return None;
     }
@@ -608,7 +608,7 @@ fn callback_fix(ctx: &LintModuleDirContext<'_>, candidate: &CallbackCandidate) -
     let prefix_text = &declaration_text[..body_start_offset];
     let body_text = &declaration_text[body_start_offset..];
 
-    // rewrite `function` syntax to arrow syntax while preserving return annotations
+    // rewrite `function` form to arrow form while preserving return annotations
     let (async_prefix, rest) = if let Some(rest) = prefix_text.strip_prefix("async function") {
         ("async ", rest)
     } else if let Some(rest) = prefix_text.strip_prefix("function") {
@@ -647,7 +647,7 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
-    /// Allow callbacks that already use arrow syntax.
+    /// Allow callbacks that already use arrow form.
     #[test]
     fn test_allows_arrow_callback() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
@@ -673,7 +673,7 @@ items.map(function(x) { return x + 1 })
         test.result(result).assert_lint("prefer-arrow-callback");
     }
 
-    /// Rewrite named callbacks to arrow syntax.
+    /// Rewrite named callbacks to arrow form.
     #[test]
     fn test_flags_named_function() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);

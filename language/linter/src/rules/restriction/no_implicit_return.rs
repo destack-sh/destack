@@ -34,16 +34,15 @@ impl LintRule for NoImplicitReturn {
         // inspect candidate declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            let ast::Declaration::Function {
-                body: Some(body_id),
-                ..
-            } = declaration
-            else {
+            let ast::Declaration::Function(declaration) = declaration else {
+                continue;
+            };
+            let Some(body_id) = declaration.body else {
                 continue;
             };
 
             // resolve body
-            let body = ctx.tree.get(*body_id);
+            let body = ctx.tree.get(body_id);
 
             // flag functions with expression bodies (implicit return)
             if !matches!(body, ast::Expression::Block(_)) {
@@ -53,7 +52,7 @@ impl LintRule for NoImplicitReturn {
                 }
 
                 // resolve diagnostic span
-                let body_span = ctx.tree.get_span(*body_id);
+                let body_span = ctx.tree.get_span(body_id);
                 let mut diagnostic = LintDiagnostic::new(
                     NO_IMPLICIT_RETURN.id,
                     NO_IMPLICIT_RETURN.code,

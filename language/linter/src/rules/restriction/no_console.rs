@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_is_standalone_statement,
-    expression_static_property_name, expression_target_symbol,
+    expression_is_standalone_statement, expression_is_symbol_or_global_qualified_member,
+    expression_static_property_name,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -134,15 +134,10 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
     /// Return true when the expression is a console reference.
     fn is_console_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return symbol == self.console_symbol;
-        }
-
-        // match global qualified references
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.console_symbol,
             &self.global_qualifiers,
             self.console_name,
         )

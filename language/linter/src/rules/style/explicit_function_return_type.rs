@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, Declaration, FunctionKind, FunctionMode, Key, Member, Name, NodeVisitor,
     NodeVisitorOptions, Property, walk_expression,
@@ -28,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for ExplicitFunctionReturnType {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         ExplicitFunctionReturnType::meta()
     }
 
@@ -39,14 +40,16 @@ impl LintRule for ExplicitFunctionReturnType {
         // declaration functions
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            let Declaration::Function {
-                signature, body, ..
-            } = declaration
-            else {
+            let Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
-            if !signature_requires_explicit_return_type(ctx, signature, None, constructor_name) {
+            if !signature_requires_explicit_return_type(
+                ctx,
+                &declaration.signature,
+                None,
+                constructor_name,
+            ) {
                 continue;
             }
 
@@ -59,7 +62,7 @@ impl LintRule for ExplicitFunctionReturnType {
                 ctx,
                 severity,
                 ctx.tree.get_span(node_id),
-                *body,
+                declaration.body,
                 "function is missing explicit return type",
             );
         }
@@ -177,7 +180,7 @@ fn method_key_is_constructor(
         | Key::Name(Name::String(name))
         | Key::Name(Name::Number(name))
         | Key::Private(name) => *name == constructor_name,
-        Key::Expression(_) | Key::NamedExpression { .. } => false,
+        Key::Expression(_) => false,
     }
 }
 
@@ -274,7 +277,7 @@ impl NodeVisitor for ReturnDetectorVisitor {
 
         if let ast::Expression::Declaration(declaration) = expression {
             let declaration = tree.get(*declaration);
-            if matches!(declaration, ast::Declaration::Function { .. }) {
+            if matches!(declaration, ast::Declaration::Function(_)) {
                 return;
             }
         }

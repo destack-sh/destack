@@ -1,10 +1,11 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow template literal syntax in regular strings.
+    /// Disallow template interpolation in regular strings.
     ///
     /// Using `"${x}"` in a regular string instead of a template literal
     /// `` `${x}` `` won't interpolate the variable and is likely a mistake.
@@ -20,11 +21,11 @@ declare_lint! {
         stability = Stable
     )]
     pub NoTemplateCurlyInString,
-    "Disallow template syntax in regular strings"
+    "Disallow template interpolation in regular strings"
 }
 
 impl LintRule for NoTemplateCurlyInString {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoTemplateCurlyInString::meta()
     }
 
@@ -43,10 +44,10 @@ impl LintRule for NoTemplateCurlyInString {
                 continue;
             }
 
-            // detect template syntax from source text to avoid escaped `${` false positives
+            // detect template interpolation from source text to avoid escaped `${` false positives
             let span = ctx.tree.get_span(node_id);
             let literal_text = ctx.get_span_text(span);
-            if !contains_template_syntax(literal_text) {
+            if !contains_template_interpolation(literal_text) {
                 continue;
             }
 
@@ -60,7 +61,7 @@ impl LintRule for NoTemplateCurlyInString {
                 NO_TEMPLATE_CURLY_IN_STRING.code,
                 NO_TEMPLATE_CURLY_IN_STRING.category,
                 severity,
-                "template syntax in regular string",
+                "template interpolation in regular string",
                 ctx.module.file_id,
                 span,
             )
@@ -77,8 +78,8 @@ impl LintRule for NoTemplateCurlyInString {
     }
 }
 
-/// Check if a string contains template literal syntax like ${...}.
-fn contains_template_syntax(s: &str) -> bool {
+/// Check if a string contains template interpolation like `${...}`.
+fn contains_template_interpolation(s: &str) -> bool {
     let Some((quote, content)) = split_quoted_string_literal(s) else {
         return false;
     };

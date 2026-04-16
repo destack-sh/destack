@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_numeric_sign, expression_path_segments, expression_unwrap_parenthesized_syntax,
+    expression_numeric_sign, expression_path_segments, expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
@@ -146,7 +146,7 @@ fn increment_with_expected_direction(
     expected_direction: Direction,
 ) -> Option<String> {
     // inspect the increment expression shape
-    let increment_id = expression_unwrap_parenthesized_syntax(ctx.tree, increment_id);
+    let increment_id = expression_unwrap_parenthesized_source_form(ctx.tree, increment_id);
     let increment = ctx.tree.get(increment_id);
 
     // render a direction corrected update form
@@ -214,7 +214,7 @@ fn condition_counter_expectations(
     ctx: &LintAstContext<'_>,
     condition_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<CounterExpectation> {
-    let condition_id = expression_unwrap_parenthesized_syntax(ctx.tree, condition_id);
+    let condition_id = expression_unwrap_parenthesized_source_form(ctx.tree, condition_id);
     let condition = ctx.tree.get(condition_id);
 
     // require a binary comparison condition
@@ -263,7 +263,7 @@ fn update_direction_for_counter(
     counter_segments: &[ast::StringId],
 ) -> Option<Direction> {
     // normalize increment expression shape
-    let increment_id = expression_unwrap_parenthesized_syntax(ctx.tree, increment_id);
+    let increment_id = expression_unwrap_parenthesized_source_form(ctx.tree, increment_id);
     let increment = ctx.tree.get(increment_id);
 
     // resolve update direction only for matching counter updates

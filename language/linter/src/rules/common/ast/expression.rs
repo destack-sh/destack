@@ -6,8 +6,8 @@ use crate::rules::common::{
 };
 use crate::{ConstValue, LintAstContext};
 
-/// Return the AST expression id with parenthesized nodes unwrapped.
-pub fn expression_unwrap_parenthesized_syntax(
+/// Return the AST expression id with parenthesized source form unwrapped.
+pub fn expression_unwrap_parenthesized_source_form(
     tree: &ast::NodeTree,
     mut expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
@@ -22,8 +22,8 @@ pub fn expression_unwrap_parenthesized_syntax(
     }
 }
 
-/// Return the AST expression id with statement wrappers unwrapped.
-pub fn expression_unwrap_statement_syntax(
+/// Return the AST expression id with statement source form unwrapped.
+pub fn expression_unwrap_statement_source_form(
     tree: &ast::NodeTree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
@@ -86,14 +86,14 @@ pub fn control_flow_condition_expression(
     }
 }
 
-/// Return the outer expression id including parenthesized wrappers.
-pub fn expression_outer_parenthesized_syntax(
+/// Return the outer expression id including parenthesized source form.
+pub fn expression_outer_parenthesized_source_form(
     tree: &ast::NodeTree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
     // start from one normalized inner expression
-    let mut current_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let mut current_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
 
     // climb through direct parenthesized wrappers
     loop {
@@ -123,8 +123,8 @@ pub fn expression_statement_ancestor(
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    // start from the outer syntax expression
-    let mut current_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
+    // start from the outer source form
+    let mut current_id = expression_outer_parenthesized_source_form(tree, parents, expression_id);
 
     // root expressions are statement-position by default
     if parents.get(current_id).is_none() {
@@ -185,7 +185,8 @@ pub fn expression_is_direct_statement(
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let outer_expression_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
+    let outer_expression_id =
+        expression_outer_parenthesized_source_form(tree, parents, expression_id);
     expression_statement_ancestor(tree, parents, expression_id) == Some(outer_expression_id)
 }
 
@@ -195,8 +196,9 @@ pub fn expression_is_direct_block_leading_expression(
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    // normalize outer syntax first
-    let outer_expression_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
+    // normalize outer source form first
+    let outer_expression_id =
+        expression_outer_parenthesized_source_form(tree, parents, expression_id);
     let Some(parent_id) = parents.get(outer_expression_id) else {
         return false;
     };
@@ -232,7 +234,7 @@ pub fn expression_can_start_expression_statement(expression: &ast::Expression) -
             | ast::Expression::Maybe { .. }
             | ast::Expression::Must { .. }
             | ast::Expression::ScalarLiteral(_)
-            | ast::Expression::TypeLiteral(_)
+            | ast::Expression::Type { .. }
             | ast::Expression::TemplateExpression { .. }
             | ast::Expression::TaggedTemplateExpression { .. }
     )
@@ -272,7 +274,8 @@ pub fn expression_negated_source_text(
     let expression_text = ctx.get_span_text(expression_span);
 
     // normalize the expression shape for precedence checks
-    let normalized_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let normalized_expression_id =
+        expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let normalized_expression = ctx.tree.get(normalized_expression_id);
 
     // preserve precedence for non-atomic expressions
@@ -506,7 +509,7 @@ pub fn expression_is_type_annotation(
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // start from one normalized expression id
-    let mut current_id = expression_unwrap_parenthesized_syntax(tree, expression_id).id;
+    let mut current_id = expression_unwrap_parenthesized_source_form(tree, expression_id).id;
 
     // climb ancestors until one type annotation slot is found
     while let Some(parent_id) = parents.get_by_id(current_id) {
@@ -526,10 +529,10 @@ pub fn expression_is_type_annotation(
             let parameter_id = ast::LocalNodeId::<ast::Parameter>::new(parent_id);
             let parameter = tree.get(parameter_id);
             let parameter_type = match parameter {
-                ast::Parameter::Named { ty, .. }
-                | ast::Parameter::Pattern { ty, .. }
-                | ast::Parameter::VariadicNamed { ty, .. }
-                | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+                ast::Parameter::Named { declared_type, .. }
+                | ast::Parameter::Pattern { declared_type, .. }
+                | ast::Parameter::VariadicNamed { declared_type, .. }
+                | ast::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
                 ast::Parameter::Error => None,
             };
             if parameter_type.is_some_and(|ty_id| ty_id.id == current_id) {
@@ -542,13 +545,14 @@ pub fn expression_is_type_annotation(
             let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(parent_id);
             let declaration = tree.get(declaration_id);
             match declaration {
-                ast::Declaration::Type { value, .. } => {
-                    if value.id == current_id {
+                ast::Declaration::Type(declaration) => {
+                    if declaration.value.id == current_id {
                         return true;
                     }
                 }
-                ast::Declaration::Function { signature, .. } => {
-                    if signature
+                ast::Declaration::Function(declaration) => {
+                    if declaration
+                        .signature
                         .return_type
                         .is_some_and(|return_type_id| return_type_id.id == current_id)
                     {
@@ -564,20 +568,22 @@ pub fn expression_is_type_annotation(
             let member_id = ast::LocalNodeId::<ast::Member>::new(parent_id);
             let member = tree.get(member_id);
             match member {
-                ast::Member::Type { ty, value, .. } => {
-                    if ty.is_some_and(|ty_id| ty_id.id == current_id)
+                ast::Member::AssociatedType {
+                    constraint, value, ..
+                } => {
+                    if constraint.is_some_and(|ty_id| ty_id.id == current_id)
                         || value.is_some_and(|value_id| value_id.id == current_id)
                     {
                         return true;
                     }
                 }
-                ast::Member::ComptimeConst { ty, .. } => {
-                    if ty.is_some_and(|ty_id| ty_id.id == current_id) {
+                ast::Member::AssociatedConst { declared_type, .. } => {
+                    if declared_type.is_some_and(|ty_id| ty_id.id == current_id) {
                         return true;
                     }
                 }
-                ast::Member::Field { value, .. } => {
-                    if value.is_some_and(|value_id| value_id.id == current_id) {
+                ast::Member::Field { declared_type, .. } => {
+                    if declared_type.is_some_and(|value_id| value_id.id == current_id) {
                         return true;
                     }
                 }
@@ -708,8 +714,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
         // match declared names before descending
         if declaration
-            .descriptor()
-            .name
+            .name()
             .is_some_and(|declaration_name| declaration_name.string() == self.name)
         {
             self.found_name = true;
@@ -823,10 +828,10 @@ pub fn block_is_function_body(
         let declaration = tree.get(ast::LocalNodeId::<ast::Declaration>::new(owner_id));
         if matches!(
             declaration,
-            ast::Declaration::Function {
+            ast::Declaration::Function(ast::FunctionDeclaration {
                 body: Some(body_id),
                 ..
-            } if *body_id == block_expression_id
+            }) if *body_id == block_expression_id
         ) {
             return true;
         }
@@ -934,10 +939,10 @@ pub fn declaration_at_allowed_root(
         let declaration = tree.get(ast::LocalNodeId::<ast::Declaration>::new(owner_id));
         if matches!(
             declaration,
-            ast::Declaration::Function {
+            ast::Declaration::Function(ast::FunctionDeclaration {
                 body: Some(body_id),
                 ..
-            } if *body_id == block_expression_id
+            }) if *body_id == block_expression_id
         ) {
             return true;
         }
@@ -976,7 +981,7 @@ fn collect_expression_path_segments(
     segments: &mut Vec<ast::StringId>,
 ) -> Option<()> {
     // normalize wrappers first
-    let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     match expression {
@@ -986,12 +991,9 @@ fn collect_expression_path_segments(
         }
         ast::Expression::QualifiedReference {
             path,
-            static_arguments,
+            generic_arguments,
         } => {
-            if static_arguments
-                .as_ref()
-                .is_some_and(|static_arguments| !static_arguments.is_empty())
-            {
+            if !generic_arguments.is_empty() {
                 return None;
             }
 
@@ -1001,12 +1003,9 @@ fn collect_expression_path_segments(
         ast::Expression::Member {
             left,
             name: Some(name),
-            static_arguments,
+            generic_arguments,
         } => {
-            if static_arguments
-                .as_ref()
-                .is_some_and(|static_arguments| !static_arguments.is_empty())
-            {
+            if !generic_arguments.is_empty() {
                 return None;
             }
 
@@ -1018,13 +1017,13 @@ fn collect_expression_path_segments(
     }
 }
 
-/// Return one static string literal value from an expression.
-pub fn expression_static_string_literal_syntax(
+/// Return one static string literal value from an expression source form.
+pub fn expression_static_string_literal_source_form(
     tree: &ast::NodeTree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::StringId> {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // match direct string literals
@@ -1043,13 +1042,13 @@ pub fn expression_static_string_literal_syntax(
     Some(*string)
 }
 
-/// Return one static property access pair as `(left, property_name)`.
-pub fn expression_static_property_access_syntax(
+/// Return one static property access pair as `(left, property_name)` from source form.
+pub fn expression_static_property_access_source_form(
     tree: &ast::NodeTree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<(ast::LocalNodeId<ast::Expression>, ast::StringId)> {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // match dot member access
@@ -1064,7 +1063,7 @@ pub fn expression_static_property_access_syntax(
         return None;
     };
     let index_id = index.as_ref().copied()?;
-    let property_name = expression_static_string_literal_syntax(tree, index_id)?;
+    let property_name = expression_static_string_literal_source_form(tree, index_id)?;
 
     Some((*left, property_name))
 }
@@ -1107,7 +1106,7 @@ pub fn expression_numeric_value(
     }
 
     // normalize expression shape and require a binary expression
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     let ast::Expression::Binary {
         operator,
@@ -1172,8 +1171,8 @@ pub fn expression_is_equal(
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
-    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
     match (left, right) {
@@ -1199,11 +1198,10 @@ pub fn expression_is_equal(
             ast::Expression::ScalarLiteral(right_literal),
         ) => left_literal == right_literal,
 
-        // type literals: direct comparison
-        (
-            ast::Expression::TypeLiteral(left_literal),
-            ast::Expression::TypeLiteral(right_literal),
-        ) => left_literal == right_literal,
+        // type expressions: compare recursively
+        (ast::Expression::Type { value: left }, ast::Expression::Type { value: right }) => {
+            type_expression_is_equal(ctx, *left, *right)
+        }
 
         // binary expressions: compare operator and operands recursively
         (
@@ -1234,36 +1232,6 @@ pub fn expression_is_equal(
                 right: right_right,
             },
         ) => left_operator == right_operator && expression_is_equal(ctx, *left_right, *right_right),
-
-        // type unary expressions: compare operator and operand
-        (
-            ast::Expression::TypeUnary {
-                operator: left_operator,
-                right: left_right,
-            },
-            ast::Expression::TypeUnary {
-                operator: right_operator,
-                right: right_right,
-            },
-        ) => left_operator == right_operator && expression_is_equal(ctx, *left_right, *right_right),
-
-        // type binary expressions: compare operator and operands
-        (
-            ast::Expression::TypeBinary {
-                left: left_left,
-                operator: left_operator,
-                right: left_right,
-            },
-            ast::Expression::TypeBinary {
-                left: right_left,
-                operator: right_operator,
-                right: right_right,
-            },
-        ) => {
-            left_operator == right_operator
-                && expression_is_equal(ctx, *left_left, *right_left)
-                && expression_is_equal(ctx, *left_right, *right_right)
-        }
 
         // member access: compare object and member name
         (
@@ -1459,8 +1427,185 @@ pub fn expression_is_equal(
             blocks_equal(ctx, *left_block, *right_block)
         }
 
-        // fallback: compare structural signatures for remaining expression kinds
+        // shared structural comparison for remaining expression kinds
         _ => expression_signature_equal(ctx, left_id, right_id),
+    }
+}
+
+/// Return whether two type expressions are structurally equal.
+pub fn type_expression_is_equal(
+    ctx: &LintAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::TypeExpression>,
+    right_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> bool {
+    let left = ctx.tree.get(left_id);
+    let right = ctx.tree.get(right_id);
+
+    match (left, right) {
+        (
+            ast::TypeExpression::Parenthesized { expression: left },
+            ast::TypeExpression::Parenthesized { expression: right },
+        ) => type_expression_is_equal(ctx, *left, *right),
+        (
+            ast::TypeExpression::ScalarLiteral { value: left },
+            ast::TypeExpression::ScalarLiteral { value: right },
+        ) => left == right,
+        (
+            ast::TypeExpression::Literal { value: left },
+            ast::TypeExpression::Literal { value: right },
+        ) => left == right,
+        (
+            ast::TypeExpression::Reference {
+                path: left_path,
+                generic_arguments: left_arguments,
+            },
+            ast::TypeExpression::Reference {
+                path: right_path,
+                generic_arguments: right_arguments,
+            },
+        ) => {
+            paths_equal(ctx, left_path, right_path)
+                && generic_arguments_are_equal(ctx, left_arguments, right_arguments)
+        }
+        (
+            ast::TypeExpression::Member {
+                left: left_target,
+                name: left_name,
+                generic_arguments: left_arguments,
+            },
+            ast::TypeExpression::Member {
+                left: right_target,
+                name: right_name,
+                generic_arguments: right_arguments,
+            },
+        ) => {
+            string_ids_equal(ctx, *left_name, *right_name)
+                && type_expression_is_equal(ctx, *left_target, *right_target)
+                && generic_arguments_are_equal(ctx, left_arguments, right_arguments)
+        }
+        (
+            ast::TypeExpression::Readonly {
+                target_type: left_target,
+            },
+            ast::TypeExpression::Readonly {
+                target_type: right_target,
+            },
+        )
+        | (
+            ast::TypeExpression::KeyOf {
+                target_type: left_target,
+            },
+            ast::TypeExpression::KeyOf {
+                target_type: right_target,
+            },
+        )
+        | (
+            ast::TypeExpression::Must {
+                target_type: left_target,
+            },
+            ast::TypeExpression::Must {
+                target_type: right_target,
+            },
+        )
+        | (
+            ast::TypeExpression::AsComptime {
+                target_type: left_target,
+            },
+            ast::TypeExpression::AsComptime {
+                target_type: right_target,
+            },
+        )
+        | (
+            ast::TypeExpression::Not {
+                target_type: left_target,
+            },
+            ast::TypeExpression::Not {
+                target_type: right_target,
+            },
+        ) => type_expression_is_equal(ctx, *left_target, *right_target),
+        (
+            ast::TypeExpression::ValueOf {
+                mutability: left_mutability,
+                variance: left_variance,
+                target_type: left_target,
+            },
+            ast::TypeExpression::ValueOf {
+                mutability: right_mutability,
+                variance: right_variance,
+                target_type: right_target,
+            },
+        )
+        | (
+            ast::TypeExpression::ReferenceOf {
+                mutability: left_mutability,
+                variance: left_variance,
+                target_type: left_target,
+            },
+            ast::TypeExpression::ReferenceOf {
+                mutability: right_mutability,
+                variance: right_variance,
+                target_type: right_target,
+            },
+        ) => {
+            left_mutability == right_mutability
+                && left_variance == right_variance
+                && type_expression_is_equal(ctx, *left_target, *right_target)
+        }
+        (
+            ast::TypeExpression::PointerOf {
+                mutability: left_mutability,
+                target_type: left_target,
+            },
+            ast::TypeExpression::PointerOf {
+                mutability: right_mutability,
+                target_type: right_target,
+            },
+        ) => {
+            left_mutability == right_mutability
+                && type_expression_is_equal(ctx, *left_target, *right_target)
+        }
+        (
+            ast::TypeExpression::TypeOfValue { value: left_value },
+            ast::TypeExpression::TypeOfValue { value: right_value },
+        ) => expression_is_equal(ctx, *left_value, *right_value),
+        (
+            ast::TypeExpression::Index {
+                left: left_target,
+                index: left_index,
+            },
+            ast::TypeExpression::Index {
+                left: right_target,
+                index: right_index,
+            },
+        ) => {
+            type_expression_is_equal(ctx, *left_target, *right_target)
+                && type_expression_is_equal(ctx, *left_index, *right_index)
+        }
+        (
+            ast::TypeExpression::Union { elements: left },
+            ast::TypeExpression::Union { elements: right },
+        )
+        | (
+            ast::TypeExpression::Intersection { elements: left },
+            ast::TypeExpression::Intersection { elements: right },
+        ) => type_expression_list_equal(ctx, left, right),
+        _ => {
+            let left = ctx.tree.get(left_id);
+            let right = ctx.tree.get(right_id);
+
+            let mut left_collector = ExpressionSignatureCollector::new(ctx.strings);
+            ast::NodeVisitor::visit_type_expression(&mut left_collector, ctx.tree, left_id, left);
+
+            let mut right_collector = ExpressionSignatureCollector::new(ctx.strings);
+            ast::NodeVisitor::visit_type_expression(
+                &mut right_collector,
+                ctx.tree,
+                right_id,
+                right,
+            );
+
+            left_collector.finish() == right_collector.finish()
+        }
     }
 }
 
@@ -1522,6 +1667,67 @@ pub fn arguments_are_equal(
 
     for (left_arg_id, right_arg_id) in left.iter().zip(right.iter()) {
         if !argument_is_equal(ctx, *left_arg_id, *right_arg_id) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Return whether two generic argument lists are structurally equal.
+pub fn generic_arguments_are_equal(
+    ctx: &LintAstContext<'_>,
+    left: &[ast::LocalNodeId<ast::GenericArgument>],
+    right: &[ast::LocalNodeId<ast::GenericArgument>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    for (left_argument_id, right_argument_id) in left.iter().zip(right.iter()) {
+        if !generic_argument_is_equal(ctx, *left_argument_id, *right_argument_id) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Return whether two generic arguments are structurally equal.
+pub fn generic_argument_is_equal(
+    ctx: &LintAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::GenericArgument>,
+    right_id: ast::LocalNodeId<ast::GenericArgument>,
+) -> bool {
+    let left = ctx.tree.get(left_id);
+    let right = ctx.tree.get(right_id);
+
+    match (left, right) {
+        (
+            ast::GenericArgument::Positional { value: left },
+            ast::GenericArgument::Positional { value: right },
+        )
+        | (
+            ast::GenericArgument::Spread { value: left },
+            ast::GenericArgument::Spread { value: right },
+        ) => expression_is_equal(ctx, *left, *right),
+        (ast::GenericArgument::Error, ast::GenericArgument::Error) => true,
+        _ => false,
+    }
+}
+
+/// Return whether two type expression lists are structurally equal.
+fn type_expression_list_equal(
+    ctx: &LintAstContext<'_>,
+    left: &[ast::LocalNodeId<ast::TypeExpression>],
+    right: &[ast::LocalNodeId<ast::TypeExpression>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    for (left_id, right_id) in left.iter().zip(right.iter()) {
+        if !type_expression_is_equal(ctx, *left_id, *right_id) {
             return false;
         }
     }
@@ -1610,9 +1816,8 @@ pub fn expression_has_side_effects(
     let expr = ctx.tree.get(expr_id);
     match expr {
         // pure: literals
-        ast::Expression::ScalarLiteral(_)
-        | ast::Expression::TypeLiteral(_)
-        | ast::Expression::PrivateIdentifier { .. } => false,
+        ast::Expression::ScalarLiteral(_) | ast::Expression::PrivateIdentifier { .. } => false,
+        ast::Expression::Type { value } => type_expression_has_side_effects(ctx, *value),
 
         // pure: references
         ast::Expression::Identifier { .. }
@@ -1651,47 +1856,28 @@ pub fn expression_has_side_effects(
 
         // pure: unary/binary ops on pure expressions
         ast::Expression::Unary { right, .. } => expression_has_side_effects(ctx, *right),
+        ast::Expression::Is { value, target_type } => {
+            expression_has_side_effects(ctx, *value)
+                || type_expression_has_side_effects(ctx, *target_type)
+        }
+        ast::Expression::InstanceOf { value, target } => {
+            expression_has_side_effects(ctx, *value) || expression_has_side_effects(ctx, *target)
+        }
         ast::Expression::Binary { left, right, .. } => {
             expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
         }
 
         // pure: type operations
-        ast::Expression::TypeUnary { right, .. } => expression_has_side_effects(ctx, *right),
-        ast::Expression::TypeBinary { left, right, .. } => {
-            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
+        ast::Expression::As {
+            expression,
+            target_type,
         }
-        ast::Expression::TypeConditional {
-            left,
-            right,
-            then_type,
-            else_type,
+        | ast::Expression::Satisfies {
+            expression,
+            target_type,
         } => {
-            expression_has_side_effects(ctx, *left)
-                || expression_has_side_effects(ctx, *right)
-                || expression_has_side_effects(ctx, *then_type)
-                || expression_has_side_effects(ctx, *else_type)
-        }
-        ast::Expression::TypeMapped {
-            parameter, value, ..
-        } => {
-            expression_has_side_effects(ctx, parameter.constraint)
-                || parameter
-                    .key_remap
-                    .is_some_and(|key_remap| expression_has_side_effects(ctx, key_remap))
-                || expression_has_side_effects(ctx, *value)
-        }
-        ast::Expression::TypeIndex { left, index } => {
-            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *index)
-        }
-        ast::Expression::TypeTemplateLiteral { spans, .. } => spans
-            .iter()
-            .any(|span_id| expression_has_side_effects(ctx, *span_id)),
-        ast::Expression::TypeImport { .. } => false,
-        ast::Expression::TypeInfer { constraint, .. } => {
-            constraint.is_some_and(|constraint| expression_has_side_effects(ctx, constraint))
-        }
-        ast::Expression::TypePredicate { target, .. } => {
-            target.is_some_and(|target| expression_has_side_effects(ctx, target))
+            expression_has_side_effects(ctx, *expression)
+                || type_expression_has_side_effects(ctx, *target_type)
         }
 
         // pure: reference/value of (if operand is pure)
@@ -1761,6 +1947,147 @@ pub fn expression_has_side_effects(
     }
 }
 
+/// Return whether one type expression subtree contains side effects.
+pub fn type_expression_has_side_effects(
+    ctx: &LintAstContext<'_>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> bool {
+    let type_expression = ctx.tree.get(type_expression_id);
+
+    match type_expression {
+        // pure leaves
+        ast::TypeExpression::ScalarLiteral { .. }
+        | ast::TypeExpression::Literal { .. }
+        | ast::TypeExpression::Intrinsic
+        | ast::TypeExpression::Const
+        | ast::TypeExpression::This
+        | ast::TypeExpression::Missing
+        | ast::TypeExpression::Error => false,
+
+        // wrapped type expressions
+        ast::TypeExpression::Parenthesized { expression }
+        | ast::TypeExpression::Readonly {
+            target_type: expression,
+        }
+        | ast::TypeExpression::KeyOf {
+            target_type: expression,
+        }
+        | ast::TypeExpression::Must {
+            target_type: expression,
+        }
+        | ast::TypeExpression::AsComptime {
+            target_type: expression,
+        }
+        | ast::TypeExpression::Not {
+            target_type: expression,
+        }
+        | ast::TypeExpression::ValueOf {
+            target_type: expression,
+            ..
+        }
+        | ast::TypeExpression::ReferenceOf {
+            target_type: expression,
+            ..
+        }
+        | ast::TypeExpression::PointerOf {
+            target_type: expression,
+            ..
+        } => type_expression_has_side_effects(ctx, *expression),
+
+        // mostly pure type forms
+        ast::TypeExpression::Tuple { .. }
+        | ast::TypeExpression::Array { .. }
+        | ast::TypeExpression::Object { .. }
+        | ast::TypeExpression::Declaration { .. }
+        | ast::TypeExpression::Reference { .. }
+        | ast::TypeExpression::Infer { .. }
+        | ast::TypeExpression::Predicate { .. } => false,
+
+        // type expressions that contain runtime expressions
+        ast::TypeExpression::TypeOfValue { value } => expression_has_side_effects(ctx, *value),
+        ast::TypeExpression::Import {
+            target,
+            arguments,
+            generic_arguments,
+            ..
+        } => {
+            expression_has_side_effects(ctx, *target)
+                || arguments.iter().any(|argument_id| {
+                    let argument = ctx.tree.get(*argument_id);
+                    match argument {
+                        ast::Argument::Named { value, .. }
+                        | ast::Argument::Labeled { value, .. }
+                        | ast::Argument::Positional { value }
+                        | ast::Argument::Spread { value, .. } => {
+                            expression_has_side_effects(ctx, *value)
+                        }
+                        ast::Argument::Error => true,
+                    }
+                })
+                || generic_arguments.iter().any(|argument_id| {
+                    let argument = ctx.tree.get(*argument_id);
+                    match argument {
+                        ast::GenericArgument::Positional { value }
+                        | ast::GenericArgument::Spread { value } => {
+                            expression_has_side_effects(ctx, *value)
+                        }
+                        ast::GenericArgument::Error => true,
+                    }
+                })
+        }
+
+        // composite type expressions
+        ast::TypeExpression::Member {
+            left,
+            generic_arguments,
+            ..
+        } => {
+            type_expression_has_side_effects(ctx, *left)
+                || generic_arguments.iter().any(|argument_id| {
+                    let argument = ctx.tree.get(*argument_id);
+                    match argument {
+                        ast::GenericArgument::Positional { value }
+                        | ast::GenericArgument::Spread { value } => {
+                            expression_has_side_effects(ctx, *value)
+                        }
+                        ast::GenericArgument::Error => true,
+                    }
+                })
+        }
+        ast::TypeExpression::Union { elements }
+        | ast::TypeExpression::Intersection { elements } => elements
+            .iter()
+            .any(|element_id| type_expression_has_side_effects(ctx, *element_id)),
+        ast::TypeExpression::Conditional {
+            left,
+            extends_type,
+            then_type,
+            else_type,
+        } => {
+            type_expression_has_side_effects(ctx, *left)
+                || type_expression_has_side_effects(ctx, *extends_type)
+                || type_expression_has_side_effects(ctx, *then_type)
+                || type_expression_has_side_effects(ctx, *else_type)
+        }
+        ast::TypeExpression::Mapped {
+            parameter, value, ..
+        } => {
+            type_expression_has_side_effects(ctx, parameter.source_type)
+                || parameter
+                    .key_remap
+                    .is_some_and(|key_remap| type_expression_has_side_effects(ctx, key_remap))
+                || type_expression_has_side_effects(ctx, *value)
+        }
+        ast::TypeExpression::Index { left, index } => {
+            type_expression_has_side_effects(ctx, *left)
+                || type_expression_has_side_effects(ctx, *index)
+        }
+        ast::TypeExpression::TemplateLiteral { spans, .. } => spans
+            .iter()
+            .any(|span_id| type_expression_has_side_effects(ctx, *span_id)),
+    }
+}
+
 /// Check if an operator is a comparison operator.
 pub fn is_comparison_operator(operator: &ast::BinaryOperator) -> bool {
     matches!(
@@ -1778,16 +2105,18 @@ pub fn is_comparison_operator(operator: &ast::BinaryOperator) -> bool {
 
 /// Check if an expression is a literal value (scalar or type literal).
 pub fn expression_is_literal(expression: &ast::Expression) -> bool {
-    matches!(
-        expression,
-        ast::Expression::ScalarLiteral(_) | ast::Expression::TypeLiteral(_)
-    )
+    match expression {
+        ast::Expression::ScalarLiteral(_) => true,
+        ast::Expression::Type { .. } => false,
+        _ => false,
+    }
 }
 
 /// Check if an expression is a constant expression (evaluates to a fixed value at compile time).
 pub fn expression_is_constant_expression(ctx: &LintAstContext<'_>, expr: &ast::Expression) -> bool {
     match expr {
         ast::Expression::ScalarLiteral(_) => true,
+        ast::Expression::Type { value } => type_expression_is_constant(ctx, *value),
         ast::Expression::Parenthesized { expression } => {
             expression_is_constant_expression(ctx, ctx.tree.get(*expression))
         }
@@ -1814,9 +2143,7 @@ pub fn expression_constant_to_bool(
             ast::ScalarLiteral::Bigint(value) => Some(*value != 0),
             _ => None,
         },
-        ast::Expression::TypeLiteral(ast::TypeLiteral::Null | ast::TypeLiteral::Undefined) => {
-            Some(false)
-        }
+        ast::Expression::Type { value } => type_expression_constant_to_bool(ctx, *value),
         ast::Expression::Parenthesized { expression } => {
             expression_constant_to_bool(ctx, ctx.tree.get(*expression))
         }
@@ -1831,7 +2158,53 @@ pub fn expression_constant_to_bool(
     }
 }
 
-/// Compare two expressions using a structural fallback signature.
+/// Return true when one type expression is constant.
+fn type_expression_is_constant(
+    ctx: &LintAstContext<'_>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> bool {
+    let type_expression = ctx.tree.get(type_expression_id);
+
+    match type_expression {
+        ast::TypeExpression::Parenthesized { expression } => {
+            type_expression_is_constant(ctx, *expression)
+        }
+        ast::TypeExpression::ScalarLiteral { .. }
+        | ast::TypeExpression::Literal { .. }
+        | ast::TypeExpression::Intrinsic
+        | ast::TypeExpression::Const
+        | ast::TypeExpression::This => true,
+        _ => false,
+    }
+}
+
+/// Return the boolean value of one constant type expression when known.
+fn type_expression_constant_to_bool(
+    ctx: &LintAstContext<'_>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> Option<bool> {
+    let type_expression = ctx.tree.get(type_expression_id);
+
+    match type_expression {
+        ast::TypeExpression::Parenthesized { expression } => {
+            type_expression_constant_to_bool(ctx, *expression)
+        }
+        ast::TypeExpression::ScalarLiteral { value } => match value {
+            ast::ScalarLiteral::Boolean(value) => Some(*value),
+            ast::ScalarLiteral::Integer(value) => Some(*value != 0),
+            ast::ScalarLiteral::Float(value) => Some(*value != 0.0),
+            ast::ScalarLiteral::Bigint(value) => Some(*value != 0),
+            _ => None,
+        },
+        ast::TypeExpression::Literal { value } => match value {
+            ast::TypeLiteral::Null | ast::TypeLiteral::Undefined => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Compare two expressions using one structural signature.
 fn expression_signature_equal(
     ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
@@ -1847,11 +2220,11 @@ fn expression_signature(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<u64> {
-    expression_structural_signature(ctx.tree, ctx.strings, expression_id)
+    expression_signature_for_tree(ctx.tree, ctx.strings, expression_id)
 }
 
 /// Build a structural signature for one expression subtree.
-pub fn expression_structural_signature(
+pub fn expression_signature_for_tree(
     tree: &ast::NodeTree,
     strings: &ast::StringPool,
     expression_id: ast::LocalNodeId<ast::Expression>,
@@ -2000,41 +2373,12 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             ast::Expression::ScalarLiteral(literal) => {
                 self.push_debug("expression_scalar_literal", literal);
             }
-            ast::Expression::TypeLiteral(literal) => {
-                self.push_debug("expression_type_literal", literal);
+            ast::Expression::Type { .. } => {
+                self.push_debug("expression_type", true);
             }
             ast::Expression::TemplateExpression { value }
             | ast::Expression::TaggedTemplateExpression { value, .. } => {
                 self.push_debug("expression_template", value);
-            }
-            ast::Expression::TypeUnary { operator, .. } => {
-                self.push_debug("expression_type_unary", *operator);
-            }
-            ast::Expression::TypeBinary { operator, .. } => {
-                self.push_debug("expression_type_binary", *operator);
-            }
-            ast::Expression::TypeMapped {
-                parameter,
-                modifiers,
-                ..
-            } => {
-                self.push_string_id("expression_type_mapped_name", parameter.name);
-                self.push_debug("expression_type_mapped_modifiers", modifiers);
-            }
-            ast::Expression::TypeTemplateLiteral { strings, .. } => {
-                self.push_debug("expression_type_template_len", strings.len());
-                for string in strings {
-                    self.push_string_id("expression_type_template_string", *string);
-                }
-            }
-            ast::Expression::TypeInfer { name, .. } => {
-                self.push_string_id("expression_type_infer", *name);
-            }
-            ast::Expression::TypePredicate {
-                asserts, subject, ..
-            } => {
-                self.push_debug("expression_type_predicate_asserts", *asserts);
-                self.push_debug("expression_type_predicate_subject", subject);
             }
             ast::Expression::Unary { operator, .. } => {
                 self.push_debug("expression_unary", *operator);
@@ -2079,6 +2423,76 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         }
 
         ast::walk_expression(self, tree, id, expression);
+    }
+
+    /// Visit one type expression node and record type specific signature tokens.
+    fn visit_type_expression(
+        &mut self,
+        tree: &ast::NodeTree,
+        id: ast::LocalNodeId<ast::TypeExpression>,
+        type_expression: &ast::TypeExpression,
+    ) {
+        self.push_debug("type_expression", std::mem::discriminant(type_expression));
+        match type_expression {
+            ast::TypeExpression::ScalarLiteral { value } => {
+                self.push_debug("type_expression_scalar_literal", value);
+            }
+            ast::TypeExpression::Literal { value } => {
+                self.push_debug("type_expression_literal", value);
+            }
+            ast::TypeExpression::Reference {
+                path,
+                generic_arguments,
+            } => {
+                self.push_debug("type_expression_path_len", path.segments.len());
+                self.push_debug(
+                    "type_expression_has_generic_arguments",
+                    !generic_arguments.is_empty(),
+                );
+                for segment in &path.segments {
+                    self.push_string_id("type_expression_path_segment", *segment);
+                }
+            }
+            ast::TypeExpression::Member {
+                name,
+                generic_arguments,
+                ..
+            } => {
+                self.push_string_id("type_expression_member", *name);
+                self.push_debug(
+                    "type_expression_has_generic_arguments",
+                    !generic_arguments.is_empty(),
+                );
+            }
+            ast::TypeExpression::Mapped {
+                parameter,
+                readonly,
+                optional,
+                ..
+            } => {
+                self.push_string_id("type_expression_mapped_name", parameter.name);
+                self.push_debug("type_expression_mapped_readonly", *readonly);
+                self.push_debug("type_expression_mapped_optional", *optional);
+            }
+            ast::TypeExpression::TemplateLiteral { strings, .. } => {
+                self.push_debug("type_expression_template_len", strings.len());
+                for string in strings {
+                    self.push_string_id("type_expression_template_string", *string);
+                }
+            }
+            ast::TypeExpression::Infer { name, .. } => {
+                self.push_string_id("type_expression_infer", *name);
+            }
+            ast::TypeExpression::Predicate {
+                asserts, subject, ..
+            } => {
+                self.push_debug("type_expression_predicate_asserts", *asserts);
+                self.push_debug("type_expression_predicate_subject", subject);
+            }
+            _ => {}
+        }
+
+        ast::walk_type_expression(self, tree, id, type_expression);
     }
 
     /// Visit one declaration node and record declaration signature tokens.

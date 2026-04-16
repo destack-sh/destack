@@ -1,5 +1,5 @@
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -24,7 +24,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUselessBackreference {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUselessBackreference::meta()
     }
 
@@ -278,10 +278,10 @@ const re = /(a)\2/
     }
 
     #[test]
-    fn test_ignores_backreference_when_pattern_has_other_syntax_error() {
+    fn test_ignores_backreference_when_pattern_has_other_parse_error() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(
-            "no_useless_backreference/test_ignores_backreference_when_pattern_has_other_syntax_error.ds",
+            "no_useless_backreference/test_ignores_backreference_when_pattern_has_other_parse_error.ds",
             r#"
 const re = RegExp("\\1(a)[", "u");
 "#,

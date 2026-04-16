@@ -4,9 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_is_global_qualified_member, expression_static_property_access,
-    expression_static_string_literal, expression_target_symbol, expression_unwrap_transparent,
-    span_has_comment,
+    const_i64, expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+    expression_static_string_literal, expression_unwrap_transparent, span_has_comment,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -95,7 +94,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } = expression
@@ -159,7 +158,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         .with_label(format!("use a {prefix} numeric literal instead"));
         if let Some(fix) = self.numeric_literal_fix(
             expression_id,
-            static_arguments.as_deref(),
+            generic_arguments.as_slice(),
             dynamic_arguments.as_slice(),
             string_value,
             radix,
@@ -175,14 +174,14 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     fn numeric_literal_fix(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
         string_value: StringId,
         radix: i64,
         prefix: &str,
     ) -> Option<LintFix> {
         // skip static call arguments until static argument rendering is supported
-        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+        if !generic_arguments.is_empty() {
             return None;
         }
 
@@ -222,19 +221,15 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         if let Some((base_id, property_name)) =
             expression_static_property_access(self.ctx.tree, expression_id)
             && property_name == self.parse_int_name
-        {
-            if expression_target_symbol(self.ctx.tree, base_id) == Some(self.number_symbol) {
-                return true;
-            }
-
-            if expression_is_global_qualified_member(
+            && expression_is_symbol_or_global_qualified_member(
                 self.ctx.tree,
                 base_id,
+                self.number_symbol,
                 &self.global_qualifiers,
                 self.number_name,
-            ) {
-                return true;
-            }
+            )
+        {
+            return true;
         }
 
         // match bare global parseInt but skip local shadowed symbols

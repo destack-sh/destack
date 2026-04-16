@@ -1,4 +1,4 @@
-use destack_ast as ast;
+use crate::LintMeta;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
@@ -26,22 +26,20 @@ declare_lint! {
 }
 
 impl LintRule for NoDuplicateDecorators {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDuplicateDecorators::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        // check each annotated node
-        for annotations in ctx.tree.get_all_annotations().values() {
-            // collect decorator annotation ids for comparison
+        // check each decorated node
+        for decorators in ctx.tree.get_all_decorators().values() {
+            // collect decorator ids for comparison
             let mut seen = ExpressionDuplicateTracker::new();
 
-            for annotation_id in annotations {
-                let annotation = ctx.tree.get(*annotation_id);
-                let ast::Annotation::Decorator { node, .. } = annotation;
-                let decorator = ctx.tree.get(*node);
+            for decorator_id in decorators {
+                let decorator = ctx.tree.get(*decorator_id);
 
                 // check against all previously seen decorators
                 // report if we found a duplicate
@@ -49,7 +47,7 @@ impl LintRule for NoDuplicateDecorators {
                     .find_duplicate_or_insert(ctx, decorator.expression)
                     .is_some()
                 {
-                    let severity = ctx.get_effective_severity(meta, *node);
+                    let severity = ctx.get_effective_severity(meta, *decorator_id);
                     if !severity.is_enabled() {
                         continue;
                     }
@@ -57,10 +55,10 @@ impl LintRule for NoDuplicateDecorators {
                     // extract decorator name for the message
                     // ("unknown" shouldn't happen, but not our business here)
                     let name = ctx
-                        .decorator_name(*node)
+                        .decorator_name(*decorator_id)
                         .unwrap_or_else(|| "<unknown>".to_string());
 
-                    let span = ctx.tree.get_span(*annotation_id);
+                    let span = ctx.tree.get_span(*decorator_id);
                     let mut diagnostic = LintDiagnostic::new(
                         NO_DUPLICATE_DECORATORS.id,
                         NO_DUPLICATE_DECORATORS.code,

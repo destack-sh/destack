@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_static_string_literal_syntax;
+use crate::rules::common::expression_static_string_literal_source_form;
 use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -35,7 +35,8 @@ impl LintRule for NoScriptUrl {
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check static string-like expressions
-            let Some(string_id) = expression_static_string_literal_syntax(ctx.tree, node_id) else {
+            let Some(string_id) = expression_static_string_literal_source_form(ctx.tree, node_id)
+            else {
                 continue;
             };
 

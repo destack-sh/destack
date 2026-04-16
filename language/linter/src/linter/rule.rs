@@ -162,19 +162,19 @@ pub trait LintRule: Send + Sync {
     /// Get the static metadata for this lint rule.
     fn meta(&self) -> &'static LintMeta;
 
-    /// Check a module at AST level (syntax patterns, no type info).
+    /// Check a module at AST level (source patterns, no type info).
     fn check_module_ast<'a>(&self, _severity: LintSeverity, _ctx: &mut LintAstContext<'a>) {}
 
     /// Check a module at DIR level (typed IR with symbols and types).
     fn check_module_dir<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleDirContext<'a>) {}
 
-    /// Check one package at AST level (cross-module syntax analysis).
+    /// Check one package at AST level (cross-module source analysis).
     fn check_package_ast(&self, _ctx: &mut LintPackageAstContext) {}
 
     /// Check one package at DIR level (cross-module typed analysis).
     fn check_package_dir(&self, _ctx: &mut LintPackageDirContext) {}
 
-    /// Check one workspace at AST level (cross-package syntax analysis).
+    /// Check one workspace at AST level (cross-package source analysis).
     fn check_workspace_ast(&self, _ctx: &mut LintWorkspaceAstContext) {}
 
     /// Check one workspace at DIR level (cross-package typed analysis).

@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferLoop {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferLoop::meta()
     }
 

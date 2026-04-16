@@ -145,14 +145,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
         // check for .shift() with no arguments
         if call.method_name == self.shift_name {
-            let expression = self.ctx.tree.get(expression_id);
-            let dir::Expression::Call {
-                dynamic_arguments, ..
-            } = expression
-            else {
-                return;
-            };
-            if !dynamic_arguments.is_empty() {
+            if !call.dynamic_arguments.is_empty() {
                 return;
             }
 
@@ -188,14 +181,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
         // check for .pop() with no arguments
         if call.method_name == self.pop_name {
-            let expression = self.ctx.tree.get(expression_id);
-            let dir::Expression::Call {
-                dynamic_arguments, ..
-            } = expression
-            else {
-                return;
-            };
-            if !dynamic_arguments.is_empty() {
+            if !call.dynamic_arguments.is_empty() {
                 return;
             }
 
@@ -214,16 +200,13 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         let filter_call_expression = self.ctx.tree.get(filter_call_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = filter_call_expression
         else {
             return None;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
         if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
@@ -241,7 +224,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
-            static_arguments,
+            generic_arguments,
             ..
         } = member_expression
         else {
@@ -250,10 +233,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         if *name != Some(self.filter_name) {
             return None;
         }
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
 

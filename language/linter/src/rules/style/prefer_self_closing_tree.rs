@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
@@ -6,7 +7,7 @@ use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 declare_lint! {
     /// Prefer self-closing tree elements when possible.
     ///
-    /// Tree elements without children should use the self-closing syntax
+    /// Tree elements without children should use the self-closing form
     /// for brevity and clarity.
     ///
     /// ```
@@ -34,7 +35,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferSelfClosingTree {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferSelfClosingTree::meta()
     }
 
@@ -95,7 +96,7 @@ impl LintRule for PreferSelfClosingTree {
                     PREFER_SELF_CLOSING_TREE.code,
                     PREFER_SELF_CLOSING_TREE.category,
                     severity,
-                    "use self-closing syntax `<Component />` for elements without children",
+                    "use self-closing form `<Component />` for elements without children",
                     ctx.module.file_id,
                     expression_span,
                 )

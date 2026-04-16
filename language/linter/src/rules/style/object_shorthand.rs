@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Declaration, FunctionKind, FunctionMode, Key, Name};
 use destack_workspace::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
@@ -6,9 +7,9 @@ use crate::rules::common::{expression_path_segments, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
-    /// Prefer object shorthand syntax.
+    /// Prefer object shorthand form.
     ///
-    /// Require or disallow method and property shorthand syntax for object literals.
+    /// Require or disallow method and property shorthand form for object literals.
     #[lint(
         id = "object-shorthand",
         code = "LY027",
@@ -21,12 +22,12 @@ declare_lint! {
         stability = Stable
     )]
     pub ObjectShorthand,
-    "Prefer object shorthand syntax"
+    "Prefer object shorthand form"
 }
 
 impl LintRule for ObjectShorthand {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         ObjectShorthand::meta()
     }
 
@@ -82,7 +83,7 @@ enum PropertyClassification {
 /// Check one object expression against the configured shorthand mode.
 fn check_object_expression(
     ctx: &mut LintAstContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     expression_id: ast::LocalNodeId<ast::Expression>,
     properties: &[ast::LocalNodeId<ast::Property>],
     methods_ignore_pattern: Option<&Regex>,
@@ -152,15 +153,13 @@ fn check_object_expression(
 /// Report one longform property or method that should be shorthand.
 fn report_longform_property_if_needed(
     ctx: &mut LintAstContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     property_id: ast::LocalNodeId<ast::Property>,
     include_methods: bool,
     include_properties: bool,
     methods_ignore_pattern: Option<&Regex>,
 ) {
-    let property = ctx.tree.get(property_id);
-
-    if include_properties && let Some(property_name) = redundant_property_name(ctx, property) {
+    if include_properties && let Some(property_name) = redundant_property_name(ctx, property_id) {
         let severity = ctx.get_effective_severity(meta, property_id);
         if !severity.is_enabled() {
             return;
@@ -172,7 +171,7 @@ fn report_longform_property_if_needed(
             OBJECT_SHORTHAND.code,
             OBJECT_SHORTHAND.category,
             severity,
-            format!("property `{property_name}` can use shorthand syntax"),
+            format!("property `{property_name}` can use shorthand form"),
             ctx.module.file_id,
             property_span,
         )
@@ -192,7 +191,7 @@ fn report_longform_property_if_needed(
     }
 
     if include_methods
-        && let Some(method_name) = redundant_method_name(ctx, property, methods_ignore_pattern)
+        && let Some(method_name) = redundant_method_name(ctx, property_id, methods_ignore_pattern)
     {
         let severity = ctx.get_effective_severity(meta, property_id);
         if !severity.is_enabled() {
@@ -206,11 +205,11 @@ fn report_longform_property_if_needed(
                 OBJECT_SHORTHAND.code,
                 OBJECT_SHORTHAND.category,
                 severity,
-                format!("method `{method_name}` can use shorthand syntax"),
+                format!("method `{method_name}` can use shorthand form"),
                 ctx.module.file_id,
                 property_span,
             )
-            .with_label("use shorthand method syntax"),
+            .with_label("use shorthand method form"),
         );
     }
 }
@@ -218,11 +217,10 @@ fn report_longform_property_if_needed(
 /// Report one shorthand property or method that should be longform.
 fn report_shorthand_property_if_needed(
     ctx: &mut LintAstContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     property_id: ast::LocalNodeId<ast::Property>,
 ) {
-    let property = ctx.tree.get(property_id);
-    let Some(property_name) = shorthand_name(ctx, property) else {
+    let Some(property_name) = shorthand_name(ctx, property_id) else {
         return;
     };
 
@@ -237,18 +235,13 @@ fn report_shorthand_property_if_needed(
         OBJECT_SHORTHAND.code,
         OBJECT_SHORTHAND.category,
         severity,
-        format!("property `{property_name}` should use longform syntax"),
+        format!("property `{property_name}` should use longform form"),
         ctx.module.file_id,
         property_span,
     )
-    .with_label("use longform property syntax");
+    .with_label("use longform property form");
 
-    if let ast::Property::Field {
-        key: Some(_),
-        value: None,
-        default: None,
-        ..
-    } = property
+    if matches!(ctx.tree.get(property_id), ast::Property::Field { .. })
         && ctx.compute_fixes
         && !span_has_comment(ctx.tree, property_span)
     {
@@ -257,7 +250,7 @@ fn report_shorthand_property_if_needed(
             .edit_builder()
             .replace(property_span, replacement)
             .into_edits();
-        let fix = LintFix::safe("Use longform property syntax").with_edits(edits);
+        let fix = LintFix::safe("Use longform property form").with_edits(edits);
         diagnostic = diagnostic.with_fix(fix);
     }
 
@@ -267,7 +260,7 @@ fn report_shorthand_property_if_needed(
 /// Report one mixed shorthand object literal.
 fn report_object_mix(
     ctx: &mut LintAstContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
     let severity = ctx.get_effective_severity(meta, expression_id);
@@ -293,7 +286,7 @@ fn report_object_mix(
 /// Report one object literal where every eligible property should be shorthand.
 fn report_object_all_shorthand(
     ctx: &mut LintAstContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
     let severity = ctx.get_effective_severity(meta, expression_id);
@@ -327,7 +320,7 @@ fn object_expression_has_mixed_shorthand(
     let mut has_longform = false;
 
     for property_id in properties {
-        match classify_property(ctx, ctx.tree.get(*property_id), methods_ignore_pattern) {
+        match classify_property(ctx, *property_id, methods_ignore_pattern) {
             PropertyClassification::Shorthand => has_shorthand = true,
             PropertyClassification::Longform => has_longform = true,
             PropertyClassification::Neutral => {}
@@ -350,7 +343,7 @@ fn object_expression_needs_all_shorthand(
     let mut saw_candidate = false;
 
     for property_id in properties {
-        match classify_property(ctx, ctx.tree.get(*property_id), methods_ignore_pattern) {
+        match classify_property(ctx, *property_id, methods_ignore_pattern) {
             PropertyClassification::Shorthand => return false,
             PropertyClassification::Longform => saw_candidate = true,
             PropertyClassification::Neutral => return false,
@@ -363,15 +356,15 @@ fn object_expression_needs_all_shorthand(
 /// Classify one property for object-level shorthand policy checks.
 fn classify_property(
     ctx: &LintAstContext<'_>,
-    property: &ast::Property,
+    property_id: ast::LocalNodeId<ast::Property>,
     methods_ignore_pattern: Option<&Regex>,
 ) -> PropertyClassification {
-    if shorthand_name(ctx, property).is_some() {
+    if shorthand_name(ctx, property_id).is_some() {
         return PropertyClassification::Shorthand;
     }
 
-    if redundant_property_name(ctx, property).is_some()
-        || redundant_method_name(ctx, property, methods_ignore_pattern).is_some()
+    if redundant_property_name(ctx, property_id).is_some()
+        || redundant_method_name(ctx, property_id, methods_ignore_pattern).is_some()
     {
         return PropertyClassification::Longform;
     }
@@ -380,14 +373,22 @@ fn classify_property(
 }
 
 /// Return one shorthand property or method name.
-fn shorthand_name(ctx: &LintAstContext<'_>, property: &ast::Property) -> Option<String> {
+fn shorthand_name(
+    ctx: &LintAstContext<'_>,
+    property_id: ast::LocalNodeId<ast::Property>,
+) -> Option<String> {
+    let property = ctx.tree.get(property_id);
+
     match property {
-        ast::Property::Field {
-            key: Some(key),
-            value: None,
-            default: None,
-            ..
-        } => property_key_shorthand_name(ctx, key),
+        ast::Property::Field { key, value } => {
+            let property_name = property_key_shorthand_name(ctx, key)?;
+            let path_segments = expression_path_segments(ctx.tree, *value)?;
+            if path_segments.len() != 1 || ctx.strings.get(path_segments[0]) != &property_name {
+                return None;
+            }
+
+            field_source_is_shorthand(ctx, property_id, &property_name).then_some(property_name)
+        }
         ast::Property::Method {
             key: Some(key),
             signature,
@@ -404,22 +405,21 @@ fn shorthand_name(ctx: &LintAstContext<'_>, property: &ast::Property) -> Option<
 }
 
 /// Return one longform property name when it can be reduced to shorthand.
-fn redundant_property_name(ctx: &LintAstContext<'_>, property: &ast::Property) -> Option<String> {
-    let ast::Property::Field {
-        key: Some(key),
-        value: Some(value_id),
-        default: None,
-        ..
-    } = property
-    else {
+fn redundant_property_name(
+    ctx: &LintAstContext<'_>,
+    property_id: ast::LocalNodeId<ast::Property>,
+) -> Option<String> {
+    let property = ctx.tree.get(property_id);
+    let ast::Property::Field { key, value } = property else {
         return None;
     };
 
     let property_name = property_key_redundant_name(ctx, key)?;
-    let Some(path_segments) = expression_path_segments(ctx.tree, *value_id) else {
-        return None;
-    };
+    let path_segments = expression_path_segments(ctx.tree, *value)?;
     if path_segments.len() != 1 {
+        return None;
+    }
+    if field_source_is_shorthand(ctx, property_id, &property_name) {
         return None;
     }
 
@@ -429,20 +429,18 @@ fn redundant_property_name(ctx: &LintAstContext<'_>, property: &ast::Property) -
 /// Return one longform method name when it can be reduced to shorthand.
 fn redundant_method_name(
     ctx: &LintAstContext<'_>,
-    property: &ast::Property,
+    property_id: ast::LocalNodeId<ast::Property>,
     methods_ignore_pattern: Option<&Regex>,
 ) -> Option<String> {
-    let ast::Property::Field {
-        key: Some(key),
-        value: Some(value_id),
-        default: None,
-        ..
-    } = property
-    else {
+    let property = ctx.tree.get(property_id);
+    let ast::Property::Field { key, value } = property else {
         return None;
     };
 
     let method_name = property_key_redundant_name(ctx, key)?;
+    if field_source_is_shorthand(ctx, property_id, &method_name) {
+        return None;
+    }
     if ctx.options.style.object_shorthand_ignore_constructors && is_constructor_name(&method_name) {
         return None;
     }
@@ -450,22 +448,17 @@ fn redundant_method_name(
         return None;
     }
 
-    let ast::Expression::Declaration(declaration) = ctx.tree.get(*value_id) else {
+    let ast::Expression::Declaration(declaration) = ctx.tree.get(*value) else {
         return None;
     };
-    let Declaration::Function {
-        descriptor,
-        signature,
-        body,
-    } = ctx.tree.get(*declaration)
-    else {
+    let Declaration::Function(declaration) = ctx.tree.get(*declaration) else {
         return None;
     };
-    if descriptor.name.is_some() {
+    if declaration.name.is_some() {
         return None;
     }
     if matches!(
-        signature.mode,
+        declaration.signature.mode,
         Some(FunctionMode::Getter | FunctionMode::Setter)
     ) {
         return None;
@@ -474,9 +467,10 @@ fn redundant_method_name(
         .options
         .style
         .object_shorthand_avoid_explicit_return_arrows
-        && signature.kind == FunctionKind::Lambda
-        && body
-            .is_some_and(|body_id| !matches!(ctx.tree.get(body_id), ast::Expression::Block { .. }))
+        && declaration.signature.kind == FunctionKind::Lambda
+        && declaration
+            .body
+            .is_some_and(|body_id| !matches!(ctx.tree.get(body_id), ast::Expression::Block(..)))
     {
         return None;
     }
@@ -502,6 +496,18 @@ fn property_key_redundant_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<St
         }
         _ => None,
     }
+}
+
+/// Return true when one field is written in shorthand source form.
+fn field_source_is_shorthand(
+    ctx: &LintAstContext<'_>,
+    property_id: ast::LocalNodeId<ast::Property>,
+    property_name: &str,
+) -> bool {
+    let property_span = ctx.tree.get_span(property_id);
+    let property_text = ctx.get_span_text(property_span);
+
+    property_text.trim() == property_name
 }
 
 /// Return true when one property name looks like a constructor.

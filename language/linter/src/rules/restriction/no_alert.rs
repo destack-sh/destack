@@ -4,8 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_is_standalone_statement,
-    expression_target_symbol,
+    expression_is_any_symbol_or_global_qualified_member, expression_is_standalone_statement,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -159,53 +158,21 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
         self.ctx.report(diagnostic);
     }
 
-    /// Return true when the symbol is an alert dialog global.
-    fn is_alert_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
-        let symbols = [self.alert_symbol, self.confirm_symbol, self.prompt_symbol];
-        symbols
-            .into_iter()
-            .flatten()
-            .any(|alert_symbol| alert_symbol == symbol)
-    }
-
     /// Return true when the expression is an alert dialog reference.
     fn is_alert_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return self.is_alert_symbol(symbol);
-        }
+        let symbols = [self.alert_symbol, self.confirm_symbol, self.prompt_symbol]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let names = [self.alert_name, self.confirm_name, self.prompt_name];
 
-        // match global qualified references
-        self.is_global_alert(expression_id)
-    }
-
-    /// Return true when the expression is a global qualified alert.
-    fn is_global_alert(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // check global qualified alert references
-        let is_alert = expression_is_global_qualified_member(
+        expression_is_any_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            &symbols,
             &self.global_qualifiers,
-            self.alert_name,
-        );
-
-        // check global qualified confirm references
-        let is_confirm = expression_is_global_qualified_member(
-            self.ctx.tree,
-            expression_id,
-            &self.global_qualifiers,
-            self.confirm_name,
-        );
-
-        // check global qualified prompt references
-        let is_prompt = expression_is_global_qualified_member(
-            self.ctx.tree,
-            expression_id,
-            &self.global_qualifiers,
-            self.prompt_name,
-        );
-
-        is_alert || is_confirm || is_prompt
+            &names,
+        )
     }
 }
 

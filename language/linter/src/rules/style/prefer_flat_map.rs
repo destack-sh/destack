@@ -93,11 +93,11 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
     fn check_call(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // skip static call arguments until we support rendering them
-        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -110,21 +110,14 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // check flat() member static arguments
-        let outer_call_expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call { left, .. } = outer_call_expression else {
-            return;
-        };
-        let flat_member = self.ctx.tree.get(*left);
+        let flat_member = self.ctx.tree.get(flat_call.callee_id);
         let dir::Expression::Member {
-            static_arguments, ..
+            generic_arguments, ..
         } = flat_member
         else {
             return;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -142,22 +135,10 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // check that map() has at least one argument
-        let map_expression = self.ctx.tree.get(flat_call.receiver_id);
-        let dir::Expression::Call {
-            static_arguments: map_static_arguments,
-            dynamic_arguments: map_args,
-            ..
-        } = map_expression
-        else {
-            return;
-        };
-        if map_static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !map_call.generic_arguments.is_empty() {
             return;
         }
-        if map_args.is_empty() {
+        if map_call.dynamic_arguments.is_empty() {
             return;
         }
 
@@ -167,22 +148,15 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // check map() member static arguments
-        let map_call_expression = self.ctx.tree.get(flat_call.receiver_id);
-        let dir::Expression::Call { left, .. } = map_call_expression else {
-            return;
-        };
-        let map_member_id = *left;
+        let map_member_id = map_call.callee_id;
         let map_member = self.ctx.tree.get(map_member_id);
         let dir::Expression::Member {
-            static_arguments, ..
+            generic_arguments, ..
         } = map_member
         else {
             return;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -192,7 +166,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // report the match and attach fix when safe
-        self.report(expression_id, map_member_id, map_args);
+        self.report(expression_id, map_member_id, map_call.dynamic_arguments);
     }
 
     /// Check if flat() depth argument is valid (none or literal 1).
@@ -333,12 +307,12 @@ impl NodeVisitor for PreferFlatMapVisitor<'_, '_> {
     ) {
         // check call expressions
         if let dir::Expression::Call {
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
             ..
         } = expression
         {
-            self.check_call(id, static_arguments.as_deref(), dynamic_arguments);
+            self.check_call(id, generic_arguments.as_slice(), dynamic_arguments);
         }
 
         // walk expression children

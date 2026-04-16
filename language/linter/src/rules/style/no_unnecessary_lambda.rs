@@ -41,29 +41,27 @@ impl LintRule for NoUnnecessaryLambda {
         // inspect lambda declaration expressions only
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
             let expression = ctx.tree.get(expression_id);
-            let dir::Expression::Declaration { declaration } = expression else {
+            let dir::Expression::Declaration(declaration) = expression else {
                 continue;
             };
 
             let declaration_id = *declaration;
             let declaration = ctx.tree.get(declaration_id);
-            let dir::Declaration::Function {
-                signature, body, ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
             // keep sync scalar lambdas only
-            if signature.kind != dir::FunctionKind::Lambda
-                || signature.asynchrony != dir::Asynchrony::Sync
-                || signature.cardinality != dir::FunctionCardinality::Scalar
+            if declaration.signature.kind != dir::FunctionKind::Lambda
+                || declaration.signature.asynchrony != dir::Asynchrony::Sync
+                || declaration.signature.cardinality != dir::FunctionCardinality::Scalar
             {
                 continue;
             }
 
             // keep lambdas with one plain named parameter list
-            let Some(parameter_symbols) = lambda_parameter_symbols(ctx, signature) else {
+            let Some(parameter_symbols) = lambda_parameter_symbols(ctx, &declaration.signature)
+            else {
                 continue;
             };
             if parameter_symbols.is_empty() {
@@ -71,19 +69,19 @@ impl LintRule for NoUnnecessaryLambda {
             }
 
             // keep lambda bodies that forward directly to one call
-            let Some(call_expression_id) = lambda_forwarded_call_body(ctx, *body) else {
+            let Some(call_expression_id) = lambda_forwarded_call_body(ctx, declaration.body) else {
                 continue;
             };
             let call_expression = ctx.tree.get(call_expression_id);
             let dir::Expression::Call {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } = call_expression
             else {
                 continue;
             };
-            if static_arguments.is_some() || dynamic_arguments.len() != parameter_symbols.len() {
+            if !generic_arguments.is_empty() || dynamic_arguments.len() != parameter_symbols.len() {
                 continue;
             }
 
@@ -130,10 +128,10 @@ fn lambda_parameter_symbols(
     ctx: &LintModuleDirContext<'_>,
     signature: &dir::FunctionSignature,
 ) -> Option<Vec<dir::LocalSymbolId>> {
-    let mut symbols = Vec::with_capacity(signature.dynamic_parameters.len());
+    let mut symbols = Vec::with_capacity(signature.parameters.len());
 
     // keep plain named parameters without defaults
-    for parameter_id in &signature.dynamic_parameters {
+    for parameter_id in &signature.parameters {
         let parameter = ctx.tree.get(*parameter_id);
         let dir::Parameter::Named {
             default, symbol, ..
@@ -166,7 +164,7 @@ fn lambda_forwarded_call_body(
     }
 
     // then allow single return blocks
-    let dir::Expression::Block { block } = body_expression else {
+    let dir::Expression::Block(block) = body_expression else {
         return None;
     };
 

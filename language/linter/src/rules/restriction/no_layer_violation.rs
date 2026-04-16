@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::collections::HashMap;
 
 use destack_artifact::ModuleGraph;
@@ -30,7 +31,7 @@ declare_lint! {
 }
 
 impl LintRule for NoLayerViolation {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoLayerViolation::meta()
     }
 

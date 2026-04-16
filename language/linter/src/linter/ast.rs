@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::Ast;
-use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, StringPool};
+use destack_ast::{self as ast, Argument, Decorator, Expression, ScalarLiteral, StringPool};
 use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Repository, Revision};
 
@@ -198,8 +198,8 @@ impl<'a> LintAstContext<'a> {
         let mut current = Some(node_id.id);
 
         while let Some(id) = current {
-            for annotation_id in self.tree.get_annotations(id) {
-                if let Some(override_info) = self.eat_decorator(annotation_id, meta) {
+            for decorator_id in self.tree.get_decorators(id) {
+                if let Some(override_info) = self.eat_decorator(decorator_id, meta) {
                     overrides.push(override_info);
                 }
             }
@@ -288,17 +288,12 @@ impl<'a> LintAstContext<'a> {
     /// Parse a decorator annotation and return the severity override if it matches this lint.
     fn eat_decorator(
         &self,
-        annotation_id: ast::LocalNodeId<Annotation>,
+        decorator_id: ast::LocalNodeId<Decorator>,
         meta: &LintMeta,
     ) -> Option<LintSeverityOverride> {
-        let annotation = self.tree.get(annotation_id);
-        let Annotation::Decorator { node, .. } = annotation;
-
         // check decorator name (must be single segment: allow, warn, deny, forbid)
-        let call = self.decorator_call(*node);
-        let Some(path) = expression_path_segments(self.tree, call.callee) else {
-            return None;
-        };
+        let call = self.decorator_call(decorator_id);
+        let path = expression_path_segments(self.tree, call.callee)?;
         if path.len() != 1 {
             return None;
         }

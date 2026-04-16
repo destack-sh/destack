@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
@@ -37,7 +38,7 @@ const CONSTANTS: &[(&str, f64, &str)] = &[
 
 impl LintRule for NoApproxConstant {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoApproxConstant::meta()
     }
 

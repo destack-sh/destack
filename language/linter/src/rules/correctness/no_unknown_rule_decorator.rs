@@ -78,13 +78,10 @@ impl LintRule for NoUnknownRuleDecorator {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        // inspect candidate syntax nodes
-        for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
-            let annotation = ctx.tree.get(node_id);
-            let ast::Annotation::Decorator { node, .. } = annotation;
-
+        // inspect decorator side nodes
+        for node_id in ctx.tree.iter_nodes::<ast::Decorator>() {
             // check decorator name (must be single segment: allow, warn, deny, forbid)
-            let Some(path) = ctx.decorator_path(*node) else {
+            let Some(path) = ctx.decorator_path(node_id) else {
                 continue;
             };
             let Some(last_segment) = path.last() else {
@@ -98,12 +95,12 @@ impl LintRule for NoUnknownRuleDecorator {
             }
 
             // inspect all positional string arguments (lint IDs or codes)
-            let Some(arguments) = ctx.decorator_call(*node).arguments else {
+            let Some(arguments) = ctx.decorator_call(node_id).arguments else {
                 continue;
             };
             let argument_ids = arguments.to_vec();
 
-            // inspect candidate syntax nodes
+            // inspect candidate nodes
             for argument_id in argument_ids {
                 let argument = ctx.tree.get(argument_id);
                 let ast::Argument::Positional { value, .. } = argument else {
@@ -118,7 +115,7 @@ impl LintRule for NoUnknownRuleDecorator {
                 let argument_text = ctx.strings.get(*string_id).to_string();
                 let specifiers = decorator_lint_specifiers(argument_text.as_ref());
 
-                // inspect candidate syntax nodes
+                // inspect candidate nodes
                 for specifier in specifiers {
                     // check if the specifier is a valid lint rule ID or code
                     if is_valid_lint_specifier(specifier) {

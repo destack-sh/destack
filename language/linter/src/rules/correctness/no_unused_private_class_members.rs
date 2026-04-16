@@ -47,12 +47,12 @@ impl LintRule for NoUnusedPrivateClassMembers {
         // collect used private accessor keys before reporting
         for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let dir::Declaration::Class { members, .. } = declaration else {
+            let dir::Declaration::Class(declaration) = declaration else {
                 continue;
             };
 
-            // inspect candidate syntax nodes
-            for member_id in members {
+            // inspect candidate nodes
+            for member_id in &declaration.members {
                 let member = ctx.tree.get(*member_id);
                 if !member_is_private(member) || !member_is_accessor(member) {
                     continue;
@@ -77,12 +77,12 @@ impl LintRule for NoUnusedPrivateClassMembers {
         // walk class declarations and report unused private members
         for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let dir::Declaration::Class { members, .. } = declaration else {
+            let dir::Declaration::Class(declaration) = declaration else {
                 continue;
             };
 
             // inspect each class member candidate
-            for member_id in members {
+            for member_id in &declaration.members {
                 let member = ctx.tree.get(*member_id);
 
                 // resolve member symbol candidates
@@ -195,12 +195,18 @@ fn candidate_member_symbol(member: &dir::Member) -> Option<dir::LocalSymbolId> {
 /// Return true when a class member is private by modifier or key kind.
 fn member_is_private(member: &dir::Member) -> bool {
     match member {
-        dir::Member::Field { modifiers, key, .. } | dir::Member::Method { modifiers, key, .. } => {
-            let is_private_by_modifier = modifiers
-                .as_ref()
-                .and_then(|modifiers| modifiers.visibility)
-                == Some(dir::Visibility::Private);
-            let is_private_by_key = matches!(key, Some(dir::DynamicKey::Private(_)));
+        dir::Member::Field {
+            visibility, key, ..
+        } => {
+            let is_private_by_modifier = *visibility == Some(dir::Visibility::Private);
+            let is_private_by_key = matches!(key, dir::Key::Private(_));
+            is_private_by_modifier || is_private_by_key
+        }
+        dir::Member::Method {
+            visibility, key, ..
+        } => {
+            let is_private_by_modifier = *visibility == Some(dir::Visibility::Private);
+            let is_private_by_key = matches!(key, Some(dir::Key::Private(_)));
             is_private_by_modifier || is_private_by_key
         }
         _ => false,
@@ -238,10 +244,12 @@ fn member_private_accessor_key(member: &dir::Member) -> Option<AccessorKey> {
     };
     let key = key.as_ref()?;
     match key {
-        dir::DynamicKey::Name(name) => Some(AccessorKey::Name(*name)),
-        dir::DynamicKey::Number(number) => Some(AccessorKey::Number(*number)),
-        dir::DynamicKey::Private(name) => Some(AccessorKey::Private(*name)),
-        dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => None,
+        dir::Key::Name(dir::Name::Identifier(name)) | dir::Key::Name(dir::Name::String(name)) => {
+            Some(AccessorKey::Name(*name))
+        }
+        dir::Key::Name(dir::Name::Number(number)) => Some(AccessorKey::Number(*number)),
+        dir::Key::Private(name) => Some(AccessorKey::Private(*name)),
+        dir::Key::Expression(_) => None,
     }
 }
 

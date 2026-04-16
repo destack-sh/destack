@@ -173,7 +173,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         else {
@@ -181,11 +181,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         };
 
         // require no static args and exactly one callback arg
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-            || dynamic_arguments.len() != 1
-        {
+        if !generic_arguments.is_empty() || dynamic_arguments.len() != 1 {
             return None;
         }
 
@@ -217,28 +213,27 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
             return None;
         };
         let callback_expression = self.ctx.tree.get(*callback_id);
-        let dir::Expression::Declaration { declaration } = callback_expression else {
+        let dir::Expression::Declaration(declaration) = callback_expression else {
             return None;
         };
         let callback_declaration = self.ctx.tree.get(*declaration);
-        let dir::Declaration::Function {
-            signature,
-            body: Some(body_id),
-            ..
-        } = callback_declaration
-        else {
+        let dir::Declaration::Function(declaration) = callback_declaration else {
             return None;
         };
-        if signature.asynchrony != dir::Asynchrony::Async || signature.dynamic_parameters.len() != 1
+        let body_id = declaration.body?;
+        if declaration.signature.asynchrony != dir::Asynchrony::Async
+            || declaration.signature.parameters.len() != 1
         {
             return None;
         }
 
         // require a single named parameter without modifiers/default
-        let parameter_id = signature.dynamic_parameters[0];
+        let parameter_id = declaration.signature.parameters[0];
         let parameter = self.ctx.tree.get(parameter_id);
         let dir::Parameter::Named {
-            modifiers: None,
+            visibility: None,
+            is_readonly: false,
+            is_optional: false,
             name,
             default: None,
             ..
@@ -248,8 +243,8 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         };
 
         // require block body for direct statement preservation
-        let body_expression = self.ctx.tree.get(*body_id);
-        if !matches!(body_expression, dir::Expression::Block { .. }) {
+        let body_expression = self.ctx.tree.get(body_id);
+        if !matches!(body_expression, dir::Expression::Block(..)) {
             return None;
         }
 
@@ -257,7 +252,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         let parameter_name = self.ctx.repository.strings.get(*name).to_string();
         let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
         let receiver_text = strip_dot_member_suffix(member_text, "forEach")?;
-        let body_text = self.ctx.get_span_text(self.ctx.get_span(*body_id));
+        let body_text = self.ctx.get_span_text(self.ctx.get_span(body_id));
         let replacement = format!("for (const {parameter_name} of {receiver_text}) {body_text}");
         let edits = self
             .ctx

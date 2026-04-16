@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_is_standalone_statement,
-    expression_target_symbol,
+    CallLikeExpressionInfo, expression_call_like, expression_is_standalone_statement,
+    expression_is_symbol_or_global_qualified_member,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -91,10 +91,10 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     fn check_object_constructor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        constructor_call: ObjectConstructorCall<'_>,
+        call_like: CallLikeExpressionInfo<'_>,
     ) {
         // ignore non object references
-        if !self.is_object_reference(constructor_call.left) {
+        if !self.is_object_reference(call_like.left) {
             return;
         }
 
@@ -117,9 +117,13 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
         )
         .with_label(format!(
             "replace this {} with an object literal",
-            constructor_call.kind
+            if call_like.is_new {
+                "constructor"
+            } else {
+                "call"
+            }
         ));
-        if let Some(fix) = self.object_constructor_fix(expression_id, constructor_call) {
+        if let Some(fix) = self.object_constructor_fix(expression_id, call_like) {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -130,18 +134,15 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     fn object_constructor_fix(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        constructor_call: ObjectConstructorCall<'_>,
+        call_like: CallLikeExpressionInfo<'_>,
     ) -> Option<LintFix> {
         // skip static arguments until we support rendering them
-        if constructor_call
-            .static_arguments
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !call_like.generic_arguments.is_empty() {
             return None;
         }
 
         // only fix no argument calls: `Object(value)` has different semantics
-        if !constructor_call.dynamic_arguments.is_empty() {
+        if !call_like.dynamic_arguments.is_empty() {
             return None;
         }
 
@@ -165,15 +166,10 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
 
     /// Return true when the expression is a reference to Object.
     fn is_object_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        if expression_target_symbol(self.ctx.tree, expression_id) == Some(self.object_symbol) {
-            return true;
-        }
-
-        // match global qualified references
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.object_symbol,
             &self.global_qualifiers,
             self.object_name,
         )
@@ -192,54 +188,13 @@ impl NodeVisitor for ObjectConstructorVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check for object constructor calls
-        if let Some(constructor_call) = object_constructor_reference(expression) {
-            self.check_object_constructor(id, constructor_call);
+        if let Some(call_like) = expression_call_like(expression) {
+            self.check_object_constructor(id, call_like);
         }
 
         // walk expression children
         walk_expression(self, tree, id, expression);
     }
-}
-
-/// Identify Object constructor call forms.
-fn object_constructor_reference(expression: &dir::Expression) -> Option<ObjectConstructorCall<'_>> {
-    // match call and constructor expressions
-    match expression {
-        dir::Expression::Call {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => Some(ObjectConstructorCall {
-            kind: "call",
-            left: *left,
-            static_arguments: static_arguments.as_deref(),
-            dynamic_arguments,
-        }),
-        dir::Expression::New {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => Some(ObjectConstructorCall {
-            kind: "constructor",
-            left: *left,
-            static_arguments: static_arguments.as_deref(),
-            dynamic_arguments,
-        }),
-        _ => None,
-    }
-}
-
-/// Constructor call data normalized across call and new expressions.
-#[derive(Clone, Copy)]
-struct ObjectConstructorCall<'a> {
-    /// The call form used for diagnostics.
-    kind: &'static str,
-    /// The constructor reference expression.
-    left: dir::LocalNodeId<dir::Expression>,
-    /// Optional static arguments.
-    static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
-    /// Dynamic arguments.
-    dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 #[cfg(test)]

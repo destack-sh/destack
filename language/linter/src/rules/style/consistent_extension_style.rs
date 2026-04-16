@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for ConsistentExtensionStyle {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         ConsistentExtensionStyle::meta()
     }
 
@@ -35,12 +36,12 @@ impl LintRule for ConsistentExtensionStyle {
             let decl = ctx.tree.get(node_id);
 
             // look for extension declarations
-            let Declaration::Extension { descriptor, .. } = decl else {
+            let Declaration::Extension(declaration) = decl else {
                 continue;
             };
 
             // check if extension is anonymous (no name)
-            if descriptor.name.is_none() {
+            if declaration.name.is_none() {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;

@@ -1,7 +1,7 @@
-use destack_ast::{self as ast, BinaryOperator};
+use crate::LintMeta;
+use destack_ast::{self as ast, TypeExpression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_type_annotation;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -25,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxTypeVariants {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxTypeVariants::meta()
     }
 
@@ -35,27 +35,20 @@ impl LintRule for MaxTypeVariants {
         let max_type_variants = ctx.options.complexity.max_type_variants;
 
         // check top level union type expressions only
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr,
-                ..
-            } = ctx.tree.get(expression_id)
-            else {
+        for type_expression_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
+            let ast::TypeExpression::Union { .. } = ctx.tree.get(type_expression_id) else {
                 continue;
             };
-            if !expression_is_type_annotation(ctx.tree, ctx.parents, expression_id) {
-                continue;
-            }
-            if union_has_parent_union(ctx, expression_id) {
+            if union_has_parent_union(ctx, type_expression_id) {
                 continue;
             }
 
-            let variant_count = count_union_variants(ctx, expression_id);
+            let variant_count = count_union_variants(ctx, type_expression_id);
             if variant_count > max_type_variants {
                 report_variant_overflow(
                     ctx,
                     meta,
-                    expression_id,
+                    type_expression_id,
                     "union type",
                     variant_count,
                     max_type_variants,
@@ -66,10 +59,10 @@ impl LintRule for MaxTypeVariants {
         // check enum variant counts
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Enum { fields, .. } = declaration else {
+            let ast::Declaration::Enum(declaration) = declaration else {
                 continue;
             };
-            let variant_count = fields.len();
+            let variant_count = declaration.fields.len();
             if variant_count > max_type_variants {
                 report_variant_overflow(
                     ctx,
@@ -87,49 +80,43 @@ impl LintRule for MaxTypeVariants {
 /// Return true when one union expression has an outer union parent.
 fn union_has_parent_union(
     ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
-    // resolve expression parent
-    let Some(parent_id) = ctx.parents.get(expression_id) else {
+    let Some(parent_id) = ctx.parents.get(type_expression_id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::TypeExpression {
         return false;
     }
 
     // keep only parent union expressions
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression_id = ast::LocalNodeId::<ast::TypeExpression>::new(parent_id);
     matches!(
         ctx.tree.get(parent_expression_id),
-        ast::Expression::Binary {
-            operator: BinaryOperator::ElementwiseOr,
-            ..
-        }
+        ast::TypeExpression::Union { .. }
     )
 }
 
 /// Count flattened union variants for one union expression.
 fn count_union_variants(
     ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> usize {
-    let expression = ctx.tree.get(expression_id);
-    let ast::Expression::Binary {
-        left,
-        operator: BinaryOperator::ElementwiseOr,
-        right,
-    } = expression
-    else {
+    let type_expression = ctx.tree.get(type_expression_id);
+    let TypeExpression::Union { elements } = type_expression else {
         return 1;
     };
 
-    count_union_variants(ctx, *left) + count_union_variants(ctx, *right)
+    elements
+        .iter()
+        .map(|element_id| count_union_variants(ctx, *element_id))
+        .sum()
 }
 
 /// Report one variant count overflow diagnostic.
 fn report_variant_overflow<T: ast::Node + Clone>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     type_kind: &str,
     variant_count: usize,

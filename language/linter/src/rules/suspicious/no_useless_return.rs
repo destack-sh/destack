@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
@@ -28,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUselessReturn {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUselessReturn::meta()
     }
 
@@ -49,7 +50,7 @@ impl LintRule for NoUselessReturn {
 /// Report one redundant trailing bare return inside a callable body.
 fn report_trailing_bare_return(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: CallableOwnerId,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
@@ -81,7 +82,7 @@ fn report_trailing_bare_return(
     )
     .with_label("this return is unnecessary");
 
-    // keep source parity: avoid deleting commented returns
+    // avoid deleting commented returns
     if ctx.compute_fixes
         && !span_has_comment(ctx.tree, return_span)
         && !return_has_trailing_comment(ctx, return_span)

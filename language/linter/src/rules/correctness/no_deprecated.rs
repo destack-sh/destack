@@ -7,8 +7,8 @@ use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_li
 declare_lint! {
     /// Disallow usage of APIs marked as `@deprecated`.
     ///
-    /// Deprecated symbols remain available for compatibility but should be
-    /// migrated to supported alternatives.
+    /// Deprecated symbols remain available but should be migrated to
+    /// supported alternatives.
     #[lint(
         id = "no-deprecated",
         code = "LC011",
@@ -185,7 +185,7 @@ fn should_skip_expression(
     };
 
     // ignore annotation references
-    if parent.ty == dir::NodeType::Annotation {
+    if parent.ty == dir::NodeType::Decorator {
         return true;
     }
 

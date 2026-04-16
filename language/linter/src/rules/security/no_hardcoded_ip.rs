@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
@@ -31,7 +32,7 @@ declare_lint! {
 }
 
 impl LintRule for NoHardcodedIp {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoHardcodedIp::meta()
     }
 

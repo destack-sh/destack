@@ -134,27 +134,15 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<FilterPattern> {
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } = expression
-        else {
-            return None;
-        };
+        let call = expression_method_call(self.ctx.tree, expression_id)?;
 
         // keep simple callback-only forEach calls
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-            || dynamic_arguments.len() != 1
-        {
+        if !call.generic_arguments.is_empty() || call.dynamic_arguments.len() != 1 {
             return None;
         }
 
         // keep positional callback expressions
-        let callback_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let callback_argument = self.ctx.tree.get(call.dynamic_arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
@@ -164,27 +152,26 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
 
         // keep inline sync callbacks with one named parameter
         let callback_expression = self.ctx.tree.get(*callback_id);
-        let dir::Expression::Declaration { declaration } = callback_expression else {
+        let dir::Expression::Declaration(declaration) = callback_expression else {
             return None;
         };
         let callback_declaration = self.ctx.tree.get(*declaration);
-        let dir::Declaration::Function {
-            signature,
-            body: Some(body_id),
-            ..
-        } = callback_declaration
-        else {
+        let dir::Declaration::Function(declaration) = callback_declaration else {
             return None;
         };
-        if signature.asynchrony != dir::Asynchrony::Sync || signature.dynamic_parameters.len() != 1
+        let body_id = declaration.body?;
+        if declaration.signature.asynchrony != dir::Asynchrony::Sync
+            || declaration.signature.parameters.len() != 1
         {
             return None;
         }
 
         // keep one plain named callback parameter
-        let parameter = self.ctx.tree.get(signature.dynamic_parameters[0]);
+        let parameter = self.ctx.tree.get(declaration.signature.parameters[0]);
         let dir::Parameter::Named {
-            modifiers: None,
+            visibility: None,
+            is_readonly: false,
+            is_optional: false,
             name,
             default: None,
             ..
@@ -195,30 +182,17 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let parameter_symbol = parameter.symbol().into_global(self.ctx.module_id());
 
         // keep one if-without-else body
-        let (condition_expression_id, push_call_id) = self.if_push_from_callback_body(*body_id)?;
+        let (condition_expression_id, push_call_id) = self.if_push_from_callback_body(body_id)?;
 
         // keep push calls with one positional value
         let push_call = expression_method_call(self.ctx.tree, push_call_id)?;
         if push_call.method_name != self.push_name {
             return None;
         }
-        let push_expression = self.ctx.tree.get(push_call_id);
-        let dir::Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } = push_expression
-        else {
-            return None;
-        };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-            || dynamic_arguments.len() != 1
-        {
+        if !push_call.generic_arguments.is_empty() || push_call.dynamic_arguments.len() != 1 {
             return None;
         }
-        let pushed_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let pushed_argument = self.ctx.tree.get(push_call.dynamic_arguments[0]);
         let dir::Argument::Positional {
             value: pushed_value_id,
             ..
@@ -255,7 +229,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
 
         // block callbacks: keep single body expression
-        let if_expression_id = if let dir::Expression::Block { block } = expression {
+        let if_expression_id = if let dir::Expression::Block(block) = expression {
             let block = self.ctx.tree.get(*block);
             if block.len() != 1 {
                 return None;
@@ -298,7 +272,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
 
         // block then branch: keep single body expression
-        if let dir::Expression::Block { block } = expression {
+        if let dir::Expression::Block(block) = expression {
             let block = self.ctx.tree.get(*block);
             if block.len() != 1 {
                 return None;

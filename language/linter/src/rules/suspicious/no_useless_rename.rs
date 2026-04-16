@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUselessRename {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUselessRename::meta()
     }
 
@@ -202,7 +203,7 @@ fn useless_destructuring_rename_fix(
     name_text: String,
     default_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
 ) -> Option<LintFix> {
-    // keep source parity: avoid touching commented nodes
+    // avoid touching commented nodes
     if span_has_comment(ctx.tree, field_span) {
         return None;
     }
@@ -236,7 +237,7 @@ fn useless_dependency_item_rename_fix(
     ctx: &LintAstContext<'_>,
     item_span: Span,
 ) -> Option<LintFix> {
-    // keep source parity: avoid touching commented items
+    // avoid touching commented items
     if span_has_comment(ctx.tree, item_span) {
         return None;
     }

@@ -185,7 +185,7 @@ impl NodeVisitor for UnusedMustUseVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         if expression_is_standalone_statement(tree, id)
-            || matches!(expression, dir::Expression::Block { .. })
+            || matches!(expression, dir::Expression::Block(..))
         {
             self.check_statement(id, id);
         }

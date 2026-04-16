@@ -40,7 +40,7 @@ impl LintRule for NoMixedKeyTypes {
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
             let expression = ctx.tree.get(expression_id);
             let properties = match expression {
-                dir::Expression::ObjectExpression { properties }
+                dir::Expression::ObjectExpression { ty: _, properties }
                 | dir::Expression::TaggedObjectExpression { properties, .. } => properties,
                 _ => continue,
             };
@@ -146,18 +146,21 @@ fn property_key_kind(
     property_id: dir::LocalNodeId<dir::Property>,
 ) -> Option<(ObjectKeyKind, destack_source::Span)> {
     let property = ctx.tree.get(property_id);
-    let dynamic_key = match property {
-        dir::Property::Field { key, .. } | dir::Property::Method { key, .. } => *key,
-        dir::Property::Spread { .. } => None,
-        dir::Property::Error { .. } => None,
-    }?;
+    let key = match property {
+        dir::Property::Field { key, .. } => *key,
+        dir::Property::Method { key: Some(key), .. } => *key,
+        dir::Property::Method { key: None, .. }
+        | dir::Property::Spread { .. }
+        | dir::Property::Error { .. } => return None,
+    };
 
-    let key_kind = match dynamic_key {
-        dir::DynamicKey::Name(_) => ObjectKeyKind::StringLike,
-        dir::DynamicKey::Number(_) => ObjectKeyKind::Numeric,
-        dir::DynamicKey::Private(_) => ObjectKeyKind::SymbolLike,
-        dir::DynamicKey::Expression(expression_id) => key_expression_kind(ctx, expression_id)?,
-        dir::DynamicKey::NamedExpression { key, .. } => key_expression_kind(ctx, key)?,
+    let key_kind = match key {
+        dir::Key::Name(dir::Name::Identifier(_) | dir::Name::String(_)) => {
+            ObjectKeyKind::StringLike
+        }
+        dir::Key::Name(dir::Name::Number(_)) => ObjectKeyKind::Numeric,
+        dir::Key::Private(_) => ObjectKeyKind::SymbolLike,
+        dir::Key::Expression(expression_id) => key_expression_kind(ctx, expression_id)?,
     };
 
     Some((key_kind, ctx.get_span(property_id)))
@@ -173,6 +176,7 @@ fn key_expression_kind(
     // scalar literal keys are statically classifiable
     if let dir::Expression::ScalarLiteral { value } = expression {
         return match value {
+            dir::ScalarLiteral::Null => Some(ObjectKeyKind::StringLike),
             dir::ScalarLiteral::String(_)
             | dir::ScalarLiteral::Boolean(_)
             | dir::ScalarLiteral::Character(_)

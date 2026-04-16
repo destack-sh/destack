@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
@@ -35,7 +36,7 @@ declare_lint! {
 }
 
 impl LintRule for NoBarrelFile {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoBarrelFile::meta()
     }
 

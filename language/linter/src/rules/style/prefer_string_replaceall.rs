@@ -9,7 +9,7 @@ use regex_syntax::hir::HirKind;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::analysis::LintRegexParse;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_static_string_literal,
+    expression_is_symbol_or_global_qualified_member, expression_static_string_literal,
     expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
     single_quoted_string_literal, span_has_comment, symbol_initializer_expression,
 };
@@ -109,11 +109,11 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // skip static arguments until we support rendering them
-        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -122,7 +122,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_id,
             name,
-            static_arguments,
+            generic_arguments,
         } = member_expression
         else {
             return;
@@ -132,10 +132,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         if !is_replace && !is_replace_all {
             return;
         }
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -428,13 +425,10 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return false;
         };
 
-        if expression_target_symbol(self.ctx.tree, expression_id) == Some(regexp_symbol) {
-            return true;
-        }
-
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            regexp_symbol,
             &self.global_qualifiers,
             self.regexp_name,
         )
@@ -514,11 +508,11 @@ impl NodeVisitor for PreferStringReplaceAllVisitor<'_, '_> {
         // check replace calls
         if let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         {
-            self.check_replace_call(id, *left, static_arguments.as_deref(), dynamic_arguments);
+            self.check_replace_call(id, *left, generic_arguments.as_slice(), dynamic_arguments);
         }
 
         // walk expression children

@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for NoRedundantPattern {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoRedundantPattern::meta()
     }
 
@@ -86,7 +87,7 @@ fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pa
         ast::Pattern::Binding { .. } => true,
 
         // expression patterns don't bind (they match)
-        ast::Pattern::Expression { .. } => false,
+        ast::Pattern::Expression { .. } | ast::Pattern::TypeExpression { .. } => false,
 
         // check nested patterns
         ast::Pattern::Object { fields }

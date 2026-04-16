@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, AssignOperator, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
@@ -7,10 +8,9 @@ use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 declare_lint! {
     /// Disallow confusing non null assertions.
     ///
-    /// This rule follows TS-ESLint `no-confusing-non-null-assertion` parity for
-    /// confusing operator combinations like `a! == b`, `a! = b`, `a! in b`, and
-    /// `a! instanceof b`.
-    /// It also keeps Destack optional chain clarity checks as an enhancement.
+    /// This rule catches confusing operator combinations like `a! == b`,
+    /// `a! = b`, `a! in b`, `a! is T`, and `a! instanceof b`.
+    /// It also checks optional chain groupings that are easy to misread.
     #[lint(
         id = "no-confusing-non-null-assertion",
         code = "LU005",
@@ -27,18 +27,18 @@ declare_lint! {
 }
 
 impl LintRule for NoConfusingNonNullAssertion {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoConfusingNonNullAssertion::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        // inspect all expressions for source parity and Destack enhancement cases
+        // inspect all expressions for operator and optional chain confusion
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            // handle optional chain confusion enhancement
+            // handle optional chain confusion
             if let Expression::Must { left, .. } = expression {
                 if is_optional_chain_target(ctx, node_id) {
                     report_optional_chain_confusion_before(ctx, meta, node_id);
@@ -49,7 +49,7 @@ impl LintRule for NoConfusingNonNullAssertion {
                 }
             }
 
-            // handle TS-ESLint parity operator confusion cases
+            // handle operator confusion cases
             let Some(operator_case) = confusing_operator_case(expression) else {
                 continue;
             };
@@ -73,6 +73,10 @@ impl LintRule for NoConfusingNonNullAssertion {
                 ConfusingOperatorKind::In => (
                     "confusing combination of non-null assertion and `in`",
                     "`a! in b` can be mistaken for `!(a in b)`",
+                ),
+                ConfusingOperatorKind::Is => (
+                    "confusing combination of non-null assertion and `is`",
+                    "`a! is T` can be mistaken for `!(a is T)`",
                 ),
                 ConfusingOperatorKind::InstanceOf => (
                     "confusing combination of non-null assertion and `instanceof`",
@@ -106,7 +110,7 @@ impl LintRule for NoConfusingNonNullAssertion {
     }
 }
 
-/// One source parity operator case for confusing non null syntax.
+/// One confusing operator case for a non null assertion.
 #[derive(Clone, Copy)]
 struct ConfusingOperatorCase {
     /// The left operand expression id.
@@ -115,7 +119,7 @@ struct ConfusingOperatorCase {
     kind: ConfusingOperatorKind,
 }
 
-/// One confusing operator kind from source parity behavior.
+/// One confusing operator kind.
 #[derive(Clone, Copy)]
 enum ConfusingOperatorKind {
     /// Assignment `=`.
@@ -124,11 +128,13 @@ enum ConfusingOperatorKind {
     Equal,
     /// Membership `in`.
     In,
+    /// Type test `is`.
+    Is,
     /// Instance check `instanceof`.
     InstanceOf,
 }
 
-/// Return one source parity operator case when one expression matches.
+/// Return one confusing operator case when one expression matches.
 fn confusing_operator_case(expression: &Expression) -> Option<ConfusingOperatorCase> {
     match expression {
         Expression::Assign {
@@ -143,7 +149,6 @@ fn confusing_operator_case(expression: &Expression) -> Option<ConfusingOperatorC
             let kind = match operator {
                 BinaryOperator::Equal | BinaryOperator::EqualStrict => ConfusingOperatorKind::Equal,
                 BinaryOperator::In => ConfusingOperatorKind::In,
-                BinaryOperator::InstanceOf => ConfusingOperatorKind::InstanceOf,
                 _ => return None,
             };
 
@@ -152,6 +157,14 @@ fn confusing_operator_case(expression: &Expression) -> Option<ConfusingOperatorC
                 kind,
             })
         }
+        Expression::Is { value, .. } => Some(ConfusingOperatorCase {
+            left_expression_id: *value,
+            kind: ConfusingOperatorKind::Is,
+        }),
+        Expression::InstanceOf { value, .. } => Some(ConfusingOperatorCase {
+            left_expression_id: *value,
+            kind: ConfusingOperatorKind::InstanceOf,
+        }),
         _ => None,
     }
 }
@@ -169,13 +182,13 @@ fn has_confusing_non_null_left_operand(
     expression_trailing_bang_span(ctx, left_expression_id).is_some()
 }
 
-/// Build one fix for one source parity operator case.
+/// Build one fix for one confusing operator case.
 fn confusing_operator_fix(
     ctx: &LintAstContext<'_>,
     left_expression_id: ast::LocalNodeId<Expression>,
     kind: ConfusingOperatorKind,
 ) -> Option<LintFix> {
-    // remove the trailing `!` for assignment targets to keep syntax valid
+    // remove the trailing `!` for assignment targets to keep the expression valid
     if matches!(kind, ConfusingOperatorKind::Assign) {
         let bang_span = expression_trailing_bang_span(ctx, left_expression_id)?;
         return Some(
@@ -202,7 +215,7 @@ fn confusing_operator_fix(
 /// Report one optional chain confusion diagnostic for `foo!?.bar` forms.
 fn report_optional_chain_confusion_before(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     expression_id: ast::LocalNodeId<Expression>,
 ) {
     // resolve effective lint severity
@@ -236,7 +249,7 @@ fn report_optional_chain_confusion_before(
 /// Report one optional chain confusion diagnostic for `foo?.bar!` forms.
 fn report_optional_chain_confusion_after(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     must_expression_id: ast::LocalNodeId<Expression>,
     optional_chain_id: ast::LocalNodeId<Expression>,
 ) {
@@ -409,6 +422,21 @@ if (a! in b) {
     }
 
     #[test]
+    fn test_detects_non_null_before_is_operator() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
+        let result = test.lint_ast(
+            "no_confusing_non_null_assertion/test_detects_non_null_before_is_operator.ds",
+            r#"
+if (value! is Foo) {
+    x()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-non-null-assertion");
+    }
+
+    #[test]
     fn test_allows_parenthesized_left_operand() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
@@ -439,6 +467,28 @@ if (a + b! == c) {
             .assert_suggested_fixed(
                 r#"
 if ((a + b!) == c) {
+    x()
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_wraps_left_operand_for_is_operator() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
+        let result = test.lint_ast(
+            "no_confusing_non_null_assertion/test_fix_wraps_left_operand_for_is_operator.ds",
+            r#"
+if (value! is Foo) {
+    x()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-non-null-assertion")
+            .assert_suggested_fixed(
+                r#"
+if ((value!) is Foo) {
     x()
 }
 "#,

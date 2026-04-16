@@ -51,7 +51,7 @@ pub fn signature_declares_value_name(
 
     // then check regular dynamic parameters
     signature
-        .dynamic_parameters
+        .parameters
         .iter()
         .any(|parameter_id| parameter_declares_value_name(tree, symbols, *parameter_id, name))
 }
@@ -114,7 +114,9 @@ pub fn collect_pattern_value_binding_symbols(
 
     // recurse through child patterns
     match pattern {
-        dir::Pattern::Wildcard | dir::Pattern::Expression { .. } => {}
+        dir::Pattern::Wildcard
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::TypeExpression { .. } => {}
         dir::Pattern::Must(inner)
         | dir::Pattern::ReferenceOf { right: inner, .. }
         | dir::Pattern::ValueOf { right: inner, .. } => {
@@ -200,20 +202,18 @@ pub fn collect_callable_parameter_value_binding_symbols(
     // inspect function declarations with bodies
     for declaration_id in tree.iter_node_ids_of_type::<dir::Declaration>() {
         let declaration = tree.get(declaration_id);
-        let dir::Declaration::Function {
-            signature,
-            body: Some(_),
-            ..
-        } = declaration
-        else {
+        let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
+        if declaration.body.is_none() {
+            continue;
+        }
 
         collect_signature_parameter_value_binding_symbols(
             module_id,
             tree,
             symbols,
-            signature,
+            &declaration.signature,
             &mut global_symbols,
         );
     }
@@ -250,7 +250,7 @@ fn collect_signature_parameter_value_binding_symbols(
     signature: &dir::FunctionSignature,
     global_symbols: &mut HashSet<dir::GlobalSymbolId>,
 ) {
-    for parameter_id in &signature.dynamic_parameters {
+    for parameter_id in &signature.parameters {
         let mut local_symbols = HashSet::new();
         collect_parameter_value_binding_symbols(tree, symbols, *parameter_id, &mut local_symbols);
 

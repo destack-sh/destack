@@ -1,9 +1,10 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_outer_parenthesized_syntax, expression_path_segments, expression_statement_ancestor,
-    expression_unwrap_parenthesized_syntax,
+    expression_outer_parenthesized_source_form, expression_path_segments,
+    expression_statement_ancestor, expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -28,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for NoMultiAssign {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoMultiAssign::meta()
     }
 
@@ -93,7 +94,7 @@ fn assignment_should_report(
         return true;
     }
 
-    // optionally ignore non-declaration chains for source-compatible behavior
+    // optionally ignore non-declaration chains
     if ignore_non_declaration {
         return false;
     }
@@ -109,7 +110,7 @@ fn assignment_is_declaration_initializer(
 ) -> bool {
     // lift assignment through parenthesized wrappers for parent checks
     let wrapped_expression_id =
-        expression_outer_parenthesized_syntax(ctx.tree, ctx.parents, assignment_expression_id);
+        expression_outer_parenthesized_source_form(ctx.tree, ctx.parents, assignment_expression_id);
 
     // require one concrete parent node
     let Some(parent_id) = ctx.parents.get(wrapped_expression_id) else {
@@ -143,7 +144,7 @@ fn assignment_is_declaration_initializer(
         let property = ctx
             .tree
             .get(ast::LocalNodeId::<ast::Property>::new(parent_id));
-        if matches!(property, ast::Property::Field { default: Some(default_id), .. } if *default_id == wrapped_expression_id)
+        if matches!(property, ast::Property::Field { value, .. } if *value == wrapped_expression_id)
         {
             return true;
         }
@@ -159,14 +160,14 @@ fn assignment_has_assignment_right(
 ) -> bool {
     // normalize the assignment expression before right-side checks
     let assignment_expression_id =
-        expression_unwrap_parenthesized_syntax(ctx.tree, assignment_expression_id);
+        expression_unwrap_parenthesized_source_form(ctx.tree, assignment_expression_id);
     let assignment_expression = ctx.tree.get(assignment_expression_id);
     let ast::Expression::Assign { right, .. } = assignment_expression else {
         return false;
     };
 
     // keep only right sides that resolve to another assignment expression
-    let right_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+    let right_expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
     let right_expression = ctx.tree.get(right_expression_id);
     matches!(right_expression, ast::Expression::Assign { .. })
 }
@@ -189,9 +190,7 @@ fn no_multi_assign_fix(
     // collect lhs texts and keep simple paths only
     let mut left_texts = Vec::new();
     for left_id in left_ids {
-        if expression_path_segments(ctx.tree, left_id).is_none() {
-            return None;
-        }
+        expression_path_segments(ctx.tree, left_id)?;
 
         let left_span = ctx.tree.get_span(left_id);
         left_texts.push(ctx.get_span_text(left_span).to_string());
@@ -223,7 +222,7 @@ fn collect_assignment_chain(
     expression_id: ast::LocalNodeId<ast::Expression>,
     left_ids: &mut Vec<ast::LocalNodeId<ast::Expression>>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     let ast::Expression::Assign { left, right, .. } = expression else {
         return Some(expression_id);
