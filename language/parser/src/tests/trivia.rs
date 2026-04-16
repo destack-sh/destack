@@ -510,19 +510,19 @@ fn test_doc_comment_attaches_to_call_argument() {
 }
 
 #[test]
-fn test_comment_between_export_and_declaration_head_emits_unowned_seam_trivia() {
+fn test_comment_between_export_and_declaration_head_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
-        "export // seam\nasync function f() {}",
+        "export // boundary\nasync function f() {}",
         LanguageType::TypeScript,
     );
 
     // `async function f() {}`
     assert_eq!(expressions.len(), 1);
 
-    // `// seam`
+    // `// boundary`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert_eq!(comment_text(&parser, comment), "seam");
+    assert_eq!(comment_text(&parser, comment), "boundary");
     assert_comment_boundary_tokens(
         &parser,
         comment,
@@ -533,19 +533,19 @@ fn test_comment_between_export_and_declaration_head_emits_unowned_seam_trivia() 
 }
 
 #[test]
-fn test_comment_after_satisfies_keyword_emits_unowned_seam_trivia() {
+fn test_comment_after_satisfies_keyword_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
-        "value satisfies // seam\nRecord<A, B>",
+        "value satisfies // boundary\nRecord<A, B>",
         LanguageType::TypeScript,
     );
 
     // `value satisfies Record<A, B>`
     assert_eq!(expressions.len(), 1);
 
-    // `// seam`
+    // `// boundary`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert_eq!(comment_text(&parser, comment), "seam");
+    assert_eq!(comment_text(&parser, comment), "boundary");
     assert_comment_boundary_tokens(
         &parser,
         comment,
@@ -556,19 +556,19 @@ fn test_comment_after_satisfies_keyword_emits_unowned_seam_trivia() {
 }
 
 #[test]
-fn test_comment_before_as_keyword_emits_unowned_seam_trivia() {
+fn test_comment_before_as_keyword_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
-        "const value = source /* seam */ as number",
+        "const value = source /* boundary */ as number",
         LanguageType::TypeScript,
     );
 
     // `const value = source as number`
     assert_eq!(expressions.len(), 1);
 
-    // `/* seam */`
+    // `/* boundary */`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert_eq!(comment_text(&parser, comment), " seam");
+    assert_eq!(comment_text(&parser, comment), " boundary");
     assert_comment_boundary_tokens(
         &parser,
         comment,
@@ -579,19 +579,19 @@ fn test_comment_before_as_keyword_emits_unowned_seam_trivia() {
 }
 
 #[test]
-fn test_comment_after_as_keyword_emits_unowned_seam_trivia() {
+fn test_comment_after_as_keyword_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
-        "const value = source as // seam\nnumber",
+        "const value = source as // boundary\nnumber",
         LanguageType::TypeScript,
     );
 
     // `const value = source as number`
     assert_eq!(expressions.len(), 1);
 
-    // `// seam`
+    // `// boundary`
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
-    assert_eq!(comment_text(&parser, comment), "seam");
+    assert_eq!(comment_text(&parser, comment), "boundary");
     assert_comment_boundary_tokens(
         &parser,
         comment,
@@ -602,7 +602,7 @@ fn test_comment_after_as_keyword_emits_unowned_seam_trivia() {
 }
 
 #[test]
-fn test_multiline_block_comment_between_as_and_const_emits_unowned_seam_trivia() {
+fn test_multiline_block_comment_between_as_and_const_emits_unowned_boundary_trivia() {
     let (parser, expressions) =
         parse_source("1 as /*\nblock-comment\n*/ const", LanguageType::TypeScript);
 
@@ -623,7 +623,7 @@ fn test_multiline_block_comment_between_as_and_const_emits_unowned_seam_trivia()
 }
 
 #[test]
-fn test_variable_trailing_marker_comment_emits_unowned_seam_trivia() {
+fn test_variable_trailing_marker_comment_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
         "declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()",
         LanguageType::TypeScript,
@@ -654,7 +654,7 @@ fn test_variable_trailing_marker_comment_emits_unowned_seam_trivia() {
 }
 
 #[test]
-fn test_comment_after_if_head_emits_unowned_seam_trivia() {
+fn test_comment_after_if_head_emits_unowned_boundary_trivia() {
     let (parser, expressions) =
         parse_source("if (ready) // if-head\nrun()", LanguageType::TypeScript);
 
@@ -675,7 +675,7 @@ fn test_comment_after_if_head_emits_unowned_seam_trivia() {
 }
 
 #[test]
-fn test_comment_between_ternary_then_and_colon_emits_unowned_seam_trivia() {
+fn test_comment_between_ternary_then_and_colon_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
         "const result = cond ? left /* left-note */ : right",
         LanguageType::TypeScript,
@@ -744,7 +744,7 @@ fn test_comment_before_less_than_comparison_attaches_to_operator_boundary() {
 }
 
 #[test]
-fn test_comments_between_if_chain_branches_emit_unowned_seam_trivia() {
+fn test_comments_between_if_chain_branches_emit_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
         r#"if (cond1) {
     const X = 1;
@@ -790,7 +790,7 @@ else {
 }
 
 #[test]
-fn test_multiline_trailing_block_comment_inside_block_emits_unowned_seam_trivia() {
+fn test_multiline_trailing_block_comment_inside_block_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
         LanguageType::TypeScript,
@@ -816,7 +816,7 @@ fn test_multiline_trailing_block_comment_inside_block_emits_unowned_seam_trivia(
 }
 
 #[test]
-fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_seam_trivia() {
+fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_boundary_trivia() {
     let (parser, _block_id) = parse_block_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
         LanguageType::TypeScript,
@@ -835,8 +835,8 @@ fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_s
 }
 
 #[test]
-fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_destack_emits_unowned_seam_trivia()
-{
+fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_boundary_trivia_in_value_block_mode()
+ {
     let (parser, _block_id) = parse_block_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
         LanguageType::Destack,

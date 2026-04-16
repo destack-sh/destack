@@ -325,7 +325,7 @@ impl Parser {
         if self.peek_is(TokenType::LessThan) {
             self.bump();
         } else if self.peek_is(TokenType::ShiftLeft) {
-            if !self.re_lex_ts_l_angle() {
+            if !self.re_lex_generic_l_angle() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
@@ -496,14 +496,14 @@ impl Parser {
     }
 
     /// Return true if the current `do` token starts a do-while statement.
-    /// Destack requires `do { ... } while ...`, while JS/TS allow `do` with any statement.
+    /// Block-required modes only accept `do { ... } while ...`, while semicolon statement forms accept any statement body.
     pub(super) fn is_do_while_statement(&mut self, next_token_type: TokenType) -> bool {
-        // allow JS/TS do while forms
+        // semicolon statement forms allow any statement body
         if !self.language.is_destack() {
             return true;
         }
 
-        // destack requires a block after do
+        // block-required modes require a block body
         if next_token_type != TokenType::OpenBrace {
             return false;
         }

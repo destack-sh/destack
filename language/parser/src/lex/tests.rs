@@ -173,7 +173,7 @@ fn test_lex_valid_weird_unicode() {
 }
 
 #[test]
-fn test_lex_javascript_and_typescript_hashbang_as_line_comment() {
+fn test_lex_hashbang_as_line_comment() {
     let source = "#!/usr/bin/env node\nimport value from 'pkg';\n";
     let expected_semantic_tokens = vec![
         Token::new(TokenType::Newline, 1, None),
@@ -199,12 +199,12 @@ fn test_lex_javascript_and_typescript_hashbang_as_line_comment() {
         Token::new(TokenType::Whitespace, 1, None),
     ];
 
-    // typescript hashbang
+    // typed source
     let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::TypeScript);
     assert_eq!(semantic_tokens, expected_semantic_tokens);
     assert_eq!(side_tokens, expected_side_tokens);
 
-    // javascript hashbang
+    // untyped source
     let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::JavaScript);
     assert_eq!(semantic_tokens, expected_semantic_tokens);
     assert_eq!(side_tokens, expected_side_tokens);
@@ -345,7 +345,7 @@ fn test_lex_comments() {
 }
 
 #[test]
-fn test_lex_tsx_tree_after_type_alias() {
+fn test_lex_tree_after_type_alias_before_tree() {
     let src = "type X = typeof Array\n<div>a</div>";
     let (semantic_tokens, _, _) = lex_source_with_tree_literals(src, LanguageType::TypeScriptXml);
     let tokens: Vec<_> = semantic_tokens
@@ -1039,7 +1039,7 @@ fn test_lex_block_comments_basic_and_doc() {
 }
 
 #[test]
-fn test_lex_destack_block_comment_no_nesting() {
+fn test_lex_block_comment_no_nesting_in_value_block_mode() {
     let source = "/* a /* b */ c */ d";
     let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::Destack);
     assert_eq!(
@@ -1064,7 +1064,7 @@ fn test_lex_destack_block_comment_no_nesting() {
 }
 
 #[test]
-fn test_lex_typescript_block_comment_no_nesting() {
+fn test_lex_block_comment_no_nesting_in_typed_mode() {
     let source = "/* a /* b */ c */ d";
     let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::TypeScript);
     assert_eq!(
@@ -1089,7 +1089,7 @@ fn test_lex_typescript_block_comment_no_nesting() {
 }
 
 #[test]
-fn test_lex_javascript_block_comment_no_nesting() {
+fn test_lex_block_comment_no_nesting_in_untyped_mode() {
     let source = "/* a /* b */ c */ d";
     let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::JavaScript);
     assert_eq!(
