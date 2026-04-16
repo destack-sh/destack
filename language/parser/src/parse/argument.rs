@@ -1,7 +1,7 @@
 use destack_ast::{
     Argument, Expression, GenericArgument, GenericParameter, Keyword, LiteralType, LocalNodeId,
-    Name, NodeType, Parameter, Pattern, PostfixPosition, ScalarLiteral, StringId, TokenType,
-    TypeExpression, VarianceModifier, Visibility,
+    Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenType, TypeExpression,
+    VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanType, Span};
 
@@ -65,9 +65,44 @@ impl Parser {
         }
 
         let token_type = self.peek_token_type();
-        let is_recoverable_boundary = self
-            .can_follow_generic_arguments_at_index(self.pos_index(), false)
-            || Self::is_close_delimiter_token(token_type);
+        let index = self.pos_index();
+        let is_recoverable_boundary =
+            // allow end and generic closers
+            token_type == TokenType::End
+                || self.options.is_in_static() && Self::starts_type_angle_close(token_type)
+
+                // allow ternary and arrow continuations
+                || self.options.is_in_ternary_condition() && token_type == TokenType::Colon
+                || self.options.is_in_type()
+                    && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
+
+                // allow stops and delimiters
+                || matches!(
+                    token_type,
+                    TokenType::Comma
+                        | TokenType::Semicolon
+                        | TokenType::Newline
+                        | TokenType::Maybe
+                        | TokenType::TemplateString
+                        | TokenType::TemplateStringStart
+                )
+                || Self::is_close_delimiter_token(token_type)
+                || matches!(
+                    token_type,
+                    TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::Dot
+                )
+
+                // allow heritage terminators after generic arguments
+                || self.options.is_in_super_type()
+                    && (token_type == TokenType::OpenBrace
+                        || token_type == TokenType::Identifier
+                            && matches!(
+                                self.keyword_for_index(index),
+                                Some(Keyword::Implements | Keyword::With | Keyword::Where)
+                            ))
+
+                // allow operator continuations
+                || self.has_infix_or_assign_operator_at_index(index);
 
         self.recover_missing_token_here(TokenType::GreaterThan, owner, is_recoverable_boundary)
     }
@@ -78,6 +113,68 @@ impl Parser {
         self.options
             .not_in_sequence_expression()
             .not_in_arrow_return_type()
+    }
+
+    /// Return whether the current token ends one generic argument payload.
+    #[inline]
+    fn current_token_ends_generic_argument(&mut self) -> bool {
+        if self.peek_is(TokenType::Comma) || self.peek_starts_type_angle_close() {
+            return true;
+        }
+
+        if !self.peek_is(TokenType::Newline) {
+            return false;
+        }
+
+        if self.is_token_after_newlines(self.pos(), TokenType::Comma) {
+            return true;
+        }
+
+        let next_index = self.first_non_newline_index_from(self.pos_index());
+        Self::starts_type_angle_close(self.token_type_at(next_index))
+    }
+
+    /// Return whether one generic argument slot stays in type space.
+    fn generic_argument_slot_stays_in_type_space(&mut self, context: ParserOptions) -> bool {
+        // non type ambient sites parse generic arguments as plain expressions
+        if !self.options.is_in_type() {
+            return false;
+        }
+
+        // type ambient sites commit only when one full type expression consumes the slot
+        let speculative_start = self.mark();
+        let speculative_start_idx = self.tree.next_id();
+        let parsed_type_expression =
+            self.with_options(context, |parser| parser.eat_type_expression());
+        let prefers_type_expression =
+            parsed_type_expression.is_ok() && self.current_token_ends_generic_argument();
+
+        self.restore(speculative_start, speculative_start_idx);
+
+        prefers_type_expression
+    }
+
+    /// Eat one mixed generic argument payload.
+    #[inline]
+    fn eat_generic_argument_expression(
+        &mut self,
+        context: ParserOptions,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // type ambient sites classify the whole slot before building final nodes
+        if self.generic_argument_slot_stays_in_type_space(context) {
+            let type_expression_id =
+                self.with_options(context, |parser| parser.eat_type_expression())?;
+
+            return Ok(self.wrap_type_expression(type_expression_id));
+        }
+
+        // otherwise parse the slot in value space
+        let value_ambient_context = self.options.with_type(false);
+        self.eat_expression(
+            self.options
+                .with_ambient_context(value_ambient_context)
+                .with_expression_context(context),
+        )
     }
 
     /// Return the common context for positional argument values.
@@ -288,7 +385,7 @@ impl Parser {
         let mut modifiers = BindingModifiers::default();
         let mut has_modifiers = false;
 
-        // modifier ordering for TS compatibility
+        // modifier ordering for typed member forms
         let mut seen_static = false;
         let mut seen_override = false;
         let mut seen_readonly = false;
@@ -526,7 +623,7 @@ impl Parser {
         }
     }
 
-    /// Eat a binding modifiers postfix (maybe).
+    /// Eat one optional postfix binding modifier.
     pub(crate) fn eat_binding_modifiers_postfix_maybe(
         &mut self,
         modifiers: Option<BindingModifiers>,
@@ -541,7 +638,7 @@ impl Parser {
         }
     }
 
-    /// Eat a parameter
+    /// Eat one parameter.
     ///
     /// Examples:
     /// ```
@@ -808,12 +905,15 @@ impl Parser {
         Ok(Some((name, span)))
     }
 
-    /// Eat a parameter list. May be comma or newline separated.
+    /// Eat one parameter list.
+    /// Parameters may be comma or newline separated.
     ///
     /// Examples:
     /// ```
     /// x: int32
     /// x: int32, y: int32
+    /// x: int32
+    /// y: int32
     /// ```
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
@@ -863,7 +963,7 @@ impl Parser {
                 }
             };
 
-            // rest parameters must be terminal in js, ts compatibility fixtures may allow more
+            // rest parameters must be terminal in untyped parameter lists
             if has_variadic_parameter && in_js {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
@@ -878,7 +978,7 @@ impl Parser {
             parameters.push(parameter);
             self.eat_newlines_maybe()?;
 
-            // in js: trailing separators after rest parameters are invalid
+            // untyped parameter lists reject trailing separators after rest parameters
             if in_js && has_variadic_parameter && self.is_item_stop() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
@@ -1243,11 +1343,8 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        // hot path: plain positional value arguments in value contexts
-        if !self.options.is_in_type()
-            && !self.peek_is(TokenType::At)
-            && !self.peek_is(TokenType::Spread)
-        {
+        // hot path: plain positional value arguments
+        if !self.peek_is(TokenType::At) && !self.peek_is(TokenType::Spread) {
             // empty slots should recover as argument list errors, not expression errors
             if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
                 return Err(ParseError::unexpected(self.peek()?.span));
@@ -1268,160 +1365,26 @@ impl Parser {
             smallvec::SmallVec::new()
         };
 
-        // readonly tuple element modifiers in type context
-        let has_readonly_prefix = if self.options.is_in_type() && self.is_keyword(Keyword::Readonly)
-        {
-            self.bump(); // eat readonly
-            true
-        } else {
-            false
-        };
-
-        // detect labeled tuple element heads like `label: Type` and `label?: Type`
-        let has_labeled_tuple_head = self.options.is_in_type()
-            && self.peek_is(TokenType::Identifier)
-            && (self.peek_next_is(TokenType::Colon)
-                || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon));
-
         // spread argument
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
-
-            // detect spread labels like `...label: Type` and `...label?: Type`
-            let has_spread_labeled_tuple_head = self.options.is_in_type()
-                && self.peek_is(TokenType::Identifier)
-                && (self.peek_next_is(TokenType::Colon)
-                    || self.peek_next_is(TokenType::Maybe)
-                        && self.peek_next_next_is(TokenType::Colon));
-
-            // spread label and value
-            let (label, label_span, value) = if has_spread_labeled_tuple_head {
-                let (label, label_span) = self.eat_identifier_with_span()?;
-
-                // spread optional label marker
-                let is_optional = if self.peek_is(TokenType::Maybe) {
-                    self.bump(); // eat ?
-                    true
-                } else {
-                    false
-                };
-
-                // spread labeled value
-                self.bump(); // eat colon
-                self.eat_newlines_maybe()?;
-                let mut value = self.eat_expression_with_context_unchecked(
-                    self.current_positional_argument_context(),
-                )?;
-                if is_optional {
-                    value = self.insert_node(
-                        Expression::Maybe {
-                            position: PostfixPosition::Direct,
-                            left: value,
-                        },
-                        self.tree.get_span(value),
-                    );
-                }
-                (Some(label), Some(label_span), value)
-            } else {
-                // spread positional value
-                self.eat_newlines_maybe()?;
-                let value = self.eat_expression_with_context_unchecked(
-                    self.current_positional_argument_context(),
-                )?;
-                (None, None, value)
-            };
+            self.eat_newlines_maybe()?;
+            let value = self.eat_expression_with_context_unchecked(
+                self.current_positional_argument_context(),
+            )?;
 
             // build spread argument
             let argument_id = self.insert_node(
-                Argument::Spread { label, value },
+                Argument::Spread { label: None, value },
                 self.get_span_from(&start),
             );
-            if let Some(label_span) = label_span {
-                self.tree.set_main_span(argument_id, label_span);
-            }
-            self.attach_decorators(argument_id.id, decorators);
-            return Ok(argument_id);
-        }
-
-        // labeled tuple element (only in type context)
-        if has_labeled_tuple_head {
-            let (label, label_span) = self.eat_identifier_with_span()?;
-
-            // optional tuple label marker
-            let is_optional = if self.peek_is(TokenType::Maybe) {
-                self.bump(); // eat ?
-                true
-            } else {
-                false
-            };
-
-            // parse labeled tuple value
-            self.bump(); // eat colon
-            self.eat_newlines_maybe()?;
-            let mut value = self.eat_expression_with_context_unchecked(
-                self.current_non_sequence_argument_context(),
-            )?;
-
-            // readonly is modeled on the inner type before tuple optionality wraps it
-            if has_readonly_prefix {
-                let target_type = self.expect_type_expression_value(value)?;
-                let readonly_id = self.insert_node(
-                    TypeExpression::Readonly { target_type },
-                    self.tree.get_span(value),
-                );
-                value = self.insert_type_expression_value(readonly_id);
-            }
-
-            // optional tuple elements wrap the finished type value
-            if is_optional {
-                value = self.insert_node(
-                    Expression::Maybe {
-                        position: PostfixPosition::Direct,
-                        left: value,
-                    },
-                    self.tree.get_span(value),
-                );
-            }
-
-            // build labeled argument
-            let argument_id = self.insert_node(
-                Argument::Labeled { label, value },
-                self.get_span_from(&start),
-            );
-            self.tree.set_main_span(argument_id, label_span);
             self.attach_decorators(argument_id.id, decorators);
             return Ok(argument_id);
         }
 
         // positional value expression
-        let mut value =
+        let value =
             self.eat_expression_with_context_unchecked(self.current_positional_argument_context())?;
-
-        // preserve readonly tuple element modifiers in value form
-        if has_readonly_prefix {
-            let target_type = self.expect_type_expression_value(value)?;
-            let readonly_id = self.insert_node(
-                TypeExpression::Readonly { target_type },
-                self.tree.get_span(value),
-            );
-            value = self.insert_type_expression_value(readonly_id);
-        }
-
-        // tuple optional marker after positional element
-        if self.options.is_in_type() && self.peek_is(TokenType::Maybe) {
-            let is_tuple_optional = self.is_token_after_newlines(self.pos(), TokenType::Comma)
-                || self.is_token_after_newlines(self.pos(), TokenType::CloseBracket);
-            if is_tuple_optional {
-                self.bump(); // eat ?
-                value = self.insert_node(
-                    Expression::Maybe {
-                        position: PostfixPosition::Direct,
-                        left: value,
-                    },
-                    self.tree.get_span(value),
-                );
-            }
-        }
 
         // build positional argument
         let argument_id =
@@ -1430,8 +1393,8 @@ impl Parser {
         Ok(argument_id)
     }
 
-    /// Eat an argument (e.g., `x: 1` or `y`).
-    /// Supports named arguments (for tree literal children and import with syntax).
+    /// Eat one argument.
+    /// Supports named arguments for tree literal children and import with syntax.
     ///
     /// Examples:
     /// ```
@@ -1447,6 +1410,14 @@ impl Parser {
     }
 
     /// Eat one tree child argument and optionally re-enter child lexing after `}`.
+    ///
+    /// Examples:
+    /// ```
+    /// x: 1
+    /// ...args
+    /// {value}
+    /// <Widget prop=value />
+    /// ```
     pub(crate) fn eat_tree_argument_with_child_context(
         &mut self,
         in_tree_child: bool,
@@ -1480,7 +1451,7 @@ impl Parser {
             );
             Ok(argument_id)
         }
-        // expression container ({expr}) - TSX syntax where {} are delimiters, not part of expr
+        // expression container ({expr}): braces are delimiters, not part of the expression
         else if self.peek_is(TokenType::OpenBrace) {
             self.bump(); // eat {
             self.eat_newlines_maybe()?;
@@ -1654,7 +1625,7 @@ impl Parser {
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
 
-                // tsx expression container: attr={expr}
+                // tree expression container: attr={expr}
                 if self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat {
                     self.eat_newlines_maybe()?;
@@ -1767,14 +1738,6 @@ impl Parser {
         Ok(None)
     }
 
-    /// Return true when the current token starts a labeled tuple head.
-    #[inline]
-    fn starts_labeled_tuple_head(&mut self) -> bool {
-        self.peek_is(TokenType::Identifier)
-            && (self.peek_next_is(TokenType::Colon)
-                || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon))
-    }
-
     /// Eat top-level generic arguments.
     #[inline]
     fn eat_generic_arguments_body(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
@@ -1794,8 +1757,7 @@ impl Parser {
                 if self.peek_is(TokenType::Spread) {
                     self.bump(); // eat spread
                     self.eat_newlines_maybe()?;
-
-                    let value = self.eat_expression_with_context_unchecked(
+                    let value = self.eat_generic_argument_expression(
                         self.current_non_sequence_argument_context(),
                     )?;
 
@@ -1805,11 +1767,7 @@ impl Parser {
                     ));
                 }
 
-                if self.starts_labeled_tuple_head() {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-
-                let value = self.eat_expression_with_context_unchecked(
+                let value = self.eat_generic_argument_expression(
                     self.current_non_sequence_argument_context(),
                 )?;
 
@@ -1862,7 +1820,7 @@ impl Parser {
         if self.peek_is(TokenType::LessThan) {
             self.bump(); // eat `<`
         } else if self.peek_is(TokenType::ShiftLeft) {
-            if !self.re_lex_ts_l_angle() {
+            if !self.re_lex_generic_l_angle() {
                 return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
             }
 
@@ -2126,7 +2084,8 @@ mod tests {
         Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
         DecoratorPosition, Expression, FunctionDeclaration, FunctionMode, GenericArgument,
         GenericParameter, IfKind, IntType, Member, Name, NodeType, Parameter, Pattern,
-        PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, Visibility,
+        PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
+        Visibility,
     };
     use destack_source::LanguageType;
 
@@ -2216,7 +2175,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_parameter_default_async_lambda_with_await_body_typescript() {
+    fn test_parse_parameter_default_async_lambda_with_await_body() {
         let mut test = TestParser::new_with_options(
             "loadFonts: () => Promise<void> = async () => { await Fonts.loadElementsFonts(elements); }",
             LanguageType::TypeScript,
@@ -2279,7 +2238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_parameter_underscore_name_typescript() {
+    fn test_parse_parameter_underscore_name() {
         // _ in TypeScript parameters is a normal name
         let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -2488,7 +2447,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_generic_parameters_multiline_union_constraint_with_default_typescript() {
+    fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
         let mut test = TestParser::new_with_options(
             r#"<
   Return extends ReturnType<onRequestHookHandler<RawServer>>
@@ -2776,7 +2735,7 @@ mod tests {
 
     /// Parse TypeScript parameter decorators in constructors and methods.
     #[test]
-    fn test_parse_parameter_decorators_typescript() {
+    fn test_parse_parameter_decorators() {
         let input = r#"
 class Test {
     constructor(@p1 t1, @p2 private t2, @p3 ...t3) {}
@@ -2922,7 +2881,7 @@ class Test {
     }
 
     #[test]
-    fn test_parse_named_argument_with_newline_before_assign_in_tsx() {
+    fn test_parse_named_argument_with_newline_before_assign_before_tree() {
         let mut test = TestParser::new_with_options(
             "onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }",
             LanguageType::TypeScriptXml,
@@ -3408,62 +3367,57 @@ const value = 1;
     }
 
     #[test]
-    fn test_parse_spread_tuple_label_argument() {
-        // ...args: number
-        let mut test = TestParser::new("...args: number");
+    fn test_parse_type_tuple_spread_label_element() {
+        let mut test = TestParser::new("[...args: number]");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
-        let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { label, value } => {
+        parser.eat_token(TokenType::OpenBracket).unwrap();
+        let elements = parser
+            .eat_type_tuple_elements_body(TokenType::CloseBracket)
+            .unwrap();
+
+        assert_eq!(elements.len(), 1);
+        assert_node!(parser.tree, elements[0], TupleElement::Spread { label, value } => {
             assert_string!(parser, label.unwrap(), "args");
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
-            });
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
         });
-
-        let main_span = parser
-            .tree
-            .get_main_span(argument_id)
-            .expect("expected spread label span");
-        assert_eq!(parser.get_span_str(main_span), "args");
     }
 
     #[test]
-    fn test_parse_tuple_label_argument_span() {
-        let mut test = TestParser::new("label: number");
+    fn test_parse_type_tuple_label_element_span() {
+        let mut test = TestParser::new("[label: number]");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
-        let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Labeled { label, value } => {
-            assert_string!(parser, *label, "label");
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
-            });
-        });
+        parser.eat_token(TokenType::OpenBracket).unwrap();
+        let elements = parser
+            .eat_type_tuple_elements_body(TokenType::CloseBracket)
+            .unwrap();
 
-        let main_span = parser
-            .tree
-            .get_main_span(argument_id)
-            .expect("expected label span");
-        assert_eq!(parser.get_span_str(main_span), "label");
+        assert_eq!(elements.len(), 1);
+        assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
+            assert_eq!(*is_optional, false);
+            assert_eq!(*is_readonly, false);
+            assert_string!(parser, label.unwrap(), "label");
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+        });
     }
 
     #[test]
-    fn test_parse_tuple_label_argument_multiline_union_type() {
-        let mut test = TestParser::new("options?:\n  | SkipToken\n  | OtherOption");
+    fn test_parse_type_tuple_label_element_multiline_union_type() {
+        let mut test = TestParser::new("[options?:\n  | SkipToken\n  | OtherOption]");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
-        let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Labeled { label, value } => {
-            assert_string!(parser, *label, "options");
-            assert_node!(parser.tree, *value, Expression::Maybe { left, .. } => {
-                assert_node!(parser.tree, *left, Expression::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
-                        assert_eq!(elements.len(), 2);
-                        assert_expression_path!(parser, parser.tree.get(elements[0]), "SkipToken");
-                        assert_expression_path!(parser, parser.tree.get(elements[1]), "OtherOption");
-                    });
-                });
+        parser.eat_token(TokenType::OpenBracket).unwrap();
+        let elements = parser
+            .eat_type_tuple_elements_body(TokenType::CloseBracket)
+            .unwrap();
+
+        assert_eq!(elements.len(), 1);
+        assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
+            assert_eq!(*is_optional, true);
+            assert_eq!(*is_readonly, false);
+            assert_string!(parser, label.unwrap(), "options");
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+                assert_expression_path!(parser, parser.tree.get(elements[0]), "SkipToken");
+                assert_expression_path!(parser, parser.tree.get(elements[1]), "OtherOption");
             });
         });
     }

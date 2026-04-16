@@ -1,54 +1,138 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
 
 impl Parser {
+    /// Return whether one optional heritage keyword is present at the current position.
+    fn eat_heritage_keyword_maybe(&mut self, keyword: Keyword) -> ParseResult<bool> {
+        let start_index = self.pos_index();
+        let keyword_index = self.next_non_newline_index_from(start_index);
+        if self.token_type_at(keyword_index) != TokenType::Identifier
+            || self.keyword_for_index(keyword_index) != Some(keyword)
+        {
+            return Ok(false);
+        }
+
+        // consume newlines before the keyword
+        if keyword_index != start_index {
+            self.eat_newlines_maybe()?;
+        }
+
+        self.bump(); // eat heritage keyword
+        Ok(true)
+    }
+
+    /// Return whether the next non-newline token terminates one heritage clause.
+    fn newline_before_super_clause_terminator(&mut self, terminators: &[Keyword]) -> bool {
+        let current_index = self.pos_index();
+        let next_index = self.next_non_newline_index_from(current_index);
+
+        self.token_type_at(next_index) == TokenType::OpenBrace
+            || self.token_type_at(next_index) == TokenType::CloseParenthesis
+            || terminators
+                .iter()
+                .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator))
+    }
+
+    /// Eat one heritage list with shared separator and recovery rules.
+    fn eat_super_list<Item>(
+        &mut self,
+        terminators: &[Keyword],
+        mut eat_item: impl FnMut(&mut Parser) -> ParseResult<Item>,
+        mut set_item_span: impl FnMut(&mut Parser, &Item, Span),
+    ) -> ParseResult<Vec<Item>> {
+        let mut items = Vec::new();
+        let mut expect_item = true;
+
+        // newline alone only separates heritage items in block-value mode
+        let allow_newline_separator =
+            !(self.language.is_javascript() || self.language.is_typescript());
+
+        while self.has_more_tokens() {
+            // clause boundary
+            if self.is_super_clause_terminator(terminators) {
+                if expect_item && !items.is_empty() {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+                break;
+            }
+
+            // newline separator or newline before the next clause
+            if self.peek_is(TokenType::Newline) {
+                if self.newline_before_super_clause_terminator(terminators) {
+                    if expect_item && !items.is_empty() {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
+                    break;
+                }
+
+                self.eat_newlines_maybe()?;
+
+                if !allow_newline_separator && !expect_item {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+                if !expect_item {
+                    expect_item = true;
+                }
+                continue;
+            }
+
+            // explicit comma separator
+            if self.peek_is(TokenType::Comma) {
+                self.eat_item_stop_with_newlines()?;
+                expect_item = true;
+                continue;
+            }
+
+            // generic item separator
+            if self.is_item_stop() {
+                if self.peek_is(TokenType::End) {
+                    break;
+                }
+
+                self.eat_item_stop_with_newlines()?;
+                expect_item = true;
+                continue;
+            }
+
+            // next heritage item
+            if !expect_item {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
+            let item_start = self.mark_span();
+            let item = eat_item(self)?;
+            let item_span = self.get_span_from(&item_start);
+            set_item_span(self, &item, item_span);
+
+            items.push(item);
+            expect_item = false;
+        }
+
+        Ok(items)
+    }
+
     /// Eat one optional extends type clause.
     pub fn eat_extends_types_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
-        // look ahead to `extends`
-        let start_index = self.pos_index();
-        let extends_index = self.next_non_newline_index_from(start_index);
-        if self.token_type_at(extends_index) != TokenType::Identifier
-            || self.keyword_for_index(extends_index) != Some(Keyword::Extends)
-        {
+        if !self.eat_heritage_keyword_maybe(Keyword::Extends)? {
             return Ok(None);
         }
 
-        // consume newlines before `extends`
-        if extends_index != start_index {
-            self.eat_newlines_maybe()?;
-        }
-
-        // type heritage after `extends`
-        self.bump(); // eat extends
         self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
     }
 
     /// Eat one optional extends expression clause.
-    /// Used by JS and TS class heritage where extends accepts value expressions.
     #[inline]
     pub fn eat_extends_expressions_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        // look ahead to `extends`
-        let start_index = self.pos_index();
-        let extends_index = self.next_non_newline_index_from(start_index);
-        if self.token_type_at(extends_index) != TokenType::Identifier
-            || self.keyword_for_index(extends_index) != Some(Keyword::Extends)
-        {
+        if !self.eat_heritage_keyword_maybe(Keyword::Extends)? {
             return Ok(None);
         }
 
-        // consume newlines before `extends`
-        if extends_index != start_index {
-            self.eat_newlines_maybe()?;
-        }
-
-        // value heritage after `extends`
-        self.bump(); // eat extends
         self.eat_super_expression_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
     }
 
@@ -57,22 +141,10 @@ impl Parser {
     pub fn eat_implements_types_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
-        // look ahead to `implements`
-        let start_index = self.pos_index();
-        let implements_index = self.next_non_newline_index_from(start_index);
-        if self.token_type_at(implements_index) != TokenType::Identifier
-            || self.keyword_for_index(implements_index) != Some(Keyword::Implements)
-        {
+        if !self.eat_heritage_keyword_maybe(Keyword::Implements)? {
             return Ok(None);
         }
 
-        // consume newlines before `implements`
-        if implements_index != start_index {
-            self.eat_newlines_maybe()?;
-        }
-
-        // type heritage after `implements`
-        self.bump(); // eat implements
         self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where])
     }
 
@@ -114,7 +186,7 @@ impl Parser {
 
     /// Return true when the current token terminates one heritage clause.
     #[inline]
-    fn is_super_type_clause_terminator(&mut self, terminators: &[Keyword]) -> bool {
+    fn is_super_clause_terminator(&mut self, terminators: &[Keyword]) -> bool {
         self.peek_is(TokenType::OpenBrace)
             || self.peek_is(TokenType::CloseParenthesis)
             || terminators
@@ -151,89 +223,22 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Vec<LocalNodeId<TypeExpression>>> {
-        let mut types: Vec<LocalNodeId<TypeExpression>> = Vec::new();
-        let mut expect_type = true;
+        self.eat_super_list(
+            terminators,
+            |parser| {
+                let ty = parser.eat_type_expression_node_or_recover_missing(
+                    parser.options.in_before_block().in_type(),
+                    NodeType::Declaration,
+                )?;
 
-        // JS and TS require explicit separators here
-        let allow_newline_separator =
-            !(self.language.is_javascript() || self.language.is_typescript());
-
-        while self.has_more_tokens() {
-            // clause boundary
-            if self.is_super_type_clause_terminator(terminators) {
-                if expect_type && !types.is_empty() {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-                break;
-            }
-
-            // newline separator or newline before the next clause
-            if self.peek_is(TokenType::Newline) {
-                let current_index = self.pos_index();
-                let next_index = self.next_non_newline_index_from(current_index);
-                let is_terminator_after_newline = self.token_type_at(next_index)
-                    == TokenType::OpenBrace
-                    || self.token_type_at(next_index) == TokenType::CloseParenthesis
-                    || terminators
-                        .iter()
-                        .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator));
-                if is_terminator_after_newline {
-                    if expect_type && !types.is_empty() {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
-                    break;
-                }
-
-                self.eat_newlines_maybe()?;
-
-                if !allow_newline_separator && !expect_type {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-                if !expect_type {
-                    expect_type = true;
-                }
-                continue;
-            }
-
-            // explicit comma separator
-            if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
-                expect_type = true;
-                continue;
-            }
-
-            // generic item separator
-            if self.is_item_stop() {
-                if self.peek_is(TokenType::End) {
-                    break;
-                }
-
-                self.eat_item_stop_with_newlines()?;
-                expect_type = true;
-                continue;
-            }
-
-            // next heritage type
-            if !expect_type {
-                return Err(ParseError::unexpected(self.peek()?.span));
-            }
-
-            let type_start = self.mark_span();
-            let ty = self.eat_type_expression_node_or_recover_missing(
-                self.options.in_before_block().in_type(),
-                NodeType::Declaration,
-            )?;
-            let ty = self.normalize_super_type_expression(ty);
-            let super_type_span = self.get_span_from(&type_start);
-
-            self.tree
-                .set_side_span(ty, NodeSpanType::Type, super_type_span);
-
-            types.push(ty);
-            expect_type = false;
-        }
-
-        Ok(types)
+                Ok(parser.normalize_super_type_expression(ty))
+            },
+            |parser, ty, super_type_span| {
+                parser
+                    .tree
+                    .set_side_span(*ty, NodeSpanType::Type, super_type_span);
+            },
+        )
     }
 
     /// Eat value heritage entries.
@@ -241,88 +246,22 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
-        let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
-        let mut expect_type = true;
-
-        // JS and TS require explicit separators here
-        let allow_newline_separator =
-            !(self.language.is_javascript() || self.language.is_typescript());
-
-        while self.has_more_tokens() {
-            // clause boundary
-            if self.is_super_type_clause_terminator(terminators) {
-                if expect_type && !types.is_empty() {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-                break;
-            }
-
-            // newline separator or newline before the next clause
-            if self.peek_is(TokenType::Newline) {
-                let current_index = self.pos_index();
-                let next_index = self.next_non_newline_index_from(current_index);
-                let is_terminator_after_newline = self.token_type_at(next_index)
-                    == TokenType::OpenBrace
-                    || self.token_type_at(next_index) == TokenType::CloseParenthesis
-                    || terminators
-                        .iter()
-                        .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator));
-                if is_terminator_after_newline {
-                    if expect_type && !types.is_empty() {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
-                    break;
+        self.eat_super_list(
+            terminators,
+            |parser| {
+                let ty = parser.eat_expression(parser.options.in_before_block())?;
+                if parser.super_type_has_invalid_unparenthesized_head(ty) {
+                    return Err(ParseError::unexpected(parser.tree.get_span(ty)));
                 }
 
-                self.eat_newlines_maybe()?;
-
-                if !allow_newline_separator && !expect_type {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-                if !expect_type {
-                    expect_type = true;
-                }
-                continue;
-            }
-
-            // explicit comma separator
-            if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
-                expect_type = true;
-                continue;
-            }
-
-            // generic item separator
-            if self.is_item_stop() {
-                if self.peek_is(TokenType::End) {
-                    break;
-                }
-
-                self.eat_item_stop_with_newlines()?;
-                expect_type = true;
-                continue;
-            }
-
-            // next heritage expression
-            if !expect_type {
-                return Err(ParseError::unexpected(self.peek()?.span));
-            }
-
-            let type_start = self.mark_span();
-            let ty = self.eat_expression(self.options.in_before_block())?;
-            let super_type_span = self.get_span_from(&type_start);
-            if self.super_type_has_invalid_unparenthesized_head(ty) {
-                return Err(ParseError::unexpected(self.tree.get_span(ty)));
-            }
-
-            self.tree
-                .set_side_span(ty, NodeSpanType::Type, super_type_span);
-
-            types.push(ty);
-            expect_type = false;
-        }
-
-        Ok(types)
+                Ok(ty)
+            },
+            |parser, ty, super_type_span| {
+                parser
+                    .tree
+                    .set_side_span(*ty, NodeSpanType::Type, super_type_span);
+            },
+        )
     }
 
     /// Return true when a heritage expression starts with an invalid unparenthesized head.
@@ -343,15 +282,15 @@ impl Parser {
                 | Expression::If { .. }
                 | Expression::Assign { .. }
                 | Expression::SequenceExpression { .. }
-        ) || matches!(
-            self.tree.get(expression_id),
-            Expression::Type { value }
-                if matches!(
-                    self.tree.get(*value),
+        ) || self
+            .wrapped_type_expression_maybe(expression_id)
+            .is_some_and(|value| {
+                matches!(
+                    self.tree.get(value),
                     TypeExpression::Union { .. }
                         | TypeExpression::Intersection { .. }
                         | TypeExpression::Conditional { .. }
                 )
-        )
+            })
     }
 }

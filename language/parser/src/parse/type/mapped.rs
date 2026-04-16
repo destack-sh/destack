@@ -1,8 +1,7 @@
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, TypeMappedParameter,
-    TypeModifier,
+    Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, TypeMappedParameter, TypeModifier,
 };
 
 impl Parser {
@@ -13,102 +12,50 @@ impl Parser {
             return false;
         }
 
-        // scan the mapped head after `{`
+        // skip the opening `{`
         let mut look_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
 
-        // optional readonly modifier before `[`
+        // `+readonly` and `-readonly` only start mapped types
         let look_token_type = self.token_type_at(look_index);
+        if look_token_type == TokenType::Add || look_token_type == TokenType::Subtract {
+            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+            return self.token_type_at(look_index) == TokenType::Identifier
+                && self.keyword_for_index(look_index) == Some(Keyword::Readonly);
+        }
+
+        // optional `readonly`
         if look_token_type == TokenType::Identifier
             && self.keyword_for_index(look_index) == Some(Keyword::Readonly)
         {
             look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-        } else if look_token_type == TokenType::Add || look_token_type == TokenType::Subtract {
-            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-            if self.token_type_at(look_index) != TokenType::Identifier
-                || self.keyword_for_index(look_index) != Some(Keyword::Readonly)
-            {
-                return false;
-            }
-            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
         }
 
-        // mapped types require `[`
+        // mapped heads require `[` after the modifier prefix
         if self.token_type_at(look_index) != TokenType::OpenBracket {
             return false;
         }
-        let open_bracket_index = look_index;
 
-        // mapped keys must start with an identifier and then `in`
-        let name_index = self.next_non_newline_index_from(open_bracket_index.saturating_add(1));
+        // mapped keys must start with an identifier
+        let name_index = self.next_non_newline_index_from(look_index.saturating_add(1));
         if self.token_type_at(name_index) != TokenType::Identifier {
             return false;
         }
+
+        // mapped heads require `in` after the key name
         let in_index = self.next_non_newline_index_from(name_index.saturating_add(1));
-        let has_in_keyword = self.token_type_at(in_index) == TokenType::Identifier
-            && self.keyword_for_index(in_index) == Some(Keyword::In);
-        if !has_in_keyword {
-            return false;
-        }
-
-        // find the matching `]` without requiring full stream pairing state
-        let mut bracket_depth = 1usize;
-        let mut has_close_bracket = false;
-        look_index = self.next_non_newline_index_from(open_bracket_index.saturating_add(1));
-        while bracket_depth > 0 {
-            let token_type = self.token_type_at(look_index);
-            if token_type == TokenType::End {
-                return false;
-            }
-
-            if token_type == TokenType::OpenBracket {
-                bracket_depth = bracket_depth.saturating_add(1);
-            }
-            // missing `]` before the mapped value still commits to a mapped head
-            else if bracket_depth == 1
-                && matches!(
-                    token_type,
-                    TokenType::Colon
-                        | TokenType::CloseBrace
-                        | TokenType::Semicolon
-                        | TokenType::Comma
-                )
-            {
-                break;
-            } else if token_type == TokenType::CloseBracket {
-                bracket_depth = bracket_depth.saturating_sub(1);
-                if bracket_depth == 0 {
-                    has_close_bracket = true;
-                    break;
-                }
-            }
-
-            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-        }
-
-        // mapped optional modifiers can appear after `]`: `?`, `+?`, `-?`
-        if has_close_bracket {
-            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-            if self.token_type_at(look_index) == TokenType::Maybe {
-                look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-            } else if self.token_type_at(look_index) == TokenType::Add
-                || self.token_type_at(look_index) == TokenType::Subtract
-            {
-                let maybe_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-                if self.token_type_at(maybe_index) == TokenType::Maybe {
-                    look_index = self.next_non_newline_index_from(maybe_index.saturating_add(1));
-                }
-            }
-        }
-
-        // mapped members either continue into a value type or end before one
-        matches!(
-            self.token_type_at(look_index),
-            TokenType::Colon | TokenType::CloseBrace | TokenType::Semicolon | TokenType::Comma
-        )
+        self.token_type_at(in_index) == TokenType::Identifier
+            && self.keyword_for_index(in_index) == Some(Keyword::In)
     }
 
     /// Eat one mapped type expression.
-    pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    ///
+    /// Examples:
+    /// ```
+    /// { [K in keyof T]: T[K] }
+    /// { readonly [K in keyof T]?: T[K] }
+    /// { [K in keyof T as `get${K}`]: T[K] }
+    /// ```
+    pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_span();
 
         // mapped body: `{ ... }`
@@ -197,7 +144,7 @@ impl Parser {
             self.get_span_from(&start),
         );
 
-        Ok(self.insert_type_expression_value(mapped_id))
+        Ok(mapped_id)
     }
 
     /// Eat one mapped readonly modifier.

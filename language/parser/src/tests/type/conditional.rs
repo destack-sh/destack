@@ -193,10 +193,10 @@ fn test_parse_conditional_type_with_inline_object() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { then_type, else_type, .. } => {
-                assert_node!(parser.tree, *then_type, TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, *then_type, TypeExpression::Object { members: properties } => {
                     assert!(properties.is_empty());
                 });
-                assert_node!(parser.tree, *else_type, TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, *else_type, TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
                 });
             });
@@ -378,7 +378,7 @@ fn test_parse_conditional_type_with_semicolon_terminated_properties() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { else_type, .. } => {
-                assert_node!(parser.tree, *else_type, TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, *else_type, TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 2, "expected 2 properties but got {}", properties.len());
                 });
             });
@@ -459,7 +459,7 @@ fn test_parse_type_intersection_with_inline_object() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
                 assert_eq!(elements.len(), 2);
-                assert_node!(parser.tree, elements[1], TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
                 });
             });

@@ -1,8 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{
-    Argument, Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression,
-};
+use destack_ast::{Argument, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 
 impl Parser {
     /// Eat one `import(...)` type argument list.
@@ -34,7 +32,14 @@ impl Parser {
     }
 
     /// Eat one `import(...)` type expression.
-    pub fn eat_type_import_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    ///
+    /// Examples:
+    /// ```
+    /// import("pkg")
+    /// import("pkg").Foo
+    /// import("pkg").Foo<string>
+    /// ```
+    pub fn eat_type_import_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_span();
 
         // `import`
@@ -51,8 +56,9 @@ impl Parser {
         let (target, target_span) = if arguments.is_empty() {
             let target = self.recover_missing_expression_here(NodeType::Expression);
             let target_span = self.tree.get_span(target);
+            let argument_id = self.insert_node(Argument::Positional { value: target }, target_span);
+            arguments.push(argument_id);
 
-            arguments.push(self.insert_positional_argument(target));
             (target, target_span)
         } else {
             match self.tree.get(arguments[0]) {
@@ -60,6 +66,10 @@ impl Parser {
                 Argument::Error => {
                     let target = self.recover_missing_expression_here(NodeType::Expression);
                     let target_span = self.tree.get_span(target);
+                    let argument_id =
+                        self.insert_node(Argument::Positional { value: target }, target_span);
+                    arguments[0] = argument_id;
+
                     (target, target_span)
                 }
                 _ => {
@@ -103,6 +113,6 @@ impl Parser {
         );
         self.tree.set_main_span(type_expression_id, target_span);
 
-        Ok(self.insert_type_expression_value(type_expression_id))
+        Ok(type_expression_id)
     }
 }

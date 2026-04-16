@@ -3,9 +3,8 @@ use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
 
-/// Parse biome mapped-type conformance fixture in TypeScript mode.
 #[test]
-fn test_parse_type_mapped_biome_conformance_fixture_typescript() {
+fn test_parse_mapped_type() {
     let input = r#"type A = { [test in "a" | "b"] }
  type OptionsFlags<Type> = {
    [Property in keyof Type]: boolean;
@@ -293,9 +292,9 @@ fn test_parse_type_mapped_expression_with_intersection() {
             assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TypeExpression::Mapped { .. });
-                assert_node!(parser.tree, elements[1], TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], TypeProperty::IndexSignature { name, key_type, value_type, .. } => {
+                    assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { name, key_type, value_type, .. } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::String);
@@ -331,7 +330,7 @@ fn test_parse_type_mapped_expression_with_key_remap_conditional() {
 }
 
 #[test]
-fn test_parse_type_mapped_expression_typescript_declaration() {
+fn test_parse_type_mapped_expression_in_declaration_file() {
     let mut test = TestParser::new_with_options(
         "type T = { [K in keyof T]: T[K] }",
         LanguageType::TypeScriptDeclaration,
@@ -348,7 +347,7 @@ fn test_parse_type_mapped_expression_typescript_declaration() {
 }
 
 #[test]
-fn test_parse_type_mapped_expression_with_remap_typescript_declaration() {
+fn test_parse_type_mapped_expression_with_remap_in_declaration_file() {
     let mut test = TestParser::new_with_options(
         "type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }",
         LanguageType::TypeScriptDeclaration,
@@ -462,7 +461,7 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
 }
 
 #[test]
-fn test_parse_type_mapped_expression_with_newline_before_remap_typescript_declaration() {
+fn test_parse_type_mapped_expression_with_newline_before_remap_in_declaration_file() {
     let mut test = TestParser::new_with_options(
         r#"type T<O> = {
   [K in keyof O
@@ -488,7 +487,7 @@ fn test_parse_type_mapped_expression_with_newline_before_remap_typescript_declar
 }
 
 #[test]
-fn test_parse_leading_intersection_with_mapped_types_typescript_declaration() {
+fn test_parse_leading_intersection_with_mapped_types_in_declaration_file() {
     let mut test = TestParser::new_with_options(
         r#"type T = (
   & { [K in keyof T]: T[K] }
@@ -514,7 +513,7 @@ fn test_parse_leading_intersection_with_mapped_types_typescript_declaration() {
 }
 
 #[test]
-fn test_parse_leading_intersection_simple_typescript_declaration() {
+fn test_parse_leading_intersection_in_declaration_file() {
     let mut test = TestParser::new_with_options(
         r#"type T = (
   & A
@@ -540,7 +539,7 @@ fn test_parse_leading_intersection_simple_typescript_declaration() {
 }
 
 #[test]
-fn test_parse_leading_intersection_with_mapped_type_and_path_typescript_declaration() {
+fn test_parse_leading_intersection_with_mapped_type_and_path_in_declaration_file() {
     let mut test = TestParser::new_with_options(
         r#"type T = (
   & { [K in keyof T]: T[K] }
@@ -566,7 +565,7 @@ fn test_parse_leading_intersection_with_mapped_type_and_path_typescript_declarat
 }
 
 #[test]
-fn test_parse_leading_union_in_type_alias_typescript() {
+fn test_parse_leading_union_in_type_alias() {
     let mut test = TestParser::new_with_options(
         r#"type IframeChannelIncomingEvent
   = | IframeViewportEvent

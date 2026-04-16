@@ -1,8 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
+use crate::parse::expression::TypeUnaryOperator;
 use destack_ast::{
-    FloatType, IntType, Keyword, TokenType, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    FloatType, IntType, Keyword, TokenType, TypeLiteral, UnaryOperator, VarianceBound,
 };
 
 impl Parser {

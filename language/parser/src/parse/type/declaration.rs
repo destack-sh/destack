@@ -3,11 +3,38 @@ use crate::parse::timing::tags;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, Expression, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration,
-    TypeExpression, TypeKind,
+    Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
+    TypeKind,
 };
 
 impl Parser {
+    /// Return true when the current identifier head starts a type alias.
+    fn identifier_starts_type_alias(&mut self) -> bool {
+        // require one identifier head first
+        if !self.peek_identifier_is() {
+            return false;
+        }
+
+        // `name = ...`
+        if !self.peek_next_is(TokenType::LessThan) {
+            return self.is_token_after_newlines(self.pos(), TokenType::Assign);
+        }
+
+        // `name<...> = ...`
+        let open_index = self.index_for_next() as u32;
+        let Some(close_index) = self.find_matching_close_maybe(
+            Some(open_index),
+            TokenType::LessThan,
+            TokenType::GreaterThan,
+        ) else {
+            return true;
+        };
+
+        let follow_index = self.next_non_newline_index_from(close_index as usize + 1);
+
+        self.token_type_at(follow_index) == TokenType::Assign
+    }
+
     /// Eat a type alias or expression.
     ///
     /// Examples:
@@ -25,7 +52,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_TYPE);
 
         let keyword_start = self.mark_span();
@@ -48,149 +75,98 @@ impl Parser {
             None
         };
 
-        // alias, or expression with generic parameters
-        if self.peek_identifier_is()
-            && (self.peek_next_is(TokenType::LessThan)
-                || self.is_token_after_newlines(self.pos(), TokenType::Assign))
-        {
-            // identifier
-            // (speculative because we don't know yet if we'll have a `=` afterwards)
-            let speculative_start = (self.mark(), self.tree.next_id());
-            let (name, name_span) = if let Some((n, s)) = self.eat_name_maybe_with_span()? {
-                (Some(n), Some(s))
-            } else {
-                (None, None)
-            };
-            let static_parameter_open = if self.peek_is(TokenType::LessThan) {
-                Some(self.pos())
-            } else {
-                None
-            };
+        // named alias heads commit before we consume the identifier
+        if self.identifier_starts_type_alias() {
+            let _timing = self.timing_scope(tags::PARSE_TYPE_DECLARATION);
 
-            // generic parameters
-            // speculative: may fail for type expressions like Foo<T[number]>
-            let generic_parameters = match self.eat_generic_parameters_maybe(true) {
-                Ok(params) => params,
-                Err(error) => {
-                    // keep hard failures for incomplete type parameter lists
-                    let has_matching_type_parameter_close =
-                        static_parameter_open.is_some_and(|open_pos| {
-                            self.find_matching_close_maybe(
-                                Some(open_pos),
-                                TokenType::LessThan,
-                                TokenType::GreaterThan,
-                            )
-                            .is_some()
-                        });
-                    if !has_matching_type_parameter_close {
-                        return Err(error);
-                    }
+            // alias head
+            let (name, name_span) = self.eat_name_with_span()?;
+            let generic_parameters = self.eat_generic_parameters_maybe(true)?.unwrap_or_default();
 
-                    // otherwise restore and fall through to type expressions
-                    self.restore(speculative_start.0.clone(), speculative_start.1);
-                    None
-                }
-            };
+            // `=`
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::Assign)?;
+            self.eat_newlines_maybe()?;
 
-            // if followed by =, then it's a type alias
-            if self.peek_is(TokenType::Assign)
-                || self.is_token_after_newlines(self.pos(), TokenType::Assign)
-            {
-                let _timing = self.timing_scope(tags::PARSE_TYPE_DECLARATION);
-                // =
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::Assign)?;
-                self.eat_newlines_maybe()?;
-
-                // aliased type value
-                let name = name.expect("type declarations require a name here");
-                let name_span = name_span.expect("type declarations require a name span here");
-                let mut value_options = self.options.not_in_position().in_type();
-                if self.options.is_in_type_conditional_right() {
-                    value_options = value_options.in_type_conditional_right();
-                }
-                let value_id =
-                    self.with_options(value_options, |parser| parser.eat_type_alias_value())?;
-
-                // type declaration wrapped in expression
-                let declaration = Declaration::Type(TypeDeclaration {
-                    name,
-                    export: header.export,
-                    ambient: header.ambient,
-                    is_nominal: kind == TypeKind::Nominal,
-                    mutability,
-                    generic_parameters: generic_parameters.unwrap_or_default(),
-                    where_clauses: vec![],
-                    value: value_id,
-                });
-                let declaration_id = self.insert_node(declaration, self.get_span_from(start));
-
-                // set main span to the name identifier
-                self.tree.set_main_span(declaration_id, name_span);
-
-                let expression = Expression::Declaration(declaration_id);
-                Ok(self.insert_node(expression, self.get_span_from(start)))
-            }
-            // otherwise it's a type expression with generic arguments
-            else {
-                // re-parse from before the name to get generic arguments properly
-                self.restore(speculative_start.0.clone(), speculative_start.1);
-                let mut right_options = self.options.not_in_position().in_type();
-                if self.options.is_in_type_conditional_right() {
-                    right_options = right_options.in_type_conditional_right();
-                }
-                let right =
-                    self.with_options(right_options, |parser| parser.eat_type_expression())?;
-                let expression_id = if mutability == Some(Mutability::Immutable) {
-                    let expression_id = self.insert_node(
-                        TypeExpression::Readonly { target_type: right },
-                        self.get_span_from(start),
-                    );
-                    self.tree.set_main_span(expression_id, keyword_span);
-                    expression_id
-                } else {
-                    right
-                };
-
-                Ok(self.insert_type_expression_value(expression_id))
-            }
-        }
-        // type expression
-        else {
-            let mut right_options = self.options.not_in_position().in_type();
+            // aliased type value
+            let mut value_options = self.options.not_in_position().in_type();
             if self.options.is_in_type_conditional_right() {
-                right_options = right_options.in_type_conditional_right();
+                value_options = value_options.in_type_conditional_right();
             }
-            let right = self.with_options(right_options, |parser| parser.eat_type_expression())?;
-            let expression_id = if mutability == Some(Mutability::Immutable) {
-                let expression_id = self.insert_node(
-                    TypeExpression::Readonly { target_type: right },
-                    self.get_span_from(start),
-                );
-                self.tree.set_main_span(expression_id, keyword_span);
-                expression_id
-            } else {
-                right
-            };
+            let value_id = self.with_options(value_options, |parser| {
+                parser.eat_type_alias_right_hand_side()
+            })?;
 
-            Ok(self.insert_type_expression_value(expression_id))
+            // declaration node
+            let declaration = Declaration::Type(TypeDeclaration {
+                name,
+                export: header.export,
+                ambient: header.ambient,
+                is_nominal: kind == TypeKind::Nominal,
+                mutability,
+                generic_parameters,
+                where_clauses: vec![],
+                value: value_id,
+            });
+            let declaration_id = self.insert_node(declaration, self.get_span_from(start));
+            self.tree.set_main_span(declaration_id, name_span);
+
+            return Ok(self.insert_node(
+                TypeExpression::Declaration {
+                    declaration: declaration_id,
+                },
+                self.get_span_from(start),
+            ));
         }
+
+        // otherwise parse one regular type expression body
+        let mut right_options = self.options.not_in_position().in_type();
+        if self.options.is_in_type_conditional_right() {
+            right_options = right_options.in_type_conditional_right();
+        }
+        let right = self.with_options(right_options, |parser| parser.eat_type_expression())?;
+        let expression_id = if mutability == Some(Mutability::Immutable) {
+            let expression_id = self.insert_node(
+                TypeExpression::Readonly { target_type: right },
+                self.get_span_from(start),
+            );
+            self.tree.set_main_span(expression_id, keyword_span);
+            expression_id
+        } else {
+            right
+        };
+
+        Ok(expression_id)
     }
 
     /// Eat one type expression in the current parser scope.
+    ///
+    /// Examples:
+    /// ```
+    /// Foo.Bar<T>
+    /// { a: string, b: number }
+    /// value is string
+    /// T extends U ? X : Y
+    /// ```
     pub(crate) fn eat_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let expression_id = self.eat_expression(self.options)?;
-        self.expect_type_expression_value(expression_id)
+        if self.options.is_in_type() {
+            return self.eat_type_expression_inner_with_stack_guard();
+        }
+
+        self.with_options(self.options.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
     }
 
     /// Eat one type alias value.
-    fn eat_type_alias_value(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_type_alias_right_hand_side(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         // bare intrinsic marker
         if self.peek_identifier_is() {
             let reference = *self.peek()?;
             let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
             let is_bare_intrinsic = self.get_span_str(reference.span) == "intrinsic"
                 && self.with_pos(next_index, |parser| parser.is_type_expression_boundary());
+
             if is_bare_intrinsic {
                 self.bump(); // eat intrinsic
 
@@ -198,6 +174,7 @@ impl Parser {
             }
         }
 
+        // otherwise parse one regular type expression
         self.eat_type_expression()
     }
 }
