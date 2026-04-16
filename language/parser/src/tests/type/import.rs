@@ -113,8 +113,6 @@ fn test_parse_type_import_expression_missing_target() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_eq!(parser.errors.len(), 1);
-
     // type T = import()
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -133,13 +131,42 @@ fn test_parse_type_import_expression_missing_target() {
 }
 
 #[test]
+fn test_parse_type_import_expression_replaces_error_target_slot() {
+    // type T = import(, "fallback")
+    let mut test = TestParser::new("type T = import(, \"fallback\")");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = import(, "fallback")
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Import { target, arguments, qualifier, generic_arguments } => {
+                assert_node!(parser.tree, *target, Expression::Missing);
+                assert_eq!(arguments.len(), 2);
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                    assert_eq!(*target, *value);
+                    assert_node!(parser.tree, *value, Expression::Missing);
+                });
+                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "fallback");
+                    });
+                });
+                assert!(qualifier.is_none());
+                assert!(generic_arguments.is_empty());
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_type_import_expression_missing_close_parenthesis_with_member_target() {
     // type T = import("mod".Type
     let mut test = TestParser::new("type T = import(\"mod\".Type");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_eq!(parser.errors.len(), 1);
+    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
 
     // type T = import("mod".Type
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

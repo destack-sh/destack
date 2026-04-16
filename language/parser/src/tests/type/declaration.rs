@@ -1,17 +1,18 @@
 use crate::tests::*;
-use crate::{assert_node, assert_path, assert_string};
+use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
 
-/// Parse declaration-file conditional aliases with generic parameter constraints.
 #[test]
-fn test_parse_conditional_type_alias_with_generics_in_typescript_declaration() {
+fn test_parse_conditional_type_alias_with_generics() {
     let mut test = TestParser::new_with_options(
         "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
 
     // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
     assert_eq!(expressions.len(), 1);
@@ -53,15 +54,16 @@ fn test_parse_conditional_type_alias_with_generics_in_typescript_declaration() {
     });
 }
 
-/// Parse namespace-scoped declaration-file conditional aliases.
 #[test]
-fn test_parse_namespace_conditional_type_alias_in_typescript_declaration() {
+fn test_parse_namespace_conditional_type_alias() {
     let mut test = TestParser::new_with_options(
         "declare namespace fastify { type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2 }",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
 
     // declare namespace fastify { type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2 }
     assert_eq!(expressions.len(), 1);
@@ -112,15 +114,16 @@ fn test_parse_namespace_conditional_type_alias_in_typescript_declaration() {
     });
 }
 
-/// Parse declaration-file conditional aliases through expression entry.
 #[test]
-fn test_parse_conditional_type_alias_with_generics_expression_entry_typescript_declaration() {
+fn test_parse_conditional_type_alias_with_generics_through_expression_entry() {
     let mut test = TestParser::new_with_options(
         "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
 
     // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -159,4 +162,32 @@ fn test_parse_conditional_type_alias_with_generics_expression_entry_typescript_d
             });
         });
     });
+}
+
+/// Parse `type` expressions with indexed generic arguments without forcing an alias head.
+#[test]
+fn test_parse_type_expression_with_indexed_generic_argument_after_type_keyword() {
+    let mut test = TestParser::new("type Foo<T[number]>");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // type Foo<T[number]>
+    assert_node!(parser.tree, expression_id, Expression::Type { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "Foo");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "T");
+                        assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::Number);
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
 }

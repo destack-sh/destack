@@ -202,3 +202,28 @@ fn test_parse_labeled_tuple_type_complex() {
         });
     });
 }
+
+#[test]
+fn test_parse_tuple_type_missing_close_bracket() {
+    let mut test = TestParser::new("type T = [string");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
+
+    // type T = [string
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], TupleElement::Element { value, is_optional, is_readonly, .. } => {
+                    assert!(!is_optional);
+                    assert!(!is_readonly);
+                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::String);
+                    });
+                });
+            });
+        });
+    });
+}

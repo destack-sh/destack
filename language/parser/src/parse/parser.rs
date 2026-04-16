@@ -126,6 +126,7 @@ impl ParserOptions {
         | Self::IN_STATEMENT_POSITION_FLAG
         | Self::IN_TERNARY_CONDITION_FLAG
         | Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG
+        | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
         | Self::IN_ARROW_RETURN_TYPE_FLAG
         | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG;
     const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
@@ -158,6 +159,7 @@ impl ParserOptions {
     const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 25;
     const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 26;
     const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 27;
+    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 28;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -266,6 +268,11 @@ impl ParserOptions {
     #[inline]
     pub(crate) const fn is_in_type_conditional_right(self) -> bool {
         self.has_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_disallow_type_conditional(self) -> bool {
+        self.has_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG)
     }
 
     #[inline]
@@ -426,6 +433,11 @@ impl ParserOptions {
     #[inline]
     pub(crate) fn set_in_type_conditional_right(&mut self, enabled: bool) {
         self.set_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_disallow_type_conditional(&mut self, enabled: bool) {
+        self.set_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, enabled);
     }
 
     #[inline]
@@ -599,6 +611,12 @@ impl ParserOptions {
     #[inline]
     pub(crate) fn not_in_type_conditional_right(self) -> Self {
         self.with_type_conditional_right(false)
+    }
+
+    /// Set `disallow_type_conditional` to the given value.
+    #[inline]
+    pub(crate) fn with_disallow_type_conditional(self, enabled: bool) -> Self {
+        self.with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, enabled)
     }
 
     /// Set `in_arrow_return_type` to the given value.
@@ -801,6 +819,12 @@ impl ParserOptions {
         self.with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, true)
     }
 
+    /// Set `disallow_type_conditional=true`.
+    #[inline]
+    pub(crate) fn disallow_type_conditional(self) -> Self {
+        self.with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, true)
+    }
+
     /// Set `in_arrow_return_type=true`.
     #[inline]
     pub(crate) fn in_arrow_return_type(self) -> Self {
@@ -897,6 +921,7 @@ impl ParserOptions {
         self.with_flag(Self::IN_PARENTHESIS_FLAG, false)
             .with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
             .with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, false)
+            .with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, false)
     }
 
     /// Reset position-related options but preserve context options like `in_generator`.
@@ -915,7 +940,7 @@ impl ParserOptions {
     }
 }
 
-/// A parser for a single Destack source's AST.
+/// A parser for a single source file AST.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
@@ -1255,9 +1280,9 @@ impl Parser {
         self.lexer.set_tree_attribute_value(enabled);
     }
 
-    /// Re-lex the current token as a TypeScript `<`.
+    /// Re-lex the current token as a generic `<`.
     #[inline]
-    pub(crate) fn re_lex_ts_l_angle(&mut self) -> bool {
+    pub(crate) fn re_lex_generic_l_angle(&mut self) -> bool {
         let token_type = self.current_token.token.ty;
         if token_type == TokenType::LessThan {
             return true;
@@ -1270,7 +1295,7 @@ impl Parser {
             return false;
         }
 
-        let token = self.lexer.re_lex_as_typescript_l_angle(self.current_token);
+        let token = self.lexer.re_lex_as_typed_l_angle(self.current_token);
         self.current_token = token;
         true
     }
@@ -1322,7 +1347,7 @@ impl Parser {
         true
     }
 
-    /// Eat one TypeScript angle-close token.
+    /// Eat one typed angle-close token.
     #[inline]
     pub(crate) fn eat_type_angle_close(&mut self) -> ParseResult<()> {
         if !self.re_lex_r_angle() {
@@ -1333,7 +1358,7 @@ impl Parser {
         Ok(())
     }
 
-    /// Eat one expression-position TypeScript angle-close token.
+    /// Eat one expression-position typed angle-close token.
     #[inline]
     pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParseResult<()> {
         if !Self::starts_expression_type_angle_close(self.peek_token_type()) {

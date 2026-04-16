@@ -129,10 +129,10 @@ fn test_parse_type_literal_call_signature_with_parameters() {
     // type T = { (num: number): number (str: string): string }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
                 // (num: number): number
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     assert_eq!(signature.parameters.len(), 1);
@@ -147,7 +147,7 @@ fn test_parse_type_literal_call_signature_with_parameters() {
                     });
                 });
                 // (str: string): string
-                assert_node!(parser.tree, properties[1], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[1], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     assert_eq!(signature.parameters.len(), 1);
@@ -175,9 +175,9 @@ fn test_parse_type_literal_construct_signature() {
     // type T = { new (x: number): Foo }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::New));
                     assert_eq!(signature.parameters.len(), 1);
@@ -210,10 +210,10 @@ fn test_parse_type_literal_generic_call_overloads() {
     // type Tmp = { <N extends number>(num: N): typeof num <S extends string>(str: S): typeof str }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
                 // <N extends number>(num: N): typeof num
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     let generic_parameters = &signature.generic_parameters;
@@ -236,7 +236,7 @@ fn test_parse_type_literal_generic_call_overloads() {
                     });
                 });
                 // <S extends string>(str: S): typeof str
-                assert_node!(parser.tree, properties[1], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[1], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     let generic_parameters = &signature.generic_parameters;
@@ -279,16 +279,16 @@ fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
     // type Tmp = { <N extends number>(num: N): MyType <S extends string>(str: S): MyType }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, .. } => {
                         assert_path!(parser, *path, "MyType");
                     });
                 });
-                assert_node!(parser.tree, properties[1], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[1], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, .. } => {
@@ -317,9 +317,9 @@ const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?:
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
 
@@ -373,9 +373,9 @@ const Mapping
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { signature, .. } => {
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Value { name, declared_type: Some(ty), is_comptime, .. } => {
@@ -391,9 +391,9 @@ const Mapping
     });
 }
 
-/// Parse typeof queries that target readonly named values in TypeScript.
+/// Parse typeof queries that target readonly named values.
 #[test]
-fn test_parse_typeof_query_with_readonly_identifier_in_typescript() {
+fn test_parse_typeof_query_with_readonly_identifier() {
     let mut test =
         TestParser::new_with_options("type T = typeof readonly", LanguageType::TypeScript);
     let mut parser = test.prepare();
@@ -409,9 +409,9 @@ fn test_parse_typeof_query_with_readonly_identifier_in_typescript() {
     });
 }
 
-/// Parse typeof queries that target type named values in TypeScript.
+/// Parse typeof queries that target type named values.
 #[test]
-fn test_parse_typeof_query_with_type_identifier_in_typescript() {
+fn test_parse_typeof_query_with_type_identifier() {
     let mut test = TestParser::new_with_options("type T = typeof type", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -434,6 +434,7 @@ fn test_parse_typeof_query_missing_operand() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
+    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
 
     // type T = typeof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -453,6 +454,7 @@ fn test_parse_keyof_query_missing_operand() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
+    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
 
     // type T = keyof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -473,9 +475,9 @@ fn test_parse_type_literal_abstract_construct_signature() {
     // type T = { abstract new (x: number): Foo }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert!(signature.is_abstract);
                     assert_eq!(signature.mode, Some(FunctionMode::New));
@@ -494,9 +496,9 @@ fn test_parse_type_literal_index_signature() {
     // type T = { readonly [k: string]?: Foo }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::IndexSignature { is_optional, is_readonly, name, key_type, value_type } => {
+                assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { is_optional, is_readonly, name, key_type, value_type } => {
                     assert!(*is_optional);
                     assert!(*is_readonly);
                     assert_string!(parser, *name, "k");
@@ -524,9 +526,9 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
                 assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
-                assert_node!(parser.tree, elements[1], TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], TypeProperty::IndexSignature { name, key_type, value_type, .. } => {
+                    assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { name, key_type, value_type, .. } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(parser.tree, *key_type, TypeExpression::Union { elements } => {
                             assert_eq!(elements.len(), 3);
@@ -566,9 +568,9 @@ topic: string
     // type T = { [topic: string]: number }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::IndexSignature { name, key_type, value_type, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::IndexSignature { name, key_type, value_type, .. } => {
                     assert_string!(parser, *name, "topic");
                     assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::String);
@@ -591,9 +593,9 @@ fn test_parse_type_literal_readonly_property_name() {
     // type T = { readonly?: boolean }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Field { is_optional, is_readonly, key, declared_type } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Field { is_optional, is_readonly, key, declared_type } => {
                     assert!(*is_optional);
                     assert!(!*is_readonly);
                     match key {
@@ -620,9 +622,9 @@ fn test_parse_type_literal_computed_key() {
     // type T = { [mismatch]: string }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Field { key, declared_type, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Field { key, declared_type, .. } => {
                     match key {
                         Key::Expression(key) => {
                             assert_expression_path!(parser, parser.tree.get(*key), "mismatch");
@@ -680,9 +682,9 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
     });
 }
 
-/// Generic arrow function types work in TypeScript declaration files.
+/// Generic arrow function types work in declaration files.
 #[test]
-fn test_parse_generic_arrow_function_type_in_typescript() {
+fn test_parse_generic_arrow_function_type() {
     let mut test = TestParser::new_with_options(
         "type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void",
         LanguageType::TypeScriptDeclaration,
@@ -748,7 +750,7 @@ fn test_parse_type_nested_conditional_with_arrows() {
 
 /// Generic arrow function with complex constraint as property type.
 #[test]
-fn test_parse_type_property_generic_arrow_complex_constraint() {
+fn test_parse_type_member_generic_arrow_complex_constraint() {
     let input = r#"type T = {
   method: <Expected extends IsUnion<Expected> extends true ? "error" : SomeType>(arg: Expected) => true;
 }"#;
@@ -759,9 +761,9 @@ fn test_parse_type_property_generic_arrow_complex_constraint() {
     // type T = { method: <...>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Field { declared_type, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Field { declared_type, .. } => {
                     assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: fn_id } => {
                         assert_node!(parser.tree, *fn_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                             assert!(!signature.generic_parameters.is_empty());
@@ -773,9 +775,9 @@ fn test_parse_type_property_generic_arrow_complex_constraint() {
     });
 }
 
-/// Keep type literal fields named `where` after function types in TypeScript.
+/// Keep type literal fields named `where` after function types.
 #[test]
-fn test_parse_type_literal_where_field_after_function_type_typescript() {
+fn test_parse_type_literal_where_field_after_function_type() {
     let input = r#"type T = {
   setSelectedFields: (fields: FieldOption[]) => void
   where?: Where
@@ -787,11 +789,11 @@ fn test_parse_type_literal_where_field_after_function_type_typescript() {
     // type T = { setSelectedFields: (fields: FieldOption[]) => void; where?: Where }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
 
                 // setSelectedFields: (fields: FieldOption[]) => void
-                assert_node!(parser.tree, properties[0], TypeProperty::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "setSelectedFields");
                     assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: declaration_id } => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -801,7 +803,7 @@ fn test_parse_type_literal_where_field_after_function_type_typescript() {
                 });
 
                 // where?: Where
-                assert_node!(parser.tree, properties[1], TypeProperty::Field { is_optional, key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                assert_node!(parser.tree, properties[1], TypeMember::Field { is_optional, key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert!(*is_optional);
                     assert_string!(parser, *name, "where");
                     assert_expression_path!(parser, parser.tree.get(*declared_type), "Where");
@@ -860,9 +862,9 @@ fn test_parse_type_literal_call_signature() {
     // type T = { (): string }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeProperty::Method { key, signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
                     assert!(key.is_none());
                     assert_eq!(signature.mode, Some(FunctionMode::Call));
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {

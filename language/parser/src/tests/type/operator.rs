@@ -202,8 +202,25 @@ fn test_parse_type_binary_in_operator_span() {
 }
 
 #[test]
-fn test_parse_type_binary_instanceof_operator_span() {
-    let mut test = TestParser::new("type T = Value instanceof Other");
+fn test_parse_type_expression_stops_before_instanceof() {
+    let mut test = TestParser::new("Value instanceof Other");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.options).is_err());
+    let type_id = parser
+        .with_options(parser.options.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
+        .unwrap();
+
+    // Value
+    assert_node!(parser.tree, type_id, TypeExpression::Reference { path, generic_arguments } => {
+        assert!(generic_arguments.is_empty());
+        assert_path!(parser, *path, "Value");
+    });
+
+    // leftover token: instanceof
+    let next_span = parser.peek().unwrap().span;
+    assert_eq!(parser.get_span_str(next_span), "instanceof");
+
+    // no implicit recovery
+    test.assert_no_errors(&parser);
 }

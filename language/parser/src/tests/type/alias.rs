@@ -46,7 +46,7 @@ fn test_parse_declare_type_alias_kind() {
     });
 }
 
-/// Parse a type alias followed by a tree literal in TSX.
+/// Parse a type alias followed by a tree literal.
 #[test]
 fn test_parse_type_alias_before_tree_literal() {
     let mut test = TestParser::new_with_options(
@@ -136,9 +136,9 @@ fn test_parse_type_alias_with_generic_parameters_without_spacing() {
     });
 }
 
-/// Parse a TypeScript type alias with an explicit empty generic list.
+/// Parse a type alias with an explicit empty generic list.
 #[test]
-fn test_parse_type_alias_with_empty_generic_parameters_typescript() {
+fn test_parse_type_alias_with_empty_generic_parameters() {
     let mut test = TestParser::new_with_options("type Box<> = string;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
@@ -179,6 +179,26 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
             assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
+    let mut test = TestParser::new("type T = (string");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
+
+    // type T = (string
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::String);
                 });
             });
         });

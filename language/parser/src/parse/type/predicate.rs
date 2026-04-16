@@ -1,12 +1,17 @@
 use crate::{ParseResult, Parser};
 
-use destack_ast::{
-    Expression, Keyword, LocalNodeId, NodeType, TypeExpression, TypePredicateSubject,
-};
+use destack_ast::{Keyword, LocalNodeId, NodeType, TypeExpression, TypePredicateSubject};
 
 impl Parser {
     /// Eat one `asserts` type predicate.
-    pub fn eat_type_predicate_asserts(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    ///
+    /// Examples:
+    /// ```
+    /// asserts value
+    /// asserts value is string
+    /// asserts this is ReadyState
+    /// ```
+    pub fn eat_type_predicate_asserts(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_span();
         self.eat_keyword(Keyword::Asserts)?;
         self.eat_newlines_maybe()?;
@@ -49,48 +54,6 @@ impl Parser {
         );
         self.tree.set_main_span(type_expression_id, subject_span);
 
-        Ok(self.insert_type_expression_value(type_expression_id))
-    }
-
-    /// Return one type predicate subject from one parsed expression.
-    pub(crate) fn type_predicate_subject_maybe(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<TypePredicateSubject> {
-        match self.tree.get(expression_id) {
-            Expression::Parenthesized { expression } => {
-                self.type_predicate_subject_maybe(*expression)
-            }
-
-            // `this is T`
-            Expression::This => Some(TypePredicateSubject::This),
-
-            // `name is T`
-            Expression::Identifier { name } => Some(TypePredicateSubject::Identifier(*name)),
-
-            // wrapped type reference predicate
-            Expression::Type { value } => self.type_predicate_subject_from_type_expression(*value),
-
-            _ => None,
-        }
-    }
-
-    /// Return one type predicate subject from one type expression.
-    fn type_predicate_subject_from_type_expression(
-        &self,
-        expression_id: LocalNodeId<TypeExpression>,
-    ) -> Option<TypePredicateSubject> {
-        match self.tree.get(expression_id) {
-            TypeExpression::Parenthesized { expression } => {
-                self.type_predicate_subject_from_type_expression(*expression)
-            }
-            TypeExpression::Reference {
-                path,
-                generic_arguments,
-            } if generic_arguments.is_empty() && path.segments.len() == 1 => {
-                Some(TypePredicateSubject::Identifier(path.segments[0]))
-            }
-            _ => None,
-        }
+        Ok(type_expression_id)
     }
 }

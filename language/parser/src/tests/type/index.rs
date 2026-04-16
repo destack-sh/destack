@@ -307,9 +307,9 @@ fn test_parse_type_associated_projection_with_generic_arguments() {
     });
 }
 
-/// Generic type with indexed access in TypeScript declaration file.
+/// Parse a generic type with indexed access in a declaration file.
 #[test]
-fn test_parse_generic_indexed_access_typescript_declaration() {
+fn test_parse_generic_indexed_access_in_declaration_file() {
     // Foo<T[number]>[]
     let mut test = TestParser::new_with_options(
         "type A = Foo<T[number]>[]",
@@ -439,6 +439,38 @@ fn test_parse_parenthesized_union_generic_argument() {
                                     assert_eq!(*value, TypeLiteral::String);
                                 });
                             });
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Comptime value expressions inside generic arguments stay in value space.
+#[test]
+fn test_parse_value_expression_generic_argument() {
+    let mut test =
+        TestParser::new_with_options("type Alias = Buffer<1 + 2>", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type Alias = Buffer<1 + 2>
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "Buffer");
+                assert_eq!(generic_arguments.len(), 1);
+
+                // 1 + 2
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                            assert_eq!(*value, 1);
+                        });
+                        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                            assert_eq!(*value, 2);
                         });
                     });
                 });
