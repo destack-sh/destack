@@ -212,10 +212,7 @@ fn constructor_owner_symbol(
         return None;
     };
     let member = dir_tree.get::<dir::Member>(member_id);
-    let signature = match member {
-        dir::Member::Method { signature, .. } => signature,
-        _ => return None,
-    };
+    let signature = member.signature()?;
     if signature.mode != Some(dir::FunctionMode::Constructor) {
         return None;
     }
@@ -301,24 +298,18 @@ fn function_parameter_span(
     let local_id = declaration.local_id;
     let ast_span = match local_id.ty {
         dir::NodeType::Declaration => {
-            let Ok(decl_id) = local_id.try_into() else {
+            let Ok(decl_id) = local_id.try_into_typed::<dir::Declaration>() else {
                 return None;
             };
-            let declaration = dir_tree.get::<dir::Declaration>(decl_id);
-            if !matches!(declaration, dir::Declaration::Function { .. }) {
-                return None;
-            }
+            function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(decl_id.id);
             ctx.ast().tree().source_map.get(source_id)
         }
         dir::NodeType::Member => {
-            let Ok(member_id) = local_id.try_into() else {
+            let Ok(member_id) = local_id.try_into_typed::<dir::Member>() else {
                 return None;
             };
-            let member = dir_tree.get::<dir::Member>(member_id);
-            if !matches!(member, dir::Member::Method { .. }) {
-                return None;
-            }
+            function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(member_id.id);
             ctx.ast().tree().source_map.get(source_id)
         }
@@ -432,26 +423,20 @@ fn parameter_span_for_node(
 
     match node_id.local_id.ty {
         dir::NodeType::Declaration => {
-            let Ok(decl_id) = node_id.local_id.try_into() else {
+            let Ok(decl_id) = node_id.local_id.try_into_typed::<dir::Declaration>() else {
                 return None;
             };
-            let declaration = dir_tree.get::<dir::Declaration>(decl_id);
-            if !matches!(declaration, dir::Declaration::Function { .. }) {
-                return None;
-            }
+            function_signature_for_node(dir_tree, node_id.local_id)?;
             let source_id = dir_tree.get_source(decl_id.id);
             let ast_span = ctx.ast().tree().source_map.get(source_id);
             let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
         dir::NodeType::Member => {
-            let Ok(member_id) = node_id.local_id.try_into() else {
+            let Ok(member_id) = node_id.local_id.try_into_typed::<dir::Member>() else {
                 return None;
             };
-            let member = dir_tree.get::<dir::Member>(member_id);
-            if !matches!(member, dir::Member::Method { .. }) {
-                return None;
-            }
+            function_signature_for_node(dir_tree, node_id.local_id)?;
             let source_id = dir_tree.get_source(member_id.id);
             let ast_span = ctx.ast().tree().source_map.get(source_id);
             let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
@@ -489,10 +474,7 @@ fn function_signature_for_node(
                 return None;
             };
             let member = dir_tree.get::<dir::Member>(member_id);
-            match member {
-                dir::Member::Method { signature, .. } => Some(signature),
-                _ => None,
-            }
+            member.signature()
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let decl_id = function_declaration_from_binding(dir_tree, node_id)?;

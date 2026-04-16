@@ -89,14 +89,26 @@ pub fn format_member_hover(
 
     // format the hover text by member kind
     match member {
-        dir::Member::Type { .. } => {
+        dir::Member::AssociatedType { .. } => {
+            let member_name = strings.get(member.name().unwrap()).to_string();
+            let qualified_name = match container {
+                Some(container_name) => format!("{container_name}.{member_name}"),
+                None => member_name,
+            };
+
             if let Some(ty) = type_str {
                 format!("(type member) {qualified_name} = {ty}")
             } else {
                 format!("(type member) {qualified_name}")
             }
         }
-        dir::Member::ComptimeConst { .. } => {
+        dir::Member::AssociatedConst { .. } => {
+            let member_name = strings.get(member.name().unwrap()).to_string();
+            let qualified_name = match container {
+                Some(container_name) => format!("{container_name}.{member_name}"),
+                None => member_name,
+            };
+
             if let Some(ty) = type_str {
                 format!("(comptime const) {qualified_name}: {ty}")
             } else {
@@ -110,9 +122,9 @@ pub fn format_member_hover(
                 format!("(property) {qualified_name}")
             }
         }
-        dir::Member::Method { signature, .. } => format_method_hover(
+        dir::Member::Method { .. } => format_method_hover(
             &qualified_name,
-            signature,
+            member.signature().unwrap(),
             module_id,
             dir_tree,
             types,

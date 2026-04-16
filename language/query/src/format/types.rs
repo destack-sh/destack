@@ -180,8 +180,25 @@ pub fn format_type(
                 (false, None) => subject,
             }
         }
-        dir::Type::Unary { operator, right } => {
-            format_type_unary(*operator, *right, types, repository, revision, strings)
+        dir::Type::Readonly { target_type } => {
+            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+            format!("readonly {target_type}")
+        }
+        dir::Type::KeyOf { target_type } => {
+            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+            format!("keyof {target_type}")
+        }
+        dir::Type::Must { target_type } => {
+            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+            format!("{target_type}!")
+        }
+        dir::Type::AsComptime { target_type } => {
+            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+            format!("{target_type} as comptime")
+        }
+        dir::Type::Not { target_type } => {
+            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+            format!("!{target_type}")
         }
         dir::Type::ValueOf {
             mutability,
@@ -233,13 +250,21 @@ pub fn format_type(
             result.push_str(&right_str);
             result
         }
-        dir::Type::Binary {
-            left,
-            operator,
-            right,
-        } => format_type_binary(
-            *left, *operator, *right, types, repository, revision, strings,
-        ),
+        dir::Type::In { left, right } => {
+            let left = format_local_type(*left, types, repository, revision, strings);
+            let right = format_local_type(*right, types, repository, revision, strings);
+            format!("{left} in {right}")
+        }
+        dir::Type::Extends { left, right } => {
+            let left = format_local_type(*left, types, repository, revision, strings);
+            let right = format_local_type(*right, types, repository, revision, strings);
+            format!("{left} extends {right}")
+        }
+        dir::Type::Implements { left, right } => {
+            let left = format_local_type(*left, types, repository, revision, strings);
+            let right = format_local_type(*right, types, repository, revision, strings);
+            format!("{left} implements {right}")
+        }
         dir::Type::ArraySized {
             element,
             count: _,
@@ -778,28 +803,6 @@ pub fn format_static_expression(
     }
 }
 
-/// Format a type unary operator expression.
-fn format_type_unary(
-    operator: dir::TypeUnaryOperator,
-    right: dir::LocalTypeId,
-    types: &dir::TypeTable,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
-) -> String {
-    let right_str = format_local_type(right, types, repository, revision, strings);
-    match operator {
-        dir::TypeUnaryOperator::Not => format!("!{right_str}"),
-        dir::TypeUnaryOperator::Must => format!("{right_str}!"),
-        dir::TypeUnaryOperator::Newtype => format!("newtype {right_str}"),
-        dir::TypeUnaryOperator::Type => format!("type {right_str}"),
-        dir::TypeUnaryOperator::Readonly => format!("readonly {right_str}"),
-        dir::TypeUnaryOperator::Typeof => format!("typeof {right_str}"),
-        dir::TypeUnaryOperator::Keyof => format!("keyof {right_str}"),
-        dir::TypeUnaryOperator::AsComptime => format!("{right_str} as comptime"),
-    }
-}
-
 fn format_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
     match intrinsic {
         dir::IntrinsicType::Uppercase => "Uppercase".to_string(),
@@ -880,26 +883,4 @@ fn format_type_predicate_subject(
             format_symbol_name(symbol_id, repository, revision, strings)
         }
     }
-}
-
-/// Format a type binary operator expression.
-fn format_type_binary(
-    left: dir::LocalTypeId,
-    operator: dir::TypeBinaryOperator,
-    right: dir::LocalTypeId,
-    types: &dir::TypeTable,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
-) -> String {
-    let left_str = format_local_type(left, types, repository, revision, strings);
-    let right_str = format_local_type(right, types, repository, revision, strings);
-    let op_str = match operator {
-        dir::TypeBinaryOperator::In => "in",
-        dir::TypeBinaryOperator::Is => "is",
-        dir::TypeBinaryOperator::InstanceOf => "instanceof",
-        dir::TypeBinaryOperator::Extends => "extends",
-        dir::TypeBinaryOperator::Implements => "implements",
-    };
-    format!("{left_str} {op_str} {right_str}")
 }

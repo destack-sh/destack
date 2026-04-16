@@ -132,9 +132,7 @@ fn parameter_data_for_symbol_with_context(
         NodeType::Member => {
             let member_id = global_node_id.local_id.try_into_typed().ok()?;
             let member = dir_tree.get::<Member>(member_id);
-            let Member::Method { signature, .. } = member else {
-                return None;
-            };
+            let signature = member.signature()?;
 
             let ast_node_id = dir_tree.get_source(member_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
@@ -179,9 +177,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
         NodeType::Member => {
             let member_id = global_node_id.local_id.try_into_typed().ok()?;
             let member = dir_tree.get::<Member>(member_id);
-            let Member::Method { signature, .. } = member else {
-                return None;
-            };
+            let signature = member.signature()?;
 
             signature.parameters.clone()
         }

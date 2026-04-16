@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, DependencyKind, Member};
+use destack_dir::{Declaration, DependencyKind, Member, TypeMember};
 use serde::{Deserialize, Serialize};
 
 /// Kind of a symbol in navigation queries.
@@ -80,13 +80,26 @@ pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
 /// Map a member to its symbol kind.
 pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
     match member {
-        Member::Type { .. } => Some(SymbolKind::TypeParameter),
-        Member::ComptimeConst { .. } => Some(SymbolKind::Constant),
+        Member::AssociatedType { .. } => Some(SymbolKind::TypeParameter),
+        Member::AssociatedConst { .. } => Some(SymbolKind::Constant),
         Member::Field { .. } => Some(SymbolKind::Field),
         Member::Method { .. } => Some(SymbolKind::Method),
         Member::Embed { .. } => None,
         Member::StaticBlock { .. } => None,
         Member::ComptimeBlock { .. } => None,
         Member::Error { .. } => None,
+    }
+}
+
+/// Map a type member to its symbol kind.
+pub(crate) fn type_member_symbol_kind(member: &TypeMember) -> Option<SymbolKind> {
+    match member {
+        TypeMember::AssociatedType { .. } => Some(SymbolKind::TypeParameter),
+        TypeMember::AssociatedConst { .. } => Some(SymbolKind::Constant),
+        TypeMember::Field { .. } => Some(SymbolKind::Field),
+        TypeMember::Method { .. } => Some(SymbolKind::Method),
+        TypeMember::IndexSignature { .. } => None,
+        TypeMember::Embed { .. } => None,
+        TypeMember::Error { .. } => None,
     }
 }

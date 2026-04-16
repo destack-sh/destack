@@ -32,6 +32,12 @@ pub(crate) fn expression_is_type_position(
         };
 
         match ast.tree().get_node_type(parent_id) {
+            ast::NodeType::TypeExpression => {
+                return true;
+            }
+            ast::NodeType::GenericArgument => {
+                current_id = parent_id;
+            }
             ast::NodeType::Expression => {
                 current_id = parent_id;
             }
@@ -60,20 +66,9 @@ pub(crate) fn expression_is_type_position(
                     .tree()
                     .get(ast::LocalNodeId::<ast::Member>::new(parent_id));
                 return match member {
-                    ast::Member::Type {
-                        declared_type,
-                        value,
-                        ..
-                    } => {
-                        declared_type.is_some_and(|ty| ty.id == current_id)
-                            || value.is_some_and(|value| value.id == current_id)
-                    }
-                    ast::Member::ComptimeConst { declared_type, .. } => {
-                        declared_type.is_some_and(|ty| ty.id == current_id)
-                    }
-                    ast::Member::Field { default, .. } => {
-                        default.is_some_and(|value| value.id == current_id)
-                    }
+                    ast::Member::AssociatedType { .. } => false,
+                    ast::Member::AssociatedConst { .. } => false,
+                    ast::Member::Field { .. } => false,
                     ast::Member::Embed { .. } => false,
                     _ => false,
                 };

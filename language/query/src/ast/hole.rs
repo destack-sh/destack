@@ -318,8 +318,8 @@ fn expression_slot_position_in_member(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match member {
-        ast::Member::Type { .. } => None,
-        ast::Member::ComptimeConst { value, .. } => {
+        ast::Member::AssociatedType { .. } => None,
+        ast::Member::AssociatedConst { value, .. } => {
             if *value == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }

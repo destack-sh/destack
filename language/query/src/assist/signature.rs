@@ -260,9 +260,7 @@ fn signature_info_for_symbol(
         NodeType::Member => {
             let member_id = declaration_ref.local_id.try_into_typed().ok()?;
             let member = dir_tree.get::<Member>(member_id);
-            let Member::Method { signature, .. } = member else {
-                return None;
-            };
+            let signature = member.signature()?;
             let ast_node_id = dir_tree.get_source(member_id.id);
             let doc_text = doc_text_for_node_without_tags(
                 ctx.ast(),
