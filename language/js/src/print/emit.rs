@@ -5,8 +5,7 @@ use super::printer::Printer;
 use crate::{
     AccessorKind, AssignOperator, BinaryOperator, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, DependencyMode, JsPrintResult, Keyword, Mutability, Name, PrimitiveType,
-    ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-    VarianceModifier, Visibility,
+    ScalarLiteral, TypeLiteral, UnaryOperator, VarianceModifier, Visibility,
 };
 
 impl<'a> Printer<'a> {
@@ -279,33 +278,6 @@ impl<'a> Printer<'a> {
             AssignOperator::AndAssign => "&&=",
             AssignOperator::OrAssign => "||=",
             AssignOperator::CoalesceAssign => "??=",
-        });
-    }
-
-    /// Print one type unary operator.
-    pub(crate) fn write_type_unary_operator(&mut self, operator: TypeUnaryOperator) {
-        self.write_punct(match operator {
-            TypeUnaryOperator::Not => "!",
-            TypeUnaryOperator::Must => "!",
-            TypeUnaryOperator::Type => "type",
-            TypeUnaryOperator::Readonly => "readonly",
-            TypeUnaryOperator::Typeof => "typeof",
-            TypeUnaryOperator::Keyof => "keyof",
-            TypeUnaryOperator::AsComptime => "as comptime",
-            TypeUnaryOperator::AsConst => "as const",
-        });
-    }
-
-    /// Print one type binary operator.
-    pub(crate) fn write_type_binary_operator(&mut self, operator: TypeBinaryOperator) {
-        self.write_punct(match operator {
-            TypeBinaryOperator::Cast => "as",
-            TypeBinaryOperator::In => "in",
-            TypeBinaryOperator::Is => "is",
-            TypeBinaryOperator::InstanceOf => "instanceof",
-            TypeBinaryOperator::Satisfies => "satisfies",
-            TypeBinaryOperator::Extends => "extends",
-            TypeBinaryOperator::Implements => "implements",
         });
     }
 

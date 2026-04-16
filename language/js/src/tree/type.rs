@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType, Parameter,
-    Path, ScalarLiteral, StringId,
+    BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType, Path,
+    ScalarLiteral, StringId,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -41,56 +41,6 @@ pub enum TypeLiteral {
     Primitive(PrimitiveType),
     /// Scalar literal.
     ScalarLiteral(ScalarLiteral),
-}
-
-/// A TypeUnaryOperator is a type unary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum TypeUnaryOperator {
-    /// Not `!T`.
-    Not,
-    /// Must 'T!'.
-    Must,
-    /// `type`
-    Type,
-    /// `readonly`
-    Readonly,
-    /// `typeof`
-    Typeof,
-    /// `keyof`
-    Keyof,
-    /// `as comptime`
-    AsComptime,
-    /// `as const`
-    AsConst,
-}
-
-impl TypeUnaryOperator {
-    /// Whether the type unary operator is a prefix operator.
-    pub fn is_prefix(&self) -> bool {
-        matches!(
-            self,
-            Self::Not | Self::Type | Self::Readonly | Self::Typeof | Self::Keyof
-        )
-    }
-}
-
-/// A TypeBinaryOperator is a type binary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum TypeBinaryOperator {
-    /// `as`
-    Cast,
-    /// `in`
-    In,
-    /// `is`
-    Is,
-    /// `instanceof`
-    InstanceOf,
-    /// `satisfies`
-    Satisfies,
-    /// `extends`
-    Extends,
-    /// `implements`
-    Implements,
 }
 
 /// One mapped type modifier.
@@ -154,10 +104,35 @@ pub enum Type {
     /// Path to something.
     Path {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Expression (unevaluated).
     Expression(LocalNodeId<Expression>),
+    /// `readonly T`.
+    Readonly { target_type: LocalNodeId<Type> },
+    /// `keyof T`.
+    KeyOf { target_type: LocalNodeId<Type> },
+    /// `T!`.
+    Must { target_type: LocalNodeId<Type> },
+    /// `T as comptime`.
+    AsComptime { target_type: LocalNodeId<Type> },
+    /// `!T`.
+    Not { target_type: LocalNodeId<Type> },
+    /// `T in U`.
+    In {
+        left: LocalNodeId<Type>,
+        right: LocalNodeId<Type>,
+    },
+    /// `T extends U`.
+    Extends {
+        left: LocalNodeId<Type>,
+        right: LocalNodeId<Type>,
+    },
+    /// `T implements U`.
+    Implements {
+        left: LocalNodeId<Type>,
+        right: LocalNodeId<Type>,
+    },
     /// Conditional type.
     Conditional {
         left: LocalNodeId<Type>,
@@ -182,7 +157,7 @@ pub enum Type {
     Import {
         target: StringId,
         qualifier: Option<Path>,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Infer type binding.
     Infer {
@@ -196,18 +171,6 @@ pub enum Type {
         target: Option<LocalNodeId<Type>>,
     },
 
-    /// Type unary operator.
-    Unary {
-        operator: TypeUnaryOperator,
-        right: LocalNodeId<Type>,
-    },
-    /// Binary operator.
-    Binary {
-        left: LocalNodeId<Type>,
-        operator: TypeBinaryOperator,
-        right: LocalNodeId<Type>,
-    },
-
     /// Array type `T[]`.
     Array { element: Option<LocalNodeId<Type>> },
     /// Tuple type `[T1, T2, ...]`.
@@ -216,7 +179,7 @@ pub enum Type {
     },
     /// Object type `{ a: T1, b: T2, ... }`.
     Object {
-        properties: Vec<LocalNodeId<TypeField>>,
+        properties: Vec<LocalNodeId<TypeMember>>,
     },
     /// Union type `A | B | C`.
     Union { elements: Vec<LocalNodeId<Type>> },
@@ -254,7 +217,7 @@ impl Node for TupleElement {
 
 /// The type of an attribute (like a property or field).
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeField {
+pub enum TypeMember {
     /// Named field (like `a: T`).
     Field {
         modifiers: Option<BindingModifier>,
@@ -276,36 +239,6 @@ pub enum TypeField {
     },
 }
 
-impl Node for TypeField {
-    const TYPE: NodeType = NodeType::TypeField;
-}
-
-/// The polymorphism of some type or declaration.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Generics {
-    /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
-}
-
-impl Generics {
-    /// Check whether there are any generic parameters.
-    pub fn is_empty(&self) -> bool {
-        self.static_parameters.is_none()
-    }
-}
-
-/// The polymoprhic relations.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Heritage {
-    /// The extends types of the declaration.
-    pub extends_types: Option<Vec<LocalNodeId<Type>>> = None,
-    /// The implements types of the declaration.
-    pub implements_types: Option<Vec<LocalNodeId<Type>>> = None,
-}
-
-impl Heritage {
-    /// Check whether the heritage lists any relations.
-    pub fn is_empty(&self) -> bool {
-        self.extends_types.is_none() && self.implements_types.is_none()
-    }
+impl Node for TypeMember {
+    const TYPE: NodeType = NodeType::TypeMember;
 }

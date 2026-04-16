@@ -80,15 +80,9 @@ fn format_expression_with_precedence<'ast>(
                 write!(f, [token("*")])?;
             }
 
-            // static parameters
-            if f.context().include_types()
-                && let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                && !static_parameters.is_empty()
-            {
-                format_type_parameter_list(static_parameters, f)?;
+            // generic parameters
+            if f.context().include_types() && !signature.generic_parameters.is_empty() {
+                format_type_parameter_list(&signature.generic_parameters, f)?;
             }
 
             // parameters
@@ -114,14 +108,12 @@ fn format_expression_with_precedence<'ast>(
         }
         Expression::Path {
             path,
-            static_arguments,
+            generic_arguments,
         } => {
             write!(f, [path])?;
 
-            if f.context().include_types()
-                && let Some(static_arguments) = static_arguments
-            {
-                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            if f.context().include_types() && !generic_arguments.is_empty() {
+                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
         }
         Expression::ImportMeta => {
@@ -165,39 +157,28 @@ fn format_expression_with_precedence<'ast>(
         Expression::Parenthesized { .. } => {
             unreachable!("parenthesized expressions are unwrapped")
         }
-        Expression::TypeUnary { operator, right } => {
-            // operator
-            if operator.is_prefix() {
-                let needs_space = matches!(
-                    operator,
-                    crate::TypeUnaryOperator::Type
-                        | crate::TypeUnaryOperator::Readonly
-                        | crate::TypeUnaryOperator::Typeof
-                        | crate::TypeUnaryOperator::Keyof
-                );
-
-                if needs_space {
-                    write!(f, [operator, space()])?;
-                } else {
-                    write!(f, [operator])?;
-                }
-
-                format_expression_id_with_precedence(*right, Precedence::Prefix, f)?;
-            } else {
-                format_expression_id_with_precedence(*right, Precedence::Prefix, f)?;
-                write!(f, [operator])?;
-            }
-        }
-        Expression::TypeBinary {
-            left,
-            operator,
-            right,
+        Expression::As {
+            expression,
+            target_type,
         } => {
-            let precedence = operator.precedence();
-
-            format_expression_id_with_precedence(*left, precedence, f)?;
-            write!(f, [space(), operator, space()])?;
-            format_expression_id_with_precedence(*right, precedence.tighter(), f)?;
+            format_expression_id_with_precedence(*expression, Precedence::Compare, f)?;
+            write!(f, [space(), Keyword::As, space(), target_type])?;
+        }
+        Expression::Satisfies {
+            expression,
+            target_type,
+        } => {
+            format_expression_id_with_precedence(*expression, Precedence::Compare, f)?;
+            write!(f, [space(), Keyword::Satisfies, space(), target_type])?;
+        }
+        Expression::Is { value, target_type } => {
+            format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
+            write!(f, [space(), Keyword::Is, space(), target_type])?;
+        }
+        Expression::InstanceOf { value, target } => {
+            format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
+            write!(f, [space(), Keyword::InstanceOf, space()])?;
+            format_expression_id_with_precedence(*target, Precedence::Compare.tighter(), f)?;
         }
         Expression::Await { value } => {
             write!(f, [Keyword::Await, space()])?;
@@ -292,29 +273,25 @@ fn format_expression_with_precedence<'ast>(
         Expression::Member {
             left,
             name,
-            static_arguments,
+            generic_arguments,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
             write!(f, [token("."), *name])?;
 
-            if f.context().include_types()
-                && let Some(static_arguments) = static_arguments
-            {
-                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            if f.context().include_types() && !generic_arguments.is_empty() {
+                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
         }
         Expression::PrivateMember {
             left,
             name,
-            static_arguments,
+            generic_arguments,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
             write!(f, [token("."), token("#"), *name])?;
 
-            if f.context().include_types()
-                && let Some(static_arguments) = static_arguments
-            {
-                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            if f.context().include_types() && !generic_arguments.is_empty() {
+                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
         }
         Expression::Index {
@@ -334,18 +311,18 @@ fn format_expression_with_precedence<'ast>(
         }
         Expression::Instantiation {
             left,
-            static_arguments,
+            generic_arguments,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
 
             if f.context().include_types() {
-                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
         }
         Expression::Call {
             position,
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
@@ -354,10 +331,8 @@ fn format_expression_with_precedence<'ast>(
                 write!(f, [token(".")])?;
             }
 
-            if f.context().include_types()
-                && let Some(static_arguments) = static_arguments
-            {
-                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            if f.context().include_types() && !generic_arguments.is_empty() {
+                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
 
             let mut dynamic_arguments = list_like("(", ")", ",", dynamic_arguments);
@@ -395,16 +370,14 @@ fn format_expression_with_precedence<'ast>(
         }
         Expression::New {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } => {
             write!(f, [token("new"), space()])?;
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
 
-            if f.context().include_types()
-                && let Some(static_arguments) = static_arguments
-            {
-                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            if f.context().include_types() && !generic_arguments.is_empty() {
+                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
 
             let mut dynamic_arguments = list_like("(", ")", ",", dynamic_arguments);

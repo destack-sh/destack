@@ -1,4 +1,4 @@
-use crate::{Asynchrony, Generics, Keyword, LocalNodeId, Parameter, Type};
+use crate::{Asynchrony, GenericParameter, Keyword, LocalNodeId, Parameter, Type};
 
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -38,19 +38,6 @@ impl FunctionMode {
     }
 }
 
-/// The abstraction level of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionAbstraction {
-    /// Abstract function.
-    Abstract,
-    /// Abstract override.
-    AbstractOverride,
-    /// Concrete override.
-    ConcreteOverride,
-    /// Concrete function.
-    Concrete,
-}
-
 /// The style of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionKind {
@@ -63,8 +50,10 @@ pub enum FunctionKind {
 /// The signature of a function.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
-    /// The abstraction level of the function.
-    pub abstraction: FunctionAbstraction,
+    /// Whether the function is abstract.
+    pub is_abstract: bool,
+    /// Whether the function is an override.
+    pub is_override: bool,
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,
     /// The cardinality of the function.
@@ -73,12 +62,12 @@ pub struct FunctionSignature {
     pub mode: Option<FunctionMode>,
     /// The kind of the function.
     pub kind: FunctionKind,
-    /// The generics of the function.
-    pub generics: Option<Generics>,
+    /// The generic parameters of the function.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The optional `this` parameter of the function.
     pub this_parameter: Option<LocalNodeId<Parameter>>,
-    /// The dynamic parameters of the function.
-    pub dynamic_parameters: Vec<LocalNodeId<Parameter>>,
+    /// The runtime parameters of the function.
+    pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<LocalNodeId<Type>>,
 }

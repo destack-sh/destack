@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::{Argument, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
+use crate::{
+    Argument, GenericParameter, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter,
+};
 use destack_fir::format::{BestFittingMode, FormatResult};
 
 use crate::format::property::{
@@ -177,14 +179,14 @@ where
 
 /// Format one type parameter.
 pub(crate) fn format_type_parameter<'ast>(
-    parameter: &Parameter,
+    parameter: &GenericParameter,
     f: &mut JsFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match parameter {
-        Parameter::Named {
+        GenericParameter::Type {
             modifiers,
             name,
-            ty,
+            constraint,
             default,
         } => {
             format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -192,66 +194,37 @@ pub(crate) fn format_type_parameter<'ast>(
             format_binding_modifiers_postfix_maybe(f, *modifiers)?;
 
             if f.context().include_types()
-                && let Some(ty) = ty
+                && let Some(constraint) = constraint
             {
-                write!(f, [space(), Keyword::Extends, space(), ty])?;
+                write!(f, [space(), Keyword::Extends, space(), constraint])?;
             }
 
             if let Some(default) = default {
                 write!(f, [space(), token("="), space(), default])?;
             }
         }
-        _ => match parameter {
-            Parameter::Pattern {
-                modifiers,
-                pattern,
-                ty,
-                default,
-            } => {
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                write!(f, [pattern])?;
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-                if f.context().include_types()
-                    && let Some(ty) = ty
-                {
-                    write!(f, [token(":"), space(), ty])?;
-                }
-
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
+        GenericParameter::Value {
+            name,
+            declared_type,
+            default,
+            is_comptime,
+        } => {
+            if *is_comptime {
+                write!(f, [Keyword::Comptime, space()])?;
             }
-            Parameter::VariadicNamed {
-                modifiers,
-                name,
-                ty,
-            } => {
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                write!(f, [token("..."), name])?;
 
-                if f.context().include_types()
-                    && let Some(ty) = ty
-                {
-                    write!(f, [token(":"), space(), ty])?;
-                }
-            }
-            Parameter::VariadicPattern {
-                modifiers,
-                pattern,
-                ty,
-            } => {
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                write!(f, [token("..."), pattern])?;
+            write!(f, [name])?;
 
-                if f.context().include_types()
-                    && let Some(ty) = ty
-                {
-                    write!(f, [token(":"), space(), ty])?;
-                }
+            if f.context().include_types()
+                && let Some(declared_type) = declared_type
+            {
+                write!(f, [token(":"), space(), declared_type])?;
             }
-            Parameter::Named { .. } => unreachable!(),
-        },
+
+            if let Some(default) = default {
+                write!(f, [space(), token("="), space(), default])?;
+            }
+        }
     }
 
     Ok(())
@@ -259,7 +232,7 @@ pub(crate) fn format_type_parameter<'ast>(
 
 /// Format one type parameter list.
 pub(crate) fn format_type_parameter_list<'ast>(
-    parameters: &[LocalNodeId<Parameter>],
+    parameters: &[LocalNodeId<GenericParameter>],
     f: &mut JsFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("<")])?;
@@ -274,6 +247,16 @@ pub(crate) fn format_type_parameter_list<'ast>(
     }
 
     write!(f, [token(">")])
+}
+
+impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<GenericParameter>,
+        f: &mut JsFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        format_type_parameter(self, f)
+    }
 }
 
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {

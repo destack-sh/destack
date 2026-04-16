@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
-    DependencyItem, EnumField, Expression, LocalNodeId, LocalNodeIdAny, Member, Node, NodeTree,
-    NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
-    TupleElement, Type, TypeField,
+    DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId, LocalNodeIdAny, Member,
+    Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property, Statement,
+    SwitchCase, TupleElement, Type, TypeMember,
 };
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
@@ -302,12 +302,13 @@ impl<'a> Format<JsFormatContext<'a>> for LocalNodeIdAny {
             NodeType::Member => LocalNodeId::<Member>::new(self.id).format(f),
             NodeType::Type => LocalNodeId::<Type>::new(self.id).format(f),
             NodeType::TupleElement => LocalNodeId::<TupleElement>::new(self.id).format(f),
-            NodeType::TypeField => LocalNodeId::<TypeField>::new(self.id).format(f),
+            NodeType::TypeMember => LocalNodeId::<TypeMember>::new(self.id).format(f),
             NodeType::EnumField => LocalNodeId::<EnumField>::new(self.id).format(f),
             NodeType::DependencyItem => LocalNodeId::<DependencyItem>::new(self.id).format(f),
             NodeType::SwitchCase => LocalNodeId::<SwitchCase>::new(self.id).format(f),
             NodeType::Pattern => LocalNodeId::<Pattern>::new(self.id).format(f),
             NodeType::PatternField => LocalNodeId::<PatternField>::new(self.id).format(f),
+            NodeType::GenericParameter => LocalNodeId::<GenericParameter>::new(self.id).format(f),
             NodeType::Parameter => LocalNodeId::<Parameter>::new(self.id).format(f),
             NodeType::Argument => LocalNodeId::<Argument>::new(self.id).format(f),
             NodeType::Annotation => LocalNodeId::<Annotation>::new(self.id).format(f),

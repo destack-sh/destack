@@ -2,7 +2,7 @@ use super::printer::Printer;
 use crate::tree::Precedence;
 use crate::{
     ArrayElement, Asynchrony, Expression, FunctionCardinality, JsPrintResult, Keyword, LocalNodeId,
-    Parameter, PostfixPosition, ScalarLiteral, TypeUnaryOperator,
+    Parameter, PostfixPosition, ScalarLiteral,
 };
 use destack_source::NodeSpanType;
 
@@ -50,20 +50,14 @@ impl<'a> Printer<'a> {
                     self.write_punct("*");
                 }
 
-                if self.include_types
-                    && let Some(static_parameters) = signature
-                        .generics
-                        .as_ref()
-                        .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
+                if self.include_types && !signature.generic_parameters.is_empty() {
                     self.write_punct("<");
-                    self.print_type_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(&signature.generic_parameters)?;
                     self.write_punct(">");
                 }
 
                 if self.can_print_bare_arrow_parameter(signature) {
-                    let parameter = self.tree.get(signature.dynamic_parameters[0]);
+                    let parameter = self.tree.get(signature.parameters[0]);
                     let Parameter::Named { name, .. } = parameter else {
                         unreachable!("bare arrow parameters must be simple named parameters");
                     };
@@ -95,14 +89,12 @@ impl<'a> Printer<'a> {
             }
             Expression::Path {
                 path,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.print_path(path);
 
-                if self.include_types
-                    && let Some(static_arguments) = static_arguments
-                {
-                    self.print_type_arguments(static_arguments)?;
+                if self.include_types && !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
             }
             Expression::ImportMeta => {
@@ -140,31 +132,39 @@ impl<'a> Printer<'a> {
                 self.print_property_list(properties)?;
                 self.write_punct("}");
             }
-            Expression::TypeUnary { operator, right } => {
-                self.write_type_unary_operator(*operator);
-
-                if matches!(
-                    operator,
-                    TypeUnaryOperator::Type
-                        | TypeUnaryOperator::Readonly
-                        | TypeUnaryOperator::Typeof
-                        | TypeUnaryOperator::Keyof
-                        | TypeUnaryOperator::AsComptime
-                        | TypeUnaryOperator::AsConst
-                ) {
-                    self.write_punct(" ");
-                }
-
-                self.print_expression_id_with_precedence(*right, Precedence::Prefix)?;
-            }
-            Expression::TypeBinary {
-                left,
-                operator,
-                right,
+            Expression::As {
+                expression,
+                target_type,
             } => {
-                self.print_expression_id_with_precedence(*left, operator.precedence())?;
-                self.write_type_binary_operator(*operator);
-                self.print_expression_id_with_precedence(*right, operator.precedence().tighter())?;
+                self.print_expression_id_with_precedence(*expression, Precedence::Compare)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::As);
+                self.write_punct(" ");
+                self.print_type_id(*target_type)?;
+            }
+            Expression::Satisfies {
+                expression,
+                target_type,
+            } => {
+                self.print_expression_id_with_precedence(*expression, Precedence::Compare)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::Satisfies);
+                self.write_punct(" ");
+                self.print_type_id(*target_type)?;
+            }
+            Expression::Is { value, target_type } => {
+                self.print_expression_id_with_precedence(*value, Precedence::Compare)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::Is);
+                self.write_punct(" ");
+                self.print_type_id(*target_type)?;
+            }
+            Expression::InstanceOf { value, target } => {
+                self.print_expression_id_with_precedence(*value, Precedence::Compare)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::InstanceOf);
+                self.write_punct(" ");
+                self.print_expression_id_with_precedence(*target, Precedence::Compare.tighter())?;
             }
             Expression::Await { value } => {
                 self.write_keyword(Keyword::Await);
@@ -260,31 +260,27 @@ impl<'a> Printer<'a> {
             Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
                 self.write_punct(".");
                 self.write_string_id(*name);
 
-                if self.include_types
-                    && let Some(static_arguments) = static_arguments
-                {
-                    self.print_type_arguments(static_arguments)?;
+                if self.include_types && !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
             }
             Expression::PrivateMember {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
                 self.write_punct(".#");
                 self.write_string_id(*name);
 
-                if self.include_types
-                    && let Some(static_arguments) = static_arguments
-                {
-                    self.print_type_arguments(static_arguments)?;
+                if self.include_types && !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
             }
             Expression::Index {
@@ -304,18 +300,18 @@ impl<'a> Printer<'a> {
             }
             Expression::Instantiation {
                 left,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
 
                 if self.include_types {
-                    self.print_type_arguments(static_arguments)?;
+                    self.print_type_arguments(generic_arguments)?;
                 }
             }
             Expression::Call {
                 position,
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
@@ -324,10 +320,8 @@ impl<'a> Printer<'a> {
                     self.write_punct(".");
                 }
 
-                if self.include_types
-                    && let Some(static_arguments) = static_arguments
-                {
-                    self.print_type_arguments(static_arguments)?;
+                if self.include_types && !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
 
                 self.write_punct("(");
@@ -361,16 +355,14 @@ impl<'a> Printer<'a> {
             }
             Expression::New {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 self.write_keyword(Keyword::New);
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
 
-                if self.include_types
-                    && let Some(static_arguments) = static_arguments
-                {
-                    self.print_type_arguments(static_arguments)?;
+                if self.include_types && !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
 
                 self.write_punct("(");
@@ -437,7 +429,7 @@ impl<'a> Printer<'a> {
         &self,
         signature: &crate::FunctionSignature,
     ) -> bool {
-        let parameters = signature.dynamic_parameters.as_slice();
+        let parameters = signature.parameters.as_slice();
 
         if self.include_types || signature.this_parameter.is_some() || parameters.len() != 1 {
             return false;

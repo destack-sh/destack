@@ -6,9 +6,9 @@ use std::convert::Infallible;
 use crate::tree::Precedence;
 use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
-    DependencyItem, EnumField, Expression, JsSourceMap, LocalNodeId, LocalNodeIdAny, Member,
-    NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, TupleElement, Type, TypeField,
+    DependencyItem, EnumField, Expression, GenericParameter, JsSourceMap, LocalNodeId,
+    LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, Property, Statement, SwitchCase, TupleElement, Type, TypeMember,
 };
 
 /// The result type for direct JS printing.
@@ -197,12 +197,15 @@ impl<'a> Printer<'a> {
             NodeType::Member => self.print_member_id(LocalNodeId::new(root_id.id)),
             NodeType::Type => self.print_type_id(LocalNodeId::new(root_id.id)),
             NodeType::TupleElement => self.print_tuple_element_id(LocalNodeId::new(root_id.id)),
-            NodeType::TypeField => self.print_type_field_id(LocalNodeId::new(root_id.id)),
+            NodeType::TypeMember => self.print_type_member_id(LocalNodeId::new(root_id.id)),
             NodeType::EnumField => self.print_enum_field_id(LocalNodeId::new(root_id.id)),
             NodeType::DependencyItem => self.print_dependency_item_id(LocalNodeId::new(root_id.id)),
             NodeType::SwitchCase => self.print_switch_case_id(LocalNodeId::new(root_id.id)),
             NodeType::Pattern => self.print_pattern_id(LocalNodeId::new(root_id.id)),
             NodeType::PatternField => self.print_pattern_field_id(LocalNodeId::new(root_id.id)),
+            NodeType::GenericParameter => {
+                self.print_generic_parameter_id(LocalNodeId::new(root_id.id))
+            }
             NodeType::Parameter => self.print_parameter_id(LocalNodeId::new(root_id.id)),
             NodeType::Argument => self.print_argument_id(LocalNodeId::new(root_id.id)),
             NodeType::Annotation => self.print_annotation_id(LocalNodeId::new(root_id.id)),
@@ -395,10 +398,10 @@ impl<'a> Printer<'a> {
     /// Print one generic type argument list.
     pub(crate) fn print_type_arguments(
         &mut self,
-        static_arguments: &[LocalNodeId<Type>],
+        generic_arguments: &[LocalNodeId<Type>],
     ) -> JsPrintResult<()> {
         self.write_punct("<");
-        self.print_type_list(static_arguments)?;
+        self.print_type_list(generic_arguments)?;
         self.write_punct(">");
         Ok(())
     }
@@ -419,17 +422,17 @@ impl<'a> Printer<'a> {
         Ok(())
     }
 
-    /// Print one object type field list.
-    pub(crate) fn print_type_field_list(
+    /// Print one object type member list.
+    pub(crate) fn print_type_member_list(
         &mut self,
-        properties: &[LocalNodeId<TypeField>],
+        properties: &[LocalNodeId<TypeMember>],
     ) -> JsPrintResult<()> {
         for (index, property_id) in properties.iter().enumerate() {
             if index > 0 {
                 self.write_punct(";");
             }
 
-            self.print_type_field_id(*property_id)?;
+            self.print_type_member_id(*property_id)?;
         }
 
         Ok(())
@@ -599,15 +602,15 @@ impl<'a> Printer<'a> {
         })
     }
 
-    /// Print one type field id.
-    pub(crate) fn print_type_field_id(
+    /// Print one type member id.
+    pub(crate) fn print_type_member_id(
         &mut self,
-        type_field_id: LocalNodeId<TypeField>,
+        type_member_id: LocalNodeId<TypeMember>,
     ) -> JsPrintResult<()> {
-        self.print_with_node_markers(type_field_id.id, |this| {
+        self.print_with_node_markers(type_member_id.id, |this| {
             let tree = this.tree;
-            let type_field = tree.get(type_field_id);
-            this.print_type_field(type_field)
+            let type_member = tree.get(type_member_id);
+            this.print_type_member(type_member)
         })
     }
 
@@ -703,6 +706,18 @@ impl<'a> Printer<'a> {
             let tree = this.tree;
             let parameter = tree.get(parameter_id);
             this.print_parameter(parameter)
+        })
+    }
+
+    /// Print one generic parameter id.
+    pub(crate) fn print_generic_parameter_id(
+        &mut self,
+        parameter_id: LocalNodeId<GenericParameter>,
+    ) -> JsPrintResult<()> {
+        self.print_with_node_markers(parameter_id.id, |this| {
+            let tree = this.tree;
+            let parameter = tree.get(parameter_id);
+            this.print_type_parameter(parameter)
         })
     }
 

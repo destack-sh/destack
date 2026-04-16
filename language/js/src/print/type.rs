@@ -1,7 +1,8 @@
 use super::printer::Printer;
 use crate::{
-    Argument, EnumField, FunctionMode, JsPrintResult, Keyword, LocalNodeId, Mutability, Parameter,
-    Pattern, PatternField, TupleElement, Type, TypeField, TypeModifier, TypePredicateSubject,
+    Argument, EnumField, FunctionMode, GenericParameter, JsPrintResult, Keyword, LocalNodeId,
+    Mutability, Parameter, Pattern, PatternField, TupleElement, Type, TypeMember, TypeModifier,
+    TypePredicateSubject,
 };
 
 impl<'a> Printer<'a> {
@@ -12,16 +13,60 @@ impl<'a> Printer<'a> {
             Type::This => self.write_keyword(Keyword::This),
             Type::Path {
                 path,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.print_path(path);
 
-                if let Some(static_arguments) = static_arguments {
-                    self.print_type_arguments(static_arguments)?;
+                if !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
             }
             Type::Expression(expression) => {
                 self.print_expression_id(*expression)?;
+            }
+            Type::Readonly { target_type } => {
+                self.write_keyword(Keyword::Readonly);
+                self.write_punct(" ");
+                self.print_type_id(*target_type)?;
+            }
+            Type::KeyOf { target_type } => {
+                self.write_keyword(Keyword::Keyof);
+                self.write_punct(" ");
+                self.print_type_id(*target_type)?;
+            }
+            Type::Must { target_type } => {
+                self.print_type_id(*target_type)?;
+                self.write_punct("!");
+            }
+            Type::AsComptime { target_type } => {
+                self.print_type_id(*target_type)?;
+                self.write_punct(" ");
+                self.write_punct("as comptime");
+            }
+            Type::Not { target_type } => {
+                self.write_punct("!");
+                self.print_type_id(*target_type)?;
+            }
+            Type::In { left, right } => {
+                self.print_type_id(*left)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::In);
+                self.write_punct(" ");
+                self.print_type_id(*right)?;
+            }
+            Type::Extends { left, right } => {
+                self.print_type_id(*left)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::Extends);
+                self.write_punct(" ");
+                self.print_type_id(*right)?;
+            }
+            Type::Implements { left, right } => {
+                self.print_type_id(*left)?;
+                self.write_punct(" ");
+                self.write_keyword(Keyword::Implements);
+                self.write_punct(" ");
+                self.print_type_id(*right)?;
             }
             Type::Conditional {
                 left,
@@ -115,7 +160,7 @@ impl<'a> Printer<'a> {
             Type::Import {
                 target,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
                 self.write_keyword(Keyword::Import);
                 self.write_punct("(");
@@ -127,8 +172,8 @@ impl<'a> Printer<'a> {
                     self.print_path(qualifier);
                 }
 
-                if let Some(static_arguments) = static_arguments {
-                    self.print_type_arguments(static_arguments)?;
+                if !generic_arguments.is_empty() {
+                    self.print_type_arguments(generic_arguments)?;
                 }
             }
             Type::Infer { name, constraint } => {
@@ -165,22 +210,6 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*target)?;
                 }
             }
-            Type::Unary { operator, right } => {
-                self.write_type_unary_operator(*operator);
-                self.write_punct(" ");
-                self.print_type_id(*right)?;
-            }
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                self.print_type_id(*left)?;
-                self.write_punct(" ");
-                self.write_type_binary_operator(*operator);
-                self.write_punct(" ");
-                self.print_type_id(*right)?;
-            }
             Type::Array { element } => {
                 if let Some(element) = element {
                     self.print_type_id(*element)?;
@@ -196,7 +225,7 @@ impl<'a> Printer<'a> {
             }
             Type::Object { properties } => {
                 self.write_punct("{");
-                self.print_type_field_list(properties)?;
+                self.print_type_member_list(properties)?;
                 self.write_punct("}");
             }
             Type::Union { elements } => {
@@ -224,14 +253,9 @@ impl<'a> Printer<'a> {
                     self.write_keyword(Keyword::New);
                 }
 
-                if let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
+                if !signature.generic_parameters.is_empty() {
                     self.write_punct("<");
-                    self.print_type_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(&signature.generic_parameters)?;
                     self.write_punct(">");
                 }
 
@@ -297,17 +321,17 @@ impl<'a> Printer<'a> {
 
         Ok(())
     }
-    /// Print one type field.
-    pub(crate) fn print_type_field(&mut self, type_field: &TypeField) -> JsPrintResult<()> {
-        match type_field {
-            TypeField::Field { modifiers, key, ty } => {
+    /// Print one type member.
+    pub(crate) fn print_type_member(&mut self, type_member: &TypeMember) -> JsPrintResult<()> {
+        match type_member {
+            TypeMember::Field { modifiers, key, ty } => {
                 self.print_binding_modifiers_prefix(*modifiers);
                 self.print_optional_key(*key)?;
                 self.print_binding_modifiers_postfix(*modifiers);
                 self.write_punct(":");
                 self.print_type_id(*ty)?;
             }
-            TypeField::Method {
+            TypeMember::Method {
                 modifiers,
                 key,
                 signature,
@@ -322,14 +346,9 @@ impl<'a> Printer<'a> {
                     self.write_keyword(Keyword::New);
                 }
 
-                if let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
+                if !signature.generic_parameters.is_empty() {
                     self.write_punct("<");
-                    self.print_type_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(&signature.generic_parameters)?;
                     self.write_punct(">");
                 }
 
@@ -342,7 +361,7 @@ impl<'a> Printer<'a> {
                     self.print_type_id(return_type)?;
                 }
             }
-            TypeField::IndexSignature {
+            TypeMember::IndexSignature {
                 modifiers,
                 name,
                 key_type,
@@ -575,12 +594,15 @@ impl<'a> Printer<'a> {
     }
 
     /// Print one type parameter.
-    pub(crate) fn print_type_parameter(&mut self, parameter: &Parameter) -> JsPrintResult<()> {
+    pub(crate) fn print_type_parameter(
+        &mut self,
+        parameter: &GenericParameter,
+    ) -> JsPrintResult<()> {
         match parameter {
-            Parameter::Named {
+            GenericParameter::Type {
                 modifiers,
                 name,
-                ty,
+                constraint,
                 default,
             } => {
                 self.print_binding_modifiers_prefix(*modifiers);
@@ -588,21 +610,42 @@ impl<'a> Printer<'a> {
                 self.print_binding_modifiers_postfix(*modifiers);
 
                 if self.include_types
-                    && let Some(ty) = ty
+                    && let Some(constraint) = constraint
                 {
                     self.write_punct(" ");
                     self.write_keyword(Keyword::Extends);
                     self.write_punct(" ");
-                    self.print_type_id(*ty)?;
+                    self.print_type_id(*constraint)?;
+                }
+
+                if let Some(default) = default {
+                    self.write_punct("=");
+                    self.print_type_id(*default)?;
+                }
+            }
+            GenericParameter::Value {
+                name,
+                declared_type,
+                default,
+                is_comptime,
+            } => {
+                if *is_comptime {
+                    self.write_keyword(Keyword::Comptime);
+                }
+
+                self.write_string_id(*name);
+
+                if self.include_types
+                    && let Some(declared_type) = declared_type
+                {
+                    self.write_punct(":");
+                    self.print_type_id(*declared_type)?;
                 }
 
                 if let Some(default) = default {
                     self.write_punct("=");
                     self.print_expression_id(*default)?;
                 }
-            }
-            _ => {
-                self.print_parameter(parameter)?;
             }
         }
 
@@ -612,7 +655,7 @@ impl<'a> Printer<'a> {
     /// Print one comma-separated type parameter list.
     pub(crate) fn print_type_parameter_list(
         &mut self,
-        parameters: &[LocalNodeId<Parameter>],
+        parameters: &[LocalNodeId<GenericParameter>],
     ) -> JsPrintResult<()> {
         for (index, parameter_id) in parameters.iter().enumerate() {
             if index > 0 {
@@ -655,11 +698,11 @@ mod tests {
     use destack_source::{File, FileId, FileType, ModuleId, Uri};
 
     use crate::{
-        Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind,
-        FunctionSignature, Generics, JsFormatContext, JsFormatOptions, LocalNodeId, LocalNodeIdAny,
-        NOOP_JS_SOURCE_MAP, NodeTree, Parameter, Path, PrimitiveType, ScalarLiteral, Type,
-        TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
-        TypeTemplateLiteral, TypeUnaryOperator, format_roots, print_roots_minified,
+        Asynchrony, FunctionCardinality, FunctionKind, FunctionSignature, GenericParameter,
+        JsFormatContext, JsFormatOptions, LocalNodeId, LocalNodeIdAny, NOOP_JS_SOURCE_MAP,
+        NodeTree, Parameter, Path, PrimitiveType, ScalarLiteral, Type, TypeLiteral,
+        TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
+        TypeTemplateLiteral, format_roots, print_roots_minified,
     };
 
     fn dummy_source_id() -> dir::LocalNodeIdAny {
@@ -670,11 +713,14 @@ mod tests {
         tree.insert_from_source_any(ty, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
-    fn insert_expression(tree: &mut NodeTree, expression: Expression) -> LocalNodeId<Expression> {
-        tree.insert_from_source_any(expression, ModuleId::EPHEMERAL, dummy_source_id())
+    fn insert_parameter(tree: &mut NodeTree, parameter: Parameter) -> LocalNodeId<Parameter> {
+        tree.insert_from_source_any(parameter, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
-    fn insert_parameter(tree: &mut NodeTree, parameter: Parameter) -> LocalNodeId<Parameter> {
+    fn insert_generic_parameter(
+        tree: &mut NodeTree,
+        parameter: GenericParameter,
+    ) -> LocalNodeId<GenericParameter> {
         tree.insert_from_source_any(parameter, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
@@ -692,7 +738,7 @@ mod tests {
             tree,
             Type::Path {
                 path: build_path(strings, &["T"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let type_parameter_u = strings.intern("U");
@@ -709,7 +755,7 @@ mod tests {
             tree,
             Type::Path {
                 path: build_path(strings, &["U"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let boxed_u = insert_type(
@@ -739,7 +785,7 @@ mod tests {
             Type::Import {
                 target: strings.intern("./shared"),
                 qualifier: Some(build_path(strings, &["Box"])),
-                static_arguments: Some(vec![string_type]),
+                generic_arguments: vec![string_type],
             },
         );
         let value_key = insert_type(
@@ -760,21 +806,20 @@ mod tests {
             tree,
             Type::Path {
                 path: build_path(strings, &["T"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let keyof_t = insert_type(
             tree,
-            Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                right: keyof_target,
+            Type::KeyOf {
+                target_type: keyof_target,
             },
         );
         let key_remap_span = insert_type(
             tree,
             Type::Path {
                 path: build_path(strings, &["K"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let key_remap = insert_type(
@@ -788,14 +833,14 @@ mod tests {
             tree,
             Type::Path {
                 path: build_path(strings, &["T"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let mapped_value_index = insert_type(
             tree,
             Type::Path {
                 path: build_path(strings, &["K"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let mapped_value = insert_type(
@@ -832,7 +877,7 @@ mod tests {
             Type::Import {
                 target: strings.intern("./shared"),
                 qualifier: Some(build_path(strings, &["Box"])),
-                static_arguments: Some(vec![predicate_argument]),
+                generic_arguments: vec![predicate_argument],
             },
         );
         let predicate = insert_type(
@@ -848,18 +893,18 @@ mod tests {
             tree,
             Type::Scalar(TypeLiteral::Primitive(PrimitiveType::String)),
         );
-        let generic_default = insert_expression(
+        let generic_default = insert_type(
             tree,
-            Expression::ScalarLiteral {
-                value: ScalarLiteral::String(strings.intern("alpha")),
-            },
+            Type::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
+                strings.intern("alpha"),
+            ))),
         );
-        let static_parameter = insert_parameter(
+        let static_parameter = insert_generic_parameter(
             tree,
-            Parameter::Named {
+            GenericParameter::Type {
                 modifiers: None,
                 name: strings.intern("T"),
-                ty: Some(generic_constraint),
+                constraint: Some(generic_constraint),
                 default: Some(generic_default),
             },
         );
@@ -867,7 +912,7 @@ mod tests {
             tree,
             Type::Path {
                 path: build_path(strings, &["T"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let dynamic_parameter = insert_parameter(
@@ -883,23 +928,22 @@ mod tests {
             tree,
             Type::Path {
                 path: build_path(strings, &["T"]),
-                static_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let function_type = insert_type(
             tree,
             Type::Function {
                 signature: FunctionSignature {
-                    abstraction: FunctionAbstraction::Concrete,
+                    is_abstract: false,
+                    is_override: false,
                     asynchrony: Asynchrony::Sync,
                     cardinality: FunctionCardinality::Scalar,
                     mode: None,
                     kind: FunctionKind::Lambda,
-                    generics: Some(Generics {
-                        static_parameters: Some(vec![static_parameter]),
-                    }),
+                    generic_parameters: vec![static_parameter],
                     this_parameter: None,
-                    dynamic_parameters: vec![dynamic_parameter],
+                    parameters: vec![dynamic_parameter],
                     return_type: Some(function_return_type),
                 },
             },

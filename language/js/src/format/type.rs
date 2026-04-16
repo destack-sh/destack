@@ -1,5 +1,5 @@
 use crate::{
-    FunctionMode, Keyword, LocalNodeId, PrimitiveType, TupleElement, Type, TypeField, TypeLiteral,
+    FunctionMode, Keyword, LocalNodeId, PrimitiveType, TupleElement, Type, TypeLiteral, TypeMember,
     TypeModifier, TypePredicateSubject,
 };
 use destack_fir::format::FormatResult;
@@ -44,14 +44,14 @@ impl<'ast> Format<JsFormatContext<'ast>> for TypeLiteral {
     }
 }
 
-impl<'ast> FormatNode<'ast, TypeField> for TypeField {
+impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<TypeField>,
+        _node_id: LocalNodeId<TypeMember>,
         f: &mut JsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            TypeField::Field { modifiers, key, ty } => {
+            TypeMember::Field { modifiers, key, ty } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // key
@@ -61,7 +61,7 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
                 // type
                 write!(f, [token(":"), space(), ty])?;
             }
-            TypeField::Method {
+            TypeMember::Method {
                 modifiers,
                 key,
                 signature,
@@ -78,14 +78,9 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
                 {
                     write!(f, [Keyword::New, space()])?;
                 }
-                // static parameters
-                if let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    format_type_parameter_list(static_parameters, f)?;
+                // generic parameters
+                if !signature.generic_parameters.is_empty() {
+                    format_type_parameter_list(&signature.generic_parameters, f)?;
                 }
                 // parameters
                 format_function_signature_parameters(signature, f)?;
@@ -94,7 +89,7 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
                     write!(f, [space(), token("=>"), space(), return_type])?;
                 }
             }
-            TypeField::IndexSignature {
+            TypeMember::IndexSignature {
                 modifiers,
                 name,
                 key_type,
@@ -167,15 +162,39 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             }
             Type::Path {
                 path,
-                static_arguments,
+                generic_arguments,
             } => {
                 write!(f, [path])?;
-                if let Some(static_arguments) = static_arguments {
-                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                if !generic_arguments.is_empty() {
+                    write!(f, [list_like("<", ">", ",", generic_arguments)])?;
                 }
             }
             Type::Expression(expression) => {
                 write!(f, [expression])?;
+            }
+            Type::Readonly { target_type } => {
+                write!(f, [Keyword::Readonly, space(), target_type])?;
+            }
+            Type::KeyOf { target_type } => {
+                write!(f, [Keyword::Keyof, space(), target_type])?;
+            }
+            Type::Must { target_type } => {
+                write!(f, [target_type, token("!")])?;
+            }
+            Type::AsComptime { target_type } => {
+                write!(f, [target_type, space(), token("as comptime")])?;
+            }
+            Type::Not { target_type } => {
+                write!(f, [token("!"), target_type])?;
+            }
+            Type::In { left, right } => {
+                write!(f, [left, space(), Keyword::In, space(), right])?;
+            }
+            Type::Extends { left, right } => {
+                write!(f, [left, space(), Keyword::Extends, space(), right])?;
+            }
+            Type::Implements { left, right } => {
+                write!(f, [left, space(), Keyword::Implements, space(), right])?;
             }
             Type::Conditional {
                 left,
@@ -268,7 +287,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             Type::Import {
                 target,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
                 write!(f, [Keyword::Import, token("(")])?;
                 format_string_literal_with_source_span(*target, None, f)?;
@@ -278,8 +297,8 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     write!(f, [token("."), qualifier])?;
                 }
 
-                if let Some(static_arguments) = static_arguments {
-                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                if !generic_arguments.is_empty() {
+                    write!(f, [list_like("<", ">", ",", generic_arguments)])?;
                 }
             }
             Type::Infer { name, constraint } => {
@@ -308,17 +327,6 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 }
             }
 
-            Type::Unary { operator, right } => {
-                write!(f, [operator, space(), right])?;
-            }
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                write!(f, [left, space(), operator, space(), right])?;
-            }
-
             Type::Array { element } => {
                 if let Some(element) = element {
                     write!(f, [element, token("[]")])?;
@@ -345,14 +353,9 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 {
                     write!(f, [Keyword::New, space()])?;
                 }
-                // static parameters
-                if let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    format_type_parameter_list(static_parameters, f)?;
+                // generic parameters
+                if !signature.generic_parameters.is_empty() {
+                    format_type_parameter_list(&signature.generic_parameters, f)?;
                 }
                 // parameters
                 format_function_signature_parameters(signature, f)?;

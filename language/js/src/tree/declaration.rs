@@ -1,6 +1,6 @@
 use crate::{
-    BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, Generics, Heritage,
-    LocalNodeId, Member, Name, Node, NodeType, Parameter, Statement, StringId, Type,
+    BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, GenericParameter,
+    LocalNodeId, Member, Name, Node, NodeType, Statement, StringId, Type,
 };
 
 /// The kind of declaration.
@@ -36,50 +36,100 @@ pub struct DeclarationDescriptor {
     pub export: Option<DependencyMode>,
 }
 
+/// A global augmentation declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The statements inside the global body.
+    pub statements: Vec<LocalNodeId<Statement>>,
+}
+
+/// A namespace declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamespaceDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The statements inside the namespace body.
+    pub statements: Vec<LocalNodeId<Statement>>,
+}
+
+/// A type alias declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The declared type value.
+    pub value: LocalNodeId<Type>,
+}
+
+/// A class declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The optional extended class expression.
+    pub extends_expression: Option<LocalNodeId<Expression>>,
+    /// The implemented interface types.
+    pub implements_types: Vec<LocalNodeId<Type>>,
+    /// The class members.
+    pub members: Vec<LocalNodeId<Member>>,
+}
+
+/// An interface declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InterfaceDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The extended interface types.
+    pub extends_types: Vec<LocalNodeId<Type>>,
+    /// The interface members.
+    pub members: Vec<LocalNodeId<Member>>,
+}
+
+/// An enum declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The enum fields.
+    pub fields: Vec<LocalNodeId<EnumField>>,
+}
+
+/// A function declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionDeclaration {
+    /// The declaration descriptor.
+    pub descriptor: DeclarationDescriptor,
+    /// The function signature.
+    pub signature: FunctionSignature,
+    /// The optional function body.
+    pub body: Option<LocalNodeId<Block>>,
+}
+
 /// A Declaration is a declaration in some namespace.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Declaration {
     /// Global augmentation declaration.
-    Global {
-        descriptor: DeclarationDescriptor,
-        statements: Vec<LocalNodeId<Statement>>,
-    },
+    Global(GlobalDeclaration),
     /// Namespace declaration.
-    Namespace {
-        descriptor: DeclarationDescriptor,
-        statements: Vec<LocalNodeId<Statement>>,
-    },
+    Namespace(NamespaceDeclaration),
     /// Type alias declaration.
-    Type {
-        descriptor: DeclarationDescriptor,
-        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
-        value: LocalNodeId<Type>,
-    },
+    Type(TypeDeclaration),
     /// Class declaration.
-    Class {
-        descriptor: DeclarationDescriptor,
-        generics: Generics,
-        heritage: Heritage,
-        members: Vec<LocalNodeId<Member>>,
-    },
+    Class(ClassDeclaration),
     /// Interface declaration.
-    Interface {
-        descriptor: DeclarationDescriptor,
-        generics: Generics,
-        heritage: Heritage,
-        members: Vec<LocalNodeId<Member>>,
-    },
+    Interface(InterfaceDeclaration),
     /// Enum declaration.
-    Enum {
-        descriptor: DeclarationDescriptor,
-        fields: Vec<LocalNodeId<EnumField>>,
-    },
+    Enum(EnumDeclaration),
     /// Function declaration.
-    Function {
-        descriptor: DeclarationDescriptor,
-        signature: FunctionSignature,
-        body: Option<LocalNodeId<Block>>,
-    },
+    Function(FunctionDeclaration),
 }
 
 impl Node for Declaration {
@@ -90,15 +140,15 @@ impl Declaration {
     /// Return whether this declaration is type only in plain js output.
     pub fn is_type_only(&self) -> bool {
         match self {
-            Self::Global { descriptor, .. }
-            | Self::Namespace { descriptor, .. }
-            | Self::Type { descriptor, .. }
-            | Self::Class { descriptor, .. }
-            | Self::Interface { descriptor, .. }
-            | Self::Enum { descriptor, .. }
-            | Self::Function { descriptor, .. } => {
+            Self::Global(GlobalDeclaration { descriptor, .. })
+            | Self::Namespace(NamespaceDeclaration { descriptor, .. })
+            | Self::Type(TypeDeclaration { descriptor, .. })
+            | Self::Class(ClassDeclaration { descriptor, .. })
+            | Self::Interface(InterfaceDeclaration { descriptor, .. })
+            | Self::Enum(EnumDeclaration { descriptor, .. })
+            | Self::Function(FunctionDeclaration { descriptor, .. }) => {
                 descriptor.kind == DeclarationKind::Declaration
-                    || matches!(self, Self::Type { .. } | Self::Interface { .. })
+                    || matches!(self, Self::Type(_) | Self::Interface(_))
             }
         }
     }
