@@ -1,86 +1,88 @@
 use std::collections::BTreeSet;
-use std::error::Error;
-use std::fmt;
 use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::Heap;
-use crate::alloc::{Arena, ArenaSnapshot, PageId};
-use crate::managed::{
-    GcState, ManagedLocation, ManagedSpace, ManagedSpaceImage, ManagedSpaceSnapshot,
-};
-use crate::raw::{RawLocation, RawSpace, RawSpaceImage, RawSpaceSnapshot};
+use crate::alloc::{Arena, ArenaImage, PageId};
+use crate::gc::GcState;
+use crate::heap::sum_bytes;
+use crate::managed::{ManagedLocation, ManagedSpace, ManagedSpaceImage, live_page_views};
+use crate::raw::{RawLocation, RawSpace, RawSpaceImage};
 use crate::value::{ManagedReference, RawPointer};
-use crate::{HeapLayout, HeapLayoutError};
+use crate::{HeapError, HeapLimits, HeapOptions, HeapResult};
 
 /// One frozen heap root over one shared arena.
 #[derive(Debug, Clone)]
 pub struct HeapImage {
     /// The shared arena backing every captured page.
     arena: Arc<Arena>,
-    /// The heap layout used by this image.
-    layout: HeapLayout,
+
+    /// The heap options used by this image.
+    options: HeapOptions,
+
     /// The captured managed-space root.
     managed: ManagedSpaceImage,
     /// The captured raw-space root.
     raw: RawSpaceImage,
 }
 
-/// One serialized heap snapshot.
+/// One serialized heap snapshot payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HeapSnapshot {
+struct HeapSnapshot {
     /// The serialized arena pages reachable from this heap root.
-    pub arena: ArenaSnapshot,
-    /// The heap layout used by this snapshot.
-    pub layout: HeapLayout,
+    arena: ArenaImage,
+
+    /// The heap options used by this image.
+    options: HeapOptions,
+
     /// The serialized managed-space root.
-    pub(crate) managed: ManagedSpaceSnapshot,
+    managed: ManagedSpaceImage,
     /// The serialized raw-space root.
-    pub(crate) raw: RawSpaceSnapshot,
+    raw: RawSpaceImage,
 }
 
 impl HeapImage {
     /// Create one frozen heap root.
     pub(crate) fn new(
         arena: Arc<Arena>,
-        layout: HeapLayout,
+        options: HeapOptions,
         managed: ManagedSpaceImage,
         raw: RawSpaceImage,
     ) -> Self {
         Self {
             arena,
-            layout,
+            options,
             managed,
             raw,
         }
     }
 
-    /// Build one heap image from one serialized snapshot.
-    pub fn from_snapshot(snapshot: &HeapSnapshot) -> Self {
-        let arena = Arc::new(Arena::from_snapshot(&snapshot.arena));
-        let managed = ManagedSpaceImage::from_snapshot(&snapshot.managed);
-        let raw = RawSpaceImage::from_snapshot(&snapshot.raw);
+    /// Build one heap image from one serialized payload.
+    fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
+        let arena = Arc::new(Arena::from_image(&snapshot.arena)?);
+        let managed = snapshot.managed.clone();
+        let raw = snapshot.raw.clone();
 
-        Self {
+        Ok(Self {
             arena,
-            layout: snapshot.layout.clone(),
+            options: snapshot.options.clone(),
             managed,
             raw,
-        }
+        })
     }
 
     /// Flatten one heap image into one serialized snapshot.
-    pub fn snapshot(&self) -> HeapSnapshot {
+    fn snapshot(&self) -> Result<HeapSnapshot, HeapError> {
         // collect the reachable arena pages once
-        let page_ids = self.snapshot_page_ids();
+        let page_ids = self.image_page_ids();
 
-        HeapSnapshot {
-            arena: self.arena.snapshot_pages_from_ids(&page_ids),
-            layout: self.layout.clone(),
-            managed: self.managed.snapshot(),
-            raw: self.raw.snapshot(),
-        }
+        Ok(HeapSnapshot {
+            arena: self.arena.image_pages_from_ids(&page_ids)?,
+            options: self.options.clone(),
+            managed: self.managed.clone(),
+            raw: self.raw.clone(),
+        })
     }
 
     /// Return the shared arena for this image.
@@ -89,18 +91,20 @@ impl HeapImage {
     }
 
     /// Return a copy of this image rebound onto one explicit arena.
-    pub fn with_arena(&self, arena: Arc<Arena>) -> Self {
-        Self {
+    pub fn with_arena(&self, arena: Arc<Arena>) -> Result<Self, HeapError> {
+        self.options.validate_arena(&arena)?;
+
+        Ok(Self {
             arena,
-            layout: self.layout.clone(),
+            options: self.options.clone(),
             managed: self.managed.clone(),
             raw: self.raw.clone(),
-        }
+        })
     }
 
-    /// Return the heap layout for this image.
-    pub fn layout(&self) -> &HeapLayout {
-        &self.layout
+    /// Return the heap options for this image.
+    pub fn options(&self) -> &HeapOptions {
+        &self.options
     }
 
     /// Return the managed-space root.
@@ -113,56 +117,38 @@ impl HeapImage {
         &self.raw
     }
 
-    /// Return the captured managed collector state.
-    pub fn managed_gc_state(&self) -> &GcState {
+    /// Return the captured collector state.
+    pub fn gc_state(&self) -> &GcState {
         self.managed.gc_state()
     }
 
     /// Return the total page count reachable from this heap image.
     pub fn page_count(&self) -> usize {
-        let young_pages = self.managed.young().pages().len();
-        let managed_span_pages =
-            Self::page_len_sum(self.managed.spans().iter().map(|span| &span.pages));
-        let managed_allocation_pages = Self::page_len_sum(
-            self.managed
-                .allocations()
-                .iter()
-                .map(|allocation| &allocation.pages),
-        );
-        let raw_span_pages = Self::page_len_sum(self.raw.spans().iter().map(|span| &span.pages));
-        let raw_allocation_pages = Self::page_len_sum(
-            self.raw
-                .allocations()
-                .iter()
-                .map(|allocation| &allocation.pages),
-        );
-
-        young_pages
-            + managed_span_pages
-            + managed_allocation_pages
-            + raw_span_pages
-            + raw_allocation_pages
+        self.image_page_ids().len()
     }
 
     /// Return the raw page count reachable from this heap image.
     pub fn raw_page_count(&self) -> usize {
-        let raw_span_pages = Self::page_len_sum(self.raw.spans().iter().map(|span| &span.pages));
-        let raw_allocation_pages = Self::page_len_sum(
-            self.raw
-                .allocations()
-                .iter()
-                .map(|allocation| &allocation.pages),
-        );
-
-        raw_span_pages + raw_allocation_pages
+        self.raw
+            .spans()
+            .iter()
+            .flat_map(|span| span.pages.page_ids())
+            .chain(
+                self.raw
+                    .entries()
+                    .iter()
+                    .flat_map(|entry| entry.pages.page_ids()),
+            )
+            .collect::<BTreeSet<_>>()
+            .len()
     }
 
     /// Return the total local allocated bytes captured by this image.
-    pub fn local_allocated_bytes(&self) -> u64 {
-        self.managed.allocated_bytes() + self.raw.allocated_bytes()
+    pub fn local_allocated_bytes(&self) -> HeapResult<u64> {
+        sum_bytes(self.managed.allocated_bytes(), self.raw.allocated_bytes())
     }
 
-    /// Return whether one managed allocation shares arena storage with another heap root.
+    /// Return whether one managed entry shares arena storage with another heap root.
     #[doc(hidden)]
     pub fn shares_managed_allocation_with(
         &self,
@@ -180,8 +166,12 @@ impl HeapImage {
         }
 
         // compare the location-specific page maps
-        match (record.location(), other_record.location()) {
-            (ManagedLocation::Vacant, ManagedLocation::Vacant) => false,
+        let (Some(location), Some(other_location)) = (record.location(), other_record.location())
+        else {
+            return false;
+        };
+
+        match (location, other_location) {
             (ManagedLocation::Young(_), ManagedLocation::Young(_)) => {
                 self.managed.young().pages() == other.managed.young().pages()
             }
@@ -195,23 +185,27 @@ impl HeapImage {
 
                 slot == other_slot && span.pages == other_span.pages
             }
-            (ManagedLocation::Large(allocation), ManagedLocation::Large(other_allocation)) => {
-                let Some(allocation) = self.managed.allocations().get(allocation.index()) else {
+            (ManagedLocation::Large(entry), ManagedLocation::Large(other_entry)) => {
+                let Ok(entry_index) = entry.index() else {
                     return false;
                 };
-                let Some(other_allocation) =
-                    other.managed.allocations().get(other_allocation.index())
-                else {
+                let Ok(other_entry_index) = other_entry.index() else {
+                    return false;
+                };
+                let Some(entry) = self.managed.entries().get(entry_index) else {
+                    return false;
+                };
+                let Some(other_entry) = other.managed.entries().get(other_entry_index) else {
                     return false;
                 };
 
-                allocation.pages == other_allocation.pages
+                entry.pages == other_entry.pages
             }
             _ => false,
         }
     }
 
-    /// Return whether one raw allocation shares arena storage with another heap root.
+    /// Return whether one raw entry shares arena storage with another heap root.
     #[doc(hidden)]
     pub fn shares_raw_allocation_with(&self, other: &Self, pointer: RawPointer) -> bool {
         // resolve the captured raw records first
@@ -225,8 +219,12 @@ impl HeapImage {
         }
 
         // compare the location-specific page maps
-        match (record.location, other_record.location) {
-            (RawLocation::Vacant, RawLocation::Vacant) => false,
+        let (Some(location), Some(other_location)) = (record.location(), other_record.location())
+        else {
+            return false;
+        };
+
+        match (location, other_location) {
             (RawLocation::Small(slot), RawLocation::Small(other_slot)) => {
                 let Some(span) = self.raw.spans().get(slot.span_index()) else {
                     return false;
@@ -237,16 +235,21 @@ impl HeapImage {
 
                 slot == other_slot && span.pages == other_span.pages
             }
-            (RawLocation::Large(allocation), RawLocation::Large(other_allocation)) => {
-                let Some(allocation) = self.raw.allocations().get(allocation.index()) else {
+            (RawLocation::Large(entry), RawLocation::Large(other_entry)) => {
+                let Ok(entry_index) = entry.index() else {
                     return false;
                 };
-                let Some(other_allocation) = other.raw.allocations().get(other_allocation.index())
-                else {
+                let Ok(other_entry_index) = other_entry.index() else {
+                    return false;
+                };
+                let Some(entry) = self.raw.entries().get(entry_index) else {
+                    return false;
+                };
+                let Some(other_entry) = other.raw.entries().get(other_entry_index) else {
                     return false;
                 };
 
-                allocation.pages == other_allocation.pages
+                entry.pages == other_entry.pages
             }
             _ => false,
         }
@@ -256,32 +259,32 @@ impl HeapImage {
     pub fn page_ids(&self) -> Vec<PageId> {
         let mut pages = Vec::new();
 
-        // collect the nursery pages first
+        // collect the young-space pages first
         pages.extend(self.managed.young().pages().page_ids());
 
-        // collect every managed span and allocation page
+        // collect every managed span and entry page
         for span in self.managed.spans() {
             pages.extend(span.pages.page_ids());
         }
 
-        for allocation in self.managed.allocations() {
-            pages.extend(allocation.pages.page_ids());
+        for entry in self.managed.entries() {
+            pages.extend(entry.pages.page_ids());
         }
 
-        // collect every raw span and allocation page
+        // collect every raw span and entry page
         for span in self.raw.spans() {
             pages.extend(span.pages.page_ids());
         }
 
-        for allocation in self.raw.allocations() {
-            pages.extend(allocation.pages.page_ids());
+        for entry in self.raw.entries() {
+            pages.extend(entry.pages.page_ids());
         }
 
         pages
     }
 
-    /// Return the deduplicated page ids for one serialized snapshot.
-    fn snapshot_page_ids(&self) -> Vec<PageId> {
+    /// Return the deduplicated page ids for one serialized image.
+    fn image_page_ids(&self) -> Vec<PageId> {
         self.page_ids()
             .into_iter()
             .collect::<BTreeSet<_>>()
@@ -289,9 +292,29 @@ impl HeapImage {
             .collect()
     }
 
-    /// Sum the page counts for one iterator of page maps.
-    fn page_len_sum<'a>(page_maps: impl Iterator<Item = &'a crate::alloc::PageMap>) -> usize {
-        page_maps.map(crate::alloc::PageMap::len).sum()
+    /// Return whether two heap images expose the same reachable arena pages.
+    fn has_equal_page_bytes(&self, other: &Self) -> bool {
+        let page_ids = self.image_page_ids();
+        let other_page_ids = other.image_page_ids();
+        if page_ids != other_page_ids {
+            return false;
+        }
+
+        // compare each reachable page directly without snapshot materialization
+        for page_id in page_ids {
+            let Ok(page) = self.arena.read_page_bytes(page_id) else {
+                return false;
+            };
+            let Ok(other_page) = other.arena.read_page_bytes(page_id) else {
+                return false;
+            };
+
+            if page != other_page {
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Return one pair of live managed records captured by two heap images.
@@ -300,8 +323,8 @@ impl HeapImage {
         other: &'a Self,
         reference: ManagedReference,
     ) -> Option<(
-        &'a crate::managed::ManagedReferenceRecord,
-        &'a crate::managed::ManagedReferenceRecord,
+        &'a crate::managed::ManagedReferenceEntry,
+        &'a crate::managed::ManagedReferenceEntry,
     )> {
         // resolve the stable reference slot first
         let reference_index = reference.id().checked_sub(1)? as usize;
@@ -322,8 +345,8 @@ impl HeapImage {
         other: &'a Self,
         pointer: RawPointer,
     ) -> Option<(
-        &'a crate::raw::RawPointerRecord,
-        &'a crate::raw::RawPointerRecord,
+        &'a crate::raw::RawPointerEntry,
+        &'a crate::raw::RawPointerEntry,
     )> {
         // resolve the stable pointer slot first
         let pointer_index = pointer.id().checked_sub(1)? as usize;
@@ -340,50 +363,81 @@ impl HeapImage {
 }
 
 impl Heap {
-    /// Create one heap from one frozen heap root.
-    pub fn from_image(image: &HeapImage) -> Result<Self, HeapLayoutError> {
+    /// Fork one live heap over the same shared arena.
+    pub fn fork(&self) -> Result<Self, HeapError> {
+        let managed = self.managed.fork()?;
+        let raw = match self.raw.fork() {
+            Ok(raw) => raw,
+            Err(error) => {
+                for page_view in live_page_views(&managed).into_iter().rev() {
+                    self.arena.release_page_view(&page_view)?;
+                }
+
+                return Err(error);
+            }
+        };
+
         Ok(Self {
-            arena: image.arena().clone(),
-            layout: image.layout().clone(),
-            managed: ManagedSpace::from_image(image.arena().clone(), image.managed())?,
-            raw: RawSpace::from_image(image.arena().clone(), image.raw()),
-            limits: super::HeapLimits::default(),
+            arena: self.arena.clone(),
+            options: self.options.clone(),
+            managed,
+            raw,
+            limits: self.limits,
         })
     }
 
-    /// Create one heap from one serialized snapshot.
-    pub fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapLayoutError> {
-        Self::from_image(&HeapImage::from_snapshot(snapshot))
+    /// Create one heap from one frozen heap root.
+    pub fn from_image(image: &HeapImage) -> Result<Self, HeapError> {
+        Self::from_image_with_limits(image, HeapLimits::default())
+    }
+
+    /// Create one heap from one frozen heap root and explicit hard limits.
+    pub fn from_image_with_limits(
+        image: &HeapImage,
+        limits: HeapLimits,
+    ) -> Result<Self, HeapError> {
+        image.options().validate()?;
+
+        let managed = ManagedSpace::from_image(image.arena().clone(), image.managed())?;
+        let raw = match RawSpace::from_image(image.arena().clone(), image.raw()) {
+            Ok(raw) => raw,
+            Err(error) => {
+                for page_view in live_page_views(&managed).into_iter().rev() {
+                    image.arena().release_page_view(&page_view)?;
+                }
+
+                return Err(error);
+            }
+        };
+
+        Ok(Self {
+            arena: image.arena().clone(),
+            options: image.options().clone(),
+            managed,
+            raw,
+            limits,
+        })
     }
 
     /// Capture one frozen heap root.
-    pub fn image(&mut self) -> Result<HeapImage, HeapCaptureError> {
+    pub fn image(&self) -> Result<HeapImage, HeapError> {
         let managed = self.managed.image()?;
         let raw = self.raw.image();
 
         Ok(HeapImage::new(
             self.arena().clone(),
-            self.layout().clone(),
+            self.options().clone(),
             managed,
             raw,
         ))
     }
 
     /// Restore this heap from one frozen heap root.
-    pub fn restore_image(&mut self, image: &HeapImage) -> Result<(), HeapLayoutError> {
-        *self = Self::from_image(image)?;
+    pub fn restore_image(&mut self, image: &HeapImage) -> Result<(), HeapError> {
+        self.managed.check_branch_boundary()?;
 
-        Ok(())
-    }
-
-    /// Capture one serialized heap snapshot.
-    pub fn snapshot(&mut self) -> Result<HeapSnapshot, HeapCaptureError> {
-        Ok(self.image()?.snapshot())
-    }
-
-    /// Restore this heap from one serialized snapshot.
-    pub fn restore_snapshot(&mut self, snapshot: &HeapSnapshot) -> Result<(), HeapLayoutError> {
-        *self = Self::from_snapshot(snapshot)?;
+        let limits = self.limits;
+        *self = Self::from_image_with_limits(image, limits)?;
 
         Ok(())
     }
@@ -394,7 +448,9 @@ impl Serialize for HeapImage {
     where
         S: Serializer,
     {
-        self.snapshot().serialize(serializer)
+        let snapshot = self.snapshot().map_err(serde::ser::Error::custom)?;
+
+        snapshot.serialize(serializer)
     }
 }
 
@@ -405,28 +461,17 @@ impl<'de> Deserialize<'de> for HeapImage {
     {
         let snapshot = HeapSnapshot::deserialize(deserializer)?;
 
-        Ok(Self::from_snapshot(&snapshot))
+        Self::from_snapshot(&snapshot).map_err(serde::de::Error::custom)
     }
 }
 
-/// Heap image capture failure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HeapCaptureError {
-    /// The managed collector still has in-flight work.
-    GcActive,
-    /// One managed allocation is still pinned for raw exposure.
-    PinnedManagedReferences,
-}
-
-impl fmt::Display for HeapCaptureError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::GcActive => write!(f, "heap capture requires idle gc state"),
-            Self::PinnedManagedReferences => {
-                write!(f, "heap capture requires all managed pins to be released")
-            }
-        }
+impl PartialEq for HeapImage {
+    fn eq(&self, other: &Self) -> bool {
+        self.options == other.options
+            && self.managed == other.managed
+            && self.raw == other.raw
+            && self.has_equal_page_bytes(other)
     }
 }
 
-impl Error for HeapCaptureError {}
+impl Eq for HeapImage {}

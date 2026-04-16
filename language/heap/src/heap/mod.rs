@@ -1,24 +1,21 @@
 mod access;
 mod budget;
-mod constants;
-mod context;
+mod error;
 mod heap;
 mod image;
 mod limits;
 mod options;
+mod table;
+mod totals;
 mod usage;
 
-pub use crate::alloc::{
-    Bitmap, SizeClass, SizeClassTable, SizeClassTableError, SizeClassTableSelection,
-};
+pub use crate::alloc::{Bitmap, SizeClass, SizeClassTable};
 pub use budget::*;
-pub use constants::*;
-pub use context::*;
+pub use error::*;
 pub use heap::*;
 pub use image::*;
 pub use limits::*;
 pub use options::*;
+pub(crate) use table::*;
+pub(crate) use totals::*;
 pub use usage::*;
-
-#[cfg(test)]
-mod tests;

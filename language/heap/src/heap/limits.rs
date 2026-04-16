@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
+
+use crate::heap::{apply_byte_delta, sum_bytes};
+use crate::{HeapDomain, HeapError, HeapResult};
 
 /// Hard limits for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -29,13 +30,13 @@ pub struct RawLimits {
 
 impl HeapLimits {
     /// Check exact managed and raw active bytes against these limits.
-    pub fn check(&self, managed_bytes: u64, raw_bytes: u64) -> Result<(), HeapLimitError> {
+    pub fn check(&self, managed_bytes: u64, raw_bytes: u64) -> HeapResult<()> {
         // check managed heap limit
         if let Some(max_bytes) = self.managed.max_bytes
             && managed_bytes > max_bytes
         {
-            return Err(HeapLimitError {
-                scope: HeapLimitScope::Managed,
+            return Err(HeapError::LimitExceeded {
+                domain: HeapDomain::Managed,
                 used_bytes: managed_bytes,
                 max_bytes,
             });
@@ -45,20 +46,20 @@ impl HeapLimits {
         if let Some(max_bytes) = self.raw.max_bytes
             && raw_bytes > max_bytes
         {
-            return Err(HeapLimitError {
-                scope: HeapLimitScope::Raw,
+            return Err(HeapError::LimitExceeded {
+                domain: HeapDomain::Raw,
                 used_bytes: raw_bytes,
                 max_bytes,
             });
         }
 
         // check total heap limit
-        let total_bytes = managed_bytes.saturating_add(raw_bytes);
+        let total_bytes = sum_bytes(managed_bytes, raw_bytes)?;
         if let Some(max_bytes) = self.max_bytes
             && total_bytes > max_bytes
         {
-            return Err(HeapLimitError {
-                scope: HeapLimitScope::Total,
+            return Err(HeapError::LimitExceeded {
+                domain: HeapDomain::Total,
                 used_bytes: total_bytes,
                 max_bytes,
             });
@@ -67,77 +68,17 @@ impl HeapLimits {
         Ok(())
     }
 
-    /// Check exact managed and raw active bytes after one requested reservation.
-    pub fn check_active_reservation(
+    /// Check exact managed and raw active bytes after one requested mapped-byte delta.
+    pub fn check_mapped_delta(
         &self,
         managed_bytes: u64,
         raw_bytes: u64,
-        managed_reservation: i64,
-        raw_reservation: i64,
-    ) -> Result<(), HeapLimitError> {
-        let managed_bytes = apply_reservation(managed_bytes, managed_reservation);
-        let raw_bytes = apply_reservation(raw_bytes, raw_reservation);
+        managed_mapped_delta: i64,
+        raw_mapped_delta: i64,
+    ) -> HeapResult<()> {
+        let managed_bytes = apply_byte_delta(managed_bytes, managed_mapped_delta)?;
+        let raw_bytes = apply_byte_delta(raw_bytes, raw_mapped_delta)?;
 
         self.check(managed_bytes, raw_bytes)
     }
 }
-
-/// Apply one active-byte reservation to one current byte count.
-fn apply_reservation(current: u64, reservation: i64) -> u64 {
-    // positive reservations grow the current active bytes
-    if reservation >= 0 {
-        current.saturating_add(reservation as u64)
-    }
-    // negative reservations release active bytes
-    else {
-        current.saturating_sub(reservation.unsigned_abs())
-    }
-}
-
-/// The heap space that exceeded one configured hard limit.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum HeapLimitScope {
-    /// The total live heap exceeded its limit.
-    Total,
-    /// The managed live heap exceeded its limit.
-    Managed,
-    /// The raw live heap exceeded its limit.
-    Raw,
-}
-
-impl HeapLimitScope {
-    /// Return the display name for this heap limit scope.
-    pub const fn name(self) -> &'static str {
-        // each scope exposes one stable diagnostic label
-        match self {
-            Self::Total => "total",
-            Self::Managed => "managed",
-            Self::Raw => "raw",
-        }
-    }
-}
-
-/// One heap hard-limit violation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HeapLimitError {
-    /// The heap space that exceeded its hard limit.
-    pub scope: HeapLimitScope,
-    /// The exact live bytes in that heap space.
-    pub used_bytes: u64,
-    /// The configured hard limit in bytes.
-    pub max_bytes: u64,
-}
-
-impl fmt::Display for HeapLimitError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} heap limit exceeded: using {} bytes with limit {}",
-            self.scope.name(),
-            self.used_bytes,
-            self.max_bytes,
-        )
-    }
-}
-
-impl Error for HeapLimitError {}
