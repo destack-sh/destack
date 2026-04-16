@@ -57,7 +57,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         key: dir::Name,
-    ) -> js::LocalNodeId<js::Expression> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
         let expression = match key {
             dir::Name::Identifier(name) => js::Expression::Path {
                 path: js::Path {
@@ -65,7 +65,7 @@ impl ModuleLowerer<'_> {
                         self.strings.intern_from(self.source_strings, name)
                     ],
                 },
-                static_arguments: None,
+                generic_arguments: vec![],
             },
             dir::Name::String(name) => js::Expression::ScalarLiteral {
                 value: js::ScalarLiteral::String(
@@ -74,15 +74,23 @@ impl ModuleLowerer<'_> {
             },
             dir::Name::Number(name) => {
                 let number = self.source_strings.get(name);
-                let number = number.parse::<f64>().unwrap_or(0.0);
+                let number = number.parse::<f64>().map_err(|error| {
+                    CodegenJsError::UnsupportedConstruct {
+                        node: source_id.into_global(self.module.id),
+                        message: Some(format!(
+                            "import attribute number key is not a valid number: {error}"
+                        )),
+                    }
+                })?;
                 js::Expression::ScalarLiteral {
                     value: js::ScalarLiteral::Number(number),
                 }
             }
         };
 
-        self.tree
-            .insert_from_source_any(expression, self.module.id, source_id)
+        Ok(self
+            .tree
+            .insert_from_source_any(expression, self.module.id, source_id))
     }
 
     /// Lower one import attribute entry into a JS object property.
@@ -111,7 +119,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         attribute: &dir::ImportAttribute,
     ) -> CodegenJsResult<js::LocalNodeId<js::Argument>> {
-        let key = self.lower_import_attribute_key(source_id, attribute.key);
+        let key = self.lower_import_attribute_key(source_id, attribute.key)?;
         let value = self.lower_import_attribute_value(source_id, &attribute.value)?;
         let argument = js::Argument::Dynamic { key, value };
 
@@ -784,14 +792,10 @@ impl ModuleLowerer<'_> {
                 ..
             } => {
                 let path = self.lower_path(expression_id.into_any(), path)?;
-                let static_arguments = if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(self.lower_static_type_arguments(generic_arguments)?)
-                };
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Path {
                     path,
-                    static_arguments,
+                    generic_arguments,
                 };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -813,14 +817,10 @@ impl ModuleLowerer<'_> {
                 target_symbol,
             } => {
                 let path = self.lower_path(expression_id.into_any(), path)?;
-                let static_arguments = if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(self.lower_static_type_arguments(generic_arguments)?)
-                };
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Path {
                     path,
-                    static_arguments,
+                    generic_arguments,
                 };
                 let expression_id =
                     self.tree
@@ -921,13 +921,45 @@ impl ModuleLowerer<'_> {
                 self.lower_expression(*value)?
             }
             dir::Expression::As {
-                expression: value, ..
+                expression,
+                target_type,
+            } => {
+                let expression = self
+                    .lower_expression(*expression)
+                    .expect_node::<js::Expression>(
+                        expression.into_global_any(self.module.id),
+                        self,
+                    )?;
+                let target_type = self.lower_type_annotation_expression(*target_type)?;
+                let expression = js::Expression::As {
+                    expression,
+                    target_type,
+                };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
             }
-            | dir::Expression::Satisfies {
-                expression: value, ..
+            dir::Expression::Satisfies {
+                expression,
+                target_type,
+            } => {
+                let expression = self
+                    .lower_expression(*expression)
+                    .expect_node::<js::Expression>(
+                        expression.into_global_any(self.module.id),
+                        self,
+                    )?;
+                let target_type = self.lower_type_annotation_expression(*target_type)?;
+                let expression = js::Expression::Satisfies {
+                    expression,
+                    target_type,
+                };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
             }
-            | dir::Expression::OwnershipCast { value, .. } => {
-                // js output erases value casts and ownership casts
+            dir::Expression::OwnershipCast { value, .. } => {
+                // js output erases ownership casts
                 let lowered_id = self.lower_expression(*value)?;
                 match lowered_id.ty {
                     js::NodeType::Expression => {
@@ -1023,11 +1055,15 @@ impl ModuleLowerer<'_> {
             dir::Expression::Unary { operator, right } => self
                 .lower_unary_expression(expression_id, *operator, *right)?
                 .into_any(),
-            dir::Expression::Is { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("runtime `is` guards are not lowered to JS yet".to_string()),
-                });
+            dir::Expression::Is { value, target_type } => {
+                let value = self
+                    .lower_expression(*value)
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let target_type = self.lower_type_annotation_expression(*target_type)?;
+                let expression = js::Expression::Is { value, target_type };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::InstanceOf { value, target } => {
                 let value = self
@@ -1037,11 +1073,7 @@ impl ModuleLowerer<'_> {
                     .lower_expression(*target)
                     .expect_node::<js::Expression>(target.into_global_any(self.module.id), self)?;
 
-                let expression = js::Expression::Binary {
-                    left: value,
-                    operator: js::BinaryOperator::InstanceOf,
-                    right: target,
-                };
+                let expression = js::Expression::InstanceOf { value, target };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
@@ -1117,15 +1149,11 @@ impl ModuleLowerer<'_> {
                     });
                 };
                 let name = self.strings.intern_from(self.source_strings, name);
-                let static_arguments = if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(self.lower_static_type_arguments(generic_arguments)?)
-                };
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Member {
                     left: left_id,
                     name,
-                    static_arguments,
+                    generic_arguments,
                 };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -1146,15 +1174,11 @@ impl ModuleLowerer<'_> {
                     });
                 };
                 let name = self.strings.intern_from(self.source_strings, name);
-                let static_arguments = if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(self.lower_static_type_arguments(generic_arguments)?)
-                };
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::PrivateMember {
                     left: left_id,
                     name,
-                    static_arguments,
+                    generic_arguments,
                 };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -1190,10 +1214,10 @@ impl ModuleLowerer<'_> {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
-                let static_arguments = self.lower_static_type_arguments(generic_arguments)?;
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Instantiation {
                     left: left_id,
-                    static_arguments,
+                    generic_arguments,
                 };
 
                 self.tree
@@ -1209,11 +1233,7 @@ impl ModuleLowerer<'_> {
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
                 let position = self.get_postfix_expression_position(left_id);
-                let static_arguments = if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(self.lower_static_type_arguments(generic_arguments)?)
-                };
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
@@ -1221,7 +1241,7 @@ impl ModuleLowerer<'_> {
                 let expression = js::Expression::Call {
                     position,
                     left: left_id,
-                    static_arguments,
+                    generic_arguments,
                     dynamic_arguments,
                 };
                 self.tree
@@ -1236,18 +1256,14 @@ impl ModuleLowerer<'_> {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
-                let static_arguments = if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(self.lower_static_type_arguments(generic_arguments)?)
-                };
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = js::Expression::New {
                     left: left_id,
-                    static_arguments,
+                    generic_arguments,
                     dynamic_arguments,
                 };
                 self.tree

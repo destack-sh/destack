@@ -11,20 +11,6 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower function abstraction flags from DIR into JS AST.
-    pub fn lower_function_abstraction(
-        &self,
-        is_abstract: bool,
-        is_override: bool,
-    ) -> js::FunctionAbstraction {
-        match (is_abstract, is_override) {
-            (true, true) => js::FunctionAbstraction::AbstractOverride,
-            (true, false) => js::FunctionAbstraction::Abstract,
-            (false, true) => js::FunctionAbstraction::ConcreteOverride,
-            (false, false) => js::FunctionAbstraction::Concrete,
-        }
-    }
-
     /// Lower function cardinality from DIR into JS AST.
     pub fn lower_function_cardinality(
         &self,
@@ -60,22 +46,19 @@ impl ModuleLowerer<'_> {
         &mut self,
         function_signature: &dir::FunctionSignature,
     ) -> CodegenJsResult<js::FunctionSignature> {
-        let abstraction = self.lower_function_abstraction(
-            function_signature.is_abstract,
-            function_signature.is_override,
-        );
         let asynchrony = self.lower_asynchrony(function_signature.asynchrony);
         let cardinality = self.lower_function_cardinality(function_signature.cardinality);
         let mode = function_signature
             .mode
             .map(|mode| self.lower_function_mode(mode));
         let kind = self.lower_function_kind(function_signature.kind);
-        let generics = self.lower_generic_parameters(&function_signature.generic_parameters)?;
+        let generic_parameters =
+            self.lower_generic_parameters(&function_signature.generic_parameters)?;
         let this_parameter = function_signature
             .this_parameter
             .map(|parameter| self.lower_parameter(parameter))
             .transpose()?;
-        let dynamic_parameters = function_signature
+        let parameters = function_signature
             .parameters
             .iter()
             .map(|parameter| self.lower_parameter(*parameter))
@@ -85,16 +68,15 @@ impl ModuleLowerer<'_> {
             .map(|return_type| self.lower_type_annotation_expression(return_type))
             .transpose()?;
         Ok(js::FunctionSignature {
-            abstraction,
+            is_abstract: function_signature.is_abstract,
+            is_override: function_signature.is_override,
             asynchrony,
             cardinality,
             mode,
             kind,
-            generics: generics.map(|static_parameters| js::Generics {
-                static_parameters: Some(static_parameters),
-            }),
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         })
     }
