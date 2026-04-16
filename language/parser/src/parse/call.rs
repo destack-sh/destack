@@ -10,8 +10,8 @@ impl Parser {
     /// Eat one type-space bracket postfix.
     pub(crate) fn eat_type_index(
         &mut self,
-        receiver_id: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+        receiver_id: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let start = self.mark_span();
         let receiver_span = self.tree.get_span(receiver_id);
 
@@ -22,14 +22,14 @@ impl Parser {
         // bare brackets in type positions mean array type form: `T[]`
         if self.peek_is(TokenType::CloseBracket) {
             self.bump(); // eat close bracket
-            let element = self.expect_type_expression_value(receiver_id)?;
+            let element = receiver_id;
 
             let array_expression = TypeExpression::Array { element };
             let index_span = self.get_span_from(&start);
             let span = Span::new(index_span.file, receiver_span.start, index_span.end);
             let array_id = self.insert_node(array_expression, span);
 
-            return Ok(self.insert_type_expression_value(array_id));
+            return Ok(array_id);
         }
 
         // missing index
@@ -55,14 +55,14 @@ impl Parser {
             )?;
         }
 
-        let left = self.expect_type_expression_value(receiver_id)?;
+        let left = receiver_id;
 
         let index_expression = TypeExpression::Index { left, index };
         let index_span = self.get_span_from(&start);
         let span = Span::new(index_span.file, receiver_span.start, index_span.end);
         let index_id = self.insert_node(index_expression, span);
 
-        Ok(self.insert_type_expression_value(index_id))
+        Ok(index_id)
     }
 
     /// Eat one value-space explicit index postfix.
@@ -168,7 +168,7 @@ impl Parser {
             generic_arguments = self.try_eat_generic_arguments(false, true);
         }
 
-        // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
+        // dynamic arguments: untyped value mode accepts `new Foo` without parentheses
         let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call

@@ -4,7 +4,7 @@ use destack_ast::TokenType;
 
 /// Parenthesized group analysis metadata.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct DelimiterAnalysis {
+pub(crate) struct ParenthesizedGroupShape {
     /// The matching close parenthesis index when known.
     pub close_index: Option<usize>,
     /// Whether the group has a top level comma.
@@ -23,23 +23,24 @@ pub(crate) struct DelimiterAnalysis {
 
 impl Parser {
     /// Return the shape for the current open parenthesis.
-    pub(super) fn parenthesized_group_shape(&mut self) -> ParseResult<DelimiterAnalysis> {
-        let ambient_context = self.options;
-        let expression_context = self.options;
+    pub(super) fn parenthesized_group_shape(&mut self) -> ParseResult<ParenthesizedGroupShape> {
+        // inspect the current opening parenthesis
         let open_index = self.pos_index();
 
         // tree literal starts like `(<div>...)` do not need delimiter-shape lookahead
         let has_parenthesized_tree_literal = self.language.supports_jsx()
-            && !ambient_context.is_in_type()
-            && !expression_context.is_in_arrow_return_type()
+            && !self.options.is_in_type()
+            && !self.options.is_in_arrow_return_type()
             && self.parenthesized_group_starts_with_tree_literal(open_index);
+        if has_parenthesized_tree_literal {
+            return Ok(ParenthesizedGroupShape::default());
+        }
 
-        // plain path: in JS/TS value contexts, branch on the token after ')'
-        let can_use_plain_group_follow = !self.language.is_destack()
-            && !ambient_context.is_in_type()
-            && !expression_context.is_in_arrow_return_type()
-            && !has_parenthesized_tree_literal;
-        if can_use_plain_group_follow {
+        // base grouped expressions branch on the token after `)`
+        let can_use_follow_token = !self.language.is_destack()
+            && !self.options.is_in_type()
+            && !self.options.is_in_arrow_return_type();
+        if can_use_follow_token {
             self.stats.record_parenthesized_follow_token_call();
 
             if let Some(close_index) = self.matching_pair_or_lex(open_index) {
@@ -48,74 +49,61 @@ impl Parser {
                     self.stats.record_parenthesized_follow_token_hit();
 
                     if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
-                        return Ok(DelimiterAnalysis {
+                        return Ok(ParenthesizedGroupShape {
                             close_index: Some(close_index),
                             follow_token_type: Some(follow_token_type),
-                            ..DelimiterAnalysis::default()
+                            ..ParenthesizedGroupShape::default()
                         });
                     }
 
                     if follow_token_type != TokenType::Colon {
-                        return Ok(DelimiterAnalysis::default());
+                        return Ok(ParenthesizedGroupShape::default());
                     }
                 }
             }
         }
 
-        if has_parenthesized_tree_literal {
-            Ok(DelimiterAnalysis::default())
-        } else {
-            self.lookahead_parenthesized_group_shape()
-        }
-    }
-
-    /// Look ahead at a parenthesized group shape without committing parser state.
-    fn lookahead_parenthesized_group_shape(&mut self) -> ParseResult<DelimiterAnalysis> {
-        let ambient = self.options;
-
+        // try the cheap follow-token fast path first
         self.stats.record_delimiter_analysis_lookup();
 
         // tree literal lexing can mutate lexer state during lookahead
-        let needs_snapshot = self.allow_tree_literals() && !ambient.is_in_type();
+        let needs_snapshot = self.allow_tree_literals() && !self.options.is_in_type();
         if needs_snapshot {
             self.stats.record_delimiter_analysis_snapshot_lookup();
         }
-        let lookahead_result = if needs_snapshot {
-            let lookahead_mark = self.mark_rewind();
-            let lookahead_result = self.lookahead_delimiter_analysis_inner();
-            self.rewind(lookahead_mark);
-            lookahead_result
+
+        // compute the full grouped shape with snapshotting when needed
+        let group_shape = if needs_snapshot {
+            let rewind_mark = self.mark_rewind();
+            let group_shape = self.compute_parenthesized_group_shape().unwrap_or_default();
+            self.rewind(rewind_mark);
+            group_shape
         } else {
-            self.lookahead_delimiter_analysis_inner()
+            self.compute_parenthesized_group_shape().unwrap_or_default()
         };
 
-        // lookahead disambiguation should never surface parse errors directly
-        let delimiter_analysis = match lookahead_result {
-            Ok(delimiter_analysis) => Ok(delimiter_analysis),
-            Err(_) => Ok(DelimiterAnalysis::default()),
-        }?;
-
-        Ok(delimiter_analysis)
+        Ok(group_shape)
     }
 
-    /// Compute delimiter analysis metadata for the current opening token.
-    fn lookahead_delimiter_analysis_inner(&mut self) -> ParseResult<DelimiterAnalysis> {
-        let ambient = self.options;
-        let expression = self.options;
-
+    /// Compute parenthesized group shape metadata for the current opening token.
+    fn compute_parenthesized_group_shape(&mut self) -> ParseResult<ParenthesizedGroupShape> {
+        // record the full grouped scan path
         self.stats.record_delimiter_analysis_scan();
 
+        // require one opening parenthesis at the current cursor
         let open_index = self.pos_index();
         if self.token_type_at(open_index) != TokenType::OpenParenthesis {
-            return Ok(DelimiterAnalysis::default());
+            return Ok(ParenthesizedGroupShape::default());
         }
 
+        // find the matching close parenthesis first
         let Some(close_index) = self.find_matching_close_for_parenthesized_group(open_index as u32)
         else {
-            return Ok(DelimiterAnalysis::default());
+            return Ok(ParenthesizedGroupShape::default());
         };
 
-        let tracks_tuple_commas = self.language.is_destack();
+        // inspect the follow token and surrounding context
+        let needs_group_contents_shape = self.language.is_destack();
         let follow_cursor = self.scanner_cursor_from(close_index + 1);
         let follow_token_type = match follow_cursor.token_type {
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon => {
@@ -124,36 +112,38 @@ impl Parser {
             _ => None,
         };
         let has_colon_follow = follow_token_type == Some(TokenType::Colon);
-        let needs_parameter_shape_for_arrow_return = expression.is_in_arrow_return_type();
-        let needs_parameter_shape_for_typed_colon = ambient.is_in_type() && has_colon_follow;
+        let needs_parameter_shape_for_arrow_return = self.options.is_in_arrow_return_type();
+        let needs_parameter_shape_for_typed_colon = self.options.is_in_type() && has_colon_follow;
         let needs_parameter_shape_for_ternary_colon =
-            expression.is_in_ternary_condition() && has_colon_follow;
+            self.options.is_in_ternary_condition() && has_colon_follow;
 
-        // js and ts can usually decide lambda eligibility from the token after ')'
-        // skip deep shape scanning unless parameter shape data is required
-        if !tracks_tuple_commas
+        // plain group parsing only needs the token after `)` unless an
+        // enclosing context also needs the inner parameter shape
+        if !needs_group_contents_shape
             && !needs_parameter_shape_for_arrow_return
             && !needs_parameter_shape_for_typed_colon
             && !needs_parameter_shape_for_ternary_colon
         {
-            return Ok(DelimiterAnalysis {
+            return Ok(ParenthesizedGroupShape {
                 close_index: Some(close_index),
                 follow_token_type,
                 is_empty: false,
-                ..DelimiterAnalysis::default()
+                ..ParenthesizedGroupShape::default()
             });
         }
 
         // compute top level separators and operators inside the group
-        let mut delimiter_analysis =
-            self.scan_parenthesized_delimiter_analysis(open_index as u32, close_index as u32);
-        delimiter_analysis.close_index = Some(close_index);
-        delimiter_analysis.follow_token_type = follow_token_type;
-        Ok(delimiter_analysis)
+        let mut group_shape =
+            self.scan_parenthesized_group_shape(open_index as u32, close_index as u32);
+        group_shape.close_index = Some(close_index);
+        group_shape.follow_token_type = follow_token_type;
+
+        Ok(group_shape)
     }
 
     /// Find the matching close token for the current parenthesized group.
     fn find_matching_close_for_parenthesized_group(&mut self, open_pos: u32) -> Option<usize> {
+        // normalize the open position
         let open_index = open_pos as usize;
 
         // tree literals can contain raw `)` text, so groups that start as tree literals use expression matching
@@ -170,6 +160,7 @@ impl Parser {
             return Some(close_pos as usize);
         }
 
+        // prefer cached delimiter pairs when they exist
         if self
             .token_ref_at(open_index)
             .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
@@ -178,6 +169,7 @@ impl Parser {
             return Some(close_index);
         }
 
+        // otherwise scan forward for the matching close
         let close_pos = self.find_matching_close_maybe(
             Some(open_pos),
             TokenType::OpenParenthesis,
@@ -188,6 +180,7 @@ impl Parser {
 
     /// Return true when the immediate parenthesized payload starts with a tree literal.
     fn parenthesized_group_starts_with_tree_literal(&mut self, open_index: usize) -> bool {
+        // require tree literal support first
         if !self.language.supports_jsx() {
             return false;
         }
@@ -202,16 +195,17 @@ impl Parser {
     }
 
     /// Scan parenthesized contents once and collect top-level shape metadata.
-    fn scan_parenthesized_delimiter_analysis(
+    fn scan_parenthesized_group_shape(
         &mut self,
         open_pos: u32,
         close_pos: u32,
-    ) -> DelimiterAnalysis {
-        let mut analysis = DelimiterAnalysis {
+    ) -> ParenthesizedGroupShape {
+        // initialize the scan state
+        let mut analysis = ParenthesizedGroupShape {
             is_empty: true,
-            ..DelimiterAnalysis::default()
+            ..ParenthesizedGroupShape::default()
         };
-        let tracks_tuple_commas = self.language.is_destack();
+        let needs_group_contents_shape = self.language.is_destack();
         let mut angle_depth = 0u32;
         let mut parenthesis_depth = 0u32;
         let mut brace_depth = 0u32;
@@ -219,6 +213,7 @@ impl Parser {
         let mut token_index = open_pos as usize + 1;
         let close_index = close_pos as usize;
 
+        // scan the grouped contents once
         while token_index < close_index {
             self.ensure_token(token_index);
             let Some(token) = self.tokens().get(token_index) else {
@@ -241,7 +236,7 @@ impl Parser {
             }
 
             if is_top_level {
-                if tracks_tuple_commas && token_type == TokenType::Comma {
+                if needs_group_contents_shape && token_type == TokenType::Comma {
                     analysis.has_top_level_comma = true;
                 } else if token_type == TokenType::Colon {
                     analysis.has_top_level_parameter_colon = true;
@@ -281,9 +276,9 @@ impl Parser {
                 _ => {}
             }
 
-            // in JS and TS typed lambda heads, once we see one top level arrow
+            // once typed lambda heads see one top level arrow
             // the remaining scan cannot change lambda gating
-            if !tracks_tuple_commas && analysis.has_top_level_arrow && !analysis.is_empty {
+            if !needs_group_contents_shape && analysis.has_top_level_arrow && !analysis.is_empty {
                 break;
             }
 

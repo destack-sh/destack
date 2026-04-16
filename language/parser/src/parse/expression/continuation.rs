@@ -2,12 +2,11 @@ use crate::parse::parser::{NonNewlineTokenCursor, ParserOptions};
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
-use super::operator::ParseInfixOperator;
+use super::operator::{ParseInfixOperator, TypeBinaryOperator, TypeUnaryOperator};
 use destack_ast::{
     Argument, AssignOperator, BinaryOperator, Declaration, Expression, FunctionDeclaration,
     FunctionKind, GenericArgument, IfCondition, IfKind, Keyword, LiteralType, LocalNodeId,
-    NodeType, PostfixPosition, TokenType, TypeBinaryOperator, TypeExpression, TypeUnaryOperator,
-    UnaryOperator,
+    NodeType, PostfixPosition, TokenType, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -33,6 +32,66 @@ enum PostfixSpace {
     Value,
     /// Type-space postfix parsing.
     Type,
+}
+
+/// The right-hand grammar form owned by one infix operator.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InfixRightKind {
+    /// Parse a normal value expression on the right.
+    Value,
+    /// Parse a type assertion target for `as` or `satisfies`.
+    Assertion,
+    /// Parse a type predicate target for `value is T`.
+    ValuePredicate,
+    /// Parse a type operator right side for `A | B`, `A & B`, or `value is T` in type space.
+    TypeOperator,
+    /// Parse a conditional type right side for `T extends U ? X : Y`.
+    TypeConditional,
+    /// Reject one type-only operator that cannot lower in value space.
+    InvalidValueTypeOperator,
+}
+
+impl InfixRightKind {
+    /// Classify one infix operator against the current left-hand grammar space.
+    fn new(
+        operator: ParseInfixOperator,
+        left_is_type_expression: bool,
+        is_in_before_block: bool,
+    ) -> Self {
+        match operator {
+            ParseInfixOperator::As | ParseInfixOperator::Satisfies => Self::Assertion,
+            ParseInfixOperator::Is if !left_is_type_expression => Self::ValuePredicate,
+            ParseInfixOperator::Is => Self::TypeOperator,
+            ParseInfixOperator::Binary(
+                BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+            ) if left_is_type_expression => Self::TypeOperator,
+            ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+                if left_is_type_expression || is_in_before_block =>
+            {
+                Self::TypeConditional
+            }
+            ParseInfixOperator::TypeBinary(_) => Self::InvalidValueTypeOperator,
+            _ => Self::Value,
+        }
+    }
+
+    /// Return whether the right side parses in type space.
+    fn parses_type_expression(self) -> bool {
+        !matches!(self, Self::Value)
+    }
+
+    /// Return whether parenthesized value state must stay active on the right.
+    fn preserves_parenthesis(self) -> bool {
+        matches!(self, Self::Assertion | Self::ValuePredicate)
+    }
+
+    /// Return whether conditional-type right-side boundaries stay active.
+    fn keeps_type_conditional_boundary(self) -> bool {
+        matches!(
+            self,
+            Self::Assertion | Self::ValuePredicate | Self::TypeConditional
+        )
+    }
 }
 
 impl Parser {
@@ -113,14 +172,25 @@ impl Parser {
         // some postfix forms may cross a newline, but only for specific tokens
         if token.has_pending_newlines {
             let can_continue_after_newline = match space {
-                PostfixSpace::Value => matches!(
-                    token_type,
-                    TokenType::OpenParenthesis
-                        | TokenType::Dot
-                        | TokenType::Maybe
-                        | TokenType::LessThan
-                        | TokenType::ShiftLeft
-                ),
+                PostfixSpace::Value => {
+                    // tree literal starters own newline led `<...` in value space
+                    let starts_tree_literal = token_type == TokenType::LessThan
+                        && self.can_start_tree_literal_after_line_break();
+
+                    // typeof query operands must not absorb the next line as generic postfix syntax
+                    let continues_typeof_query = self.options.is_in_typeof_query()
+                        && matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft);
+
+                    matches!(
+                        token_type,
+                        TokenType::OpenParenthesis
+                            | TokenType::Dot
+                            | TokenType::Maybe
+                            | TokenType::LessThan
+                            | TokenType::ShiftLeft
+                    ) && !starts_tree_literal
+                        && !continues_typeof_query
+                }
                 PostfixSpace::Type => token_type == TokenType::Dot,
             };
             if !can_continue_after_newline {
@@ -282,19 +352,18 @@ impl Parser {
             next_token_type_after_newlines,
             TokenType::LessThan | TokenType::ShiftLeft
         ) {
-            // generic postfixes are only valid on compatible receivers
-            if !self.can_start_postfix_generic_arguments(left_expression_id) {
+            let Some(position) =
+                self.value_postfix_generic_arguments_position_maybe(left_expression_id)
+            else {
                 return Ok(None);
-            }
-
-            // indirect generic postfixes require optional chaining receivers
-            if !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. }) {
-                return Ok(None);
-            }
+            };
 
             // generic call or instantiation
-            let expression_id =
-                self.try_eat_postfix_generic_application(start, left_expression_id, true)?;
+            let expression_id = self.try_eat_value_postfix_generic_application(
+                start,
+                left_expression_id,
+                position,
+            )?;
 
             return Ok(expression_id);
         }
@@ -379,7 +448,7 @@ impl Parser {
         }
 
         let Some((member_index, is_private_member)) =
-            self.peek_dot_member_target(dot_index, next_cursor, left_expression_id)
+            self.peek_value_dot_member_target(dot_index, next_cursor, left_expression_id)
         else {
             return Ok(None);
         };
@@ -507,8 +576,8 @@ impl Parser {
     fn eat_type_dot_postfix_continuation(
         &mut self,
         start: &ParserMark,
-        left_expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        left_type_id: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
         let dot_index = self.pos_index();
         let next_raw_index = dot_index.saturating_add(1);
         let next_token_type = self.token_type_at(next_raw_index);
@@ -520,24 +589,26 @@ impl Parser {
             next_token_type_after_newlines,
             TokenType::LessThan | TokenType::ShiftLeft
         ) {
-            if !self.can_start_postfix_generic_arguments(left_expression_id) {
+            let Some(position) = self.type_postfix_generic_arguments_position_maybe(left_type_id)
+            else {
                 return Ok(None);
-            }
+            };
 
-            return self.try_eat_postfix_generic_application(start, left_expression_id, true);
+            return self.try_eat_type_postfix_generic_application(start, left_type_id, position);
         }
 
         // `T.!`
         if next_token_type == TokenType::Not {
             self.bump(); // eat .
             self.bump(); // eat !
-            let target_type = self.expect_type_expression_value(left_expression_id)?;
             let expression_id = self.insert_node(
-                TypeExpression::Must { target_type },
+                TypeExpression::Must {
+                    target_type: left_type_id,
+                },
                 self.get_span_from(start),
             );
 
-            return Ok(Some(self.insert_type_expression_value(expression_id)));
+            return Ok(Some(expression_id));
         }
 
         // preserve a committed type projection when the member slot is missing
@@ -547,11 +618,11 @@ impl Parser {
             self.report_unexpected_for_here(NodeType::TypeExpression);
             let error_id = self.insert_node(TypeExpression::Error, self.get_span_from(start));
 
-            return Ok(Some(self.insert_type_expression_value(error_id)));
+            return Ok(Some(error_id));
         }
 
         let Some((member_index, is_private_member)) =
-            self.peek_dot_member_target(dot_index, next_cursor, left_expression_id)
+            self.peek_type_dot_member_target(dot_index, next_cursor, left_type_id)
         else {
             return Ok(None);
         };
@@ -578,10 +649,10 @@ impl Parser {
             self.report_unexpected_for_here(NodeType::TypeExpression);
             let error_id = self.insert_node(TypeExpression::Error, self.get_span_from(start));
 
-            return Ok(Some(self.insert_type_expression_value(error_id)));
+            return Ok(Some(error_id));
         }
 
-        if self.invalid_decimal_integer_member_access(left_expression_id, member_distance) {
+        if self.invalid_decimal_integer_type_member_access(left_type_id, member_distance) {
             return Err(ParseError::unexpected(self.prev().expect("peeked").span));
         }
 
@@ -589,10 +660,9 @@ impl Parser {
         let generic_arguments = self
             .try_eat_generic_arguments(false, false)
             .unwrap_or_default();
-        let left_type = self.expect_type_expression_value(left_expression_id)?;
         let member_id = self.insert_node(
             TypeExpression::Member {
-                left: left_type,
+                left: left_type_id,
                 name,
                 generic_arguments,
             },
@@ -600,7 +670,7 @@ impl Parser {
         );
         self.tree.set_main_span(member_id, name_span);
 
-        Ok(Some(self.insert_type_expression_value(member_id)))
+        Ok(Some(member_id))
     }
 
     /// Eat one value-space postfix `?` or `as comptime` continuation.
@@ -652,18 +722,19 @@ impl Parser {
     fn eat_type_postfix_operator_continuation(
         &mut self,
         start: &ParserMark,
-        left_expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        left_type_id: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
         // `T as comptime`
         if let Some(operator_span) = self.eat_as_comptime_postfix_operator_maybe()? {
-            let target_type = self.expect_type_expression_value(left_expression_id)?;
             let expression_id = self.insert_node(
-                TypeExpression::AsComptime { target_type },
+                TypeExpression::AsComptime {
+                    target_type: left_type_id,
+                },
                 self.get_span_from(start),
             );
             self.tree.set_main_span(expression_id, operator_span);
 
-            return Ok(Some(self.insert_type_expression_value(expression_id)));
+            return Ok(Some(expression_id));
         }
 
         if !self.peek_is(TokenType::Not) {
@@ -671,13 +742,14 @@ impl Parser {
         }
 
         self.bump(); // eat !
-        let target_type = self.expect_type_expression_value(left_expression_id)?;
         let expression_id = self.insert_node(
-            TypeExpression::Must { target_type },
+            TypeExpression::Must {
+                target_type: left_type_id,
+            },
             self.get_span_from(start),
         );
 
-        Ok(Some(self.insert_type_expression_value(expression_id)))
+        Ok(Some(expression_id))
     }
 
     /// Try to eat one tagged object literal postfix.
@@ -694,7 +766,7 @@ impl Parser {
         }
 
         let left_expression_id = self.without_parentheses_expression(left_expression_id);
-        let Some(ty) = self.expression_type_value_maybe(left_expression_id) else {
+        let Some(ty) = self.wrapped_type_expression_maybe(left_expression_id) else {
             return Ok(None);
         };
 
@@ -889,18 +961,14 @@ impl Parser {
             TokenType::LessThan | TokenType::ShiftLeft => {
                 self.advance_to_continuation_token(token);
 
-                // generic postfixes are only valid on compatible receivers
-                if !self.can_start_postfix_generic_arguments(left_expression_id) {
+                let Some(position) =
+                    self.value_postfix_generic_arguments_position_maybe(left_expression_id)
+                else {
                     return Ok(None);
-                }
-
-                // direct generic postfixes do not apply to optional chains
-                if matches!(self.tree.get(left_expression_id), Expression::Maybe { .. }) {
-                    return Ok(None);
-                }
+                };
 
                 // generic call or instantiation
-                self.try_eat_postfix_generic_application(start, left_expression_id, false)
+                self.try_eat_value_postfix_generic_application(start, left_expression_id, position)
             }
 
             // postfix `?` and `as comptime`
@@ -944,39 +1012,41 @@ impl Parser {
     fn try_eat_type_postfix_step(
         &mut self,
         start: &ParserMark,
-        left_expression_id: LocalNodeId<Expression>,
+        left_type_id: LocalNodeId<TypeExpression>,
         token: ContinuationToken,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
         match token.token_type {
             // dot driven continuations
             TokenType::Dot => {
                 self.advance_to_continuation_token(token);
-                self.eat_type_dot_postfix_continuation(start, left_expression_id)
+                self.eat_type_dot_postfix_continuation(start, left_type_id)
             }
 
             // direct indexing
             TokenType::OpenBracket => {
                 self.advance_to_continuation_token(token);
-                let expression_id = self.eat_type_index(left_expression_id)?;
+                let type_expression_id = self.eat_type_index(left_type_id)?;
 
-                Ok(Some(expression_id))
+                Ok(Some(type_expression_id))
             }
 
             // postfix generic arguments
             TokenType::LessThan | TokenType::ShiftLeft => {
                 self.advance_to_continuation_token(token);
 
-                if !self.can_start_postfix_generic_arguments(left_expression_id) {
+                let Some(position) =
+                    self.type_postfix_generic_arguments_position_maybe(left_type_id)
+                else {
                     return Ok(None);
-                }
+                };
 
-                self.try_eat_postfix_generic_application(start, left_expression_id, false)
+                self.try_eat_type_postfix_generic_application(start, left_type_id, position)
             }
 
             // postfix `as comptime` and direct must postfix
             TokenType::Identifier | TokenType::Not => {
                 self.advance_to_continuation_token(token);
-                self.eat_type_postfix_operator_continuation(start, left_expression_id)
+                self.eat_type_postfix_operator_continuation(start, left_type_id)
             }
 
             // done
@@ -994,7 +1064,7 @@ impl Parser {
     /// value<T>()
     /// Vector2 { x: 0, y: 1 }
     /// ```
-    fn eat_value_postfix_continuation(
+    pub(super) fn eat_value_postfix_continuation(
         &mut self,
         start: &ParserMark,
         mut left_expression_id: LocalNodeId<Expression>,
@@ -1046,8 +1116,8 @@ impl Parser {
     pub(super) fn eat_type_postfix_continuation(
         &mut self,
         start: &ParserMark,
-        mut left_expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+        mut left_type_id: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX);
         let is_in_static = self.options.is_in_static();
         let is_in_ternary_or_match =
@@ -1062,30 +1132,29 @@ impl Parser {
             ) else {
                 break;
             };
-            let Some(next_expression_id) =
-                self.try_eat_type_postfix_step(start, left_expression_id, token)?
+            let Some(next_type_id) = self.try_eat_type_postfix_step(start, left_type_id, token)?
             else {
                 break;
             };
 
-            left_expression_id = next_expression_id;
+            left_type_id = next_type_id;
         }
 
-        Ok(left_expression_id)
+        Ok(left_type_id)
     }
 
     /// Eat one type conditional expression after consuming `extends`.
     fn eat_type_conditional_expression(
         &mut self,
         start: &ParserMark,
-        left_expression_id: LocalNodeId<Expression>,
+        left_type_id: LocalNodeId<TypeExpression>,
         right_context: ParserOptions,
-    ) -> ParseResult<Expression> {
-        let left = self.expect_type_expression_value(left_expression_id)?;
-
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
         // right side of `extends`
         let right_ambient_context = self.options.with_type(true);
-        let extends_context = right_context.not_in_left_precedence();
+        let extends_context = right_context
+            .not_in_left_precedence()
+            .disallow_type_conditional();
         let extends_type = self.eat_type_expression_node_or_recover_missing(
             self.options
                 .with_ambient_context(right_ambient_context)
@@ -1142,7 +1211,7 @@ impl Parser {
 
         let type_expression_id = self.insert_node(
             TypeExpression::Conditional {
-                left,
+                left: left_type_id,
                 extends_type,
                 then_type,
                 else_type,
@@ -1150,13 +1219,195 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        Ok(Expression::Type {
-            value: type_expression_id,
-        })
+        Ok(type_expression_id)
+    }
+
+    /// Parse infix continuation operators after type postfix parsing.
+    ///
+    /// Examples:
+    /// ```
+    /// A | B
+    /// A & B & C
+    /// value is string
+    /// T extends U ? X : Y
+    /// ```
+    pub(super) fn eat_type_infix_continuation(
+        &mut self,
+        start: &ParserMark,
+        mut left_type_id: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
+        let left_precedence = self.options.left_precedence;
+
+        loop {
+            // normalize the next infix token once before operator analysis
+            let Some(token) = self.next_continuation_token_maybe() else {
+                break;
+            };
+            let cursor_index = token.index;
+            let token_type = token.token_type;
+            let newline_count = token.skipped_newline_count;
+            let has_line_break_before = token.has_line_break_before;
+
+            // stop before the conditional marker so `extends` owns it explicitly
+            if token_type == TokenType::Maybe {
+                break;
+            }
+
+            // stop before ternary or match boundaries
+            if (self.options.is_in_ternary_condition() || self.options.is_in_match_case())
+                && token_type == TokenType::Colon
+            {
+                break;
+            }
+
+            // type expressions stop before tree literals after a line break
+            if has_line_break_before && self.can_start_tree_literal_after_line_break() {
+                break;
+            }
+
+            // reject tokens that cannot start any infix operator
+            let can_start_operator = if token_type == TokenType::Identifier {
+                self.has_infix_or_assign_operator_at_index(cursor_index)
+            } else {
+                BinaryOperator::from_token("", token_type).is_some()
+            };
+            if !can_start_operator {
+                break;
+            }
+
+            let Some((right_operator, operator_offset)) =
+                self.peek_infix_operator_at_index_maybe(cursor_index, has_line_break_before)
+            else {
+                break;
+            };
+
+            // infer constraints treat `extends` as an outer boundary unless nested explicitly
+            if self.options.is_disallow_type_conditional()
+                && right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+            {
+                break;
+            }
+
+            // mapped constraints stop before the remap `as`
+            if self.options.is_in_type_mapped_constraint()
+                && right_operator == ParseInfixOperator::As
+            {
+                break;
+            }
+
+            // multiple blank lines only permit union and intersection continuation
+            if has_line_break_before
+                && newline_count > 1
+                && !matches!(
+                    right_operator,
+                    ParseInfixOperator::Binary(
+                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                    )
+                )
+            {
+                break;
+            }
+
+            // precedence
+            if let Some(left_precedence) = left_precedence
+                && left_precedence >= right_operator.precedence()
+            {
+                break;
+            }
+
+            // dedicated type parsing only owns type operators
+            let is_supported_type_operator = matches!(
+                right_operator,
+                ParseInfixOperator::Binary(
+                    BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                ) | ParseInfixOperator::Is
+                    | ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+            );
+            if !is_supported_type_operator {
+                // invalid type operators fail loudly in strict type space
+                if matches!(right_operator, ParseInfixOperator::TypeBinary(_)) {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                break;
+            }
+
+            // align parser position with scanner cursor before consuming operator tokens
+            self.advance_to_continuation_token(token);
+
+            // capture operator span before eating
+            let operator_start = self.mark_span();
+            self.bump_by(operator_offset); // eat infix operator
+            let operator_span = self.get_span_from(&operator_start);
+
+            self.eat_newlines_maybe()?; // allow newlines after infix operator
+
+            // right side context
+            let mut right_context = self
+                .options
+                .not_in_statement_position()
+                .not_in_type_conditional_right()
+                .in_left_precedence(right_operator.precedence());
+            if self.options.is_in_type_conditional_right()
+                || matches!(
+                    right_operator,
+                    ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+                )
+            {
+                right_context = right_context.in_type_conditional_right();
+            }
+
+            // combine into the new left type expression
+            let previous_left_type_id = left_type_id;
+            let head_span = self.type_expression_head_span(left_type_id);
+            let full_span = self.get_span_from(start);
+            left_type_id =
+                if right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends) {
+                    self.eat_type_conditional_expression(start, left_type_id, right_context)?
+                } else {
+                    let right_ambient_context = self.options.with_type(true);
+                    let right_type_id = if self.is_type_expression_boundary() {
+                        self.recover_missing_type_expression_here(NodeType::Expression)
+                    } else {
+                        self.with_options(
+                            self.options
+                                .with_ambient_context(right_ambient_context)
+                                .with_expression_context(right_context),
+                            |parser| parser.eat_type_expression(),
+                        )?
+                    };
+
+                    self.make_type_infix_expression(
+                        full_span,
+                        head_span,
+                        left_type_id,
+                        right_operator,
+                        right_type_id,
+                    )?
+                };
+
+            // operator spans
+            self.tree.set_main_span(left_type_id, operator_span);
+
+            // type predicates own the subject span, not the operator span
+            if matches!(
+                self.tree.get(left_type_id),
+                TypeExpression::Predicate { .. }
+            ) {
+                let subject_span = self
+                    .tree
+                    .get_main_span(previous_left_type_id)
+                    .unwrap_or_else(|| self.tree.get_span(previous_left_type_id));
+                self.tree.set_main_span(left_type_id, subject_span);
+            }
+        }
+
+        Ok(left_type_id)
     }
 
     /// Eat one `as` or `satisfies` infix expression.
-    fn eat_type_assertion_infix_expression(
+    fn eat_assertion_infix_expression(
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
         right_operator: ParseInfixOperator,
@@ -1196,6 +1447,26 @@ impl Parser {
         Ok((expression, as_const_operator_end))
     }
 
+    /// Eat one infix right operand in type space or insert a missing node at a hard boundary.
+    fn eat_infix_right_type_or_missing(
+        &mut self,
+        right_context: ParserOptions,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        // hard boundaries synthesize a missing type node in place
+        if self.is_type_expression_boundary() {
+            return Ok(self.insert_missing_type_expression_here());
+        }
+
+        // otherwise parse the full right type in ambient type context
+        let right_ambient_context = self.options.with_type(true);
+        self.eat_type_expression_node_or_recover_missing(
+            self.options
+                .with_ambient_context(right_ambient_context)
+                .with_expression_context(right_context),
+            NodeType::Expression,
+        )
+    }
+
     /// Parse infix continuation operators after postfix parsing.
     ///
     /// Examples:
@@ -1203,10 +1474,11 @@ impl Parser {
     /// a + b * c
     /// value as string
     /// value satisfies Foo
+    /// value is string
     /// T extends U ? X : Y
     /// x = y ?? z
     /// ```
-    fn eat_infix_continuation(
+    pub(super) fn eat_infix_continuation(
         &mut self,
         start: &ParserMark,
         mut left_expression_id: LocalNodeId<Expression>,
@@ -1220,6 +1492,10 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
         let left_precedence = self.options.left_precedence;
         loop {
+            // wrapped type expressions keep the explicit value/type boundary
+            let left_is_type_expression =
+                matches!(self.tree.get(left_expression_id), Expression::Type { .. });
+
             // normalize the next infix token once before operator analysis
             let Some(token) = self.next_continuation_token_maybe() else {
                 break;
@@ -1255,7 +1531,7 @@ impl Parser {
             }
 
             // type expressions stop before tree literals after a line break
-            if self.options.is_in_type()
+            if left_is_type_expression
                 && has_line_break_before
                 && self.can_start_tree_literal_after_line_break()
             {
@@ -1280,6 +1556,13 @@ impl Parser {
                 break;
             };
 
+            // infer constraints treat `extends` as an outer boundary unless nested explicitly
+            if self.options.is_disallow_type_conditional()
+                && right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+            {
+                break;
+            }
+
             // mapped constraints stop before the remap `as`
             if self.options.is_in_type_mapped_constraint()
                 && right_operator == ParseInfixOperator::As
@@ -1289,7 +1572,7 @@ impl Parser {
 
             if has_line_break_before
                 && newline_count > 1
-                && self.options.is_in_type()
+                && left_is_type_expression
                 && !matches!(
                     right_operator,
                     ParseInfixOperator::Binary(
@@ -1327,82 +1610,107 @@ impl Parser {
 
             // eat right expression
             let subject_id = left_expression_id;
+            let right_kind = InfixRightKind::new(
+                right_operator,
+                left_is_type_expression,
+                self.options.is_in_before_block(),
+            );
             let mut right_context = self
                 .options
                 .not_in_statement_position()
                 .not_in_type_conditional_right()
                 .in_left_precedence(right_operator.precedence());
-            let parses_value_type_operator_right = !self.options.is_in_type()
-                && matches!(
-                    right_operator,
-                    ParseInfixOperator::As | ParseInfixOperator::Satisfies
-                );
-            let parses_type_expression_right = parses_value_type_operator_right
-                || matches!(right_operator, ParseInfixOperator::TypeBinary(_));
             let mut as_const_operator_end = None;
-            let parses_type_conditional = right_operator
-                == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
-                && (self.options.is_in_type() || self.options.is_in_before_block());
 
             // cast and satisfies in parenthesized value expressions need
             // the parenthesis flag so the type right side can stop at `)`
-            if !parses_value_type_operator_right {
+            if !right_kind.preserves_parenthesis() {
                 right_context = right_context.not_in_parenthesis();
             }
 
             // type operators in value expressions parse a full type expression on the right
-            if !self.options.is_in_type() && parses_type_expression_right {
+            if right_kind.parses_type_expression() {
                 right_context = right_context.not_in_left_precedence();
             }
 
             // conditional type right sides must keep their boundary marker active
-            if parses_value_type_operator_right
-                || self.options.is_in_type_conditional_right()
-                || matches!(
-                    right_operator,
-                    ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
-                )
+            if self.options.is_in_type_conditional_right()
+                || right_kind.keeps_type_conditional_boundary()
             {
                 right_context = right_context.in_type_conditional_right();
             }
 
             // combine into the new left expression
-            let left_expression = if matches!(
-                right_operator,
-                ParseInfixOperator::As | ParseInfixOperator::Satisfies
-            ) {
-                let (expression, operator_end) = self.eat_type_assertion_infix_expression(
-                    left_expression_id,
-                    right_operator,
-                    right_context,
-                )?;
-                as_const_operator_end = operator_end;
-                expression
-            } else if parses_type_conditional {
-                self.eat_type_conditional_expression(start, left_expression_id, right_context)?
-            } else {
-                let right_expression_id =
-                    if parses_type_expression_right && self.is_type_expression_boundary() {
-                        self.recover_missing_expression_here(NodeType::Expression)
-                    } else {
-                        let right_expression_result = if parses_type_expression_right {
-                            let right_ambient_context = self.options.with_type(true);
-                            self.with_options(
-                                self.options
-                                    .with_ambient_context(right_ambient_context)
-                                    .with_expression_context(right_context),
-                                |parser| parser.eat_expression_in_scope(),
-                            )
-                        } else {
-                            self.with_options(
-                                self.options.with_expression_context(right_context),
-                                |parser| parser.eat_expression_in_scope(),
-                            )
-                        };
-                        right_expression_result?
-                    };
+            let left_expression = match right_kind {
+                // `value as T`, `value satisfies T`
+                InfixRightKind::Assertion => {
+                    let (expression, operator_end) = self.eat_assertion_infix_expression(
+                        left_expression_id,
+                        right_operator,
+                        right_context,
+                    )?;
+                    as_const_operator_end = operator_end;
+                    expression
+                }
 
-                self.make_infix_expression(left_expression_id, right_operator, right_expression_id)?
+                // `T extends U ? X : Y`
+                InfixRightKind::TypeConditional => {
+                    let left_type_id = self.expect_wrapped_type_expression(left_expression_id)?;
+                    let type_expression_id =
+                        self.eat_type_conditional_expression(start, left_type_id, right_context)?;
+
+                    Expression::Type {
+                        value: type_expression_id,
+                    }
+                }
+
+                // `value is T`
+                InfixRightKind::ValuePredicate => {
+                    let right_type_id = self.eat_infix_right_type_or_missing(right_context)?;
+
+                    Expression::Is {
+                        value: left_expression_id,
+                        target_type: right_type_id,
+                    }
+                }
+
+                // `A | B`, `A & B`, `T is U`
+                InfixRightKind::TypeOperator => {
+                    let left_type_id = self.expect_wrapped_type_expression(left_expression_id)?;
+                    let right_type_id = self.eat_infix_right_type_or_missing(right_context)?;
+                    let full_span = self.get_span_from(start);
+                    let head_span = self.type_expression_head_span(left_type_id);
+                    let type_expression_id = self.make_type_infix_expression(
+                        full_span,
+                        head_span,
+                        left_type_id,
+                        right_operator,
+                        right_type_id,
+                    )?;
+
+                    Expression::Type {
+                        value: type_expression_id,
+                    }
+                }
+
+                // type-only infix operators must not lower through value space
+                InfixRightKind::InvalidValueTypeOperator => {
+                    return Err(ParseError::unexpected(operator_span));
+                }
+
+                // normal value infix expressions
+                InfixRightKind::Value => {
+                    let right_expression_id = self.with_options(
+                        self.options.with_expression_context(right_context),
+                        |parser| parser.eat_expression_in_scope(),
+                    )?;
+
+                    self.make_value_infix_expression(
+                        left_expression_id,
+                        right_operator,
+                        right_expression_id,
+                    )?
+                }
             };
 
             left_expression_id = self.insert_node(left_expression, self.get_span_from(start));
@@ -1420,8 +1728,8 @@ impl Parser {
             self.tree
                 .set_main_span(left_expression_id, operator_main_span);
 
-            if let Expression::Type { value } = self.tree.get(left_expression_id) {
-                self.tree.set_main_span(*value, operator_main_span);
+            if let Some(value) = self.wrapped_type_expression_maybe(left_expression_id) {
+                self.tree.set_main_span(value, operator_main_span);
             }
 
             // wrapper operators inherit the wrapped head
@@ -1434,10 +1742,9 @@ impl Parser {
             }
 
             // use the subject identifier for type predicate spans
-            if let Expression::Type { value } = self.tree.get(left_expression_id)
-                && matches!(self.tree.get(*value), TypeExpression::Predicate { .. })
+            if let Some(value) = self.wrapped_type_expression_maybe(left_expression_id)
+                && matches!(self.tree.get(value), TypeExpression::Predicate { .. })
             {
-                let value = *value;
                 let subject_span = self
                     .tree
                     .get_main_span(subject_id)
@@ -1451,7 +1758,13 @@ impl Parser {
     }
 
     /// Parse one value-space tail continuation after infix parsing.
-    fn eat_value_tail_continuation(
+    ///
+    /// Examples:
+    /// ```
+    /// value ? then_value : else_value
+    /// match value { case => result }
+    /// ```
+    pub(super) fn eat_value_tail_continuation(
         &mut self,
         start: &ParserMark,
         mut left_expression_id: LocalNodeId<Expression>,
@@ -1460,7 +1773,7 @@ impl Parser {
         let mut tail_cursor = self.scanner_cursor_from(self.pos_index());
 
         // ternary is the lowest precedence value continuation
-        // NOTE #Cleanup: having multiple ternary parse locations feels icky
+        // type conditionals already consume `?` in type-space continuation parsing
         if left_precedence.is_none() && tail_cursor.token_type == TokenType::Maybe {
             if tail_cursor.index != self.pos_index() {
                 self.advance_to(tail_cursor.index);
@@ -1492,7 +1805,7 @@ impl Parser {
             tail_cursor = self.scanner_cursor_from(self.pos_index());
         }
 
-        // sequence expressions only exist in JS and TS value space
+        // sequence expressions only exist in typed and untyped value space
         if left_precedence.is_none()
             && self.options.allows_sequence_expression()
             && (self.language.is_typescript() || self.language.is_javascript())
@@ -1521,44 +1834,21 @@ impl Parser {
         Ok(left_expression_id)
     }
 
-    /// Parse expression continuation operators after a primary expression.
+    /// Parse postfix, infix, and tail continuation after one primary expression.
+    ///
+    /// Examples:
+    /// ```
+    /// value.method<T>() ? a : b
+    /// value as string
+    /// value is string
+    /// Vector2 { x: 0, y: 1 }
+    /// Foo extends Bar ? Baz : Qux
+    /// ```
     pub(crate) fn eat_expression_continuation(
         &mut self,
         start: &ParserMark,
         left_expression_id: LocalNodeId<Expression>,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        // type-space continuations stay in the type postfix and tail grammar
-        if self.options.is_in_type() {
-            let left_expression_id =
-                self.eat_type_postfix_continuation(start, left_expression_id)?;
-            let left_expression_id = self.eat_infix_continuation(start, left_expression_id)?;
-
-            let tail_cursor = self.scanner_cursor_from(self.pos_index());
-            if tail_cursor.token_type != TokenType::Maybe {
-                return Ok(left_expression_id);
-            }
-
-            // tuple element optionals belong to the surrounding tuple parser
-            if tail_cursor.index != self.pos_index() {
-                self.advance_to(tail_cursor.index);
-            }
-
-            // nested conditional right sides stop before the outer `?`
-            if self.options.is_in_type_conditional_right() {
-                return Ok(left_expression_id);
-            }
-
-            // tuple element optionals belong to the surrounding tuple parser
-            let question_pos = self.pos();
-            let is_tuple_optional = self.is_token_after_newlines(question_pos, TokenType::Comma)
-                || self.is_token_after_newlines(question_pos, TokenType::CloseBracket);
-            if is_tuple_optional {
-                return Ok(left_expression_id);
-            }
-
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
         // statement expressions do not accept continuation operators
         if self.statement_expression_stops_continuation(left_expression_id) {
             return Ok(left_expression_id);
@@ -1572,7 +1862,7 @@ impl Parser {
     }
 
     /// Return a valid dot-member target after `.` from a scanner cursor index.
-    fn peek_dot_member_target(
+    fn peek_value_dot_member_target(
         &mut self,
         dot_index: usize,
         next_cursor: NonNewlineTokenCursor,
@@ -1617,6 +1907,52 @@ impl Parser {
         None
     }
 
+    /// Return a valid dot-member target after `.` for one type receiver.
+    fn peek_type_dot_member_target(
+        &mut self,
+        dot_index: usize,
+        next_cursor: NonNewlineTokenCursor,
+        left_type_id: LocalNodeId<TypeExpression>,
+    ) -> Option<(usize, bool)> {
+        let member_index = next_cursor.index;
+        let member_token_type = next_cursor.token_type;
+
+        // private member: .#name
+        if member_token_type == TokenType::Hash {
+            let identifier_index = member_index.saturating_add(1);
+            let has_identifier = self.token_type_at(identifier_index) == TokenType::Identifier;
+            let has_adjacent_hash_identifier =
+                has_identifier && self.tokens_are_adjacent(member_index, identifier_index);
+
+            if has_adjacent_hash_identifier {
+                return Some((member_index, true));
+            }
+
+            return None;
+        }
+
+        // member name: .name or .true / .false
+        if self.token_is_dot_member_name(member_index) {
+            return Some((member_index, false));
+        }
+
+        // decimal member separator: 0..A and 123..Member
+        let has_decimal_separator = member_token_type == TokenType::Dot
+            && self.tokens_are_adjacent(dot_index, member_index)
+            && self.type_is_decimal_integer_before_dot(left_type_id, dot_index);
+
+        // parse second-dot member target when the receiver is a decimal integer literal
+        if has_decimal_separator {
+            let separated_member_index =
+                self.next_non_newline_index_from(member_index.saturating_add(1));
+            if self.token_is_dot_member_name(separated_member_index) {
+                return Some((separated_member_index, false));
+            }
+        }
+
+        None
+    }
+
     /// Return true when a token index holds a valid dot-member name.
     #[inline]
     fn token_is_dot_member_name(&mut self, token_index: usize) -> bool {
@@ -1632,114 +1968,134 @@ impl Parser {
             })
     }
 
-    /// Check whether the current token sequence can start postfix generic arguments.
-    fn can_start_postfix_generic_arguments(
-        &mut self,
-        left_expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        // shape: `<...>` or `.<...>`
-        let has_generic_argument_start = self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::ShiftLeft)
-            || self.starts_indirect_postfix_generic_arguments();
-        if !has_generic_argument_start {
-            return false;
+    /// Return the postfix generic application position at the current cursor.
+    fn postfix_generic_arguments_position_maybe(&mut self) -> Option<PostfixPosition> {
+        // direct: `<...>` or `<<...>`
+        if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
+            return Some(PostfixPosition::Direct);
         }
 
-        // postfix generic arguments are disabled in `new` receiver and tree contexts
-        if matches!(self.tree.get(left_expression_id), Expression::New { .. }) {
-            return false;
-        }
-        let ambient = self.options;
-        if ambient.is_in_new_receiver() || ambient.is_in_tree_literal() {
-            return false;
-        }
-        if self.language.is_javascript() {
-            return false;
-        }
-
-        true
-    }
-
-    /// Check whether postfix generic arguments are attached through optional chaining.
-    fn starts_indirect_postfix_generic_arguments(&mut self) -> bool {
-        self.peek_is(TokenType::Dot)
+        // indirect: `.<...>` or `.<<...>`
+        if self.peek_is(TokenType::Dot)
             && (self.peek_next_is(TokenType::LessThan) || self.peek_next_is(TokenType::ShiftLeft))
+        {
+            return Some(PostfixPosition::Indirect);
+        }
+
+        None
     }
 
-    /// Speculatively parse postfix generic arguments into either call or instantiation.
-    fn try_eat_postfix_generic_application(
+    /// Return one valid value postfix generic application position at the current cursor.
+    fn value_postfix_generic_arguments_position_maybe(
         &mut self,
-        start: &ParserMark,
         left_expression_id: LocalNodeId<Expression>,
-        has_indirect_generic: bool,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> Option<PostfixPosition> {
+        let position = self.postfix_generic_arguments_position_maybe()?;
+
+        // generic postfixes are disabled in `new` receiver and tree contexts
+        if matches!(self.tree.get(left_expression_id), Expression::New { .. }) {
+            return None;
+        }
+        if self.options.is_in_new_receiver() || self.options.is_in_tree_literal() {
+            return None;
+        }
+        if self.options.is_in_tree_literal() || self.language.is_javascript() {
+            return None;
+        }
+
+        // direct generic postfixes do not apply to optional chains
+        if position == PostfixPosition::Direct
+            && matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
+        {
+            return None;
+        }
+
+        // indirect generic postfixes require optional chaining receivers
+        if position == PostfixPosition::Indirect
+            && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
+        {
+            return None;
+        }
+
+        Some(position)
+    }
+
+    /// Return one valid type postfix generic application position at the current cursor.
+    fn type_postfix_generic_arguments_position_maybe(
+        &mut self,
+        left_type_id: LocalNodeId<TypeExpression>,
+    ) -> Option<PostfixPosition> {
+        let position = self.postfix_generic_arguments_position_maybe()?;
+
+        // postfix generic arguments are disabled in tree contexts
+        if self.options.is_in_tree_literal() || self.language.is_javascript() {
+            return None;
+        }
+
+        // type space only permits reference-like instantiation shapes
+        if !matches!(
+            self.tree.get(left_type_id),
+            TypeExpression::Reference { .. }
+                | TypeExpression::Member { .. }
+                | TypeExpression::Import { .. }
+        ) {
+            return None;
+        }
+
+        Some(position)
+    }
+
+    /// Speculatively parse one postfix generic argument list.
+    fn try_eat_postfix_generic_arguments(
+        &mut self,
+        allow_object_literal: bool,
+        position: PostfixPosition,
+    ) -> Option<(ParserMark, u32, Vec<LocalNodeId<GenericArgument>>)> {
         // speculative boundary for optional chaining style generic arguments
         let speculative_start = self.mark();
         let speculative_start_idx = self.tree.next_id();
 
-        let position = if has_indirect_generic {
+        // indirect generic application consumes the committed dot token first
+        if position == PostfixPosition::Indirect {
             self.bump(); // eat .
-            PostfixPosition::Indirect
-        } else {
-            PostfixPosition::Direct
-        };
-
-        // tagged object literals can follow postfix instantiations on the same receiver shapes
-        let allow_object_literal = self
-            .expression_type_value_maybe(self.without_parentheses_expression(left_expression_id))
-            .is_some_and(|type_expression_id| {
-                self.can_start_tagged_object_literal_type(type_expression_id)
-            });
+        }
 
         // parse `<...>` with regular speculative follow validation
         let generic_arguments = match self.try_eat_generic_arguments(allow_object_literal, false) {
             Some(generic_arguments) => generic_arguments,
             None => {
                 self.restore(speculative_start, speculative_start_idx);
-                return Ok(None);
+                return None;
             }
         };
+
+        Some((speculative_start, speculative_start_idx, generic_arguments))
+    }
+
+    /// Speculatively parse postfix generic arguments into either call or instantiation.
+    fn try_eat_value_postfix_generic_application(
+        &mut self,
+        start: &ParserMark,
+        left_expression_id: LocalNodeId<Expression>,
+        position: PostfixPosition,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // tagged object literals can follow postfix instantiations on the same receiver shapes
+        let receiver_id = self.without_parentheses_expression(left_expression_id);
+        let allow_object_literal = self
+            .wrapped_type_expression_maybe(receiver_id)
+            .is_some_and(|value| self.can_start_tagged_object_literal_type(value));
+
+        let (_, _, generic_arguments) =
+            match self.try_eat_postfix_generic_arguments(allow_object_literal, position) {
+                Some(generic_arguments) => generic_arguments,
+                None => return Ok(None),
+            };
 
         // call with generic arguments
         if self.peek_is(TokenType::OpenParenthesis) {
             let expression_id =
                 self.eat_call(left_expression_id, Some(generic_arguments), position)?;
             return Ok(Some(expression_id));
-        }
-
-        // keep type instantiations in type space
-        if self.options.is_in_type() {
-            let left_type = self.expect_type_expression_value(left_expression_id)?;
-
-            let type_expression = match self.tree.get(left_type).clone() {
-                TypeExpression::Reference { path, .. } => TypeExpression::Reference {
-                    path,
-                    generic_arguments,
-                },
-                TypeExpression::Member { left, name, .. } => TypeExpression::Member {
-                    left,
-                    name,
-                    generic_arguments,
-                },
-                TypeExpression::Import {
-                    target,
-                    arguments,
-                    qualifier,
-                    ..
-                } => TypeExpression::Import {
-                    target,
-                    arguments,
-                    qualifier,
-                    generic_arguments,
-                },
-                _ => {
-                    self.restore(speculative_start, speculative_start_idx);
-                    return Ok(None);
-                }
-            };
-
-            let expression_id = self.insert_node(type_expression, self.get_span_from(start));
-            return Ok(Some(self.insert_type_expression_value(expression_id)));
         }
 
         let expression_id = self.insert_node(
@@ -1749,6 +2105,51 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+        Ok(Some(expression_id))
+    }
+
+    /// Speculatively parse postfix generic arguments into one type instantiation.
+    fn try_eat_type_postfix_generic_application(
+        &mut self,
+        start: &ParserMark,
+        left_type_id: LocalNodeId<TypeExpression>,
+        position: PostfixPosition,
+    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+        let (speculative_start, speculative_start_idx, generic_arguments) =
+            match self.try_eat_postfix_generic_arguments(false, position) {
+                Some(generic_arguments) => generic_arguments,
+                None => return Ok(None),
+            };
+
+        let type_expression = match self.tree.get(left_type_id).clone() {
+            TypeExpression::Reference { path, .. } => TypeExpression::Reference {
+                path,
+                generic_arguments,
+            },
+            TypeExpression::Member { left, name, .. } => TypeExpression::Member {
+                left,
+                name,
+                generic_arguments,
+            },
+            TypeExpression::Import {
+                target,
+                arguments,
+                qualifier,
+                ..
+            } => TypeExpression::Import {
+                target,
+                arguments,
+                qualifier,
+                generic_arguments,
+            },
+            _ => {
+                self.restore(speculative_start, speculative_start_idx);
+                return Ok(None);
+            }
+        };
+
+        let expression_id = self.insert_node(type_expression, self.get_span_from(start));
+
         Ok(Some(expression_id))
     }
 }

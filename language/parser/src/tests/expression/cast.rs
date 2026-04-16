@@ -4,16 +4,16 @@ use destack_ast::*;
 use destack_source::LanguageType;
 
 #[test]
-fn test_reject_typescript_angle_type_assertion_expression() {
+fn test_reject_angle_type_assertion_expression() {
     let mut test = TestParser::new_with_options("<any>value", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let result = parser.eat_expression(parser.options);
     assert!(result.is_err());
 }
 
-/// Reject a TypeScript const assertion in angle bracket form.
+/// Reject a const assertion in angle bracket form.
 #[test]
-fn test_reject_typescript_angle_const_assertion_expression() {
+fn test_reject_angle_const_assertion_expression() {
     let mut test = TestParser::new_with_options("<const>[1, 2, 3]", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let result = parser.eat_expression(parser.options);
@@ -128,9 +128,9 @@ fn test_parse_precedence_cast_before_comparison() {
     });
 }
 
-/// Parse parenthesized casts on the right side of comparisons in Destack.
+/// Parse parenthesized casts on the right side of comparisons.
 #[test]
-fn test_parse_destack_parenthesized_cast_in_comparison_right_side() {
+fn test_parse_parenthesized_cast_in_comparison_right_side() {
     let mut test = TestParser::new("i >= (this.length as number)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -158,9 +158,9 @@ fn test_parse_destack_parenthesized_cast_in_comparison_right_side() {
     });
 }
 
-/// Parse logical-or expressions that compare against a parenthesized cast in Destack.
+/// Parse logical-or expressions that compare against a parenthesized cast.
 #[test]
-fn test_parse_destack_logical_or_with_parenthesized_cast_comparison() {
+fn test_parse_logical_or_with_parenthesized_cast_comparison() {
     let mut test = TestParser::new("i < 0 || i >= (this.length as number)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -186,7 +186,7 @@ fn test_parse_destack_logical_or_with_parenthesized_cast_comparison() {
 
 /// Parse if statements with parenthesized cast comparisons in the condition.
 #[test]
-fn test_parse_destack_if_condition_with_parenthesized_cast_comparison() {
+fn test_parse_if_condition_with_parenthesized_cast_comparison() {
     let mut test =
         TestParser::new("if (i < 0 || i >= (this.length as number)) {\n  undefined!;\n}");
     let mut parser = test.prepare();
@@ -468,6 +468,7 @@ fn test_parse_as_cast_missing_type_target() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
+    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
 
     // value as
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -484,6 +485,7 @@ fn test_parse_satisfies_missing_type_target() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
+    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
 
     // value satisfies
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -492,7 +494,7 @@ fn test_parse_satisfies_missing_type_target() {
     });
 }
 
-/// Parse multiline cast rhs unions after an own-line seam comment.
+/// Parse multiline cast rhs unions after an own-line boundary comment.
 #[test]
 fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
     let mut test = TestParser::new_with_options(
@@ -502,7 +504,7 @@ fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    // functionArg = a as // comment TSESTree.ArrowFunctionExpression | ...
+    // functionArg = a as // comment Some.Namespace.Type | ...
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);
         assert_expression_path!(parser, parser.tree.get(*left), "functionArg");
@@ -511,7 +513,7 @@ fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
         assert_node!(parser.tree, *right, Expression::As { expression, target_type } => {
             assert_expression_path!(parser, parser.tree.get(*expression), "a");
 
-            // TSESTree.ArrowFunctionExpression | ...
+            // Some.Namespace.Type | ...
             assert_node!(parser.tree, *target_type, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 4);
             });

@@ -39,6 +39,8 @@ fn test_parse_if_extends_type_reference() {
             });
         });
     });
+
+    test.assert_no_errors(&parser);
 }
 
 /// Parse an if instanceof condition inside parentheses.
@@ -59,10 +61,9 @@ fn test_parse_if_instanceof_type_reference() {
             IfCondition::Let { .. } => panic!("expected expression condition"),
         };
         // T instanceof Foo
-        assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "T");
-            assert_eq!(*operator, BinaryOperator::InstanceOf);
-            assert_expression_path!(parser, parser.tree.get(*right), "Foo");
+        assert_node!(parser.tree, condition_id, Expression::InstanceOf { value, target } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "T");
+            assert_expression_path!(parser, parser.tree.get(*target), "Foo");
         });
         // { value }
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
@@ -74,6 +75,51 @@ fn test_parse_if_instanceof_type_reference() {
             });
         });
     });
+
+    test.assert_no_errors(&parser);
+}
+
+/// Parse `value is string` as one runtime guard expression.
+#[test]
+fn test_parse_if_is_type_guard() {
+    let mut test = TestParser::new(
+        r"
+if value is string {
+  value
+}
+",
+    );
+    let mut parser = test.prepare();
+    parser.eat_newline().unwrap();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::If { condition, then_expression, .. } => {
+        let condition_id = match condition {
+            IfCondition::Expression { condition } => *condition,
+            IfCondition::Let { .. } => panic!("expected expression condition"),
+        };
+
+        // value is string
+        assert_node!(parser.tree, condition_id, Expression::Is { value, target_type } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "value");
+            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::String);
+            });
+        });
+
+        // { value }
+        assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+            assert_node!(parser.tree, *block_id, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*block_id));
+                assert_eq!(expressions.len(), 1);
+
+                let value_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
 }
 
 /// Parse `export { bar, baz } from foo`.
@@ -314,41 +360,25 @@ fn test_parse_namespace_as_identifier_in_index_assignment() {
     });
 }
 
-/// Parse `override(value)` in TypeScript.
 #[test]
-fn test_parse_override_as_identifier_call_in_typescript() {
-    let mut test = TestParser::new_with_options("override(value)", LanguageType::TypeScript);
-    let mut parser = test.prepare();
+fn test_parse_override_as_identifier_call() {
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("override(value)", language);
+        let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "override");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "value");
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "override");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
         });
-    });
+    }
 }
 
-/// Parse `override(value)` in Destack.
 #[test]
-fn test_parse_override_as_identifier_call_in_destack() {
-    let mut test = TestParser::new("override(value)");
-    let mut parser = test.prepare();
-
-    let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "override");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "value");
-        });
-    });
-}
-
-/// Parse `abstract(value)` in Destack.
-#[test]
-fn test_parse_abstract_as_identifier_call_in_destack() {
+fn test_parse_abstract_as_identifier_call() {
     let mut test = TestParser::new("abstract(value)");
     let mut parser = test.prepare();
 
@@ -362,9 +392,8 @@ fn test_parse_abstract_as_identifier_call_in_destack() {
     });
 }
 
-/// Parse `type(123)` in TypeScript.
 #[test]
-fn test_parse_type_as_identifier_call_in_typescript() {
+fn test_parse_type_as_identifier_call() {
     let mut test = TestParser::new_with_options("type(123)", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -380,7 +409,7 @@ fn test_parse_type_as_identifier_call_in_typescript() {
 
 /// Parse `abstract\nclass B {}` as `abstract; class B {}`.
 #[test]
-fn test_parse_typescript_abstract_newline_as_identifier_then_class() {
+fn test_parse_abstract_newline_as_identifier_then_class() {
     let mut test = TestParser::new_with_options("abstract\nclass B {}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -397,13 +426,12 @@ fn test_parse_typescript_abstract_newline_as_identifier_then_class() {
 
 /// Reject `declare enum\nE\n{}` and preserve the expression sequence.
 #[test]
-fn test_reject_typescript_declare_enum_newline_and_preserve_expression_sequence() {
+fn test_reject_declare_enum_newline_and_preserve_expression_sequence() {
     let mut test = TestParser::new_with_options("declare enum\nE\n{}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    assert_eq!(parser.errors.len(), 1, "{:#?}", parser.errors);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "enum");
+    test.assert_error_leaves(&parser, &[(None, None, "enum")]);
 
     assert_eq!(expressions.len(), 4);
     assert_expression_path!(parser, parser.tree.get(expressions[0]), "declare");
@@ -414,7 +442,7 @@ fn test_reject_typescript_declare_enum_newline_and_preserve_expression_sequence(
 
 /// Parse `type\nFoo = string;` as `type; Foo = string`.
 #[test]
-fn test_parse_typescript_type_newline_as_identifier_then_assignment() {
+fn test_parse_type_newline_as_identifier_then_assignment() {
     let mut test = TestParser::new_with_options("type\nFoo = string;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -431,7 +459,7 @@ fn test_parse_typescript_type_newline_as_identifier_then_assignment() {
 
 /// Parse `type` as a callback parameter and statement identifier.
 #[test]
-fn test_parse_typescript_callback_parameter_named_type() {
+fn test_parse_callback_parameter_named_type() {
     let mut test = TestParser::new_with_options(
         "avplay.setListener({
     onsubtitlechange: (duration, subtitles, type, attributes) => {
@@ -499,28 +527,15 @@ fn test_reject_export_type_without_binding_or_declaration() {
     assert!(result.is_err());
 }
 
-/// Reject bare export path expressions in JavaScript.
 #[test]
-fn test_reject_export_path_expression_javascript() {
-    // source: export foo
-    let mut test = TestParser::new_with_options("export foo", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.options).unwrap_err();
+fn test_reject_export_path_expression() {
+    for language in [LanguageType::JavaScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("export foo", language);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression(parser.options).unwrap_err();
 
-    // foo
-    assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
-}
-
-/// Reject bare export path expressions in Destack.
-#[test]
-fn test_reject_export_path_expression_destack() {
-    // source: export foo
-    let mut test = TestParser::new_with_options("export foo", LanguageType::Destack);
-    let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.options).unwrap_err();
-
-    // foo
-    assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
+        assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
+    }
 }
 
 #[test]
@@ -731,7 +746,7 @@ fn test_parse_import_call_with_missing_target() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_eq!(parser.errors.len(), 1);
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
 
     assert_node!(parser.tree, expression_id, Expression::Import { target, items, arguments: None, .. } => {
         assert!(items.is_none());
@@ -748,7 +763,7 @@ fn test_parse_import_call_with_missing_close_parenthesis() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_eq!(parser.errors.len(), 1);
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     assert_node!(parser.tree, expression_id, Expression::Import { target, items, arguments: None, .. } => {
         assert!(items.is_none());

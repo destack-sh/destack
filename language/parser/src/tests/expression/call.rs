@@ -347,7 +347,7 @@ fn test_parse_call_expression_with_generic_arguments() {
 
 #[test]
 fn test_parse_new_without_parentheses() {
-    // new Foo (without parentheses, valid JS)
+    // new Foo without parentheses
     let mut test = TestParser::new("new Foo");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -569,7 +569,12 @@ fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
         });
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                    assert_path!(parser, *path, "Foo");
+                    assert!(generic_arguments.is_empty());
+                });
+            });
         });
         assert_eq!(dynamic_arguments.len(), 1);
         assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {

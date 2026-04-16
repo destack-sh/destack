@@ -59,18 +59,16 @@ fn test_parse_type_predicate_in_before_block_context() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser
+    let type_id = parser
         .with_options(parser.options.in_type().in_before_block(), |parser| {
-            parser.eat_expression(parser.options)
+            parser.eat_type_expression()
         })
         .unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Type { value } => {
-        assert_node!(parser.tree, *value, TypeExpression::Predicate { asserts, subject, target } => {
-            assert!(!asserts);
-            assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
-            assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
-        });
+    assert_node!(parser.tree, type_id, TypeExpression::Predicate { asserts, subject, target } => {
+        assert!(!asserts);
+        assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
+        assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
     });
 }
 

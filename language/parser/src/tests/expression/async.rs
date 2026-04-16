@@ -5,7 +5,7 @@ use destack_source::LanguageType;
 
 /// Parse async generic arrows with extends and default type parameters in assignments.
 #[test]
-fn test_parse_async_generic_arrow_assignment_with_extends_default_typescript() {
+fn test_parse_async_generic_arrow_assignment_with_extends_default() {
     // source: pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
     let mut test = TestParser::new_with_options(
         "pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
@@ -47,7 +47,7 @@ fn test_parse_async_generic_arrow_assignment_with_extends_default_typescript() {
 
 /// Parse async comparisons and generic calls without async function false positives.
 #[test]
-fn test_parse_async_generic_false_positive_in_typescript() {
+fn test_parse_async_generic_false_positive() {
     let mut test =
         TestParser::new_with_options("async < 1;\nasync<T>() == 0;", LanguageType::TypeScript);
     let mut parser = test.prepare();
@@ -80,7 +80,7 @@ fn test_parse_async_generic_false_positive_in_typescript() {
 
 /// Parse async generic arrow ASI.
 #[test]
-fn test_parse_async_generic_arrow_asi_fixture_typescript() {
+fn test_parse_async_generic_arrow_asi() {
     let mut test = TestParser::new_with_options(
         "var a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n",
         LanguageType::TypeScript,
