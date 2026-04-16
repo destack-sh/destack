@@ -234,12 +234,6 @@ pub enum Expression {
     Loop { body: LocalNodeId<Block> },
 
     /// A Try is a try/catch/finally expression.
-    /// The try expression may be a single statement or a block of statements.
-    /// Try does not implicitly unwrap Try values, so use `?` or `??` explicitly.
-    /// Errors raised by `?` and thrown exceptions jump to the catch when present.
-    /// A try expression must include a catch or finally block.
-    /// Without a catch, `?` propagates to the caller and exceptions bubble or are rejected.
-    /// Any type implementing `Try` participates, not just `Result`.
     ///
     /// Examples:
     /// ```
@@ -755,7 +749,7 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    // NOTE #Incomplete: pattern assign expression (without let, see JS/TS)
+    // FUGU #Incomplete: pattern assign expression (without let, see JS/TS)
     /// Assignment operation.
     Assign {
         left: LocalNodeId<Expression>,
