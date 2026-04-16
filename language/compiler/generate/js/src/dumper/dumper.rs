@@ -438,26 +438,13 @@ impl Dump for js::Key {
     }
 }
 
-/// Dump one JS generics object.
-impl Dump for js::Generics {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("js::Generics").end();
-    }
-}
-
-/// Dump one JS heritage object.
-impl Dump for js::Heritage {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("js::Heritage").end();
-    }
-}
-
 /// Dump one JS function signature.
 impl Dump for js::FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .object("js::FunctionSignature")
-            .field("abstraction", &self.abstraction)
+            .field("is_abstract", &self.is_abstract)
+            .field("is_override", &self.is_override)
             .field("asynchrony", &self.asynchrony)
             .field("cardinality", &self.cardinality)
             .field_optional("mode", &self.mode)
@@ -479,15 +466,12 @@ impl_dump_display! {
     js::DeclarationKind,
     js::DependencyKind,
     js::DependencyMode,
-    js::FunctionAbstraction,
     js::FunctionCardinality,
     js::FunctionKind,
     js::FunctionMode,
     js::Mutability,
     js::PostfixPosition,
     js::PrimitiveType,
-    js::TypeBinaryOperator,
-    js::TypeUnaryOperator,
     js::UnaryOperator,
     js::VarianceModifier,
     js::Visibility,
@@ -863,7 +847,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             }
             js::Expression::Path {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("js::Expression::Path", id.id)
                     .field("path", path)
@@ -910,19 +894,29 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Expression::Parenthesized { .. } => {
                 self.node("js::Expression::Parenthesized", id.id).end();
             }
-            js::Expression::TypeUnary { operator, right: _ } => {
-                self.node("js::Expression::TypeUnary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-            js::Expression::TypeBinary {
-                operator,
-                left: _,
-                right: _,
+            js::Expression::As {
+                expression: _,
+                target_type: _,
             } => {
-                self.node("js::Expression::TypeBinary", id.id)
-                    .field("operator", operator)
-                    .end();
+                self.node("js::Expression::As", id.id).end();
+            }
+            js::Expression::Satisfies {
+                expression: _,
+                target_type: _,
+            } => {
+                self.node("js::Expression::Satisfies", id.id).end();
+            }
+            js::Expression::Is {
+                value: _,
+                target_type: _,
+            } => {
+                self.node("js::Expression::Is", id.id).end();
+            }
+            js::Expression::InstanceOf {
+                value: _,
+                target: _,
+            } => {
+                self.node("js::Expression::InstanceOf", id.id).end();
             }
             js::Expression::Await { value: _ } => {
                 self.node("js::Expression::Await", id.id).end();
@@ -974,7 +968,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Expression::Member {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("js::Expression::Member", id.id)
                     .field("name", name)
@@ -983,7 +977,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Expression::PrivateMember {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("js::Expression::PrivateMember", id.id)
                     .field("name", name)
@@ -1000,14 +994,14 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             }
             js::Expression::Instantiation {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("js::Expression::Instantiation", id.id).end();
             }
             js::Expression::Call {
                 position,
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("js::Expression::Call", id.id)
@@ -1028,7 +1022,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             }
             js::Expression::New {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("js::Expression::New", id.id).end();
@@ -1086,76 +1080,65 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
         declaration: &js::Declaration,
     ) {
         match declaration {
-            js::Declaration::Global {
+            js::Declaration::Global(js::GlobalDeclaration {
                 descriptor,
                 statements: _,
-            } => {
+            }) => {
                 self.node("js::Declaration::Global", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            js::Declaration::Namespace {
+            js::Declaration::Namespace(js::NamespaceDeclaration {
                 descriptor,
                 statements: _,
-            } => {
+            }) => {
                 self.node("js::Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            js::Declaration::Type {
+            js::Declaration::Type(js::TypeDeclaration {
                 descriptor,
-                static_parameters: _,
+                generic_parameters: _,
                 value: _,
-            } => {
+            }) => {
                 self.node("js::Declaration::Type", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            js::Declaration::Class {
+            js::Declaration::Class(js::ClassDeclaration {
                 descriptor,
-                generics,
-                heritage,
+                generic_parameters: _,
+                extends_expression: _,
+                implements_types: _,
                 members: _,
-            } => {
-                let mut node = self.node("js::Declaration::Class", id.id);
-                node.field("descriptor", descriptor);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                if !heritage.is_empty() {
-                    node.field("heritage", heritage);
-                }
-                node.end();
+            }) => {
+                self.node("js::Declaration::Class", id.id)
+                    .field("descriptor", descriptor)
+                    .end();
             }
-            js::Declaration::Interface {
+            js::Declaration::Interface(js::InterfaceDeclaration {
                 descriptor,
-                generics,
-                heritage,
+                generic_parameters: _,
+                extends_types: _,
                 members: _,
-            } => {
-                let mut node = self.node("js::Declaration::Interface", id.id);
-                node.field("descriptor", descriptor);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                if !heritage.is_empty() {
-                    node.field("heritage", heritage);
-                }
-                node.end();
+            }) => {
+                self.node("js::Declaration::Interface", id.id)
+                    .field("descriptor", descriptor)
+                    .end();
             }
-            js::Declaration::Enum {
+            js::Declaration::Enum(js::EnumDeclaration {
                 descriptor,
                 fields: _,
-            } => {
+            }) => {
                 self.node("js::Declaration::Enum", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            js::Declaration::Function {
+            js::Declaration::Function(js::FunctionDeclaration {
                 descriptor,
                 signature,
                 body: _,
-            } => {
+            }) => {
                 self.node("js::Declaration::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
@@ -1481,12 +1464,36 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             }
             js::Type::Path {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("js::Type::Path", id.id).field("path", path).end();
             }
             js::Type::Expression(_) => {
                 self.node("js::Type::Expression", id.id).end();
+            }
+            js::Type::Readonly { target_type: _ } => {
+                self.node("js::Type::Readonly", id.id).end();
+            }
+            js::Type::KeyOf { target_type: _ } => {
+                self.node("js::Type::KeyOf", id.id).end();
+            }
+            js::Type::Must { target_type: _ } => {
+                self.node("js::Type::Must", id.id).end();
+            }
+            js::Type::AsComptime { target_type: _ } => {
+                self.node("js::Type::AsComptime", id.id).end();
+            }
+            js::Type::Not { target_type: _ } => {
+                self.node("js::Type::Not", id.id).end();
+            }
+            js::Type::In { left: _, right: _ } => {
+                self.node("js::Type::In", id.id).end();
+            }
+            js::Type::Extends { left: _, right: _ } => {
+                self.node("js::Type::Extends", id.id).end();
+            }
+            js::Type::Implements { left: _, right: _ } => {
+                self.node("js::Type::Implements", id.id).end();
             }
             js::Type::Conditional {
                 left: _,
@@ -1512,7 +1519,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Type::Import {
                 target: _,
                 qualifier: _,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 self.node("js::Type::Import", id.id).end();
             }
@@ -1529,22 +1536,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             } => {
                 self.node("js::Type::Predicate", id.id).end();
             }
-
-            js::Type::Unary { operator, right: _ } => {
-                self.node("js::Type::Unary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-            js::Type::Binary {
-                left: _,
-                operator,
-                right: _,
-            } => {
-                self.node("js::Type::Binary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-
             js::Type::Array { .. } => {
                 self.node("js::Type::Array", id.id).end();
             }

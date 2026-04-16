@@ -18,7 +18,7 @@ impl ModuleLowerer<'_> {
         let path = js::Path { segments };
         let expression = js::Expression::Path {
             path,
-            static_arguments: None,
+            generic_arguments: vec![],
         };
 
         self.tree
@@ -60,7 +60,7 @@ impl ModuleLowerer<'_> {
                 let call = js::Expression::Call {
                     position: js::PostfixPosition::Direct,
                     left: callee,
-                    static_arguments: None,
+                    generic_arguments: vec![],
                     dynamic_arguments: vec![argument_id],
                 };
                 self.tree
@@ -94,7 +94,7 @@ impl ModuleLowerer<'_> {
                 };
                 let expression = js::Expression::Path {
                     path,
-                    static_arguments: None,
+                    generic_arguments: vec![],
                 };
                 let expression_id =
                     self.tree

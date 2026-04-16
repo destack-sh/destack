@@ -63,28 +63,24 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(tuple_element, self.module.id, source_id))
     }
 
-    /// Lower generic parameters from DIR into JS static parameters.
+    /// Lower generic parameters from DIR into JS generic parameters.
     pub fn lower_generic_parameters(
         &mut self,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
-    ) -> CodegenJsResult<Option<Vec<js::LocalNodeId<js::Parameter>>>> {
-        if parameters.is_empty() {
-            return Ok(None);
-        }
-
-        let static_parameters = parameters
+    ) -> CodegenJsResult<Vec<js::LocalNodeId<js::GenericParameter>>> {
+        let generic_parameters = parameters
             .iter()
             .map(|parameter_id| self.lower_generic_parameter(*parameter_id))
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
-        Ok(Some(static_parameters))
+        Ok(generic_parameters)
     }
 
-    /// Lower one generic parameter from DIR into a JS static parameter.
+    /// Lower one generic parameter from DIR into a JS generic parameter.
     fn lower_generic_parameter(
         &mut self,
         parameter_id: dir::LocalNodeId<dir::GenericParameter>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::GenericParameter>> {
         let parameter = self.dir_tree.get(parameter_id);
 
         let parameter = match parameter {
@@ -108,10 +104,10 @@ impl ModuleLowerer<'_> {
                     .map(|constraint| self.lower_type_annotation_expression(constraint))
                     .transpose()?;
 
-                js::Parameter::Named {
+                js::GenericParameter::Type {
                     modifiers,
                     name,
-                    ty,
+                    constraint: ty,
                     default: None,
                 }
             }
@@ -119,10 +115,11 @@ impl ModuleLowerer<'_> {
                 name,
                 declared_type: _,
                 default,
+                is_comptime,
                 ..
             } => {
                 let name = self.strings.intern_from(self.source_strings, *name);
-                let ty = self
+                let declared_type = self
                     .types
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
                     .map(|ty| self.lower_type(ty))
@@ -137,11 +134,11 @@ impl ModuleLowerer<'_> {
                     })
                     .transpose()?;
 
-                js::Parameter::Named {
-                    modifiers: None,
+                js::GenericParameter::Value {
                     name,
-                    ty,
+                    declared_type,
                     default,
+                    is_comptime: *is_comptime,
                 }
             }
             dir::GenericParameter::Error { .. } => {
@@ -159,55 +156,15 @@ impl ModuleLowerer<'_> {
             .insert_from_source(parameter, self.module.id, parameter_id))
     }
 
-    /// Lower heritage slices from DIR into JS AST.
-    pub fn lower_heritage_slice(
+    /// Lower type annotation expressions from DIR into JS types.
+    pub fn lower_type_annotation_expressions(
         &mut self,
-        extends_expression: Option<dir::LocalNodeId<dir::Expression>>,
-        extends_types: Option<&[dir::LocalNodeId<dir::TypeExpression>]>,
-        implements_types: Option<&[dir::LocalNodeId<dir::TypeExpression>]>,
-    ) -> CodegenJsResult<js::Heritage> {
-        let extends_expression = extends_expression
-            .map(|extends_expression| {
-                self.lower_expression(extends_expression)
-                    .expect_node::<js::Expression>(
-                        extends_expression.into_global_any(self.module.id),
-                        self,
-                    )
-            })
-            .transpose()?;
-        let extends_types = extends_types
-            .filter(|extends_types| !extends_types.is_empty())
-            .map(|extends_types| {
-                extends_types
-                    .iter()
-                    .map(|extends_type| self.lower_type_annotation_expression(*extends_type))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()
-            })
-            .transpose()?;
-        let implements_types = implements_types
-            .filter(|implements_types| !implements_types.is_empty())
-            .map(|implements_types| {
-                implements_types
-                    .iter()
-                    .map(|implements_type| self.lower_type_annotation_expression(*implements_type))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()
-            })
-            .transpose()?;
-
-        Ok(js::Heritage {
-            extends_expression,
-            extends_types,
-            implements_types,
-        })
-    }
-
-    /// Lower class heritage into JS AST.
-    pub fn lower_heritage(
-        &mut self,
-        extends_expression: Option<dir::LocalNodeId<dir::Expression>>,
-        implements_types: Option<&[dir::LocalNodeId<dir::TypeExpression>]>,
-    ) -> CodegenJsResult<js::Heritage> {
-        self.lower_heritage_slice(extends_expression, None, implements_types)
+        expressions: &[dir::LocalNodeId<dir::TypeExpression>],
+    ) -> CodegenJsResult<Vec<js::LocalNodeId<js::Type>>> {
+        expressions
+            .iter()
+            .map(|expression_id| self.lower_type_annotation_expression(*expression_id))
+            .collect()
     }
 
     /// Lower a primitive type from DIR into JS AST.
@@ -360,7 +317,7 @@ impl ModuleLowerer<'_> {
         };
         let ty = js::Type::Path {
             path,
-            static_arguments: None,
+            generic_arguments: vec![],
         };
 
         Ok(self
@@ -542,12 +499,13 @@ impl ModuleLowerer<'_> {
         let path = js::Path {
             segments: smallvec::smallvec![segment],
         };
-        let static_arguments = static_arguments
+        let generic_arguments = static_arguments
             .map(|arguments| self.lower_semantic_static_type_arguments(source_id, arguments))
-            .transpose()?;
+            .transpose()?
+            .unwrap_or_default();
         let ty = js::Type::Path {
             path,
-            static_arguments,
+            generic_arguments,
         };
 
         Ok(self
@@ -564,7 +522,7 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
         let expression = self.dir_tree.get(expression_id);
-        let (path, static_arguments) = match expression {
+        let (path, generic_arguments) = match expression {
             dir::Expression::UnresolvedPath {
                 path,
                 generic_arguments,
@@ -584,24 +542,15 @@ impl ModuleLowerer<'_> {
                 path,
                 generic_arguments,
                 ..
-            } => (
-                path,
-                if generic_arguments.is_empty() {
-                    None
-                } else {
-                    Some(generic_arguments.as_slice())
-                },
-            ),
+            } => (path, generic_arguments.as_slice()),
             _ => return Ok(None),
         };
 
         let path = self.lower_path(source_id, path)?;
-        let static_arguments = static_arguments
-            .map(|arguments| self.lower_static_type_arguments(arguments))
-            .transpose()?;
+        let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
         let ty = js::Type::Path {
             path,
-            static_arguments,
+            generic_arguments,
         };
 
         let type_id = self
@@ -616,7 +565,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         field: &dir::TypeField,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeField>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
         let mut modifiers = js::BindingModifier::default();
 
         // field modifiers
@@ -641,7 +590,7 @@ impl ModuleLowerer<'_> {
                     js::FunctionKind::Function,
                     None,
                 )?;
-                js::TypeField::Method {
+                js::TypeMember::Method {
                     modifiers,
                     key,
                     signature,
@@ -649,13 +598,34 @@ impl ModuleLowerer<'_> {
             }
             _ => {
                 let ty = self.lower_type(field.ty)?;
-                js::TypeField::Field { modifiers, key, ty }
+                js::TypeMember::Field { modifiers, key, ty }
             }
         };
 
         Ok(self
             .tree
             .insert_from_source_any(field, self.module.id, source_id))
+    }
+
+    /// Lower one semantic function type generic parameter with one synthesized name.
+    fn lower_semantic_function_generic_parameter(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        name: String,
+        ty_id: dir::LocalTypeId,
+    ) -> CodegenJsResult<js::LocalNodeId<js::GenericParameter>> {
+        let name = self.strings.intern(&name);
+        let constraint = Some(self.lower_type(ty_id)?);
+        let parameter = js::GenericParameter::Type {
+            modifiers: None,
+            name,
+            constraint,
+            default: None,
+        };
+
+        Ok(self
+            .tree
+            .insert_from_source_any(parameter, self.module.id, source_id))
     }
 
     /// Lower one semantic function type parameter with one synthesized name.
@@ -704,25 +674,18 @@ impl ModuleLowerer<'_> {
             });
         };
 
-        // generics
-        let static_parameters = static_parameters
+        // generic parameters
+        let generic_parameters = static_parameters
             .iter()
             .enumerate()
             .map(|(index, parameter_type_id)| {
-                self.lower_semantic_function_parameter(
+                self.lower_semantic_function_generic_parameter(
                     source_id,
                     format!("T{index}"),
                     *parameter_type_id,
                 )
             })
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
-        let generics = if static_parameters.is_empty() {
-            None
-        } else {
-            Some(js::Generics {
-                static_parameters: Some(static_parameters),
-            })
-        };
 
         // this parameter
         let this_parameter = this_parameter
@@ -731,8 +694,8 @@ impl ModuleLowerer<'_> {
             })
             .transpose()?;
 
-        // dynamic parameters
-        let dynamic_parameters = dynamic_parameters
+        // runtime parameters
+        let parameters = dynamic_parameters
             .iter()
             .enumerate()
             .map(|(index, parameter_type_id)| {
@@ -749,19 +712,19 @@ impl ModuleLowerer<'_> {
             .map(|return_type_id| self.lower_type(return_type_id))
             .transpose()?;
 
-        let abstraction = js::FunctionAbstraction::Concrete;
         let asynchrony = self.lower_asynchrony(*asynchrony);
         let cardinality = self.lower_function_cardinality(*cardinality);
 
         Ok(js::FunctionSignature {
-            abstraction,
+            is_abstract: false,
+            is_override: false,
             asynchrony,
             cardinality,
             mode,
             kind,
-            generics,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         })
     }
@@ -771,7 +734,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         signature: &dir::TypeIndexSignature,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeField>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
         let modifiers = if signature.is_readonly {
             Some(js::BindingModifier {
                 mutability: Some(js::Mutability::Immutable),
@@ -785,7 +748,7 @@ impl ModuleLowerer<'_> {
             .intern_from(self.source_strings, signature.name);
         let key_type = self.lower_type(signature.key_type)?;
         let value_type = self.lower_type(signature.value_type)?;
-        let field = js::TypeField::IndexSignature {
+        let field = js::TypeMember::IndexSignature {
             modifiers,
             name,
             key_type,
@@ -921,16 +884,17 @@ impl ModuleLowerer<'_> {
                     .as_ref()
                     .map(|path| self.lower_path(source_id, path))
                     .transpose()?;
-                let static_arguments = static_arguments
+                let generic_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
                         self.lower_semantic_static_type_arguments(source_id, arguments)
                     })
-                    .transpose()?;
+                    .transpose()?
+                    .unwrap_or_default();
                 let ty = js::Type::Import {
                     target,
                     qualifier,
-                    static_arguments,
+                    generic_arguments,
                 };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
@@ -962,80 +926,53 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Type::Readonly { target_type } => {
-                let right = self.lower_type(*target_type)?;
-                let ty = js::Type::Unary {
-                    operator: js::TypeUnaryOperator::Readonly,
-                    right,
-                };
+                let target_type = self.lower_type(*target_type)?;
+                let ty = js::Type::Readonly { target_type };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::KeyOf { target_type } => {
-                let right = self.lower_type(*target_type)?;
-                let ty = js::Type::Unary {
-                    operator: js::TypeUnaryOperator::Keyof,
-                    right,
-                };
+                let target_type = self.lower_type(*target_type)?;
+                let ty = js::Type::KeyOf { target_type };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Must { target_type } => {
-                let right = self.lower_type(*target_type)?;
-                let ty = js::Type::Unary {
-                    operator: js::TypeUnaryOperator::Must,
-                    right,
-                };
+                let target_type = self.lower_type(*target_type)?;
+                let ty = js::Type::Must { target_type };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::AsComptime { target_type } => {
-                let right = self.lower_type(*target_type)?;
-                let ty = js::Type::Unary {
-                    operator: js::TypeUnaryOperator::AsComptime,
-                    right,
-                };
+                let target_type = self.lower_type(*target_type)?;
+                let ty = js::Type::AsComptime { target_type };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Not { target_type } => {
-                let right = self.lower_type(*target_type)?;
-                let ty = js::Type::Unary {
-                    operator: js::TypeUnaryOperator::Not,
-                    right,
-                };
+                let target_type = self.lower_type(*target_type)?;
+                let ty = js::Type::Not { target_type };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::In { left, right } => {
                 let left = self.lower_type(*left)?;
                 let right = self.lower_type(*right)?;
-                let ty = js::Type::Binary {
-                    left,
-                    operator: js::TypeBinaryOperator::In,
-                    right,
-                };
+                let ty = js::Type::In { left, right };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Extends { left, right } => {
                 let left = self.lower_type(*left)?;
                 let right = self.lower_type(*right)?;
-                let ty = js::Type::Binary {
-                    left,
-                    operator: js::TypeBinaryOperator::Extends,
-                    right,
-                };
+                let ty = js::Type::Extends { left, right };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Implements { left, right } => {
                 let left = self.lower_type(*left)?;
                 let right = self.lower_type(*right)?;
-                let ty = js::Type::Binary {
-                    left,
-                    operator: js::TypeBinaryOperator::Implements,
-                    right,
-                };
+                let ty = js::Type::Implements { left, right };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
@@ -1053,9 +990,8 @@ impl ModuleLowerer<'_> {
                     source_id,
                 );
                 if *is_readonly {
-                    let readonly = js::Type::Unary {
-                        operator: js::TypeUnaryOperator::Readonly,
-                        right: array_id,
+                    let readonly = js::Type::Readonly {
+                        target_type: array_id,
                     };
                     array_id =
                         self.tree
@@ -1083,7 +1019,7 @@ impl ModuleLowerer<'_> {
                             js::FunctionKind::Function,
                             Some(js::FunctionMode::Call),
                         )?;
-                        let field = js::TypeField::Method {
+                        let field = js::TypeMember::Method {
                             modifiers: None,
                             key: None,
                             signature,
@@ -1105,7 +1041,7 @@ impl ModuleLowerer<'_> {
                             js::FunctionKind::Function,
                             Some(js::FunctionMode::New),
                         )?;
-                        let field = js::TypeField::Method {
+                        let field = js::TypeMember::Method {
                             modifiers: None,
                             key: None,
                             signature,
@@ -1142,9 +1078,8 @@ impl ModuleLowerer<'_> {
                     source_id,
                 );
                 if *is_readonly {
-                    let readonly = js::Type::Unary {
-                        operator: js::TypeUnaryOperator::Readonly,
-                        right: tuple_id,
+                    let readonly = js::Type::Readonly {
+                        target_type: tuple_id,
                     };
                     tuple_id =
                         self.tree

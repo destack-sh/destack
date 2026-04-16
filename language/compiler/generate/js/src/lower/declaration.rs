@@ -61,6 +61,8 @@ impl ModuleLowerer<'_> {
             dir::Declaration::Global(declaration) => {
                 let descriptor =
                     self.lower_declaration_descriptor(None, None, declaration.ambient, false);
+
+                // body
                 let statements = declaration
                     .expressions
                     .iter()
@@ -72,10 +74,13 @@ impl ModuleLowerer<'_> {
                             )
                     })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                js::Declaration::Global {
+
+                let declaration = js::GlobalDeclaration {
                     descriptor,
                     statements,
-                }
+                };
+
+                js::Declaration::Global(declaration)
             }
             dir::Declaration::Namespace(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -84,6 +89,8 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     false,
                 );
+
+                // body
                 let statements = declaration
                     .expressions
                     .iter()
@@ -95,10 +102,13 @@ impl ModuleLowerer<'_> {
                             )
                     })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                js::Declaration::Namespace {
+
+                let declaration = js::NamespaceDeclaration {
                     descriptor,
                     statements,
-                }
+                };
+
+                js::Declaration::Namespace(declaration)
             }
             dir::Declaration::Type(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -107,20 +117,32 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     false,
                 );
-                let static_parameters =
+
+                // generic parameters
+                let generic_parameters =
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
-                let declared_type_id = self
+
+                // value
+                let Some(declared_type_id) = self
                     .types
-                    .get_declared_type_id(declaration_id.into_global_any(self.module.id));
-                let value = declared_type_id
-                    .map(|type_id| self.lower_type(type_id))
-                    .transpose()?
-                    .unwrap_or(self.lower_type_annotation_expression(declaration.value)?);
-                js::Declaration::Type {
+                    .get_declared_type_id(declaration_id.into_global_any(self.module.id))
+                else {
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: declaration_id.into_global_any(self.module.id),
+                        message: Some(
+                            "type declarations need semantic types before js lowering".to_string(),
+                        ),
+                    });
+                };
+                let value = self.lower_type(declared_type_id)?;
+
+                let declaration = js::TypeDeclaration {
                     descriptor,
-                    static_parameters,
+                    generic_parameters,
                     value,
-                }
+                };
+
+                js::Declaration::Type(declaration)
             }
             dir::Declaration::Struct(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -129,23 +151,33 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     false,
                 );
-                let generics = self.lower_generic_parameters(&declaration.generic_parameters)?;
-                let heritage =
-                    self.lower_heritage_slice(None, None, Some(&declaration.implements_types))?;
+
+                // generic parameters
+                let generic_parameters =
+                    self.lower_generic_parameters(&declaration.generic_parameters)?;
+
+                // implements
+                let implements_types =
+                    self.lower_type_annotation_expressions(&declaration.implements_types)?;
+
+                // members
                 let members = declaration
                     .members
                     .iter()
                     .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                // NOTE #Incomplete: struct declarations should become just JS types + namespaces?
-                js::Declaration::Class {
+
+                // struct declarations currently lower through class form
+
+                let declaration = js::ClassDeclaration {
                     descriptor,
-                    generics: js::Generics {
-                        static_parameters: generics,
-                    },
-                    heritage,
+                    generic_parameters,
+                    extends_expression: None,
+                    implements_types,
                     members,
-                }
+                };
+
+                js::Declaration::Class(declaration)
             }
             dir::Declaration::Class(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -154,24 +186,43 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     declaration.is_abstract,
                 );
-                let generics = self.lower_generic_parameters(&declaration.generic_parameters)?;
-                let heritage = self.lower_heritage(
-                    declaration.extends_expression,
-                    Some(&declaration.implements_types),
-                )?;
+
+                // generic parameters
+                let generic_parameters =
+                    self.lower_generic_parameters(&declaration.generic_parameters)?;
+
+                // extends
+                let extends_expression = declaration
+                    .extends_expression
+                    .map(|expression_id| {
+                        self.lower_expression(expression_id)
+                            .expect_node::<js::Expression>(
+                                expression_id.into_global_any(self.module.id),
+                                self,
+                            )
+                    })
+                    .transpose()?;
+
+                // implements
+                let implements_types =
+                    self.lower_type_annotation_expressions(&declaration.implements_types)?;
+
+                // members
                 let members = declaration
                     .members
                     .iter()
                     .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                js::Declaration::Class {
+
+                let declaration = js::ClassDeclaration {
                     descriptor,
-                    generics: js::Generics {
-                        static_parameters: generics,
-                    },
-                    heritage,
+                    generic_parameters,
+                    extends_expression,
+                    implements_types,
                     members,
-                }
+                };
+
+                js::Declaration::Class(declaration)
             }
             dir::Declaration::Interface(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -180,22 +231,30 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     false,
                 );
-                let generics = self.lower_generic_parameters(&declaration.generic_parameters)?;
-                let heritage =
-                    self.lower_heritage_slice(None, Some(&declaration.extends_types), None)?;
+
+                // generic parameters
+                let generic_parameters =
+                    self.lower_generic_parameters(&declaration.generic_parameters)?;
+
+                // extends
+                let extends_types =
+                    self.lower_type_annotation_expressions(&declaration.extends_types)?;
+
+                // members
                 let members = declaration
                     .members
                     .iter()
                     .map(|member| self.lower_type_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                js::Declaration::Interface {
+
+                let declaration = js::InterfaceDeclaration {
                     descriptor,
-                    generics: js::Generics {
-                        static_parameters: generics,
-                    },
-                    heritage,
+                    generic_parameters,
+                    extends_types,
                     members,
-                }
+                };
+
+                js::Declaration::Interface(declaration)
             }
             dir::Declaration::Enum(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -204,12 +263,17 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     false,
                 );
+
+                // fields
                 let fields = declaration
                     .fields
                     .iter()
                     .map(|field| self.lower_enum_field(*field))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                js::Declaration::Enum { descriptor, fields }
+
+                let declaration = js::EnumDeclaration { descriptor, fields };
+
+                js::Declaration::Enum(declaration)
             }
             dir::Declaration::Function(declaration) => {
                 let descriptor = self.lower_declaration_descriptor(
@@ -218,16 +282,23 @@ impl ModuleLowerer<'_> {
                     declaration.ambient,
                     declaration.signature.is_abstract,
                 );
+
+                // signature
                 let signature = self.lower_function_signature(&declaration.signature)?;
+
+                // body
                 let body = declaration
                     .body
                     .map(|body| self.lower_expression_as_block(body))
                     .transpose()?;
-                js::Declaration::Function {
+
+                let declaration = js::FunctionDeclaration {
                     descriptor,
                     signature,
                     body,
-                }
+                };
+
+                js::Declaration::Function(declaration)
             }
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
