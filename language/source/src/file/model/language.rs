@@ -59,6 +59,12 @@ impl LanguageType {
         )
     }
 
+    /// Whether this language type supports private identifiers.
+    #[inline]
+    pub fn supports_private_identifiers(&self) -> bool {
+        !self.is_destack()
+    }
+
     /// Whether this language type supports declaration merging.
     #[inline]
     pub fn supports_declaration_merging(&self) -> bool {
