@@ -25,50 +25,35 @@ impl Compiler {
     pub(super) fn unbind_key(
         &self,
         module: &Module,
-        key: &dir::DynamicKey,
+        key: &dir::Key,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::Key {
         match key {
-            dir::DynamicKey::Name(name) => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
-                ast::Key::Name(ast::Name::Identifier(name))
+            dir::Key::Name(name) => {
+                let name = self.unbind_name(ast_strings, *name);
+                ast::Key::Name(name)
             }
-            dir::DynamicKey::Private(name) => {
+            dir::Key::Private(name) => {
                 let name = ast_strings.intern_from(&self.repository.strings, *name);
                 ast::Key::Private(name)
             }
-            dir::DynamicKey::Number(name) => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
-                ast::Key::Name(ast::Name::Number(name))
-            }
-            dir::DynamicKey::Expression(expression) => {
+            dir::Key::Expression(expression) => {
                 let expression = self.unbind_expression(
                     module,
                     *expression,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
                 ast::Key::Expression(expression)
-            }
-            dir::DynamicKey::NamedExpression { name, key } => {
-                let name = ast_strings.intern_from(&self.repository.strings, *name);
-                let key = self.unbind_expression(
-                    module,
-                    *key,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                ast::Key::NamedExpression { name, key }
             }
         }
     }

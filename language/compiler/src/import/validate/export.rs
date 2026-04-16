@@ -3,8 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_ast::Keyword;
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
-    LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolTable,
+    Declaration, DependencyItem, DependencyKind, DependencyMode, ExportMode, Expression,
+    ImportSource, LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, Pattern, PatternField,
+    StaticKey, SymbolTable,
 };
 use destack_workspace::Module;
 use std::str::FromStr;
@@ -149,16 +150,17 @@ impl Compiler {
     }
 
     /// Return true when a dependency source must be top level.
-    fn import_dependency_requires_top_level(&self, source: DependencySource) -> bool {
+    fn import_dependency_requires_top_level(&self, source: ImportSource) -> bool {
         matches!(
             source,
-            DependencySource::ImportStatement
-                | DependencySource::ReferencePathDirective
-                | DependencySource::ReferenceTypesDirective
-                | DependencySource::ReferenceLibDirective
-                | DependencySource::ImportEquals
-                | DependencySource::ExportStatement
-                | DependencySource::ValueExpression
+            ImportSource::ImportStatement
+                | ImportSource::ReferencePathDirective
+                | ImportSource::ReferenceTypesDirective
+                | ImportSource::ReferenceLibDirective
+                | ImportSource::ReferenceNoDefaultLibDirective
+                | ImportSource::ImportEquals
+                | ImportSource::ExportStatement
+                | ImportSource::ValueExpression
         )
     }
 
@@ -179,8 +181,8 @@ impl Compiler {
 
             // collect exported names by expression kind
             match expression {
-                Expression::Declaration { declaration } => {
-                    let declaration_id = *declaration;
+                Expression::Declaration(declaration_id) => {
+                    let declaration_id = *declaration_id;
                     let declaration = tree.get(declaration_id);
                     let export_name =
                         self.value_export_name_for_declaration(declaration, default_name);
@@ -198,12 +200,12 @@ impl Compiler {
                     }
                 }
                 Expression::Let {
-                    descriptor,
+                    export,
                     declarators,
                     ..
                 } => {
                     // only exported declarations participate
-                    if descriptor.export != Some(DependencyMode::Item) {
+                    if *export != Some(ExportMode::Named) {
                         continue;
                     }
 
@@ -230,12 +232,12 @@ impl Compiler {
                     }
                 }
                 Expression::Using {
-                    descriptor,
+                    export,
                     declarators,
                     ..
                 } => {
                     // only exported declarations participate
-                    if descriptor.export != Some(DependencyMode::Item) {
+                    if *export != Some(ExportMode::Named) {
                         continue;
                     }
 
@@ -349,20 +351,40 @@ impl Compiler {
         default_name: StringId,
     ) -> Option<StringId> {
         match declaration {
-            Declaration::Namespace { descriptor, .. }
-            | Declaration::Struct { descriptor, .. }
-            | Declaration::Class { descriptor, .. }
-            | Declaration::Enum { descriptor, .. }
-            | Declaration::Function { descriptor, .. }
-            | Declaration::Extension { descriptor, .. } => match descriptor.export {
-                Some(DependencyMode::Default) => Some(default_name),
-                Some(DependencyMode::Item) => descriptor.name.map(|name| name.string()),
-                Some(DependencyMode::Namespace) | None => None,
+            Declaration::Namespace(declaration) => match declaration.export {
+                Some(ExportMode::Default) => Some(default_name),
+                Some(ExportMode::Named) => Some(declaration.name.string()),
+                None => None,
             },
-            Declaration::Type { .. }
-            | Declaration::Global { .. }
-            | Declaration::ImportAlias { .. }
-            | Declaration::Interface { .. } => None,
+            Declaration::Struct(declaration) => match declaration.export {
+                Some(ExportMode::Default) => Some(default_name),
+                Some(ExportMode::Named) => Some(declaration.name.string()),
+                None => None,
+            },
+            Declaration::Class(declaration) => match declaration.export {
+                Some(ExportMode::Default) => Some(default_name),
+                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                None => None,
+            },
+            Declaration::Enum(declaration) => match declaration.export {
+                Some(ExportMode::Default) => Some(default_name),
+                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                None => None,
+            },
+            Declaration::Function(declaration) => match declaration.export {
+                Some(ExportMode::Default) => Some(default_name),
+                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                None => None,
+            },
+            Declaration::Extension(declaration) => match declaration.export {
+                Some(ExportMode::Default) => Some(default_name),
+                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                None => None,
+            },
+            Declaration::Type(_)
+            | Declaration::Global(_)
+            | Declaration::ImportAlias(_)
+            | Declaration::Interface(_) => None,
         }
     }
 
@@ -508,7 +530,7 @@ impl Compiler {
         bindings: &mut Vec<BindingExport>,
     ) {
         match tree.get(pattern_id) {
-            Pattern::Wildcard | Pattern::Expression { .. } => {}
+            Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => {}
             Pattern::Must(right)
             | Pattern::ReferenceOf { right, .. }
             | Pattern::ValueOf { right, .. } => {

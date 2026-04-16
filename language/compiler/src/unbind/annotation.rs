@@ -9,67 +9,66 @@ use crate::Compiler;
 #[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Unbind a DIR annotation position to an AST annotation position.
+    /// Unbind a DIR decorator position to an AST decorator position.
     #[inline]
-    pub(super) fn unbind_annotation_position(
+    pub(super) fn unbind_decorator_position(
         &self,
         _context: &mut UnbindContext,
-        position: dir::AnnotationPosition,
-    ) -> ast::AnnotationPosition {
+        position: dir::DecoratorPosition,
+    ) -> ast::DecoratorPosition {
         match position {
-            dir::AnnotationPosition::Prefix => ast::AnnotationPosition::LinePrefix,
-            dir::AnnotationPosition::Infix => ast::AnnotationPosition::BlockInfix,
-            dir::AnnotationPosition::Postfix => ast::AnnotationPosition::LinePostfix,
+            dir::DecoratorPosition::BlockInfix => ast::DecoratorPosition::BlockInfix,
+            dir::DecoratorPosition::BlockPrefix => ast::DecoratorPosition::BlockPrefix,
+            dir::DecoratorPosition::BlockPostfix => ast::DecoratorPosition::BlockPostfix,
+            dir::DecoratorPosition::LinePrefix => ast::DecoratorPosition::LinePrefix,
+            dir::DecoratorPosition::LinePostfix => ast::DecoratorPosition::LinePostfix,
+            dir::DecoratorPosition::LinePostfixBoundary => {
+                ast::DecoratorPosition::LinePostfixBoundary
+            }
         }
     }
 
-    /// Unbind a DIR annotation to an AST annotation.
-    pub(super) fn unbind_annotation(
+    /// Unbind a DIR decorator to an AST decorator.
+    pub(super) fn unbind_decorator(
         &self,
         module: &Module,
-        annotation_id: dir::LocalNodeId<dir::Annotation>,
+        decorator_id: dir::LocalNodeId<dir::Decorator>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
-    ) -> ast::LocalNodeId<ast::Annotation> {
-        let annotation = tree.get(annotation_id);
-        let span = self.unbind_span(module, annotation_id.into());
-        let ast_annotation = match annotation {
-            dir::Annotation::Decorator {
-                position,
-                expression,
-            } => {
-                let position = self.unbind_annotation_position(context, *position);
-                let expression = self.unbind_expression(
-                    module,
-                    *expression,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let decorator = ast::Decorator { expression };
-                let decorator_id = ast_tree.insert(decorator, span);
-                ast::Annotation::Decorator {
-                    node: decorator_id,
-                    position,
-                }
-            }
+    ) -> ast::LocalNodeId<ast::Decorator> {
+        let decorator = tree.get(decorator_id);
+        let span = self.unbind_span(module, decorator_id.into());
+        let position = self.unbind_decorator_position(context, decorator.position);
+        let expression = self.unbind_expression(
+            module,
+            decorator.expression,
+            tree,
+            symbols,
+            types,
+            ast_tree,
+            ast_strings,
+            context,
+        );
+        let ast_decorator = ast::Decorator {
+            expression,
+            position,
         };
-        let ast_annotation_id = ast_tree.insert(ast_annotation, span);
-        context.map(annotation_id.into_any(), ast_annotation_id.into_any());
-        ast_annotation_id
+        let ast_decorator_id = ast_tree.insert(ast_decorator, span);
+        context.map(decorator_id.into_any(), ast_decorator_id.into_any());
+        ast_decorator_id
     }
 
-    /// Attach all annotations for a DIR module to the given AST tree.
-    pub(super) fn attach_unbind_annotations(
+    /// Attach all decorators for a DIR module to the given AST tree.
+    pub(super) fn attach_unbind_decorators(
         &self,
         module: &Module,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
@@ -80,18 +79,19 @@ impl Compiler {
             .map(|(dir_id, ast_id)| (*dir_id, *ast_id))
             .collect();
         for (dir_id, ast_id) in nodes {
-            let annotations = tree.get_annotations(dir_id.id);
-            for annotation_id in annotations {
-                let ast_annotation_id = self.unbind_annotation(
+            let decorators = tree.get_decorators(dir_id.id);
+            for decorator_id in decorators {
+                let ast_decorator_id = self.unbind_decorator(
                     module,
-                    annotation_id,
+                    decorator_id,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                ast_tree.append_annotation(ast_id.id, ast_annotation_id);
+                ast_tree.append_decorator(ast_id.id, ast_decorator_id);
             }
         }
     }

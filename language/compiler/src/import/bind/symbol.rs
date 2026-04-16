@@ -1,6 +1,6 @@
 use destack_dir::{
-    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    ExportMode, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey, SymbolBinding,
+    SymbolKind, SymbolSpace, SymbolTable, SymbolType,
 };
 
 use crate::Compiler;
@@ -40,7 +40,7 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
@@ -64,7 +64,7 @@ impl Compiler {
         key: StaticKey,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
@@ -88,7 +88,7 @@ impl Compiler {
         _ast: &Ast,
         space: SymbolSpace,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
@@ -110,7 +110,7 @@ impl Compiler {
         _ast: &Ast,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
@@ -226,7 +226,7 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         if let Some(export) = export {
@@ -246,7 +246,7 @@ impl Compiler {
         key: StaticKey,
         binding: SymbolBinding,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let kind = if export.is_some() {

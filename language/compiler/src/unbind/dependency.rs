@@ -21,18 +21,77 @@ impl Compiler {
         }
     }
 
-    /// Unbind a DIR dependency attribute clause kind to an AST clause kind.
+    /// Unbind a DIR import attribute clause kind to an AST clause kind.
     #[inline]
-    pub(super) fn unbind_dependency_attribute_clause_kind(
+    pub(super) fn unbind_import_attribute_clause_kind(
         &self,
         _context: &mut UnbindContext,
-        kind: dir::DependencyAttributeClauseKind,
-    ) -> ast::DependencyAttributeClauseKind {
+        kind: dir::ImportAttributeClauseKind,
+    ) -> ast::ImportAttributeClauseKind {
         match kind {
-            dir::DependencyAttributeClauseKind::With => ast::DependencyAttributeClauseKind::With,
-            dir::DependencyAttributeClauseKind::Assert => {
-                ast::DependencyAttributeClauseKind::Assert
+            dir::ImportAttributeClauseKind::With => ast::ImportAttributeClauseKind::With,
+            dir::ImportAttributeClauseKind::Assert => ast::ImportAttributeClauseKind::Assert,
+        }
+    }
+
+    /// Unbind one DIR import attribute clause into AST.
+    pub(super) fn unbind_import_attribute_clause(
+        &self,
+        clause: &dir::ImportAttributeClause,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::ImportAttributeClause {
+        let kind = self.unbind_import_attribute_clause_kind(context, clause.kind);
+        let attributes = clause
+            .attributes
+            .iter()
+            .map(|attribute| self.unbind_import_attribute(attribute, ast_strings, context))
+            .collect();
+
+        ast::ImportAttributeClause { kind, attributes }
+    }
+
+    /// Unbind one DIR import attribute into AST.
+    pub(super) fn unbind_import_attribute(
+        &self,
+        attribute: &dir::ImportAttribute,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::ImportAttribute {
+        let key = self.unbind_name(ast_strings, attribute.key);
+        let value = self.unbind_import_attribute_value(&attribute.value, ast_strings, context);
+
+        ast::ImportAttribute { key, value }
+    }
+
+    /// Unbind one DIR import attribute value into AST.
+    pub(super) fn unbind_import_attribute_value(
+        &self,
+        value: &dir::ImportAttributeValue,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::ImportAttributeValue {
+        match value {
+            dir::ImportAttributeValue::ScalarLiteral(value) => {
+                ast::ImportAttributeValue::ScalarLiteral(self.unbind_scalar_literal(
+                    value,
+                    ast_strings,
+                    context,
+                ))
             }
+            dir::ImportAttributeValue::Array(values) => ast::ImportAttributeValue::Array(
+                values
+                    .iter()
+                    .map(|value| self.unbind_import_attribute_value(value, ast_strings, context))
+                    .collect(),
+            ),
+            dir::ImportAttributeValue::Object(attributes) => ast::ImportAttributeValue::Object(
+                attributes
+                    .iter()
+                    .map(|attribute| self.unbind_import_attribute(attribute, ast_strings, context))
+                    .collect(),
+            ),
+            dir::ImportAttributeValue::Error => ast::ImportAttributeValue::Error,
         }
     }
 
@@ -57,6 +116,7 @@ impl Compiler {
         item_id: dir::LocalNodeId<dir::DependencyItem>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
@@ -72,6 +132,7 @@ impl Compiler {
                     *value,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,

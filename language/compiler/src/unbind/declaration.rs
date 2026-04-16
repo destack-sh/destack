@@ -8,93 +8,21 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Unbind a DIR declaration kind to an AST declaration kind.
-    #[inline]
-    pub(super) fn unbind_declaration_kind(
-        &self,
-        _context: &mut UnbindContext,
-        kind: dir::DeclarationKind,
-    ) -> ast::DeclarationKind {
-        match kind {
-            dir::DeclarationKind::Declaration => ast::DeclarationKind::Declaration,
-            dir::DeclarationKind::Definition => ast::DeclarationKind::Definition,
-        }
-    }
-
-    /// Unbind a DIR binding anchor to an AST binding anchor.
-    #[inline]
-    pub(super) fn unbind_binding_anchor(
-        &self,
-        _context: &mut UnbindContext,
-        anchor: dir::BindingAnchor,
-    ) -> ast::BindingAnchor {
-        match anchor {
-            dir::BindingAnchor::Static => ast::BindingAnchor::Static,
-            dir::BindingAnchor::Instance => ast::BindingAnchor::Instance,
-        }
-    }
-
-    /// Unbind a DIR declaration abstraction to an AST declaration abstraction.
-    #[inline]
-    pub(super) fn unbind_declaration_abstraction(
-        &self,
-        _context: &mut UnbindContext,
-        abstraction: dir::DeclarationAbstraction,
-    ) -> ast::DeclarationAbstraction {
-        match abstraction {
-            dir::DeclarationAbstraction::Abstract => ast::DeclarationAbstraction::Abstract,
-            dir::DeclarationAbstraction::Concrete => ast::DeclarationAbstraction::Concrete,
-        }
-    }
-
-    /// Unbind a DIR enum kind to an AST enum kind.
-    #[inline]
-    pub(super) fn unbind_enum_kind(
-        &self,
-        _context: &mut UnbindContext,
-        kind: dir::EnumKind,
-    ) -> ast::EnumKind {
-        match kind {
-            dir::EnumKind::Enum => ast::EnumKind::Enum,
-            dir::EnumKind::Const => ast::EnumKind::Const,
-        }
-    }
-
     /// Unbind a DIR namespace kind to an AST namespace kind.
     #[inline]
-    pub(super) fn unbind_namespace_kind(
-        &self,
-        _context: &mut UnbindContext,
-        kind: dir::NamespaceKind,
-    ) -> ast::NamespaceKind {
+    fn unbind_namespace_kind(&self, kind: dir::NamespaceKind) -> ast::NamespaceKind {
         match kind {
             dir::NamespaceKind::Namespace => ast::NamespaceKind::Namespace,
             dir::NamespaceKind::Module => ast::NamespaceKind::Module,
         }
     }
 
-    /// Unbind a DIR declaration descriptor to an AST declaration descriptor.
-    pub(super) fn unbind_declaration_descriptor(
-        &self,
-        descriptor: &dir::DeclarationDescriptor,
-        ast_strings: &mut StringPool,
-        context: &mut UnbindContext,
-    ) -> ast::DeclarationDescriptor {
-        let kind = self.unbind_declaration_kind(context, descriptor.kind);
-        let abstraction = self.unbind_declaration_abstraction(context, descriptor.abstraction);
-        let anchor = self.unbind_binding_anchor(context, descriptor.anchor);
-        let name = descriptor
-            .name
-            .map(|name| self.unbind_name(ast_strings, name));
-        let export = descriptor
-            .export
-            .map(|export| self.unbind_dependency_mode(context, export));
-        ast::DeclarationDescriptor {
-            kind,
-            abstraction,
-            anchor,
-            name,
-            export,
+    /// Unbind a DIR enum kind to an AST enum kind.
+    #[inline]
+    fn unbind_enum_kind(&self, kind: dir::EnumKind) -> ast::EnumKind {
+        match kind {
+            dir::EnumKind::Enum => ast::EnumKind::Enum,
+            dir::EnumKind::Const => ast::EnumKind::Const,
         }
     }
 
@@ -105,24 +33,38 @@ impl Compiler {
         declarator_id: dir::LocalNodeId<dir::Declarator>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Declarator> {
         let declarator = tree.get(declarator_id);
         let span = self.unbind_span(module, declarator_id.into());
+
+        // pattern and initializer
         let pattern = self.unbind_pattern(
             module,
             declarator.pattern,
             tree,
             symbols,
+            types,
             ast_tree,
             ast_strings,
             context,
         );
         let value = declarator.value.map(|value| {
-            self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings, context)
+            self.unbind_expression(
+                module,
+                value,
+                tree,
+                symbols,
+                types,
+                ast_tree,
+                ast_strings,
+                context,
+            )
         });
+
         let ast_declarator = ast::Declarator {
             pattern,
             ty: None,
@@ -130,6 +72,7 @@ impl Compiler {
         };
         let ast_declarator_id = ast_tree.insert(ast_declarator, span);
         context.map(declarator_id.into_any(), ast_declarator_id.into_any());
+
         ast_declarator_id
     }
 
@@ -140,21 +83,20 @@ impl Compiler {
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Declaration> {
         let declaration = tree.get(declaration_id);
         let span = self.unbind_span(module, declaration_id.into());
+
         let ast_declaration = match declaration {
-            dir::Declaration::Global {
-                descriptor,
-                expressions,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let expressions = expressions
+            dir::Declaration::Global(declaration) => {
+                // ambient body
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                let expressions = declaration
+                    .expressions
                     .iter()
                     .map(|expression| {
                         self.unbind_expression(
@@ -162,37 +104,65 @@ impl Compiler {
                             *expression,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Global {
-                    descriptor,
+
+                ast::Declaration::Global(ast::GlobalDeclaration {
+                    ambient,
                     expressions,
-                }
+                })
             }
-            dir::Declaration::Namespace {
-                descriptor,
-                kind,
-                generics,
-                expressions,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let kind = self.unbind_namespace_kind(context, *kind);
-                let generics = self.unbind_generics(
-                    module,
-                    generics,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let expressions = expressions
+            dir::Declaration::Namespace(declaration) => {
+                // declaration header
+                let name = self.unbind_name(ast_strings, declaration.name);
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                let kind = self.unbind_namespace_kind(declaration.kind);
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // body
+                let expressions = declaration
+                    .expressions
                     .iter()
                     .map(|expression| {
                         self.unbind_expression(
@@ -200,123 +170,198 @@ impl Compiler {
                             *expression,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Namespace {
-                    descriptor,
+
+                ast::Declaration::Namespace(ast::NamespaceDeclaration {
+                    name,
+                    export,
+                    ambient,
                     kind,
-                    generics,
+                    generic_parameters,
+                    where_clauses,
                     expressions,
-                }
+                })
             }
-            dir::Declaration::Type {
-                descriptor,
-                kind,
-                mutability,
-                static_parameters,
-                value,
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let kind = self.unbind_type_kind(context, *kind);
-                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| {
-                            self.unbind_parameter(
-                                module,
-                                *param,
-                                tree,
-                                symbols,
-                                ast_tree,
-                                ast_strings,
-                                context,
-                            )
-                        })
-                        .collect()
-                });
-                let value = self.unbind_expression(
+            dir::Declaration::Type(declaration) => {
+                // declaration header
+                let name = self.unbind_name(ast_strings, declaration.name);
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                let mutability = declaration
+                    .mutability
+                    .map(|mutability| self.unbind_mutability(context, mutability));
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // value
+                let value = self.unbind_type_expression(
                     module,
-                    *value,
+                    declaration.value,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                ast::Declaration::Type {
-                    descriptor,
-                    kind,
+
+                ast::Declaration::Type(ast::TypeDeclaration {
+                    name,
+                    export,
+                    ambient,
+                    is_nominal: declaration.is_nominal,
                     mutability,
-                    static_parameters,
+                    generic_parameters,
+                    where_clauses,
                     value,
-                }
+                })
             }
-            dir::Declaration::ImportAlias {
-                descriptor,
-                kind,
-                target,
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let kind = self.unbind_dependency_kind(context, *kind);
-                let target = match target {
+            dir::Declaration::ImportAlias(declaration) => {
+                // declaration header
+                let name = self.unbind_name(ast_strings, declaration.name);
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                let kind = self.unbind_dependency_kind(context, declaration.kind);
+
+                // alias target
+                let target = match &declaration.target {
                     dir::ImportAliasTarget::Require { target } => {
                         let target = ast_strings.intern_from(&self.repository.strings, *target);
                         ast::ImportAliasTarget::Require { target }
                     }
-                    dir::ImportAliasTarget::Path { value } => {
-                        let value = self.unbind_expression(
-                            module,
-                            *value,
-                            tree,
-                            symbols,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        );
-                        ast::ImportAliasTarget::Path { value }
+                    dir::ImportAliasTarget::Path { path } => {
+                        let path = self.unbind_path(path, ast_strings, context);
+                        ast::ImportAliasTarget::Path { path }
                     }
                 };
-                ast::Declaration::ImportAlias {
-                    descriptor,
+
+                ast::Declaration::ImportAlias(ast::ImportAliasDeclaration {
+                    name,
+                    export,
+                    ambient,
                     kind,
                     target,
-                }
+                })
             }
-            dir::Declaration::Struct {
-                descriptor,
-                generics,
-                heritage,
-                members,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let generics = self.unbind_generics(
-                    module,
-                    generics,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let heritage = self.unbind_heritage(
-                    module,
-                    heritage,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let members = members
+            dir::Declaration::Struct(declaration) => {
+                // declaration header
+                let name = self.unbind_name(ast_strings, declaration.name);
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // relations and body
+                let implements_types = declaration
+                    .implements_types
+                    .iter()
+                    .map(|ty| {
+                        self.unbind_type_expression(
+                            module,
+                            *ty,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let embedded_types = declaration
+                    .embedded_types
+                    .iter()
+                    .map(|ty| {
+                        self.unbind_type_expression(
+                            module,
+                            *ty,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let members = declaration
+                    .members
                     .iter()
                     .map(|member| {
                         self.unbind_member(
@@ -324,47 +369,100 @@ impl Compiler {
                             *member,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Struct {
-                    descriptor,
-                    generics,
-                    heritage,
+
+                ast::Declaration::Struct(ast::StructDeclaration {
+                    name,
+                    export,
+                    ambient,
+                    generic_parameters,
+                    where_clauses,
+                    implements_types,
+                    embedded_types,
                     members,
-                }
+                })
             }
-            dir::Declaration::Class {
-                descriptor,
-                generics,
-                heritage,
-                members,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let generics = self.unbind_generics(
-                    module,
-                    generics,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let heritage = self.unbind_heritage(
-                    module,
-                    heritage,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let members = members
+            dir::Declaration::Class(declaration) => {
+                // declaration header
+                let name = declaration
+                    .name
+                    .map(|name| self.unbind_name(ast_strings, name));
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // relations and body
+                let extends_expression = declaration.extends_expression.map(|expression| {
+                    self.unbind_expression(
+                        module,
+                        expression,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let implements_types = declaration
+                    .implements_types
+                    .iter()
+                    .map(|ty| {
+                        self.unbind_type_expression(
+                            module,
+                            *ty,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let members = declaration
+                    .members
                     .iter()
                     .map(|member| {
                         self.unbind_member(
@@ -372,50 +470,90 @@ impl Compiler {
                             *member,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Class {
-                    descriptor,
-                    generics,
-                    heritage,
+
+                ast::Declaration::Class(ast::ClassDeclaration {
+                    name,
+                    export,
+                    ambient,
+                    is_abstract: declaration.is_abstract,
+                    generic_parameters,
+                    where_clauses,
+                    extends_expression,
+                    implements_types,
                     members,
-                }
+                })
             }
-            dir::Declaration::Enum {
-                descriptor,
-                kind,
-                generics,
-                heritage,
-                fields,
-                members,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let kind = self.unbind_enum_kind(context, *kind);
-                let generics = self.unbind_generics(
-                    module,
-                    generics,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let heritage = self.unbind_heritage(
-                    module,
-                    heritage,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let fields = fields
+            dir::Declaration::Enum(declaration) => {
+                // declaration header
+                let name = declaration
+                    .name
+                    .map(|name| self.unbind_name(ast_strings, name));
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+                let kind = self.unbind_enum_kind(declaration.kind);
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // relations and body
+                let implements_types = declaration
+                    .implements_types
+                    .iter()
+                    .map(|ty| {
+                        self.unbind_type_expression(
+                            module,
+                            *ty,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let fields = declaration
+                    .fields
                     .iter()
                     .map(|field| {
                         self.unbind_enum_field(
@@ -423,13 +561,15 @@ impl Compiler {
                             *field,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                let members = members
+                let members = declaration
+                    .members
                     .iter()
                     .map(|member| {
                         self.unbind_member(
@@ -437,110 +577,188 @@ impl Compiler {
                             *member,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Enum {
-                    descriptor,
+
+                ast::Declaration::Enum(ast::EnumDeclaration {
+                    name,
+                    export,
+                    ambient,
                     kind,
-                    generics,
-                    heritage,
+                    generic_parameters,
+                    where_clauses,
+                    implements_types,
                     fields,
                     members,
-                }
+                })
             }
-            dir::Declaration::Interface {
-                descriptor,
-                kind,
-                generics,
-                heritage,
-                members,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let kind = self.unbind_type_kind(context, *kind);
-                let generics = self.unbind_generics(
-                    module,
-                    generics,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let heritage = self.unbind_heritage(
-                    module,
-                    heritage,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let members = members
+            dir::Declaration::Interface(declaration) => {
+                // declaration header
+                let name = declaration
+                    .name
+                    .map(|name| self.unbind_name(ast_strings, name));
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
                     .iter()
-                    .map(|member| {
-                        self.unbind_member(
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
                             module,
-                            *member,
+                            *parameter,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Interface {
-                    descriptor,
-                    kind,
-                    generics,
-                    heritage,
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // relations and body
+                let extends_types = declaration
+                    .extends_types
+                    .iter()
+                    .map(|ty| {
+                        self.unbind_type_expression(
+                            module,
+                            *ty,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let members = declaration
+                    .members
+                    .iter()
+                    .map(|member| {
+                        self.unbind_type_member(
+                            module,
+                            *member,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                ast::Declaration::Interface(ast::InterfaceDeclaration {
+                    name,
+                    export,
+                    ambient,
+                    is_nominal: declaration.is_nominal,
+                    generic_parameters,
+                    where_clauses,
+                    extends_types,
                     members,
-                }
+                })
             }
-            dir::Declaration::Extension {
-                descriptor,
-                generics,
-                target_type,
-                heritage,
-                members,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
-                let generics = self.unbind_generics(
+            dir::Declaration::Extension(declaration) => {
+                // declaration header
+                let name = declaration
+                    .name
+                    .map(|name| self.unbind_name(ast_strings, name));
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+
+                // polymorphism
+                let generic_parameters = declaration
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = declaration
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                // relations and body
+                let target_type = self.unbind_type_expression(
                     module,
-                    generics,
+                    declaration.target_type,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                let target_type = self.unbind_expression(
-                    module,
-                    *target_type,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let heritage = self.unbind_heritage(
-                    module,
-                    heritage,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let members = members
+                let implements_types = declaration
+                    .implements_types
+                    .iter()
+                    .map(|ty| {
+                        self.unbind_type_expression(
+                            module,
+                            *ty,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let members = declaration
+                    .members
                     .iter()
                     .map(|member| {
                         self.unbind_member(
@@ -548,57 +766,72 @@ impl Compiler {
                             *member,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
                         )
                     })
                     .collect();
-                ast::Declaration::Extension {
-                    descriptor,
-                    generics,
+
+                ast::Declaration::Extension(ast::ExtensionDeclaration {
+                    name,
+                    export,
+                    ambient,
+                    generic_parameters,
+                    where_clauses,
                     target_type,
-                    heritage,
+                    implements_types,
                     members,
-                }
+                })
             }
-            dir::Declaration::Function {
-                descriptor,
-                signature,
-                body,
-                ..
-            } => {
-                let descriptor =
-                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
+            dir::Declaration::Function(declaration) => {
+                // declaration header
+                let name = declaration
+                    .name
+                    .map(|name| self.unbind_name(ast_strings, name));
+                let export = declaration
+                    .export
+                    .map(|export| self.unbind_export_mode(export));
+                let ambient = self.unbind_ambientness(declaration.ambient, context);
+
+                // signature and body
                 let signature = self.unbind_function_signature(
                     module,
-                    signature,
+                    &declaration.signature,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                let body = body.map(|body| {
+                let body = declaration.body.map(|body| {
                     self.unbind_expression(
                         module,
                         body,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
-                ast::Declaration::Function {
-                    descriptor,
+
+                ast::Declaration::Function(ast::FunctionDeclaration {
+                    name,
+                    export,
+                    ambient,
                     signature,
                     body,
-                }
+                })
             }
         };
+
         let ast_declaration_id = ast_tree.insert(ast_declaration, span);
         context.map(declaration_id.into_any(), ast_declaration_id.into_any());
+
         ast_declaration_id
     }
 
@@ -609,20 +842,33 @@ impl Compiler {
         field_id: dir::LocalNodeId<dir::EnumField>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::EnumField> {
         let field = tree.get(field_id);
         let span = self.unbind_span(module, field_id.into());
-        let name =
-            ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, field.name));
+
+        // field payload
+        let name = self.unbind_name(ast_strings, field.name);
         let value = field.value.map(|value| {
-            self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings, context)
+            self.unbind_expression(
+                module,
+                value,
+                tree,
+                symbols,
+                types,
+                ast_tree,
+                ast_strings,
+                context,
+            )
         });
+
         let ast_field = ast::EnumField { name, value };
         let ast_field_id = ast_tree.insert(ast_field, span);
         context.map(field_id.into_any(), ast_field_id.into_any());
+
         ast_field_id
     }
 }

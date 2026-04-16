@@ -7,6 +7,7 @@ use destack_dir::{
     ProvenanceReason, ScopeKind, StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace,
     SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
+use destack_dir::ExportMode;
 use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
@@ -122,7 +123,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
         binding_category: Option<BindingCategory>,
@@ -270,6 +271,23 @@ impl Compiler {
                 );
                 Pattern::Expression { value }
             }
+            ast::Pattern::TypeExpression { value } => {
+                let value = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::TypeThenValue,
+                );
+                Pattern::TypeExpression { value }
+            }
             ast::Pattern::Tuple { fields } => {
                 let fields = fields
                     .iter()
@@ -296,7 +314,7 @@ impl Compiler {
                 Pattern::Tuple { fields }
             }
             ast::Pattern::TaggedTuple { ty, fields } => {
-                let ty = self.bind_expression(
+                let ty = self.bind_type_expression(
                     module,
                     ast,
                     namespace_scope,
@@ -385,7 +403,7 @@ impl Compiler {
                 Pattern::Object { fields }
             }
             ast::Pattern::TaggedObject { ty, fields } => {
-                let ty = self.bind_expression(
+                let ty = self.bind_type_expression(
                     module,
                     ast,
                     namespace_scope,
@@ -471,7 +489,7 @@ impl Compiler {
         _global_augmentation_scope: LocalScopeId,
         _module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         binding: SymbolBinding,
         binding_scope: (LocalScopeId, LocalScopeMark),
         binding_mutability: Option<Mutability>,
@@ -531,7 +549,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
         binding_category: Option<BindingCategory>,

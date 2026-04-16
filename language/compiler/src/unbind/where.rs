@@ -15,6 +15,7 @@ impl Compiler {
         clause_id: dir::LocalNodeId<dir::WhereClause>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
@@ -22,11 +23,12 @@ impl Compiler {
         let clause = tree.get(clause_id);
         let span = self.unbind_span(module, clause_id.into());
         let left = ast_strings.intern_from(&self.repository.strings, clause.left);
-        let right = self.unbind_expression(
+        let right = self.unbind_type_expression(
             module,
             clause.right,
             tree,
             symbols,
+            types,
             ast_tree,
             ast_strings,
             context,

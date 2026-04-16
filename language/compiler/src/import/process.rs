@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{Compiler, CompilerContext, ImportError, ImportResult, RequirementError};
 use destack_artifact::{ArtifactKey, DirBase};
 use destack_dir::{
-    DependencyMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeTree, NodeType, ScopeKind,
+    ExportMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeTree, NodeType, ScopeKind,
     SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeLiteral, TypeTable,
 };
 use destack_source::{FileId, ModuleId};
@@ -105,7 +105,7 @@ impl Compiler {
                 SymbolBinding::Runtime,
                 None,
                 (namespace_scope, LocalScopeMark::end()),
-                Some(DependencyMode::Namespace),
+                Some(ExportMode::Named),
             );
             symbols.get_scope_by_id_mut(namespace_scope).owner_id = Some(namespace_symbol);
             let (default_symbol, _) = symbols.insert_symbol(
@@ -115,7 +115,7 @@ impl Compiler {
                 SymbolBinding::Runtime,
                 None,
                 (namespace_scope, LocalScopeMark::end()),
-                Some(DependencyMode::Default),
+                Some(ExportMode::Default),
             );
             let (export_assignment_symbol, _) = symbols.insert_symbol(
                 SymbolKind::Namespace,

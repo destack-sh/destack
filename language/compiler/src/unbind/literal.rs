@@ -16,6 +16,7 @@ impl Compiler {
         _context: &mut UnbindContext,
     ) -> ast::ScalarLiteral {
         match literal {
+            dir::ScalarLiteral::Null => ast::ScalarLiteral::Null,
             dir::ScalarLiteral::Boolean(boolean) => ast::ScalarLiteral::Boolean(*boolean),
             dir::ScalarLiteral::Integer(integer) => ast::ScalarLiteral::Integer(*integer),
             dir::ScalarLiteral::Bigint(bigint) => ast::ScalarLiteral::Bigint(*bigint),
@@ -68,6 +69,7 @@ impl Compiler {
                 ast::TypeLiteral::Intrinsic(self.unbind_type_intrinsic(intrinsic, context))
             }
             dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
+                dir::ScalarLiteral::Null => ast::TypeLiteral::Null,
                 dir::ScalarLiteral::Boolean(_) => ast::TypeLiteral::Boolean,
                 dir::ScalarLiteral::Integer(_) => ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                     width: Some(32),
@@ -192,6 +194,7 @@ impl Compiler {
         literal: &dir::TemplateLiteral,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
@@ -214,6 +217,7 @@ impl Compiler {
                             *argument,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,

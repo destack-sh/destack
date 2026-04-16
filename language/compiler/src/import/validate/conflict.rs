@@ -218,7 +218,7 @@ impl Compiler {
         }
         let declaration_id = primary.local_id.into_typed::<Declaration>();
         match tree.get(declaration_id) {
-            Declaration::Enum { kind, .. } => Some(*kind),
+            Declaration::Enum(declaration) => Some(declaration.kind),
             _ => None,
         }
     }
@@ -233,7 +233,7 @@ impl Compiler {
         }
         let declaration_id = node.local_id.into_typed::<Declaration>();
         match tree.get(declaration_id) {
-            Declaration::Enum { kind, .. } => Some(*kind),
+            Declaration::Enum(declaration) => Some(declaration.kind),
             _ => None,
         }
     }
@@ -522,7 +522,7 @@ impl Compiler {
             NodeType::Declaration => {
                 let declaration =
                     tree.get(primary_declaration.local_id.into_typed::<Declaration>());
-                matches!(declaration, Declaration::Function { .. })
+                matches!(declaration, Declaration::Function(..))
             }
             NodeType::Member => {
                 let member = tree.get(primary_declaration.local_id.into_typed::<Member>());

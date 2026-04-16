@@ -1,13 +1,12 @@
 use crate::Compiler;
 use destack_artifact::Ast;
-use destack_ast::{self as ast};
+use destack_ast as ast;
 use destack_dir::{
-    Argument, BindingCategory, DeclarationKind, Declarator, DependencyMode, DependencySource,
-    Expression, ForEachBinding, ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability,
-    NodeTree, NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeMappedParameterExpression,
-    TypePredicateSubject, TypeTable, YieldCardinality,
+    Ambientness, BindingCategory, Declarator, ExportMode, Expression, ForEachBinding, ForEachKind,
+    IfCondition, IfKind, ImportSource, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeTree, NodeType, Path,
+    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, Type, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -28,6 +27,23 @@ impl Compiler {
         match kind {
             ast::LetKind::Var => BindingCategory::FunctionScoped,
             ast::LetKind::Let | ast::LetKind::Const => BindingCategory::BlockScoped,
+        }
+    }
+
+    /// Bind an AST let kind into a DIR let kind.
+    fn bind_let_kind(&self, kind: ast::LetKind) -> destack_dir::LetKind {
+        match kind {
+            ast::LetKind::Var => destack_dir::LetKind::Var,
+            ast::LetKind::Let => destack_dir::LetKind::Let,
+            ast::LetKind::Const => destack_dir::LetKind::Const,
+        }
+    }
+
+    /// Bind an AST export mode into a DIR export mode.
+    pub(super) fn bind_export_mode(&self, export: ast::ExportMode) -> ExportMode {
+        match export {
+            ast::ExportMode::Named => ExportMode::Named,
+            ast::ExportMode::Default => ExportMode::Default,
         }
     }
 
@@ -148,7 +164,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Expression::Block { block: block_id }
+                Expression::Block(block_id)
             }
             ast::Expression::Declaration(declaration_id) => {
                 // statement declarations bind to scope end
@@ -173,9 +189,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Expression::Declaration {
-                    declaration: declaration_id,
-                }
+                Expression::Declaration(declaration_id)
             }
             ast::Expression::Labelled { label, body } => {
                 let label = self
@@ -246,7 +260,7 @@ impl Compiler {
                         )
                     }
                 };
-                let source = self.bind_dependency_source(*source);
+                let source = self.bind_import_source(*source);
 
                 // items
                 let items = items.as_ref().map(|items| {
@@ -274,31 +288,9 @@ impl Compiler {
                 });
 
                 // attributes
-                let attributes = attributes.as_ref().map(|attributes| {
-                    let kind = self.bind_dependency_attribute_clause_kind(attributes.kind);
-                    let arguments = attributes
-                        .arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                SymbolSpaceOrder::ValueThenType,
-                            )
-                        })
-                        .collect();
-
-                    destack_dir::DependencyAttributeClause { kind, arguments }
-                });
+                let attributes = attributes
+                    .as_ref()
+                    .map(|attributes| self.bind_import_attribute_clause(module, ast, attributes));
 
                 // arguments
                 let arguments = arguments.as_ref().map(|arguments| {
@@ -357,7 +349,7 @@ impl Compiler {
                                 global_augmentation_scope,
                                 module_bindings,
                                 scope,
-                                DependencySource::ExportStatement,
+                                ImportSource::ExportStatement,
                                 *kind,
                                 Some(target),
                                 *item,
@@ -370,31 +362,9 @@ impl Compiler {
                         .collect();
 
                     // attributes
-                    let attributes = attributes.as_ref().map(|attributes| {
-                        let kind = self.bind_dependency_attribute_clause_kind(attributes.kind);
-                        let arguments = attributes
-                            .arguments
-                            .iter()
-                            .map(|argument| {
-                                self.bind_argument(
-                                    module,
-                                    ast,
-                                    namespace_scope,
-                                    global_augmentation_scope,
-                                    module_bindings,
-                                    scope,
-                                    *argument,
-                                    Some(expression_id),
-                                    tree,
-                                    symbols,
-                                    types,
-                                    SymbolSpaceOrder::ValueThenType,
-                                )
-                            })
-                            .collect();
-
-                        destack_dir::DependencyAttributeClause { kind, arguments }
-                    });
+                    let attributes = attributes
+                        .as_ref()
+                        .map(|attributes| self.bind_import_attribute_clause(module, ast, attributes));
 
                     let kind = self.bind_dependency_kind(*kind);
                     // re-export
@@ -420,7 +390,7 @@ impl Compiler {
                                     global_augmentation_scope,
                                     module_bindings,
                                     scope,
-                                    DependencySource::ValueExpression,
+                                    ImportSource::ValueExpression,
                                     *kind,
                                     None,
                                     *item,
@@ -433,31 +403,9 @@ impl Compiler {
                             .collect()
                     };
                     let kind = self.bind_dependency_kind(*kind);
-                    let attributes = attributes.as_ref().map(|attributes| {
-                        let kind = self.bind_dependency_attribute_clause_kind(attributes.kind);
-                        let arguments = attributes
-                            .arguments
-                            .iter()
-                            .map(|argument| {
-                                self.bind_argument(
-                                    module,
-                                    ast,
-                                    namespace_scope,
-                                    global_augmentation_scope,
-                                    module_bindings,
-                                    scope,
-                                    *argument,
-                                    Some(expression_id),
-                                    tree,
-                                    symbols,
-                                    types,
-                                    SymbolSpaceOrder::ValueThenType,
-                                )
-                            })
-                            .collect();
-
-                        destack_dir::DependencyAttributeClause { kind, arguments }
-                    });
+                    let attributes = attributes
+                        .as_ref()
+                        .map(|attributes| self.bind_import_attribute_clause(module, ast, attributes));
 
                     Expression::Export {
                         kind,
@@ -475,30 +423,20 @@ impl Compiler {
             }
             ast::Expression::Let {
                 kind,
-                descriptor,
+                export,
+                ambient,
                 mutability,
                 declarators: ast_declarators,
-                ..
             } => {
                 let binding_category = self.binding_category_for_let_kind(*kind);
-                let symbol_kind = if descriptor.export.is_some() {
-                    SymbolKind::Item
-                } else {
-                    SymbolKind::Local
+                let export = export.map(|export| self.bind_export_mode(export));
+                let ambient = match ambient {
+                    ast::Ambientness::Ambient => Ambientness::Ambient,
+                    ast::Ambientness::Concrete => Ambientness::Concrete,
                 };
-                let (descriptor, _) = self.bind_declaration_descriptor(
-                    module,
-                    ast,
-                    scope,
-                    descriptor,
-                    symbol_kind,
-                    SymbolType::Void,
-                    symbols,
-                );
-                let symbol_id = descriptor.symbol;
-                let binding = match descriptor.kind {
-                    DeclarationKind::Declaration => SymbolBinding::Ambient,
-                    DeclarationKind::Definition => SymbolBinding::Runtime,
+                let binding = match ambient {
+                    Ambientness::Ambient => SymbolBinding::Ambient,
+                    Ambientness::Concrete => SymbolBinding::Runtime,
                 };
                 let mutability = self.bind_mutability(*mutability);
                 let mut declarator_scope = scope;
@@ -512,7 +450,7 @@ impl Compiler {
                             global_augmentation_scope,
                             module_bindings,
                             declarator_scope,
-                            descriptor.export,
+                            export,
                             binding,
                             Some(mutability),
                             Some(binding_category),
@@ -528,40 +466,30 @@ impl Compiler {
                     })
                     .collect();
 
-                let expression = Expression::Let {
-                    descriptor,
-                    mutability,
-                    declarators,
-                };
-                let expression_id = tree.insert(expression_id, expression);
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(expression_id);
-                return expression_id;
+                return tree.insert(
+                    expression_id,
+                    Expression::Let {
+                        export,
+                        ambient,
+                        mutability,
+                        declarators,
+                    },
+                );
             }
             ast::Expression::Using {
                 asynchrony,
-                descriptor,
+                export,
+                ambient,
                 declarators: ast_declarators,
             } => {
-                let symbol_kind = if descriptor.export.is_some() {
-                    SymbolKind::Item
-                } else {
-                    SymbolKind::Local
+                let export = export.map(|export| self.bind_export_mode(export));
+                let ambient = match ambient {
+                    ast::Ambientness::Ambient => Ambientness::Ambient,
+                    ast::Ambientness::Concrete => Ambientness::Concrete,
                 };
-                let (descriptor, _) = self.bind_declaration_descriptor(
-                    module,
-                    ast,
-                    scope,
-                    descriptor,
-                    symbol_kind,
-                    SymbolType::Void,
-                    symbols,
-                );
-                let symbol_id = descriptor.symbol;
-                let binding = match descriptor.kind {
-                    DeclarationKind::Declaration => SymbolBinding::Ambient,
-                    DeclarationKind::Definition => SymbolBinding::Runtime,
+                let binding = match ambient {
+                    Ambientness::Ambient => SymbolBinding::Ambient,
+                    Ambientness::Concrete => SymbolBinding::Runtime,
                 };
                 let asynchrony = self.bind_asynchrony(*asynchrony);
                 let mutability = Mutability::Immutable;
@@ -577,7 +505,7 @@ impl Compiler {
                             global_augmentation_scope,
                             module_bindings,
                             declarator_scope,
-                            descriptor.export,
+                            export,
                             binding,
                             Some(mutability),
                             Some(binding_category),
@@ -595,16 +523,15 @@ impl Compiler {
                     })
                     .collect();
 
-                let expression = Expression::Using {
-                    asynchrony,
-                    descriptor,
-                    declarators,
-                };
-                let expression_id = tree.insert(expression_id, expression);
-                symbols
-                    .get_symbol_mut(symbol_id)
-                    .declare_primary(expression_id);
-                return expression_id;
+                return tree.insert(
+                    expression_id,
+                    Expression::Using {
+                        asynchrony,
+                        export,
+                        ambient,
+                        declarators,
+                    },
+                );
             }
             ast::Expression::Unary { operator, right } => {
                 let right = self.bind_expression(
@@ -625,28 +552,83 @@ impl Compiler {
                 Expression::Unary { operator, right }
             }
 
-            ast::Expression::TypeUnary { operator, right } => {
-                let space_order = if matches!(operator, ast::TypeUnaryOperator::Typeof) {
-                    SymbolSpaceOrder::ValueOnly
-                } else {
-                    space_order
-                };
-                let right = self.bind_expression(
+            ast::Expression::As {
+                expression,
+                target_type,
+            } => {
+                let expression = self.bind_expression(
                     module,
                     ast,
                     namespace_scope,
                     global_augmentation_scope,
                     module_bindings,
                     scope,
-                    *right,
+                    *expression,
                     Some(expression_id),
                     tree,
                     symbols,
                     types,
                     space_order,
                 );
-                let operator = self.bind_type_unary_operator(*operator);
-                Expression::TypeUnary { operator, right }
+
+                let target_type = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *target_type,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+
+                Expression::As {
+                    expression,
+                    target_type,
+                }
+            }
+
+            ast::Expression::Satisfies {
+                expression,
+                target_type,
+            } => {
+                let expression = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+                let target_type = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *target_type,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+
+                Expression::Satisfies {
+                    expression,
+                    target_type,
+                }
             }
 
             ast::Expression::ValueOf {
@@ -721,6 +703,70 @@ impl Compiler {
                 );
                 Expression::PointerOf { mutability, right }
             }
+            ast::Expression::Is { value, target_type } => {
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+                let target_type = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *target_type,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+
+                Expression::Is { value, target_type }
+            }
+            ast::Expression::InstanceOf { value, target } => {
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+                let target = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *target,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+
+                Expression::InstanceOf { value, target }
+            }
             ast::Expression::Binary {
                 left,
                 operator,
@@ -759,422 +805,6 @@ impl Compiler {
                     left,
                     operator,
                     right,
-                }
-            }
-            ast::Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => {
-                let left = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *left,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let right = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *right,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let operator = self.bind_type_binary_operator(*operator);
-                Expression::TypeBinary {
-                    left,
-                    operator,
-                    right,
-                }
-            }
-            ast::Expression::TypeConditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                let left = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *left,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let type_scope_id = symbols.insert_scope(ScopeKind::TypeConditional, Some(scope), None);
-                let type_scope = (type_scope_id, symbols.get_scope_mark(type_scope_id));
-                let right = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    type_scope,
-                    *right,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let type_scope = (type_scope_id, symbols.get_scope_mark(type_scope_id));
-                let then_type = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    type_scope,
-                    *then_type,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let else_type = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *else_type,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                Expression::TypeConditional {
-                    left,
-                    right,
-                    then_type,
-                    else_type,
-                }
-            }
-            ast::Expression::TypeMapped {
-                parameter,
-                modifiers,
-                value,
-            } => {
-                let name = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, parameter.name);
-                let constraint = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    parameter.constraint,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let parameter_scope_id = symbols.insert_scope(ScopeKind::Type, Some(scope), None);
-                let parameter_scope = (
-                    parameter_scope_id,
-                    symbols.get_scope_mark(parameter_scope_id),
-                );
-                let (symbol, _) = self.bind_named_local(
-                    module,
-                    ast,
-                    SymbolSpace::Type,
-                    StaticKey::Name(name),
-                    parameter_scope,
-                    symbols,
-                );
-                let parameter_scope = (
-                    parameter_scope_id,
-                    symbols.get_scope_mark(parameter_scope_id),
-                );
-                let key_remap = parameter.key_remap.map(|key_remap| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        parameter_scope,
-                        key_remap,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                        space_order,
-                    )
-                });
-                let parameter = TypeMappedParameterExpression {
-                    name,
-                    symbol,
-                    constraint,
-                    key_remap,
-                };
-                let modifiers = self.bind_type_mapped_modifiers(modifiers);
-                let value = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    parameter_scope,
-                    *value,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                Expression::TypeMapped {
-                    parameter,
-                    modifiers,
-                    value,
-                }
-            }
-            ast::Expression::TypeIndex { left, index } => {
-                let left = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *left,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let index = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *index,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                Expression::TypeIndex { left, index }
-            }
-            ast::Expression::TypeTemplateLiteral { strings, spans } => {
-                let strings = strings
-                    .iter()
-                    .map(|string| self.repository.strings.intern_from(&ast.strings, *string))
-                    .collect();
-                let spans = spans
-                    .iter()
-                    .map(|span| {
-                        self.bind_expression(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
-                            scope,
-                            *span,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                            space_order,
-                        )
-                    })
-                    .collect();
-                Expression::TypeTemplateLiteral { strings, spans }
-            }
-            ast::Expression::TypeImport {
-                target,
-                arguments,
-                qualifier,
-                static_arguments,
-            } => {
-                let arguments: Vec<LocalNodeId<Argument>> = arguments
-                    .iter()
-                    .map(|argument| {
-                        self.bind_argument(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
-                            scope,
-                            *argument,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                            space_order,
-                        )
-                    })
-                    .collect();
-                let target = if let Some(first_argument_id) = arguments.first() {
-                    let first_argument = tree.get(*first_argument_id);
-                    if let Argument::Positional { value, .. } = first_argument {
-                        *value
-                    } else {
-                        self.bind_expression(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
-                            scope,
-                            *target,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                            space_order,
-                        )
-                    }
-                } else {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        *target,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                        space_order,
-                    )
-                };
-                let qualifier = qualifier
-                    .as_ref()
-                    .map(|path| self.bind_path(module, ast, path));
-                let static_argument_space_order = if module.language_type.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
-                } else {
-                    SymbolSpaceOrder::TypeThenValue
-                };
-                let static_arguments = static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                static_argument_space_order,
-                            )
-                        })
-                        .collect()
-                });
-                Expression::TypeImport {
-                    target,
-                    arguments,
-                    qualifier,
-                    static_arguments,
-                }
-            }
-            ast::Expression::TypeInfer { name, constraint } => {
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
-                let constraint = constraint.map(|constraint| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        constraint,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                        space_order,
-                    )
-                });
-                // bind conditional infer names only in the nearest conditional scope
-                if let Some(infer_scope) =
-                    self.find_nearest_scope_of_kind(symbols, scope, ScopeKind::TypeConditional)
-                {
-                    let _ = self.bind_named_local(
-                        module,
-                        ast,
-                        SymbolSpace::Type,
-                        StaticKey::Name(name),
-                        infer_scope,
-                        symbols,
-                    );
-                }
-                Expression::TypeInfer { name, constraint }
-            }
-            ast::Expression::TypePredicate {
-                asserts,
-                subject,
-                target,
-            } => {
-                let subject = match subject {
-                    ast::TypePredicateSubject::Identifier(name) => {
-                        let name = self.repository.strings.intern_from(&ast.strings, *name);
-                        TypePredicateSubject::Unresolved(name)
-                    }
-                    ast::TypePredicateSubject::This => TypePredicateSubject::This,
-                };
-                let target = target.map(|target| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        target,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                        space_order,
-                    )
-                });
-                Expression::TypePredicate {
-                    asserts: *asserts,
-                    subject,
-                    target,
                 }
             }
             ast::Expression::Assign {
@@ -1225,7 +855,7 @@ impl Compiler {
             ast::Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left = self.bind_expression(
                     module,
@@ -1242,42 +872,40 @@ impl Compiler {
                     space_order,
                 );
                 let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
-                let static_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
                 };
-                let static_arguments = static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                static_argument_space_order,
-                            )
-                        })
-                        .collect()
-                });
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            generic_argument_space_order,
+                        )
+                    })
+                    .collect();
                 Expression::Member {
                     left,
                     name,
-                    static_arguments,
+                    generic_arguments,
                 }
             }
             ast::Expression::PrivateMember {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left = self.bind_expression(
                     module,
@@ -1294,42 +922,40 @@ impl Compiler {
                     space_order,
                 );
                 let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
-                let static_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
                 };
-                let static_arguments = static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                static_argument_space_order,
-                            )
-                        })
-                        .collect()
-                });
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            generic_argument_space_order,
+                        )
+                    })
+                    .collect();
                 Expression::PrivateMember {
                     left,
                     name,
-                    static_arguments,
+                    generic_arguments,
                 }
             }
             ast::Expression::Call {
                 position: _,
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let left = self.bind_expression(
@@ -1346,32 +972,30 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let static_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
                 };
-                let static_arguments = static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                static_argument_space_order,
-                            )
-                        })
-                        .collect()
-                });
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            generic_argument_space_order,
+                        )
+                    })
+                    .collect();
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| {
@@ -1393,13 +1017,13 @@ impl Compiler {
                     .collect();
                 Expression::Call {
                     left,
-                    static_arguments,
+                    generic_arguments,
                     dynamic_arguments,
                 }
             }
             ast::Expression::New {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let left = self.bind_expression(
@@ -1416,27 +1040,25 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let static_arguments = static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                SymbolSpaceOrder::TypeThenValue,
-                            )
-                        })
-                        .collect()
-                });
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            SymbolSpaceOrder::TypeThenValue,
+                        )
+                    })
+                    .collect();
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| {
@@ -1458,7 +1080,7 @@ impl Compiler {
                     .collect();
                 Expression::New {
                     left,
-                    static_arguments,
+                    generic_arguments,
                     dynamic_arguments,
                 }
             }
@@ -1518,7 +1140,7 @@ impl Compiler {
             }
             ast::Expression::Instantiation {
                 left,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left = self.bind_expression(
                     module,
@@ -1534,15 +1156,15 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let static_argument_space_order = if module.language_type.is_destack() {
+                let generic_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
                     SymbolSpaceOrder::TypeThenValue
                 };
-                let static_arguments = static_arguments
+                let generic_arguments = generic_arguments
                     .iter()
                     .map(|argument| {
-                        self.bind_argument(
+                        self.bind_generic_argument(
                             module,
                             ast,
                             namespace_scope,
@@ -1554,13 +1176,13 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            static_argument_space_order,
+                            generic_argument_space_order,
                         )
                     })
                     .collect();
                 Expression::Instantiation {
                     left,
-                    static_arguments,
+                    generic_arguments,
                 }
             }
             ast::Expression::Maybe { position: _, left } => {
@@ -1604,40 +1226,38 @@ impl Compiler {
                 };
                 Expression::UnresolvedPath {
                     path,
-                    static_arguments: None,
+                    generic_arguments: Vec::new(),
                     space_order,
                 }
             }
 
             ast::Expression::QualifiedReference {
                 path,
-                static_arguments,
+                generic_arguments,
             } => {
                 let path = self.bind_path(module, ast, path);
-                let static_arguments = static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                SymbolSpaceOrder::TypeThenValue,
-                            )
-                        })
-                        .collect()
-                });
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            SymbolSpaceOrder::TypeThenValue,
+                        )
+                    })
+                    .collect();
                 Expression::UnresolvedPath {
                     path,
-                    static_arguments,
+                    generic_arguments,
                     space_order,
                 }
             }
@@ -1695,10 +1315,6 @@ impl Compiler {
                 );
                 Expression::TaggedTemplateExpression { tag, value }
             }
-            ast::Expression::TypeLiteral(value) => {
-                let value = self.bind_type_literal(value);
-                Expression::TypeLiteral { value }
-            }
             ast::Expression::ObjectExpression { ty, properties } => {
                 let properties = properties
                     .iter()
@@ -1719,7 +1335,7 @@ impl Compiler {
                     })
                     .collect();
                 if let Some(ty_id) = ty {
-                    let ty = self.bind_expression(
+                    let ty = self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
@@ -1735,7 +1351,10 @@ impl Compiler {
                     );
                     Expression::TaggedObjectExpression { ty, properties }
                 } else {
-                    Expression::ObjectExpression { properties }
+                    Expression::ObjectExpression {
+                        ty: None,
+                        properties,
+                    }
                 }
             }
             ast::Expression::TupleExpression { elements } => {
@@ -1890,6 +1509,28 @@ impl Compiler {
                 );
                 Expression::Parenthesized { expression }
             }
+            ast::Expression::Type { value } => {
+                let value = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::TypeThenValue,
+                );
+                let resolved_type = types.insert_type_from(Type::Unevaluated(value), value);
+
+                Expression::Type {
+                    value,
+                    resolved_type,
+                }
+            }
 
             ast::Expression::If {
                 kind,
@@ -2014,6 +1655,7 @@ impl Compiler {
                         });
                         (
                             IfCondition::Let {
+                                kind: self.bind_let_kind(*kind),
                                 mutability,
                                 declarator,
                             },
@@ -2356,7 +1998,7 @@ impl Compiler {
                     )
                 });
                 let catch_ty = catch_ty.map(|catch_ty| {
-                    self.bind_expression(
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
@@ -2656,7 +2298,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
+        export: Option<ExportMode>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
         binding_category: Option<BindingCategory>,
@@ -2689,7 +2331,7 @@ impl Compiler {
             types,
         );
         let bound_ty = ty.map(|ty_id| {
-            self.bind_expression(
+            self.bind_type_expression(
                 module,
                 ast,
                 namespace_scope,
@@ -2748,6 +2390,7 @@ mod tests {
     use crate::{assert_node, assert_path};
     use destack_dir::{
         Declarator, Expression, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+        TypeExpression,
     };
 
     // Test that infer type variables are visible in the then-branch of conditional types.
@@ -2873,9 +2516,9 @@ let Foo: Foo = Foo;
                         assert_node!(
                             tree,
                             *ty_id,
-                            Expression::UnresolvedPath {
+                            TypeExpression::Reference {
                                 path,
-                                static_arguments: _,
+                                generic_arguments: _,
                                 space_order,
                             } => {
                                 assert_path!(test.program, path, "Foo");
@@ -2888,7 +2531,7 @@ let Foo: Foo = Foo;
                             *value_id,
                             Expression::UnresolvedPath {
                                 path,
-                                static_arguments: _,
+                                generic_arguments: _,
                                 space_order,
                             } => {
                                 assert_path!(test.program, path, "Foo");

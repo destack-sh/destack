@@ -18,6 +18,7 @@ impl Compiler {
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {
         match scalar_literal {
+            ast::ScalarLiteral::Null => ScalarLiteral::Null,
             ast::ScalarLiteral::Boolean(boolean) => ScalarLiteral::Boolean(*boolean),
             ast::ScalarLiteral::Integer(integer) => ScalarLiteral::Integer(*integer),
             ast::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Bigint(*bigint),

@@ -1,10 +1,10 @@
 use destack_ast::{self as ast};
 use destack_core::StringId;
 use destack_dir::{
-    DependencyAttributeClauseKind, DependencyItem, DependencyKind, DependencyMode,
-    DependencySource, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
-    Mutability, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    TypeTable,
+    DependencyItem, DependencyKind, DependencyMode, ImportAttribute, ImportAttributeClause,
+    ImportAttributeClauseKind, ImportAttributeValue, ImportSource, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, StaticKey,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -14,15 +14,18 @@ use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Bind an AST import source into a DIR dependency source.
-    pub(super) fn bind_dependency_source(&self, source: ast::ImportSource) -> DependencySource {
+    /// Bind an AST import source into a DIR import source.
+    pub(super) fn bind_import_source(&self, source: ast::ImportSource) -> ImportSource {
         match source {
-            ast::ImportSource::ImportStatement => DependencySource::ImportStatement,
-            ast::ImportSource::ReferencePathDirective => DependencySource::ReferencePathDirective,
-            ast::ImportSource::ReferenceTypesDirective => DependencySource::ReferenceTypesDirective,
-            ast::ImportSource::ReferenceLibDirective => DependencySource::ReferenceLibDirective,
-            ast::ImportSource::ImportEquals => DependencySource::ImportEquals,
-            ast::ImportSource::ImportCall => DependencySource::ImportCall,
+            ast::ImportSource::ImportStatement => ImportSource::ImportStatement,
+            ast::ImportSource::ReferencePathDirective => ImportSource::ReferencePathDirective,
+            ast::ImportSource::ReferenceTypesDirective => ImportSource::ReferenceTypesDirective,
+            ast::ImportSource::ReferenceLibDirective => ImportSource::ReferenceLibDirective,
+            ast::ImportSource::ReferenceNoDefaultLibDirective => {
+                ImportSource::ReferenceNoDefaultLibDirective
+            }
+            ast::ImportSource::ImportEquals => ImportSource::ImportEquals,
+            ast::ImportSource::ImportCall => ImportSource::ImportCall,
         }
     }
 
@@ -46,14 +49,71 @@ impl Compiler {
         }
     }
 
-    /// Bind one dependency attribute clause kind into DIR.
-    pub(super) fn bind_dependency_attribute_clause_kind(
+    /// Bind one import attribute clause kind into DIR.
+    pub(super) fn bind_import_attribute_clause_kind(
         &self,
-        kind: ast::DependencyAttributeClauseKind,
-    ) -> DependencyAttributeClauseKind {
+        kind: ast::ImportAttributeClauseKind,
+    ) -> ImportAttributeClauseKind {
         match kind {
-            ast::DependencyAttributeClauseKind::With => DependencyAttributeClauseKind::With,
-            ast::DependencyAttributeClauseKind::Assert => DependencyAttributeClauseKind::Assert,
+            ast::ImportAttributeClauseKind::With => ImportAttributeClauseKind::With,
+            ast::ImportAttributeClauseKind::Assert => ImportAttributeClauseKind::Assert,
+        }
+    }
+
+    /// Bind one import attribute clause into DIR.
+    pub(super) fn bind_import_attribute_clause(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        clause: &ast::ImportAttributeClause,
+    ) -> ImportAttributeClause {
+        let kind = self.bind_import_attribute_clause_kind(clause.kind);
+        let attributes = clause
+            .attributes
+            .iter()
+            .map(|attribute| self.bind_import_attribute(module, ast, attribute))
+            .collect();
+
+        ImportAttributeClause { kind, attributes }
+    }
+
+    /// Bind one import attribute into DIR.
+    pub(super) fn bind_import_attribute(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        attribute: &ast::ImportAttribute,
+    ) -> ImportAttribute {
+        let key = self.bind_name(ast, attribute.key);
+        let value = self.bind_import_attribute_value(module, ast, &attribute.value);
+
+        ImportAttribute { key, value }
+    }
+
+    /// Bind one import attribute value into DIR.
+    pub(super) fn bind_import_attribute_value(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        value: &ast::ImportAttributeValue,
+    ) -> ImportAttributeValue {
+        match value {
+            ast::ImportAttributeValue::ScalarLiteral(value) => {
+                ImportAttributeValue::ScalarLiteral(self.bind_scalar_literal(module, ast, value))
+            }
+            ast::ImportAttributeValue::Array(values) => ImportAttributeValue::Array(
+                values
+                    .iter()
+                    .map(|value| self.bind_import_attribute_value(module, ast, value))
+                    .collect(),
+            ),
+            ast::ImportAttributeValue::Object(attributes) => ImportAttributeValue::Object(
+                attributes
+                    .iter()
+                    .map(|attribute| self.bind_import_attribute(module, ast, attribute))
+                    .collect(),
+            ),
+            ast::ImportAttributeValue::Error => ImportAttributeValue::Error,
         }
     }
 
@@ -66,7 +126,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        source: DependencySource,
+        source: ImportSource,
         kind: ast::DependencyKind,
         target: Option<StringId>,
         ast_item_id: ast::LocalNodeId<ast::DependencyItem>,
@@ -97,7 +157,7 @@ impl Compiler {
 
         let is_export = matches!(
             source,
-            DependencySource::ExportStatement | DependencySource::ValueExpression
+            ImportSource::ExportStatement | ImportSource::ValueExpression
         );
         let kind = self.bind_dependency_kind(ast_kind.unwrap_or(kind));
         let mode = self.bind_dependency_mode(*ast_mode);
@@ -186,12 +246,13 @@ impl Compiler {
             if symbol_space == SymbolSpace::Value
                 && matches!(
                     source,
-                    DependencySource::ImportStatement
-                        | DependencySource::ReferencePathDirective
-                        | DependencySource::ReferenceTypesDirective
-                        | DependencySource::ReferenceLibDirective
-                        | DependencySource::ImportEquals
-                        | DependencySource::ImportCall
+                    ImportSource::ImportStatement
+                        | ImportSource::ReferencePathDirective
+                        | ImportSource::ReferenceTypesDirective
+                        | ImportSource::ReferenceLibDirective
+                        | ImportSource::ReferenceNoDefaultLibDirective
+                        | ImportSource::ImportEquals
+                        | ImportSource::ImportCall
                 )
             {
                 self.apply_binding_mutability(symbols, symbol_id, Mutability::Immutable);

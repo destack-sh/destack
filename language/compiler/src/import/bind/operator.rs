@@ -1,6 +1,6 @@
 use crate::Compiler;
 use destack_ast as ast;
-use destack_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
+use destack_dir::{AssignOperator, UnaryOperator};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -20,24 +20,6 @@ impl Compiler {
             ast::UnaryOperator::Void => UnaryOperator::Void,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
             ast::UnaryOperator::Spread => UnaryOperator::Spread,
-        }
-    }
-
-    /// Bind a type unary operator to a DIR type unary operator.
-    pub(super) fn bind_type_unary_operator(
-        &self,
-        type_unary_operator: ast::TypeUnaryOperator,
-    ) -> TypeUnaryOperator {
-        match type_unary_operator {
-            ast::TypeUnaryOperator::Not => TypeUnaryOperator::Not,
-            ast::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
-            ast::TypeUnaryOperator::Newtype => TypeUnaryOperator::Newtype,
-            ast::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
-            ast::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
-            ast::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
-            ast::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
-            ast::TypeUnaryOperator::AsComptime => TypeUnaryOperator::AsComptime,
-            ast::TypeUnaryOperator::AsConst => TypeUnaryOperator::AsConst,
         }
     }
 
@@ -105,23 +87,6 @@ impl Compiler {
 
             // container
             ast::BinaryOperator::In => destack_dir::BinaryOperator::In,
-            ast::BinaryOperator::InstanceOf => destack_dir::BinaryOperator::InstanceOf,
-        }
-    }
-
-    /// Bind a type binary operator to a DIR type binary operator.
-    pub(super) fn bind_type_binary_operator(
-        &self,
-        type_binary_operator: ast::TypeBinaryOperator,
-    ) -> TypeBinaryOperator {
-        match type_binary_operator {
-            ast::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
-            ast::TypeBinaryOperator::In => TypeBinaryOperator::In,
-            ast::TypeBinaryOperator::Is => TypeBinaryOperator::Is,
-            ast::TypeBinaryOperator::InstanceOf => TypeBinaryOperator::InstanceOf,
-            ast::TypeBinaryOperator::Satisfies => TypeBinaryOperator::Satisfies,
-            ast::TypeBinaryOperator::Extends => TypeBinaryOperator::Extends,
-            ast::TypeBinaryOperator::Implements => TypeBinaryOperator::Implements,
         }
     }
 

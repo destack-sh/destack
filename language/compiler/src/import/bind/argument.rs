@@ -6,70 +6,19 @@ use destack_dir::{
     BindingModifier, BindingOperator, DeclarationKind, Expression, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, Parameter,
     ProvenanceReason, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing,
-    TypeTable, VarianceModifier, Visibility,
+    Type, TypeTable, VarianceModifier, Visibility,
 };
 use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Bind a binding modifiers into a DIR binding modifiers.
-    pub(super) fn bind_binding_modifier(
-        &self,
-        _module: &Module,
-        _ast: &Ast,
-        modifiers: ast::BindingModifier,
-    ) -> BindingModifier {
-        let kind = modifiers.kind.map(|kind| match kind {
-            ast::BindingKind::Must => BindingKind::Must,
-            ast::BindingKind::Maybe => BindingKind::Maybe,
-        });
-        let declaration = modifiers.declaration.map(|kind| match kind {
-            ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
-            ast::DeclarationKind::Definition => DeclarationKind::Definition,
-        });
-        let abstraction = modifiers.abstraction.map(|abstraction| match abstraction {
-            ast::AbstractionModifier::Abstract => AbstractionModifier::Abstract,
-            ast::AbstractionModifier::Override => AbstractionModifier::Override,
-            ast::AbstractionModifier::AbstractOverride => AbstractionModifier::AbstractOverride,
-        });
-        let variance = modifiers.variance.map(|variance| match variance {
-            ast::VarianceModifier::In => VarianceModifier::In,
-            ast::VarianceModifier::Out => VarianceModifier::Out,
-            ast::VarianceModifier::InOut => VarianceModifier::InOut,
-        });
-        let anchor = modifiers.anchor.map(|anchor| match anchor {
-            ast::BindingAnchor::Static => BindingAnchor::Static,
-            ast::BindingAnchor::Instance => BindingAnchor::Instance,
-        });
-        let mutability = modifiers.mutability.map(|mutability| match mutability {
-            ast::Mutability::Immutable => Mutability::Immutable,
-            ast::Mutability::Mutable => Mutability::Mutable,
-        });
-        let visibility = modifiers.visibility.map(|visibility| match visibility {
-            ast::Visibility::Public => Visibility::Public,
-            ast::Visibility::Protected => Visibility::Protected,
-            ast::Visibility::Private => Visibility::Private,
-        });
-        let operator = modifiers.operator.map(|operator| match operator {
-            ast::BindingOperator::AsConst => BindingOperator::AsConst,
-        });
-        let accessor = modifiers.accessor.map(|accessor| match accessor {
-            ast::AccessorKind::Accessor => AccessorKind::Accessor,
-        });
-        let timing = modifiers.timing.map(|timing| match timing {
-            ast::Timing::Comptime => Timing::Comptime,
-        });
-        BindingModifier {
-            kind,
-            declaration,
-            abstraction,
-            variance,
-            anchor,
-            mutability,
-            visibility,
-            operator,
-            accessor,
-            timing,
+    /// Bind visibility into a DIR visibility.
+    #[inline]
+    pub(super) fn bind_visibility(&self, visibility: ast::Visibility) -> destack_dir::Visibility {
+        match visibility {
+            ast::Visibility::Public => destack_dir::Visibility::Public,
+            ast::Visibility::Protected => destack_dir::Visibility::Protected,
+            ast::Visibility::Private => destack_dir::Visibility::Private,
         }
     }
 
@@ -93,7 +42,7 @@ impl Compiler {
         let parameter_id =
             tree.reserve_from_source(NodeType::Parameter, ast_parameter_id.id, scope, parent_id);
 
-        // prefer type space for defaults on type parameters
+        // defaults on type-space parameters should also parse in type space first
         let default_space_order = match symbol_space {
             SymbolSpace::Type => SymbolSpaceOrder::TypeThenValue,
             SymbolSpace::Value | SymbolSpace::TypeValue | SymbolSpace::Label => {
@@ -101,21 +50,36 @@ impl Compiler {
             }
         };
 
-        let constraint_scope = (scope.0, LocalScopeMark::end());
-        let default_mutability = self.default_binding_mutability(module);
+        // pattern bindings still need a runtime binding mutability
+        let binding_mutability = self.default_binding_mutability(module);
+
         match ast_parameter {
             ast::Parameter::Named {
-                modifiers,
                 name,
-                ty,
+                visibility,
+                is_readonly,
+                is_optional,
+                declared_type,
                 default,
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let binding_mutability = modifiers
-                    .and_then(|modifiers| modifiers.mutability)
-                    .unwrap_or(default_mutability);
                 let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let visibility = visibility.map(|visibility| self.bind_visibility(visibility));
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        declared_type,
+                        Some(parameter_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
@@ -136,51 +100,45 @@ impl Compiler {
                     module,
                     ast,
                     symbol_space,
-                    StaticKey::Name(name),
+                    destack_dir::StaticKey::Name(name),
                     scope,
                     None,
                     symbols,
                 );
                 let parameter = Parameter::Named {
-                    modifiers,
                     name,
+                    visibility,
+                    is_readonly: *is_readonly,
+                    is_optional: *is_optional,
+                    declared_type,
                     default,
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
+
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
-                if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        constraint_scope,
-                        *ty,
-                        Some(parameter_id.into()),
-                        tree,
-                        symbols,
-                        types,
+
+                if let Some(declared_type) = declared_type {
+                    let declared_type_id =
+                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    types.set_declared_type(
+                        parameter_id.into_global_any(module.id),
+                        declared_type_id,
                     );
-                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
                 }
+
                 parameter_id
             }
             ast::Parameter::Pattern {
-                modifiers,
                 pattern,
-                ty,
+                is_optional,
+                declared_type,
                 default,
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let binding_mutability = modifiers
-                    .and_then(|modifiers| modifiers.mutability)
-                    .unwrap_or(default_mutability);
                 let pattern = self.bind_pattern(
                     module,
                     ast,
@@ -198,6 +156,22 @@ impl Compiler {
                     symbols,
                     types,
                 );
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        declared_type,
+                        Some(parameter_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
@@ -217,92 +191,94 @@ impl Compiler {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
                 let parameter = Parameter::Pattern {
-                    modifiers,
                     pattern,
+                    is_optional: *is_optional,
+                    declared_type,
                     default,
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
+
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
-                if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(
+
+                if let Some(declared_type) = declared_type {
+                    let declared_type_id =
+                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    types.set_declared_type(
+                        parameter_id.into_global_any(module.id),
+                        declared_type_id,
+                    );
+                }
+
+                parameter_id
+            }
+            ast::Parameter::VariadicNamed {
+                name,
+                visibility,
+                is_readonly,
+                declared_type,
+            } => {
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                let visibility = visibility.map(|visibility| self.bind_visibility(visibility));
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
                         global_augmentation_scope,
                         module_bindings,
-                        constraint_scope,
-                        *ty,
+                        scope,
+                        declared_type,
                         Some(parameter_id.into()),
                         tree,
                         symbols,
                         types,
-                    );
-                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
-                }
-                parameter_id
-            }
-            ast::Parameter::VariadicNamed {
-                modifiers,
-                name,
-                ty,
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let binding_mutability = modifiers
-                    .and_then(|modifiers| modifiers.mutability)
-                    .unwrap_or(default_mutability);
-                let name = self.repository.strings.intern_from(&ast.strings, *name);
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     ast,
                     symbol_space,
-                    StaticKey::Name(name),
+                    destack_dir::StaticKey::Name(name),
                     scope,
                     None,
                     symbols,
                 );
                 let parameter = Parameter::VariadicNamed {
-                    modifiers,
                     name,
+                    visibility,
+                    is_readonly: *is_readonly,
+                    declared_type,
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
+
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
-                if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        constraint_scope,
-                        *ty,
-                        Some(parameter_id.into()),
-                        tree,
-                        symbols,
-                        types,
+
+                if let Some(declared_type) = declared_type {
+                    let declared_type_id =
+                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    types.set_declared_type(
+                        parameter_id.into_global_any(module.id),
+                        declared_type_id,
                     );
-                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
                 }
+
                 parameter_id
             }
             ast::Parameter::VariadicPattern {
-                modifiers,
                 pattern,
-                ty,
+                declared_type,
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let binding_mutability = modifiers
-                    .and_then(|modifiers| modifiers.mutability)
-                    .unwrap_or(default_mutability);
                 let pattern = self.bind_pattern(
                     module,
                     ast,
@@ -320,34 +296,46 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
-                let parameter = Parameter::VariadicPattern {
-                    modifiers,
-                    pattern,
-                    symbol: symbol_id,
-                };
-                let parameter_id = tree.insert(parameter_id, parameter);
-                let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
-                self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
-                if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
                         global_augmentation_scope,
                         module_bindings,
-                        constraint_scope,
-                        *ty,
+                        scope,
+                        declared_type,
                         Some(parameter_id.into()),
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::TypeThenValue,
+                    )
+                });
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
+                let parameter = Parameter::VariadicPattern {
+                    pattern,
+                    declared_type,
+                    symbol: symbol_id,
+                };
+                let parameter_id = tree.insert(parameter_id, parameter);
+
+                let symbol = symbols.get_symbol_mut(symbol_id);
+                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+
+                self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
+                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+
+                if let Some(declared_type) = declared_type {
+                    let declared_type_id =
+                        types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+                    types.set_declared_type(
+                        parameter_id.into_global_any(module.id),
+                        declared_type_id,
                     );
-                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
                 }
+
                 parameter_id
             }
             ast::Parameter::Error => {
@@ -355,9 +343,12 @@ impl Compiler {
                     self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
                 let parameter = Parameter::Error { symbol: symbol_id };
                 let parameter_id = tree.insert(parameter_id, parameter);
+
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+
                 self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+
                 parameter_id
             }
         }
@@ -382,19 +373,10 @@ impl Compiler {
         let ast_argument = ast.tree.get(ast_argument_id);
         let argument_id =
             tree.reserve_from_source(NodeType::Argument, ast_argument_id.id, scope, parent_id);
+
         match ast_argument {
-            ast::Argument::Named {
-                modifiers,
-                name,
-                value,
-                ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let name = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, name.string());
+            ast::Argument::Named { name, value } => {
+                let name = self.bind_name(ast, *name);
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -409,18 +391,10 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(
-                    argument_id,
-                    Argument::Named {
-                        modifiers,
-                        name,
-                        value,
-                    },
-                )
+                tree.insert(argument_id, Argument::Named { name, value })
             }
-            ast::Argument::Positional { modifiers, value } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+            ast::Argument::Labeled { label, value } => {
+                let label = self.repository.strings.intern_from(&ast.strings, *label);
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -435,16 +409,26 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Positional { modifiers, value })
+                tree.insert(argument_id, Argument::Labeled { label, value })
             }
-            ast::Argument::Spread {
-                modifiers,
-                label,
-                value,
-                ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+            ast::Argument::Positional { value } => {
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(argument_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+                tree.insert(argument_id, Argument::Positional { value })
+            }
+            ast::Argument::Spread { label, value } => {
                 let label =
                     label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
                 let value = self.bind_expression(
@@ -461,46 +445,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(
-                    argument_id,
-                    Argument::Spread {
-                        modifiers,
-                        label,
-                        value,
-                    },
-                )
-            }
-            ast::Argument::Labeled {
-                modifiers,
-                label,
-                value,
-                ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let label = self.repository.strings.intern_from(&ast.strings, *label);
-                let value = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *value,
-                    Some(argument_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                tree.insert(
-                    argument_id,
-                    Argument::Labeled {
-                        modifiers,
-                        label,
-                        value,
-                    },
-                )
+                tree.insert(argument_id, Argument::Spread { label, value })
             }
             ast::Argument::Error => {
                 let error_expression_id = tree.reserve_from(
@@ -511,7 +456,6 @@ impl Compiler {
                     Some(ProvenanceReason::Bound),
                 );
                 let error_expression = tree.insert(error_expression_id, Expression::Error);
-
                 tree.insert(
                     argument_id,
                     Argument::Error {
@@ -520,73 +464,5 @@ impl Compiler {
                 )
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::tests::TestProgram;
-    use crate::{assert_node, assert_path};
-    use destack_dir::{Declaration, Expression, Parameter, SymbolSpaceOrder};
-
-    /// Check static parameter defaults use type space order.
-    #[test]
-    fn test_bind_static_parameter_default_space_order() {
-        // setup module
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-type Wrapper<T = Foo> = T;
-"#,
-        );
-
-        // bind and compile
-        test.bind_module(module_id);
-        test.compile();
-        test.check_clean();
-
-        // load bound tree
-        let dir = test.dir_base(module_id);
-        let tree = &dir.tree;
-
-        // select the root expression
-        let root_id = test.expect_root_expression(module_id);
-
-        // assert default path space order
-        assert_node!(
-            tree,
-            root_id,
-            Expression::Declaration { declaration } => {
-                assert_node!(
-                    tree,
-                    *declaration,
-                    Declaration::Type {
-                        static_parameters: Some(static_parameters),
-                        ..
-                    } => {
-                        let parameter_id = static_parameters.first().copied().expect("expected parameter");
-                        assert_node!(
-                            tree,
-                            parameter_id,
-                            Parameter::Named { default: Some(default), .. } => {
-                                assert_node!(
-                                    tree,
-                                    *default,
-                                    Expression::UnresolvedPath {
-                                        path,
-                                        static_arguments: _,
-                                        space_order,
-                                    } => {
-                                        assert_path!(test.program, path, "Foo");
-                                        assert_eq!(*space_order, SymbolSpaceOrder::TypeThenValue);
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
-            }
-        );
     }
 }
