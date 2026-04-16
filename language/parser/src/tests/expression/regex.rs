@@ -176,7 +176,7 @@ fn test_parse_regex_literal_after_binary_in_keyword() {
     });
 }
 
-/// Parse regex literal after binary instanceof keyword.
+/// Parse regex literal after an instanceof keyword.
 #[test]
 fn test_parse_regex_literal_after_binary_instanceof_keyword() {
     // source: value instanceof /[A-Z]/
@@ -186,10 +186,9 @@ fn test_parse_regex_literal_after_binary_instanceof_keyword() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // value instanceof /[A-Z]/
-    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::InstanceOf);
-        assert_expression_path!(parser, parser.tree.get(*left), "value");
-        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+    assert_node!(parser.tree, expr_id, Expression::InstanceOf { value, target } => {
+        assert_expression_path!(parser, parser.tree.get(*value), "value");
+        assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
     });
 }
 
@@ -284,9 +283,9 @@ fn test_parse_regex_literal_after_coalesce_assign() {
     });
 }
 
-/// Parse division after a TypeScript non-null assertion.
+/// Parse division after a non-null assertion.
 #[test]
-fn test_parse_divide_after_typescript_non_null_assertion() {
+fn test_parse_divide_after_non_null_assertion() {
     // source: x! / 2
     let mut test = TestParser::new_with_options("x! / 2", LanguageType::TypeScript);
     let mut parser = test.prepare();

@@ -8,13 +8,10 @@ use destack_source::LanguageType;
 fn test_parse_tuple_literal() {
     let mut test = TestParser::new("(1, 2)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
-    assert_node!(
-        parser.tree,
-        expr_id,
-        Expression::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+    let type_expression_id = parser.eat_type_expression().unwrap();
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
             assert_eq!(elements.len(), 2);
+
             // 1
             assert_node!(
                 parser.tree,
@@ -39,9 +36,7 @@ fn test_parse_tuple_literal() {
                     );
                 }
             );
-            });
-        }
-    );
+    });
 }
 
 /// Parse a tuple literal over multiple lines.
@@ -252,8 +247,8 @@ fn test_parse_mixed_index_call_postfix() {
 fn test_parse_empty_parenthesis_tuple() {
     let mut test = TestParser::new("()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::TupleExpression { elements, .. } => {
+    let type_expression_id = parser.eat_type_expression().unwrap();
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
         assert_eq!(elements.len(), 0);
     });
 }
@@ -284,9 +279,11 @@ fn test_parse_struct_literal_path() {
             });
         }
     );
+
+    test.assert_no_errors(&parser);
 }
 
-/// Parse a struct literal with static parameters and two fields.
+/// Parse a struct literal with generic parameters and two fields.
 #[test]
 fn test_parse_struct_literal_path_with_generic_parameters() {
     let mut test = TestParser::new_with_options(
@@ -319,6 +316,8 @@ geom.Mesh<2, 4> {
             });
         }
     );
+
+    test.assert_no_errors(&parser);
 }
 
 /// Parse boolean IdentifierName property keys and accessors in JavaScript.

@@ -479,8 +479,8 @@ impl Lexer {
         }
     }
 
-    /// Re-lex the current token as a TypeScript `<`.
-    pub(crate) fn re_lex_as_typescript_l_angle(&mut self, current_token: TokenSpan) -> TokenSpan {
+    /// Re-lex the current token as a typed `<`.
+    pub(crate) fn re_lex_as_typed_l_angle(&mut self, current_token: TokenSpan) -> TokenSpan {
         let start = current_token.span.start as usize;
         self.pos = start + 1;
         self.token_start = self.pos;

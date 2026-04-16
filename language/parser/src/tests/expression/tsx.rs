@@ -3,9 +3,8 @@ use crate::{assert_expression_path, assert_name, assert_node, assert_path, asser
 use destack_ast::*;
 use destack_source::LanguageType;
 
-/// TSX generic arrows with extends constraints should parse as functions.
 #[test]
-fn test_parse_tsx_generic_arrow_with_extends() {
+fn test_parse_generic_arrow_with_extends_before_tree() {
     let mut test = TestParser::new_with_options(
         "<P extends object>(x: P) => <Foo />",
         LanguageType::TypeScriptXml,
@@ -41,9 +40,8 @@ fn test_parse_tsx_generic_arrow_with_extends() {
     });
 }
 
-/// Parse map callbacks with parenthesized TSX element bodies.
 #[test]
-fn test_parse_tsx_parenthesized_tree_callback_body() {
+fn test_parse_parenthesized_tree_callback_body() {
     let mut test = TestParser::new_with_options(
         "items.map((item) => (<option>{item}</option>))",
         LanguageType::TypeScriptXml,
@@ -84,9 +82,8 @@ fn test_parse_tsx_parenthesized_tree_callback_body() {
     });
 }
 
-/// Parse TSX generic arrows without explicit disambiguators.
 #[test]
-fn test_parse_tsx_generic_arrow_without_disambiguator() {
+fn test_reject_generic_arrow_without_tree_disambiguator() {
     let mut test = TestParser::new_with_options("<R>(x: R) => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
@@ -94,9 +91,8 @@ fn test_parse_tsx_generic_arrow_without_disambiguator() {
     assert!(result.is_err());
 }
 
-/// Parse TSX generic arrows with trailing comma disambiguators.
 #[test]
-fn test_parse_tsx_generic_arrow_with_trailing_comma() {
+fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
     let mut test = TestParser::new_with_options("<T,>(x: T): T => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
@@ -127,9 +123,8 @@ fn test_parse_tsx_generic_arrow_with_trailing_comma() {
     });
 }
 
-/// Parse ternaries with typed arrow functions in TSX context.
 #[test]
-fn test_parse_tsx_ternary_typed_arrow_function() {
+fn test_parse_ternary_typed_arrow_function_before_tree() {
     let mut test = TestParser::new_with_options(
         r#"Math.random() > 0.5
     ? (): void => foo()
@@ -165,9 +160,8 @@ fn test_parse_tsx_ternary_typed_arrow_function() {
     });
 }
 
-/// Parse ternaries with parenthesized typed arrow branches in TSX context.
 #[test]
-fn test_parse_tsx_ternary_parenthesized_typed_arrow_function() {
+fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
     let mut test = TestParser::new_with_options(
         r#"Math.random() > 0.5
     ? ((): void => foo())
@@ -207,9 +201,8 @@ fn test_parse_tsx_ternary_parenthesized_typed_arrow_function() {
     });
 }
 
-/// Parse TSX tree attributes with typed arrow function values.
 #[test]
-fn test_parse_tsx_tree_attribute_typed_arrow_value() {
+fn test_parse_tree_attribute_typed_arrow_value() {
     let mut test = TestParser::new_with_options(
         "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
         LanguageType::TypeScriptXml,
@@ -238,9 +231,8 @@ fn test_parse_tsx_tree_attribute_typed_arrow_value() {
     });
 }
 
-/// Parse ternaries with typed arrow functions inside TSX tree attributes.
 #[test]
-fn test_parse_tsx_ternary_tree_attribute_typed_arrow() {
+fn test_parse_ternary_tree_attribute_typed_arrow() {
     let mut test = TestParser::new_with_options(
         "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
         LanguageType::TypeScriptXml,
@@ -273,9 +265,8 @@ fn test_parse_tsx_ternary_tree_attribute_typed_arrow() {
     });
 }
 
-/// Parse TSX attributes whose values are direct nested tree literals.
 #[test]
-fn test_parse_tsx_tree_attribute_direct_nested_tree_value() {
+fn test_parse_tree_attribute_direct_nested_tree_value() {
     let mut test = TestParser::new_with_options(
         "<Foo prop=<Bar><Baz /></Bar> />;",
         LanguageType::TypeScriptXml,
@@ -311,9 +302,8 @@ fn test_parse_tsx_tree_attribute_direct_nested_tree_value() {
     });
 }
 
-/// Parse TSX closing tags with a trailing line comment before `>`.
 #[test]
-fn test_parse_tsx_closing_tag_with_trailing_line_comment_before_greater_than() {
+fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
     let mut test = TestParser::new_with_options("<a></a // line\n>;", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -324,9 +314,8 @@ fn test_parse_tsx_closing_tag_with_trailing_line_comment_before_greater_than() {
     });
 }
 
-/// Parse TSX typed arrow parameters whose type is a generic function type.
 #[test]
-fn test_parse_tsx_typed_arrow_parameter_with_generic_function_target_type() {
+fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tree() {
     let mut test = TestParser::new_with_options(
         "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
         LanguageType::TypeScriptXml,

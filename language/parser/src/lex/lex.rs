@@ -989,7 +989,7 @@ impl Lexer {
         debug_assert!(is_identifier_start(first_char));
         let start_pos = self.pos;
 
-        // fast path: ascii identifier tails dominate JS/TS sources
+        // fast path: ascii identifier tails dominate compatibility-mode sources
         if first_char.is_ascii() {
             // consume mixed ascii and unicode identifier tails without char by char ascii scans
             loop {
@@ -1582,7 +1582,7 @@ impl Lexer {
     }
 
     /// Parses a regex string (excluding first `/`, including any flags after `/`).
-    /// Works exactly like JS/TS regex literals.
+    /// Works exactly like modern compatibility regex literals.
     pub(super) fn eat_regex_string(&mut self) -> bool {
         debug_assert!(self.prev() == '/');
         let mut escaped = false;
@@ -1769,7 +1769,7 @@ impl Lexer {
         (false, has_line_terminator)
     }
 
-    /// Tries to eat tree literal text content (TSX-compatible).
+    /// Tries to eat tree literal text content.
     /// Returns a Literal token with TreeString type if there's text content.
     /// Text content ends at `<`, `{`, or `&` (for HTML entities).
     fn try_eat_tree_text(&mut self) -> Option<Token> {
@@ -1797,7 +1797,7 @@ impl Lexer {
         }
 
         // always produce a token for consumed text
-        // (the parser will normalize/trim whitespace as needed per TSX rules)
+        // the parser will normalize and trim whitespace as needed for tree compatibility
         let token = Token::new(
             TokenType::Literal,
             self.get_pos_within_token(),
