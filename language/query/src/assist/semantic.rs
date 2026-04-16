@@ -404,7 +404,7 @@ pub fn semantic_tokens(
         };
 
         let (token_type, modifiers) = match member {
-            dir::Member::Type {
+            dir::Member::AssociatedType {
                 is_static,
                 is_abstract,
                 ..
@@ -412,10 +412,9 @@ pub fn semantic_tokens(
                 let mods = modifiers_from_member_flags(true, false, *is_static, *is_abstract);
                 (SemanticTokenType::Type, mods)
             }
-            dir::Member::ComptimeConst { is_static, .. } => {
+            dir::Member::AssociatedConst { is_static, .. } => {
                 let mut mods = modifiers_from_member_flags(true, true, *is_static, false);
                 mods = mods.union(SemanticTokenModifiers::READONLY);
-                mods = mods.union(SemanticTokenModifiers::STATIC);
                 (SemanticTokenType::Property, mods)
             }
             dir::Member::Field {

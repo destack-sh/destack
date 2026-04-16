@@ -254,8 +254,14 @@ fn resolve_nominal_type_symbol(
         | dir::Type::ValueOf { right: value, .. }
         | dir::Type::ReferenceOf { right: value, .. }
         | dir::Type::PointerOf { right: value, .. }
-        | dir::Type::Unary { right: value, .. } => resolve_nominal_type_symbol(types, *value),
-        dir::Type::Binary { left, right, .. } => resolve_nominal_type_symbol(types, *left)
+        | dir::Type::Readonly { target_type: value }
+        | dir::Type::KeyOf { target_type: value }
+        | dir::Type::Must { target_type: value }
+        | dir::Type::AsComptime { target_type: value }
+        | dir::Type::Not { target_type: value } => resolve_nominal_type_symbol(types, *value),
+        dir::Type::In { left, right }
+        | dir::Type::Extends { left, right }
+        | dir::Type::Implements { left, right } => resolve_nominal_type_symbol(types, *left)
             .or_else(|| resolve_nominal_type_symbol(types, *right)),
         dir::Type::Conditional {
             left,
@@ -422,9 +428,7 @@ fn declaration_parameter_type_ids(
         NodeType::Member => {
             let member_id = declaration_id.try_into().ok()?;
             let member = dir_tree.get::<dir::Member>(member_id);
-            let dir::Member::Method { signature, .. } = member else {
-                return None;
-            };
+            let signature = member.signature()?;
             signature.parameters.clone()
         }
         _ => return None,

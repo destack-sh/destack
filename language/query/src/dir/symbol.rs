@@ -166,6 +166,18 @@ pub(crate) fn build_symbol_index_entries_for_module(
             }
         }
 
+        if let Some(member_ids) = declaration.type_member_ids() {
+            for member_id in member_ids {
+                let Some(entry) = type_member_to_symbol_index_entry(
+                    repository, &ctx, dir_tree, *member_id, &name,
+                ) else {
+                    continue;
+                };
+
+                entries.push(entry);
+            }
+        }
+
         if let dir::Declaration::Enum(declaration) = declaration {
             for field_id in &declaration.fields {
                 let Some(entry) =
@@ -326,14 +338,52 @@ fn member_to_symbol_index_entry(
     container_name: &str,
 ) -> Option<SymbolIndexEntry> {
     let member = dir_tree.get::<dir::Member>(member_id);
-    let key = member.key()?;
-    let name = member_key_name(repository, key)?;
+
+    // member name and kind
     let kind = symbol_index_kind_for_member(member)?;
+    let name = if let Some(name) = member.name() {
+        repository.strings.get(name).to_string()
+    } else {
+        let key = member.key()?;
+        member_key_name(repository, key)?
+    };
+
     let range = symbol_index_range(ctx, dir_tree, member_id.id)?;
 
     if is_synthetic_function_keyword_field(member, &name, range) {
         return None;
     }
+
+    Some(SymbolIndexEntry {
+        name,
+        kind,
+        module_id: ctx.module_id(),
+        file_id: ctx.file_id(),
+        range,
+        container_name: Some(container_name.to_string()),
+    })
+}
+
+/// Convert one type member to one symbol index entry.
+fn type_member_to_symbol_index_entry(
+    repository: &Repository,
+    ctx: &QueryContext,
+    dir_tree: &dir::NodeTree,
+    member_id: dir::LocalNodeId<dir::TypeMember>,
+    container_name: &str,
+) -> Option<SymbolIndexEntry> {
+    let member = dir_tree.get::<dir::TypeMember>(member_id);
+
+    // type member name and kind
+    let kind = symbol_index_kind_for_type_member(member)?;
+    let name = if let Some(name) = member.name() {
+        repository.strings.get(name).to_string()
+    } else {
+        let key = member.key()?;
+        member_key_name(repository, key)?
+    };
+
+    let range = symbol_index_range(ctx, dir_tree, member_id.id)?;
 
     Some(SymbolIndexEntry {
         name,
@@ -369,14 +419,27 @@ fn enum_field_to_symbol_index_entry(
 /// Map one member to the symbol index kind.
 fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolIndexKind> {
     match member {
-        dir::Member::Type { .. } => Some(SymbolIndexKind::TypeParameter),
-        dir::Member::ComptimeConst { .. } => Some(SymbolIndexKind::Constant),
+        dir::Member::AssociatedType { .. } => Some(SymbolIndexKind::TypeParameter),
+        dir::Member::AssociatedConst { .. } => Some(SymbolIndexKind::Constant),
         dir::Member::Field { .. } => Some(SymbolIndexKind::Field),
         dir::Member::Method { .. } => Some(SymbolIndexKind::Method),
         dir::Member::Embed { .. }
         | dir::Member::StaticBlock { .. }
         | dir::Member::ComptimeBlock { .. }
         | dir::Member::Error { .. } => None,
+    }
+}
+
+/// Map one type member to the symbol index kind.
+fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolIndexKind> {
+    match member {
+        dir::TypeMember::AssociatedType { .. } => Some(SymbolIndexKind::TypeParameter),
+        dir::TypeMember::AssociatedConst { .. } => Some(SymbolIndexKind::Constant),
+        dir::TypeMember::Field { .. } => Some(SymbolIndexKind::Field),
+        dir::TypeMember::Method { .. } => Some(SymbolIndexKind::Method),
+        dir::TypeMember::IndexSignature { .. } => None,
+        dir::TypeMember::Embed { .. } => None,
+        dir::TypeMember::Error { .. } => None,
     }
 }
 

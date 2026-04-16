@@ -488,11 +488,7 @@ fn resolve_interface_member_target(
         return None;
     };
     let member = dir_tree.get::<dir::Member>(member_id);
-    let (member_kind, member_key) = match member {
-        dir::Member::Method { key, .. } => (InterfaceMemberKind::Method, key.as_ref()?),
-        dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key),
-        _ => return None,
-    };
+    let (member_kind, member_key) = interface_member_kind_and_key(member)?;
     let member_name = member_key_name(repository, member_key)?;
 
     // resolve the parent declaration and ensure it is an interface
@@ -578,15 +574,8 @@ fn collect_interface_member_implementations(
                 continue;
             }
 
-            let (member_kind, member_key) = match member {
-                dir::Member::Method { key, .. } => {
-                    let Some(key) = key.as_ref() else {
-                        continue;
-                    };
-                    (InterfaceMemberKind::Method, key)
-                }
-                dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key),
-                _ => continue,
+            let Some((member_kind, member_key)) = interface_member_kind_and_key(member) else {
+                continue;
             };
             if member_kind != target.member_kind {
                 continue;
@@ -607,6 +596,15 @@ fn collect_interface_member_implementations(
     members.sort();
     members.dedup();
     members
+}
+
+/// Resolve the interface-member kind and key for one declaration member.
+fn interface_member_kind_and_key(member: &dir::Member) -> Option<(InterfaceMemberKind, &dir::Key)> {
+    match member {
+        dir::Member::Method { key, .. } => Some((InterfaceMemberKind::Method, key.as_ref()?)),
+        dir::Member::Field { key, .. } => Some((InterfaceMemberKind::Field, key)),
+        _ => None,
+    }
 }
 
 /// Check whether a modifier keyword can target the declaration for rename.
