@@ -852,7 +852,7 @@ switch (value) {
 
     /// Parse minified switch cases where `continue` is followed by `}` and another `if`.
     #[test]
-    fn test_parse_switch_case_minified_if_continue_then_if_javascript() {
+    fn test_parse_switch_case_minified_if_continue_then_if() {
         let mut test = TestParser::new_with_options(
             "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
             LanguageType::JavaScript,

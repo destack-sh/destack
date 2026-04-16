@@ -214,9 +214,9 @@ extension MyExt for Foo<int32> {
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width, is_signed }) } => {
-                        assert_eq!(*width, Some(32));
-                        assert!(*is_signed);
-                    });
+                            assert_eq!(*width, Some(32));
+                            assert!(*is_signed);
+                        });
                     });
                 });
             });
@@ -251,9 +251,9 @@ extension for Bar<int32> implements Baz {
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width, is_signed }) } => {
-                        assert_eq!(*width, Some(32));
-                        assert!(*is_signed);
-                    });
+                            assert_eq!(*width, Some(32));
+                            assert!(*is_signed);
+                        });
                     });
                 });
             });
@@ -300,8 +300,8 @@ extension<U> for Bar<T> implements Baz<T> {
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
-                        assert_path!(parser, *path, "T");
-                    });
+                            assert_path!(parser, *path, "T");
+                        });
                     });
                 });
             });
@@ -316,8 +316,8 @@ extension<U> for Bar<T> implements Baz<T> {
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
-                        assert_path!(parser, *path, "T");
-                    });
+                            assert_path!(parser, *path, "T");
+                        });
                     });
                 });
             });
@@ -359,8 +359,8 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
-                        assert_path!(parser, *path, "T");
-                    });
+                            assert_path!(parser, *path, "T");
+                        });
                     });
                 });
             });
@@ -375,8 +375,8 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments: _ } => {
-                        assert_path!(parser, *path, "T");
-                    });
+                            assert_path!(parser, *path, "T");
+                        });
                     });
                 });
             });

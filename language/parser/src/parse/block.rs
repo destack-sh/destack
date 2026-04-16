@@ -172,7 +172,7 @@ impl Parser {
             self.eat_expression_in_scope()?
         };
 
-        // reject labelled declarations in JS and TS
+        // semicolon statement forms reject labelled declarations
         if !self.language.is_destack() && self.is_single_statement_declaration(body) {
             return Err(ParseError::unexpected(self.tree.get_span(body)));
         }
@@ -381,7 +381,7 @@ impl Parser {
         }
 
         // identifier keywords stay in the statement entry path
-        self.eat_expression_after_statement_keyword_dispatch()
+        self.eat_expression_in_scope()
     }
 
     /// Eat a block or a single statement wrapped in a block.
@@ -638,7 +638,7 @@ impl Parser {
 
         // finalize the remaining tail expression
         let tail_expression = if let Some(expression_id) = pending_tail_expression {
-            // explicit blocks in destack preserve expression tails for implicit returns
+            // explicit expression blocks can preserve one trailing value
             if format == BlockFormat::Explicit
                 && self.language.is_destack()
                 && block_context == BlockContext::Expression
@@ -733,7 +733,7 @@ impl Parser {
         let has_separator = separator_cursor.starts_after_statement_boundary();
         let next_token_type = separator_cursor.token_type;
 
-        // explicit destack expression blocks keep value capable control tails
+        // explicit expression blocks can keep value-capable control tails
         let keeps_value_tail = block_context.is_some_and(|(format, block_context)| {
             format == BlockFormat::Explicit
                 && block_context == BlockContext::Expression
@@ -778,7 +778,7 @@ impl Parser {
         Ok(expression_id)
     }
 
-    /// Return true when the token after the current identifier ends a JS style label.
+    /// Return true when the token after the current identifier ends a bare label form.
     #[inline]
     fn next_token_ends_label_statement(&mut self) -> bool {
         let next_index = self.index_for_next();
@@ -792,19 +792,19 @@ impl Parser {
     /// ```
     /// break
     /// break :label
-    /// break label      // JS-style (no colon)
-    /// break :label 15  // Destack extension: label + value
+    /// break label
+    /// break :label 15
     /// ```
     pub fn eat_break(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
         self.eat_keyword(Keyword::Break)?;
 
         // label and value:
-        // 1. `:identifier` → Destack style label, optionally followed by value
-        // 2. `identifier` at statement stop → JS style label (no value)
-        // 3. Otherwise → value expression (Destack extension, no label)
+        // 1. `:identifier` → colon-prefixed label, optionally followed by value
+        // 2. `identifier` at statement stop → bare label
+        // 3. Otherwise → trailing value expression
         let (label, label_span, value_id) = if self.peek_is(TokenType::Colon) {
-            // Destack style: break :label [value]
+            // colon-prefixed label: break :label [value]
             self.bump(); // eat colon
             let (label, label_span) = self.eat_identifier_with_span()?;
             let value_id = if self.language.is_destack()
@@ -818,12 +818,12 @@ impl Parser {
             };
             (Some(label), Some(label_span), value_id)
         }
-        // JS style: break label (identifier followed by statement stop)
+        // bare label: break label
         else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span), None)
         }
-        // Destack extension: break value (no label)
+        // trailing value: break value
         else if self.language.is_destack() && self.has_more_tokens() && !self.is_statement_stop()
         {
             let value_id = self.eat_expression_not_in_position()?;
@@ -851,23 +851,23 @@ impl Parser {
     /// Examples:
     /// ```
     /// continue
-    /// continue :label  // Destack style
-    /// continue label   // JS style (no colon)
+    /// continue :label
+    /// continue label
     /// ```
     pub fn eat_continue(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
         self.eat_keyword(Keyword::Continue)?;
 
         // label parsing:
-        // 1. `:identifier` → Destack style label
-        // 2. `identifier` at statement stop → JS style label
+        // 1. `:identifier` → colon-prefixed label
+        // 2. `identifier` at statement stop → bare label
         let (label, label_span) = if self.peek_is(TokenType::Colon) {
-            // Destack style: continue :label
+            // colon-prefixed label: continue :label
             self.bump(); // eat colon
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
         } else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
-            // JS style: continue label
+            // bare label: continue label
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
         } else {
@@ -1472,8 +1472,8 @@ mod tests {
             assert!(value.is_none()); // ASI applied, no value
         });
 
-        // try to parse *a as next statement - should fail in JS mode
-        // (because * is not valid as unary prefix in JS)
+        // try to parse *a as next statement: should fail in untyped value mode
+        // because * is not valid as a unary prefix there
         let error = parser.eat_expression(parser.options).unwrap_err();
 
         // \n
@@ -1652,7 +1652,7 @@ const value = 1
     }
 
     #[test]
-    fn test_parse_block_const_then_return_cast_typescript() {
+    fn test_parse_block_const_then_return_cast() {
         let mut test = TestParser::new_with_options(
             "{\n  const result = CreateRecord(IntegerKey, value)\n  return result as never\n}",
             LanguageType::TypeScript,
@@ -1695,7 +1695,7 @@ const value = 1
     }
 
     #[test]
-    fn test_parse_block_statement_before_close_brace_without_semicolon_javascript() {
+    fn test_parse_block_statement_before_close_brace_without_semicolon() {
         let mut test = TestParser::new_with_options("{ process.exit(1)}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let block_id = parser.eat_block(BlockContext::Expression).unwrap();
@@ -1711,9 +1711,9 @@ const value = 1
         );
     }
 
-    /// Parse Destack if-body block tails as value expressions.
+    /// Parse if-body block tails as value expressions.
     #[test]
-    fn test_parse_destack_if_block_keeps_tail_expression_value() {
+    fn test_parse_if_block_keeps_tail_expression_value() {
         let mut test = TestParser::new("if (x) { foo() }");
         let mut parser = test.prepare();
         let expressions = parser.parse();
@@ -1733,9 +1733,9 @@ const value = 1
         });
     }
 
-    /// Parse Destack function body tails as value expressions.
+    /// Parse function body tails as value expressions.
     #[test]
-    fn test_parse_destack_function_body_keeps_tail_expression_value() {
+    fn test_parse_function_body_keeps_tail_expression_value() {
         let mut test = TestParser::new("function run() { foo() }");
         let mut parser = test.prepare();
         let expressions = parser.parse();
@@ -1757,9 +1757,9 @@ const value = 1
         });
     }
 
-    /// Parse multiline Destack function body tails as value expressions.
+    /// Parse multiline function body tails as value expressions.
     #[test]
-    fn test_parse_multiline_destack_function_body_keeps_tail_expression_value() {
+    fn test_parse_multiline_function_body_keeps_tail_expression_value() {
         let mut test = TestParser::new(
             r#"
 function run() {
@@ -1787,9 +1787,9 @@ function run() {
         });
     }
 
-    /// Parse Destack function body if-else tails as value expressions.
+    /// Parse function body if-else tails as value expressions.
     #[test]
-    fn test_parse_destack_function_body_keeps_if_else_tail_expression_value() {
+    fn test_parse_function_body_keeps_if_else_tail_expression_value() {
         let mut test = TestParser::new(
             r#"
 function choose(flag: boolean, a: int32, b: int32): int32 {
@@ -1825,7 +1825,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
     /// Parse a function declaration followed by a call on the same line in JavaScript.
     #[test]
-    fn test_parse_function_declaration_followed_by_call_without_newline_javascript() {
+    fn test_parse_function_declaration_followed_by_call_without_newline() {
         let mut test = TestParser::new_with_options(
             "function main(){return 1}main().catch((function(error){console.error(error);process.exit(1)}));",
             LanguageType::JavaScript,
@@ -1855,7 +1855,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     }
 
     #[test]
-    fn test_parse_javascript_block_sequence_statement_with_newlines_after_commas() {
+    fn test_parse_block_sequence_statement_with_newlines_after_commas() {
         let mut test = TestParser::new_with_options(
             r#"{
   callA(),
@@ -2147,7 +2147,7 @@ const value = 1
         });
     }
     #[test]
-    fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_typescript_xml() {
+    fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree() {
         let mut test = TestParser::new_with_options(
             "function render(isEnabled) {
   return (

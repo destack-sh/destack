@@ -11,11 +11,12 @@ use destack_ast::{
 impl Parser {
     /// Eat a struct or class declaration.
     ///
-    /// The parser accepts `extends` for both, but structs cannot semantically
-    /// use extends (use embedding instead). This is validated in the analyze phase.
+    /// The parser accepts `extends` for both, but the heritage shape differs.
+    /// Struct declarations treat `extends` as embedded types.
+    /// Class declarations treat `extends` as one superclass expression.
     /// Struct declarations require a name.
     ///
-    /// Struct examples:
+    /// Struct forms:
     /// ```
     /// struct Bar {
     ///     myField: int32;
@@ -33,7 +34,7 @@ impl Parser {
     /// };
     /// ```
     ///
-    /// Class examples:
+    /// Class forms:
     /// ```
     /// class Foo extends Bar { // classes can extend
     ///     myField: int32;
@@ -74,10 +75,20 @@ impl Parser {
             .eat_generic_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
 
-        // optional extends types
-        let extends_types = self
-            .eat_extends_types_maybe()
-            .for_node_type(NodeType::Declaration)?;
+        // optional extends clause
+        let extends_clause = if is_class {
+            self.eat_extends_expressions_maybe()
+                .for_node_type(NodeType::Declaration)?
+        } else {
+            None
+        };
+
+        let embedded_types = if is_class {
+            None
+        } else {
+            self.eat_extends_types_maybe()
+                .for_node_type(NodeType::Declaration)?
+        };
 
         // optional implements types
         let implements_types = self
@@ -107,11 +118,11 @@ impl Parser {
                 is_abstract: header.is_abstract,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
-                extends_type: extends_types.and_then(|mut types| {
-                    if types.is_empty() {
+                extends_expression: extends_clause.and_then(|mut expressions| {
+                    if expressions.is_empty() {
                         None
                     } else {
-                        Some(types.remove(0))
+                        Some(expressions.remove(0))
                     }
                 }),
                 implements_types: implements_types.unwrap_or_default(),
@@ -125,7 +136,7 @@ impl Parser {
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
                 implements_types: implements_types.unwrap_or_default(),
-                embedded_types: extends_types.unwrap_or_default(),
+                embedded_types: embedded_types.unwrap_or_default(),
                 members,
             })
         };
@@ -143,9 +154,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter, IntType, Key,
-        Member, Name, Parameter, ScalarLiteral, StructDeclaration, TypeExpression, TypeLiteral,
-        Visibility, WhereClause,
+        BinaryOperator, ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter,
+        IntType, Key, Member, Name, NodeType, Parameter, ScalarLiteral, StructDeclaration,
+        TypeExpression, TypeLiteral, Visibility, WhereClause,
     };
     use destack_source::{LanguageType, NodeSpanType};
 
@@ -242,14 +253,67 @@ struct Foo extends Bar {}
     }
 
     #[test]
-    fn test_parse_javascript_class_rejects_parenthesized_binary_extends_expression() {
+    fn test_parse_class_with_parenthesized_binary_extends_expression() {
         let mut test =
             TestParser::new_with_options("class A extends (a + b) {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let start = parser.mark();
-        let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
-        assert!(result.is_err());
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+            assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::Add);
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_reject_class_with_unparenthesized_as_extends_expression() {
+        let mut parser = TestParser::new_with_options(
+            "class A extends Base as Mixin {}",
+            LanguageType::TypeScript,
+        )
+        .prepare();
+
+        let start = parser.mark();
+        let error = parser
+            .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+            .unwrap_err();
+
+        let (span, node_type, expected) = error.leaf_content();
+        assert_eq!(node_type, Some(NodeType::Declaration));
+        assert_eq!(expected, None);
+        assert_eq!(parser.get_span_str(span), "as");
+    }
+
+    #[test]
+    fn test_parse_class_with_parenthesized_as_extends_expression() {
+        let mut test = TestParser::new_with_options(
+            "class A extends (Base as Mixin) {}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+            .unwrap();
+
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+            assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::As { expression, target_type } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "Base");
+                    assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "Mixin");
+                    });
+                });
+            });
+        });
     }
 
     #[test]
@@ -264,15 +328,15 @@ struct Foo extends Bar {}
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
-        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_type: Some(extends_type), .. }) => {
-            assert_node!(parser.tree, *extends_type, TypeExpression::Declaration { declaration: declaration_id } => {
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+            assert_node!(parser.tree, *extends_expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { .. }));
             });
         });
     }
 
     #[test]
-    fn test_parse_class_keeps_parenthesized_decorated_extends_head_unwrapped() {
+    fn test_parse_class_keeps_parenthesized_decorated_extends_head_parenthesized() {
         let mut test = TestParser::new_with_options(
             "class Outer extends (@deco class Base {}) {}",
             LanguageType::JavaScript,
@@ -283,10 +347,12 @@ struct Foo extends Bar {}
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
-        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_type: Some(extends_type), .. }) => {
-            assert_node!(parser.tree, *extends_type, TypeExpression::Declaration { declaration: declaration_id } => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, .. }) => {
-                    assert_string!(parser, name.expect("expected class name").string(), "Base");
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+            assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, .. }) => {
+                        assert_string!(parser, name.expect("expected class name").string(), "Base");
+                    });
                 });
             });
         });
@@ -306,11 +372,9 @@ class Combined extends First, Second {}
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
-        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type: Some(extends_type), .. }) => {
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_expression: Some(extends_expression), .. }) => {
             assert_string!(parser, name.expect("expected class name").string(), "Combined");
-            assert_node!(parser.tree, *extends_type, TypeExpression::Reference { path, .. } => {
-                assert_path!(parser, *path, "First");
-            });
+            assert_expression_path!(parser, parser.tree.get(*extends_expression), "First");
         });
     }
 
@@ -328,14 +392,14 @@ class Counter extends {}
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
-        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type, .. }) => {
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_expression, .. }) => {
             assert_string!(parser, name.expect("expected class name").string(), "Counter");
-            assert!(extends_type.is_none());
+            assert!(extends_expression.is_none());
         });
     }
 
     #[test]
-    fn test_parse_class_member_method_parameter_type_then_default_value_typescript() {
+    fn test_parse_class_member_method_parameter_type_then_default_value() {
         let mut test = TestParser::new_with_options(
             r#"class LicensingStore {
   usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {
@@ -389,18 +453,13 @@ class Counter extends {}
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type: Some(extends_type), members, .. }) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), members, .. }) => {
                 assert_eq!(members.len(), 1);
-                let extends_annotations = parser.tree.get_decorators(extends_type.id);
+                let extends_annotations = parser.tree.get_decorators(extends_expression.id);
                 assert!(extends_annotations.is_empty());
 
                 let member_annotations = parser.tree.get_decorators(members[0].id);
@@ -409,6 +468,8 @@ class Counter extends {}
         });
         assert_eq!(parser.tree.comments().len(), 1);
         assert_comment!(parser, 0, CommentKind::Line, "extends-tail");
+
+        test.assert_no_errors(&parser);
     }
 
     #[test]

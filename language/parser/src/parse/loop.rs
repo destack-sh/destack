@@ -175,8 +175,8 @@ impl Parser {
                 _ => unreachable!(),
             };
 
-            // reject using bindings in for-in loops for JS/TS
-            // destack allows this, see SPECIFICATION.md
+            // reject using bindings in semicolon statement `for ... in`
+            // block-value mode allows them
             if !self.language.is_destack()
                 && kind == ForEachKind::In
                 && matches!(binding, ForEachBinding::Using { .. })
@@ -309,7 +309,7 @@ impl Parser {
                 return None;
             }
 
-            // `for (using of of)` should parse as identifier `using` in js and ts
+            // `for (using of of)` should parse as identifier `using` in semicolon statement forms
             if declarator_keyword == Some(Keyword::Of) && asynchrony == Asynchrony::Sync {
                 return None;
             }
@@ -413,9 +413,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding,
-        ForEachDeclarationKind, ForEachKind, GenericArgument, Keyword, Mutability, Name, Pattern,
-        PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, UnaryOperator,
-        WhileKind,
+        ForEachDeclarationKind, ForEachKind, GenericArgument, Key, Keyword, Mutability, Name,
+        Pattern, PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember,
+        UnaryOperator, WhileKind,
     };
     use destack_source::LanguageType;
 
@@ -486,7 +486,7 @@ for (const item in items) {
     }
 
     #[test]
-    fn test_parse_for_loop_with_line_comment_after_keyword_javascript() {
+    fn test_parse_for_loop_with_line_comment_after_keyword() {
         let mut test =
             TestParser::new_with_options("for // comment\n(;;);", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -504,7 +504,7 @@ for (const item in items) {
     }
 
     #[test]
-    fn test_parse_for_loop_with_block_comment_after_keyword_javascript() {
+    fn test_parse_for_loop_with_block_comment_after_keyword() {
         let mut test =
             TestParser::new_with_options("for /* comment */(;;);", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -657,14 +657,14 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                         assert_node!(parser.tree, *value, Expression::Type { value } => {
-                            assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
-                            assert_eq!(properties.len(), 1);
-                            assert_node!(parser.tree, properties[0], destack_ast::TypeProperty::Field { key: destack_ast::Key::Name(Name::Identifier(name)), declared_type: value, .. } => {
-                                assert_string!(parser, *name, "item");
-                                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                                    assert_eq!(*value, TypeLiteral::String);
+                            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
+                                assert_eq!(properties.len(), 1);
+                                assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: value, .. } => {
+                                    assert_string!(parser, *name, "item");
+                                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                                        assert_eq!(*value, TypeLiteral::String);
+                                    });
                                 });
-                            });
                             });
                         });
                     });
@@ -1095,7 +1095,7 @@ for (start = 0, end = 10; start < end; start++, end--) {}
 
     /// Parse JavaScript for of loops with `type` as an identifier binding.
     #[test]
-    fn test_parse_for_of_with_type_identifier_binding_javascript() {
+    fn test_parse_for_of_with_type_identifier_binding() {
         let mut test = TestParser::new_with_options(
             r###"
 for (type of values) {}

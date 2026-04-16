@@ -11,7 +11,7 @@ use destack_ast::{
 use destack_core::StringId;
 use destack_source::{NodeSpanType, Span};
 
-/// One leading TypeScript triple slash directive.
+/// One leading triple slash directive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TripleSlashDirective<'a> {
     /// A `/// <reference path="..." />` directive.
@@ -25,11 +25,11 @@ enum TripleSlashDirective<'a> {
 }
 
 impl Parser {
-    /// Parse leading TypeScript triple slash directives as type imports.
+    /// Parse leading triple slash directives as type imports.
     pub(crate) fn parse_leading_triple_slash_reference_imports(
         &mut self,
     ) -> (Vec<LocalNodeId<Expression>>, bool) {
-        // triple slash directives only exist in typescript source kinds
+        // triple slash directives only exist in declaration-oriented typed sources
         if !self.language.is_typescript() {
             return (Vec::new(), false);
         }
@@ -165,7 +165,7 @@ impl Parser {
             return Some(TripleSlashDirective::ReferenceLib(lib));
         }
 
-        // parse no default lib directive for compatibility, semantics are handled elsewhere
+        // parse no default lib directives here, semantics are handled elsewhere
         if let Some(no_default_lib) =
             Self::triple_slash_reference_attribute_value(directive, "no-default-lib")
         {
@@ -709,7 +709,7 @@ impl Parser {
             (None, None)
         };
 
-        // assertions or attributes (parsed for conformance)
+        // assertions or attributes
         let attributes = if target.is_some() {
             self.eat_dependency_arguments_maybe()?
         } else {
@@ -1294,7 +1294,7 @@ mod tests {
 
     #[test]
     fn test_parse_import_simple() {
-        // import destack
+        // import sample
         let mut test = TestParser::new("import \"destack\"");
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
@@ -1334,9 +1334,9 @@ mod tests {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        // import destack.geometry with { bar: true }
+        // import sample.module with { bar: true }
         assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, attributes, .. } => {
-            // destack.geometry
+            // sample.module
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_bare_import(items);
@@ -1934,7 +1934,7 @@ import {
     }
 
     #[test]
-    fn test_parse_export_clause_after_comment_newline_keyword_javascript() {
+    fn test_parse_export_clause_after_comment_newline_keyword() {
         let mut test =
             TestParser::new_with_options("export //comment\n{}", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -1947,7 +1947,7 @@ import {
     }
 
     #[test]
-    fn test_parse_export_specifier_alias_after_comment_newline_javascript() {
+    fn test_parse_export_specifier_alias_after_comment_newline() {
         let mut test = TestParser::new_with_options(
             "export {\n  bar as // comment\n  baz,\n} from 'foo'",
             LanguageType::JavaScript,
@@ -1967,7 +1967,7 @@ import {
     }
 
     #[test]
-    fn test_parse_import_specifier_alias_after_comment_newline_javascript() {
+    fn test_parse_import_specifier_alias_after_comment_newline() {
         let mut test = TestParser::new_with_options(
             "import {\n  bar as // comment\n  baz,\n} from 'foo'",
             LanguageType::JavaScript,
@@ -2788,7 +2788,7 @@ export as namespace Foo"#,
     }
 
     #[test]
-    fn test_parse_root_import_named_binding_from_source_in_javascript() {
+    fn test_parse_root_import_named_binding_from_source() {
         let mut test =
             TestParser::new_with_options("import {a} from 'a';", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -2804,7 +2804,7 @@ export as namespace Foo"#,
     }
 
     #[test]
-    fn test_parse_root_import_default_and_namespace_in_javascript() {
+    fn test_parse_root_import_default_and_namespace() {
         let mut test =
             TestParser::new_with_options("import a, * as b from 'a';", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -2820,7 +2820,7 @@ export as namespace Foo"#,
     }
 
     #[test]
-    fn test_parse_root_empty_type_import_in_typescript() {
+    fn test_parse_root_empty_type_import() {
         let mut test =
             TestParser::new_with_options("import type {} from 'a';", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -2836,7 +2836,7 @@ export as namespace Foo"#,
     }
 
     #[test]
-    fn test_parse_root_export_named_binding_from_source_in_javascript() {
+    fn test_parse_root_export_named_binding_from_source() {
         let mut test =
             TestParser::new_with_options("export {a} from 'a';", LanguageType::JavaScript);
         let mut parser = test.prepare();

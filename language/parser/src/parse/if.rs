@@ -18,7 +18,7 @@ impl Parser {
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
 
-        // js/ts: empty statement
+        // semicolon statement forms allow empty branches
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();
             let block_id = self.insert_node(
@@ -43,7 +43,7 @@ impl Parser {
             |parser| parser.eat_statement_expression(),
         )?;
 
-        // js/ts: reject declarations in single-statement contexts
+        // semicolon statement forms reject declarations in single-statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
             return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
         }
@@ -56,7 +56,7 @@ impl Parser {
             return Ok(expression_id);
         }
 
-        // destack branch values stay value-producing through an implicit expression block
+        // block-value mode keeps branch values as tail expressions
         if self.language.is_destack() {
             let block_id = self.insert_node(
                 Block {
@@ -74,7 +74,7 @@ impl Parser {
             return Ok(expression_id);
         }
 
-        // js/ts branch statements stay statement-position blocks
+        // semicolon statement forms keep branch statements in statement-position blocks
         let block_id = self.insert_node(
             Block {
                 context: BlockContext::Statement,
@@ -97,7 +97,7 @@ impl Parser {
         let else_mark = self.mark();
         let else_tree_mark = self.tree.next_id();
 
-        // js/ts: consume optional semicolon separators before else
+        // semicolon statement forms consume optional separators before else
         if !self.language.is_destack() {
             self.eat_newlines_maybe()?;
             while self.peek_is(TokenType::Semicolon) {
@@ -204,7 +204,7 @@ impl Parser {
             |parser| parser.eat_expression_as_block(),
         )?;
 
-        // consume a trailing then-statement semicolon in JS/TS
+        // semicolon statement forms allow a trailing then semicolon
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();
             self.eat_newlines_maybe()?;
@@ -351,7 +351,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_if_empty_statement_in_typescript() {
+    fn test_parse_if_empty_statement() {
         let mut test = TestParser::new_with_options("if (cond);", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
@@ -732,7 +732,7 @@ else
     }
 
     #[test]
-    fn test_parse_if_else_with_typed_parenthesized_arrow_statement_typescript() {
+    fn test_parse_if_else_with_typed_parenthesized_arrow_statement() {
         let mut test = TestParser::new_with_options(
             r###"
 if (payments) res.status(200).json({ payments });

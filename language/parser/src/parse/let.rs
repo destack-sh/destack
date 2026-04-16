@@ -499,7 +499,7 @@ mod tests {
     use destack_ast::{
         Asynchrony, Declaration, Declarator, Expression, FunctionDeclaration, FunctionKind,
         GenericArgument, GenericParameter, IntType, Key, LetKind, Mutability, Name, Parameter,
-        Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeProperty,
+        Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
     };
     use destack_source::LanguageType;
 
@@ -712,7 +712,7 @@ using x = open()
     }
 
     #[test]
-    fn test_parse_let_readonly_identifier_with_type_annotation_typescript() {
+    fn test_parse_let_readonly_identifier_with_type_annotation() {
         let mut test = TestParser::new_with_options(
             "const readonly: <A>(value: A) => Readonly<A> = identity",
             LanguageType::TypeScript,
@@ -741,7 +741,7 @@ using x = open()
     }
 
     #[test]
-    fn test_parse_let_array_pattern_readonly_identifier_typescript() {
+    fn test_parse_let_array_pattern_readonly_identifier() {
         let mut test = TestParser::new_with_options(
             "const [readonly, setReadonly] = useState(false)",
             LanguageType::TypeScript,
@@ -1006,31 +1006,34 @@ const registry: Map<
                 assert_node!(parser.tree, ty.unwrap(), TypeExpression::Reference { path, generic_arguments } => {
                     // Map
                     assert_path!(parser, *path, "Map");
+
                     // <string, Set<{count: number}>>
-                    // string
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                        // string
                         assert_node!(parser.tree, *value, Expression::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
                         });
                     });
-                    // Set<{count: number}>
+
                     assert_node!(parser.tree, generic_arguments[1], GenericArgument::Positional { value } => {
+                        // Set<{count: number}>
                         assert_node!(parser.tree, *value, Expression::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
-                            // Set
-                            assert_path!(parser, *path, "Set");
-                            // <{count: number}>
-                            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                                assert_node!(parser.tree, *value, Expression::Type { value } => {
-                                    assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
-                                    assert_eq!(properties.len(), 1);
-                                    assert_node!(parser.tree, properties[0], TypeProperty::Field { key: Key::Name(Name::Identifier(name)), .. } => {
-                                        assert_string!(parser, *name, "count");
+                                // Set
+                                assert_path!(parser, *path, "Set");
+
+                                // <{count: number}>
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                        assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
+                                            assert_eq!(properties.len(), 1);
+                                            assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), .. } => {
+                                                assert_string!(parser, *name, "count");
+                                            });
+                                        });
                                     });
                                 });
-                                });
                             });
-                        });
                         });
                     });
                 });
@@ -1069,7 +1072,7 @@ const registry: Map<
     }
 
     #[test]
-    fn test_parse_var_declarators_with_leading_comma_newline_javascript() {
+    fn test_parse_var_declarators_with_leading_comma_newline() {
         let mut test = TestParser::new_with_options(
             r#"var args = new Array(arguments.length - 1)
   , callbacks = this._callbacks['$' + event]"#,
@@ -1104,7 +1107,7 @@ const registry: Map<
     }
 
     #[test]
-    fn test_parse_const_declarators_with_newline_after_keyword_javascript() {
+    fn test_parse_const_declarators_with_newline_after_keyword() {
         let mut test = TestParser::new_with_options(
             r#"const
   first = 1,
@@ -1140,7 +1143,7 @@ const registry: Map<
     }
 
     #[test]
-    fn test_parse_const_declarator_boundary_with_line_terminator_trivia_typescript() {
+    fn test_parse_const_declarator_boundary_with_line_terminator_trivia() {
         let mut test = TestParser::new_with_options(
             r#"const result = CreateRecord(IntegerKey, value) /*
 */ return result as never"#,
@@ -1168,7 +1171,7 @@ const registry: Map<
     }
 
     #[test]
-    fn test_reject_js_indexed_declarator_target() {
+    fn test_reject_indexed_declarator_target_in_untyped_source() {
         // source: var a[0]=0;
         let mut test = TestParser::new_with_options("var a[0]=0;", LanguageType::JavaScript);
         let mut parser = test.prepare();
