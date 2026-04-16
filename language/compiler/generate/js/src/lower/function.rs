@@ -11,16 +11,17 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower a function abstraction from DIR into JS AST.
+    /// Lower function abstraction flags from DIR into JS AST.
     pub fn lower_function_abstraction(
         &self,
-        abstraction: dir::FunctionAbstraction,
+        is_abstract: bool,
+        is_override: bool,
     ) -> js::FunctionAbstraction {
-        match abstraction {
-            dir::FunctionAbstraction::Abstract => js::FunctionAbstraction::Abstract,
-            dir::FunctionAbstraction::AbstractOverride => js::FunctionAbstraction::AbstractOverride,
-            dir::FunctionAbstraction::ConcreteOverride => js::FunctionAbstraction::ConcreteOverride,
-            dir::FunctionAbstraction::Concrete => js::FunctionAbstraction::Concrete,
+        match (is_abstract, is_override) {
+            (true, true) => js::FunctionAbstraction::AbstractOverride,
+            (true, false) => js::FunctionAbstraction::Abstract,
+            (false, true) => js::FunctionAbstraction::ConcreteOverride,
+            (false, false) => js::FunctionAbstraction::Concrete,
         }
     }
 
@@ -59,24 +60,23 @@ impl ModuleLowerer<'_> {
         &mut self,
         function_signature: &dir::FunctionSignature,
     ) -> CodegenJsResult<js::FunctionSignature> {
-        let abstraction = self.lower_function_abstraction(function_signature.abstraction);
+        let abstraction = self.lower_function_abstraction(
+            function_signature.is_abstract,
+            function_signature.is_override,
+        );
         let asynchrony = self.lower_asynchrony(function_signature.asynchrony);
         let cardinality = self.lower_function_cardinality(function_signature.cardinality);
         let mode = function_signature
             .mode
             .map(|mode| self.lower_function_mode(mode));
         let kind = self.lower_function_kind(function_signature.kind);
-        let generics = function_signature
-            .generics
-            .as_ref()
-            .map(|generics| self.lower_generics(generics))
-            .transpose()?;
+        let generics = self.lower_generic_parameters(&function_signature.generic_parameters)?;
         let this_parameter = function_signature
             .this_parameter
             .map(|parameter| self.lower_parameter(parameter))
             .transpose()?;
         let dynamic_parameters = function_signature
-            .dynamic_parameters
+            .parameters
             .iter()
             .map(|parameter| self.lower_parameter(*parameter))
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
@@ -90,7 +90,9 @@ impl ModuleLowerer<'_> {
             cardinality,
             mode,
             kind,
-            generics,
+            generics: generics.map(|static_parameters| js::Generics {
+                static_parameters: Some(static_parameters),
+            }),
             this_parameter,
             dynamic_parameters,
             return_type,

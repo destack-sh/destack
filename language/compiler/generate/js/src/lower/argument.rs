@@ -3,6 +3,34 @@ use {destack_dir as dir, destack_js as js};
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
+    /// Build one JS binding modifier when any field is present.
+    fn build_binding_modifier(
+        &self,
+        kind: Option<js::BindingKind>,
+        variance: Option<js::VarianceModifier>,
+        anchor: Option<js::BindingAnchor>,
+        mutability: Option<js::Mutability>,
+        visibility: Option<js::Visibility>,
+        operator: Option<js::BindingOperator>,
+        accessor: Option<js::AccessorKind>,
+    ) -> Option<js::BindingModifier> {
+        let modifiers = js::BindingModifier {
+            kind,
+            variance,
+            anchor,
+            mutability,
+            visibility,
+            operator,
+            accessor,
+        };
+
+        if modifiers == js::BindingModifier::default() {
+            None
+        } else {
+            Some(modifiers)
+        }
+    }
+
     /// Lower a parameter from DIR into JS AST.
     pub fn lower_parameter(
         &mut self,
@@ -11,14 +39,31 @@ impl ModuleLowerer<'_> {
         let parameter = self.dir_tree.get(parameter_id);
         match parameter {
             dir::Parameter::Named {
-                modifiers,
                 name,
+                visibility,
+                is_readonly,
+                is_optional,
+                declared_type: _,
                 default,
                 symbol,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(modifiers))
-                    .transpose()?;
+                let modifiers = self.build_binding_modifier(
+                    if *is_optional {
+                        Some(js::BindingKind::Maybe)
+                    } else {
+                        None
+                    },
+                    None,
+                    None,
+                    if *is_readonly {
+                        Some(js::Mutability::Immutable)
+                    } else {
+                        None
+                    },
+                    visibility.map(|visibility| self.lower_visibility(visibility)),
+                    None,
+                    None,
+                );
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let ty = self
                     .types
@@ -47,14 +92,25 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::Pattern {
-                modifiers,
                 pattern,
+                is_optional,
+                declared_type: _,
                 default,
                 symbol,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(modifiers))
-                    .transpose()?;
+                let modifiers = self.build_binding_modifier(
+                    if *is_optional {
+                        Some(js::BindingKind::Maybe)
+                    } else {
+                        None
+                    },
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
                 let pattern = self.lower_pattern(*pattern)?;
                 let ty = self
                     .types
@@ -83,13 +139,25 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicNamed {
-                modifiers,
                 name,
+                visibility,
+                is_readonly,
+                declared_type: _,
                 symbol,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(modifiers))
-                    .transpose()?;
+                let modifiers = self.build_binding_modifier(
+                    None,
+                    None,
+                    None,
+                    if *is_readonly {
+                        Some(js::Mutability::Immutable)
+                    } else {
+                        None
+                    },
+                    visibility.map(|visibility| self.lower_visibility(visibility)),
+                    None,
+                    None,
+                );
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let ty = self
                     .types
@@ -108,13 +176,11 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicPattern {
-                modifiers,
                 pattern,
+                declared_type: _,
                 symbol,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(modifiers))
-                    .transpose()?;
+                let modifiers = None;
                 let pattern = self.lower_pattern(*pattern)?;
                 let ty = self
                     .types
