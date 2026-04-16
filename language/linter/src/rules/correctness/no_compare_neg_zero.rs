@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_parenthesized_syntax, is_comparison_operator};
+use crate::rules::common::{expression_unwrap_parenthesized_source_form, is_comparison_operator};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -135,7 +135,7 @@ fn is_negative_zero(
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     // require unary negation of zero
@@ -156,7 +156,7 @@ fn is_zero_literal(
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     // require numeric zero literals

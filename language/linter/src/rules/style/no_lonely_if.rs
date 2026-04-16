@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for NoLonelyIf {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoLonelyIf::meta()
     }
 

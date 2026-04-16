@@ -63,14 +63,13 @@ fn evaluate_const_value(
     let expression = tree.get(id);
     match expression {
         ast::Expression::ScalarLiteral(literal) => match literal {
+            ast::ScalarLiteral::Null => Some(ConstValue::Null),
             ast::ScalarLiteral::Boolean(value) => Some(ConstValue::Boolean(*value)),
             ast::ScalarLiteral::Integer(value) => Some(ConstValue::Integer(*value)),
             ast::ScalarLiteral::Bigint(value) => Some(ConstValue::Bigint(*value)),
             ast::ScalarLiteral::Float(value) => Some(ConstValue::Float(*value)),
             _ => None,
         },
-        ast::Expression::TypeLiteral(ast::TypeLiteral::Null) => Some(ConstValue::Null),
-        ast::Expression::TypeLiteral(ast::TypeLiteral::Undefined) => Some(ConstValue::Undefined),
         ast::Expression::Parenthesized { expression } => evaluate_const_value(tree, *expression),
         ast::Expression::Unary { operator, right } => {
             let value = evaluate_const_value(tree, *right)?;

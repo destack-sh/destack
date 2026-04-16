@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -27,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for NoIdenticalBranches {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoIdenticalBranches::meta()
     }
 
@@ -39,7 +40,7 @@ impl LintRule for NoIdenticalBranches {
                 continue;
             };
 
-            // apply source parity for statement-style if chains:
+            // statement-style if chains:
             // only evaluate the chain root, not nested else-if children
             if *kind == ast::IfKind::If
                 && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)

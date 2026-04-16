@@ -138,137 +138,197 @@ pub fn argument_expression_id(
     let argument = tree.get(argument_id);
 
     match argument {
-        dir::Argument::Named {
-            modifiers: _,
-            name: _,
-            value,
-        }
-        | dir::Argument::Labeled {
-            modifiers: _,
-            label: _,
-            value,
-        }
-        | dir::Argument::Positional {
-            modifiers: _,
-            value,
-        }
-        | dir::Argument::Spread {
-            modifiers: _,
-            label: _,
-            value,
-        } => Some(*value),
+        dir::Argument::Named { name: _, value }
+        | dir::Argument::Labeled { label: _, value }
+        | dir::Argument::Positional { value }
+        | dir::Argument::Spread { label: _, value } => Some(*value),
         dir::Argument::Error { value } => Some(*value),
     }
+}
+
+/// Return true when one generic argument list contains the target segment.
+fn generic_arguments_contain_reference_segment(
+    tree: &dir::NodeTree,
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    target_segment: StringId,
+) -> bool {
+    generic_arguments.iter().any(|generic_argument_id| {
+        generic_argument_contains_reference_segment(tree, *generic_argument_id, target_segment)
+    })
+}
+
+/// Return true when one argument list contains the target segment.
+fn arguments_contain_reference_segment(
+    tree: &dir::NodeTree,
+    arguments: &[dir::LocalNodeId<dir::Argument>],
+    target_segment: StringId,
+) -> bool {
+    arguments.iter().any(|argument_id| {
+        argument_expression_id(tree, *argument_id).is_some_and(|argument_expression_id| {
+            expression_contains_reference_segment(tree, argument_expression_id, target_segment)
+        })
+    })
+}
+
+/// Return true when one path or generic argument list contains the target segment.
+fn path_or_generic_arguments_contain_reference_segment(
+    tree: &dir::NodeTree,
+    path: &dir::Path,
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    target_segment: StringId,
+) -> bool {
+    if path.last_segment() == Some(target_segment) {
+        return true;
+    }
+
+    generic_arguments_contain_reference_segment(tree, generic_arguments, target_segment)
 }
 
 /// Return true when one type expression contains a reference ending in the target segment.
 pub fn type_expression_contains_reference_segment(
     tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     target_segment: StringId,
 ) -> bool {
-    let expression = tree.get(expression_id);
-    match expression {
-        dir::Expression::LocalReference {
-            path,
-            static_arguments,
-            target_symbol: _,
-        }
-        | dir::Expression::ModuleReference {
-            path,
-            static_arguments,
-            target_symbol: _,
-        }
-        | dir::Expression::GlobalReference {
-            path,
-            static_arguments,
-            target_symbol: _,
-        } => {
-            if path.last_segment() == Some(target_segment) {
-                return true;
-            }
+    let type_expression = tree.get(type_expression_id);
 
-            static_arguments.as_ref().is_some_and(|static_arguments| {
-                static_arguments.iter().any(|argument_id| {
-                    argument_expression_id(tree, *argument_id).is_some_and(
-                        |argument_expression_id| {
-                            type_expression_contains_reference_segment(
-                                tree,
-                                argument_expression_id,
-                                target_segment,
-                            )
-                        },
-                    )
-                })
-            })
+    match type_expression {
+        dir::TypeExpression::Reference {
+            path,
+            generic_arguments,
+            space_order: _,
         }
-        dir::Expression::TypeImport {
+        | dir::TypeExpression::LocalReference {
+            path,
+            generic_arguments,
+            target_symbol: _,
+        }
+        | dir::TypeExpression::ModuleReference {
+            path,
+            generic_arguments,
+            target_symbol: _,
+        }
+        | dir::TypeExpression::GlobalReference {
+            path,
+            generic_arguments,
+            target_symbol: _,
+        } => path_or_generic_arguments_contain_reference_segment(
+            tree,
+            path,
+            generic_arguments,
+            target_segment,
+        ),
+
+        dir::TypeExpression::Member {
+            left,
+            name: _,
+            generic_arguments,
+        } => {
+            type_expression_contains_reference_segment(tree, *left, target_segment)
+                || generic_arguments_contain_reference_segment(
+                    tree,
+                    generic_arguments,
+                    target_segment,
+                )
+        }
+
+        dir::TypeExpression::Import {
             target,
             arguments,
-            static_arguments,
+            generic_arguments,
             qualifier: _,
         } => {
-            type_expression_contains_reference_segment(tree, *target, target_segment)
-                || arguments.iter().any(|argument_id| {
-                    argument_expression_id(tree, *argument_id).is_some_and(
-                        |argument_expression_id| {
-                            type_expression_contains_reference_segment(
-                                tree,
-                                argument_expression_id,
-                                target_segment,
-                            )
-                        },
-                    )
-                })
-                || static_arguments.as_ref().is_some_and(|static_arguments| {
-                    static_arguments.iter().any(|argument_id| {
-                        argument_expression_id(tree, *argument_id).is_some_and(
-                            |argument_expression_id| {
-                                type_expression_contains_reference_segment(
-                                    tree,
-                                    argument_expression_id,
-                                    target_segment,
-                                )
-                            },
-                        )
-                    })
-                })
+            expression_contains_reference_segment(tree, *target, target_segment)
+                || arguments_contain_reference_segment(tree, arguments, target_segment)
+                || generic_arguments_contain_reference_segment(
+                    tree,
+                    generic_arguments,
+                    target_segment,
+                )
         }
-        dir::Expression::Parenthesized { expression } => {
+
+        dir::TypeExpression::Parenthesized { expression } => {
             type_expression_contains_reference_segment(tree, *expression, target_segment)
         }
-        dir::Expression::TypeUnary { operator: _, right } => {
-            type_expression_contains_reference_segment(tree, *right, target_segment)
+
+        dir::TypeExpression::Readonly { target_type }
+        | dir::TypeExpression::KeyOf { target_type }
+        | dir::TypeExpression::Must { target_type }
+        | dir::TypeExpression::AsComptime { target_type }
+        | dir::TypeExpression::Not { target_type }
+        | dir::TypeExpression::ValueOf {
+            target_type,
+            mutability: _,
+            variance: _,
         }
-        dir::Expression::TypeIndex { left, index } => {
+        | dir::TypeExpression::ReferenceOf {
+            target_type,
+            mutability: _,
+            variance: _,
+        }
+        | dir::TypeExpression::PointerOf {
+            target_type,
+            mutability: _,
+        } => type_expression_contains_reference_segment(tree, *target_type, target_segment),
+
+        dir::TypeExpression::TypeOfValue { value } => {
+            expression_contains_reference_segment(tree, *value, target_segment)
+        }
+
+        dir::TypeExpression::Index { left, index } => {
             type_expression_contains_reference_segment(tree, *left, target_segment)
                 || type_expression_contains_reference_segment(tree, *index, target_segment)
         }
-        dir::Expression::TypeConditional {
+
+        dir::TypeExpression::Conditional {
             left,
-            right,
+            extends_type,
             then_type,
             else_type,
         } => {
             type_expression_contains_reference_segment(tree, *left, target_segment)
-                || type_expression_contains_reference_segment(tree, *right, target_segment)
+                || type_expression_contains_reference_segment(tree, *extends_type, target_segment)
                 || type_expression_contains_reference_segment(tree, *then_type, target_segment)
                 || type_expression_contains_reference_segment(tree, *else_type, target_segment)
         }
-        dir::Expression::TypeMapped {
+
+        dir::TypeExpression::Mapped {
             parameter,
-            modifiers: _,
+            readonly: _,
+            optional: _,
             value,
         } => {
-            type_expression_contains_reference_segment(tree, parameter.constraint, target_segment)
+            type_expression_contains_reference_segment(tree, parameter.source_type, target_segment)
                 || parameter.key_remap.is_some_and(|key_remap| {
                     type_expression_contains_reference_segment(tree, key_remap, target_segment)
                 })
                 || type_expression_contains_reference_segment(tree, *value, target_segment)
         }
-        dir::Expression::TypeTemplateLiteral { strings: _, spans } => spans.iter().any(|span_id| {
+
+        dir::TypeExpression::TemplateLiteral { strings: _, spans } => spans.iter().any(|span_id| {
             type_expression_contains_reference_segment(tree, *span_id, target_segment)
         }),
+
+        dir::TypeExpression::Union { elements }
+        | dir::TypeExpression::Intersection { elements } => elements.iter().any(|element_id| {
+            type_expression_contains_reference_segment(tree, *element_id, target_segment)
+        }),
+
+        dir::TypeExpression::Infer {
+            name: _,
+            constraint,
+        } => constraint.is_some_and(|constraint| {
+            type_expression_contains_reference_segment(tree, constraint, target_segment)
+        }),
+
+        dir::TypeExpression::Predicate {
+            asserts: _,
+            subject: _,
+            target,
+        } => target.is_some_and(|target| {
+            type_expression_contains_reference_segment(tree, target, target_segment)
+        }),
+
         _ => false,
     }
 }
@@ -302,7 +362,11 @@ pub fn expression_unwrap_transparent(
             | dir::Expression::Instantiation { left, .. } => {
                 expression_id = *left;
             }
-            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+            dir::Expression::As { expression, .. }
+            | dir::Expression::Satisfies { expression, .. } => {
+                expression_id = *expression;
+            }
+            dir::Expression::OwnershipCast { value, .. } => {
                 expression_id = *value;
             }
             dir::Expression::ValueOf { right, .. }
@@ -515,10 +579,10 @@ pub fn expression_discarded_call_like_value(
             return Some((expression_id, replacement_expression_id));
         }
 
-        let dir::Expression::Block { block } = expression else {
+        let dir::Expression::Block(block_id) = expression else {
             return None;
         };
-        let block = tree.get(*block);
+        let block = tree.get(*block_id);
         let tail_expression_id = block.tail_expression?;
 
         expression_id = tail_expression_id;
@@ -734,7 +798,7 @@ fn declaration_marks_symbol_as_any(
             let declarator = tree.get(declaration_id.into_local_typed::<dir::Declarator>());
             declarator
                 .ty
-                .is_some_and(|type_id| expression_is_explicit_any(tree, type_id))
+                .is_some_and(|type_id| type_expression_is_explicit_any(tree, type_id))
         }
         dir::NodeType::Pattern => {
             let mut current = Some(declaration_id.local_id.id);
@@ -749,7 +813,7 @@ fn declaration_marks_symbol_as_any(
                     let declarator = tree.get(parent_id.into_typed::<dir::Declarator>());
                     return declarator
                         .ty
-                        .is_some_and(|type_id| expression_is_explicit_any(tree, type_id));
+                        .is_some_and(|type_id| type_expression_is_explicit_any(tree, type_id));
                 }
 
                 current = Some(parent_id.id);
@@ -767,7 +831,7 @@ fn declaration_marks_symbol_as_any(
                     pattern.symbol() == Some(symbol_id)
                         && declarator
                             .ty
-                            .is_some_and(|type_id| expression_is_explicit_any(tree, type_id))
+                            .is_some_and(|type_id| type_expression_is_explicit_any(tree, type_id))
                 }),
                 _ => false,
             }
@@ -777,15 +841,23 @@ fn declaration_marks_symbol_as_any(
 }
 
 /// Return true when a type expression is an explicit `any` literal.
-fn expression_is_explicit_any(
+fn type_expression_is_explicit_any(
     tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
-    let expression = tree.get(expression_id);
+    let type_expression = tree.get(type_expression_id);
+
+    // peel off parenthesized wrappers first
+    let type_expression = match type_expression {
+        dir::TypeExpression::Parenthesized { expression } => {
+            return type_expression_is_explicit_any(tree, *expression);
+        }
+        type_expression => type_expression,
+    };
+
     matches!(
-        expression,
-        dir::Expression::TypeLiteral {
+        type_expression,
+        dir::TypeExpression::Literal {
             value: dir::TypeLiteral::Any
         }
     )
@@ -869,18 +941,18 @@ pub fn expression_is_potentially_tainted(
         dir::Expression::LocalReference {
             path: _,
             target_symbol: _,
-            static_arguments: _,
+            generic_arguments: _,
         } | dir::Expression::ModuleReference {
             path: _,
             target_symbol: _,
-            static_arguments: _,
+            generic_arguments: _,
         } | dir::Expression::Member {
             left: _,
             name: _,
-            static_arguments: _,
+            generic_arguments: _,
         } | dir::Expression::Call {
             left: _,
-            static_arguments: _,
+            generic_arguments: _,
             dynamic_arguments: _,
         } | dir::Expression::Index { left: _, right: _ }
             | dir::Expression::Binary {
@@ -890,4 +962,91 @@ pub fn expression_is_potentially_tainted(
             }
             | dir::Expression::TemplateExpression { value: _ }
     )
+}
+
+/// Return true when one generic argument contains a matching type-space reference segment.
+fn generic_argument_contains_reference_segment(
+    tree: &dir::NodeTree,
+    generic_argument_id: dir::LocalNodeId<dir::GenericArgument>,
+    target_segment: StringId,
+) -> bool {
+    let generic_argument = tree.get(generic_argument_id);
+
+    let value = match generic_argument {
+        dir::GenericArgument::Positional { value } | dir::GenericArgument::Spread { value } => {
+            *value
+        }
+        dir::GenericArgument::Error => return false,
+    };
+
+    expression_contains_reference_segment(tree, value, target_segment)
+}
+
+/// Return true when one value expression contains a matching reference segment.
+fn expression_contains_reference_segment(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    target_segment: StringId,
+) -> bool {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    match expression {
+        dir::Expression::Type { value, .. } => {
+            type_expression_contains_reference_segment(tree, *value, target_segment)
+        }
+
+        dir::Expression::LocalReference {
+            path,
+            generic_arguments,
+            target_symbol: _,
+        }
+        | dir::Expression::ModuleReference {
+            path,
+            generic_arguments,
+            target_symbol: _,
+        }
+        | dir::Expression::GlobalReference {
+            path,
+            generic_arguments,
+            target_symbol: _,
+        }
+        | dir::Expression::UnresolvedPath {
+            path,
+            generic_arguments,
+            space_order: _,
+        } => path_or_generic_arguments_contain_reference_segment(
+            tree,
+            path,
+            generic_arguments,
+            target_segment,
+        ),
+
+        dir::Expression::Member {
+            left,
+            name: _,
+            generic_arguments,
+        }
+        | dir::Expression::PrivateMember {
+            left,
+            name: _,
+            generic_arguments,
+        } => {
+            expression_contains_reference_segment(tree, *left, target_segment)
+                || generic_arguments_contain_reference_segment(
+                    tree,
+                    generic_arguments,
+                    target_segment,
+                )
+        }
+
+        dir::Expression::As { expression, .. }
+        | dir::Expression::Satisfies { expression, .. }
+        | dir::Expression::Await { expression }
+        | dir::Expression::AwaitMaybe { expression } => {
+            expression_contains_reference_segment(tree, *expression, target_segment)
+        }
+
+        _ => false,
+    }
 }

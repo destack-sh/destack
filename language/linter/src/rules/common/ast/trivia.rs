@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 
 use crate::LintAstContext;
 use crate::rules::common::is_doc_comment_source;
@@ -68,7 +68,17 @@ fn doc_comments_for_node(ctx: &LintAstContext<'_>, node_id: u32) -> Vec<ast::Com
         .comments()
         .iter()
         .copied()
-        .filter(|comment| comment.is_leading() && comment.attached_to == node_span.start)
+        .filter(|comment| {
+            let attached_span = ctx.tree.source_map.get_side_or_enclosing(
+                comment.attached_part.source_id,
+                comment.attached_part.span_type,
+            );
+
+            matches!(
+                comment.attached_part.span_type,
+                NodeSpanType::Enclosing | NodeSpanType::Leading
+            ) && attached_span.start == node_span.start
+        })
         .filter(|comment| is_doc_comment_source(ctx.get_span_text(comment.span)))
         .collect()
 }

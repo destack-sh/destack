@@ -1,8 +1,11 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_parenthesized_syntax, single_quoted_string_literal};
+use crate::rules::common::{
+    expression_unwrap_parenthesized_source_form, single_quoted_string_literal,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -26,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUselessConcat {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUselessConcat::meta()
     }
 
@@ -48,7 +51,7 @@ impl LintRule for NoUselessConcat {
                 continue;
             }
 
-            // keep source parity: compare the innermost adjacent operands in concat chains
+            // compare the innermost adjacent operands in concat chains
             let left_operand_id = concat_chain_right_operand(ctx, *left);
             let right_operand_id = concat_chain_left_operand(ctx, *right);
             if !is_string_literal(ctx, left_operand_id) || !is_string_literal(ctx, right_operand_id)
@@ -96,7 +99,7 @@ fn concat_chain_left_operand(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     if let ast::Expression::Binary {
         left,
@@ -115,7 +118,7 @@ fn concat_chain_right_operand(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     if let ast::Expression::Binary {
         right,

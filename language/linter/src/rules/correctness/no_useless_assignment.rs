@@ -89,7 +89,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             HashMap::new();
         let mut to_report: HashSet<u32> = HashSet::new();
 
-        // inspect candidate syntax nodes
+        // inspect candidate nodes
         for expr_id in block.iter_expressions() {
             let inner_id = expr_id;
             let inner_expr = self.ctx.tree.get(inner_id);

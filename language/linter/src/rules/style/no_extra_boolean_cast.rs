@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_parent_id, expression_target_symbol,
+    expression_is_symbol_or_global_qualified_member, expression_parent_id,
     expression_unwrap_parenthesized, source_text_contains_comment_token,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -124,15 +124,10 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
 
     /// Return true when the expression resolves to the built in Boolean constructor.
     fn is_boolean_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id)
-            && symbol == self.boolean_symbol
-        {
-            return true;
-        }
-
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.boolean_symbol,
             &self.global_qualifiers,
             self.boolean_name,
         )

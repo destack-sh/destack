@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::collections::HashSet;
 
 use destack_ast::{self as ast, Parameter};
@@ -27,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for DefaultParamLast {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         DefaultParamLast::meta()
     }
 
@@ -53,8 +54,8 @@ impl LintRule for DefaultParamLast {
                     let decl_id = ast::LocalNodeId::<ast::Declaration>::new(parent_id);
                     let decl = ctx.tree.get(decl_id);
                     match decl {
-                        ast::Declaration::Function { signature, .. } => {
-                            &signature.dynamic_parameters
+                        ast::Declaration::Function(declaration) => {
+                            &declaration.signature.parameters
                         }
                         _ => continue,
                     }
@@ -63,7 +64,7 @@ impl LintRule for DefaultParamLast {
                     let member_id = ast::LocalNodeId::<ast::Member>::new(parent_id);
                     let member = ctx.tree.get(member_id);
                     match member {
-                        ast::Member::Method { signature, .. } => &signature.dynamic_parameters,
+                        ast::Member::Method { signature, .. } => &signature.parameters,
                         _ => continue,
                     }
                 }
@@ -71,7 +72,7 @@ impl LintRule for DefaultParamLast {
                     let property_id = ast::LocalNodeId::<ast::Property>::new(parent_id);
                     let property = ctx.tree.get(property_id);
                     match property {
-                        ast::Property::Method { signature, .. } => &signature.dynamic_parameters,
+                        ast::Property::Method { signature, .. } => &signature.parameters,
                         _ => continue,
                     }
                 }
@@ -85,7 +86,7 @@ impl LintRule for DefaultParamLast {
 
 fn check_parameters(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     parameters: &[ast::LocalNodeId<Parameter>],
 ) {
     let mut has_seen_required_parameter = false;
@@ -132,17 +133,15 @@ fn parameter_is_required(parameter: &Parameter) -> bool {
 fn parameter_has_default(parameter: &Parameter) -> bool {
     match parameter {
         Parameter::Named {
-            modifiers, default, ..
+            is_optional,
+            default,
+            ..
         }
         | Parameter::Pattern {
-            modifiers, default, ..
-        } => {
-            default.is_some()
-                || modifiers
-                    .as_ref()
-                    .and_then(|modifier| modifier.kind)
-                    .is_some_and(|kind| kind == ast::BindingKind::Maybe)
-        }
+            is_optional,
+            default,
+            ..
+        } => default.is_some() || *is_optional,
         Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => true,
         Parameter::Error => true,
     }

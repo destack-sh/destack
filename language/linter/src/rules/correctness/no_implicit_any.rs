@@ -200,7 +200,16 @@ fn should_report_parameter(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
     let parameter = ctx.tree.get(parameter_id);
-    if parameter.has_default() {
+    if matches!(
+        parameter,
+        dir::Parameter::Named {
+            default: Some(_),
+            ..
+        } | dir::Parameter::Pattern {
+            default: Some(_),
+            ..
+        }
+    ) {
         return false;
     }
 

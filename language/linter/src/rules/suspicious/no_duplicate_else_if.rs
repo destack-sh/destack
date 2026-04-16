@@ -1,8 +1,9 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_else_if_branch, expression_is_equal, expression_unwrap_parenthesized_syntax,
+    expression_is_else_if_branch, expression_is_equal, expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -27,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for NoDuplicateElseIf {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDuplicateElseIf::meta()
     }
 
@@ -54,7 +55,7 @@ impl LintRule for NoDuplicateElseIf {
                 continue;
             };
 
-            // apply source parity: duplicate or covered branch conditions
+            // skip conditions that are not duplicate or already covered
             if !condition_is_duplicate_or_covered(ctx, node_id, *condition_id) {
                 continue;
             }
@@ -218,8 +219,8 @@ fn condition_is_equal(
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // unwrap parenthesized expression wrappers
-    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
-    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
     let left_expression = ctx.tree.get(left_id);
     let right_expression = ctx.tree.get(right_id);
 
@@ -261,7 +262,7 @@ fn condition_is_and(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     matches!(
         expression,
@@ -295,7 +296,7 @@ fn split_by_logical_operator(
     operator: ast::BinaryOperator,
 ) -> Vec<ast::LocalNodeId<ast::Expression>> {
     // normalize parenthesized wrappers
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     // recursively flatten matching logical operators

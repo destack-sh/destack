@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for RequireReturnsDoc {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         RequireReturnsDoc::meta()
     }
 
@@ -41,22 +42,17 @@ impl LintRule for RequireReturnsDoc {
             let declaration_id = *decl_id;
             let declaration = ctx.tree.get(declaration_id);
 
-            let Declaration::Function {
-                descriptor,
-                signature,
-                ..
-            } = declaration
-            else {
+            let Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
             // only check exported functions
-            if descriptor.export.is_none() {
+            if declaration.export.is_none() {
                 continue;
             }
 
             // skip functions without a return type
-            if signature.return_type.is_none() {
+            if declaration.signature.return_type.is_none() {
                 continue;
             }
 

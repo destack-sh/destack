@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::str::FromStr;
 
 use destack_ast::{self as ast, Expression, ScalarLiteral, is_identifier};
@@ -5,7 +6,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 use regex::Regex;
 
-use crate::rules::common::{expression_static_string_literal_syntax, span_has_comment};
+use crate::rules::common::{expression_static_string_literal_source_form, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for DotNotation {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         DotNotation::meta()
     }
 
@@ -58,7 +59,7 @@ impl LintRule for DotNotation {
                 continue;
             };
 
-            let Some(string_id) = expression_static_string_literal_syntax(ctx.tree, *index_id)
+            let Some(string_id) = expression_static_string_literal_source_form(ctx.tree, *index_id)
             else {
                 continue;
             };

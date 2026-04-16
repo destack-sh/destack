@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -27,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for NoReturnAssign {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoReturnAssign::meta()
     }
 
@@ -77,24 +78,23 @@ impl LintRule for NoReturnAssign {
         // inspect implicit return function bodies for assignment expressions
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function {
-                body: Some(body_expression_id),
-                ..
-            } = declaration
-            else {
+            let ast::Declaration::Function(declaration) = declaration else {
+                continue;
+            };
+            let Some(body_expression_id) = declaration.body else {
                 continue;
             };
 
-            let body_expression = ctx.tree.get(*body_expression_id);
+            let body_expression = ctx.tree.get(body_expression_id);
             if matches!(body_expression, ast::Expression::Block(_)) {
                 continue;
             }
 
-            if !expression_contains_assignment(ctx.tree, *body_expression_id) {
+            if !expression_contains_assignment(ctx.tree, body_expression_id) {
                 continue;
             }
 
-            let severity = ctx.get_effective_severity(meta, *body_expression_id);
+            let severity = ctx.get_effective_severity(meta, body_expression_id);
             if !severity.is_enabled() {
                 continue;
             }
@@ -106,7 +106,7 @@ impl LintRule for NoReturnAssign {
                 severity,
                 "assignment in implicit return expression",
                 ctx.module.file_id,
-                ctx.tree.get_span(*body_expression_id),
+                ctx.tree.get_span(body_expression_id),
             )
             .with_label("extract assignment before returning from this expression body");
             ctx.report(diagnostic);

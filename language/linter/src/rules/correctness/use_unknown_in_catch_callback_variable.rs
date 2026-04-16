@@ -288,7 +288,7 @@ fn callback_primary_declaration(
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalNodeIdAny> {
     let callback_expression = ctx.tree.get(callback_expression_id);
-    if let dir::Expression::Declaration { declaration } = callback_expression {
+    if let dir::Expression::Declaration(declaration) = callback_expression {
         return Some((*declaration).into_global_any(ctx.module_id()));
     }
 
@@ -337,10 +337,10 @@ fn first_callback_parameter_in_declaration(
 ) -> Option<dir::LocalNodeId<dir::Parameter>> {
     if declaration_id.ty == dir::NodeType::Declaration {
         let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
-        let dir::Declaration::Function { signature, .. } = declaration else {
+        let dir::Declaration::Function(declaration) = declaration else {
             return None;
         };
-        return signature.dynamic_parameters.first().copied();
+        return declaration.signature.parameters.first().copied();
     }
 
     if declaration_id.ty == dir::NodeType::Member {
@@ -348,7 +348,7 @@ fn first_callback_parameter_in_declaration(
         let dir::Member::Method { signature, .. } = member else {
             return None;
         };
-        return signature.dynamic_parameters.first().copied();
+        return signature.parameters.first().copied();
     }
 
     None
@@ -414,7 +414,7 @@ fn ast_parameter_type_expression_id(
     ast_tree: &ast::NodeTree,
     tree: &dir::NodeTree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
     let source_id = tree.get_source(parameter_id.id);
     if ast_tree.get_node_type(source_id) != ast::NodeType::Parameter {
         return None;
@@ -423,10 +423,10 @@ fn ast_parameter_type_expression_id(
     let ast_parameter_id = ast::LocalNodeId::<ast::Parameter>::new(source_id);
     let ast_parameter = ast_tree.get(ast_parameter_id);
     match ast_parameter {
-        ast::Parameter::Named { ty, .. }
-        | ast::Parameter::Pattern { ty, .. }
-        | ast::Parameter::VariadicNamed { ty, .. }
-        | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+        ast::Parameter::Named { declared_type, .. }
+        | ast::Parameter::Pattern { declared_type, .. }
+        | ast::Parameter::VariadicNamed { declared_type, .. }
+        | ast::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
         ast::Parameter::Error => None,
     }
 }
@@ -434,12 +434,14 @@ fn ast_parameter_type_expression_id(
 /// Return true when one AST type expression is an explicit `any`.
 fn ast_type_expression_is_explicit_any(
     tree: &ast::NodeTree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
-    let expression = tree.get(expression_id);
+    let expression = tree.get(type_expression_id);
     match expression {
-        ast::Expression::TypeLiteral(ast::TypeLiteral::Any) => true,
-        ast::Expression::Parenthesized { expression } => {
+        ast::TypeExpression::Literal {
+            value: ast::TypeLiteral::Any,
+        } => true,
+        ast::TypeExpression::Parenthesized { expression } => {
             ast_type_expression_is_explicit_any(tree, *expression)
         }
         _ => false,

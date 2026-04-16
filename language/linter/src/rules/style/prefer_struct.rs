@@ -1,9 +1,9 @@
 use destack_ast as ast;
-use destack_dir::{self as dir, DeclarationAbstraction, DeclarationKind};
+use destack_dir::{self as dir};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    declaration_has_embedded_types, declaration_has_extends_types,
+    declaration_has_embedded_types, declaration_has_extends_heritage,
     local_symbol_has_other_declarations, members_are_all_fields,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -43,15 +43,7 @@ impl LintRule for PreferStruct {
         // inspect class declarations only
         for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let dir::Declaration::Class {
-                descriptor: _,
-                generics: _,
-                heritage: _,
-                scope: _,
-                members: _,
-                ..
-            } = declaration
-            else {
+            let dir::Declaration::Class(_) = declaration else {
                 continue;
             };
 
@@ -96,37 +88,28 @@ fn class_is_struct_candidate(
     ctx: &LintModuleDirContext<'_>,
     declaration: &dir::Declaration,
 ) -> bool {
-    let dir::Declaration::Class {
-        descriptor,
-        members,
-        generics: _,
-        heritage: _,
-        scope: _,
-        ..
-    } = declaration
-    else {
+    let dir::Declaration::Class(class_declaration) = declaration else {
         return false;
     };
 
     // keep ambient and abstract declarations out of this style rule
-    if descriptor.kind != DeclarationKind::Definition
-        || descriptor.abstraction == DeclarationAbstraction::Abstract
-    {
+    if class_declaration.ambient.is_ambient() || class_declaration.is_abstract {
         return false;
     }
 
     // keep empty classes out of this style rule
-    if members.is_empty() {
+    if class_declaration.members.is_empty() {
         return false;
     }
 
     // keep extends and embed inheritance on classes
-    if declaration_has_extends_types(declaration) || declaration_has_embedded_types(declaration) {
+    if declaration_has_extends_heritage(declaration) || declaration_has_embedded_types(declaration)
+    {
         return false;
     }
 
     // keep non field members out of this style rule
-    members_are_all_fields(ctx.tree, members)
+    members_are_all_fields(ctx.tree, &class_declaration.members)
 }
 
 /// Build an unsafe fix by replacing the `class` keyword with `struct`.

@@ -138,8 +138,8 @@ impl LintRule for NoArgumentsOrderMismatch {
 
 /// Return true when one swapped argument pair is type compatible with swapped parameters.
 ///
-/// This mirrors sonar style heuristics: if we can resolve local signature and
-/// type information, each argument should fit the opposite parameter.
+/// When local signature and type information is available, each argument should
+/// fit the opposite parameter.
 fn swapped_pair_type_compatible(
     ctx: &LintModuleDirContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
@@ -178,15 +178,13 @@ fn swapped_pair_type_compatible(
             continue;
         }
 
-        let Some(dynamic_parameters) =
-            declaration_dynamic_parameters(ctx.tree, declaration_id.local_id)
-        else {
+        let Some(parameters) = declaration_parameters(ctx.tree, declaration_id.local_id) else {
             continue;
         };
-        let Some(first_parameter_id) = dynamic_parameters.get(first_index).copied() else {
+        let Some(first_parameter_id) = parameters.get(first_index).copied() else {
             continue;
         };
-        let Some(second_parameter_id) = dynamic_parameters.get(second_index).copied() else {
+        let Some(second_parameter_id) = parameters.get(second_index).copied() else {
             continue;
         };
         let Some(first_argument_expression_id) =
@@ -285,9 +283,15 @@ fn expression_name_hint(
         | dir::Expression::ModuleReference { path, .. }
         | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
         dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
-        dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
-            expression_name_hint(tree, *value)
+        dir::Expression::As {
+            expression: value,
+            target_type: _,
         }
+        | dir::Expression::Satisfies {
+            expression: value,
+            target_type: _,
+        }
+        | dir::Expression::OwnershipCast { value, .. } => expression_name_hint(tree, *value),
         dir::Expression::ValueOf { right, .. }
         | dir::Expression::ReferenceOf { right, .. }
         | dir::Expression::PointerOf { right, .. } => expression_name_hint(tree, *right),
@@ -366,9 +370,9 @@ fn declaration_parameter_names(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<Option<StringId>>> {
-    let dynamic_parameters = declaration_dynamic_parameters(tree, declaration_id)?;
+    let parameters = declaration_parameters(tree, declaration_id)?;
     Some(
-        dynamic_parameters
+        parameters
             .into_iter()
             .map(|parameter_id| parameter_name_for_signature_parameter(tree, parameter_id))
             .collect(),
@@ -394,33 +398,31 @@ fn parameter_declared_or_inferred_type_id(
 }
 
 /// Return dynamic parameter ids for one callable declaration node.
-fn declaration_dynamic_parameters(
+fn declaration_parameters(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
     if declaration_id.ty == dir::NodeType::Declaration {
         let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
-        if let dir::Declaration::Function { signature, .. } = declaration {
-            return Some(signature.dynamic_parameters.clone());
+        if let dir::Declaration::Function(declaration) = declaration {
+            return Some(declaration.signature.parameters.clone());
         }
-        if let dir::Declaration::Class { members, .. } | dir::Declaration::Struct { members, .. } =
-            declaration
-        {
-            return constructor_dynamic_parameters(tree, members);
+        if let Some(members) = declaration.member_ids() {
+            return constructor_parameters(tree, members);
         }
     }
 
     if declaration_id.ty == dir::NodeType::Member {
         let member = tree.get(declaration_id.into_typed::<dir::Member>());
         if let dir::Member::Method { signature, .. } = member {
-            return Some(signature.dynamic_parameters.clone());
+            return Some(signature.parameters.clone());
         }
     }
 
     if declaration_id.ty == dir::NodeType::Property {
         let property = tree.get(declaration_id.into_typed::<dir::Property>());
         if let dir::Property::Method { signature, .. } = property {
-            return Some(signature.dynamic_parameters.clone());
+            return Some(signature.parameters.clone());
         }
     }
 
@@ -431,7 +433,7 @@ fn declaration_dynamic_parameters(
 ///
 /// When multiple constructors disagree on dynamic parameter shape, this
 /// returns none to avoid noisy false positives.
-fn constructor_dynamic_parameters(
+fn constructor_parameters(
     tree: &dir::NodeTree,
     members: &[dir::LocalNodeId<dir::Member>],
 ) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
@@ -446,7 +448,7 @@ fn constructor_dynamic_parameters(
             continue;
         }
 
-        let parameters = signature.dynamic_parameters.clone();
+        let parameters = signature.parameters.clone();
         if let Some(existing_parameters) = constructor_parameters.as_ref() {
             if *existing_parameters != parameters {
                 return None;

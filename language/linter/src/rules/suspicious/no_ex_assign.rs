@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
@@ -29,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for NoExAssign {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoExAssign::meta()
     }
 
@@ -99,7 +100,7 @@ fn collect_assignment_references_in_expression(
 /// Report an exception reassignment diagnostic.
 fn report_ex_assign(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     catch_expression_id: ast::LocalNodeId<ast::Expression>,
     expr_id: ast::LocalNodeId<ast::Expression>,
     catch_name: ast::StringId,

@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::count_file_lines;
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxLines {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxLines::meta()
     }
 

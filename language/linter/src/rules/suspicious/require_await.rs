@@ -49,10 +49,7 @@ impl LintRule for RequireAwait {
 
         // check function declarations
         for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
-            let dir::Declaration::Function {
-                signature, body, ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
@@ -60,8 +57,8 @@ impl LintRule for RequireAwait {
                 ctx,
                 meta,
                 declaration_id,
-                signature,
-                *body,
+                &declaration.signature,
+                declaration.body,
                 &promise_symbols,
                 &async_function_symbols,
             );
@@ -125,13 +122,13 @@ fn collect_async_function_symbols(ctx: &LintModuleDirContext<'_>) -> HashSet<dir
     // keep named async function declarations only
     for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
         let declaration = ctx.tree.get(declaration_id);
-        let dir::Declaration::Function { signature, .. } = declaration else {
+        let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
-        if signature.asynchrony != Asynchrony::Async {
+        if declaration.signature.asynchrony != Asynchrony::Async {
             continue;
         }
-        let symbol_id = declaration.symbol().into_global(ctx.module_id());
+        let symbol_id = declaration.symbol.into_global(ctx.module_id());
         symbols.insert(symbol_id);
     }
 
@@ -179,7 +176,7 @@ fn check_async_callable<T: dir::Node>(
         return;
     };
 
-    // ignore empty async bodies like source behavior
+    // ignore empty async bodies
     if function_body_is_empty(ctx.tree, body_id) {
         return;
     }
@@ -241,7 +238,7 @@ fn function_body_is_empty(
     body_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let body = tree.get(body_id);
-    let dir::Expression::Block { block } = body else {
+    let dir::Expression::Block(block) = body else {
         return false;
     };
     let block = tree.get(*block);
@@ -503,7 +500,7 @@ fn expression_is_thenable_return_value(
         return true;
     }
 
-    // keep one syntax fallback for async declaration calls
+    // keep one declaration fallback for async calls
     expression_is_async_symbol_call(tree, expression_id, async_function_symbols)
 }
 
@@ -521,7 +518,7 @@ fn expression_is_implicit_thenable_return(
     body_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // ignore block bodies because explicit return handling covers them
-    if matches!(tree.get(body_id), Expression::Block { .. }) {
+    if matches!(tree.get(body_id), Expression::Block(..)) {
         return false;
     }
 
@@ -569,16 +566,16 @@ fn expression_is_async_callable_value(
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
-    let Expression::Declaration { declaration } = expression else {
+    let Expression::Declaration(declaration) = expression else {
         return false;
     };
 
     let declaration = tree.get(*declaration);
-    let dir::Declaration::Function { signature, .. } = declaration else {
+    let dir::Declaration::Function(declaration) = declaration else {
         return false;
     };
 
-    signature.asynchrony == Asynchrony::Async
+    declaration.signature.asynchrony == Asynchrony::Async
 }
 
 /// Build one unsafe fix that removes the `async` keyword token.

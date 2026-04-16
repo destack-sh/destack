@@ -5,7 +5,7 @@ use crate::rules::common::{expression_target_symbol, symbol_primary_declaration_
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Prefer struct literal syntax over constructor calls.
+    /// Prefer struct literal form over constructor calls.
     ///
     /// Structs are value types and read more clearly as tagged object literals.
     /// Prefer `Point { x: 1, y: 2 }` over `new Point(1, 2)`.
@@ -21,7 +21,7 @@ declare_lint! {
         stability = Stable
     )]
     pub PreferStructLiteral,
-    "Prefer struct literal syntax"
+    "Prefer struct literal form"
 }
 
 impl LintRule for PreferStructLiteral {
@@ -107,22 +107,23 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         let declaration = module_dir
             .tree
             .get(declaration_id.into_local_typed::<dir::Declaration>());
-        let dir::Declaration::Struct { members, .. } = declaration else {
+        let dir::Declaration::Struct(declaration) = declaration else {
             return None;
         };
 
         // collect named fields in declaration order
         let mut field_names = Vec::new();
-        for member_id in members {
+        for member_id in &declaration.members {
             let member = module_dir.tree.get(*member_id);
             let dir::Member::Field { key, .. } = member else {
                 continue;
             };
-            let Some(dir::DynamicKey::Name(field_name)) = key else {
-                return None;
+            let field_name = match key {
+                dir::Key::Name(name) => name.string(),
+                dir::Key::Private(_) | dir::Key::Expression(_) => return None,
             };
 
-            field_names.push(*field_name);
+            field_names.push(field_name);
         }
 
         Some(field_names)
@@ -133,11 +134,11 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
-        // skip generic constructor calls until we support static argument rendering
-        if static_arguments.is_some_and(|arguments| !arguments.is_empty()) {
+        // skip generic constructor calls until we support generic argument rendering
+        if !generic_arguments.is_empty() {
             return None;
         }
 
@@ -185,7 +186,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // only lint real struct constructors
@@ -206,7 +207,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             PREFER_STRUCT_LITERAL.code,
             PREFER_STRUCT_LITERAL.category,
             severity,
-            "prefer struct literal syntax over struct constructor call",
+            "prefer struct literal form over struct constructor call",
             self.ctx.module.file_id,
             span,
         )
@@ -216,7 +217,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         if let Some(fix) = self.struct_literal_fix(
             expression_id,
             callee_id,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         ) {
             diagnostic = diagnostic.with_fix(fix);
@@ -240,11 +241,11 @@ impl NodeVisitor for PreferStructLiteralVisitor<'_, '_> {
         // check struct constructor calls
         if let dir::Expression::New {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = expression
         {
-            self.check_new_expression(id, *left, static_arguments.as_deref(), dynamic_arguments);
+            self.check_new_expression(id, *left, generic_arguments.as_slice(), dynamic_arguments);
         }
 
         // walk expression children

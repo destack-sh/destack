@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
@@ -38,7 +39,7 @@ declare_lint! {
 }
 
 impl LintRule for NoConstantAssertion {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoConstantAssertion::meta()
     }
 
@@ -185,9 +186,20 @@ fn get_constant_truthiness(
             Some(!s.is_empty())
         }
 
-        // null and undefined are falsy (TypeLiteral values)
-        Expression::TypeLiteral(ast::TypeLiteral::Null | ast::TypeLiteral::Undefined) => {
-            Some(false)
+        // null is falsy
+        Expression::ScalarLiteral(ScalarLiteral::Null) => Some(false),
+
+        // empty optional sentinel types are falsy
+        Expression::Type {
+            value: type_expression_id,
+        } => {
+            let type_expression = ctx.tree.get(*type_expression_id);
+            match type_expression {
+                ast::TypeExpression::Literal {
+                    value: ast::TypeLiteral::Null | ast::TypeLiteral::Undefined,
+                } => Some(false),
+                _ => None,
+            }
         }
 
         // parenthesized: unwrap

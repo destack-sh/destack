@@ -36,7 +36,7 @@ impl LintRule for NoStruct {
         // inspect candidate declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            if !matches!(declaration, Declaration::Struct { .. }) {
+            if !matches!(declaration, Declaration::Struct(_)) {
                 continue;
             }
 

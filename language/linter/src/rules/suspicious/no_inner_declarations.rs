@@ -37,7 +37,7 @@ impl LintRule for NoInnerDeclarations {
         // nested functions
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            if !matches!(declaration, ast::Declaration::Function { .. }) {
+            if !matches!(declaration, ast::Declaration::Function(_)) {
                 continue;
             }
 

@@ -1,8 +1,9 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, AssignOperator, BinaryOperator, ScalarLiteral};
 use destack_workspace::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
-    expression_is_equal, expression_path_segments, expression_unwrap_parenthesized_syntax,
+    expression_is_equal, expression_path_segments, expression_unwrap_parenthesized_source_form,
     span_has_comment,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
@@ -27,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for OperatorAssignment {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         OperatorAssignment::meta()
     }
 
@@ -56,7 +57,7 @@ impl LintRule for OperatorAssignment {
             }
 
             // normalize the assignment and binary shapes
-            let normalized_right_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+            let normalized_right_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
             let ast::Expression::Binary {
                 left: binary_left_id,
                 operator: binary_operator,
@@ -73,11 +74,11 @@ impl LintRule for OperatorAssignment {
 
             // resolve normalized operands for structural comparison
             let normalized_assignment_left_id =
-                expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+                expression_unwrap_parenthesized_source_form(ctx.tree, *left);
             let normalized_binary_left_id =
-                expression_unwrap_parenthesized_syntax(ctx.tree, *binary_left_id);
+                expression_unwrap_parenthesized_source_form(ctx.tree, *binary_left_id);
             let normalized_binary_right_id =
-                expression_unwrap_parenthesized_syntax(ctx.tree, *binary_right_id);
+                expression_unwrap_parenthesized_source_form(ctx.tree, *binary_right_id);
 
             // report when assignment target appears on binary left side
             let left_matches_left = expression_is_equal(
@@ -146,7 +147,7 @@ impl OperatorAssignment {
     fn check_disallowed_shorthand_assignment(
         &self,
         ctx: &mut LintAstContext<'_>,
-        meta: &'static crate::LintMeta,
+        meta: &'static LintMeta,
         node_id: ast::LocalNodeId<ast::Expression>,
         left_id: ast::LocalNodeId<ast::Expression>,
         operator: AssignOperator,
@@ -290,7 +291,7 @@ fn can_fix_assignment_target(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     match expression {
@@ -301,19 +302,19 @@ fn can_fix_assignment_target(
 
         // dot member targets are safe when their receiver is stable
         ast::Expression::Member { left, .. } => {
-            let object_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+            let object_id = expression_unwrap_parenthesized_source_form(ctx.tree, *left);
             expression_path_segments(ctx.tree, object_id).is_some()
                 || matches!(ctx.tree.get(object_id), ast::Expression::This)
         }
 
         // bracket member targets are safe when receiver and index are stable
         ast::Expression::Index { left, index, .. } => {
-            let object_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+            let object_id = expression_unwrap_parenthesized_source_form(ctx.tree, *left);
             let object_is_stable = expression_path_segments(ctx.tree, object_id).is_some()
                 || matches!(ctx.tree.get(object_id), ast::Expression::This);
 
             let index_is_stable_literal = index.is_some_and(|index_id| {
-                let index_id = expression_unwrap_parenthesized_syntax(ctx.tree, index_id);
+                let index_id = expression_unwrap_parenthesized_source_form(ctx.tree, index_id);
                 matches!(
                     ctx.tree.get(index_id),
                     ast::Expression::ScalarLiteral(ScalarLiteral::String(_))

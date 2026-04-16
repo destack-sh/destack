@@ -310,17 +310,14 @@ fn expression_require_target_specifier(
 ) -> Option<destack_core::StringId> {
     let dir::Expression::Call {
         left,
-        static_arguments,
+        generic_arguments,
         dynamic_arguments,
     } = expression
     else {
         return None;
     };
 
-    if static_arguments
-        .as_ref()
-        .is_some_and(|arguments| !arguments.is_empty())
-    {
+    if !generic_arguments.is_empty() {
         return None;
     }
     if dynamic_arguments.len() != 1 {

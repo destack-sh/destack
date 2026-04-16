@@ -1,8 +1,9 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_syntax,
+    expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
@@ -29,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for NoComplexBooleanExpression {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoComplexBooleanExpression::meta()
     }
 
@@ -50,7 +51,7 @@ impl LintRule for NoComplexBooleanExpression {
                 right,
             } = expression
             {
-                let inner_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+                let inner_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
                 let inner = ctx.tree.get(inner_id);
                 if let Expression::Unary {
                     operator: UnaryOperator::Not,
@@ -155,15 +156,15 @@ fn is_negation_of(
     left_id: ast::LocalNodeId<Expression>,
     right_id: ast::LocalNodeId<Expression>,
 ) -> bool {
-    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
     let right = ctx.tree.get(right_id);
     if let Expression::Unary {
         operator: UnaryOperator::Not,
         right: inner_id,
     } = right
     {
-        let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
-        let inner_id = expression_unwrap_parenthesized_syntax(ctx.tree, *inner_id);
+        let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
+        let inner_id = expression_unwrap_parenthesized_source_form(ctx.tree, *inner_id);
         expression_is_equal(ctx, left_id, inner_id)
     } else {
         false

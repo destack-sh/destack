@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_core::StringId;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for NoDefaultExport {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDefaultExport::meta()
     }
 
@@ -60,8 +61,19 @@ impl LintRule for NoDefaultExport {
 
         // check for declarations with export=Default (export default function/class)
         for (node_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
-            let descriptor = declaration.descriptor();
-            if descriptor.export == Some(dir::DependencyMode::Default) {
+            let export = match declaration {
+                dir::Declaration::Global(_) => None,
+                dir::Declaration::Namespace(declaration) => declaration.export,
+                dir::Declaration::Type(declaration) => declaration.export,
+                dir::Declaration::ImportAlias(declaration) => declaration.export,
+                dir::Declaration::Struct(declaration) => declaration.export,
+                dir::Declaration::Class(declaration) => declaration.export,
+                dir::Declaration::Enum(declaration) => declaration.export,
+                dir::Declaration::Interface(declaration) => declaration.export,
+                dir::Declaration::Extension(declaration) => declaration.export,
+                dir::Declaration::Function(declaration) => declaration.export,
+            };
+            if export == Some(dir::ExportMode::Default) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -105,7 +117,7 @@ fn dependency_item_exports_default(
         return false;
     };
 
-    // only inspect export syntax, not imports
+    // only inspect export nodes, not imports
     match ctx.tree.get(parent_id) {
         dir::Expression::Export { .. }
         | dir::Expression::ReExport { .. }
@@ -178,14 +190,11 @@ fn default_export_declaration_fix(
 ) -> Option<LintFix> {
     // only rewrite named function and class declarations
     let declaration = ctx.tree.get(declaration_id);
-    let descriptor = declaration.descriptor();
-    descriptor.name?;
-    if !matches!(
-        declaration,
-        dir::Declaration::Function { .. } | dir::Declaration::Class { .. }
-    ) {
-        return None;
-    }
+    match declaration {
+        dir::Declaration::Function(declaration) => declaration.name?,
+        dir::Declaration::Class(declaration) => declaration.name?,
+        _ => return None,
+    };
 
     // rewrite `export default` into `export` for declaration forms
     let declaration_span = ctx.get_span(declaration_id);

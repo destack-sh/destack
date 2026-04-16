@@ -3,8 +3,7 @@ use destack_workspace::LintSeverity;
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::rules::common::{
-    argument_expression_id, expression_structural_signature, symbol_primary_declaration_for,
-    trailing_argument_removal_span,
+    expression_signature_for_tree, symbol_primary_declaration_for, trailing_argument_removal_span,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -38,16 +37,16 @@ impl LintRule for NoUnnecessaryTypeArguments {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // inspect expressions with explicit static arguments
+        // inspect expressions with explicit generic arguments
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
             let expression = ctx.tree.get(expression_id);
-            let Some(static_arguments) = expression.static_arguments() else {
+            let Some(generic_arguments) = expression.generic_arguments() else {
                 continue;
             };
-            if static_arguments.is_empty() {
+            if generic_arguments.is_empty() {
                 continue;
             }
-            if !static_arguments_are_plain_positional(ctx.tree, static_arguments) {
+            if !generic_arguments_are_plain_positional(ctx.tree, generic_arguments) {
                 continue;
             }
 
@@ -56,20 +55,20 @@ impl LintRule for NoUnnecessaryTypeArguments {
             else {
                 continue;
             };
-            let Some(static_parameter_defaults) =
-                static_parameter_defaults_for_symbol(ctx, target_symbol)
+            let Some(generic_parameter_defaults) =
+                generic_parameter_defaults_for_symbol(ctx, target_symbol)
             else {
                 continue;
             };
-            if static_parameter_defaults.len() < static_arguments.len() {
+            if generic_parameter_defaults.len() < generic_arguments.len() {
                 continue;
             }
 
             // require optional structure
             let Some(first_redundant_index) = first_redundant_trailing_argument_index(
                 ctx,
-                static_arguments,
-                &static_parameter_defaults,
+                generic_arguments,
+                &generic_parameter_defaults,
             ) else {
                 continue;
             };
@@ -81,7 +80,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
             }
 
             // resolve redundant argument id
-            let redundant_argument_id = static_arguments[first_redundant_index];
+            let redundant_argument_id = generic_arguments[first_redundant_index];
             let span = ctx.get_span(redundant_argument_id);
             let mut diagnostic = LintDiagnostic::new(
                 NO_UNNECESSARY_TYPE_ARGUMENTS.id,
@@ -99,7 +98,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
                 && let Some(fix) = redundant_type_arguments_fix(
                     ctx,
                     expression_id,
-                    static_arguments,
+                    generic_arguments,
                     first_redundant_index,
                 )
             {
@@ -134,20 +133,29 @@ fn target_symbol_for_expression(
     }
 }
 
-/// One static parameter default source.
+/// One generic parameter default source.
 #[derive(Clone, Copy)]
-struct StaticParameterDefault {
+struct GenericParameterDefault {
     /// The module that owns this default expression.
     module_id: ModuleId,
-    /// The default expression when present.
-    default_expression: Option<dir::LocalNodeId<dir::Expression>>,
+    /// The default value when present.
+    default_value: Option<GenericParameterDefaultValue>,
 }
 
-/// Resolve static parameter defaults from one declaration or member symbol.
-fn static_parameter_defaults_for_symbol(
+/// One generic parameter default value.
+#[derive(Clone, Copy)]
+enum GenericParameterDefaultValue {
+    /// One type-space default.
+    Type(dir::LocalNodeId<dir::TypeExpression>),
+    /// One value-space default.
+    Value(dir::LocalNodeId<dir::Expression>),
+}
+
+/// Resolve generic parameter defaults from one declaration or member symbol.
+fn generic_parameter_defaults_for_symbol(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::GlobalSymbolId,
-) -> Option<Vec<StaticParameterDefault>> {
+) -> Option<Vec<GenericParameterDefault>> {
     let declaration_id = symbol_primary_declaration_for(
         &ctx.repository,
         ctx.revision,
@@ -159,14 +167,14 @@ fn static_parameter_defaults_for_symbol(
 
     // resolve defaults from the current module when possible
     if declaration_id.module_id == ctx.module_id() {
-        let static_parameters =
-            static_parameters_for_declaration(ctx.tree, declaration_id.local_id)?;
+        let generic_parameters =
+            generic_parameters_for_declaration(ctx.tree, declaration_id.local_id)?;
         return Some(
-            static_parameters
+            generic_parameters
                 .into_iter()
-                .map(|parameter_id| StaticParameterDefault {
+                .map(|parameter_id| GenericParameterDefault {
                     module_id: ctx.module_id(),
-                    default_expression: parameter_default_expression(ctx.tree, parameter_id),
+                    default_value: parameter_default_expression(ctx.tree, parameter_id),
                 })
                 .collect(),
         );
@@ -174,41 +182,56 @@ fn static_parameter_defaults_for_symbol(
 
     // fall back to loading declaration defaults from the owning module
     let module_dir = ctx.analyzed_dir(declaration_id.module_id)?;
-    let static_parameters =
-        static_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
+    let generic_parameters =
+        generic_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
     Some(
-        static_parameters
+        generic_parameters
             .into_iter()
-            .map(|parameter_id| StaticParameterDefault {
+            .map(|parameter_id| GenericParameterDefault {
                 module_id: declaration_id.module_id,
-                default_expression: parameter_default_expression(&module_dir.tree, parameter_id),
+                default_value: parameter_default_expression(&module_dir.tree, parameter_id),
             })
             .collect(),
     )
 }
 
-/// Resolve static parameter ids from one declaration or member node.
-fn static_parameters_for_declaration(
+/// Resolve generic parameter ids from one declaration or member node.
+fn generic_parameters_for_declaration(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeIdAny,
-) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
+) -> Option<Vec<dir::LocalNodeId<dir::GenericParameter>>> {
     // handle declaration symbols directly
     if declaration_id.ty == dir::NodeType::Declaration {
         let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
-        return declaration.static_parameters().cloned();
+        return match declaration {
+            dir::Declaration::Namespace(declaration) => {
+                Some(declaration.generic_parameters.clone())
+            }
+            dir::Declaration::Type(declaration) => Some(declaration.generic_parameters.clone()),
+            dir::Declaration::Struct(declaration) => Some(declaration.generic_parameters.clone()),
+            dir::Declaration::Class(declaration) => Some(declaration.generic_parameters.clone()),
+            dir::Declaration::Enum(declaration) => Some(declaration.generic_parameters.clone()),
+            dir::Declaration::Interface(declaration) => {
+                Some(declaration.generic_parameters.clone())
+            }
+            dir::Declaration::Extension(declaration) => {
+                Some(declaration.generic_parameters.clone())
+            }
+            dir::Declaration::Function(declaration) => {
+                Some(declaration.signature.generic_parameters.clone())
+            }
+            dir::Declaration::Global(_) | dir::Declaration::ImportAlias(_) => None,
+        };
     }
 
     // handle member symbols that can declare static parameters
     if declaration_id.ty == dir::NodeType::Member {
         let member = tree.get(declaration_id.into_typed::<dir::Member>());
         return match member {
-            dir::Member::Method { signature, .. } => signature
-                .generics
-                .as_ref()
-                .and_then(|generics| generics.static_parameters.clone()),
-            dir::Member::Type {
-                static_parameters, ..
-            } => static_parameters.clone(),
+            dir::Member::Method { signature, .. } => Some(signature.generic_parameters.clone()),
+            dir::Member::AssociatedType {
+                generic_parameters, ..
+            } => Some(generic_parameters.clone()),
             _ => None,
         };
     }
@@ -219,19 +242,20 @@ fn static_parameters_for_declaration(
 /// Return the first trailing explicit argument index that is redundant.
 fn first_redundant_trailing_argument_index(
     ctx: &LintModuleDirContext<'_>,
-    static_arguments: &[dir::LocalNodeId<dir::Argument>],
-    static_parameter_defaults: &[StaticParameterDefault],
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    generic_parameter_defaults: &[GenericParameterDefault],
 ) -> Option<usize> {
-    let mut index = static_arguments.len();
+    let mut index = generic_arguments.len();
 
     // walk trailing arguments backwards while they match parameter defaults
     while index > 0 {
-        let argument_id = static_arguments[index - 1];
-        let Some(argument_expression) = argument_expression_id(ctx.tree, argument_id) else {
+        let argument_id = generic_arguments[index - 1];
+        let Some(argument_expression) = generic_argument_expression_id(ctx.tree, argument_id)
+        else {
             break;
         };
-        let parameter_default = static_parameter_defaults[index - 1];
-        let Some(default_expression) = parameter_default.default_expression else {
+        let parameter_default = generic_parameter_defaults[index - 1];
+        let Some(default_value) = parameter_default.default_value else {
             break;
         };
 
@@ -240,7 +264,7 @@ fn first_redundant_trailing_argument_index(
             ctx,
             argument_expression,
             parameter_default.module_id,
-            default_expression,
+            default_value,
         ) {
             break;
         }
@@ -248,18 +272,32 @@ fn first_redundant_trailing_argument_index(
         index -= 1;
     }
 
-    (index < static_arguments.len()).then_some(index)
+    (index < generic_arguments.len()).then_some(index)
 }
 
-/// Return true when all static arguments are plain positional arguments.
-fn static_arguments_are_plain_positional(
+/// Return true when all generic arguments are plain positional arguments.
+fn generic_arguments_are_plain_positional(
     tree: &dir::NodeTree,
-    static_arguments: &[dir::LocalNodeId<dir::Argument>],
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
 ) -> bool {
-    static_arguments.iter().all(|argument_id| {
+    generic_arguments.iter().all(|argument_id| {
         let argument = tree.get(*argument_id);
-        matches!(argument, dir::Argument::Positional { .. })
+        matches!(argument, dir::GenericArgument::Positional { .. })
     })
+}
+
+/// Return one value expression id from one generic argument.
+fn generic_argument_expression_id(
+    tree: &dir::NodeTree,
+    argument_id: dir::LocalNodeId<dir::GenericArgument>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let argument = tree.get(argument_id);
+    match argument {
+        dir::GenericArgument::Positional { value } | dir::GenericArgument::Spread { value } => {
+            Some(*value)
+        }
+        dir::GenericArgument::Error => None,
+    }
 }
 
 /// Return true when one explicit type argument matches one declared default.
@@ -267,16 +305,48 @@ fn argument_matches_default(
     ctx: &LintModuleDirContext<'_>,
     argument_expression: dir::LocalNodeId<dir::Expression>,
     default_module_id: ModuleId,
-    default_expression: dir::LocalNodeId<dir::Expression>,
+    default_value: GenericParameterDefaultValue,
 ) -> bool {
-    // compare type argument and default expression structure
-    expression_ast_signature_eq_cross_module(
-        ctx,
-        ctx.module_id(),
-        argument_expression,
-        default_module_id,
-        default_expression,
-    )
+    match default_value {
+        GenericParameterDefaultValue::Type(default_type_expression) => {
+            type_argument_matches_default(
+                ctx,
+                argument_expression,
+                default_module_id,
+                default_type_expression,
+            )
+        }
+        GenericParameterDefaultValue::Value(default_expression) => {
+            expression_ast_signature_eq_cross_module(
+                ctx,
+                ctx.module_id(),
+                argument_expression,
+                default_module_id,
+                default_expression,
+            )
+        }
+    }
+}
+
+/// Return true when one explicit type argument matches one declared type default.
+fn type_argument_matches_default(
+    ctx: &LintModuleDirContext<'_>,
+    argument_expression: dir::LocalNodeId<dir::Expression>,
+    default_module_id: ModuleId,
+    default_type_expression: dir::LocalNodeId<dir::TypeExpression>,
+) -> bool {
+    let Some(argument_text) =
+        type_argument_source_text_for_module(ctx, ctx.module_id(), argument_expression)
+    else {
+        return false;
+    };
+    let Some(default_text) =
+        type_expression_source_text_for_module(ctx, default_module_id, default_type_expression)
+    else {
+        return false;
+    };
+
+    argument_text == default_text
 }
 
 /// Compare expressions structurally across modules using AST signatures.
@@ -316,7 +386,7 @@ fn expression_ast_signature_for_module(
 
         // map local source node to an ast expression id
         let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
-        return Some(expression_structural_signature(
+        return Some(expression_signature_for_tree(
             &ast.tree,
             &ast.strings,
             ast_expression_id,
@@ -333,23 +403,27 @@ fn expression_ast_signature_for_module(
 
     // map cross module source node to an ast expression id
     let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
-    Some(expression_structural_signature(
+    Some(expression_signature_for_tree(
         &ast.tree,
         &ast.strings,
         ast_expression_id,
     ))
 }
 
-/// Resolve the default expression for one static parameter.
+/// Resolve the default expression for one generic parameter.
 fn parameter_default_expression(
     tree: &dir::NodeTree,
-    parameter_id: dir::LocalNodeId<dir::Parameter>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
+    parameter_id: dir::LocalNodeId<dir::GenericParameter>,
+) -> Option<GenericParameterDefaultValue> {
     let parameter = tree.get(parameter_id);
     match parameter {
-        dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => *default,
-        dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => None,
-        dir::Parameter::Error { .. } => None,
+        dir::GenericParameter::Type { default, .. } => {
+            default.map(GenericParameterDefaultValue::Type)
+        }
+        dir::GenericParameter::Value { default, .. } => {
+            default.map(GenericParameterDefaultValue::Value)
+        }
+        dir::GenericParameter::Error { .. } => None,
     }
 }
 
@@ -357,12 +431,12 @@ fn parameter_default_expression(
 fn redundant_type_arguments_fix(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    static_arguments: &[dir::LocalNodeId<dir::Argument>],
+    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     first_redundant_index: usize,
 ) -> Option<LintFix> {
-    // resolve spans for the expression and static arguments
+    // resolve spans for the expression and generic arguments
     let expression_span = ctx.get_span(expression_id);
-    let argument_spans: Vec<_> = static_arguments
+    let argument_spans: Vec<_> = generic_arguments
         .iter()
         .map(|argument_id| ctx.get_span(*argument_id))
         .collect();
@@ -381,6 +455,64 @@ fn redundant_type_arguments_fix(
     // delete the redundant trailing type argument segment
     let edits = ctx.edit_builder().delete(remove_span).into_edits();
     Some(LintFix::safe("Remove redundant trailing type arguments").with_edits(edits))
+}
+
+/// Resolve the source text for one type argument expression.
+fn type_argument_source_text_for_module(
+    ctx: &LintModuleDirContext<'_>,
+    module_id: ModuleId,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<String> {
+    let ast = ctx.module_ast(module_id)?;
+    let module = ctx.repository_module(module_id)?;
+    let file = ctx.repository_file(module.file_id)?;
+
+    let source_id = if module_id == ctx.module_id() {
+        ctx.tree.get_source(expression_id.id)
+    } else {
+        let module_dir = ctx.analyzed_dir(module_id)?;
+        module_dir.tree.get_source(expression_id.id)
+    };
+    if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
+        return None;
+    }
+
+    let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
+    let ast_expression = ast.tree.get(ast_expression_id);
+    let ast::Expression::Type {
+        value: type_expression_id,
+    } = ast_expression
+    else {
+        return None;
+    };
+
+    let span = ast.tree.get_span(*type_expression_id);
+    Some(file.text()[span.start as usize..span.end as usize].to_string())
+}
+
+/// Resolve the source text for one DIR type expression.
+fn type_expression_source_text_for_module(
+    ctx: &LintModuleDirContext<'_>,
+    module_id: ModuleId,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+) -> Option<String> {
+    let ast = ctx.module_ast(module_id)?;
+    let module = ctx.repository_module(module_id)?;
+    let file = ctx.repository_file(module.file_id)?;
+
+    let source_id = if module_id == ctx.module_id() {
+        ctx.tree.get_source(type_expression_id.id)
+    } else {
+        let module_dir = ctx.analyzed_dir(module_id)?;
+        module_dir.tree.get_source(type_expression_id.id)
+    };
+    if ast.tree.get_node_type(source_id) != ast::NodeType::TypeExpression {
+        return None;
+    }
+
+    let ast_type_expression_id = ast::LocalNodeId::<ast::TypeExpression>::new(source_id);
+    let span = ast.tree.get_span(ast_type_expression_id);
+    Some(file.text()[span.start as usize..span.end as usize].to_string())
 }
 
 #[cfg(test)]
@@ -669,6 +801,52 @@ const value = id<string>("ok");
 import { id } from "./fix_source.ds";
 
 const value = id("ok");
+"#,
+            );
+    }
+
+    /// Flag redundant explicit generic value arguments equal to defaults.
+    #[test]
+    fn test_flags_value_argument_equal_to_default() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryTypeArguments);
+        let result = test.lint_dir(
+            "no_unnecessary_type_arguments/test_flags_value_argument_equal_to_default.ds",
+            r#"
+function repeat<const Count = 1>(value: int32): int32 {
+    return value;
+}
+
+const value = repeat<1>(1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unnecessary-type-arguments");
+    }
+
+    /// Safely remove redundant explicit generic value arguments.
+    #[test]
+    fn test_fix_value_argument_equal_to_default() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryTypeArguments);
+        let result = test.lint_dir(
+            "no_unnecessary_type_arguments/test_fix_value_argument_equal_to_default.ds",
+            r#"
+function repeat<const Count = 1>(value: int32): int32 {
+    return value;
+}
+
+const value = repeat<1>(1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unnecessary-type-arguments")
+            .assert_has_fix("no-unnecessary-type-arguments")
+            .assert_safe_fixed(
+                r#"
+function repeat<const Count = 1>(value: int32): int32 {
+    return value;
+}
+
+const value = repeat(1);
 "#,
             );
     }

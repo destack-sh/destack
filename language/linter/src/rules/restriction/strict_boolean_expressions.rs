@@ -26,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for StrictBooleanExpressions {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         StrictBooleanExpressions::meta()
     }
 
@@ -54,7 +54,7 @@ struct StrictBooleanVisitor<'a, 'b> {
 
 impl<'a, 'b> StrictBooleanVisitor<'a, 'b> {
     /// Build a visitor for boolean expression checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a crate::LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // prepare initial visitor state
         Self {
             ctx,
@@ -209,7 +209,7 @@ impl NodeVisitor for StrictBooleanVisitor<'_, '_> {
 /// Check a boolean context expression and report non-boolean usage.
 fn check_is_boolean(
     ctx: &mut LintModuleDirContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
     context: &str,
     visited: &mut HashSet<u32>,

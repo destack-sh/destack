@@ -148,20 +148,19 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
 
         // extract the accumulator parameter and callback body from function declaration
         let (local_symbol, callback_body_id) = match callback {
-            dir::Expression::Declaration { declaration } => {
+            dir::Expression::Declaration(declaration) => {
                 let decl = tree.get(*declaration);
                 match decl {
-                    Declaration::Function {
-                        signature,
-                        body: Some(body_id),
-                        ..
-                    } => {
-                        if signature.dynamic_parameters.is_empty() {
+                    Declaration::Function(declaration) => {
+                        let Some(body_id) = declaration.body else {
+                            return;
+                        };
+                        if declaration.signature.parameters.is_empty() {
                             return;
                         }
 
-                        let param = tree.get(signature.dynamic_parameters[0]);
-                        (param.symbol(), *body_id)
+                        let param = tree.get(declaration.signature.parameters[0]);
+                        (param.symbol(), body_id)
                     }
                     _ => return,
                 }
@@ -227,7 +226,7 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
 
         // match object expression with properties
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::ObjectExpression { properties } = expression else {
+        let dir::Expression::ObjectExpression { ty: _, properties } = expression else {
             return;
         };
 

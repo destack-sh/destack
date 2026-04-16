@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression,
@@ -28,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for RequireYield {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         RequireYield::meta()
     }
 
@@ -38,24 +39,22 @@ impl LintRule for RequireYield {
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let decl = ctx.tree.get(node_id);
 
-            let ast::Declaration::Function {
-                signature,
-                body: Some(body_id),
-                ..
-            } = decl
-            else {
+            let ast::Declaration::Function(declaration) = decl else {
+                continue;
+            };
+            let Some(body_id) = declaration.body else {
                 continue;
             };
 
             // check if this is a generator function
-            if signature.cardinality != ast::FunctionCardinality::Generator {
+            if declaration.signature.cardinality != ast::FunctionCardinality::Generator {
                 continue;
             }
             report_missing_generator_yield(
                 ctx,
                 meta,
                 node_id,
-                *body_id,
+                body_id,
                 "generator function does not contain `yield`",
             );
         }
@@ -115,12 +114,12 @@ impl LintRule for RequireYield {
 /// Report one generator callable that has no own yield expression.
 fn report_missing_generator_yield<T: ast::Node>(
     ctx: &mut LintAstContext<'_>,
-    meta: &crate::LintMeta,
+    meta: &LintMeta,
     callable_id: ast::LocalNodeId<T>,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
     message: &str,
 ) {
-    // match source behavior: empty generators are allowed
+    // allow empty generators
     if generator_body_is_empty(ctx.tree, body_expression_id) {
         return;
     }

@@ -2,8 +2,8 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_reference_path, expression_unwrap_parenthesized, expressions_have_equivalent_syntax,
-    has_non_nullish_falsy_type, infix_operator_window_contains, is_maybe_nullish_type,
+    expression_reference_path, expression_unwrap_parenthesized,
+    expressions_have_equivalent_source_form, has_non_nullish_falsy_type, is_maybe_nullish_type,
     is_strict_boolean_type, span_has_comment,
 };
 use crate::{
@@ -85,12 +85,6 @@ impl<'a, 'b> PreferNullishCoalescingVisitor<'a, 'b> {
         left_id: dir::LocalNodeId<dir::Expression>,
         right_id: dir::LocalNodeId<dir::Expression>,
     ) {
-        // route textual `||=` forms through assignment diagnostics and fixes
-        if logical_or_uses_or_assign_operator(self.ctx, left_id, right_id) {
-            self.check_or_assignment(expression_id, left_id, right_id);
-            return;
-        }
-
         // skip lowered `||=` shapes handled by assignment checks
         if logical_or_is_or_assign_lowering(self.ctx, expression_id, left_id) {
             return;
@@ -353,12 +347,12 @@ fn ternary_nullish_candidate(
 
     // map comparison polarity to ternary fallback branch
     if is_not_equal_check
-        && expressions_have_equivalent_syntax(ctx, checked_expression_id, then_expression_id)
+        && expressions_have_equivalent_source_form(ctx, checked_expression_id, then_expression_id)
     {
         return Some((checked_expression_id, else_expression_id));
     }
     if !is_not_equal_check
-        && expressions_have_equivalent_syntax(ctx, checked_expression_id, else_expression_id)
+        && expressions_have_equivalent_source_form(ctx, checked_expression_id, else_expression_id)
     {
         return Some((checked_expression_id, then_expression_id));
     }
@@ -690,16 +684,7 @@ fn logical_or_is_or_assign_lowering(
         return false;
     }
 
-    expressions_have_equivalent_syntax(ctx, *assignment_left, left_id)
-}
-
-/// Return true when one logical-or candidate uses the `||=` token.
-fn logical_or_uses_or_assign_operator(
-    ctx: &LintModuleDirContext<'_>,
-    left_id: dir::LocalNodeId<dir::Expression>,
-    right_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    infix_operator_window_contains(ctx, left_id, right_id, "||=")
+    expressions_have_equivalent_source_form(ctx, *assignment_left, left_id)
 }
 
 #[cfg(test)]

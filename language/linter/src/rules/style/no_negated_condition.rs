@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, IfKind, UnaryOperator};
 use destack_workspace::LintSeverity;
 
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for NoNegatedCondition {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoNegatedCondition::meta()
     }
 
@@ -44,7 +45,7 @@ impl LintRule for NoNegatedCondition {
                 continue;
             };
 
-            // only check if branches match eslint semantics
+            // only check if the branch shape is eligible
             if !has_negated_condition_context(ctx, *kind, *else_expression) {
                 continue;
             }

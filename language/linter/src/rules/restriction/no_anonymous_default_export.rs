@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
+use destack_ast::{self as ast, Declaration, DependencyMode, ExportMode, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_syntax};
+use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_source_form};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -39,14 +39,20 @@ impl LintRule for NoAnonymousDefaultExport {
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             // check if this is a default anonymous declaration
             let declaration = ctx.tree.get(declaration_id);
-            let (descriptor, is_anonymous) = match declaration {
-                Declaration::Function { descriptor, .. } => (descriptor, descriptor.name.is_none()),
-                Declaration::Class { descriptor, .. } => (descriptor, descriptor.name.is_none()),
+            let (is_default_export, is_anonymous) = match declaration {
+                Declaration::Function(declaration) => (
+                    declaration.export == Some(ExportMode::Default),
+                    declaration.name.is_none(),
+                ),
+                Declaration::Class(declaration) => (
+                    declaration.export == Some(ExportMode::Default),
+                    declaration.name.is_none(),
+                ),
                 _ => continue,
             };
 
             // keep only default anonymous declarations
-            if descriptor.export != Some(DependencyMode::Default) || !is_anonymous {
+            if !is_default_export || !is_anonymous {
                 continue;
             }
 
@@ -105,7 +111,7 @@ impl LintRule for NoAnonymousDefaultExport {
                 else {
                     continue;
                 };
-                let value_id = expression_unwrap_parenthesized_syntax(ctx.tree, *item_value);
+                let value_id = expression_unwrap_parenthesized_source_form(ctx.tree, *item_value);
                 let value = ctx.tree.get(value_id);
 
                 // skip named or call expression exports
@@ -150,8 +156,8 @@ fn anonymous_default_declaration_fix(
 ) -> Option<LintFix> {
     // map declaration kind to rewrite strategy
     let kind = match declaration {
-        Declaration::Function { .. } => DefaultDeclarationKind::Function,
-        Declaration::Class { .. } => DefaultDeclarationKind::Class,
+        Declaration::Function(_) => DefaultDeclarationKind::Function,
+        Declaration::Class(_) => DefaultDeclarationKind::Class,
         _ => return None,
     };
 
@@ -248,13 +254,12 @@ fn fresh_export_name(ctx: &LintAstContext<'_>, base_name: &str) -> String {
     candidate
 }
 
-/// Collect occupied binding names visible in the current module syntax.
+/// Collect occupied binding names visible in the current module.
 fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
     let mut names = HashSet::new();
 
     for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-        let descriptor = ctx.tree.get(declaration_id).descriptor();
-        if let Some(name) = descriptor.name {
+        if let Some(name) = ctx.tree.get(declaration_id).name() {
             names.insert(ctx.strings.get(name.string()).to_string());
         }
     }

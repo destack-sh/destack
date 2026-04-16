@@ -1,9 +1,9 @@
-use destack_ast::{self as ast, TypeLiteral};
+use crate::LintMeta;
+use destack_ast::{self as ast, TypeExpression, TypeLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    CallableOwnerId, callable_owner_span, expression_unwrap_parenthesized_syntax,
-    for_each_callable_signature, parameter_type_expression_id,
+    CallableOwnerId, callable_owner_span, for_each_callable_signature, parameter_type_expression_id,
 };
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
@@ -30,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for NoExcessiveBooleans {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoExcessiveBooleans::meta()
     }
 
@@ -43,7 +43,7 @@ impl LintRule for NoExcessiveBooleans {
         for_each_callable_signature(ctx.tree, |owner_id, signature, _body| {
             // count boolean typed dynamic parameters
             let boolean_parameter_count = signature
-                .dynamic_parameters
+                .parameters
                 .iter()
                 .filter(|parameter_id| {
                     let parameter = ctx.tree.get(**parameter_id);
@@ -92,8 +92,9 @@ impl LintRule for NoExcessiveBooleans {
             let declaration = ctx.tree.get(declaration_id);
 
             // check struct, class, and interface field boolean counts
-            if let Some((type_kind, members)) = declaration_members_with_fields(declaration) {
-                let boolean_field_count = count_boolean_member_fields(ctx, members);
+            if let Some((type_kind, boolean_field_count)) =
+                declaration_boolean_field_count(ctx, declaration)
+            {
                 if boolean_field_count > max_booleans {
                     report_boolean_field_overflow(
                         ctx,
@@ -109,10 +110,12 @@ impl LintRule for NoExcessiveBooleans {
             }
 
             // check type alias object field boolean counts
-            let ast::Declaration::Type { value, .. } = declaration else {
+            let ast::Declaration::Type(declaration) = declaration else {
                 continue;
             };
-            let Some(boolean_field_count) = count_boolean_object_type_fields(ctx, *value) else {
+            let Some(boolean_field_count) =
+                count_boolean_object_type_fields(ctx, declaration.value)
+            else {
                 continue;
             };
             if boolean_field_count > max_booleans {
@@ -129,14 +132,24 @@ impl LintRule for NoExcessiveBooleans {
     }
 }
 
-/// Return declaration members for declarations that expose field members.
-fn declaration_members_with_fields(
+/// Return declaration kind and boolean field count for field-carrying declarations.
+fn declaration_boolean_field_count(
+    ctx: &LintAstContext<'_>,
     declaration: &ast::Declaration,
-) -> Option<(&'static str, &[ast::LocalNodeId<ast::Member>])> {
+) -> Option<(&'static str, usize)> {
     match declaration {
-        ast::Declaration::Struct { members, .. } => Some(("struct", members.as_slice())),
-        ast::Declaration::Class { members, .. } => Some(("class", members.as_slice())),
-        ast::Declaration::Interface { members, .. } => Some(("interface", members.as_slice())),
+        ast::Declaration::Struct(declaration) => Some((
+            "struct",
+            count_boolean_member_fields(ctx, &declaration.members),
+        )),
+        ast::Declaration::Class(declaration) => Some((
+            "class",
+            count_boolean_member_fields(ctx, &declaration.members),
+        )),
+        ast::Declaration::Interface(declaration) => Some((
+            "interface",
+            count_boolean_type_member_fields(ctx, &declaration.members),
+        )),
         _ => None,
     }
 }
@@ -144,7 +157,7 @@ fn declaration_members_with_fields(
 /// Report one boolean field count overflow diagnostic.
 fn report_boolean_field_overflow<T: ast::Node + Clone>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     type_kind: &str,
     boolean_field_count: usize,
@@ -186,9 +199,29 @@ fn count_boolean_member_fields(
             let member = ctx.tree.get(**member_id);
             match member {
                 ast::Member::Field {
-                    value: Some(value_id),
+                    declared_type: Some(value_id),
                     ..
                 } => expression_is_boolean_type(ctx, *value_id),
+                _ => false,
+            }
+        })
+        .count()
+}
+
+/// Count boolean typed fields in one type member list.
+fn count_boolean_type_member_fields(
+    ctx: &LintAstContext<'_>,
+    members: &[ast::LocalNodeId<ast::TypeMember>],
+) -> usize {
+    // count type members with explicit boolean field types
+    members
+        .iter()
+        .filter(|member_id| {
+            let member = ctx.tree.get(**member_id);
+            match member {
+                ast::TypeMember::Field { declared_type, .. } => {
+                    expression_is_boolean_type(ctx, *declared_type)
+                }
                 _ => false,
             }
         })
@@ -198,22 +231,21 @@ fn count_boolean_member_fields(
 /// Count boolean typed fields for one object type expression.
 fn count_boolean_object_type_fields(
     ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> Option<usize> {
-    // normalize parenthesized type expression wrappers
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
-    let ast::Expression::ObjectExpression { properties, .. } = ctx.tree.get(expression_id) else {
+    let type_expression_id = unwrap_parenthesized_type_expression(ctx.tree, type_expression_id);
+    let ast::TypeExpression::Object { members } = ctx.tree.get(type_expression_id) else {
         return None;
     };
 
     // count object fields with boolean value type annotations
-    let boolean_field_count = properties
+    let boolean_field_count = members
         .iter()
-        .filter(|property_id| {
-            let property = ctx.tree.get(**property_id);
-            match property {
-                ast::Property::Field {
-                    value: Some(value_id),
+        .filter(|member_id| {
+            let member = ctx.tree.get(**member_id);
+            match member {
+                ast::TypeMember::Field {
+                    declared_type: value_id,
                     ..
                 } => expression_is_boolean_type(ctx, *value_id),
                 _ => false,
@@ -238,16 +270,31 @@ fn parameter_has_boolean_type(ctx: &LintAstContext<'_>, parameter: &ast::Paramet
 /// Return true when one expression is the boolean type literal.
 fn expression_is_boolean_type(
     ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
-    // normalize parenthesized wrappers around type expressions
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let type_expression_id = unwrap_parenthesized_type_expression(ctx.tree, type_expression_id);
+    let expression = ctx.tree.get(type_expression_id);
 
     matches!(
         expression,
-        ast::Expression::TypeLiteral(TypeLiteral::Boolean)
+        ast::TypeExpression::Literal {
+            value: TypeLiteral::Boolean,
+        }
     )
+}
+
+/// Return the type expression id with parenthesized wrappers removed.
+fn unwrap_parenthesized_type_expression(
+    tree: &ast::NodeTree,
+    mut type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> ast::LocalNodeId<ast::TypeExpression> {
+    loop {
+        let TypeExpression::Parenthesized { expression } = tree.get(type_expression_id) else {
+            return type_expression_id;
+        };
+
+        type_expression_id = *expression;
+    }
 }
 
 #[cfg(test)]

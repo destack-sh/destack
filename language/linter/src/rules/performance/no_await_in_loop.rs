@@ -179,7 +179,7 @@ fn is_boundary(parent: &ast::Expression, child_node_id: u32, ctx: &LintAstContex
     // do not cross function declaration boundaries
     if let ast::Expression::Declaration(declaration_id) = parent {
         let declaration = ctx.tree.get(*declaration_id);
-        if matches!(declaration, ast::Declaration::Function { .. }) {
+        if matches!(declaration, ast::Declaration::Function(_)) {
             return true;
         }
     }

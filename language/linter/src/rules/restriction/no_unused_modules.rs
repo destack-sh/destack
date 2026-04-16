@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::collections::HashSet;
 
 use destack_artifact::ModuleGraph;
@@ -31,7 +32,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUnusedModules {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUnusedModules::meta()
     }
 

@@ -1,13 +1,14 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Pattern};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_unqualified_path_name, expression_unwrap_statement_syntax,
+    expression_is_unqualified_path_name, expression_unwrap_statement_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
-    /// Suggest expression syntax over let-if sequences.
+    /// Prefer direct expressions over let-if sequences.
     ///
     /// Instead of declaring a variable and then assigning in branches, use an if expression or ternary to initialize directly.
     #[lint(
@@ -81,7 +82,7 @@ fn expr_is_simple_assignment(
 }
 
 impl LintRule for PreferExpressionOverLetIf {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferExpressionOverLetIf::meta()
     }
 
@@ -104,8 +105,8 @@ impl LintRule for PreferExpressionOverLetIf {
                 let second_id = expression_ids[i + 1];
 
                 // unwrap statement wrappers
-                let let_expression_id = expression_unwrap_statement_syntax(ctx.tree, first_id);
-                let if_expression_id = expression_unwrap_statement_syntax(ctx.tree, second_id);
+                let let_expression_id = expression_unwrap_statement_source_form(ctx.tree, first_id);
+                let if_expression_id = expression_unwrap_statement_source_form(ctx.tree, second_id);
                 let first_expr = ctx.tree.get(let_expression_id);
                 let second_expr = ctx.tree.get(if_expression_id);
 
@@ -160,7 +161,7 @@ impl LintRule for PreferExpressionOverLetIf {
                     PREFER_EXPRESSION_OVER_LET_IF.code,
                     PREFER_EXPRESSION_OVER_LET_IF.category,
                     severity,
-                    "prefer expression syntax over let-if sequence",
+                    "prefer direct expression over let-if sequence",
                     ctx.module.file_id,
                     ctx.tree.get_span(first_id),
                 )
@@ -251,7 +252,7 @@ fn assignment_value_text(
 
     let branch_statement_id = block.first_expression().unwrap();
     let assignment_expression_id =
-        expression_unwrap_statement_syntax(ctx.tree, branch_statement_id);
+        expression_unwrap_statement_source_form(ctx.tree, branch_statement_id);
     let assignment_expression = ctx.tree.get(assignment_expression_id);
     let ast::Expression::Assign { left, right, .. } = assignment_expression else {
         return None;

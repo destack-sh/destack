@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::{LintSeverity, MaxParamsCountThis};
 
@@ -28,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxParams {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxParams::meta()
     }
 
@@ -86,7 +87,7 @@ impl LintRule for MaxParams {
 /// Report one max-params violation for a callable owner.
 fn report_excessive_parameter_count<T: ast::Node + Clone>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     parameter_count: usize,
     max_params: usize,

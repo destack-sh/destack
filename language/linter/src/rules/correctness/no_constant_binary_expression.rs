@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_constant_to_bool, expression_has_side_effects, expression_is_equal,
-    expression_path_segments, expression_unwrap_parenthesized_syntax,
+    expression_path_segments, expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
@@ -81,8 +81,8 @@ fn check_constant_result(
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<&'static str> {
     // normalize expression shape
-    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
-    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
 
     // resolve expression references
     let left = ctx.tree.get(left_id);
@@ -163,7 +163,7 @@ fn check_constant_result(
             ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
                 | ast::Expression::TemplateExpression { .. }
         );
-        let right_is_nullish = is_nullish(right);
+        let right_is_nullish = is_nullish(ctx.tree, right);
         if left_is_string && right_is_nullish {
             return Some("string concatenation with null/undefined");
         }
@@ -172,7 +172,7 @@ fn check_constant_result(
             ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
                 | ast::Expression::TemplateExpression { .. }
         );
-        let left_is_nullish = is_nullish(left);
+        let left_is_nullish = is_nullish(ctx.tree, left);
         if right_is_string && left_is_nullish {
             return Some("string concatenation with null/undefined");
         }
@@ -187,7 +187,7 @@ fn expression_constant_truthiness(
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<bool> {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     // resolve direct constant values
@@ -209,10 +209,24 @@ fn expression_constant_truthiness(
 }
 
 /// Check if an expression is nullish (null or undefined).
-fn is_nullish(expression: &ast::Expression) -> bool {
+fn is_nullish(tree: &ast::NodeTree, expression: &ast::Expression) -> bool {
+    let ast::Expression::Type { value } = expression else {
+        return false;
+    };
+
+    type_expression_is_nullish(tree, *value)
+}
+
+/// Return true when one type-expression node is `null` or `undefined`.
+fn type_expression_is_nullish(
+    tree: &ast::NodeTree,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> bool {
     matches!(
-        expression,
-        ast::Expression::TypeLiteral(ast::TypeLiteral::Null | ast::TypeLiteral::Undefined)
+        tree.get(type_expression_id),
+        ast::TypeExpression::Literal {
+            value: ast::TypeLiteral::Null | ast::TypeLiteral::Undefined,
+        }
     )
 }
 
@@ -223,11 +237,11 @@ fn expression_has_constant_nullishness(
     require_non_nullish: bool,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     // keep non nullish mode strict for nullish literals
-    if require_non_nullish && is_nullish(expression) {
+    if require_non_nullish && is_nullish(ctx.tree, expression) {
         return false;
     }
 
@@ -235,14 +249,14 @@ fn expression_has_constant_nullishness(
     match expression {
         // literals have fixed nullishness
         ast::Expression::ScalarLiteral(_)
-        | ast::Expression::TypeLiteral(_)
+        | ast::Expression::Type { .. }
         | ast::Expression::ArrayExpression { .. }
         | ast::Expression::ObjectExpression { .. }
         | ast::Expression::TemplateExpression { .. }
         | ast::Expression::New { .. }
         | ast::Expression::Declaration(_) => true,
 
-        // global casts have fixed nullishness like in source behavior
+        // global casts have fixed nullishness
         ast::Expression::Call { left, .. } => expression_is_global_cast_call(ctx, *left),
 
         // unary operators produce non nullish scalar results

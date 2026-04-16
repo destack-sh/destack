@@ -1,9 +1,10 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::{LintSeverity, YodaMode};
 
 use crate::rules::common::{
-    expression_is_equal, expression_is_literal, expression_outer_parenthesized_syntax,
-    expression_static_string_literal_syntax, expression_unwrap_parenthesized_syntax,
+    expression_is_equal, expression_is_literal, expression_outer_parenthesized_source_form,
+    expression_static_string_literal_source_form, expression_unwrap_parenthesized_source_form,
     is_comparison_operator, source_text_contains_comment_token,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
@@ -30,7 +31,7 @@ declare_lint! {
 }
 
 impl LintRule for Yoda {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         Yoda::meta()
     }
 
@@ -160,7 +161,7 @@ fn expression_looks_like_literal(
         return true;
     }
 
-    if expression_static_string_literal_syntax(ctx.tree, expression_id).is_some() {
+    if expression_static_string_literal_source_form(ctx.tree, expression_id).is_some() {
         return true;
     }
 
@@ -183,7 +184,8 @@ fn expression_is_part_of_range_test(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let expression_id = expression_outer_parenthesized_syntax(ctx.tree, ctx.parents, expression_id);
+    let expression_id =
+        expression_outer_parenthesized_source_form(ctx.tree, ctx.parents, expression_id);
     let Some(parent_id) = ctx.parents.get(expression_id) else {
         return false;
     };
@@ -205,8 +207,8 @@ fn expression_is_part_of_range_test(
         return false;
     }
 
-    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
-    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, *left);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
     let left_expression = ctx.tree.get(left_id);
     let right_expression = ctx.tree.get(right_id);
     let (
@@ -228,10 +230,10 @@ fn expression_is_part_of_range_test(
         return false;
     }
 
-    let left_left = expression_unwrap_parenthesized_syntax(ctx.tree, *left_left);
-    let left_right = expression_unwrap_parenthesized_syntax(ctx.tree, *left_right);
-    let right_left = expression_unwrap_parenthesized_syntax(ctx.tree, *right_left);
-    let right_right = expression_unwrap_parenthesized_syntax(ctx.tree, *right_right);
+    let left_left = expression_unwrap_parenthesized_source_form(ctx.tree, *left_left);
+    let left_right = expression_unwrap_parenthesized_source_form(ctx.tree, *left_right);
+    let right_left = expression_unwrap_parenthesized_source_form(ctx.tree, *right_left);
+    let right_right = expression_unwrap_parenthesized_source_form(ctx.tree, *right_right);
 
     let is_between_range = expression_is_equal(ctx, left_right, right_left)
         && expression_looks_like_literal(ctx, left_left, ctx.tree.get(left_left))

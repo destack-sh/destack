@@ -428,8 +428,8 @@ impl<'a> LintModuleDirContext<'a> {
         let mut current = Some(node_id.id);
 
         while let Some(id) = current {
-            for annotation_id in self.tree.get_annotations(id) {
-                if let Some(item) = self.eat_decorator(annotation_id, meta) {
+            for decorator_id in self.tree.get_decorators(id) {
+                if let Some(item) = self.eat_decorator(decorator_id, meta) {
                     overrides.push(item);
                 }
             }
@@ -469,11 +469,10 @@ impl<'a> LintModuleDirContext<'a> {
     /// Resolve decorator call information for an annotation.
     fn decorator_call(
         &self,
-        annotation_id: dir::LocalNodeId<dir::Annotation>,
+        decorator_id: dir::LocalNodeId<dir::Decorator>,
     ) -> Option<DecoratorCall<'_>> {
-        let annotation = self.tree.get(annotation_id);
-        let dir::Annotation::Decorator { expression, .. } = annotation;
-        let expression_id = self.unwrap_decorator_expression(*expression);
+        let decorator = self.tree.get(decorator_id);
+        let expression_id = self.unwrap_decorator_expression(decorator.expression);
         match self.tree.get(expression_id) {
             dir::Expression::Call {
                 left,
@@ -493,10 +492,10 @@ impl<'a> LintModuleDirContext<'a> {
     /// Parse a decorator annotation and return the severity override if it matches this lint.
     fn eat_decorator(
         &self,
-        annotation_id: dir::LocalNodeId<dir::Annotation>,
+        decorator_id: dir::LocalNodeId<dir::Decorator>,
         meta: &LintMeta,
     ) -> Option<LintSeverityOverride> {
-        let call = self.decorator_call(annotation_id)?;
+        let call = self.decorator_call(decorator_id)?;
 
         // extract path from the decorator expression
         let callee_expression = self.tree.get(call.callee);

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_dir::{self as dir, Member, Mutability};
+use destack_dir::{self as dir, Member};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
@@ -82,17 +82,17 @@ fn collect_private_mutable_field_candidates(
     // inspect class and struct member fields
     for (_declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
         let members = match declaration {
-            dir::Declaration::Class { members, .. } | dir::Declaration::Struct { members, .. } => {
-                members
-            }
+            dir::Declaration::Class(declaration) => &declaration.members,
+            dir::Declaration::Struct(declaration) => &declaration.members,
             _ => continue,
         };
 
         for member_id in members {
             let member = ctx.tree.get(*member_id);
             let Member::Field {
-                modifiers,
                 key,
+                visibility,
+                is_readonly,
                 symbol,
                 ..
             } = member
@@ -100,10 +100,10 @@ fn collect_private_mutable_field_candidates(
                 continue;
             };
 
-            if !field_is_private(modifiers, key) {
+            if !field_is_private(*visibility, key) {
                 continue;
             }
-            if field_is_readonly(modifiers) {
+            if *is_readonly {
                 continue;
             }
 
@@ -125,25 +125,11 @@ fn collect_private_mutable_field_candidates(
 }
 
 /// Return true when one member field is private.
-fn field_is_private(
-    modifiers: &Option<dir::BindingModifier>,
-    key: &Option<dir::DynamicKey>,
-) -> bool {
-    let is_private_by_modifier = modifiers
-        .as_ref()
-        .and_then(|modifiers| modifiers.visibility)
-        == Some(dir::Visibility::Private);
-    let is_private_by_key = matches!(key, Some(dir::DynamicKey::Private(_)));
+fn field_is_private(visibility: Option<dir::Visibility>, key: &dir::Key) -> bool {
+    let is_private_by_modifier = visibility == Some(dir::Visibility::Private);
+    let is_private_by_key = matches!(key, dir::Key::Private(_));
 
     is_private_by_modifier || is_private_by_key
-}
-
-/// Return true when one member field is already readonly.
-fn field_is_readonly(modifiers: &Option<dir::BindingModifier>) -> bool {
-    modifiers
-        .as_ref()
-        .and_then(|modifiers| modifiers.mutability)
-        == Some(Mutability::Immutable)
 }
 
 /// Collect candidate field symbols that are mutated outside constructor initialization.
@@ -239,9 +225,10 @@ fn expression_is_this_reference(
     let expression = tree.get(expression_id);
     match expression {
         dir::Expression::This => true,
-        dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
-            expression_is_this_reference(tree, *value)
+        dir::Expression::As { expression, .. } | dir::Expression::Satisfies { expression, .. } => {
+            expression_is_this_reference(tree, *expression)
         }
+        dir::Expression::OwnershipCast { value, .. } => expression_is_this_reference(tree, *value),
         dir::Expression::ValueOf { right, .. }
         | dir::Expression::ReferenceOf { right, .. }
         | dir::Expression::PointerOf { right, .. } => expression_is_this_reference(tree, *right),

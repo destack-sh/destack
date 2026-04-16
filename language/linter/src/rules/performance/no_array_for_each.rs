@@ -134,22 +134,10 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintFix> {
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } = expression
-        else {
-            return None;
-        };
+        let method_call = expression_method_call(self.ctx.tree, expression_id)?;
 
         // require no static args and exactly one dynamic callback arg
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-            || dynamic_arguments.len() != 1
-        {
+        if !method_call.generic_arguments.is_empty() || method_call.dynamic_arguments.len() != 1 {
             return None;
         }
 
@@ -157,21 +145,12 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let statement_id = statement_expression_ancestor(self.ctx.tree, expression_id)?;
 
         // require a direct `.forEach` member access
-        let member_expression = self.ctx.tree.get(*left);
-        let dir::Expression::Member {
-            left: _receiver_id,
-            name,
-            ..
-        } = member_expression
-        else {
-            return None;
-        };
-        if *name != Some(self.for_each_name) {
+        if method_call.method_name != self.for_each_name {
             return None;
         }
 
         // require an inline non-async function callback
-        let callback_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let callback_argument = self.ctx.tree.get(method_call.dynamic_arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
@@ -179,28 +158,27 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
             return None;
         };
         let callback_expression = self.ctx.tree.get(*callback_id);
-        let dir::Expression::Declaration { declaration } = callback_expression else {
+        let dir::Expression::Declaration(declaration) = callback_expression else {
             return None;
         };
         let callback_declaration = self.ctx.tree.get(*declaration);
-        let dir::Declaration::Function {
-            signature,
-            body: Some(body_id),
-            ..
-        } = callback_declaration
-        else {
+        let dir::Declaration::Function(declaration) = callback_declaration else {
             return None;
         };
-        if signature.asynchrony != dir::Asynchrony::Sync || signature.dynamic_parameters.len() != 1
+        let body_id = declaration.body?;
+        if declaration.signature.asynchrony != dir::Asynchrony::Sync
+            || declaration.signature.parameters.len() != 1
         {
             return None;
         }
 
         // require a single named parameter without modifiers/default
-        let parameter_id = signature.dynamic_parameters[0];
+        let parameter_id = declaration.signature.parameters[0];
         let parameter = self.ctx.tree.get(parameter_id);
         let dir::Parameter::Named {
-            modifiers: None,
+            visibility: None,
+            is_readonly: false,
+            is_optional: false,
             name,
             default: None,
             ..
@@ -211,8 +189,8 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let parameter_symbol = parameter.symbol();
 
         // require a block body so we can preserve statements exactly
-        let body_expression = self.ctx.tree.get(*body_id);
-        if !matches!(body_expression, dir::Expression::Block { .. }) {
+        let body_expression = self.ctx.tree.get(body_id);
+        if !matches!(body_expression, dir::Expression::Block(..)) {
             return None;
         }
 
@@ -221,10 +199,12 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let binding_name = self.for_of_binding_name(statement_id, &parameter_name)?;
 
         // rewrite callback parameter references inside the body
-        let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
+        let member_text = self
+            .ctx
+            .get_span_text(self.ctx.get_span(method_call.callee_id));
         let receiver_text = strip_dot_member_suffix(member_text, "forEach")?;
         let rewritten_body =
-            self.rewrite_callback_body(*body_id, parameter_symbol, &binding_name)?;
+            self.rewrite_callback_body(body_id, parameter_symbol, &binding_name)?;
         let replacement = format!("for (const {binding_name} of {receiver_text}) {rewritten_body}");
         let edits = self
             .ctx

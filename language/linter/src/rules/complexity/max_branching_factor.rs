@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -25,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxBranchingFactor {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxBranchingFactor::meta()
     }
 
@@ -110,7 +111,7 @@ fn count_if_chain_branches(
 /// Report one branching factor violation.
 fn report_branching_violation(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     expression_id: ast::LocalNodeId<ast::Expression>,
     expression_kind: &str,
     branch_count: usize,

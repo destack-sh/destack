@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
@@ -26,7 +27,7 @@ declare_lint! {
 }
 
 impl LintRule for NoCircularDependency {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoCircularDependency::meta()
     }
 

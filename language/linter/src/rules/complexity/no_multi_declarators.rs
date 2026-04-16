@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -26,7 +27,7 @@ declare_lint! {
 }
 
 impl LintRule for NoMultiDeclarators {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoMultiDeclarators::meta()
     }
 
@@ -44,7 +45,7 @@ impl LintRule for NoMultiDeclarators {
 
             // check if there are multiple declarators
             if declarators.len() > 1 {
-                // keep one-var parity: skip for-loop initializers
+                // skip for-loop initializers
                 if is_for_initializer(ctx, expression_id) {
                     continue;
                 }

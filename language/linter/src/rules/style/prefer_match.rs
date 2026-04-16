@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -28,7 +29,7 @@ declare_lint! {
 const MIN_BRANCHES: usize = 3;
 
 impl LintRule for PreferMatch {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferMatch::meta()
     }
 

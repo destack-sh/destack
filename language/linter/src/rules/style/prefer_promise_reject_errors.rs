@@ -290,7 +290,7 @@ fn executor_declaration(
     let expression = ctx.tree.get(expression_id);
 
     // inline callables
-    if let dir::Expression::Declaration { declaration } = expression {
+    if let dir::Expression::Declaration(declaration) = expression {
         return Some(*declaration);
     }
 
@@ -318,16 +318,12 @@ fn executor_reject_symbol(
     declaration_id: dir::LocalNodeId<dir::Declaration>,
 ) -> Option<dir::LocalSymbolId> {
     let declaration = ctx.tree.get(declaration_id);
-    let dir::Declaration::Function {
-        signature,
-        body: Some(_),
-        ..
-    } = declaration
-    else {
+    let dir::Declaration::Function(declaration) = declaration else {
         return None;
     };
+    declaration.body?;
 
-    let reject_parameter_id = *signature.dynamic_parameters.get(1)?;
+    let reject_parameter_id = *declaration.signature.parameters.get(1)?;
     let (_, reject_symbol) = parameter_binding_name_and_symbol(ctx.tree, reject_parameter_id)?;
     Some(reject_symbol)
 }

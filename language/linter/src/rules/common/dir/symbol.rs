@@ -368,7 +368,7 @@ pub fn primary_declaration_initializer_expression(
         dir::NodeType::Property => {
             let property = tree.get(declaration_id.into_local_typed::<dir::Property>());
             match property {
-                dir::Property::Field { value, default, .. } => value.or(*default),
+                dir::Property::Field { value, .. } => Some(*value),
                 dir::Property::Method { .. } => None,
                 dir::Property::Spread { value, .. } => Some(*value),
                 dir::Property::Error { .. } => None,
@@ -379,10 +379,10 @@ pub fn primary_declaration_initializer_expression(
         dir::NodeType::Member => {
             let member = tree.get(declaration_id.into_local_typed::<dir::Member>());
             match member {
-                dir::Member::Field { value, default, .. } => value.or(*default),
-                dir::Member::ComptimeConst { value, .. } => *value,
+                dir::Member::Field { default, .. } => *default,
+                dir::Member::AssociatedConst { value, .. } => *value,
                 dir::Member::Method { .. }
-                | dir::Member::Type { .. }
+                | dir::Member::AssociatedType { .. }
                 | dir::Member::Embed { .. }
                 | dir::Member::StaticBlock { .. }
                 | dir::Member::ComptimeBlock { .. }
@@ -586,6 +586,6 @@ fn local_node_is_class_declaration(
 
     matches!(
         tree.get(declaration_id.into_typed::<dir::Declaration>()),
-        dir::Declaration::Class { .. }
+        dir::Declaration::Class(_)
     )
 }

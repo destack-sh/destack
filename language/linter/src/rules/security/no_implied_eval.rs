@@ -4,8 +4,9 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::{RequireLibSymbol, RequireWellKnownSymbol};
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol,
-    expression_type_or_call_return_type_map, expression_unwrap_parenthesized, is_string_type,
+    expression_is_any_symbol_or_global_qualified_member,
+    expression_is_symbol_or_global_qualified_member, expression_type_or_call_return_type_map,
+    expression_unwrap_parenthesized, is_string_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -188,15 +189,10 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
 
     /// Return true when the expression refers to the Function constructor.
     fn is_function_symbol(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return symbol == self.function_symbol;
-        }
-
-        // match global qualified references
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.function_symbol,
             &self.global_qualifiers,
             self.function_name,
         )
@@ -204,35 +200,27 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
 
     /// Return true when the expression refers to a timer function.
     fn is_timer_symbol(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            let symbols = [
-                self.set_timeout_symbol,
-                self.set_interval_symbol,
-                self.set_immediate_symbol,
-            ];
-            let is_timer = symbols
-                .into_iter()
-                .flatten()
-                .any(|timer_symbol| timer_symbol == symbol);
-
-            return is_timer;
-        }
-
-        // match global qualified references
+        let symbols = [
+            self.set_timeout_symbol,
+            self.set_interval_symbol,
+            self.set_immediate_symbol,
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
         let names = [
             self.set_timeout_name,
             self.set_interval_name,
             self.set_immediate_name,
         ];
-        names.into_iter().any(|timer_name| {
-            expression_is_global_qualified_member(
-                self.ctx.tree,
-                expression_id,
-                &self.global_qualifiers,
-                timer_name,
-            )
-        })
+
+        expression_is_any_symbol_or_global_qualified_member(
+            self.ctx.tree,
+            expression_id,
+            &symbols,
+            &self.global_qualifiers,
+            &names,
+        )
     }
 
     /// Return true when the expression is a string literal or template.

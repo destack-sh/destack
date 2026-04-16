@@ -31,7 +31,7 @@ declare_lint! {
 
 impl LintRule for PreferArraySome {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferArraySome::meta()
     }
 
@@ -266,16 +266,13 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let candidate_expression = self.ctx.tree.get(match_info.candidate_expression_id);
         let dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } = candidate_expression
         else {
             return None;
         };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
         if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
@@ -295,7 +292,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
-            static_arguments,
+            generic_arguments,
             ..
         } = member_expression
         else {
@@ -314,10 +311,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             }
             ArraySomeKind::FilterLength => return None,
         }
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
-        {
+        if !generic_arguments.is_empty() {
             return None;
         }
 

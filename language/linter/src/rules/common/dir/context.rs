@@ -9,14 +9,14 @@ use super::expression_unwrap_statement;
 pub fn declaration_has_nested_executable_scope(declaration: &dir::Declaration) -> bool {
     matches!(
         declaration,
-        dir::Declaration::Global { .. }
-            | dir::Declaration::Namespace { .. }
-            | dir::Declaration::Struct { .. }
-            | dir::Declaration::Class { .. }
-            | dir::Declaration::Enum { .. }
-            | dir::Declaration::Interface { .. }
-            | dir::Declaration::Function { .. }
-            | dir::Declaration::Extension { .. }
+        dir::Declaration::Global(_)
+            | dir::Declaration::Namespace(_)
+            | dir::Declaration::Struct(_)
+            | dir::Declaration::Class(_)
+            | dir::Declaration::Enum(_)
+            | dir::Declaration::Interface(_)
+            | dir::Declaration::Function(_)
+            | dir::Declaration::Extension(_)
     )
 }
 
@@ -25,7 +25,7 @@ pub fn expression_enters_nested_declaration_scope(
     tree: &dir::NodeTree,
     expression: &dir::Expression,
 ) -> bool {
-    let dir::Expression::Declaration { declaration } = expression else {
+    let dir::Expression::Declaration(declaration) = expression else {
         return false;
     };
 
@@ -44,47 +44,10 @@ pub fn expression_is_in_type_position(
         let Some(parent_node_id) = tree.get_parent(current_node_id) else {
             return false;
         };
-        match parent_node_id.ty {
-            dir::NodeType::Expression => {
-                let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
-                let parent_expression = tree.get(parent_expression_id);
-                if expression_is_type_slot_in_parent_expression(parent_expression, current_node_id)
-                {
-                    return true;
-                }
-            }
-            dir::NodeType::Declarator => {
-                let parent_declarator_id = parent_node_id.into_typed::<dir::Declarator>();
-                let parent_declarator = tree.get(parent_declarator_id);
-                if parent_declarator
-                    .ty
-                    .is_some_and(|type_expression_id| type_expression_id.id == current_node_id)
-                {
-                    return true;
-                }
-            }
-            dir::NodeType::Declaration => {
-                let parent_declaration_id = parent_node_id.into_typed::<dir::Declaration>();
-                let parent_declaration = tree.get(parent_declaration_id);
-                if declaration_type_slot_contains_expression(parent_declaration, current_node_id) {
-                    return true;
-                }
-            }
-            dir::NodeType::Member => {
-                let parent_member_id = parent_node_id.into_typed::<dir::Member>();
-                let parent_member = tree.get(parent_member_id);
-                if member_type_slot_contains_expression(parent_member, current_node_id) {
-                    return true;
-                }
-            }
-            dir::NodeType::WhereClause => {
-                let parent_where_clause_id = parent_node_id.into_typed::<dir::WhereClause>();
-                let parent_where_clause = tree.get(parent_where_clause_id);
-                if parent_where_clause.right.id == current_node_id {
-                    return true;
-                }
-            }
-            _ => {}
+
+        // any ancestor type node means the value expression lives in type space
+        if parent_node_id.ty == dir::NodeType::TypeExpression {
+            return true;
         }
 
         current_node_id = parent_node_id.id;
@@ -276,25 +239,25 @@ fn callable_boundary_asynchrony(
     match node_id.ty {
         dir::NodeType::Declaration => {
             let declaration = tree.get(node_id.into_typed::<dir::Declaration>());
-            let dir::Declaration::Function {
-                descriptor: _,
-                signature,
-                scope: _,
-                body: _,
-                ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 return None;
             };
-            Some(signature.asynchrony)
+
+            Some(declaration.signature.asynchrony)
         }
         dir::NodeType::Member => {
             let member = tree.get(node_id.into_typed::<dir::Member>());
             let dir::Member::Method {
-                modifiers: _,
                 key: _,
                 signature,
                 body: _,
+                visibility: _,
+                ambient: _,
+                is_abstract: _,
+                is_override: _,
+                is_static: _,
+                is_accessor: _,
+                is_comptime: _,
                 symbol: _,
             } = member
             else {
@@ -305,7 +268,6 @@ fn callable_boundary_asynchrony(
         dir::NodeType::Property => {
             let property = tree.get(node_id.into_typed::<dir::Property>());
             let dir::Property::Method {
-                modifiers: _,
                 key: _,
                 signature,
                 body: _,
@@ -354,123 +316,11 @@ fn expression_is_using_declaration(
         expression,
         dir::Expression::Using {
             asynchrony: _,
-            descriptor: _,
+            export: _,
+            ambient: _,
             declarators: _,
         }
     )
-}
-
-/// Return true when this child expression is in one parent expression type slot.
-fn expression_is_type_slot_in_parent_expression(
-    parent_expression: &dir::Expression,
-    child_id: u32,
-) -> bool {
-    match parent_expression {
-        dir::Expression::TypeUnary { operator: _, right } => right.id == child_id,
-        dir::Expression::TypeBinary {
-            left,
-            operator: _,
-            right,
-        } => left.id == child_id || right.id == child_id,
-        dir::Expression::TypeConditional {
-            left,
-            right,
-            then_type,
-            else_type,
-        } => {
-            left.id == child_id
-                || right.id == child_id
-                || then_type.id == child_id
-                || else_type.id == child_id
-        }
-        dir::Expression::TypeMapped {
-            parameter,
-            modifiers: _,
-            value,
-        } => {
-            parameter.constraint.id == child_id
-                || parameter
-                    .key_remap
-                    .is_some_and(|key_remap_id| key_remap_id.id == child_id)
-                || value.id == child_id
-        }
-        dir::Expression::TypeIndex { left, index } => left.id == child_id || index.id == child_id,
-        dir::Expression::TypeTemplateLiteral { strings: _, spans } => {
-            spans.iter().any(|span_id| span_id.id == child_id)
-        }
-        dir::Expression::TypeImport {
-            target,
-            arguments: _,
-            qualifier: _,
-            static_arguments: _,
-        } => target.id == child_id,
-        dir::Expression::TypeInfer {
-            name: _,
-            constraint: Some(constraint),
-        } => constraint.id == child_id,
-        dir::Expression::TypePredicate {
-            asserts: _,
-            subject: _,
-            target: Some(target),
-        } => target.id == child_id,
-        dir::Expression::Cast {
-            operator: _,
-            source: _,
-            value: _,
-            target_type,
-        } => target_type.id == child_id,
-        _ => false,
-    }
-}
-
-/// Return true when one declaration type slot points at this expression.
-fn declaration_type_slot_contains_expression(
-    declaration: &dir::Declaration,
-    expression_id: u32,
-) -> bool {
-    match declaration {
-        dir::Declaration::Type { value, .. } => value.id == expression_id,
-        dir::Declaration::Function { signature, .. } => signature
-            .return_type
-            .is_some_and(|return_type_id| return_type_id.id == expression_id),
-        dir::Declaration::Extension { target_type, .. } => target_type.id == expression_id,
-        dir::Declaration::Struct { heritage, .. }
-        | dir::Declaration::Class { heritage, .. }
-        | dir::Declaration::Interface { heritage, .. }
-        | dir::Declaration::Enum { heritage, .. } => {
-            heritage
-                .extends_types
-                .as_ref()
-                .is_some_and(|types| types.iter().any(|type_id| type_id.id == expression_id))
-                || heritage
-                    .implements_types
-                    .as_ref()
-                    .is_some_and(|types| types.iter().any(|type_id| type_id.id == expression_id))
-                || heritage
-                    .embedded_types
-                    .as_ref()
-                    .is_some_and(|types| types.iter().any(|type_id| type_id.id == expression_id))
-        }
-        _ => false,
-    }
-}
-
-/// Return true when one member type slot points at this expression.
-fn member_type_slot_contains_expression(member: &dir::Member, expression_id: u32) -> bool {
-    match member {
-        dir::Member::Type { ty, value, .. } => {
-            ty.is_some_and(|type_expression_id| type_expression_id.id == expression_id)
-                || value.is_some_and(|value_expression_id| value_expression_id.id == expression_id)
-        }
-        dir::Member::ComptimeConst { ty, .. } => {
-            ty.is_some_and(|type_expression_id| type_expression_id.id == expression_id)
-        }
-        dir::Member::Field { value, .. } => {
-            value.is_some_and(|type_expression_id| type_expression_id.id == expression_id)
-        }
-        dir::Member::Embed { value, .. } => value.id == expression_id,
-        _ => false,
-    }
 }
 
 /// Return the outermost transparent wrapper that still contains this expression.
@@ -513,7 +363,10 @@ fn expression_is_transparent_parent_of(
         dir::Expression::Instantiation { left, .. } if *left == child_expression_id
     ) || matches!(
         parent_expression,
-        dir::Expression::Cast { value, .. } if *value == child_expression_id
+        dir::Expression::As { expression, .. } if *expression == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::Satisfies { expression, .. } if *expression == child_expression_id
     ) || matches!(
         parent_expression,
         dir::Expression::OwnershipCast { value, .. } if *value == child_expression_id

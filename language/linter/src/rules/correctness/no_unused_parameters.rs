@@ -127,7 +127,7 @@ impl LintRule for NoUnusedParameters {
                             .map_or(u32::MAX, |node_id| node_id.local_id.id)
                     });
 
-                    // inspect candidate syntax nodes
+                    // inspect candidate nodes
                     for binding_symbol in binding_symbols {
                         // skip used pattern bindings
                         if read_symbols.contains(&binding_symbol.into_global(ctx.module_id())) {
@@ -257,8 +257,8 @@ fn parameter_requires_usage(
         match parent_id.ty {
             dir::NodeType::Declaration => {
                 let declaration = tree.get(parent_id.into_typed::<dir::Declaration>());
-                if let dir::Declaration::Function { body, .. } = declaration {
-                    return body.is_some();
+                if let dir::Declaration::Function(declaration) = declaration {
+                    return declaration.body.is_some();
                 }
             }
             dir::NodeType::Member => {

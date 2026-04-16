@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_workspace::{FilenameCase, LintSeverity};
 
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
@@ -23,7 +24,7 @@ declare_lint! {
 }
 
 impl LintRule for FilenameCaseRule {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         FilenameCaseRule::meta()
     }
 

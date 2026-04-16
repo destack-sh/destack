@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
@@ -9,7 +10,7 @@ declare_lint! {
     ///
     /// In Destack, structs are preferred over classes for data-oriented design.
     /// Classes encourage inheritance patterns that can lead to complex hierarchies.
-    /// In compatibility files, prefer interfaces, object types, or functions instead.
+    /// Otherwise, prefer interfaces, object types, or functions instead.
     #[lint(
         id = "no-class",
         code = "LR006",
@@ -37,7 +38,7 @@ fn no_class_label(file_type: FileType) -> &'static str {
 }
 
 impl LintRule for NoClass {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoClass::meta()
     }
 
@@ -46,7 +47,7 @@ impl LintRule for NoClass {
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            if !matches!(declaration, Declaration::Class { .. }) {
+            if !matches!(declaration, Declaration::Class(_)) {
                 continue;
             }
 
@@ -120,10 +121,10 @@ abstract class BaseClass {
     }
 
     #[test]
-    fn test_emits_typescript_compatible_guidance() {
+    fn test_emits_non_destack_guidance() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
         let result = test.lint_ast(
-            "no_class/test_emits_typescript_compatible_guidance.ts",
+            "no_class/test_emits_non_destack_guidance.ts",
             r#"
 class MyClass {
     foo() {}

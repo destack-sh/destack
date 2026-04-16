@@ -63,7 +63,7 @@ impl LintRule for CatchErrorName {
             // check promise callback parameter names
             if let dir::Expression::Call {
                 left: _,
-                static_arguments: _,
+                generic_arguments: _,
                 dynamic_arguments: _,
             } = expression
             {
@@ -165,14 +165,14 @@ fn report_promise_rejection_callback(
     // keep call expressions only
     let dir::Expression::Call {
         left,
-        static_arguments: _,
+        generic_arguments: _,
         dynamic_arguments,
     } = expression
     else {
         return;
     };
 
-    // keep strict promise catch and then callback arities for unicorn parity
+    // keep strict promise catch and then callback arities
     let Some(callback) = promise_rejection_callback(
         ctx.tree,
         *left,
@@ -279,7 +279,7 @@ fn callback_primary_declaration(
     // keep inline callback declarations first
     let callback_expression_id = expression_unwrap_transparent(ctx.tree, callback_expression_id);
     let callback_expression = ctx.tree.get(callback_expression_id);
-    if let dir::Expression::Declaration { declaration } = callback_expression {
+    if let dir::Expression::Declaration(declaration) = callback_expression {
         return Some((*declaration).into_global_any(ctx.module_id()));
     }
 
@@ -303,35 +303,19 @@ fn first_callback_parameter_in_declaration(
     // keep function declarations
     if declaration_id.ty == dir::NodeType::Declaration {
         let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
-        let dir::Declaration::Function {
-            descriptor: _,
-            signature,
-            scope: _,
-            body: _,
-            ..
-        } = declaration
-        else {
+        let dir::Declaration::Function(declaration) = declaration else {
             return None;
         };
 
-        return signature.dynamic_parameters.first().copied();
+        return declaration.signature.parameters.first().copied();
     }
 
     // keep method declarations
     if declaration_id.ty == dir::NodeType::Member {
         let member = tree.get(declaration_id.into_typed::<dir::Member>());
-        let dir::Member::Method {
-            modifiers: _,
-            key: _,
-            signature,
-            body: _,
-            symbol: _,
-        } = member
-        else {
-            return None;
-        };
+        let signature = member.signature()?;
 
-        return signature.dynamic_parameters.first().copied();
+        return signature.parameters.first().copied();
     }
 
     None
@@ -655,7 +639,7 @@ promise.catch(function (error) {
             );
     }
 
-    /// Ignore promise rejection callbacks when the method arity exceeds source parity.
+    /// Ignore promise rejection callbacks when the method arity exceeds the supported shape.
     #[test]
     fn test_ignores_promise_callbacks_with_extra_arguments() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);

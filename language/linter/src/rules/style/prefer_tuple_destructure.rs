@@ -214,18 +214,20 @@ fn direct_reference_text(
         dir::Expression::LocalReference {
             path: _,
             target_symbol: _,
-            static_arguments: None,
+            generic_arguments,
         }
         | dir::Expression::ModuleReference {
             path: _,
             target_symbol: _,
-            static_arguments: None,
+            generic_arguments,
         }
         | dir::Expression::GlobalReference {
             path: _,
             target_symbol: _,
-            static_arguments: None,
-        } => Some(ctx.get_span_text(ctx.get_span(expression_id)).to_string()),
+            generic_arguments,
+        } if generic_arguments.is_empty() => {
+            Some(ctx.get_span_text(ctx.get_span(expression_id)).to_string())
+        }
         _ => None,
     }
 }
@@ -269,7 +271,8 @@ fn prefer_tuple_destructure_fix(
     let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
     let parent_expression = ctx.tree.get(parent_expression_id);
     let dir::Expression::Let {
-        descriptor: _,
+        export: _,
+        ambient: _,
         mutability: _,
         declarators,
     } = parent_expression
@@ -324,7 +327,8 @@ fn prefer_tuple_destructure_fix(
     let source_expression = ctx.ast.get(source_expression_id);
     let ast::Expression::Let {
         kind,
-        descriptor: _,
+        export: _,
+        ambient: _,
         mutability: _,
         declarators: _,
     } = source_expression

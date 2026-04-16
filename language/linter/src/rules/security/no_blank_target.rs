@@ -2,7 +2,9 @@ use destack_ast::{self as ast, Argument, Expression};
 use destack_workspace::LintSeverity;
 use url::Url;
 
-use crate::rules::common::{expression_path_segments, expression_static_string_literal_syntax};
+use crate::rules::common::{
+    expression_path_segments, expression_static_string_literal_source_form,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -160,9 +162,7 @@ fn checked_target_attribute_name(
     let left_id = left?;
 
     // check for simple path like `a`
-    let Some(path_segments) = expression_path_segments(ctx.tree, left_id) else {
-        return None;
-    };
+    let path_segments = expression_path_segments(ctx.tree, left_id)?;
 
     // check if the path has exactly one segment and a checked tag name
     if path_segments.len() == 1 {
@@ -215,7 +215,7 @@ fn argument_static_string_id(
     ctx: &LintAstContext<'_>,
     value: ast::LocalNodeId<Expression>,
 ) -> Option<ast::StringId> {
-    expression_static_string_literal_syntax(ctx.tree, value)
+    expression_static_string_literal_source_form(ctx.tree, value)
 }
 
 /// Return the rel safety status for one rel argument.

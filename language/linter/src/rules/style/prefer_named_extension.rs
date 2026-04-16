@@ -1,7 +1,7 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -25,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferNamedExtension {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferNamedExtension::meta()
     }
 
@@ -35,17 +35,12 @@ impl LintRule for PreferNamedExtension {
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
 
-            let Declaration::Extension {
-                descriptor,
-                target_type,
-                ..
-            } = declaration
-            else {
+            let Declaration::Extension(declaration) = declaration else {
                 continue;
             };
 
             // check if this is an anonymous extension (no name)
-            let has_name = descriptor.name.is_some();
+            let has_name = declaration.name.is_some();
 
             if has_name {
                 continue;
@@ -53,8 +48,10 @@ impl LintRule for PreferNamedExtension {
 
             // check if the target type appears to be from another module
             // (has a path with more than one segment)
-            let is_foreign = expression_path_segments(ctx.tree, *target_type)
-                .is_some_and(|path_segments| path_segments.len() > 1);
+            let is_foreign = matches!(
+                ctx.tree.get(declaration.target_type),
+                ast::TypeExpression::Reference { path, .. } if path.segments.len() > 1
+            );
 
             if is_foreign {
                 let severity = ctx.get_effective_severity(meta, node_id);

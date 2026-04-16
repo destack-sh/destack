@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
@@ -9,7 +10,7 @@ declare_lint! {
     /// Disallow unnecessary computed property keys in objects.
     ///
     /// Using a computed key with a static string or number literal is unnecessary
-    /// when direct property key syntax preserves the same behavior.
+    /// when a direct property key preserves the same behavior.
     #[lint(
         id = "no-useless-computed-key",
         code = "LU036",
@@ -26,7 +27,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUselessComputedKey {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUselessComputedKey::meta()
     }
 
@@ -36,7 +37,7 @@ impl LintRule for NoUselessComputedKey {
         for node_id in ctx.tree.iter_nodes::<ast::Property>() {
             let property = ctx.tree.get(node_id);
             let key = match property {
-                ast::Property::Field { key: Some(key), .. } => key,
+                ast::Property::Field { key, .. } => key,
                 ast::Property::Method { key: Some(key), .. } => key,
                 _ => continue,
             };
@@ -66,7 +67,7 @@ impl LintRule for NoUselessComputedKey {
                 ctx.module.file_id,
                 property_span,
             )
-            .with_label(format!("use `{label_text}` without computed key syntax"));
+            .with_label(format!("use `{label_text}` without a computed key"));
 
             if ctx.compute_fixes
                 && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)

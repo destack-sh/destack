@@ -46,19 +46,16 @@ impl LintRule for NoThrowInResultFunction {
             .iter_nodes_of_type::<dir::Declaration>()
             .filter_map(|(decl_id, decl)| {
                 // keep function declarations with executable bodies
-                if let dir::Declaration::Function {
-                    signature,
-                    body: Some(body_id),
-                    ..
-                } = decl
-                {
+                if let dir::Declaration::Function(declaration) = decl {
+                    let body_id = declaration.body?;
+
                     // check if return type is Result or wraps Result in static arguments
                     if function_signature_return_type_contains_reference_segment(
                         ctx.tree,
-                        signature,
+                        &declaration.signature,
                         result_name,
                     ) {
-                        return Some((CallableOwner::Declaration(decl_id), *body_id));
+                        return Some((CallableOwner::Declaration(decl_id), body_id));
                     }
                 }
                 None

@@ -16,7 +16,8 @@ use destack_parser::Parser;
 use destack_session::Session;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit as SourceEdit, File, FileId,
-    FileType, LanguageType, MemoryFileSystem, ModuleId, Uri, print_diff,
+    FileSystem, FileType, LanguageType, ModuleId, OverlayFileSystem, PhysicalFileSystem, Uri,
+    print_diff,
 };
 use destack_workspace::{
     Change, Edit as RepositoryEdit, LintCategory, LintSeverity, LinterOptions, Profile, Ref,
@@ -26,7 +27,7 @@ use parking_lot::Mutex;
 
 use crate::{
     BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintModuleReport, LintRequirement,
-    LintRunReport, LintRunner,
+    LintRule, LintRunReport, LintRunner,
 };
 
 /// Shared memory cache store for linter tests.
@@ -41,7 +42,7 @@ static PRELUDE_WARMERS: LazyLock<Mutex<HashMap<Vec<String>, Arc<Once>>>> =
 #[allow(unused)]
 pub(crate) struct TestProgram {
     /// The file system.
-    fs: Arc<MemoryFileSystem>,
+    fs: Arc<OverlayFileSystem>,
     /// The repository.
     pub repository: Arc<Repository>,
     /// The profile for tests.
@@ -186,8 +187,10 @@ impl TestProgram {
         inject_prelude: bool,
         explicit_libs: Option<Vec<String>>,
     ) -> Self {
-        let fs = Arc::new(MemoryFileSystem::new());
         let cwd = current_dir().unwrap();
+        let fs = Arc::new(OverlayFileSystem::with_inner(Arc::new(
+            PhysicalFileSystem::new(),
+        )));
 
         let repository = Arc::new(
             Repository::open_root_from_fs(cwd.clone(), fs.clone())
@@ -275,12 +278,12 @@ impl TestProgram {
     }
 
     /// Create a test with a single rule (without prelude).
-    pub(crate) fn for_rule_without_prelude<R: crate::LintRule + 'static>(rule: R) -> Self {
+    pub(crate) fn for_rule_without_prelude<R: LintRule + 'static>(rule: R) -> Self {
         Self::new_without_prelude(vec![crate::boxed(rule)])
     }
 
     /// Create a test with a single rule (with prelude).
-    pub(crate) fn for_rule_with_prelude<R: crate::LintRule + 'static>(rule: R) -> Self {
+    pub(crate) fn for_rule_with_prelude<R: LintRule + 'static>(rule: R) -> Self {
         let rule = crate::boxed(rule);
         let libs = collect_required_libs_from_rules(std::slice::from_ref(&rule));
         Self::warm_prelude_profile(&libs);
@@ -315,7 +318,8 @@ impl TestProgram {
 
     /// Set one source file in the filesystem and current workspace revision.
     pub(crate) fn add_file(&self, path: &str, content: &str) {
-        self.fs.add_file(path, content.as_bytes()).unwrap();
+        let overlay_path = self.repository.workspace_root().join(path);
+        self.fs.set_overlay(&overlay_path, content.to_string());
 
         self.apply_change(Change::single(RepositoryEdit::set_text(path, content)));
     }
@@ -366,6 +370,7 @@ impl TestProgram {
                 module,
                 profile: self.profile_id(),
             });
+            });
     }
 
     /// Resolve the language environment for the current profile.
@@ -375,7 +380,8 @@ impl TestProgram {
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error}"));
 
         // publish diagnostics from this compiler operation into the test harness
-        self.replace_latest_diagnostics(self.compiler.take_diagnostics());
+        self.compiler.flush_diagnostics();
+        self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
     /// Resolve builtin libs for the current profile.
@@ -385,7 +391,8 @@ impl TestProgram {
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error}"));
 
         // publish diagnostics from this compiler operation into the test harness
-        self.replace_latest_diagnostics(self.compiler.take_diagnostics());
+        self.compiler.flush_diagnostics();
+        self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
     /// Enqueue builtin and lib resolution once for this test repository.
@@ -409,6 +416,7 @@ impl TestProgram {
                 module,
                 profile: self.profile_id(),
             });
+            });
     }
 
     /// Run all queued tasks.
@@ -423,7 +431,7 @@ impl TestProgram {
             .unwrap_or_else(|error| panic!("failed to provide linter test artifacts: {error}"));
 
         // publish diagnostics from this compiler run into the test harness
-        self.replace_latest_diagnostics(self.compiler.take_diagnostics());
+        self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
     /// Replace the latest compiler diagnostics for this test harness.
@@ -436,6 +444,27 @@ impl TestProgram {
     /// Return the latest compiler diagnostics for this test harness.
     fn diagnostics(&self) -> DiagnosticCollection {
         self.latest_diagnostics.lock().clone()
+    }
+
+    /// Collect the current workspace diagnostics from module artifact families.
+    fn current_workspace_diagnostics(&self) -> DiagnosticCollection {
+        let revision = self.current_revision();
+        let module_ids = self
+            .repository
+            .workspace_module_ids(revision)
+            .unwrap_or_else(|error| panic!("failed to read workspace modules: {error}"));
+        let mut diagnostics = DiagnosticCollection::new();
+
+        // current workspace families
+        for module_id in module_ids {
+            diagnostics.merge_from(&self.repository.module_artifact_diagnostics(
+                revision,
+                module_id,
+                self.profile_id(),
+            ));
+        }
+
+        diagnostics
     }
 
     /// Lint a module at the given level.

@@ -179,7 +179,7 @@ fn executor_declaration(
 ) -> Option<dir::LocalNodeId<dir::Declaration>> {
     // handle inline function declarations
     let expression = ctx.tree.get(expression_id);
-    if let dir::Expression::Declaration { declaration } = expression {
+    if let dir::Expression::Declaration(declaration) = expression {
         return Some(*declaration);
     }
 
@@ -210,19 +210,18 @@ fn analyze_executor_returns(
 ) -> crate::rules::common::CallableReturnUsage {
     // extract the function body
     let declaration = tree.get(declaration_id);
-    let dir::Declaration::Function {
-        signature, body, ..
-    } = declaration
-    else {
+    let dir::Declaration::Function(declaration) = declaration else {
         return crate::rules::common::CallableReturnUsage::default();
     };
 
-    let mut usage = callable_return_usage(tree, signature, *body);
+    let mut usage = callable_return_usage(tree, &declaration.signature, declaration.body);
 
     // allow concise `() => void expr` bodies when configured
     if usage.has_expression_body_return_value
         && allow_void
-        && body.is_some_and(|body_id| expression_is_void_operator(tree, body_id))
+        && declaration
+            .body
+            .is_some_and(|body_id| expression_is_void_operator(tree, body_id))
     {
         usage.has_expression_body_return_value = false;
     }

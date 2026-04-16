@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
@@ -9,7 +10,7 @@ use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 declare_lint! {
     /// Prefer `<>` shorthand over `<Fragment>`.
     ///
-    /// When creating fragments in tree expressions (JSX-like syntax), prefer
+    /// When creating fragments in tree expressions, prefer
     /// the shorthand `<>...</>` over the explicit `<Fragment>...</Fragment>`.
     ///
     /// The shorthand is more concise and idiomatic.
@@ -43,7 +44,7 @@ declare_lint! {
 }
 
 impl LintRule for PreferFragmentShorthand {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         PreferFragmentShorthand::meta()
     }
 

@@ -155,17 +155,10 @@ fn await_statement_from_expression(
     }
 
     // keep single declarator await bindings like: const x = await foo()
-    let (declarators, descriptor_symbol) = match statement {
-        dir::Expression::Let {
-            descriptor,
-            declarators,
-            ..
+    let declarators = match statement {
+        dir::Expression::Let { declarators, .. } | dir::Expression::Using { declarators, .. } => {
+            declarators
         }
-        | dir::Expression::Using {
-            descriptor,
-            declarators,
-            ..
-        } => (declarators, descriptor.symbol),
         _ => return None,
     };
     if declarators.len() != 1 {
@@ -179,7 +172,6 @@ fn await_statement_from_expression(
 
     // collect all local bindings introduced by the declaration pattern
     let mut bound_symbols = HashSet::new();
-    bound_symbols.insert(descriptor_symbol);
     collect_pattern_value_binding_symbols(
         ctx.tree,
         ctx.symbols,
@@ -284,9 +276,9 @@ impl NodeVisitor for SymbolReferenceVisitor<'_> {
         }
 
         // keep nested function references out of this dependency check
-        if let dir::Expression::Declaration { declaration } = expression {
+        if let dir::Expression::Declaration(declaration) = expression {
             let declaration = tree.get(*declaration);
-            if matches!(declaration, dir::Declaration::Function { .. }) {
+            if matches!(declaration, dir::Declaration::Function(_)) {
                 return;
             }
         }

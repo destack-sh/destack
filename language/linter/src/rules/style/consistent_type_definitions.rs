@@ -1,4 +1,5 @@
-use destack_ast::{self as ast, Declaration, TypeKind};
+use crate::LintMeta;
+use destack_ast::{self as ast, Declaration, TypeExpression};
 use destack_workspace::{LintSeverity, TypeDefinitionStyle};
 
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for ConsistentTypeDefinitions {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         ConsistentTypeDefinitions::meta()
     }
 
@@ -37,16 +38,9 @@ impl LintRule for ConsistentTypeDefinitions {
 
             match (preferred_style, decl) {
                 // prefer type, found interface (structural only, not newtype interface)
-                (
-                    TypeDefinitionStyle::Type,
-                    Declaration::Interface {
-                        descriptor,
-                        kind: TypeKind::Structural,
-                        generics,
-                        heritage,
-                        ..
-                    },
-                ) => {
+                (TypeDefinitionStyle::Type, Declaration::Interface(declaration))
+                    if !declaration.is_nominal =>
+                {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         continue;
@@ -62,8 +56,7 @@ impl LintRule for ConsistentTypeDefinitions {
                     )
                     .with_label("prefer type alias");
                     if ctx.compute_fixes
-                        && let Some(fix) =
-                            interface_to_type_fix(ctx, node_id, descriptor, generics, heritage)
+                        && let Some(fix) = interface_to_type_fix(ctx, node_id, declaration)
                     {
                         diagnostic = diagnostic.with_fix(fix);
                     }
@@ -71,19 +64,11 @@ impl LintRule for ConsistentTypeDefinitions {
                     ctx.report(diagnostic);
                 }
                 // prefer interface, found type alias with object value (structural only)
-                (
-                    TypeDefinitionStyle::Interface,
-                    Declaration::Type {
-                        descriptor,
-                        kind: TypeKind::Structural,
-                        static_parameters,
-                        mutability,
-                        value,
-                        ..
-                    },
-                ) => {
+                (TypeDefinitionStyle::Interface, Declaration::Type(declaration))
+                    if !declaration.is_nominal =>
+                {
                     // only flag if the value is an object type expression
-                    let value_expr = ctx.tree.get(*value);
+                    let value_expr = ctx.tree.get(declaration.value);
                     if is_object_type_expression(value_expr) {
                         let severity = ctx.get_effective_severity(meta, node_id);
                         if !severity.is_enabled() {
@@ -100,14 +85,7 @@ impl LintRule for ConsistentTypeDefinitions {
                         )
                         .with_label("prefer interface declaration");
                         if ctx.compute_fixes
-                            && let Some(fix) = type_to_interface_fix(
-                                ctx,
-                                node_id,
-                                descriptor,
-                                static_parameters,
-                                mutability,
-                                *value,
-                            )
+                            && let Some(fix) = type_to_interface_fix(ctx, node_id, declaration)
                         {
                             diagnostic = diagnostic.with_fix(fix);
                         }
@@ -122,21 +100,19 @@ impl LintRule for ConsistentTypeDefinitions {
 }
 
 /// Check if an expression represents an object type.
-fn is_object_type_expression(expr: &ast::Expression) -> bool {
-    matches!(expr, ast::Expression::ObjectExpression { .. })
+fn is_object_type_expression(expr: &TypeExpression) -> bool {
+    matches!(expr, TypeExpression::Object { .. })
 }
 
 /// Build an unsafe interface to type alias rewrite.
 fn interface_to_type_fix(
     ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
-    descriptor: &ast::DeclarationDescriptor,
-    generics: &ast::Generics,
-    heritage: &ast::Heritage,
+    declaration: &ast::InterfaceDeclaration,
 ) -> Option<LintFix> {
     // keep plain structural interfaces only
-    descriptor.name?;
-    if !generics.is_empty() || !heritage.is_empty() {
+    let name = declaration.name?;
+    if !declaration.generic_parameters.is_empty() || !declaration.extends_types.is_empty() {
         return None;
     }
 
@@ -149,8 +125,7 @@ fn interface_to_type_fix(
         return None;
     }
 
-    let name = descriptor.name?.string();
-    let name_text = ctx.strings.get(name);
+    let name_text = ctx.strings.get(name.string());
     let prefix = &declaration_text[..interface_index];
     let body = &declaration_text[open_brace_index..=close_brace_index];
     let replacement = format!("{prefix}type {} = {body}", name_text.as_ref());
@@ -169,19 +144,16 @@ fn interface_to_type_fix(
 fn type_to_interface_fix(
     ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
-    descriptor: &ast::DeclarationDescriptor,
-    static_parameters: &Option<Vec<ast::LocalNodeId<ast::Parameter>>>,
-    mutability: &Option<ast::Mutability>,
-    value_expression_id: ast::LocalNodeId<ast::Expression>,
+    declaration: &ast::TypeDeclaration,
 ) -> Option<LintFix> {
     // keep plain object type aliases only
-    let name = descriptor.name?;
-    if static_parameters.is_some() || mutability.is_some() {
+    if !declaration.generic_parameters.is_empty() || declaration.mutability.is_some() {
         return None;
     }
 
-    let value_expression = ctx.tree.get(value_expression_id);
-    if !matches!(value_expression, ast::Expression::ObjectExpression { .. }) {
+    let name = declaration.name;
+    let value_expression = ctx.tree.get(declaration.value);
+    if !matches!(value_expression, TypeExpression::Object { .. }) {
         return None;
     }
 
@@ -189,7 +161,7 @@ fn type_to_interface_fix(
     let declaration_text = ctx.get_span_text(declaration_span).to_string();
     let type_index = declaration_text.find("type")?;
     let value_text = ctx
-        .get_span_text(ctx.tree.get_span(value_expression_id))
+        .get_span_text(ctx.tree.get_span(declaration.value))
         .to_string();
     if !value_text.trim_start().starts_with('{') {
         return None;

@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, ForEachBinding, ForEachDeclarationKind, LetKind};
 use destack_workspace::LintSeverity;
 
@@ -7,7 +8,7 @@ declare_lint! {
     /// Disallow `var` declarations.
     ///
     /// Use `const` for values that don't change and `let` for mutable bindings.
-    /// The `var` keyword is a legacy syntax; prefer `let` or `const`.
+    /// The `var` keyword is a legacy form; prefer `let` or `const`.
     #[lint(
         id = "no-var",
         code = "LY026",
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for NoVar {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoVar::meta()
     }
 

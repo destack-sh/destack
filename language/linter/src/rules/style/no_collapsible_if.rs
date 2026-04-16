@@ -1,7 +1,8 @@
+use crate::LintMeta;
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_parenthesized_syntax, span_has_comment};
+use crate::rules::common::{expression_unwrap_parenthesized_source_form, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -39,7 +40,7 @@ declare_lint! {
 }
 
 impl LintRule for NoCollapsibleIf {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoCollapsibleIf::meta()
     }
 
@@ -138,7 +139,8 @@ fn and_condition_operand_text(
     let expression_span = ctx.tree.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
     let expression_text = strip_one_outer_parentheses(expression_text);
-    let normalized_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let normalized_expression_id =
+        expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
     let normalized_expression = ctx.tree.get(normalized_expression_id);
     if expression_needs_parentheses_for_and_operand(normalized_expression) {
         return format!("({expression_text})");

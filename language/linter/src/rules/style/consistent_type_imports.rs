@@ -12,7 +12,7 @@ use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, d
 declare_lint! {
     /// Enforce consistent type import style.
     ///
-    /// Prefer dedicated type import syntax for bindings that are only used from
+    /// Prefer dedicated type imports for bindings that are only used from
     /// type positions.
     #[lint(
         id = "consistent-type-imports",
@@ -44,12 +44,10 @@ impl LintRule for ConsistentTypeImports {
         let reference_usage = collect_import_symbol_reference_context_usage(ctx, &tracked_symbols);
 
         // inspect the module once for import declaration style and type import expressions
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
-
-            // report forbidden `import(...)` type annotations
-            if options.disallow_type_annotations {
-                report_type_import_annotation(ctx, meta, expression_id, expression);
+        if options.disallow_type_annotations {
+            for type_expression_id in ctx.tree.iter_node_ids_of_type::<dir::TypeExpression>() {
+                let type_expression = ctx.tree.get(type_expression_id);
+                report_type_import_annotation(ctx, meta, type_expression_id, type_expression);
             }
         }
 
@@ -63,7 +61,7 @@ impl LintRule for ConsistentTypeImports {
 /// Configuration resolved from linter options.
 #[derive(Debug, Clone, Copy)]
 struct ConsistentTypeImportsOptions {
-    /// Prefer explicit type import syntax.
+    /// Prefer explicit type imports.
     prefer_type_imports: bool,
     /// Prefer inline `type` modifiers when type imports are required.
     prefer_inline_type_imports: bool,
@@ -208,11 +206,11 @@ fn collect_import_symbol_reference_context_usage(
 fn report_type_import_annotation(
     ctx: &mut LintModuleDirContext<'_>,
     meta: &'static LintMeta,
-    node_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
+    node_id: dir::LocalNodeId<dir::TypeExpression>,
+    type_expression: &dir::TypeExpression,
 ) {
     // skip non type import expressions
-    if !matches!(expression, dir::Expression::TypeImport { .. }) {
+    if !matches!(type_expression, dir::TypeExpression::Import { .. }) {
         return;
     }
 
@@ -480,7 +478,7 @@ fn clause_inline_type_item_ids(
         .collect()
 }
 
-/// Return semantic type only item ids that still use value import syntax.
+/// Return semantic type only item ids that still use value imports.
 fn clause_semantic_type_only_item_ids(
     ctx: &LintModuleDirContext<'_>,
     clause: &ImportClause,
@@ -643,7 +641,7 @@ fn consistent_type_import_top_level_fix(
     }
 
     let edits = builder.into_edits();
-    Some(LintFix::safe("Rewrite to `import type` syntax").with_edits(edits))
+    Some(LintFix::safe("Rewrite to `import type`").with_edits(edits))
 }
 
 /// Build one fix that rewrites selected items to inline `type` specifiers.
@@ -676,7 +674,7 @@ fn consistent_type_import_inline_fix(
     }
 
     let edits = builder.into_edits();
-    Some(LintFix::safe("Rewrite to inline type import syntax").with_edits(edits))
+    Some(LintFix::safe("Rewrite to inline type imports").with_edits(edits))
 }
 
 /// Build one fix that rewrites `import type` and inline specifiers to value imports.
@@ -696,7 +694,7 @@ fn consistent_type_import_no_type_fix(
             .edit_builder()
             .replace(import_span, rewritten_import_text)
             .into_edits();
-        return Some(LintFix::safe("Rewrite to value import syntax").with_edits(edits));
+        return Some(LintFix::safe("Rewrite to value imports").with_edits(edits));
     }
 
     let mut builder = ctx.edit_builder();
@@ -715,7 +713,7 @@ fn consistent_type_import_no_type_fix(
     }
 
     let edits = builder.into_edits();
-    Some(LintFix::safe("Rewrite to value import syntax").with_edits(edits))
+    Some(LintFix::safe("Rewrite to value imports").with_edits(edits))
 }
 
 /// Return true when one import declaration spells a top level `import type`.
@@ -874,7 +872,7 @@ const value = Bar;
             .assert_no_lint("consistent-type-imports");
     }
 
-    /// Remove type import syntax when the rule prefers value imports.
+    /// Remove type imports when the rule prefers value imports.
     #[test]
     fn test_no_type_mode_flags_import_type() {
         let test =

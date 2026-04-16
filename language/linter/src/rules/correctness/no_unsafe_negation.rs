@@ -7,7 +7,8 @@ declare_lint! {
     /// Disallow negation of the left operand of relational operators.
     ///
     /// Expressions like `!a in b` are often a mistake, as they parse as `(!a) in b`
-    /// instead of the intended `!(a in b)`. The same applies to `instanceof`.
+    /// instead of the intended `!(a in b)`. The same applies to `is` and
+    /// `instanceof`.
     #[lint(
         id = "no-unsafe-negation",
         code = "LC034",
@@ -35,57 +36,63 @@ impl LintRule for NoUnsafeNegation {
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            // check for Binary expressions with in/instanceof
-            if let ast::Expression::Binary {
-                left,
-                operator,
-                right,
-            } = ctx.tree.get(node_id)
-            {
-                // only check operators where negated left sides are easy to misread
-                if !is_unsafe_negation_operator(operator) {
+            let (left, right_span, operator_name) = match ctx.tree.get(node_id) {
+                ast::Expression::Binary {
+                    left,
+                    operator,
+                    right,
+                } if is_unsafe_negation_operator(operator) => {
+                    let right_span = ctx.tree.get_span(*right);
+
+                    (*left, right_span, binary_operator_name(operator))
+                }
+                ast::Expression::Is { value, target_type } => {
+                    let right_span = ctx.tree.get_span(*target_type);
+
+                    (*value, right_span, "is")
+                }
+                ast::Expression::InstanceOf { value, target } => {
+                    let right_span = ctx.tree.get_span(*target);
+
+                    (*value, right_span, "instanceof")
+                }
+                _ => continue,
+            };
+
+            // check if left side is a logical not and get the inner expression
+            if let Some(inner_id) = get_negated_inner(ctx, left) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
                     continue;
                 }
 
-                // check if left side is a logical not and get the inner expression
-                if let Some(inner_id) = get_negated_inner(ctx, *left) {
-                    let severity = ctx.get_effective_severity(meta, node_id);
-                    if !severity.is_enabled() {
-                        continue;
-                    }
+                // make fix: convert `!a in b` to `!(a in b)`
+                let expression_span = ctx.tree.get_span(node_id);
+                let inner_span = ctx.tree.get_span(inner_id);
+                let inner_text = ctx.get_span_text(inner_span);
+                let right_text = ctx.get_span_text(right_span);
+                let replacement = format!("!({inner_text} {operator_name} {right_text})");
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expression_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Wrap in parentheses").with_edits(edits);
 
-                    // resolve operator name
-                    let operator_name = binary_operator_name(operator);
-
-                    // make fix: convert `!a in b` to `!(a in b)`
-                    let expression_span = ctx.tree.get_span(node_id);
-                    let inner_span = ctx.tree.get_span(inner_id);
-                    let inner_text = ctx.get_span_text(inner_span);
-                    let right_span = ctx.tree.get_span(*right);
-                    let right_text = ctx.get_span_text(right_span);
-                    let replacement = format!("!({inner_text} {operator_name} {right_text})");
-                    let edits = ctx
-                        .edit_builder()
-                        .replace(expression_span, replacement)
-                        .into_edits();
-                    let fix = LintFix::safe("Wrap in parentheses").with_edits(edits);
-
-                    ctx.report(
-                        LintDiagnostic::new(
-                            NO_UNSAFE_NEGATION.id,
-                            NO_UNSAFE_NEGATION.code,
-                            NO_UNSAFE_NEGATION.category,
-                            severity,
-                            format!("negation of left operand of `{operator_name}`"),
-                            ctx.module.file_id,
-                            expression_span,
-                        )
-                        .with_label(format!(
-                            "this parses as `(!a) {operator_name} b`, use `!(a {operator_name} b)` instead"
-                        ))
-                        .with_fix(fix),
-                    );
-                }
+                ctx.report(
+                    LintDiagnostic::new(
+                        NO_UNSAFE_NEGATION.id,
+                        NO_UNSAFE_NEGATION.code,
+                        NO_UNSAFE_NEGATION.category,
+                        severity,
+                        format!("negation of left operand of `{operator_name}`"),
+                        ctx.module.file_id,
+                        expression_span,
+                    )
+                    .with_label(format!(
+                        "this parses as `(!a) {operator_name} b`, use `!(a {operator_name} b)` instead"
+                    ))
+                    .with_fix(fix),
+                );
             }
         }
     }
@@ -93,17 +100,13 @@ impl LintRule for NoUnsafeNegation {
 
 /// Return true when the binary operator should reject negated left operands.
 fn is_unsafe_negation_operator(operator: &ast::BinaryOperator) -> bool {
-    matches!(
-        operator,
-        ast::BinaryOperator::In | ast::BinaryOperator::InstanceOf
-    )
+    matches!(operator, ast::BinaryOperator::In)
 }
 
 /// Return one display name for a binary operator.
 fn binary_operator_name(operator: &ast::BinaryOperator) -> &'static str {
     match operator {
         ast::BinaryOperator::In => "in",
-        ast::BinaryOperator::InstanceOf => "instanceof",
         ast::BinaryOperator::LessThan => "<",
         ast::BinaryOperator::LessThanOrEqual => "<=",
         ast::BinaryOperator::GreaterThan => ">",
@@ -158,6 +161,18 @@ let key = "a";
 class Foo {}
 let x = new Foo();
 !x instanceof Foo;
+"#,
+        );
+        test.result(result).assert_lint("no-unsafe-negation");
+    }
+
+    #[test]
+    fn test_detects_negation_in_is() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
+        let result = test.lint_ast(
+            "no_unsafe_negation/test_detects_negation_in_is.ds",
+            r#"
+!x is Foo;
 "#,
         );
         test.result(result).assert_lint("no-unsafe-negation");
@@ -258,6 +273,24 @@ let result = !x instanceof Foo
 class Foo {}
 let x = new Foo();
 let result = !(x instanceof Foo);
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_is_operator() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
+        let result = test.lint_ast(
+            "no_unsafe_negation/test_fix_is_operator.ds",
+            r#"
+let result = !x is Foo
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unsafe-negation")
+            .assert_safe_fixed(
+                r#"
+let result = !(x is Foo);
 "#,
             );
     }

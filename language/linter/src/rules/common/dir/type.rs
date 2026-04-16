@@ -671,8 +671,14 @@ fn evaluate_terminal_boolean_type_query(
                 | dir::Type::Import { .. }
                 | dir::Type::Infer { .. }
                 | dir::Type::Predicate { .. }
-                | dir::Type::Unary { .. }
-                | dir::Type::Binary { .. }
+                | dir::Type::Readonly { .. }
+                | dir::Type::KeyOf { .. }
+                | dir::Type::Must { .. }
+                | dir::Type::AsComptime { .. }
+                | dir::Type::Not { .. }
+                | dir::Type::In { .. }
+                | dir::Type::Extends { .. }
+                | dir::Type::Implements { .. }
                 | dir::Type::Error
                 | dir::Type::Unevaluated(_)
         ),
@@ -694,6 +700,7 @@ fn evaluate_terminal_boolean_type_query(
                         | dir::PrimitiveType::Float(_)
                 ),
                 dir::TypeLiteral::ScalarLiteral(literal) => match literal {
+                    dir::ScalarLiteral::Null => true,
                     dir::ScalarLiteral::Boolean(false) => true,
                     dir::ScalarLiteral::Boolean(true) => false,
                     dir::ScalarLiteral::Integer(value) => *value == 0,
@@ -721,8 +728,14 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Import { .. }
             | dir::Type::Infer { .. }
             | dir::Type::Predicate { .. }
-            | dir::Type::Unary { .. }
-            | dir::Type::Binary { .. }
+            | dir::Type::Readonly { .. }
+            | dir::Type::KeyOf { .. }
+            | dir::Type::Must { .. }
+            | dir::Type::AsComptime { .. }
+            | dir::Type::Not { .. }
+            | dir::Type::In { .. }
+            | dir::Type::Extends { .. }
+            | dir::Type::Implements { .. }
             | dir::Type::Error => true,
             _ => false,
         },
@@ -1449,6 +1462,7 @@ fn type_truthiness_inner(
                     _ => TypeTruthiness::Unknown,
                 },
                 dir::TypeLiteral::ScalarLiteral(literal) => match literal {
+                    dir::ScalarLiteral::Null => TypeTruthiness::AlwaysFalsy,
                     dir::ScalarLiteral::Boolean(value) => {
                         if *value {
                             TypeTruthiness::AlwaysTruthy
@@ -1505,8 +1519,14 @@ fn type_truthiness_inner(
             | dir::Type::Import { .. }
             | dir::Type::Infer { .. }
             | dir::Type::Predicate { .. }
-            | dir::Type::Unary { .. }
-            | dir::Type::Binary { .. }
+            | dir::Type::Readonly { .. }
+            | dir::Type::KeyOf { .. }
+            | dir::Type::Must { .. }
+            | dir::Type::AsComptime { .. }
+            | dir::Type::Not { .. }
+            | dir::Type::In { .. }
+            | dir::Type::Extends { .. }
+            | dir::Type::Implements { .. }
             | dir::Type::Error => TypeTruthiness::Unknown,
             _ => TypeTruthiness::Unknown,
         }
@@ -1577,8 +1597,14 @@ fn type_nullishness_inner(
             | dir::Type::Import { .. }
             | dir::Type::Infer { .. }
             | dir::Type::Predicate { .. }
-            | dir::Type::Unary { .. }
-            | dir::Type::Binary { .. }
+            | dir::Type::Readonly { .. }
+            | dir::Type::KeyOf { .. }
+            | dir::Type::Must { .. }
+            | dir::Type::AsComptime { .. }
+            | dir::Type::Not { .. }
+            | dir::Type::In { .. }
+            | dir::Type::Extends { .. }
+            | dir::Type::Implements { .. }
             | dir::Type::Error => TypeNullishness::Maybe,
             _ => TypeNullishness::Maybe,
         }

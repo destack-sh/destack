@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -28,7 +29,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxLinesPerFunction {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxLinesPerFunction::meta()
     }
 
@@ -94,7 +95,7 @@ impl LintRule for MaxLinesPerFunction {
 /// Report one max-lines-per-function violation for a callable owner.
 fn report_line_limit_violation<T: ast::Node>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     body_id: ast::LocalNodeId<ast::Expression>,
     line_count: usize,

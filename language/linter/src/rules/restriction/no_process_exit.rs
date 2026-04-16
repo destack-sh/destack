@@ -239,11 +239,11 @@ fn expression_is_function_like(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let dir::Expression::Declaration { declaration } = tree.get(expression_id) else {
+    let dir::Expression::Declaration(declaration) = tree.get(expression_id) else {
         return false;
     };
 
-    matches!(tree.get(*declaration), dir::Declaration::Function { .. })
+    matches!(tree.get(*declaration), dir::Declaration::Function(_))
 }
 
 /// Build an unsafe fix by removing one standalone process exit statement.

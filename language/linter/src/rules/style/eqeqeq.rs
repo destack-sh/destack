@@ -1,4 +1,5 @@
-use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral, TypeLiteral};
+use crate::LintMeta;
+use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral, TypeExpression};
 use destack_workspace::{EqeqeqMode, EqeqeqNullPolicy, LintSeverity};
 
 use crate::rules::common::source_text_contains_comment_token;
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for Eqeqeq {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         Eqeqeq::meta()
     }
 
@@ -51,12 +52,18 @@ impl LintRule for Eqeqeq {
 
             let left_expression = ctx.tree.get(*left);
             let right_expression = ctx.tree.get(*right);
-            let is_null_check = expression_is_null_literal(left_expression)
-                || expression_is_null_literal(right_expression);
+            let is_null_check = expression_is_null_literal(ctx.tree, left_expression)
+                || expression_is_null_literal(ctx.tree, right_expression);
 
             // loose operators
             if matches!(operator, BinaryOperator::Equal | BinaryOperator::NotEqual) {
-                if loose_equality_is_allowed(mode, null_policy, left_expression, right_expression) {
+                if loose_equality_is_allowed(
+                    ctx.tree,
+                    mode,
+                    null_policy,
+                    left_expression,
+                    right_expression,
+                ) {
                     continue;
                 }
 
@@ -91,7 +98,7 @@ impl LintRule for Eqeqeq {
 
                 // only apply autofix where operator replacement is semantics preserving
                 if ctx.compute_fixes
-                    && equality_operator_fix_is_safe(left_expression, right_expression)
+                    && equality_operator_fix_is_safe(ctx.tree, left_expression, right_expression)
                     && !source_text_contains_comment_token(ctx.get_span_text(expression_span))
                 {
                     let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
@@ -157,6 +164,7 @@ impl LintRule for Eqeqeq {
 
 /// Return true when a loose equality operator is allowed by the active mode.
 fn loose_equality_is_allowed(
+    tree: &ast::NodeTree,
     mode: EqeqeqMode,
     null_policy: EqeqeqNullPolicy,
     left: &Expression,
@@ -164,32 +172,45 @@ fn loose_equality_is_allowed(
 ) -> bool {
     match mode {
         EqeqeqMode::Always => {
-            (expression_is_null_literal(left) || expression_is_null_literal(right))
+            (expression_is_null_literal(tree, left) || expression_is_null_literal(tree, right))
                 && null_policy != EqeqeqNullPolicy::Always
         }
         EqeqeqMode::Smart => {
             expression_is_typeof(left)
                 || expression_is_typeof(right)
-                || expressions_have_same_literal_kind(left, right)
-                || expression_is_null_literal(left)
-                || expression_is_null_literal(right)
+                || expressions_have_same_literal_kind(tree, left, right)
+                || expression_is_null_literal(tree, left)
+                || expression_is_null_literal(tree, right)
         }
         EqeqeqMode::AllowNull => {
-            expression_is_null_literal(left) || expression_is_null_literal(right)
+            expression_is_null_literal(tree, left) || expression_is_null_literal(tree, right)
         }
     }
 }
 
 /// Return true when replacing loose equality is semantics preserving.
-fn equality_operator_fix_is_safe(left: &Expression, right: &Expression) -> bool {
+fn equality_operator_fix_is_safe(
+    tree: &ast::NodeTree,
+    left: &Expression,
+    right: &Expression,
+) -> bool {
     expression_is_typeof(left)
         || expression_is_typeof(right)
-        || expressions_have_same_literal_kind(left, right)
+        || expressions_have_same_literal_kind(tree, left, right)
 }
 
 /// Return true when the expression is a null literal.
-fn expression_is_null_literal(expression: &Expression) -> bool {
-    matches!(expression, Expression::TypeLiteral(TypeLiteral::Null))
+fn expression_is_null_literal(tree: &ast::NodeTree, expression: &Expression) -> bool {
+    let Expression::Type { value } = expression else {
+        return false;
+    };
+
+    matches!(
+        tree.get(*value),
+        TypeExpression::Literal {
+            value: ast::TypeLiteral::Null | ast::TypeLiteral::Undefined,
+        }
+    )
 }
 
 /// Return true when one expression is a `typeof` unary expression.
@@ -204,32 +225,39 @@ fn expression_is_typeof(expression: &Expression) -> bool {
 }
 
 /// Return true when both expressions are literals with identical runtime kind.
-fn expressions_have_same_literal_kind(left: &Expression, right: &Expression) -> bool {
-    matches!(
-        (left, right),
+fn expressions_have_same_literal_kind(
+    tree: &ast::NodeTree,
+    left: &Expression,
+    right: &Expression,
+) -> bool {
+    match (left, right) {
         (
             Expression::ScalarLiteral(ScalarLiteral::Boolean(_)),
-            Expression::ScalarLiteral(ScalarLiteral::Boolean(_))
-        ) | (
-            Expression::ScalarLiteral(ScalarLiteral::String(_)),
-            Expression::ScalarLiteral(ScalarLiteral::String(_))
-        ) | (
-            Expression::ScalarLiteral(ScalarLiteral::Integer(_)),
-            Expression::ScalarLiteral(ScalarLiteral::Integer(_))
-        ) | (
-            Expression::ScalarLiteral(ScalarLiteral::Bigint(_)),
-            Expression::ScalarLiteral(ScalarLiteral::Bigint(_))
-        ) | (
-            Expression::ScalarLiteral(ScalarLiteral::Float(_)),
-            Expression::ScalarLiteral(ScalarLiteral::Float(_))
-        ) | (
-            Expression::TypeLiteral(TypeLiteral::Null),
-            Expression::TypeLiteral(TypeLiteral::Null)
-        ) | (
-            Expression::TypeLiteral(TypeLiteral::Undefined),
-            Expression::TypeLiteral(TypeLiteral::Undefined)
+            Expression::ScalarLiteral(ScalarLiteral::Boolean(_)),
         )
-    )
+        | (
+            Expression::ScalarLiteral(ScalarLiteral::String(_)),
+            Expression::ScalarLiteral(ScalarLiteral::String(_)),
+        )
+        | (
+            Expression::ScalarLiteral(ScalarLiteral::Integer(_)),
+            Expression::ScalarLiteral(ScalarLiteral::Integer(_)),
+        )
+        | (
+            Expression::ScalarLiteral(ScalarLiteral::Bigint(_)),
+            Expression::ScalarLiteral(ScalarLiteral::Bigint(_)),
+        )
+        | (
+            Expression::ScalarLiteral(ScalarLiteral::Float(_)),
+            Expression::ScalarLiteral(ScalarLiteral::Float(_)),
+        ) => true,
+        (Expression::Type { value: left }, Expression::Type { value: right }) => {
+            let left = tree.get(*left);
+            let right = tree.get(*right);
+            std::mem::discriminant(left) == std::mem::discriminant(right)
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]

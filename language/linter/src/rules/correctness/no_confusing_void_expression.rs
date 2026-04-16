@@ -156,21 +156,18 @@ fn is_void_returning_function_result_position(
         if parent_node_id.ty == dir::NodeType::Declaration {
             let parent_declaration_id = parent_node_id.into_typed::<dir::Declaration>();
             let parent_declaration = ctx.tree.get(parent_declaration_id);
-            let dir::Declaration::Function {
-                descriptor, body, ..
-            } = parent_declaration
-            else {
+            let dir::Declaration::Function(declaration) = parent_declaration else {
                 return false;
             };
 
-            let Some(body_expression_id) = body else {
+            let Some(body_expression_id) = declaration.body else {
                 return false;
             };
             if body_expression_id.id != current_child_id.id {
                 return false;
             }
 
-            let function_symbol_id = descriptor.symbol.into_global(ctx.module_id());
+            let function_symbol_id = declaration.symbol.into_global(ctx.module_id());
             let Some(function_type_id) = ctx.types.get_value_type_id(function_symbol_id) else {
                 return false;
             };
@@ -181,10 +178,10 @@ fn is_void_returning_function_result_position(
                 return false;
             }
 
-            let body_expression = ctx.tree.get(*body_expression_id);
+            let body_expression = ctx.tree.get(body_expression_id);
             return is_direct_return_expression
-                || invalid_ancestor_expression_id == *body_expression_id
-                    && !matches!(body_expression, dir::Expression::Block { .. });
+                || invalid_ancestor_expression_id == body_expression_id
+                    && !matches!(body_expression, dir::Expression::Block(..));
         }
 
         current_child_id = parent_node_id;

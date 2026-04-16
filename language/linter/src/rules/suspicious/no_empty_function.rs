@@ -129,14 +129,12 @@ fn empty_non_accessor_function_kind(
     owner_id: CallableOwnerId,
     signature: &ast::FunctionSignature,
 ) -> EmptyFunctionKind {
-    // method override is a distinct opt-in policy from ordinary methods
+    // method override is a distinct opt in policy from ordinary methods
     if matches!(
         owner_id,
         CallableOwnerId::Member(_) | CallableOwnerId::Property(_)
-    ) && matches!(
-        signature.abstraction,
-        ast::FunctionAbstraction::AbstractOverride | ast::FunctionAbstraction::ConcreteOverride
-    ) {
+    ) && signature.is_override
+    {
         return EmptyFunctionKind::OverrideMethods;
     }
 

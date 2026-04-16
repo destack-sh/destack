@@ -247,7 +247,8 @@ impl NodeVisitor for ReadSymbolCollector {
 
         // let declarator patterns are writes, only visit initializers
         if let dir::Expression::Let {
-            descriptor: _,
+            export: _,
+            ambient: _,
             mutability: _,
             declarators,
         } = expression
@@ -293,10 +294,12 @@ pub fn expression_reference_is_read(
             dir::Expression::Parenthesized { expression } if *expression == current_id => {
                 current_id = parent_id;
             }
-            dir::Expression::Cast {
-                operator: _,
-                source: _,
-                value,
+            dir::Expression::As {
+                expression: value,
+                target_type: _,
+            }
+            | dir::Expression::Satisfies {
+                expression: value,
                 target_type: _,
             }
             | dir::Expression::OwnershipCast {

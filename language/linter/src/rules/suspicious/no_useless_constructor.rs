@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    declaration_has_extends_types, expression_target_symbol, expression_unwrap_statement,
+    declaration_has_extends_heritage, expression_target_symbol, expression_unwrap_statement,
     source_text_contains_comment_token,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -40,11 +40,10 @@ impl LintRule for NoUselessConstructor {
         for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
             let member = ctx.tree.get(member_id);
             let dir::Member::Method {
-                modifiers,
+                visibility,
                 signature,
                 body: Some(body_expression_id),
-                key: _,
-                symbol: _,
+                ..
             } = member
             else {
                 continue;
@@ -56,21 +55,21 @@ impl LintRule for NoUselessConstructor {
             }
 
             // keep constructors with useful accessibility
-            if constructor_has_useful_accessibility(ctx, member_id, modifiers) {
+            if constructor_has_useful_accessibility(ctx, member_id, *visibility) {
                 continue;
             }
 
             // keep parameter property style constructors out of this rule
-            if constructor_parameters_have_modifiers(ctx, signature.dynamic_parameters.as_slice()) {
+            if constructor_parameters_have_modifiers(ctx, signature.parameters.as_slice()) {
                 continue;
             }
 
             // report only empty constructors without parameters or direct super passthroughs
             let is_useless_constructor = (constructor_body_is_empty(ctx, *body_expression_id)
-                && signature.dynamic_parameters.is_empty())
+                && signature.parameters.is_empty())
                 || is_redundant_super_passthrough_constructor(
                     ctx,
-                    signature.dynamic_parameters.as_slice(),
+                    signature.parameters.as_slice(),
                     *body_expression_id,
                 );
             if !is_useless_constructor {
@@ -96,7 +95,7 @@ impl LintRule for NoUselessConstructor {
             // keep fixes out of explicit modifier and comment carrying constructors
             let member_span = ctx.get_span(member_id);
             let member_text = ctx.get_span_text(member_span);
-            if modifiers.is_none() && !source_text_contains_comment_token(member_text) {
+            if visibility.is_none() && !source_text_contains_comment_token(member_text) {
                 let edits = ctx.edit_builder().delete(member_span).into_edits();
                 let fix =
                     LintFix::suggestion("Remove useless constructor declaration").with_edits(edits);
@@ -112,10 +111,8 @@ impl LintRule for NoUselessConstructor {
 fn constructor_has_useful_accessibility(
     ctx: &LintModuleDirContext<'_>,
     member_id: dir::LocalNodeId<dir::Member>,
-    modifiers: &Option<dir::BindingModifier>,
+    visibility: Option<dir::Visibility>,
 ) -> bool {
-    let visibility = modifiers.and_then(|modifier| modifier.visibility);
-
     // keep private and protected constructors always
     if matches!(
         visibility,
@@ -124,7 +121,7 @@ fn constructor_has_useful_accessibility(
         return true;
     }
 
-    // keep public constructors on subclasses, matching TS-ESLint behavior
+    // keep public constructors on subclasses
     if visibility == Some(dir::Visibility::Public) {
         return member_parent_class_has_super_class(ctx, member_id);
     }
@@ -146,19 +143,11 @@ fn member_parent_class_has_super_class(
 
     let declaration_id = parent_id.into_typed::<dir::Declaration>();
     let declaration = ctx.tree.get(declaration_id);
-    let dir::Declaration::Class {
-        descriptor: _,
-        generics: _,
-        heritage: _,
-        scope: _,
-        members: _,
-        ..
-    } = declaration
-    else {
+    if !matches!(declaration, dir::Declaration::Class(_)) {
         return false;
-    };
+    }
 
-    declaration_has_extends_types(declaration)
+    declaration_has_extends_heritage(declaration)
 }
 
 /// Return true when one constructor body is empty.
@@ -167,7 +156,7 @@ fn constructor_body_is_empty(
     body_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let body_expression = ctx.tree.get(body_expression_id);
-    let dir::Expression::Block { block } = body_expression else {
+    let dir::Expression::Block(block) = body_expression else {
         return false;
     };
     let block = ctx.tree.get(*block);
@@ -180,10 +169,25 @@ fn constructor_parameters_have_modifiers(
     ctx: &LintModuleDirContext<'_>,
     parameter_ids: &[dir::LocalNodeId<dir::Parameter>],
 ) -> bool {
-    parameter_ids
-        .iter()
-        .copied()
-        .any(|parameter_id| ctx.tree.get(parameter_id).modifiers().is_some())
+    parameter_ids.iter().copied().any(|parameter_id| {
+        let parameter = ctx.tree.get(parameter_id);
+        matches!(
+            parameter,
+            dir::Parameter::Named {
+                visibility: Some(_),
+                ..
+            } | dir::Parameter::Named {
+                is_readonly: true,
+                ..
+            } | dir::Parameter::VariadicNamed {
+                visibility: Some(_),
+                ..
+            } | dir::Parameter::VariadicNamed {
+                is_readonly: true,
+                ..
+            }
+        )
+    })
 }
 
 /// Return true when a constructor only forwards parameters to one `super(...)` call.
@@ -194,7 +198,7 @@ fn is_redundant_super_passthrough_constructor(
 ) -> bool {
     // require one block body with exactly one expression
     let body_expression = ctx.tree.get(body_expression_id);
-    let dir::Expression::Block { block } = body_expression else {
+    let dir::Expression::Block(block) = body_expression else {
         return false;
     };
     let block = ctx.tree.get(*block);
@@ -202,18 +206,18 @@ fn is_redundant_super_passthrough_constructor(
         return false;
     }
 
-    // unwrap statement syntax to the effective expression
+    // unwrap statement form to the effective expression
     let expression_id = expression_unwrap_statement(ctx.tree, block.first_expression().unwrap());
     let expression = ctx.tree.get(expression_id);
     let dir::Expression::Call {
         left,
-        static_arguments,
+        generic_arguments,
         dynamic_arguments,
     } = expression
     else {
         return false;
     };
-    if static_arguments.is_some() {
+    if !generic_arguments.is_empty() {
         return false;
     }
 
@@ -255,16 +259,9 @@ fn constructor_parameter_binding(
     let parameter = ctx.tree.get(parameter_id);
     match parameter {
         dir::Parameter::Named {
-            modifiers: _,
-            name: _,
-            default,
-            symbol,
+            default, symbol, ..
         } if default.is_none() => Some((*symbol, false)),
-        dir::Parameter::VariadicNamed {
-            modifiers: _,
-            name: _,
-            symbol,
-        } => Some((*symbol, true)),
+        dir::Parameter::VariadicNamed { symbol, .. } => Some((*symbol, true)),
         _ => None,
     }
 }
@@ -276,25 +273,10 @@ fn constructor_argument_binding(
 ) -> Option<(dir::GlobalSymbolId, bool)> {
     let argument = ctx.tree.get(argument_id);
     let (value_expression_id, is_spread) = match argument {
-        dir::Argument::Positional {
-            modifiers: _,
-            value,
-        } => (*value, false),
-        dir::Argument::Spread {
-            modifiers: _,
-            label: _,
-            value,
-        } => (*value, true),
-        dir::Argument::Named {
-            modifiers: _,
-            name: _,
-            value: _,
-        }
-        | dir::Argument::Labeled {
-            modifiers: _,
-            label: _,
-            value: _,
-        }
+        dir::Argument::Positional { value } => (*value, false),
+        dir::Argument::Spread { value, .. } => (*value, true),
+        dir::Argument::Named { .. }
+        | dir::Argument::Labeled { .. }
         | dir::Argument::Error { .. } => return None,
     };
 
@@ -433,7 +415,7 @@ class Foo {
             .assert_has_no_fix("no-useless-constructor");
     }
 
-    /// Allow public constructors on subclasses, matching TS-ESLint semantics.
+    /// Allow public constructors on subclasses.
     #[test]
     fn test_allows_public_empty_constructor_on_subclass() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
@@ -499,6 +481,25 @@ class Base {}
 
 class Foo extends Base {
     constructor(public value: int32) {
+        super(value);
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-constructor");
+    }
+
+    /// Allow readonly parameter property style constructors.
+    #[test]
+    fn test_allows_constructor_with_readonly_parameter_property() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
+        let result = test.lint_dir(
+            "no_useless_constructor/test_allows_constructor_with_readonly_parameter_property.ds",
+            r#"
+class Base {}
+
+class Foo extends Base {
+    constructor(readonly public value: int32) {
         super(value);
     }
 }

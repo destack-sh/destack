@@ -1,10 +1,11 @@
+use crate::LintMeta;
 use std::collections::HashMap;
 
-use destack_ast::{self as ast, BindingAnchor, Declaration, FunctionMode, Key, Member};
+use destack_ast::{self as ast, Declaration, FunctionMode, Key, Member, Property, TypeMember};
 use destack_source::Span;
 use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
-use crate::rules::common::{expression_structural_signature, span_has_comment};
+use crate::rules::common::{expression_signature_for_tree, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -44,7 +45,7 @@ declare_lint! {
 }
 
 impl LintRule for GroupedAccessorPairs {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         GroupedAccessorPairs::meta()
     }
 
@@ -53,26 +54,63 @@ impl LintRule for GroupedAccessorPairs {
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
-            let members = match declaration {
-                Declaration::Class { members, .. } => members,
-                Declaration::Struct { members, .. }
-                | Declaration::Interface { members, .. }
-                | Declaration::Extension { members, .. } => {
+
+            // declaration members
+            match declaration {
+                Declaration::Class(declaration) => {
+                    check_ungrouped_accessors(
+                        ctx,
+                        meta,
+                        &declaration.members,
+                        collect_accessor_slots(ctx, &declaration.members),
+                        ctx.options.style.grouped_accessor_pairs_order,
+                        true,
+                    );
+                }
+                Declaration::Struct(declaration) => {
                     if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
                         continue;
                     }
 
-                    members
+                    check_ungrouped_accessors(
+                        ctx,
+                        meta,
+                        &declaration.members,
+                        collect_accessor_slots(ctx, &declaration.members),
+                        ctx.options.style.grouped_accessor_pairs_order,
+                        true,
+                    );
                 }
-                _ => continue,
-            };
+                Declaration::Extension(declaration) => {
+                    if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
+                        continue;
+                    }
 
-            check_members_for_ungrouped_accessors(
-                ctx,
-                meta,
-                members,
-                ctx.options.style.grouped_accessor_pairs_order,
-            );
+                    check_ungrouped_accessors(
+                        ctx,
+                        meta,
+                        &declaration.members,
+                        collect_accessor_slots(ctx, &declaration.members),
+                        ctx.options.style.grouped_accessor_pairs_order,
+                        true,
+                    );
+                }
+                Declaration::Interface(declaration) => {
+                    if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
+                        continue;
+                    }
+
+                    check_ungrouped_accessors(
+                        ctx,
+                        meta,
+                        &declaration.members,
+                        collect_accessor_slots(ctx, &declaration.members),
+                        ctx.options.style.grouped_accessor_pairs_order,
+                        false,
+                    );
+                }
+                _ => {}
+            }
         }
 
         // also check object expressions
@@ -83,11 +121,13 @@ impl LintRule for GroupedAccessorPairs {
                 continue;
             };
 
-            check_properties_for_ungrouped_accessors(
+            check_ungrouped_accessors(
                 ctx,
                 meta,
                 properties,
+                collect_accessor_slots(ctx, properties),
                 ctx.options.style.grouped_accessor_pairs_order,
+                true,
             );
         }
     }
@@ -122,53 +162,98 @@ struct AccessorIndices {
     setters: Vec<usize>,
 }
 
+/// One accessor candidate in an ordered item list.
+#[derive(Debug, Clone)]
+struct AccessorSlot {
+    /// The item index within its owner list.
+    index: usize,
+    /// The accessor owner partition.
+    owner: AccessorOwner,
+    /// The accessor key identity.
+    key: AccessorKey,
+    /// The accessor mode.
+    mode: FunctionMode,
+}
+
+/// One item that can contribute an accessor pair slot.
+trait AccessorItem {
+    /// Get the accessor key when one exists.
+    fn key(&self) -> Option<&Key>;
+
+    /// Get the accessor signature when one exists.
+    fn signature(&self) -> Option<&ast::FunctionSignature>;
+
+    /// Get the accessor owner partition.
+    fn owner(&self) -> AccessorOwner {
+        AccessorOwner::Instance
+    }
+}
+
+impl AccessorItem for Member {
+    fn key(&self) -> Option<&Key> {
+        self.key()
+    }
+
+    fn signature(&self) -> Option<&ast::FunctionSignature> {
+        self.signature()
+    }
+
+    fn owner(&self) -> AccessorOwner {
+        if self.is_static() {
+            return AccessorOwner::Static;
+        }
+
+        AccessorOwner::Instance
+    }
+}
+
+impl AccessorItem for TypeMember {
+    fn key(&self) -> Option<&Key> {
+        self.key()
+    }
+
+    fn signature(&self) -> Option<&ast::FunctionSignature> {
+        self.signature()
+    }
+}
+
+impl AccessorItem for Property {
+    fn key(&self) -> Option<&Key> {
+        self.key()
+    }
+
+    fn signature(&self) -> Option<&ast::FunctionSignature> {
+        self.signature()
+    }
+}
+
 /// Return key identity for one AST key.
 fn accessor_key(ctx: &LintAstContext<'_>, key: &Key) -> Option<AccessorKey> {
     match key {
         Key::Name(name) => Some(AccessorKey::Name(name.string())),
         Key::Private(name) => Some(AccessorKey::Private(*name)),
         Key::Expression(expression_id) => Some(AccessorKey::Computed(
-            expression_structural_signature(ctx.tree, ctx.strings, *expression_id),
-        )),
-        Key::NamedExpression { key, .. } => Some(AccessorKey::Computed(
-            expression_structural_signature(ctx.tree, ctx.strings, *key),
+            expression_signature_for_tree(ctx.tree, ctx.strings, *expression_id),
         )),
     }
 }
 
-/// Return owner partition for one member.
-fn member_owner(member: &Member) -> AccessorOwner {
-    let modifiers = match member {
-        Member::Method { modifiers, .. } => modifiers,
-        _ => return AccessorOwner::Instance,
-    };
+/// Collect accessor slots from one ordered item list.
+fn collect_accessor_slots<T>(
+    ctx: &LintAstContext<'_>,
+    items: &[ast::LocalNodeId<T>],
+) -> Vec<AccessorSlot>
+where
+    T: AccessorItem + ast::Node + Clone,
+    ast::NodeTree: ast::NodeTreeImpl<T>,
+{
+    let mut slots = Vec::new();
 
-    if modifiers.as_ref().and_then(|modifier| modifier.anchor) == Some(BindingAnchor::Static) {
-        return AccessorOwner::Static;
-    }
+    // accessor items
+    for (index, item_id) in items.iter().enumerate() {
+        let item = ctx.tree.get(*item_id);
 
-    AccessorOwner::Instance
-}
-
-/// Check members in object-like declarations for ungrouped accessor pairs.
-fn check_members_for_ungrouped_accessors(
-    ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
-    members: &[ast::LocalNodeId<Member>],
-    order: GroupedAccessorPairsOrder,
-) {
-    // collect getter and setter indices per owner partition and key
-    let mut accessor_indices: HashMap<(AccessorOwner, AccessorKey), AccessorIndices> =
-        HashMap::new();
-
-    for (index, member_id) in members.iter().enumerate() {
-        let member = ctx.tree.get(*member_id);
-        let Member::Method {
-            key: Some(key),
-            signature,
-            ..
-        } = member
-        else {
+        let Some(signature) = item.signature() else {
             continue;
         };
 
@@ -176,16 +261,44 @@ fn check_members_for_ungrouped_accessors(
             continue;
         };
 
-        let Some(key) = accessor_key(ctx, key) else {
+        let Some(key) = item.key().and_then(|key| accessor_key(ctx, key)) else {
             continue;
         };
 
-        let owner = member_owner(member);
-        let entry = accessor_indices.entry((owner, key)).or_default();
+        slots.push(AccessorSlot {
+            index,
+            owner: item.owner(),
+            key,
+            mode,
+        });
+    }
 
-        match mode {
-            FunctionMode::Getter => entry.getters.push(index),
-            FunctionMode::Setter => entry.setters.push(index),
+    slots
+}
+
+/// Check one ordered accessor list for ungrouped getter and setter pairs.
+fn check_ungrouped_accessors<T>(
+    ctx: &mut LintAstContext<'_>,
+    meta: &'static LintMeta,
+    items: &[ast::LocalNodeId<T>],
+    slots: Vec<AccessorSlot>,
+    order: GroupedAccessorPairsOrder,
+    allow_fix: bool,
+) where
+    T: ast::Node + Clone,
+{
+    // collect getter and setter indices per owner and key
+    let mut accessor_indices: HashMap<(AccessorOwner, AccessorKey), AccessorIndices> =
+        HashMap::new();
+
+    for slot in &slots {
+        let entry = accessor_indices
+            .entry((slot.owner, slot.key.clone()))
+            .or_default();
+
+        match slot.mode {
+            FunctionMode::Getter => entry.getters.push(slot.index),
+            FunctionMode::Setter => entry.setters.push(slot.index),
             _ => {}
         }
     }
@@ -204,8 +317,8 @@ fn check_members_for_ungrouped_accessors(
         let order_violation = accessor_order_violation(order, getter_idx, setter_idx);
         if diff != 1 || order_violation {
             let later_idx = getter_idx.max(setter_idx);
-            let later_member_id = members[later_idx];
-            let severity = ctx.get_effective_severity(meta, later_member_id);
+            let later_item_id = items[later_idx];
+            let severity = ctx.get_effective_severity(meta, later_item_id);
             if !severity.is_enabled() {
                 continue;
             }
@@ -232,113 +345,15 @@ fn check_members_for_ungrouped_accessors(
                 severity,
                 message,
                 ctx.module.file_id,
-                ctx.tree.get_span(later_member_id),
+                ctx.tree.get_span(later_item_id),
             )
             .with_label(label);
 
-            if ctx.compute_fixes && diff != 1 && !has_reported_reorder_fix {
-                if let Some(fix) = grouped_member_accessor_fix(ctx, members, getter_idx, setter_idx)
-                {
+            if ctx.compute_fixes && allow_fix && diff != 1 && !has_reported_reorder_fix {
+                if let Some(fix) = grouped_accessor_fix(ctx, items, getter_idx, setter_idx) {
                     diagnostic = diagnostic.with_fix(fix);
                 }
-                has_reported_reorder_fix = true;
-            }
 
-            ctx.report(diagnostic);
-        }
-    }
-}
-
-/// Check properties in object expressions for ungrouped accessor pairs.
-fn check_properties_for_ungrouped_accessors(
-    ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
-    properties: &[ast::LocalNodeId<ast::Property>],
-    order: GroupedAccessorPairsOrder,
-) {
-    // collect getter and setter indices per key
-    let mut accessor_indices: HashMap<AccessorKey, AccessorIndices> = HashMap::new();
-
-    for (index, property_id) in properties.iter().enumerate() {
-        let property = ctx.tree.get(*property_id);
-        let ast::Property::Method {
-            key: Some(key),
-            signature,
-            ..
-        } = property
-        else {
-            continue;
-        };
-
-        let Some(mode) = signature.mode else {
-            continue;
-        };
-
-        let Some(key) = accessor_key(ctx, key) else {
-            continue;
-        };
-
-        let entry = accessor_indices.entry(key).or_default();
-
-        match mode {
-            FunctionMode::Getter => entry.getters.push(index),
-            FunctionMode::Setter => entry.setters.push(index),
-            _ => {}
-        }
-    }
-
-    // report one accessor pair only when exactly one getter and one setter exist
-    let mut has_reported_reorder_fix = false;
-    for (key, indices) in accessor_indices {
-        if indices.getters.len() != 1 || indices.setters.len() != 1 {
-            continue;
-        }
-
-        let getter_idx = indices.getters[0];
-        let setter_idx = indices.setters[0];
-
-        let diff = getter_idx.abs_diff(setter_idx);
-        let order_violation = accessor_order_violation(order, getter_idx, setter_idx);
-        if diff != 1 || order_violation {
-            let later_idx = getter_idx.max(setter_idx);
-            let later_prop_id = properties[later_idx];
-            let severity = ctx.get_effective_severity(meta, later_prop_id);
-            if !severity.is_enabled() {
-                continue;
-            }
-
-            let accessor_name = match key {
-                AccessorKey::Name(name) | AccessorKey::Private(name) => {
-                    ctx.strings.get(name).as_ref().to_string()
-                }
-                AccessorKey::Computed(_) => "<computed>".to_string(),
-            };
-
-            let (message, label) = if diff != 1 {
-                (
-                    format!("getter and setter for `{accessor_name}` are not adjacent"),
-                    "move to be adjacent to its counterpart",
-                )
-            } else {
-                accessor_order_message(order, &accessor_name)
-            };
-            let mut diagnostic = LintDiagnostic::new(
-                GROUPED_ACCESSOR_PAIRS.id,
-                GROUPED_ACCESSOR_PAIRS.code,
-                GROUPED_ACCESSOR_PAIRS.category,
-                severity,
-                message,
-                ctx.module.file_id,
-                ctx.tree.get_span(later_prop_id),
-            )
-            .with_label(label);
-
-            if ctx.compute_fixes && diff != 1 && !has_reported_reorder_fix {
-                if let Some(fix) =
-                    grouped_property_accessor_fix(ctx, properties, getter_idx, setter_idx)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
                 has_reported_reorder_fix = true;
             }
 
@@ -380,74 +395,40 @@ fn accessor_order_message(
     }
 }
 
-/// Build an unsafe reorder fix for object-like member accessor pairs.
-fn grouped_member_accessor_fix(
+/// Build an unsafe reorder fix for one ordered accessor list.
+fn grouped_accessor_fix<T>(
     ctx: &LintAstContext<'_>,
-    members: &[ast::LocalNodeId<Member>],
+    items: &[ast::LocalNodeId<T>],
     getter_index: usize,
     setter_index: usize,
-) -> Option<LintFix> {
-    if members.is_empty() {
+) -> Option<LintFix>
+where
+    T: ast::Node + Clone,
+{
+    if items.is_empty() {
         return None;
     }
 
-    let first_member_span = ctx.tree.get_span(*members.first()?);
-    let last_member_span = ctx.tree.get_span(*members.last()?);
+    let first_item_id = *items.first()?;
+    let last_item_id = *items.last()?;
+    let first_item_span = ctx.tree.get_span(first_item_id);
+    let last_item_span = ctx.tree.get_span(last_item_id);
     let full_span = Span::new(
-        first_member_span.file,
-        first_member_span.start,
-        last_member_span.end,
+        first_item_span.file,
+        first_item_span.start,
+        last_item_span.end,
     );
+
     if span_has_comment(ctx.tree, full_span) {
         return None;
     }
 
-    let reordered_indices = reorder_accessor_indices(members.len(), getter_index, setter_index)?;
+    let reordered_indices = reorder_accessor_indices(items.len(), getter_index, setter_index)?;
     let replacement = reordered_indices
         .iter()
-        .map(|member_index| {
-            let member_id = members[*member_index];
-            ctx.get_span_text(ctx.tree.get_span(member_id)).to_string()
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let edits = ctx
-        .edit_builder()
-        .replace(full_span, replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Group getter and setter accessors together").with_edits(edits))
-}
-
-/// Build an unsafe reorder fix for object property accessor pairs.
-fn grouped_property_accessor_fix(
-    ctx: &LintAstContext<'_>,
-    properties: &[ast::LocalNodeId<ast::Property>],
-    getter_index: usize,
-    setter_index: usize,
-) -> Option<LintFix> {
-    if properties.is_empty() {
-        return None;
-    }
-
-    let first_property_span = ctx.tree.get_span(*properties.first()?);
-    let last_property_span = ctx.tree.get_span(*properties.last()?);
-    let full_span = Span::new(
-        first_property_span.file,
-        first_property_span.start,
-        last_property_span.end,
-    );
-    if span_has_comment(ctx.tree, full_span) {
-        return None;
-    }
-
-    let reordered_indices = reorder_accessor_indices(properties.len(), getter_index, setter_index)?;
-    let replacement = reordered_indices
-        .iter()
-        .map(|property_index| {
-            let property_id = properties[*property_index];
-            ctx.get_span_text(ctx.tree.get_span(property_id))
-                .to_string()
+        .map(|item_index| {
+            let item_id = items[*item_index];
+            ctx.get_span_text(ctx.tree.get_span(item_id)).to_string()
         })
         .collect::<Vec<_>>()
         .join("\n");

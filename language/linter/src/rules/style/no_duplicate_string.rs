@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use std::collections::HashMap;
 
 use destack_ast as ast;
@@ -33,7 +34,7 @@ declare_lint! {
 }
 
 impl LintRule for NoDuplicateString {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDuplicateString::meta()
     }
 

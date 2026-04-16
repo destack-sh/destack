@@ -39,21 +39,15 @@ impl LintRule for NoEmptyInterface {
         // inspect interface declarations only
         for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let dir::Declaration::Interface {
-                descriptor,
-                heritage,
-                members,
-                ..
-            } = declaration
-            else {
+            let dir::Declaration::Interface(declaration) = declaration else {
                 continue;
             };
-            let Some(interface_name_id) = descriptor.name.map(|name| name.string()) else {
+            let Some(interface_name_id) = declaration.name.map(|name| name.string()) else {
                 continue;
             };
 
             // keep non-empty interfaces out of this rule
-            if !members.is_empty() {
+            if !declaration.members.is_empty() {
                 continue;
             }
 
@@ -64,12 +58,7 @@ impl LintRule for NoEmptyInterface {
                 continue;
             };
             let source_declaration = ctx.ast.get(source_declaration_id);
-            let ast::Declaration::Interface {
-                generics,
-                heritage: source_heritage,
-                ..
-            } = source_declaration
-            else {
+            let ast::Declaration::Interface(source_declaration) = source_declaration else {
                 continue;
             };
 
@@ -80,7 +69,7 @@ impl LintRule for NoEmptyInterface {
             }
 
             // report plain empty interfaces first
-            let extends_count = heritage.extends_types.as_ref().map_or(0, Vec::len);
+            let extends_count = declaration.extends_types.len();
             let span = ctx.get_span(declaration_id);
             if extends_count == 0 {
                 ctx.report(
@@ -115,13 +104,12 @@ impl LintRule for NoEmptyInterface {
             )
             .with_label("use `type X = Parent` or `newtype X = Parent` instead");
             if ctx.include_fixes
-                && !local_symbol_has_class_merge(ctx.tree, ctx.symbols, descriptor.symbol)
+                && !local_symbol_has_class_merge(ctx.tree, ctx.symbols, declaration.symbol)
                 && let Some(fix) = no_empty_interface_single_extends_fix(
                     ctx,
                     source_declaration_id,
                     interface_name_id,
-                    generics,
-                    source_heritage,
+                    source_declaration,
                 )
             {
                 diagnostic = diagnostic.with_fix(fix);
@@ -137,19 +125,18 @@ fn no_empty_interface_single_extends_fix(
     ctx: &LintModuleDirContext<'_>,
     source_declaration_id: ast::LocalNodeId<ast::Declaration>,
     interface_name_id: ast::StringId,
-    generics: &ast::Generics,
-    heritage: &ast::Heritage,
+    declaration: &ast::InterfaceDeclaration,
 ) -> Option<LintFix> {
     // keep interfaces with where clauses out of the automatic rewrite
-    if generics.where_clauses.is_some() {
+    if !declaration.where_clauses.is_empty() {
         return None;
     }
 
     // build the replacement alias from the source declaration text
-    let parent_id = *heritage.extends_types.as_ref()?.first()?;
+    let parent_id = *declaration.extends_types.first()?;
     let parent_text = ctx.get_span_text(ctx.ast.get_span(parent_id));
     let interface_name = ctx.repository.strings.get(interface_name_id);
-    let generic_text = generic_parameters_text(ctx, generics.static_parameters.as_deref());
+    let generic_text = generic_parameters_text(ctx, &declaration.generic_parameters);
     let replacement = format!(
         "type {}{generic_text} = {parent_text}",
         interface_name.as_ref()
@@ -165,11 +152,8 @@ fn no_empty_interface_single_extends_fix(
 /// Build source text for generic parameter declarations.
 fn generic_parameters_text(
     ctx: &LintModuleDirContext<'_>,
-    parameters: Option<&[ast::LocalNodeId<ast::Parameter>]>,
+    parameters: &[ast::LocalNodeId<ast::GenericParameter>],
 ) -> String {
-    let Some(parameters) = parameters else {
-        return String::new();
-    };
     if parameters.is_empty() {
         return String::new();
     }

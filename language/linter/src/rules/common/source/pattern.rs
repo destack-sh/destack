@@ -85,7 +85,7 @@ pub fn regex_suffix_literal(pattern: &str, flags: &str) -> Option<String> {
     Some(suffix.to_string())
 }
 
-/// Return true when one regex fragment has no meta syntax.
+/// Return true when one regex fragment has no metacharacters.
 fn regex_literal_is_simple(fragment: &str) -> bool {
     !fragment.chars().any(|character| {
         matches!(

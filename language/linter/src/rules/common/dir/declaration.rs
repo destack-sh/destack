@@ -1,27 +1,30 @@
 use destack_dir as dir;
 
 /// Return true when one declaration has any `extends` heritage entries.
-pub fn declaration_has_extends_types(declaration: &dir::Declaration) -> bool {
-    let Some(heritage) = declaration.heritage() else {
-        return false;
-    };
+pub fn declaration_has_extends_heritage(declaration: &dir::Declaration) -> bool {
+    match declaration {
+        dir::Declaration::Class(declaration) => declaration.extends_expression.is_some(),
+        dir::Declaration::Interface(declaration) => !declaration.extends_types.is_empty(),
+        _ => false,
+    }
+}
 
-    heritage
-        .extends_types
-        .as_ref()
-        .is_some_and(|types| !types.is_empty())
+/// Return true when one declarataion has any `implements`heritage entries.
+pub fn declaration_has_implements_heritage(declaration: &dir::Declaration) -> bool {
+    match declaration {
+        dir::Declaration::Class(declaration) => !declaration.implements_types.is_empty(),
+        dir::Declaration::Struct(declaration) => !declaration.implements_types.is_empty(),
+        dir::Declaration::Extension(declaration) => !declaration.implements_types.is_empty(),
+        _ => false,
+    }
 }
 
 /// Return true when one declaration has any embedded type entries.
 pub fn declaration_has_embedded_types(declaration: &dir::Declaration) -> bool {
-    let Some(heritage) = declaration.heritage() else {
-        return false;
-    };
-
-    heritage
-        .embedded_types
-        .as_ref()
-        .is_some_and(|types| !types.is_empty())
+    match declaration {
+        dir::Declaration::Struct(declaration) => !declaration.embedded_types.is_empty(),
+        _ => false,
+    }
 }
 
 /// Return true when every member in one list is a field member.

@@ -1,7 +1,7 @@
-use destack_ast::{self as ast, Member, Property};
+use crate::LintMeta;
+use destack_ast::{self as ast, Member, TypeExpression, TypeMember};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_unwrap_parenthesized_syntax;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -25,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for MaxTypeFields {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         MaxTypeFields::meta()
     }
 
@@ -55,10 +55,10 @@ impl LintRule for MaxTypeFields {
             }
 
             // check object type alias field counts
-            let ast::Declaration::Type { value, .. } = declaration else {
+            let ast::Declaration::Type(declaration) = declaration else {
                 continue;
             };
-            let Some(field_count) = object_type_field_count(ctx, *value) else {
+            let Some(field_count) = object_type_field_count(ctx, declaration.value) else {
                 continue;
             };
             if field_count > max_type_fields {
@@ -81,46 +81,75 @@ fn declaration_field_count(
     declaration: &ast::Declaration,
 ) -> Option<(&'static str, usize)> {
     // resolve declaration members when present
-    let (type_kind, members) = match declaration {
-        ast::Declaration::Struct { members, .. } => ("struct", members),
-        ast::Declaration::Class { members, .. } => ("class", members),
-        ast::Declaration::Interface { members, .. } => ("interface", members),
-        _ => return None,
-    };
+    match declaration {
+        ast::Declaration::Struct(declaration) => {
+            let field_count = declaration
+                .members
+                .iter()
+                .filter(|member_id| matches!(ctx.tree.get(**member_id), Member::Field { .. }))
+                .count();
 
-    // count field members only
-    let field_count = members
-        .iter()
-        .filter(|member_id| matches!(ctx.tree.get(**member_id), Member::Field { .. }))
-        .count();
+            Some(("struct", field_count))
+        }
+        ast::Declaration::Class(declaration) => {
+            let field_count = declaration
+                .members
+                .iter()
+                .filter(|member_id| matches!(ctx.tree.get(**member_id), Member::Field { .. }))
+                .count();
 
-    Some((type_kind, field_count))
+            Some(("class", field_count))
+        }
+        ast::Declaration::Interface(declaration) => {
+            let field_count = declaration
+                .members
+                .iter()
+                .filter(|member_id| matches!(ctx.tree.get(**member_id), TypeMember::Field { .. }))
+                .count();
+
+            Some(("interface", field_count))
+        }
+        _ => None,
+    }
 }
 
 /// Return object type field count for one type expression when it is an object type.
 fn object_type_field_count(
     ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> Option<usize> {
-    // normalize parenthesized wrappers
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
-    let ast::Expression::ObjectExpression { properties, .. } = ctx.tree.get(expression_id) else {
+    let type_expression_id = unwrap_parenthesized_type_expression(ctx.tree, type_expression_id);
+    let TypeExpression::Object { members } = ctx.tree.get(type_expression_id) else {
         return None;
     };
 
-    // count field style properties only
-    let field_count = properties
+    // count field style members only
+    let field_count = members
         .iter()
-        .filter(|property_id| matches!(ctx.tree.get(**property_id), Property::Field { .. }))
+        .filter(|member_id| matches!(ctx.tree.get(**member_id), TypeMember::Field { .. }))
         .count();
 
     Some(field_count)
 }
 
+/// Return the type expression id with parenthesized wrappers removed.
+fn unwrap_parenthesized_type_expression(
+    tree: &ast::NodeTree,
+    mut type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+) -> ast::LocalNodeId<ast::TypeExpression> {
+    loop {
+        let TypeExpression::Parenthesized { expression } = tree.get(type_expression_id) else {
+            return type_expression_id;
+        };
+
+        type_expression_id = *expression;
+    }
+}
+
 /// Report one field count overflow diagnostic.
 fn report_type_field_overflow<T: ast::Node + Clone>(
     ctx: &mut LintAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     owner_id: ast::LocalNodeId<T>,
     type_kind: &str,
     field_count: usize,

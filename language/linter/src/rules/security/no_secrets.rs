@@ -1,3 +1,4 @@
+use crate::LintMeta;
 use aho_corasick::{AhoCorasick, MatchKind};
 use destack_ast as ast;
 use destack_core::StringId;
@@ -540,7 +541,7 @@ fn is_safe_string(s: &str) -> bool {
 }
 
 impl LintRule for NoSecrets {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoSecrets::meta()
     }
 

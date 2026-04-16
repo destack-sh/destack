@@ -50,7 +50,7 @@ pub fn expression_is_new_target(
     let expression = tree.get(expression_id);
 
     // match direct `new.target` path forms first
-    if let Some(path) = expression_path_without_static_arguments(expression) {
+    if let Some(path) = expression_path_without_generic_arguments(expression) {
         return path.segments.len() >= 2
             && path.segments[0] == new_name
             && path.segments[1] == target_name;
@@ -60,18 +60,21 @@ pub fn expression_is_new_target(
     let dir::Expression::Member {
         left,
         name,
-        static_arguments: None,
+        generic_arguments,
     } = expression
     else {
         return false;
     };
+    if !generic_arguments.is_empty() {
+        return false;
+    }
     if *name != Some(target_name) {
         return false;
     }
 
     let left_id = expression_unwrap_transparent(tree, *left);
     let left_expression = tree.get(left_id);
-    let Some(path) = expression_path_without_static_arguments(left_expression) else {
+    let Some(path) = expression_path_without_generic_arguments(left_expression) else {
         return false;
     };
 
@@ -93,8 +96,8 @@ pub fn expression_reference_path(
     Some(ReferencePath { base, members })
 }
 
-/// Return true when two expressions have equivalent syntax ignoring parentheses and spacing.
-pub fn expressions_have_equivalent_syntax(
+/// Return true when two expressions have equivalent source form.
+pub fn expressions_have_equivalent_source_form(
     ctx: &LintModuleDirContext<'_>,
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
@@ -110,64 +113,14 @@ pub fn expressions_have_equivalent_syntax(
         return left_path == right_path;
     }
 
-    // compare syntax text with spacing removed
+    // compare source text with spacing removed
     let left_text = ctx.get_span_text(ctx.get_span(left_id));
     let right_text = ctx.get_span_text(ctx.get_span(right_id));
-    normalize_expression_syntax(left_text) == normalize_expression_syntax(right_text)
+    normalize_expression_source_text(left_text) == normalize_expression_source_text(right_text)
 }
 
-/// Return true when the infix source window between two operands contains one operator token.
-///
-/// This is a targeted fallback for lowered DIR shapes where the operator kind
-/// can be ambiguous but operand boundaries are still stable.
-pub fn infix_operator_window_contains(
-    ctx: &LintModuleDirContext<'_>,
-    left_id: dir::LocalNodeId<dir::Expression>,
-    right_id: dir::LocalNodeId<dir::Expression>,
-    operator_text: &str,
-) -> bool {
-    // require a non-empty operator token
-    if operator_text.is_empty() {
-        return false;
-    }
-
-    // resolve operand spans and require one valid source window
-    let left_span = ctx.get_span(left_id);
-    let right_span = ctx.get_span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return false;
-    }
-
-    // scan the source window and match the operator token
-    let source = ctx.source_text().as_bytes();
-    let start = left_span.end as usize;
-    let end = right_span.start as usize;
-    if end > source.len() || start >= end {
-        return false;
-    }
-
-    let operator_bytes = operator_text.as_bytes();
-    let mut byte_index = start;
-    while byte_index + operator_bytes.len() <= end {
-        // skip whitespace around infix operators
-        if source[byte_index].is_ascii_whitespace() {
-            byte_index += 1;
-            continue;
-        }
-
-        // match the exact operator token at this offset
-        if source[byte_index..].starts_with(operator_bytes) {
-            return true;
-        }
-
-        byte_index += 1;
-    }
-
-    false
-}
-
-/// Normalize expression syntax for token style equality checks.
-fn normalize_expression_syntax(source: &str) -> String {
+/// Normalize expression source text for token style equality checks.
+fn normalize_expression_source_text(source: &str) -> String {
     source
         .chars()
         .filter(|character| !character.is_whitespace())
@@ -231,6 +184,27 @@ pub fn expression_is_symbol_or_global_qualified_member(
 
     // match global qualified references
     expression_is_global_qualified_member(tree, expression_id, qualifiers, member_name)
+}
+
+/// Return true when one expression matches any direct symbol or global-qualified member.
+pub fn expression_is_any_symbol_or_global_qualified_member(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    symbols: &[dir::GlobalSymbolId],
+    qualifiers: &[dir::GlobalSymbolId],
+    member_names: &[StringId],
+) -> bool {
+    // match direct symbol references first
+    if expression_target_symbol(tree, expression_id)
+        .is_some_and(|symbol_id| symbols.contains(&symbol_id))
+    {
+        return true;
+    }
+
+    // then match any global qualified reference
+    member_names.iter().copied().any(|member_name| {
+        expression_is_global_qualified_member(tree, expression_id, qualifiers, member_name)
+    })
 }
 
 /// Return one static string literal value from an expression.
@@ -309,7 +283,7 @@ pub fn expression_static_property_access(
     if let dir::Expression::Member {
         left,
         name,
-        static_arguments: _,
+        generic_arguments: _,
     } = expression
     {
         let name = (*name)?;
@@ -463,12 +437,12 @@ pub fn parent_is_receiver_helper(
         dir::Expression::Member {
             left,
             name,
-            static_arguments: _,
+            generic_arguments: _,
         }
             | dir::Expression::PrivateMember {
                 left,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             }
             if *left == expression_id
                 && (*name == Some(bind_name)
@@ -507,12 +481,12 @@ pub fn call_like_invocation_is_receiver_bound(
         dir::Expression::Member {
             left: _,
             name,
-            static_arguments: _,
+            generic_arguments: _,
         }
             | dir::Expression::PrivateMember {
                 left: _,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             }
             if *name == Some(bind_name)
                 || *name == Some(call_name)
@@ -543,7 +517,7 @@ fn expression_reference_path_base(
         dir::Expression::Member {
             left,
             name,
-            static_arguments: _,
+            generic_arguments: _,
         } => {
             let name = (*name)?;
 
@@ -558,13 +532,19 @@ fn expression_reference_path_base(
 
 /// Info about a method call expression (receiver.method(...)).
 #[derive(Debug, Clone, Copy)]
-pub struct MethodCallInfo {
+pub struct MethodCallInfo<'a> {
     /// The call expression id.
     pub call_id: dir::LocalNodeId<dir::Expression>,
-    /// The receiver expression id (the object the method is called on).
+    /// The callee member expression id.
+    pub callee_id: dir::LocalNodeId<dir::Expression>,
+    /// The receiver expression id.
     pub receiver_id: dir::LocalNodeId<dir::Expression>,
     /// The method name.
     pub method_name: StringId,
+    /// Generic arguments on the call expression.
+    pub generic_arguments: &'a [dir::LocalNodeId<dir::GenericArgument>],
+    /// Dynamic arguments on the call expression.
+    pub dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 /// Info about one call-like expression (`call(...)` or `new call(...)`).
@@ -572,8 +552,8 @@ pub struct MethodCallInfo {
 pub struct CallLikeExpressionInfo<'a> {
     /// The call target expression.
     pub left: dir::LocalNodeId<dir::Expression>,
-    /// Optional static arguments.
-    pub static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
+    /// Generic arguments.
+    pub generic_arguments: &'a [dir::LocalNodeId<dir::GenericArgument>],
     /// Dynamic arguments.
     pub dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
     /// Whether this expression is `new`.
@@ -585,21 +565,21 @@ pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpr
     match expression {
         dir::Expression::Call {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } => Some(CallLikeExpressionInfo {
             left: *left,
-            static_arguments: static_arguments.as_deref(),
+            generic_arguments: generic_arguments.as_slice(),
             dynamic_arguments,
             is_new: false,
         }),
         dir::Expression::New {
             left,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         } => Some(CallLikeExpressionInfo {
             left: *left,
-            static_arguments: static_arguments.as_deref(),
+            generic_arguments: generic_arguments.as_slice(),
             dynamic_arguments,
             is_new: true,
         }),
@@ -611,24 +591,25 @@ pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpr
 pub fn expression_method_call(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<MethodCallInfo> {
+) -> Option<MethodCallInfo<'_>> {
     // match call expression
     let expression = tree.get(expression_id);
     let dir::Expression::Call {
         left,
-        static_arguments: _,
-        dynamic_arguments: _,
+        generic_arguments,
+        dynamic_arguments,
     } = expression
     else {
         return None;
     };
 
     // match member access for the callee
-    let callee = tree.get(*left);
+    let callee_id = *left;
+    let callee = tree.get(callee_id);
     let dir::Expression::Member {
         left,
         name,
-        static_arguments: _,
+        generic_arguments: _,
     } = callee
     else {
         return None;
@@ -637,41 +618,44 @@ pub fn expression_method_call(
 
     Some(MethodCallInfo {
         call_id: expression_id,
+        callee_id,
         receiver_id: *left,
         method_name: name,
+        generic_arguments: generic_arguments.as_slice(),
+        dynamic_arguments,
     })
 }
 
-/// Return one path when the expression is a path-like reference without static arguments.
-fn expression_path_without_static_arguments(expression: &dir::Expression) -> Option<&dir::Path> {
+/// Return one path when the expression is a path-like reference without generic arguments.
+fn expression_path_without_generic_arguments(expression: &dir::Expression) -> Option<&dir::Path> {
     match expression {
         dir::Expression::UnresolvedPath {
             path,
-            static_arguments: None,
+            generic_arguments,
             space_order: _,
-        }
-        | dir::Expression::LocalReference {
+        } if generic_arguments.is_empty() => Some(path),
+        dir::Expression::LocalReference {
             path,
             target_symbol: _,
-            static_arguments: None,
-        }
-        | dir::Expression::ModuleReference {
+            generic_arguments,
+        } if generic_arguments.is_empty() => Some(path),
+        dir::Expression::ModuleReference {
             path,
             target_symbol: _,
-            static_arguments: None,
-        }
-        | dir::Expression::GlobalReference {
+            generic_arguments,
+        } if generic_arguments.is_empty() => Some(path),
+        dir::Expression::GlobalReference {
             path,
             target_symbol: _,
-            static_arguments: None,
-        } => Some(path),
+            generic_arguments,
+        } if generic_arguments.is_empty() => Some(path),
         _ => None,
     }
 }
 
 /// Return the last path segment for one path-like expression.
 fn expression_path_last_segment(expression: &dir::Expression) -> Option<StringId> {
-    let path = expression_path_without_static_arguments(expression)?;
+    let path = expression_path_without_generic_arguments(expression)?;
 
     path.last_segment()
 }
