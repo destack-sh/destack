@@ -1,65 +1,67 @@
 use std::sync::Arc;
 
 use crate::alloc::Arena;
-use crate::managed::{ManagedCollectError, ManagedSpace};
+use crate::managed::ManagedSpace;
 use crate::raw::RawSpace;
 use crate::value::ManagedReference;
-use crate::{GcState, GcStats, HeapLayout, HeapLayoutError, HeapLimits};
+use crate::{GcState, GcStats, HeapLimits, HeapOptions, HeapResult};
 
 /// One live local heap rooted in one shared arena.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Heap {
     /// The shared page arena for every local byte payload.
     pub(super) arena: Arc<Arena>,
-    /// The configured heap layout.
-    pub(super) layout: HeapLayout,
+    /// The configured heap options.
+    pub(super) options: HeapOptions,
     /// The managed local allocation space.
     pub(super) managed: ManagedSpace,
     /// The raw local allocation space.
-    pub(super) raw: RawSpace,
+    pub(crate) raw: RawSpace,
     /// Exact hard limits for this heap.
     pub(super) limits: HeapLimits,
 }
 
 impl Heap {
-    /// Create one heap with the default limits and layout.
-    pub fn new() -> Self {
-        let layout = HeapLayout::default();
-        let arena = Arc::new(Arena::with_page_bytes(layout.page_bytes));
-
-        Self::build_with_layout(arena, HeapLimits::default(), layout)
+    /// Create one heap with the default limits and options.
+    pub fn new() -> HeapResult<Self> {
+        Self::with_limits_and_options(HeapLimits::default(), HeapOptions::default())
     }
 
-    /// Create one heap with one explicit shared arena, limits, and layout.
-    pub fn with_arena_limits_and_layout(
+    /// Create one heap with one explicit shared arena, limits, and options.
+    pub fn with_arena_limits_and_options(
         arena: Arc<Arena>,
         limits: HeapLimits,
-        layout: HeapLayout,
-    ) -> Result<Self, HeapLayoutError> {
-        layout.check()?;
+        options: HeapOptions,
+    ) -> HeapResult<Self> {
+        options.validate()?;
+        options.validate_arena(&arena)?;
 
-        Ok(Self::build_with_layout(arena, limits, layout))
+        Self::build_with_options(arena, limits, options)
     }
 
-    /// Create one heap with explicit limits and layout.
-    pub fn with_limits_and_layout(
+    /// Create one heap with explicit limits and options.
+    pub fn with_limits_and_options(limits: HeapLimits, options: HeapOptions) -> HeapResult<Self> {
+        let arena = Arc::new(Arena::try_new(
+            options.page_bytes,
+            options.arena_segment_bytes,
+        )?);
+
+        Self::with_arena_limits_and_options(arena, limits, options)
+    }
+
+    /// Create one heap from one checked shared arena, limits, and options.
+    fn build_with_options(
+        arena: Arc<Arena>,
         limits: HeapLimits,
-        layout: HeapLayout,
-    ) -> Result<Self, HeapLayoutError> {
-        let arena = Arc::new(Arena::with_page_bytes(layout.page_bytes));
-
-        Self::with_arena_limits_and_layout(arena, limits, layout)
-    }
-
-    /// Create one heap from one checked shared arena, limits, and layout.
-    fn build_with_layout(arena: Arc<Arena>, limits: HeapLimits, layout: HeapLayout) -> Self {
-        Self {
-            managed: ManagedSpace::build_with_layout(arena.clone(), &layout),
-            raw: RawSpace::with_layout(arena.clone(), &layout),
+        options: HeapOptions,
+    ) -> HeapResult<Self> {
+        Ok(Self {
+            managed: ManagedSpace::build_with_options(arena.clone(), &options)?,
+            raw: RawSpace::with_options(arena.clone(), &options)?,
             arena,
-            layout,
+            options,
             limits,
-        }
+        })
     }
 
     /// Return the shared page arena.
@@ -67,9 +69,9 @@ impl Heap {
         &self.arena
     }
 
-    /// Return the heap layout.
-    pub fn layout(&self) -> &HeapLayout {
-        &self.layout
+    /// Return the heap options.
+    pub fn options(&self) -> &HeapOptions {
+        &self.options
     }
 
     /// Return the managed local allocation space.
@@ -82,41 +84,29 @@ impl Heap {
         &self.raw
     }
 
-    /// Return the currently allocated managed references.
-    pub fn allocated_references(&self) -> Vec<ManagedReference> {
-        self.managed.allocated_references()
+    /// Return the currently live managed references.
+    pub fn live_references(&self) -> HeapResult<Vec<ManagedReference>> {
+        self.managed.live_references()
     }
 
-    /// Return the current managed collector state.
-    pub fn managed_gc_state(&self) -> &GcState {
+    /// Return the current collector state.
+    pub fn gc_state(&self) -> &GcState {
         self.managed.gc_state()
     }
 
     /// Perform one young managed collection over explicit roots.
-    pub fn collect_young_managed_references<I>(
+    pub fn collect_young_managed_references(
         &mut self,
-        roots: I,
-    ) -> Result<GcStats, ManagedCollectError>
-    where
-        I: IntoIterator<Item = ManagedReference>,
-    {
+        roots: impl IntoIterator<Item = ManagedReference>,
+    ) -> HeapResult<GcStats> {
         self.managed.collect_young_references(roots)
     }
 
     /// Perform one full managed collection over explicit roots.
-    pub fn collect_managed_references<I>(
+    pub fn collect_managed_references(
         &mut self,
-        roots: I,
-    ) -> Result<GcStats, ManagedCollectError>
-    where
-        I: IntoIterator<Item = ManagedReference>,
-    {
+        roots: impl IntoIterator<Item = ManagedReference>,
+    ) -> HeapResult<GcStats> {
         self.managed.collect_references(roots)
-    }
-}
-
-impl Default for Heap {
-    fn default() -> Self {
-        Self::new()
     }
 }
