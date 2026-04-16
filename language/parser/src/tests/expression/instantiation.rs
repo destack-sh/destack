@@ -9,6 +9,8 @@ fn test_parse_instantiation_expression_with_index() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::Instantiation { left, generic_arguments } => {
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
@@ -36,6 +38,8 @@ fn test_parse_instantiation_expression_parenthesized() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::Instantiation { left, generic_arguments } => {
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
@@ -51,14 +55,21 @@ fn test_parse_instantiation_expression_parenthesized() {
                 assert_node!(parser.tree, *left, Expression::Identifier { name } => {
                     assert_string!(parser, *name, "f");
                 });
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::Number);
+                        });
+                    });
+                });
             });
         });
     });
 }
 
-/// Parse optional-chain generic argument calls in TypeScript value positions.
+/// Parse optional-chain generic argument calls in value positions.
 #[test]
-fn test_parse_optional_chain_generic_argument_call_typescript() {
+fn test_parse_optional_chain_generic_argument_call() {
     let mut test = TestParser::new_with_options("fn?.<number>();", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -102,7 +113,12 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
             assert_node!(parser.tree, *value, Expression::Instantiation { left, generic_arguments } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "BaseAttributes");
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                            assert_path!(parser, *path, "BaseAttributes");
+                            assert!(generic_arguments.is_empty());
+                        });
+                    });
                 });
                 assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "addSpanAttributes");
@@ -118,7 +134,12 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
             assert_node!(parser.tree, *value, Expression::Instantiation { generic_arguments, .. } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "OperationAttributes");
+                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                            assert_path!(parser, *path, "OperationAttributes");
+                            assert!(generic_arguments.is_empty());
+                        });
+                    });
                 });
             });
         });
@@ -278,7 +299,7 @@ f<x> !== g<y>;
     });
 }
 
-/// Parse a TypeScript call with string literal type arguments.
+/// Parse a call with string literal type arguments.
 #[test]
 fn test_parse_call_with_string_literal_type_arguments() {
     let mut test = TestParser::new_with_options(
@@ -343,17 +364,17 @@ await fetchListResult<{
 
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Object { properties } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                         assert_eq!(properties.len(), 2);
 
-                        assert_node!(parser.tree, properties[0], TypeProperty::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                        assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "pattern");
                             assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                         });
 
-                        assert_node!(parser.tree, properties[1], TypeProperty::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                        assert_node!(parser.tree, properties[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "script");
                             assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
@@ -366,7 +387,7 @@ await fetchListResult<{
     });
 }
 
-/// Parse a TypeScript call with shift-left generic arguments.
+/// Parse a call with shift-left generic arguments.
 #[test]
 fn test_parse_call_with_shift_left_generic_arguments() {
     let mut test = TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
@@ -512,15 +533,21 @@ fn test_parse_type_with_generic_arguments() {
                 assert_node!(parser.tree, *left, Expression::Identifier { name } => {
                     assert_string!(parser, *name, "A");
                 });
+
                 assert_eq!(generic_arguments.len(), 1);
 
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
-                            assert_path!(parser, path, "B");
+                            assert_path!(parser, *path, "B");
                             assert_eq!(generic_arguments.len(), 1);
                             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                                assert_expression_path!(parser, parser.tree.get(*value), "C");
+                                assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                    assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                        assert_path!(parser, *path, "C");
+                                        assert!(generic_arguments.is_empty());
+                                    });
+                                });
                             });
                         });
                     });

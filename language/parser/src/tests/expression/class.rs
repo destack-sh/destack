@@ -1,27 +1,31 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{assert_expression_path, assert_node, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
 
-/// Parse a TypeScript class expression with implements.
+/// Parse a class expression with implements.
 #[test]
 fn test_parse_class_expression_with_implements() {
     let mut test =
         TestParser::new_with_options("new (class implements Foo {})()", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
                     assert_eq!(implements_types.len(), 1);
+                    assert_expression_path!(parser, parser.tree.get(implements_types[0]), "Foo");
                 });
             });
         });
     });
 }
 
-/// Parse a TypeScript class expression when heritage starts on the next line.
+/// Parse a class expression when heritage starts on the next line.
 #[test]
 fn test_parse_class_expression_with_newline_implements() {
     let mut test = TestParser::new_with_options(
@@ -30,18 +34,22 @@ fn test_parse_class_expression_with_newline_implements() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
                     assert_eq!(implements_types.len(), 1);
+                    assert_expression_path!(parser, parser.tree.get(implements_types[0]), "Foo");
                 });
             });
         });
     });
 }
 
-/// Parse a TypeScript class expression with multiline extends heritage.
+/// Parse a class expression with multiline extends heritage.
 #[test]
 fn test_parse_class_expression_with_newline_extends() {
     let mut test = TestParser::new_with_options(
@@ -50,11 +58,23 @@ fn test_parse_class_expression_with_newline_extends() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
-                    assert!(extends_type.is_some());
+                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
+                    let extends_expression = extends_expression.expect("expected extends expression");
+                    assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+                        assert_eq!(generic_arguments.len(), 1);
+                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "Bar");
+                            });
+                        });
+                    });
                 });
             });
         });
@@ -71,25 +91,46 @@ fn test_parse_new_unparenthesized_class_expression_with_extends() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::New { left, dynamic_arguments, .. } => {
         assert!(dynamic_arguments.is_empty());
         assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
-                let extends_type = extends_type.expect("expected extends type");
-                assert_expression_path!(parser, parser.tree.get(extends_type), "TestRepository");
+            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
+                let extends_expression = extends_expression.expect("expected extends expression");
+                assert_expression_path!(parser, parser.tree.get(extends_expression), "TestRepository");
             });
         });
     });
 }
 
-/// Reject a JavaScript class expression with a parenthesized sequence extends target.
+/// Parse a class expression with a parenthesized sequence extends target.
 #[test]
-fn test_parse_javascript_class_expression_with_parenthesized_sequence_extends() {
+fn test_parse_class_expression_with_parenthesized_sequence_extends() {
     let mut test =
         TestParser::new_with_options("var a = class extends (b,c) {};", LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.options);
-    assert!(result.is_err());
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // var a = class extends (b, c) {};
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+                    assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::SequenceExpression { expressions } => {
+                            assert_eq!(expressions.len(), 2);
+                            assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
+                            assert_expression_path!(parser, parser.tree.get(expressions[1]), "c");
+                        });
+                    });
+                });
+            });
+        });
+    });
 }
 
 /// Parse an object property value that is a named class expression.
@@ -101,6 +142,9 @@ fn test_parse_object_property_named_class_expression_value() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
@@ -195,12 +239,14 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 
             // class extends Component<Omit<P, keyof A> & Partial<B>, C>
             assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
-                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_type, members, .. }) => {
+                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression, members, .. }) => {
                     assert_eq!(members.len(), 1);
 
                     // Component<Omit<...>, C>
-                    assert_node!(parser.tree, extends_type.expect("expected extends type"), TypeExpression::Reference { path, generic_arguments } => {
-                        assert_path!(parser, *path, "Component");
+                    let extends_expression =
+                        extends_expression.expect("expected extends expression");
+                    assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "Component");
                         assert_eq!(generic_arguments.len(), 2);
                     });
                 });
@@ -232,10 +278,12 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
 
             // class extends React.Component<Omit<P, keyof Props> & Partial<Props>, Props>
             assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
-                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
+                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
                     // React.Component<Omit<P, keyof Props> & Partial<Props>, Props>
-                    assert_node!(parser.tree, extends_type.expect("expected extends type"), TypeExpression::Reference { path, generic_arguments } => {
-                        assert_path!(parser, *path, "React.Component");
+                    let extends_expression =
+                        extends_expression.expect("expected extends expression");
+                    assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "React.Component");
                         assert_eq!(generic_arguments.len(), 2);
                     });
                 });

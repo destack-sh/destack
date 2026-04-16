@@ -8,15 +8,16 @@ use destack_source::LanguageType;
 fn test_parse_lambda_function_empty_type() {
     let mut test = TestParser::new("() => void");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Type { value } => {
-        assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
-                assert_eq!(signature.parameters.len(), 0);
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Void);
-                });
+    let type_expression_id = parser.eat_type_expression().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Declaration { declaration: declaration_id } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.parameters.len(), 0);
+            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Void);
             });
         });
     });
@@ -27,26 +28,18 @@ fn test_parse_lambda_function_empty_type() {
 fn test_parse_lambda_function_type() {
     let mut test = TestParser::new("(a: int32) => int32");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Type { value } => {
-        assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.kind, FunctionKind::Lambda);
-                // (a: int32)
-                assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                    assert_string!(parser, *name, "a");
-                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                        assert_eq!(
-                            *value,
-                            TypeLiteral::Int(IntType::Arbitrary {
-                                width: Some(32),
-                                is_signed: true,
-                            })
-                        );
-                    });
-                });
-                // int32
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+    let type_expression_id = parser.eat_type_expression().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Declaration { declaration: declaration_id } => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+
+            // a: int32
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                assert_string!(parser, *name, "a");
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
                     assert_eq!(
                         *value,
                         TypeLiteral::Int(IntType::Arbitrary {
@@ -55,6 +48,17 @@ fn test_parse_lambda_function_type() {
                         })
                     );
                 });
+            });
+
+            // int32
+            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_eq!(
+                    *value,
+                    TypeLiteral::Int(IntType::Arbitrary {
+                        width: Some(32),
+                        is_signed: true,
+                    })
+                );
             });
         });
     });
@@ -66,6 +70,9 @@ fn test_parse_lambda_function_value() {
     let mut test = TestParser::new("(a) => a > 2");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -88,7 +95,7 @@ fn test_parse_lambda_function_value() {
 
 /// Parse function expression callbacks with a newline before the body block.
 #[test]
-fn test_parse_call_with_function_expression_newline_before_body_javascript() {
+fn test_parse_call_with_function_expression_newline_before_body() {
     let mut test = TestParser::new_with_options(
         r"defer(function nextTick_callback()
 {
@@ -98,6 +105,8 @@ fn test_parse_call_with_function_expression_newline_before_body_javascript() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
 
     // defer(function nextTick_callback() { ... });
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
@@ -121,6 +130,12 @@ fn test_parse_call_with_function_expression_newline_before_body_javascript() {
                         assert_node!(parser.tree, expressions[0], Expression::Call { left, dynamic_arguments, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "callback");
                             assert_eq!(dynamic_arguments.len(), 2);
+                            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "err");
+                            });
+                            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "result");
+                            });
                         });
                     });
                 });
@@ -135,6 +150,9 @@ fn test_parse_generic_lambda_function_value() {
     let mut test = TestParser::new("<T,>(x: T): T => x");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -197,7 +215,7 @@ fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
 
 /// Parse ternary typed arrows whose parameter annotations include function types.
 #[test]
-fn test_parse_typescript_ternary_typed_arrow_with_function_type_parameter() {
+fn test_parse_ternary_typed_arrow_with_function_type_parameter() {
     let mut test = TestParser::new_with_options(
         r#"shouldAssert(AssertionLevel.Normal)
     ? (nodes: Node[], test: (node: Node) => boolean, message?: string): void => assert(
@@ -381,9 +399,9 @@ fn test_parse_arrow_return_type_predicate_with_nested_optional_parameter_functio
                 assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("b")));
                 assert_node!(parser.tree, target.expect("expected type predicate target"), TypeExpression::Intersection { elements } => {
                     assert_eq!(elements.len(), 2);
-                    assert_node!(parser.tree, elements[1], TypeExpression::Object { properties } => {
+                    assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
                         assert_eq!(properties.len(), 1);
-                        assert_node!(parser.tree, properties[0], TypeProperty::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+                        assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "focus");
                             assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: function_id } => {
                                 assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -425,9 +443,9 @@ fn test_parse_generic_parameter_constraint_object_property_named_in() {
 
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), .. } => {
                 assert_string!(parser, *name, "V");
-                assert_node!(parser.tree, *constraint, TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, *constraint, TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], TypeProperty::Field { key, declared_type, .. } => {
+                    assert_node!(parser.tree, properties[0], TypeMember::Field { key, declared_type, .. } => {
                         assert_node!(key, Key::Name(Name::Identifier(name)) => {
                             assert_string!(parser, *name, "in");
                         });

@@ -56,10 +56,16 @@ impl Parser {
         self.is_module_identifier_at(self.pos_index())
     }
 
-    /// Check whether a `{` in statement position should be parsed as an object literal.
-    /// NOTE #Cleanup: can_parse_object_literal_in_statement_position is ugly and might not be fixable.
+    /// Decide whether one `{` in statement position starts an object literal.
+    ///
+    /// Examples:
+    /// ```
+    /// { value: 1 }
+    /// { [key]: value }
+    /// { ...spread }
+    /// ```
     pub(super) fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
-        // only allow this in destack files
+        // only allow this when statement-position object literals are enabled
         if !self.language.is_destack() {
             return false;
         }

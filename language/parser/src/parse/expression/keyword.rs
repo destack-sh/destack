@@ -78,6 +78,21 @@ impl Parser {
         false
     }
 
+    /// Wrap a declaration node in one type expression with the current span.
+    #[inline]
+    pub(crate) fn insert_declaration_type_expression(
+        &mut self,
+        start: &ParserMark,
+        declaration_id: LocalNodeId<Declaration>,
+    ) -> LocalNodeId<TypeExpression> {
+        self.insert_node(
+            TypeExpression::Declaration {
+                declaration: declaration_id,
+            },
+            self.get_span_from(start),
+        )
+    }
+
     /// Wrap a declaration node in an expression with the current span.
     #[inline]
     pub(super) fn insert_declaration_expression(
@@ -85,20 +100,28 @@ impl Parser {
         start: &ParserMark,
         declaration_id: LocalNodeId<Declaration>,
     ) -> LocalNodeId<Expression> {
-        if self.options.is_in_type() {
-            let type_expression_id = self.insert_node(
-                TypeExpression::Declaration {
-                    declaration: declaration_id,
-                },
-                self.get_span_from(start),
+        self.insert_node(
+            Expression::Declaration(declaration_id),
+            self.get_span_from(start),
+        )
+    }
+
+    /// Lower one parsed `type` keyword result into value-space expression form.
+    #[inline]
+    fn insert_type_keyword_expression(
+        &mut self,
+        type_expression_id: LocalNodeId<TypeExpression>,
+    ) -> LocalNodeId<Expression> {
+        // type alias declarations must remain declaration expressions in value space
+        if let TypeExpression::Declaration { declaration } = self.tree.get(type_expression_id) {
+            return self.insert_node(
+                Expression::Declaration(*declaration),
+                self.tree.get_span(type_expression_id),
             );
-            self.insert_type_expression_value(type_expression_id)
-        } else {
-            self.insert_node(
-                Expression::Declaration(declaration_id),
-                self.get_span_from(start),
-            )
         }
+
+        // plain type expressions stay wrapped
+        self.wrap_type_expression(type_expression_id)
     }
 
     /// Return whether the current keyword is followed by `.<member>` for any expected member name.
@@ -139,6 +162,59 @@ impl Parser {
             .iter()
             .any(|member_name| self.identifier_equals_at(identifier_index, member_name));
         Ok(matches_member_name)
+    }
+
+    /// Return true when one `type` family keyword may start a type form.
+    fn keyword_begins_type_form(
+        &mut self,
+        keyword: Keyword,
+        next_token_type: TokenType,
+        next_token_index: usize,
+        next_has_line_break: bool,
+    ) -> bool {
+        // `type` does not continue across a newline in value space
+        if keyword == Keyword::Type && next_has_line_break {
+            return false;
+        }
+
+        // `type as` and related operators should stay in value space
+        let stays_in_value_space = keyword == Keyword::Type && {
+            let next_keyword = if next_token_type == TokenType::Identifier {
+                self.keyword_for_index(next_token_index)
+            } else {
+                None
+            };
+            let after_next_index = self.next_non_newline_index_from(next_token_index + 1);
+            let after_next_token_type = self.token_type_at(after_next_index);
+            let is_type_relation = is_type_relation_keyword(next_keyword);
+            let starts_alias_head = matches!(
+                after_next_token_type,
+                TokenType::Assign
+                    | TokenType::LessThan
+                    | TokenType::ShiftLeft
+                    | TokenType::SaturatingShiftLeft
+            );
+
+            is_type_relation && !starts_alias_head
+        };
+        if stays_in_value_space {
+            return false;
+        }
+
+        // base grammars keep `type` aliases identifier headed
+        if !self.language.is_destack() {
+            return next_token_type == TokenType::Identifier;
+        }
+
+        // extended grammars also admit direct structural alias heads
+        matches!(
+            next_token_type,
+            TokenType::Identifier
+                | TokenType::OpenBrace
+                | TokenType::OpenParenthesis
+                | TokenType::OpenBracket
+                | TokenType::Literal
+        )
     }
 
     /// Eat `import.meta` as one dedicated expression.
@@ -281,40 +357,21 @@ impl Parser {
                 ))
             }
             Keyword::Type if !self.options.is_in_new_receiver() => {
-                if next_has_line_break {
-                    return Ok(None);
-                }
-                let next_index = next_token_index;
-                let after_next_index = self.next_non_newline_index_from(next_index + 1);
-                let after_next_token_type = self.token_type_at(after_next_index);
-                let starts_type_operator = is_type_relation_keyword(next_keyword)
-                    && !matches!(
-                        after_next_token_type,
-                        TokenType::Assign
-                            | TokenType::LessThan
-                            | TokenType::ShiftLeft
-                            | TokenType::SaturatingShiftLeft
-                    );
-
-                let can_start_type_alias =
-                    if self.language.is_typescript() || self.language.is_javascript() {
-                        next_token_type == TokenType::Identifier && !starts_type_operator
-                    } else {
-                        matches!(
-                            next_token_type,
-                            TokenType::Identifier
-                                | TokenType::OpenBrace
-                                | TokenType::OpenParenthesis
-                                | TokenType::OpenBracket
-                                | TokenType::Literal
-                        ) && !starts_type_operator
-                    };
-                if !can_start_type_alias {
+                if !self.keyword_begins_type_form(
+                    Keyword::Type,
+                    next_token_type,
+                    next_token_index,
+                    next_has_line_break,
+                ) {
                     return Ok(None);
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                Ok(Some(self.eat_type(start, header)?))
+                let type_expression_id = self.eat_type(start, header)?;
+
+                Ok(Some(
+                    self.insert_type_keyword_expression(type_expression_id),
+                ))
             }
             Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
@@ -491,6 +548,332 @@ impl Parser {
         self.keyword_for_index(next_token_index) == Some(Keyword::Is)
     }
 
+    /// Eat a keyword-led primary expression in strict type space when possible.
+    pub(super) fn eat_type_keyword_expression(
+        &mut self,
+        start: &ParserMark,
+        header: DeclarationHeader,
+        keyword: Keyword,
+        next_token_type: TokenType,
+        next_token_index: usize,
+        next_has_line_break: bool,
+        next_raw_token_type: TokenType,
+        is_declaration_start: bool,
+    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+        // parse contextual keyword subjects like `override is X` as identifiers
+        if self.keyword_parses_as_type_predicate_subject_identifier(
+            keyword,
+            next_token_type,
+            next_token_index,
+        ) {
+            return Ok(None);
+        }
+
+        // next keyword facts
+        let next_keyword = if next_token_type == TokenType::Identifier {
+            self.keyword_for_index(next_token_index)
+        } else {
+            None
+        };
+
+        match keyword {
+            // namespace declaration
+            Keyword::Namespace
+                if is_declaration_start
+                    && !next_has_line_break
+                    && next_token_type == TokenType::Identifier
+                    && !is_type_relation_keyword(next_keyword) =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let namespace_id = self.eat_namespace(start, header)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, namespace_id),
+                ))
+            }
+
+            // struct declaration
+            Keyword::Struct
+                if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let allow_anonymous_class = !self.options.is_in_statement_position()
+                    || header.export == Some(ExportMode::Default);
+                let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, struct_id),
+                ))
+            }
+
+            // class declaration
+            Keyword::Class if is_declaration_start || next_has_line_break => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let allow_anonymous_class = header.export == Some(ExportMode::Default)
+                    || !self.options.is_in_statement_position();
+                let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, struct_id),
+                ))
+            }
+
+            // enum declaration
+            Keyword::Enum if is_declaration_start && !next_has_line_break => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let enum_id = self.eat_enum(start, EnumKind::Enum, header)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, enum_id),
+                ))
+            }
+
+            // const enum declaration
+            Keyword::Const if next_keyword == Some(Keyword::Enum) => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                self.eat_keyword(Keyword::Const)?;
+                let enum_id = self.eat_enum(start, EnumKind::Const, header)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, enum_id),
+                ))
+            }
+
+            // newtype interface or alias declaration
+            Keyword::Newtype => {
+                // parse newtype interface declaration
+                if next_keyword == Some(Keyword::Interface) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    self.eat_keyword(Keyword::Newtype)?;
+                    let interface_id = self.eat_interface(start, header, TypeKind::Nominal)?;
+
+                    return Ok(Some(
+                        self.insert_declaration_type_expression(start, interface_id),
+                    ));
+                }
+
+                // otherwise parse newtype alias declaration
+                if !self.keyword_begins_type_form(
+                    Keyword::Newtype,
+                    next_token_type,
+                    next_token_index,
+                    next_has_line_break,
+                ) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let type_expression_id = self.eat_type(start, header)?;
+
+                Ok(Some(type_expression_id))
+            }
+
+            // interface declaration
+            Keyword::Interface if is_declaration_start || next_has_line_break => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let interface_id = self.eat_interface(start, header, TypeKind::Structural)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, interface_id),
+                ))
+            }
+
+            // extension declaration
+            Keyword::Extension
+                if self.language.is_destack()
+                    && self.options.is_in_statement_position()
+                    && is_declaration_start =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let extension_id = self.eat_extension(start, header)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, extension_id),
+                ))
+            }
+
+            // async declaration
+            Keyword::Async => {
+                if next_has_line_break {
+                    return Ok(None);
+                }
+
+                // avoid async generic parses in stronger infix contexts
+                let has_generic_head = self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::ShiftLeft);
+                let has_stronger_infix_context =
+                    self.options.left_precedence.is_some_and(|left_precedence| {
+                        left_precedence > OperatorPrecedence::Assignment as u16
+                    });
+                if has_generic_head && has_stronger_infix_context {
+                    return Ok(None);
+                }
+
+                // avoid async generic parses when tree literal disambiguation is active
+                if self.language.supports_jsx()
+                    && self.options.is_disallow_ambiguous_tree_literal()
+                    && self.options.left_precedence.is_some()
+                    && has_generic_head
+                {
+                    return Ok(None);
+                }
+
+                // require a valid function signature start
+                if !self.can_start_async_function_signature(next_token_type) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, header, false, false)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, function_id),
+                ))
+            }
+
+            // function or method declaration
+            Keyword::Function | Keyword::Abstract | Keyword::Override => {
+                let is_multiline_abstract_construct_signature =
+                    keyword == Keyword::Abstract && next_keyword == Some(Keyword::New);
+                if matches!(keyword, Keyword::Abstract | Keyword::Override)
+                    && next_has_line_break
+                    && !is_multiline_abstract_construct_signature
+                {
+                    return Ok(None);
+                }
+
+                // require a valid function signature start
+                if !Self::can_start_function_signature(next_token_type) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, header, false, false)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, function_id),
+                ))
+            }
+
+            // new signature declaration
+            Keyword::New => {
+                if !Self::can_start_function_signature(next_token_type) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, header, false, false)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, function_id),
+                ))
+            }
+
+            // variant method declaration
+            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.is_in_variant() => {
+                if !Self::can_start_function_signature(next_token_type) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, header, false, false)?;
+
+                Ok(Some(
+                    self.insert_declaration_type_expression(start, function_id),
+                ))
+            }
+
+            // this type
+            Keyword::This => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat this
+
+                Ok(Some(self.insert_node(
+                    TypeExpression::This,
+                    self.get_span_from(start),
+                )))
+            }
+
+            // null literal type
+            Keyword::Null => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat null
+
+                Ok(Some(self.insert_node(
+                    TypeExpression::ScalarLiteral {
+                        value: ScalarLiteral::Null,
+                    },
+                    self.get_span_from(start),
+                )))
+            }
+
+            // import type expression
+            Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                let type_expression_id = self.eat_type_import_expression()?;
+
+                Ok(Some(type_expression_id))
+            }
+
+            // infer type expression
+            Keyword::Infer => {
+                let type_expression_id = self.eat_type_infer_expression()?;
+
+                Ok(Some(type_expression_id))
+            }
+
+            // asserts type predicate
+            Keyword::Asserts => {
+                if !self.can_start_type_predicate_asserts() {
+                    return Ok(None);
+                }
+
+                let type_expression_id = self.eat_type_predicate_asserts()?;
+
+                Ok(Some(type_expression_id))
+            }
+
+            // readonly stays a type operator in typed type contexts
+            Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
+                if self.options.is_in_new_receiver() {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let type_expression_id = self.eat_type(start, header)?;
+
+                Ok(Some(type_expression_id))
+            }
+
+            // type alias declaration and readonly aliases
+            Keyword::Type | Keyword::Readonly => {
+                if self.options.is_in_for_each() {
+                    return Ok(None);
+                }
+
+                if self.options.is_in_new_receiver() {
+                    return Ok(None);
+                }
+
+                if !self.keyword_begins_type_form(
+                    keyword,
+                    next_token_type,
+                    next_token_index,
+                    next_has_line_break,
+                ) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let type_expression_id = self.eat_type(start, header)?;
+
+                Ok(Some(type_expression_id))
+            }
+
+            _ => Ok(None),
+        }
+    }
+
     /// Eat a keyword-led expression when possible.
     ///
     /// Examples:
@@ -596,20 +979,19 @@ impl Parser {
                     ))
                 // otherwise parse newtype alias declaration
                 } else {
-                    // require a valid type alias start
-                    let can_start_type_alias = matches!(
-                        next_token_type,
-                        TokenType::Identifier
-                            | TokenType::OpenBrace
-                            | TokenType::OpenParenthesis
-                            | TokenType::OpenBracket
-                            | TokenType::Literal
-                    );
-
                     // parse the alias when it can start
-                    if can_start_type_alias {
+                    if self.keyword_begins_type_form(
+                        Keyword::Newtype,
+                        next_token_type,
+                        next_token_index,
+                        next_has_line_break,
+                    ) {
                         let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                        Ok(Some(self.eat_type(start, header)?))
+                        let type_expression_id = self.eat_type(start, header)?;
+
+                        Ok(Some(
+                            self.insert_type_keyword_expression(type_expression_id),
+                        ))
                     // otherwise bail
                     } else {
                         Ok(None)
@@ -674,25 +1056,17 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // override is contextual in value expressions
-            Keyword::Override if !self.options.is_in_type() => Ok(None),
+            Keyword::Override => Ok(None),
             // abstract is contextual outside declaration positions
             Keyword::Abstract
-                if !self.options.is_in_type()
-                    && !self.options.is_in_statement_position()
-                    && header.export.is_none() =>
+                if !self.options.is_in_statement_position() && header.export.is_none() =>
             {
                 Ok(None)
             }
             // function or method declaration
-            Keyword::Function | Keyword::Abstract | Keyword::Override => {
-                // keep multiline `abstract new (...) => ...` construct signatures valid in type context
-                let is_multiline_abstract_construct_signature = keyword == Keyword::Abstract
-                    && self.options.is_in_type()
-                    && next_keyword == Some(Keyword::New);
-                if matches!(keyword, Keyword::Abstract | Keyword::Override)
-                    && next_has_line_break
-                    && !is_multiline_abstract_construct_signature
-                {
+            Keyword::Function | Keyword::Abstract => {
+                // abstract stays contextual across line breaks in value space
+                if keyword == Keyword::Abstract && next_has_line_break {
                     return Ok(None);
                 }
 
@@ -706,20 +1080,6 @@ impl Parser {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let function_id = self.eat_function(start, header, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
-            }
-            // new signature declaration in type positions
-            Keyword::New if self.options.is_in_type() => {
-                // require a valid function signature start
-                let can_start_signature = Self::can_start_function_signature(next_token_type);
-                if can_start_signature {
-                    // parse constructor signature
-                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                    let function_id = self.eat_function(start, header, false, false)?;
-                    Ok(Some(self.insert_declaration_expression(start, function_id)))
-                // otherwise bail
-                } else {
-                    Ok(None)
-                }
             }
             // variant method declaration
             Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.is_in_variant() => {
@@ -739,17 +1099,10 @@ impl Parser {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 self.bump(); // eat this
 
-                // type positions use the dedicated type node directly
-                if self.options.is_in_type() {
-                    let type_expression_id =
-                        self.insert_node(TypeExpression::This, self.get_span_from(start));
-                    Ok(Some(self.insert_type_expression_value(type_expression_id)))
-                } else {
-                    Ok(Some(
-                        self.tree
-                            .insert(Expression::This, self.get_span_from(start)),
-                    ))
-                }
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::This, self.get_span_from(start)),
+                ))
             }
             // super expression
             Keyword::Super => {
@@ -765,25 +1118,13 @@ impl Parser {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 self.bump(); // eat null
 
-                // type positions keep `null` in type space
-                if self.options.is_in_type() {
-                    let type_expression_id = self.insert_node(
-                        TypeExpression::ScalarLiteral {
-                            value: ScalarLiteral::Null,
-                        },
-                        self.get_span_from(start),
-                    );
-
-                    Ok(Some(self.insert_type_expression_value(type_expression_id)))
-                } else {
-                    Ok(Some(self.insert_node(
-                        Expression::ScalarLiteral(ScalarLiteral::Null),
-                        self.get_span_from(start),
-                    )))
-                }
+                Ok(Some(self.insert_node(
+                    Expression::ScalarLiteral(ScalarLiteral::Null),
+                    self.get_span_from(start),
+                )))
             }
             // new expression
-            Keyword::New if !self.options.is_in_type() => {
+            Keyword::New => {
                 // allow one committed or recoverable constructor slot
                 let can_start_new_expression =
                     matches!(
@@ -816,14 +1157,6 @@ impl Parser {
             Keyword::Delete if next_token_type != TokenType::Colon => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 Ok(Some(self.eat_delete()?))
-            }
-            // type only import expression
-            Keyword::Import
-                if self.options.is_in_type()
-                    && next_raw_token_type == TokenType::OpenParenthesis =>
-            {
-                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
-                Ok(Some(self.eat_type_import_expression()?))
             }
             // import call expression
             Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
@@ -863,20 +1196,6 @@ impl Parser {
                     Ok(Some(self.eat_import()?))
                 }
             }
-            // infer type expression
-            Keyword::Infer if self.options.is_in_type() => {
-                Ok(Some(self.eat_type_infer_expression()?))
-            }
-            // asserts type predicate
-            Keyword::Asserts if self.options.is_in_type() => {
-                // allow asserts predicate only when grammar supports it
-                if self.can_start_type_predicate_asserts() {
-                    Ok(Some(self.eat_type_predicate_asserts()?))
-                // otherwise bail
-                } else {
-                    Ok(None)
-                }
-            }
             // let or var binding declaration
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
@@ -892,26 +1211,20 @@ impl Parser {
                     Ok(None)
                 }
             }
-            // readonly type operator in ts and js type contexts
+            // readonly stays a type operator in typed type contexts
             Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
                 // in new receiver context, readonly behaves like an identifier
                 if self.options.is_in_new_receiver() {
                     return Ok(None);
                 }
 
-                // ts and js parse readonly as a type unary in type positions
-                if self.options.is_in_type() {
-                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                    return Ok(Some(self.eat_type(start, header)?));
-                }
-
                 // value positions keep readonly contextual
                 Ok(None)
             }
-            // type alias declaration and destack readonly/newtype aliases
+            // type alias declaration and readonly or newtype aliases
             Keyword::Type | Keyword::Readonly => {
                 // for each bindings keep `type` and `readonly` as identifiers
-                if self.options.is_in_for_each() && !self.options.is_in_type() {
+                if self.options.is_in_for_each() {
                     return Ok(None);
                 }
 
@@ -924,39 +1237,19 @@ impl Parser {
                     return Ok(None);
                 }
 
-                let next_index = next_token_index;
-                let after_next_index = self.next_non_newline_index_from(next_index + 1);
-                let after_next_token_type = self.token_type_at(after_next_index);
-                let starts_type_operator = is_type_relation_keyword(next_keyword)
-                    && !matches!(
-                        after_next_token_type,
-                        TokenType::Assign
-                            | TokenType::LessThan
-                            | TokenType::ShiftLeft
-                            | TokenType::SaturatingShiftLeft
-                    );
-
-                // typescript and javascript only allow identifier names in type alias declarations
-                let can_start_type_alias =
-                    if self.language.is_typescript() || self.language.is_javascript() {
-                        next_token_type == TokenType::Identifier && !starts_type_operator
-                    }
-                    // destack keeps broader alias starts
-                    else {
-                        matches!(
-                            next_token_type,
-                            TokenType::Identifier
-                                | TokenType::OpenBrace
-                                | TokenType::OpenParenthesis
-                                | TokenType::OpenBracket
-                                | TokenType::Literal
-                        ) && !starts_type_operator
-                    };
-
                 // parse type alias when it can start
-                if can_start_type_alias {
+                if self.keyword_begins_type_form(
+                    Keyword::Type,
+                    next_token_type,
+                    next_token_index,
+                    next_has_line_break,
+                ) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                    Ok(Some(self.eat_type(start, header)?))
+                    let type_expression_id = self.eat_type(start, header)?;
+
+                    Ok(Some(
+                        self.insert_type_keyword_expression(type_expression_id),
+                    ))
                 // otherwise bail
                 } else {
                     Ok(None)

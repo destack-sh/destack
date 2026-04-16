@@ -60,7 +60,7 @@ fn test_parse_unary_keyword_operators() {
 }
 
 #[test]
-fn test_parse_unary_negate_allows_newline_before_operand_in_javascript() {
+fn test_parse_unary_negate_allows_newline_before_operand() {
     let mut test = TestParser::new_with_options("-\n1", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -72,7 +72,7 @@ fn test_parse_unary_negate_allows_newline_before_operand_in_javascript() {
 }
 
 #[test]
-fn test_parse_unary_negate_allows_line_comment_before_operand_in_javascript() {
+fn test_parse_unary_negate_allows_line_comment_before_operand() {
     let mut test = TestParser::new_with_options("-// comment\n1", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -157,9 +157,9 @@ fn test_parse_dereference_variable() {
     });
 }
 
-/// Dereference should fail in JavaScript compatibility mode.
+/// Reject dereference in untyped value mode.
 #[test]
-fn test_dereference_fails_in_js_mode() {
+fn test_reject_dereference_in_untyped_value_mode() {
     let options = LanguageType::JavaScript;
     let mut test = TestParser::new_with_options("*x", options);
     let mut parser = test.prepare();

@@ -28,7 +28,7 @@ fn test_parse_sequence_expression() {
     });
 }
 
-/// Comma operator parses as sequence expression in JS/TS.
+/// Comma operator parses as a sequence expression.
 #[test]
 fn test_parse_sequence_expression_without_parens() {
     let options = LanguageType::TypeScript;
@@ -47,7 +47,7 @@ fn test_parse_sequence_expression_without_parens() {
     });
 }
 
-/// Sequence expressions should parse inside lambda block bodies in TS.
+/// Sequence expressions should parse inside lambda block bodies.
 #[test]
 fn test_parse_sequence_expression_in_lambda_block_body() {
     let options = LanguageType::TypeScript;
@@ -87,7 +87,7 @@ fn test_parse_sequence_expression_in_lambda_block_body() {
 
 /// Parse sequence expression statements inside object literal method bodies in JavaScript.
 #[test]
-fn test_parse_javascript_object_method_body_sequence_expression_statement() {
+fn test_parse_object_method_body_sequence_expression_statement() {
     let options = LanguageType::JavaScript;
     let mut test = TestParser::new_with_options(
         "objectType({ definition (t) { t.callA(), t.callB(), t.callC() } })",
@@ -160,7 +160,7 @@ fn test_parse_sequence_expression_with_nested_ternary() {
 
 /// Parse async arrow statements that continue into same line comma expressions.
 #[test]
-fn test_parse_async_arrow_statement_comma_continuation_typescript() {
+fn test_parse_async_arrow_statement_comma_continuation() {
     let mut test = TestParser::new_with_options("async () => {}, x;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -180,7 +180,7 @@ fn test_parse_async_arrow_statement_comma_continuation_typescript() {
 
 /// Parse plain arrow statements that continue into same line comma expressions.
 #[test]
-fn test_parse_arrow_statement_comma_continuation_javascript() {
+fn test_parse_arrow_statement_comma_continuation() {
     let mut test = TestParser::new_with_options("() => 1, 2", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();

@@ -8,19 +8,91 @@ use super::common::{
 };
 
 use destack_ast::{
-    AssignOperator, BinaryOperator, Expression, Keyword, LocalNodeId, TokenSpan, TokenType,
-    TypeBinaryOperator, TypeExpression, TypeUnaryOperator, UnaryOperator,
+    AssignOperator, BinaryOperator, Expression, Keyword, LocalNodeId, OperatorPrecedence,
+    TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
 };
 use destack_source::Span;
 
 const AS_ASSERTION_PRECEDENCE: u16 = 1355;
 const SATISFIES_ASSERTION_PRECEDENCE: u16 = 1003;
+const TYPE_UNARY_PRECEDENCE: u16 = 1800;
+
+/// One parser-local type unary operator.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum TypeUnaryOperator {
+    /// `typeof value`
+    Typeof,
+    /// `keyof T`
+    Keyof,
+    /// `T as comptime`
+    AsComptime,
+}
+
+impl TypeUnaryOperator {
+    /// Return the parser precedence for one type unary operator.
+    #[inline]
+    pub(crate) fn precedence(self) -> u16 {
+        match self {
+            TypeUnaryOperator::Typeof => TYPE_UNARY_PRECEDENCE + 4,
+            TypeUnaryOperator::Keyof => TYPE_UNARY_PRECEDENCE + 3,
+            TypeUnaryOperator::AsComptime => TYPE_UNARY_PRECEDENCE + 2,
+        }
+    }
+
+    /// Return one prefix operator from identifier text.
+    #[inline]
+    pub(crate) fn from_prefix_token(token_str: &str, _token_type: TokenType) -> Option<Self> {
+        match token_str {
+            "typeof" => Some(TypeUnaryOperator::Typeof),
+            "keyof" => Some(TypeUnaryOperator::Keyof),
+            _ => None,
+        }
+    }
+}
+
+/// One parser-local type binary operator.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum TypeBinaryOperator {
+    /// `in`
+    In,
+    /// `extends`
+    Extends,
+    /// `implements`
+    Implements,
+}
+
+impl TypeBinaryOperator {
+    /// Return the parser precedence for one type binary operator.
+    #[inline]
+    pub(crate) fn precedence(self) -> u16 {
+        match self {
+            TypeBinaryOperator::In => 1006,
+            TypeBinaryOperator::Extends => 1002,
+            TypeBinaryOperator::Implements => 1001,
+        }
+    }
+
+    /// Return one type binary operator from identifier text.
+    #[inline]
+    pub(crate) fn from_token(token_str: &str, _token_type: TokenType) -> Option<Self> {
+        match token_str {
+            "in" => Some(TypeBinaryOperator::In),
+            "extends" => Some(TypeBinaryOperator::Extends),
+            "implements" => Some(TypeBinaryOperator::Implements),
+            _ => None,
+        }
+    }
+}
 
 /// One parser-local infix continuation operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(super) enum ParseInfixOperator {
     /// A binary operator continuation.
     Binary(BinaryOperator),
+    /// One `is` guard continuation.
+    Is,
+    /// One `instanceof` guard continuation.
+    InstanceOf,
     /// One `as` assertion continuation.
     As,
     /// One `satisfies` assertion continuation.
@@ -37,6 +109,8 @@ impl ParseInfixOperator {
     pub(super) fn precedence(self) -> u16 {
         match self {
             ParseInfixOperator::Binary(binary_operator) => binary_operator.precedence(),
+            ParseInfixOperator::Is => OperatorPrecedence::Comparison as u16,
+            ParseInfixOperator::InstanceOf => OperatorPrecedence::Comparison as u16,
             ParseInfixOperator::As => AS_ASSERTION_PRECEDENCE,
             ParseInfixOperator::Satisfies => SATISFIES_ASSERTION_PRECEDENCE,
             ParseInfixOperator::TypeBinary(type_binary_operator) => {
@@ -86,10 +160,10 @@ impl Parser {
         match keyword {
             Keyword::In => Some("in"),
             Keyword::Is => Some("is"),
+            Keyword::InstanceOf => Some("instanceof"),
             Keyword::As => Some("as"),
             Keyword::Extends => Some("extends"),
             Keyword::Implements => Some("implements"),
-            Keyword::InstanceOf => Some("instanceof"),
             Keyword::Satisfies => Some("satisfies"),
             _ => None,
         }
@@ -104,6 +178,13 @@ impl Parser {
         next_next_token: Option<&TokenSpan>,
         has_newline: bool,
     ) -> ParseResult<(ParseInfixOperator, u8)> {
+        // identifier keyword
+        let identifier_keyword = if token.token.ty == TokenType::Identifier {
+            Keyword::from_str(token_str).ok()
+        } else {
+            None
+        };
+
         // regular binary operator
         // (only a subset of binary operators are allowed in generic argument and tree contexts)
         if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
@@ -123,11 +204,19 @@ impl Parser {
             return Ok((ParseInfixOperator::Binary(binary_operator), 1));
         }
 
+        // type predicate and runtime `is` guard
+        if !self.options.is_in_super_type()
+            && identifier_keyword == Some(Keyword::Is)
+            && (self.options.is_in_type() || self.language.is_destack())
+            && (self.language.is_destack() || !has_newline)
+        {
+            return Ok((ParseInfixOperator::Is, 1));
+        }
+
         // assertion operators in value expressions
         if !self.options.is_in_super_type()
             && !self.options.is_in_type()
-            && token.token.ty == TokenType::Identifier
-            && let Some(keyword) = Keyword::from_str(token_str).ok()
+            && let Some(keyword) = identifier_keyword
             && matches!(keyword, Keyword::As | Keyword::Satisfies)
             && (self.language.is_destack() || !has_newline)
         {
@@ -155,8 +244,20 @@ impl Parser {
             return Ok((operator, 1));
         }
 
+        // runtime `instanceof` guard
+        if !self.options.is_in_super_type()
+            && !self.options.is_in_type()
+            && let Some(keyword) = identifier_keyword
+            && (self.language.is_destack() || !has_newline)
+        {
+            // `x instanceof C`
+            if keyword == Keyword::InstanceOf {
+                return Ok((ParseInfixOperator::InstanceOf, 1));
+            }
+        }
+
         // regular type binary operator
-        // (forbidden in super type clauses, avoid newline glue in TS mode)
+        // forbidden in super type clauses, and semicolon statement forms avoid newline glue here
         if !self.options.is_in_super_type()
             && let Some(type_binary_operator) =
                 TypeBinaryOperator::from_token(token_str, token.token.ty)
@@ -165,9 +266,7 @@ impl Parser {
                 || (self.language.is_destack()
                     && matches!(
                         type_binary_operator,
-                        TypeBinaryOperator::Extends
-                            | TypeBinaryOperator::Implements
-                            | TypeBinaryOperator::Is
+                        TypeBinaryOperator::Extends | TypeBinaryOperator::Implements
                     )))
             && (self.language.is_destack() || !has_newline)
         {
@@ -201,12 +300,12 @@ impl Parser {
         }
         let operator = UnaryOperator::from_prefix_token(token.token.ty)?;
 
-        // dereference (*x) is not valid in JS/TS compatibility mode
+        // dereference (*x) is not valid in semicolon statement value mode
         if operator == UnaryOperator::Dereference && !self.language.is_destack() {
             return None;
         }
 
-        // spread (...x) is not a valid standalone expression in JS/TS
+        // spread (...x) is not a valid standalone expression in semicolon statement value mode
         if operator == UnaryOperator::Spread && !self.language.is_destack() {
             return None;
         }
@@ -230,22 +329,15 @@ impl Parser {
 
     /// Peek a type unary prefix operator.
     #[inline]
-    pub fn peek_type_unary_prefix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
+    pub(crate) fn peek_type_unary_prefix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
         let token = *self.peek().ok()?;
         let token_str = self.get_span_str(token.span);
         TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
     }
 
-    /// Peek a type unary operator.
-    #[inline]
-    pub fn peek_type_unary_prefix_operator(&mut self) -> ParseResult<TypeUnaryOperator> {
-        self.peek_type_unary_prefix_operator_maybe()
-            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
-    }
-
     /// Peek a type unary postfix operator.
     #[inline]
-    pub fn peek_type_unary_postfix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
+    pub(crate) fn peek_type_unary_postfix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
         let token = *self.peek().ok()?;
         if token.token.ty != TokenType::Identifier {
             return None;
@@ -267,22 +359,6 @@ impl Parser {
             Some(Keyword::Comptime) => Some(TypeUnaryOperator::AsComptime),
             _ => None,
         }
-    }
-
-    /// Peek a type unary postfix operator.
-    #[inline]
-    pub fn peek_type_unary_postfix_operator(&mut self) -> ParseResult<TypeUnaryOperator> {
-        self.peek_type_unary_postfix_operator_maybe()
-            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
-    }
-
-    /// Peek a next type unary operator.
-    #[inline]
-    pub fn peek_next_type_unary_operator(&mut self) -> ParseResult<TypeUnaryOperator> {
-        let token = *self.peek_next()?;
-        let token_str = self.get_span_str(token.span);
-        TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
-            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek an assign operator.
@@ -307,7 +383,7 @@ impl Parser {
 
     /// Return true when a token index could be an infix or assign operator.
     #[inline]
-    pub(super) fn has_infix_or_assign_operator_at_index(&mut self, index: usize) -> bool {
+    pub(crate) fn has_infix_or_assign_operator_at_index(&mut self, index: usize) -> bool {
         let token_type = self.token_type_at(index);
         if AssignOperator::from_token(token_type).is_some() {
             return true;
@@ -374,64 +450,31 @@ impl Parser {
         .ok()
     }
 
-    /// Make an expression from an infix operator.
+    /// Make one value-space expression from one non-assertion infix operator.
     #[inline]
-    pub(super) fn make_infix_expression(
+    pub(super) fn make_value_infix_expression(
         &mut self,
         left: LocalNodeId<Expression>,
         operator: ParseInfixOperator,
         right: LocalNodeId<Expression>,
     ) -> ParseResult<Expression> {
         Ok(match operator {
-            ParseInfixOperator::Binary(binary_operator) => {
-                if self.options.is_in_type()
-                    && matches!(
-                        binary_operator,
-                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                    )
-                {
-                    let left_type = self.expect_type_expression_value(left)?;
-                    let right_type = self.expect_type_expression_value(right)?;
-                    let type_expression_id = self.append_type_chain_element(
-                        left,
-                        binary_operator,
-                        left_type,
-                        right_type,
-                    );
-
-                    Expression::Type {
-                        value: type_expression_id,
-                    }
-                } else {
-                    Expression::Binary {
-                        left,
-                        operator: binary_operator,
-                        right,
-                    }
-                }
+            ParseInfixOperator::Binary(binary_operator) => Expression::Binary {
+                left,
+                operator: binary_operator,
+                right,
+            },
+            ParseInfixOperator::Is => {
+                return Err(ParseError::unexpected(self.tree.get_span(right)));
             }
+            ParseInfixOperator::InstanceOf => Expression::InstanceOf {
+                value: left,
+                target: right,
+            },
             ParseInfixOperator::As | ParseInfixOperator::Satisfies => {
                 unreachable!("assertion operators are built in continuation parsing")
             }
-            ParseInfixOperator::TypeBinary(type_binary_operator) => {
-                if self.options.is_in_type()
-                    && type_binary_operator == TypeBinaryOperator::Is
-                    && let Some(subject) = self.type_predicate_subject_maybe(left)
-                {
-                    let target = self.expect_type_expression_value(right)?;
-                    let predicate_id = self.insert_node(
-                        TypeExpression::Predicate {
-                            asserts: false,
-                            subject,
-                            target: Some(target),
-                        },
-                        self.tree.get_span(left),
-                    );
-
-                    return Ok(Expression::Type {
-                        value: predicate_id,
-                    });
-                }
+            ParseInfixOperator::TypeBinary(_type_binary_operator) => {
                 return Err(ParseError::unexpected(self.tree.get_span(right)));
             }
             ParseInfixOperator::Assign(assign_operator) => Expression::Assign {
@@ -442,39 +485,110 @@ impl Parser {
         })
     }
 
+    /// Make one type-space expression from an infix operator.
+    #[inline]
+    pub(super) fn make_type_infix_expression(
+        &mut self,
+        source_span: Span,
+        head_span: Span,
+        left_type_id: LocalNodeId<TypeExpression>,
+        operator: ParseInfixOperator,
+        right_type_id: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        match operator {
+            // `A | B` and `A & B`
+            ParseInfixOperator::Binary(binary_operator)
+                if matches!(
+                    binary_operator,
+                    BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                ) =>
+            {
+                let type_expression_id = self.append_type_chain_element(
+                    source_span,
+                    head_span,
+                    binary_operator,
+                    left_type_id,
+                    right_type_id,
+                );
+
+                Ok(type_expression_id)
+            }
+
+            // `value is T`
+            ParseInfixOperator::Is => {
+                let Some(subject) = self.type_predicate_subject_from_type_expression(left_type_id)
+                else {
+                    return Err(ParseError::unexpected(self.tree.get_span(left_type_id)));
+                };
+
+                let predicate_id = self.insert_node(
+                    TypeExpression::Predicate {
+                        asserts: false,
+                        subject,
+                        target: Some(right_type_id),
+                    },
+                    source_span,
+                );
+                self.tree.set_head_span(predicate_id, head_span);
+
+                Ok(predicate_id)
+            }
+
+            // everything else is value-only here
+            _ => Err(ParseError::unexpected(self.tree.get_span(right_type_id))),
+        }
+    }
+
     /// Append one type element to a union or intersection chain.
     fn append_type_chain_element(
         &mut self,
-        source_id: LocalNodeId<Expression>,
+        source_span: Span,
+        head_span: Span,
         operator: BinaryOperator,
         left: LocalNodeId<TypeExpression>,
         right: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
-        match (operator, self.tree.get(left).clone()) {
+        let expression = match (operator, self.tree.get(left).clone()) {
             (BinaryOperator::ElementwiseOr, TypeExpression::Union { mut elements }) => {
                 elements.push(right);
-                self.insert_wrapped_type_expression(source_id, TypeExpression::Union { elements })
+                TypeExpression::Union { elements }
             }
             (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { mut elements }) => {
                 elements.push(right);
-                self.insert_wrapped_type_expression(
-                    source_id,
-                    TypeExpression::Intersection { elements },
-                )
+                TypeExpression::Intersection { elements }
             }
-            (BinaryOperator::ElementwiseOr, _) => self.insert_wrapped_type_expression(
-                source_id,
-                TypeExpression::Union {
-                    elements: vec![left, right],
-                },
-            ),
-            (BinaryOperator::ElementwiseAnd, _) => self.insert_wrapped_type_expression(
-                source_id,
-                TypeExpression::Intersection {
-                    elements: vec![left, right],
-                },
-            ),
+            (BinaryOperator::ElementwiseOr, _) => TypeExpression::Union {
+                elements: vec![left, right],
+            },
+            (BinaryOperator::ElementwiseAnd, _) => TypeExpression::Intersection {
+                elements: vec![left, right],
+            },
             _ => unreachable!(),
+        };
+
+        let expression_id = self.insert_node(expression, source_span);
+        self.tree.set_head_span(expression_id, head_span);
+
+        expression_id
+    }
+
+    /// Return one type predicate subject from one type expression.
+    pub(crate) fn type_predicate_subject_from_type_expression(
+        &self,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> Option<TypePredicateSubject> {
+        match self.tree.get(expression_id) {
+            TypeExpression::Parenthesized { expression } => {
+                self.type_predicate_subject_from_type_expression(*expression)
+            }
+            TypeExpression::Reference {
+                path,
+                generic_arguments,
+            } if generic_arguments.is_empty() && path.segments.len() == 1 => {
+                Some(TypePredicateSubject::Identifier(path.segments[0]))
+            }
+            TypeExpression::This => Some(TypePredicateSubject::This),
+            _ => None,
         }
     }
 }

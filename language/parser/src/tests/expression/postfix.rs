@@ -110,7 +110,7 @@ fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
     });
 }
 
-/// Parse a TypeScript arrow function parameter named `accessor`.
+/// Parse an arrow function parameter named `accessor`.
 #[test]
 fn test_parse_arrow_parameter_accessor_name() {
     let mut test = TestParser::new_with_options(

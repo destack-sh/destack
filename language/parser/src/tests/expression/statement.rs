@@ -46,9 +46,9 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
     });
 }
 
-/// Reject labelled lexical declarations in javascript.
+/// Reject labelled lexical declarations.
 #[test]
-fn test_reject_labelled_lexical_declaration_javascript() {
+fn test_reject_labelled_lexical_declaration() {
     // source: a: let a
     let mut test = TestParser::new_with_options("a: let a", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -341,9 +341,9 @@ fn test_parse_const_enum() {
     });
 }
 
-/// Keep one trailing semicolon block comment trivia entry in no-semi for-of fixture slices.
+/// Keep one trailing semicolon block comment trivia entry in no-semi for-of input slices.
 #[test]
-fn test_parse_no_semi_for_of_fixture_slice_trailing_block_comment_is_not_duplicated() {
+fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
     let source = "for (a of b) foo\n\n// 11\n;[]\n\nfor (a of b) foo\n\n// 21\n;foo\n\n// prettier-ignore\nfor (   a of   b)   foo (   )\n\n;[]\n\nfor (a of b) foo; /* comment */\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n\n;[]\n";
     let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
     let mut parser = test.prepare();

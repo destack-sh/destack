@@ -37,9 +37,8 @@ fn test_parse_super_member_expression() {
     });
 }
 
-/// Parse a member expression with a newline after dot in TypeScript.
 #[test]
-fn test_parse_member_expression_with_newline_after_dot_typescript() {
+fn test_parse_member_expression_with_newline_after_dot() {
     let mut test = TestParser::new_with_options("receiver.\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -51,9 +50,8 @@ fn test_parse_member_expression_with_newline_after_dot_typescript() {
     });
 }
 
-/// Parse a call chain with a newline after dot in TypeScript.
 #[test]
-fn test_parse_call_chain_with_newline_after_dot_typescript() {
+fn test_parse_call_chain_with_newline_after_dot() {
     let mut test =
         TestParser::new_with_options("receiver().\nthen(value)", LanguageType::TypeScript);
     let mut parser = test.prepare();
@@ -149,9 +147,8 @@ fn test_parse_call_boundary_comment_attaches_to_call_separator() {
     let _ = expression_id;
 }
 
-/// Parse private member access with a newline before dot in TypeScript.
 #[test]
-fn test_parse_private_member_expression_with_newline_before_dot_typescript() {
+fn test_parse_private_member_expression_with_newline_before_dot() {
     let mut test = TestParser::new_with_options("this\n.#value", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -164,9 +161,8 @@ fn test_parse_private_member_expression_with_newline_before_dot_typescript() {
     });
 }
 
-/// Parse member access across one line comment before dot in TypeScript.
 #[test]
-fn test_parse_member_expression_with_line_comment_before_dot_typescript() {
+fn test_parse_member_expression_with_line_comment_before_dot() {
     let mut test = TestParser::new_with_options(
         "container // marker\n.left as PropertyAccessExpression",
         LanguageType::TypeScript,
@@ -212,9 +208,9 @@ fn test_parse_member_expression_with_line_comment_before_dot_typescript() {
     assert_eq!(token_after.token.ty, TokenType::Dot);
 }
 
-/// Keep full-function line-comment seams before member dots attached to the dot boundary.
+/// Keep full-function line comments before member dots attached to the dot boundary.
 #[test]
-fn test_parse_function_member_comment_seam_before_dot_typescript() {
+fn test_parse_function_member_comment_boundary_before_dot() {
     let mut test = TestParser::new_with_options(
         "function f(container) { return ((container // marker\n.left as PropertyAccessExpression).expression as PropertyAccessExpression).expression; }",
         LanguageType::TypeScript,
@@ -252,7 +248,7 @@ fn test_parse_function_member_comment_seam_before_dot_typescript() {
 #[test]
 fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
     let mut test = TestParser::new_with_options(
-        "(activeService as unknown as QuickInputController) /* TS fail */ .pick()",
+        "(activeService as unknown as QuickInputController) /* boundary note */ .pick()",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
@@ -263,7 +259,7 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
     assert_eq!(parser.tree.comments().len(), 1);
 
     let comment = parser.tree.comments()[0];
-    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " TS fail");
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " boundary note");
 
     let token_after = parser
         .tokens()
@@ -277,9 +273,8 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
     assert_eq!(token_after.token.ty, TokenType::Dot);
 }
 
-/// Parse private member casts with a newline before dot in object property values.
 #[test]
-fn test_parse_object_property_private_member_cast_with_newline_before_dot_typescript() {
+fn test_parse_object_property_private_member_cast_with_newline_before_dot() {
     let mut test = TestParser::new_with_options(
         "({ value: this\n.#javascriptTransformer as unknown as JavaScriptTransformer })",
         LanguageType::TypeScript,
@@ -311,29 +306,19 @@ fn test_parse_object_property_private_member_cast_with_newline_before_dot_typesc
     });
 }
 
-/// Reject decimal integer member access without a separator in destack.
 #[test]
-fn test_reject_decimal_integer_member_access_without_separator_in_destack() {
-    let mut test = TestParser::new("1.foo");
-    let mut parser = test.prepare();
+fn test_reject_decimal_integer_member_access_without_separator() {
+    for language in [LanguageType::Destack, LanguageType::TypeScript] {
+        let mut test = TestParser::new_with_options("1.foo", language);
+        let mut parser = test.prepare();
 
-    let result = parser.eat_expression(parser.options);
-    assert!(result.is_err());
+        let result = parser.eat_expression(parser.options);
+        assert!(result.is_err());
+    }
 }
 
-/// Reject decimal integer member access without a separator in typescript.
 #[test]
-fn test_reject_decimal_integer_member_access_without_separator_in_typescript() {
-    let mut test = TestParser::new_with_options("1.foo", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    let result = parser.eat_expression(parser.options);
-    assert!(result.is_err());
-}
-
-/// Parse parenthesized integer member access in destack.
-#[test]
-fn test_parse_parenthesized_integer_member_access_in_destack() {
+fn test_parse_parenthesized_integer_member_access() {
     let mut test = TestParser::new("(1).foo");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -346,9 +331,8 @@ fn test_parse_parenthesized_integer_member_access_in_destack() {
     });
 }
 
-/// Parse js double-dot member access after numeric literals.
 #[test]
-fn test_parse_double_dot_member_access_after_numeric_literal_in_javascript() {
+fn test_parse_double_dot_member_access_after_numeric_literal() {
     let mut test = TestParser::new_with_options("0..value", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -361,31 +345,31 @@ fn test_parse_double_dot_member_access_after_numeric_literal_in_javascript() {
     });
 }
 
-/// Parse js double-dot member call after numeric literals.
 #[test]
-fn test_parse_double_dot_member_call_after_numeric_literal_in_javascript() {
-    let mut test = TestParser::new_with_options("123..a(1)", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+fn test_parse_double_dot_member_call_after_numeric_literal() {
+    for language in [LanguageType::JavaScript, LanguageType::TypeScript] {
+        let mut test = TestParser::new_with_options("123..a(1)", language);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        });
+        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
 
-        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
-                assert_eq!(*value, 123.0);
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "a");
+                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
+                    assert_eq!(*value, 123.0);
+                });
             });
         });
-    });
+    }
 }
 
-/// Parse decimal member access with a separator in destack.
 #[test]
-fn test_parse_decimal_member_access_with_separator_in_destack() {
+fn test_parse_decimal_member_access_with_separator() {
     let mut test = TestParser::new_with_options("0..a", LanguageType::Destack);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -399,38 +383,15 @@ fn test_parse_decimal_member_access_with_separator_in_destack() {
     });
 }
 
-/// Reject non-decimal separator member forms for hexadecimal integers in javascript.
 #[test]
-fn test_reject_hex_integer_member_separator_in_javascript() {
+fn test_reject_hex_integer_member_separator() {
     let mut test = TestParser::new_with_options("0x1..a", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let _ = parser.parse();
 
     // parser should not reinterpret `..` as a decimal separator for non-decimal integers
-    assert!(!parser.errors.is_empty(), "expected parser errors");
+    assert_eq!(parser.errors.len(), 1);
     assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "0x1.");
-}
-
-/// Parse ts double-dot member calls after numeric literals.
-#[test]
-fn test_parse_double_dot_member_call_after_numeric_literal_in_typescript() {
-    let mut test = TestParser::new_with_options("123..a(1)", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        });
-
-        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
-                assert_eq!(*value, 123.0);
-            });
-        });
-    });
 }
 
 /// Parse this member access in variant context.
@@ -501,7 +462,7 @@ self
     });
 }
 
-/// Parse boolean IdentifierName member access in JavaScript.
+/// Parse boolean IdentifierName member access.
 #[test]
 fn test_parse_member_boolean_identifier_name() {
     let mut test = TestParser::new_with_options("a.true", LanguageType::JavaScript);
@@ -513,7 +474,7 @@ fn test_parse_member_boolean_identifier_name() {
     });
 }
 
-/// Parse null IdentifierName path access in JavaScript.
+/// Parse null IdentifierName path access.
 #[test]
 fn test_parse_path_null_identifier_name() {
     let mut test = TestParser::new_with_options("a.null", LanguageType::JavaScript);
@@ -528,7 +489,7 @@ fn test_parse_path_null_identifier_name() {
     });
 }
 
-/// Parse default IdentifierName member access in JavaScript.
+/// Parse default IdentifierName member access.
 #[test]
 fn test_parse_member_default_identifier_name_after_parenthesized_await_import() {
     let mut test = TestParser::new_with_options(

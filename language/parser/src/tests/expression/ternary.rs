@@ -41,7 +41,7 @@ fn test_parse_if_ternary_multiline() {
     });
 }
 
-/// Parse multiline `cond ? a : b` with comment-only branch seams.
+/// Parse multiline `cond ? a : b` with comment-only branch boundaries.
 #[test]
 fn test_parse_if_ternary_multiline_with_comments() {
     let mut test = TestParser::new(
@@ -73,11 +73,11 @@ fn test_parse_if_ternary_multiline_with_comments() {
     });
 }
 
-/// Keep `// then-seam` and `// else-seam` on ternary branch boundaries.
+/// Keep `// then-boundary` and `// else-boundary` on ternary branch boundaries.
 #[test]
-fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
+fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
     let mut test = TestParser::new_with_options(
-        "cond ? // then-seam\nleft : // else-seam\nright",
+        "cond ? // then-boundary\nleft : // else-boundary\nright",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
@@ -105,8 +105,8 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     });
 
     assert_eq!(parser.tree.comments().len(), 2);
-    assert_comment!(parser, 0, CommentKind::Line, "then-seam");
-    assert_comment!(parser, 1, CommentKind::Line, "else-seam");
+    assert_comment!(parser, 0, CommentKind::Line, "then-boundary");
+    assert_comment!(parser, 1, CommentKind::Line, "else-boundary");
 }
 
 /// Parse `x ? () : ()`.
@@ -304,7 +304,7 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
 }
 
 #[test]
-fn test_parse_assignment_object_spread_ternary_value_javascript() {
+fn test_parse_assignment_object_spread_ternary_value() {
     let mut test = TestParser::new_with_options(
         "target = { ...tls ? { cert: tls.cert } : {}, ...node }",
         LanguageType::JavaScript,

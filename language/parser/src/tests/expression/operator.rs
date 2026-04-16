@@ -1,6 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node};
 use destack_ast::*;
+use destack_source::LanguageType;
 
 /// Addition is left associative.
 #[test]
@@ -246,6 +247,65 @@ fn test_parse_precedence_comparison_vs_logical() {
             );
         }
     );
+}
+
+/// Runtime `is` guards bind before logical and.
+#[test]
+fn test_parse_precedence_is_before_logical_and() {
+    let mut test = TestParser::new("value is string && ready");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // value is string && ready
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::And);
+
+            // value is string
+            assert_node!(parser.tree, *left, Expression::Is { value, target_type } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+                assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::String);
+                });
+            });
+
+            // ready
+            assert_expression_path!(parser, parser.tree.get(*right), "ready");
+        }
+    );
+
+    test.assert_no_errors(&parser);
+}
+
+/// Runtime `instanceof` guards bind before logical and.
+#[test]
+fn test_parse_precedence_instanceof_before_logical_and() {
+    let mut test =
+        TestParser::new_with_options("value instanceof Box && ready", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // value instanceof Box && ready
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::And);
+
+            // value instanceof Box
+            assert_node!(parser.tree, *left, Expression::InstanceOf { value, target } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+                assert_expression_path!(parser, parser.tree.get(*target), "Box");
+            });
+
+            // ready
+            assert_expression_path!(parser, parser.tree.get(*right), "ready");
+        }
+    );
+
+    test.assert_no_errors(&parser);
 }
 
 /// Unary prefix has higher precedence than multiplication.
