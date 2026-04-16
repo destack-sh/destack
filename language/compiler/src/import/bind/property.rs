@@ -1,49 +1,63 @@
-use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingModifier, DynamicKey, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member,
-    ModuleBinding, NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable, Visibility,
+    Ambientness, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, ModuleBinding,
+    Mutability, NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeTable, Visibility,
 };
 use destack_workspace::Module;
 
+use crate::Compiler;
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Apply private visibility to members with private keys.
-    pub(super) fn apply_private_member_visibility(
+    /// Bind an AST ambientness into a DIR ambientness.
+    pub(super) fn bind_ambientness(&self, ambient: ast::Ambientness) -> Ambientness {
+        match ambient {
+            ast::Ambientness::Ambient => Ambientness::Ambient,
+            ast::Ambientness::Concrete => Ambientness::Concrete,
+        }
+    }
+
+    /// Inject private visibility for private keys when no explicit visibility exists.
+    fn bind_member_visibility(
         &self,
-        modifiers: Option<BindingModifier>,
-        key: Option<DynamicKey>,
-    ) -> Option<BindingModifier> {
-        // keep modifiers unchanged when the key is not private
-        if !matches!(key, Some(DynamicKey::Private(_))) {
-            return modifiers;
+        visibility: Option<ast::Visibility>,
+        key: Option<&ast::Key>,
+    ) -> Option<Visibility> {
+        let visibility = visibility.map(|visibility| self.bind_visibility(visibility));
+
+        if visibility.is_some() || !matches!(key, Some(ast::Key::Private(_))) {
+            return visibility;
         }
 
-        // ensure we have a modifier to update
-        let mut modifiers = modifiers.unwrap_or(BindingModifier {
-            kind: None,
-            declaration: None,
-            abstraction: None,
-            variance: None,
-            anchor: None,
-            mutability: None,
-            visibility: None,
-            operator: None,
-            accessor: None,
-            timing: None,
-        });
+        Some(Visibility::Private)
+    }
 
-        // inject private visibility when not already specified
-        if modifiers.visibility.is_none() {
-            modifiers.visibility = Some(Visibility::Private);
-        }
+    /// Bind an AST mutability into a DIR mutability.
+    fn bind_member_mutability(&self, mutability: Option<ast::Mutability>) -> Option<Mutability> {
+        mutability.map(|mutability| self.bind_mutability(mutability))
+    }
 
-        Some(modifiers)
+    /// Insert a declared type entry for one node when present.
+    fn bind_declared_type_for_node(
+        &self,
+        module: &Module,
+        node_id: LocalNodeIdAny,
+        declared_type: Option<LocalNodeId<destack_dir::TypeExpression>>,
+        types: &mut TypeTable,
+    ) {
+        let Some(declared_type) = declared_type else {
+            return;
+        };
+
+        let declared_type_id =
+            types.insert_type_from(Type::Unevaluated(declared_type), declared_type);
+        types.set_declared_type(node_id.into_global(module.id), declared_type_id);
     }
 
     /// Bind a property to a DIR property.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn bind_property(
         &self,
         module: &Module,
@@ -59,84 +73,57 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
         let ast_property = ast.tree.get(ast_property_id);
+        let property_id =
+            tree.reserve_from_source(NodeType::Property, ast_property_id.id, scope, parent_id);
+
         match ast_property {
-            ast::Property::Field {
-                modifiers,
-                key,
-                value,
-                default,
-            } => {
-                let property_id = tree.reserve_from_source(
-                    NodeType::Property,
-                    ast_property_id.id,
+            ast::Property::Field { key, value } => {
+                let key = self.bind_key(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
-                    parent_id,
+                    *key,
+                    Some(property_id.into()),
+                    tree,
+                    symbols,
+                    types,
                 );
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let key = key.map(|key| {
-                    self.bind_key(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        key,
-                        Some(property_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                let value = value.map(|value| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        value,
-                        Some(property_id),
-                        tree,
-                        symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
-                let default = default.map(|default| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        default,
-                        Some(property_id),
-                        tree,
-                        symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(property_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                let property = Property::Field {
-                    modifiers,
-                    key,
-                    value,
-                    default,
-                    symbol: symbol_id,
-                };
-                tree.insert(property_id, property)
+                let property_id = tree.insert(
+                    property_id,
+                    Property::Field {
+                        key,
+                        value,
+                        symbol: symbol_id,
+                    },
+                );
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(property_id);
+                property_id
             }
             ast::Property::Method {
-                modifiers,
-                key,
+                key: Some(key),
                 signature,
-                body,
+                body: Some(body),
             } => {
                 let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
                     module,
@@ -152,23 +139,19 @@ impl Compiler {
                     (method_scope_id, LocalScopeMark::end()),
                     parent_id,
                 );
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let key = key.map(|key| {
-                    self.bind_key(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        key,
-                        Some(property_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
+                let key = self.bind_key(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *key,
+                    Some(property_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                );
 
                 // bind the implicit this local for method bodies
                 let this_name = self.repository.strings.intern("this");
@@ -191,47 +174,49 @@ impl Compiler {
                     module_bindings,
                     method_scope,
                     signature,
-                    Some(property_id),
+                    Some(property_id.into()),
                     tree,
                     symbols,
                     types,
                 );
-                let body = body.map(|body| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        (method_scope_id, symbols.get_scope_mark(method_scope_id)),
-                        body,
-                        Some(property_id),
-                        tree,
-                        symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
-                let property = Property::Method {
-                    modifiers,
-                    key,
-                    signature,
-                    body,
-                    symbol: symbol_id,
-                };
-                tree.insert(property_id, property)
-            }
-            ast::Property::Spread {
-                modifiers, value, ..
-            } => {
-                let property_id = tree.reserve_from_source(
-                    NodeType::Property,
-                    ast_property_id.id,
-                    scope,
-                    parent_id,
+                let body = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    (method_scope_id, symbols.get_scope_mark(method_scope_id)),
+                    *body,
+                    Some(property_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let property_id = tree.insert(
+                    property_id,
+                    Property::Method {
+                        key: Some(key),
+                        signature,
+                        body: Some(body),
+                        symbol: symbol_id,
+                    },
+                );
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(property_id);
+                property_id
+            }
+            ast::Property::Method { .. } => {
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+                let property_id = tree.insert(property_id, Property::Error { symbol: symbol_id });
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(property_id);
+                property_id
+            }
+            ast::Property::Spread { value } => {
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -240,7 +225,7 @@ impl Compiler {
                     module_bindings,
                     scope,
                     *value,
-                    Some(property_id),
+                    Some(property_id.into()),
                     tree,
                     symbols,
                     types,
@@ -248,24 +233,22 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                let property = Property::Spread {
-                    modifiers,
-                    value,
-                    symbol: symbol_id,
-                };
-                tree.insert(property_id, property)
+                let property_id = tree.insert(
+                    property_id,
+                    Property::Spread {
+                        value,
+                        symbol: symbol_id,
+                    },
+                );
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(property_id);
+                property_id
             }
             ast::Property::Error => {
-                let property_id = tree.reserve_from_source(
-                    NodeType::Property,
-                    ast_property_id.id,
-                    scope,
-                    parent_id,
-                );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                let property = Property::Error { symbol: symbol_id };
-                let property_id = tree.insert(property_id, property);
+                let property_id = tree.insert(property_id, Property::Error { symbol: symbol_id });
                 symbols
                     .get_symbol_mut(symbol_id)
                     .declare_primary(property_id);
@@ -275,6 +258,7 @@ impl Compiler {
     }
 
     /// Bind a member to a DIR member.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn bind_member(
         &self,
         module: &Module,
@@ -290,79 +274,73 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Member> {
         let ast_member = ast.tree.get(ast_member_id);
+        let member_id =
+            tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
+
         match ast_member {
-            ast::Member::Type {
-                modifiers,
+            ast::Member::AssociatedType {
                 name,
-                static_parameters,
+                generic_parameters,
                 where_clauses,
-                ty,
+                constraint,
                 value,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
             } => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let name = self.repository.strings.intern_from(&ast.strings, *name);
 
-                // bind associated type static parameters
-                let static_parameters = static_parameters.as_ref().map(|parameters| {
-                    parameters
-                        .iter()
-                        .map(|parameter| {
-                            self.bind_parameter(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                SymbolSpace::Type,
-                                *parameter,
-                                Some(member_id),
-                                tree,
-                                symbols,
-                                types,
-                            )
-                        })
-                        .collect()
-                });
+                let generic_parameters = generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.bind_generic_parameter(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *parameter,
+                            Some(member_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
 
-                // refresh scope so type member parameters are visible
                 let scope = (scope.0, symbols.get_scope_mark(scope.0));
+                let where_clauses = where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.bind_where_clause(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *where_clause,
+                            Some(member_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
 
-                // bind associated type where clauses in parameter scope
-                let where_clauses = where_clauses.as_ref().map(|where_clauses| {
-                    where_clauses
-                        .iter()
-                        .map(|where_clause| {
-                            self.bind_where_clause(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_augmentation_scope,
-                                module_bindings,
-                                scope,
-                                *where_clause,
-                                Some(member_id),
-                                tree,
-                                symbols,
-                                types,
-                            )
-                        })
-                        .collect()
-                });
-
-                let ty = ty.map(|ty| {
-                    self.bind_expression(
+                let constraint = constraint.map(|constraint| {
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
                         global_augmentation_scope,
                         module_bindings,
                         scope,
-                        ty,
-                        Some(member_id),
+                        constraint,
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
@@ -370,7 +348,7 @@ impl Compiler {
                     )
                 });
                 let value = value.map(|value| {
-                    self.bind_expression(
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
@@ -378,7 +356,7 @@ impl Compiler {
                         module_bindings,
                         scope,
                         value,
-                        Some(member_id),
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
@@ -386,7 +364,6 @@ impl Compiler {
                     )
                 });
 
-                // type members are named type aliases in type space
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Item,
                     SymbolType::TypeAlias,
@@ -398,43 +375,43 @@ impl Compiler {
                 );
                 let member_id = tree.insert(
                     member_id,
-                    Member::Type {
-                        modifiers,
+                    Member::AssociatedType {
                         name,
-                        static_parameters,
+                        generic_parameters,
                         where_clauses,
-                        ty,
+                        constraint,
                         value,
+                        visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
+                        ambient: self.bind_ambientness(*ambient),
+                        is_abstract: *is_abstract,
+                        is_override: *is_override,
+                        is_static: *is_static,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
+                self.bind_declared_type_for_node(module, member_id.into_any(), constraint, types);
                 member_id
             }
-            ast::Member::ComptimeConst {
-                modifiers,
+            ast::Member::AssociatedConst {
                 name,
-                ty,
+                declared_type,
                 value,
+                visibility,
+                ambient,
+                is_static,
             } => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let name = self.repository.strings.intern_from(&ast.strings, *name);
-                let ty = ty.map(|ty| {
-                    self.bind_expression(
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
                         global_augmentation_scope,
                         module_bindings,
                         scope,
-                        ty,
-                        Some(member_id),
+                        declared_type,
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
@@ -450,7 +427,7 @@ impl Compiler {
                         module_bindings,
                         scope,
                         value,
-                        Some(member_id),
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
@@ -458,7 +435,6 @@ impl Compiler {
                     )
                 });
 
-                // associated comptime constants live in owner value space
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Item,
                     SymbolType::Void,
@@ -470,57 +446,65 @@ impl Compiler {
                 );
                 let member_id = tree.insert(
                     member_id,
-                    Member::ComptimeConst {
-                        modifiers,
+                    Member::AssociatedConst {
                         name,
-                        ty,
+                        declared_type,
                         value,
+                        visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
+                        ambient: self.bind_ambientness(*ambient),
+                        is_static: *is_static,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
+                self.bind_declared_type_for_node(
+                    module,
+                    member_id.into_any(),
+                    declared_type,
+                    types,
+                );
                 member_id
             }
             ast::Member::Field {
-                modifiers,
                 key,
-                value,
+                declared_type,
                 default,
-                ..
+                is_optional,
+                is_readonly,
+                mutability,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_const_asserted,
+                is_accessor,
+                is_comptime,
             } => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let key = key.map(|key| {
-                    self.bind_key(
+                let visibility = self.bind_member_visibility(*visibility, Some(key));
+                let key = self.bind_key(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *key,
+                    Some(member_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
                         module,
                         ast,
                         namespace_scope,
                         global_augmentation_scope,
                         module_bindings,
                         scope,
-                        key,
-                        Some(member_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                let modifiers = self.apply_private_member_visibility(modifiers, key);
-                let value = value.map(|value| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        value,
-                        Some(member_id),
+                        declared_type,
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
@@ -536,38 +520,58 @@ impl Compiler {
                         module_bindings,
                         scope,
                         default,
-                        Some(member_id),
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
                         SymbolSpaceOrder::ValueThenType,
                     )
                 });
+
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let member_id = tree.insert(
                     member_id,
                     Member::Field {
-                        modifiers,
                         key,
-                        value,
+                        declared_type,
                         default,
+                        is_optional: *is_optional,
+                        is_readonly: *is_readonly,
+                        mutability: self.bind_member_mutability(*mutability),
+                        visibility,
+                        ambient: self.bind_ambientness(*ambient),
+                        is_abstract: *is_abstract,
+                        is_override: *is_override,
+                        is_static: *is_static,
+                        is_const_asserted: *is_const_asserted,
+                        is_accessor: *is_accessor,
+                        is_comptime: *is_comptime,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
+                self.bind_declared_type_for_node(
+                    module,
+                    member_id.into_any(),
+                    declared_type,
+                    types,
+                );
                 member_id
             }
             ast::Member::Method {
-                modifiers,
                 key,
                 signature,
                 body,
-                ..
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_accessor,
+                is_comptime,
             } => {
+                let visibility = self.bind_member_visibility(*visibility, key.as_ref());
                 let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ast,
@@ -582,8 +586,7 @@ impl Compiler {
                     (method_scope_id, LocalScopeMark::end()),
                     parent_id,
                 );
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+
                 let key = key.map(|key| {
                     self.bind_key(
                         module,
@@ -593,13 +596,12 @@ impl Compiler {
                         module_bindings,
                         scope,
                         key,
-                        Some(member_id),
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
                     )
                 });
-                let modifiers = self.apply_private_member_visibility(modifiers, key);
 
                 // bind the implicit this local for method bodies
                 let this_name = self.repository.strings.intern("this");
@@ -622,7 +624,7 @@ impl Compiler {
                     module_bindings,
                     method_scope,
                     signature,
-                    Some(member_id),
+                    Some(member_id.into()),
                     tree,
                     symbols,
                     types,
@@ -636,37 +638,40 @@ impl Compiler {
                         module_bindings,
                         (method_scope_id, symbols.get_scope_mark(method_scope_id)),
                         body,
-                        Some(member_id),
+                        Some(member_id.into()),
                         tree,
                         symbols,
                         types,
                         SymbolSpaceOrder::ValueThenType,
                     )
                 });
+
                 let member_id = tree.insert(
                     member_id,
                     Member::Method {
-                        modifiers,
                         key,
                         signature,
                         body,
+                        visibility,
+                        ambient: self.bind_ambientness(*ambient),
+                        is_abstract: *is_abstract,
+                        is_override: *is_override,
+                        is_static: *is_static,
+                        is_accessor: *is_accessor,
+                        is_comptime: *is_comptime,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
                 member_id
             }
             ast::Member::Embed {
-                modifiers, value, ..
+                value,
+                visibility,
+                ambient,
+                is_static,
             } => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let value = self.bind_expression(
+                let value = self.bind_type_expression(
                     module,
                     ast,
                     namespace_scope,
@@ -674,7 +679,7 @@ impl Compiler {
                     module_bindings,
                     scope,
                     *value,
-                    Some(member_id),
+                    Some(member_id.into()),
                     tree,
                     symbols,
                     types,
@@ -685,23 +690,17 @@ impl Compiler {
                 let member_id = tree.insert(
                     member_id,
                     Member::Embed {
-                        modifiers,
                         value,
+                        visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
+                        ambient: self.bind_ambientness(*ambient),
+                        is_static: *is_static,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
                 member_id
             }
-            ast::Member::StaticBlock { modifiers, body } => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-                // modifiers are validated in the analyze validate pass
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+            ast::Member::StaticBlock { body } => {
                 let body = self.bind_expression(
                     module,
                     ast,
@@ -710,7 +709,7 @@ impl Compiler {
                     module_bindings,
                     scope,
                     *body,
-                    Some(member_id),
+                    Some(member_id.into()),
                     tree,
                     symbols,
                     types,
@@ -721,22 +720,14 @@ impl Compiler {
                 let member_id = tree.insert(
                     member_id,
                     Member::StaticBlock {
-                        modifiers,
                         body,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
                 member_id
             }
-            ast::Member::ComptimeBlock { modifiers, body } => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+            ast::Member::ComptimeBlock { body } => {
                 let body = self.bind_expression(
                     module,
                     ast,
@@ -745,7 +736,7 @@ impl Compiler {
                     module_bindings,
                     scope,
                     *body,
-                    Some(member_id),
+                    Some(member_id.into()),
                     tree,
                     symbols,
                     types,
@@ -756,24 +747,17 @@ impl Compiler {
                 let member_id = tree.insert(
                     member_id,
                     Member::ComptimeBlock {
-                        modifiers,
                         body,
                         symbol: symbol_id,
                     },
                 );
-
-                // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
-
                 member_id
             }
             ast::Member::Error => {
-                let member_id =
-                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                let member = Member::Error { symbol: symbol_id };
-                let member_id = tree.insert(member_id, member);
+                let member_id = tree.insert(member_id, Member::Error { symbol: symbol_id });
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
                 member_id
             }

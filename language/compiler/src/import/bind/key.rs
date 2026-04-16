@@ -3,7 +3,7 @@ use crate::analyze::evaluate_numeric_literal;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, NodeTree,
+    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, NodeTree,
     SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::Module;
@@ -38,25 +38,22 @@ impl Compiler {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-    ) -> DynamicKey {
+    ) -> Key {
         match key {
             ast::Key::Name(ast::Name::Number(string_id)) => {
                 // numeric keys evaluate to canonical string representation
                 let source = ast.strings.get(string_id);
                 let canonical = evaluate_numeric_literal(&source);
                 let name = self.repository.strings.intern(&canonical);
-                DynamicKey::Number(name)
+                Key::Name(Name::Number(name))
             }
             ast::Key::Name(name) => {
-                let name = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, name.string());
-                DynamicKey::Name(name)
+                let name = self.bind_name(ast, name);
+                Key::Name(name)
             }
             ast::Key::Private(name) => {
                 let name = self.repository.strings.intern_from(&ast.strings, name);
-                DynamicKey::Private(name)
+                Key::Private(name)
             }
             ast::Key::Expression(expression) => {
                 let expression = self.bind_expression(
@@ -73,25 +70,7 @@ impl Compiler {
                     types,
                     SymbolSpaceOrder::ValueOnly,
                 );
-                DynamicKey::Expression(expression)
-            }
-            ast::Key::NamedExpression { name, key } => {
-                let name = self.repository.strings.intern_from(&ast.strings, name);
-                let key = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    key,
-                    parent_id,
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpaceOrder::TypeThenValue,
-                );
-                DynamicKey::NamedExpression { name, key }
+                Key::Expression(expression)
             }
         }
     }

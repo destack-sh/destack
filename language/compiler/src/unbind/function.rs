@@ -8,6 +8,116 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Unbind a DIR generic parameter to an AST generic parameter.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn unbind_generic_parameter(
+        &self,
+        module: &Module,
+        parameter_id: dir::LocalNodeId<dir::GenericParameter>,
+        tree: &dir::NodeTree,
+        symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
+        ast_tree: &mut ast::NodeTree,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::LocalNodeId<ast::GenericParameter> {
+        let parameter = tree.get(parameter_id);
+        let span = self.unbind_span(module, parameter_id.into());
+
+        let ast_parameter = match parameter {
+            dir::GenericParameter::Type {
+                name,
+                variance,
+                constraint,
+                default,
+                ..
+            } => {
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let variance = variance.map(|variance| match variance {
+                    dir::VarianceModifier::In => ast::VarianceModifier::In,
+                    dir::VarianceModifier::Out => ast::VarianceModifier::Out,
+                    dir::VarianceModifier::InOut => ast::VarianceModifier::InOut,
+                });
+                let constraint = constraint.map(|constraint| {
+                    self.unbind_type_expression(
+                        module,
+                        constraint,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let default = default.map(|default| {
+                    self.unbind_type_expression(
+                        module,
+                        default,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::GenericParameter::Type {
+                    name,
+                    variance,
+                    constraint,
+                    default,
+                }
+            }
+            dir::GenericParameter::Value {
+                name,
+                declared_type,
+                default,
+                is_comptime,
+                ..
+            } => {
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
+                let declared_type = declared_type.map(|declared_type| {
+                    self.unbind_type_expression(
+                        module,
+                        declared_type,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let default = default.map(|default| {
+                    self.unbind_expression(
+                        module,
+                        default,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::GenericParameter::Value {
+                    name,
+                    declared_type,
+                    default,
+                    is_comptime: *is_comptime,
+                }
+            }
+            dir::GenericParameter::Error { .. } => ast::GenericParameter::Error,
+        };
+
+        let ast_parameter_id = ast_tree.insert(ast_parameter, span);
+        context.map(parameter_id.into_any(), ast_parameter_id.into_any());
+        ast_parameter_id
+    }
+
     /// Unbind a DIR function kind to an AST function kind.
     #[inline]
     pub(super) fn unbind_function_kind(
@@ -50,25 +160,6 @@ impl Compiler {
         }
     }
 
-    /// Unbind a DIR function abstraction to an AST function abstraction.
-    #[inline]
-    pub(super) fn unbind_function_abstraction(
-        &self,
-        _context: &mut UnbindContext,
-        abstraction: dir::FunctionAbstraction,
-    ) -> ast::FunctionAbstraction {
-        match abstraction {
-            dir::FunctionAbstraction::Abstract => ast::FunctionAbstraction::Abstract,
-            dir::FunctionAbstraction::AbstractOverride => {
-                ast::FunctionAbstraction::AbstractOverride
-            }
-            dir::FunctionAbstraction::ConcreteOverride => {
-                ast::FunctionAbstraction::ConcreteOverride
-            }
-            dir::FunctionAbstraction::Concrete => ast::FunctionAbstraction::Concrete,
-        }
-    }
-
     /// Unbind a DIR function signature to an AST function signature.
     pub(super) fn unbind_function_signature(
         &self,
@@ -76,41 +167,65 @@ impl Compiler {
         signature: &dir::FunctionSignature,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::FunctionSignature {
-        let abstraction = self.unbind_function_abstraction(context, signature.abstraction);
+        let is_abstract = signature.is_abstract;
+        let is_override = signature.is_override;
         let asynchrony = self.unbind_asynchrony(context, signature.asynchrony);
         let cardinality = self.unbind_function_cardinality(context, signature.cardinality);
         let mode = signature
             .mode
             .map(|mode| self.unbind_function_mode(context, mode));
         let kind = self.unbind_function_kind(context, signature.kind);
-        let generics = signature.generics.as_ref().map(|generics| {
-            self.unbind_generics(
-                module,
-                generics,
-                tree,
-                symbols,
-                ast_tree,
-                ast_strings,
-                context,
-            )
-        });
+        let generic_parameters = signature
+            .generic_parameters
+            .iter()
+            .map(|parameter| {
+                self.unbind_generic_parameter(
+                    module,
+                    *parameter,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                )
+            })
+            .collect();
+        let where_clauses = signature
+            .where_clauses
+            .iter()
+            .map(|where_clause| {
+                self.unbind_where_clause(
+                    module,
+                    *where_clause,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                )
+            })
+            .collect();
         let this_parameter = signature.this_parameter.map(|parameter| {
             self.unbind_parameter(
                 module,
                 parameter,
                 tree,
                 symbols,
+                types,
                 ast_tree,
                 ast_strings,
                 context,
             )
         });
-        let dynamic_parameters = signature
-            .dynamic_parameters
+        let parameters = signature
+            .parameters
             .iter()
             .map(|parameter| {
                 self.unbind_parameter(
@@ -118,6 +233,7 @@ impl Compiler {
                     *parameter,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -125,25 +241,28 @@ impl Compiler {
             })
             .collect();
         let return_type = signature.return_type.map(|return_type| {
-            self.unbind_expression(
+            self.unbind_type_expression(
                 module,
                 return_type,
                 tree,
                 symbols,
+                types,
                 ast_tree,
                 ast_strings,
                 context,
             )
         });
         ast::FunctionSignature {
-            abstraction,
+            is_abstract,
+            is_override,
             asynchrony,
             cardinality,
             mode,
             kind,
-            generics,
+            generic_parameters,
+            where_clauses,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         }
     }

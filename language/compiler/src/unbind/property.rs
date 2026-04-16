@@ -8,6 +8,18 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Unbind a DIR ambientness to an AST ambientness.
+    pub(super) fn unbind_ambientness(
+        &self,
+        ambient: dir::Ambientness,
+        _context: &mut UnbindContext,
+    ) -> ast::Ambientness {
+        match ambient {
+            dir::Ambientness::Ambient => ast::Ambientness::Ambient,
+            dir::Ambientness::Concrete => ast::Ambientness::Concrete,
+        }
+    }
+
     /// Unbind a DIR property to an AST property.
     pub(super) fn unbind_property(
         &self,
@@ -15,71 +27,63 @@ impl Compiler {
         property_id: dir::LocalNodeId<dir::Property>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Property> {
         let property = tree.get(property_id);
         let span = self.unbind_span(module, property_id.into());
+
         let ast_property = match property {
-            dir::Property::Field {
-                modifiers,
-                key,
-                value,
-                default,
-                ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let key = key.as_ref().map(|key| {
-                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
-                });
-                let value = value.map(|value| {
-                    self.unbind_expression(
-                        module,
-                        value,
-                        tree,
-                        symbols,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
-                let default = default.map(|default| {
-                    self.unbind_expression(
-                        module,
-                        default,
-                        tree,
-                        symbols,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
-                ast::Property::Field {
-                    modifiers,
+            dir::Property::Field { key, value, .. } => {
+                let key = self.unbind_key(
+                    module,
                     key,
-                    value,
-                    default,
-                }
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::Property::Field { key, value }
             }
             dir::Property::Method {
-                modifiers,
                 key,
                 signature,
                 body,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let key = key.as_ref().map(|key| {
-                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
+                let key = key.map(|key| {
+                    self.unbind_key(
+                        module,
+                        &key,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 let signature = self.unbind_function_signature(
                     module,
                     signature,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -90,36 +94,36 @@ impl Compiler {
                         body,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
+
                 ast::Property::Method {
-                    modifiers,
                     key,
                     signature,
                     body,
                 }
             }
-            dir::Property::Spread {
-                modifiers, value, ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+            dir::Property::Spread { value, .. } => {
                 let value = self.unbind_expression(
                     module,
                     *value,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                ast::Property::Spread { modifiers, value }
+
+                ast::Property::Spread { value }
             }
             dir::Property::Error { .. } => ast::Property::Error,
         };
+
         let ast_property_id = ast_tree.insert(ast_property, span);
         context.map(property_id.into_any(), ast_property_id.into_any());
         ast_property_id
@@ -132,104 +136,115 @@ impl Compiler {
         member_id: dir::LocalNodeId<dir::Member>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Member> {
         let member = tree.get(member_id);
         let span = self.unbind_span(module, member_id.into());
+
         let ast_member = match member {
-            dir::Member::Type {
-                modifiers,
+            dir::Member::AssociatedType {
                 name,
-                static_parameters,
+                generic_parameters,
                 where_clauses,
-                ty,
+                constraint,
                 value,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name = ast_strings.intern_from(&self.repository.strings, *name);
-                let static_parameters = static_parameters.as_ref().map(|static_parameters| {
-                    static_parameters
-                        .iter()
-                        .map(|parameter| {
-                            self.unbind_parameter(
-                                module,
-                                *parameter,
-                                tree,
-                                symbols,
-                                ast_tree,
-                                ast_strings,
-                                context,
-                            )
-                        })
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|where_clauses| {
-                    where_clauses
-                        .iter()
-                        .map(|where_clause| {
-                            self.unbind_where_clause(
-                                module,
-                                *where_clause,
-                                tree,
-                                symbols,
-                                ast_tree,
-                                ast_strings,
-                                context,
-                            )
-                        })
-                        .collect()
-                });
-                let ty = ty.map(|ty| {
-                    self.unbind_expression(
+                let generic_parameters = generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let constraint = constraint.map(|constraint| {
+                    self.unbind_type_expression(
                         module,
-                        ty,
+                        constraint,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
                 let value = value.map(|value| {
-                    self.unbind_expression(
+                    self.unbind_type_expression(
                         module,
                         value,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
-                ast::Member::Type {
-                    modifiers,
+
+                ast::Member::AssociatedType {
                     name,
-                    static_parameters,
+                    generic_parameters,
                     where_clauses,
-                    ty,
+                    constraint,
                     value,
+                    visibility: visibility
+                        .map(|visibility| self.unbind_visibility(visibility, context)),
+                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_abstract: *is_abstract,
+                    is_override: *is_override,
+                    is_static: *is_static,
                 }
             }
-            dir::Member::ComptimeConst {
-                modifiers,
+            dir::Member::AssociatedConst {
                 name,
-                ty,
+                declared_type,
                 value,
+                visibility,
+                ambient,
+                is_static,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name = ast_strings.intern_from(&self.repository.strings, *name);
-                let ty = ty.map(|ty| {
-                    self.unbind_expression(
+                let declared_type = declared_type.map(|declared_type| {
+                    self.unbind_type_expression(
                         module,
-                        ty,
+                        declared_type,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
@@ -241,36 +256,57 @@ impl Compiler {
                         value,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
-                ast::Member::ComptimeConst {
-                    modifiers,
+
+                ast::Member::AssociatedConst {
                     name,
-                    ty,
+                    declared_type,
                     value,
+                    visibility: visibility
+                        .map(|visibility| self.unbind_visibility(visibility, context)),
+                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_static: *is_static,
                 }
             }
             dir::Member::Field {
-                modifiers,
                 key,
-                value,
+                declared_type,
                 default,
+                is_optional,
+                is_readonly,
+                mutability,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_const_asserted,
+                is_accessor,
+                is_comptime,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let key = key.as_ref().map(|key| {
-                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
-                });
-                let value = value.map(|value| {
-                    self.unbind_expression(
+                let key = self.unbind_key(
+                    module,
+                    key,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let declared_type = declared_type.map(|declared_type| {
+                    self.unbind_type_expression(
                         module,
-                        value,
+                        declared_type,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
@@ -282,35 +318,63 @@ impl Compiler {
                         default,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
+
                 ast::Member::Field {
-                    modifiers,
                     key,
-                    value,
+                    declared_type,
                     default,
+                    is_optional: *is_optional,
+                    is_readonly: *is_readonly,
+                    mutability: mutability
+                        .map(|mutability| self.unbind_mutability(context, mutability)),
+                    visibility: visibility
+                        .map(|visibility| self.unbind_visibility(visibility, context)),
+                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_abstract: *is_abstract,
+                    is_override: *is_override,
+                    is_static: *is_static,
+                    is_const_asserted: *is_const_asserted,
+                    is_accessor: *is_accessor,
+                    is_comptime: *is_comptime,
                 }
             }
             dir::Member::Method {
-                modifiers,
                 key,
                 signature,
                 body,
+                visibility,
+                ambient,
+                is_abstract,
+                is_override,
+                is_static,
+                is_accessor,
+                is_comptime,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let key = key.as_ref().map(|key| {
-                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
+                let key = key.map(|key| {
+                    self.unbind_key(
+                        module,
+                        &key,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 let signature = self.unbind_function_signature(
                     module,
                     signature,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -321,68 +385,84 @@ impl Compiler {
                         body,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,
                     )
                 });
+
                 ast::Member::Method {
-                    modifiers,
                     key,
                     signature,
                     body,
+                    visibility: visibility
+                        .map(|visibility| self.unbind_visibility(visibility, context)),
+                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_abstract: *is_abstract,
+                    is_override: *is_override,
+                    is_static: *is_static,
+                    is_accessor: *is_accessor,
+                    is_comptime: *is_comptime,
                 }
             }
             dir::Member::Embed {
-                modifiers, value, ..
+                value,
+                visibility,
+                ambient,
+                is_static,
+                ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let value = self.unbind_expression(
+                let value = self.unbind_type_expression(
                     module,
                     *value,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                ast::Member::Embed { modifiers, value }
+
+                ast::Member::Embed {
+                    value,
+                    visibility: visibility
+                        .map(|visibility| self.unbind_visibility(visibility, context)),
+                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_static: *is_static,
+                }
             }
-            dir::Member::StaticBlock {
-                modifiers, body, ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+            dir::Member::StaticBlock { body, .. } => {
                 let body = self.unbind_expression(
                     module,
                     *body,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                ast::Member::StaticBlock { modifiers, body }
+
+                ast::Member::StaticBlock { body }
             }
-            dir::Member::ComptimeBlock {
-                modifiers, body, ..
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+            dir::Member::ComptimeBlock { body, .. } => {
                 let body = self.unbind_expression(
                     module,
                     *body,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
-                ast::Member::ComptimeBlock { modifiers, body }
+
+                ast::Member::ComptimeBlock { body }
             }
             dir::Member::Error { .. } => ast::Member::Error,
         };
+
         let ast_member_id = ast_tree.insert(ast_member, span);
         context.map(member_id.into_any(), ast_member_id.into_any());
         ast_member_id

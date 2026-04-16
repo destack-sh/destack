@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree, NodeType,
-    SymbolSpaceOrder, SymbolTable, TypeTable, WhereClause,
+    SymbolSpaceOrder, SymbolTable, TypeExpression, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
@@ -37,7 +37,7 @@ impl Compiler {
             .repository
             .strings
             .intern_from(&ast.strings, ast_where_clause.left);
-        let right = self.bind_expression(
+        let right: LocalNodeId<TypeExpression> = self.bind_type_expression(
             module,
             ast,
             namespace_scope,

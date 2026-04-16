@@ -2,7 +2,7 @@ use destack_ast::{self as ast};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_source::{FileId, Span};
-use destack_workspace::{Module, ProfileId, Revision};
+use destack_workspace::{Module, ProfileId};
 
 use super::UnbindContext;
 use crate::Compiler;
@@ -27,153 +27,84 @@ impl Compiler {
     }
 
     /// Unbind a module's DIR tree to an AST tree.
-    pub fn unbind_module(
-        &self,
-        revision: Revision,
-        module: &Module,
-        profile: ProfileId,
-    ) -> UnboundModule {
+    pub fn unbind_module(&self, module: &Module, profile: ProfileId) -> UnboundModule {
         if let Some(dir) = self.dir_patched(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_elaborated(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_analyzed(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_interface(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_declared(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_resolved(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_prepared(module.id, profile) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
         if let Some(dir) = self.dir_base(module.id) {
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
             return self.unbind_module_from_parts(
-                revision,
                 module,
                 &dir.tree,
                 &dir.symbols,
+                &dir.types,
                 &dir.roots,
-                fallback_node,
-                profile,
             );
         }
 
@@ -183,16 +114,14 @@ impl Compiler {
     /// Unbind module parts into an AST tree.
     pub(crate) fn unbind_module_from_parts(
         &self,
-        revision: Revision,
         module: &Module,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         roots: &[dir::LocalNodeId<dir::Expression>],
-        fallback_node: dir::LocalNodeIdAny,
-        profile: ProfileId,
     ) -> UnboundModule {
         // initialize the unbind context
-        let mut context = UnbindContext::new(profile, revision, fallback_node);
+        let mut context = UnbindContext::new();
 
         // rebuild the AST tree
         let mut ast_tree = ast::NodeTree::new();
@@ -205,6 +134,7 @@ impl Compiler {
                     *expression_id,
                     tree,
                     symbols,
+                    types,
                     &mut ast_tree,
                     &mut ast_strings,
                     &mut context,
@@ -212,11 +142,12 @@ impl Compiler {
             })
             .collect();
 
-        // attach annotations after all nodes have been unbound
-        self.attach_unbind_annotations(
+        // attach decorators after all nodes have been unbound
+        self.attach_unbind_decorators(
             module,
             tree,
             symbols,
+            types,
             &mut ast_tree,
             &mut ast_strings,
             &mut context,

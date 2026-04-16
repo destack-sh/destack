@@ -1,8 +1,8 @@
 use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
-    Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree,
-    NodeType, ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
+    Block, BlockContext, BlockFormat, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    ModuleBinding, NodeTree, NodeType, ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -79,6 +79,8 @@ impl Compiler {
         let block_id = tree.insert(
             block_id,
             Block {
+                context: BlockContext::Expression,
+                format: BlockFormat::Explicit,
                 leading_expressions,
                 tail_expression,
                 scope: scope_id,

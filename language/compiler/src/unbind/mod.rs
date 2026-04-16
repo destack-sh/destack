@@ -18,7 +18,6 @@ mod r#where;
 
 pub use module::*;
 
-use destack_workspace::{ProfileId, Revision};
 use std::collections::HashMap;
 use {destack_ast as ast, destack_dir as dir};
 
@@ -26,27 +25,14 @@ use {destack_ast as ast, destack_dir as dir};
 pub(super) struct UnbindContext {
     /// Map DIR node ids to their corresponding AST node ids.
     pub node_map: HashMap<dir::LocalNodeIdAny, ast::LocalNodeIdAny>,
-    /// The profile id for this unbind run.
-    pub profile: ProfileId,
-    /// The pinned revision for remote module reads.
-    pub revision: Revision,
-    /// Fallback node for diagnostics when no source node exists.
-    pub fallback_node: dir::LocalNodeIdAny,
 }
 
 impl UnbindContext {
     /// Create a new unbind context.
-    pub(super) fn new(
-        profile: ProfileId,
-        revision: Revision,
-        fallback_node: dir::LocalNodeIdAny,
-    ) -> Self {
+    pub(super) fn new() -> Self {
         // build the context defaults
         Self {
             node_map: HashMap::new(),
-            profile,
-            revision,
-            fallback_node,
         }
     }
 

@@ -81,7 +81,6 @@ impl Compiler {
 
             // container
             dir::BinaryOperator::In => ast::BinaryOperator::In,
-            dir::BinaryOperator::InstanceOf => ast::BinaryOperator::InstanceOf,
         }
     }
 
@@ -141,42 +140,6 @@ impl Compiler {
             dir::AssignOperator::AndAssign => ast::AssignOperator::AndAssign,
             dir::AssignOperator::OrAssign => ast::AssignOperator::OrAssign,
             dir::AssignOperator::CoalesceAssign => ast::AssignOperator::CoalesceAssign,
-        }
-    }
-
-    /// Unbind a DIR type unary operator to an AST type unary operator.
-    pub(super) fn unbind_type_unary_operator(
-        &self,
-        _context: &mut UnbindContext,
-        operator: dir::TypeUnaryOperator,
-    ) -> ast::TypeUnaryOperator {
-        match operator {
-            dir::TypeUnaryOperator::Not => ast::TypeUnaryOperator::Not,
-            dir::TypeUnaryOperator::Must => ast::TypeUnaryOperator::Must,
-            dir::TypeUnaryOperator::Newtype => ast::TypeUnaryOperator::Newtype,
-            dir::TypeUnaryOperator::Type => ast::TypeUnaryOperator::Type,
-            dir::TypeUnaryOperator::Readonly => ast::TypeUnaryOperator::Readonly,
-            dir::TypeUnaryOperator::Typeof => ast::TypeUnaryOperator::Typeof,
-            dir::TypeUnaryOperator::Keyof => ast::TypeUnaryOperator::Keyof,
-            dir::TypeUnaryOperator::AsComptime => ast::TypeUnaryOperator::AsComptime,
-            dir::TypeUnaryOperator::AsConst => ast::TypeUnaryOperator::AsConst,
-        }
-    }
-
-    /// Unbind a DIR type binary operator to an AST type binary operator.
-    pub(super) fn unbind_type_binary_operator(
-        &self,
-        _context: &mut UnbindContext,
-        operator: dir::TypeBinaryOperator,
-    ) -> ast::TypeBinaryOperator {
-        match operator {
-            dir::TypeBinaryOperator::Cast => ast::TypeBinaryOperator::Cast,
-            dir::TypeBinaryOperator::In => ast::TypeBinaryOperator::In,
-            dir::TypeBinaryOperator::Is => ast::TypeBinaryOperator::Is,
-            dir::TypeBinaryOperator::InstanceOf => ast::TypeBinaryOperator::InstanceOf,
-            dir::TypeBinaryOperator::Satisfies => ast::TypeBinaryOperator::Satisfies,
-            dir::TypeBinaryOperator::Extends => ast::TypeBinaryOperator::Extends,
-            dir::TypeBinaryOperator::Implements => ast::TypeBinaryOperator::Implements,
         }
     }
 }

@@ -15,12 +15,14 @@ impl Compiler {
         pattern_id: dir::LocalNodeId<dir::Pattern>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Pattern> {
         let pattern = tree.get(pattern_id);
         let span = self.unbind_span(module, pattern_id.into());
+
         let ast_pattern = match pattern {
             dir::Pattern::Wildcard => ast::Pattern::Wildcard,
             dir::Pattern::Must(inner_pattern_id) => {
@@ -29,6 +31,7 @@ impl Compiler {
                     *inner_pattern_id,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -42,6 +45,7 @@ impl Compiler {
                     *right,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -55,6 +59,7 @@ impl Compiler {
                     *right,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -70,7 +75,16 @@ impl Compiler {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let pattern = pattern.map(|p| {
-                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_pattern(
+                        module,
+                        p,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Pattern::Binding {
                     mutability,
@@ -84,11 +98,25 @@ impl Compiler {
                     *value,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
                 ast::Pattern::Expression { value }
+            }
+            dir::Pattern::TypeExpression { value } => {
+                let value = self.unbind_type_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                ast::Pattern::TypeExpression { value }
             }
             dir::Pattern::Tuple { fields } => {
                 let fields = fields
@@ -99,6 +127,7 @@ impl Compiler {
                             *field,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
@@ -108,11 +137,12 @@ impl Compiler {
                 ast::Pattern::Tuple { fields }
             }
             dir::Pattern::TaggedTuple { ty, fields } => {
-                let ty = self.unbind_expression(
+                let ty = self.unbind_type_expression(
                     module,
                     *ty,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -125,6 +155,7 @@ impl Compiler {
                             *field,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
@@ -142,6 +173,7 @@ impl Compiler {
                             *field,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
@@ -159,6 +191,7 @@ impl Compiler {
                             *field,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
@@ -168,11 +201,12 @@ impl Compiler {
                 ast::Pattern::Object { fields }
             }
             dir::Pattern::TaggedObject { ty, fields } => {
-                let ty = self.unbind_expression(
+                let ty = self.unbind_type_expression(
                     module,
                     *ty,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
@@ -185,6 +219,7 @@ impl Compiler {
                             *field,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
@@ -202,6 +237,7 @@ impl Compiler {
                             *p,
                             tree,
                             symbols,
+                            types,
                             ast_tree,
                             ast_strings,
                             context,
@@ -223,6 +259,7 @@ impl Compiler {
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
@@ -241,10 +278,28 @@ impl Compiler {
                 let name =
                     ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
                 let pattern = pattern.map(|p| {
-                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_pattern(
+                        module,
+                        p,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 let default = default.map(|d| {
-                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_expression(
+                        module,
+                        d,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::PatternField::Named {
                     mutability,
@@ -265,15 +320,34 @@ impl Compiler {
                     *key,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
                 let pattern = pattern.map(|p| {
-                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_pattern(
+                        module,
+                        p,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 let default = default.map(|d| {
-                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_expression(
+                        module,
+                        d,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::PatternField::Computed {
                     mutability,
@@ -294,7 +368,16 @@ impl Compiler {
                     ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
                 let alias = ast_strings.intern_from(&self.repository.strings, *alias);
                 let default = default.map(|d| {
-                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_expression(
+                        module,
+                        d,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::PatternField::Alias {
                     mutability,
@@ -309,12 +392,22 @@ impl Compiler {
                     *pattern,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,
                 );
                 let default = default.map(|d| {
-                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
+                    self.unbind_expression(
+                        module,
+                        d,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::PatternField::Positional { pattern, default }
             }
@@ -329,6 +422,7 @@ impl Compiler {
                         pattern_id,
                         tree,
                         symbols,
+                        types,
                         ast_tree,
                         ast_strings,
                         context,

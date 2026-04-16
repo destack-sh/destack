@@ -2,10 +2,10 @@ use crate::{Compiler, CompilerContext};
 use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
-    Annotation, AnnotationPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    Decorator, DecoratorPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_source::File;
+use destack_source::{File, NodeSpanType};
 use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
@@ -23,7 +23,7 @@ impl Compiler {
 
         // scan every source-backed dir node once
         for node_id in node_ids {
-            if node_id.ty == NodeType::Annotation || tree.has_documentation(node_id.id) {
+            if node_id.ty == NodeType::Decorator || tree.has_documentation(node_id.id) {
                 continue;
             }
 
@@ -42,7 +42,7 @@ impl Compiler {
         }
     }
 
-    /// Bind and attach all annotations for a module.
+    /// Bind and attach all decorators for a module.
     pub(super) fn attach_annotations(
         &self,
         module: &Module,
@@ -56,58 +56,49 @@ impl Compiler {
         types: &mut TypeTable,
         context: &CompilerContext<'_>,
     ) {
-        // bind them
-        for ast_annotation_id in ast.tree.get_nodes::<ast::Annotation>() {
-            let ast_parent_id = ast.parents.get(ast_annotation_id);
-            let dir_parent_id = ast_parent_id
-                .and_then(|ast_parent_id| tree.get_node_id_by_source_id(ast_parent_id));
-            self.bind_annotation(
-                module,
-                ast,
-                scope,
-                namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
-                ast_annotation_id,
-                dir_parent_id,
-                tree,
-                symbols,
-                types,
-            );
-        }
-
-        // attach them
-        for (ast_node_id, ast_annotations) in ast.tree.get_all_annotations() {
+        // bind and attach each decorator against its source-backed owner
+        for (ast_node_id, ast_decorators) in ast.tree.get_all_decorators() {
             let Some(dir_node_id) = tree.get_node_id_by_source_id(*ast_node_id) else {
                 continue;
             };
-            for ast_annotation_id in ast_annotations {
-                let Some(dir_annotation_id) = tree.get_node_id_by_source_id(ast_annotation_id.id)
-                else {
-                    continue; // skipped by bind_annotation
+            for ast_decorator_id in ast_decorators {
+                let Some(dir_decorator_id) = self.bind_annotation(
+                    module,
+                    ast,
+                    scope,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    *ast_decorator_id,
+                    Some(dir_node_id),
+                    tree,
+                    symbols,
+                    types,
+                ) else {
+                    continue;
                 };
-                tree.append_annotation(dir_node_id, LocalNodeId::new(dir_annotation_id.id));
+                tree.append_decorator(dir_node_id, dir_decorator_id);
             }
         }
         self.attach_documentation(module, ast, tree, context);
     }
 
-    /// Bind an annotation position into a DIR annotation position.
+    /// Bind a decorator position into a DIR decorator position.
     pub(super) fn bind_annotation_position(
         &self,
-        annotation_position: ast::AnnotationPosition,
-    ) -> AnnotationPosition {
+        annotation_position: ast::DecoratorPosition,
+    ) -> DecoratorPosition {
         match annotation_position {
-            ast::AnnotationPosition::BlockInfix => AnnotationPosition::Infix,
-            ast::AnnotationPosition::BlockPrefix => AnnotationPosition::Prefix,
-            ast::AnnotationPosition::BlockPostfix => AnnotationPosition::Postfix,
-            ast::AnnotationPosition::LinePrefix => AnnotationPosition::Prefix,
-            ast::AnnotationPosition::LinePostfix => AnnotationPosition::Postfix,
-            ast::AnnotationPosition::LinePostfixBoundary => AnnotationPosition::Postfix,
+            ast::DecoratorPosition::BlockInfix => DecoratorPosition::BlockInfix,
+            ast::DecoratorPosition::BlockPrefix => DecoratorPosition::BlockPrefix,
+            ast::DecoratorPosition::BlockPostfix => DecoratorPosition::BlockPostfix,
+            ast::DecoratorPosition::LinePrefix => DecoratorPosition::LinePrefix,
+            ast::DecoratorPosition::LinePostfix => DecoratorPosition::LinePostfix,
+            ast::DecoratorPosition::LinePostfixBoundary => DecoratorPosition::LinePostfixBoundary,
         }
     }
 
-    /// Bind an annotation to a DIR annotation.
+    /// Bind one AST decorator to one DIR decorator.
     pub(super) fn bind_annotation(
         &self,
         module: &Module,
@@ -116,38 +107,33 @@ impl Compiler {
         namespace_scope: LocalScopeId,
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
-        ast_annotation_id: ast::LocalNodeId<ast::Annotation>,
+        ast_annotation_id: ast::LocalNodeId<ast::Decorator>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-    ) -> Option<LocalNodeId<Annotation>> {
+    ) -> Option<LocalNodeId<Decorator>> {
         let ast_annotation = ast.tree.get(ast_annotation_id);
         let annotation_id =
-            tree.reserve_from_source(NodeType::Annotation, ast_annotation_id.id, scope, parent_id);
-        let annotation = match ast_annotation {
-            ast::Annotation::Decorator { node, position } => {
-                let decorator = ast.tree.get(*node);
-                let position = self.bind_annotation_position(*position);
-                let expression = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    decorator.expression,
-                    Some(annotation_id),
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpaceOrder::ValueThenType,
-                );
-                Annotation::Decorator {
-                    position,
-                    expression,
-                }
-            }
+            tree.reserve_from_source(NodeType::Decorator, ast_annotation_id.id, scope, parent_id);
+        let position = self.bind_annotation_position(ast_annotation.position);
+        let expression = self.bind_expression(
+            module,
+            ast,
+            namespace_scope,
+            global_augmentation_scope,
+            module_bindings,
+            scope,
+            ast_annotation.expression,
+            Some(annotation_id),
+            tree,
+            symbols,
+            types,
+            SymbolSpaceOrder::ValueThenType,
+        );
+        let annotation = Decorator {
+            position,
+            expression,
         };
         Some(tree.insert(annotation_id, annotation))
     }
@@ -159,7 +145,15 @@ fn source_node_documentation(ast: &Ast, file: &File, source_start: u32) -> Optio
 
     // collect all leading doc comments attached to this source start
     for comment in ast.tree.comments().iter().copied() {
-        if !comment.is_leading() || comment.attached_to != source_start {
+        let attached_span = ast.tree.source_map.get_side_or_enclosing(
+            comment.attached_part.source_id,
+            comment.attached_part.span_type,
+        );
+        if !matches!(
+            comment.attached_part.span_type,
+            NodeSpanType::Enclosing | NodeSpanType::Leading
+        ) || attached_span.start != source_start
+        {
             continue;
         }
 
