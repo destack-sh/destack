@@ -1,7 +1,6 @@
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Declaration, FunctionSignature, LocalNodeId,
-    Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, Type,
-    TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, Type, UnaryOperator,
 };
 use destack_source::ModuleId;
 
@@ -25,7 +24,7 @@ pub enum Expression {
     /// Path.
     Path {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Import meta expression.
     ImportMeta,
@@ -57,16 +56,25 @@ pub enum Expression {
     /// Parenthesized expression.
     Parenthesized { expression: LocalNodeId<Expression> },
 
-    /// Type unary operation.
-    TypeUnary {
-        operator: TypeUnaryOperator,
-        right: LocalNodeId<Expression>,
+    /// TypeScript-style `as` assertion.
+    As {
+        expression: LocalNodeId<Expression>,
+        target_type: LocalNodeId<Type>,
     },
-    /// Type binary operation.
-    TypeBinary {
-        left: LocalNodeId<Expression>,
-        operator: TypeBinaryOperator,
-        right: LocalNodeId<Expression>,
+    /// TypeScript-style `satisfies` expression.
+    Satisfies {
+        expression: LocalNodeId<Expression>,
+        target_type: LocalNodeId<Type>,
+    },
+    /// Runtime type guard.
+    Is {
+        value: LocalNodeId<Expression>,
+        target_type: LocalNodeId<Type>,
+    },
+    /// Runtime constructor guard.
+    InstanceOf {
+        value: LocalNodeId<Expression>,
+        target: LocalNodeId<Expression>,
     },
 
     /// Unary operation.
@@ -106,13 +114,13 @@ pub enum Expression {
     Member {
         left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Private member access.
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Index.
     Index {
@@ -123,13 +131,13 @@ pub enum Expression {
     /// Instantiation expression.
     Instantiation {
         left: LocalNodeId<Expression>,
-        static_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Call.
     Call {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Dynamic import call.
@@ -148,7 +156,7 @@ pub enum Expression {
     /// New.
     New {
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+        generic_arguments: Vec<LocalNodeId<Type>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Arrow function expression.
@@ -304,7 +312,11 @@ impl Expression {
             Self::Assign { .. } | Self::AssignBinary { .. } => Precedence::Assignment,
             Self::IfTernary { .. } => Precedence::Conditional,
             Self::Binary { operator, .. } => operator.precedence(),
-            Self::Await { .. } | Self::Unary { .. } | Self::TypeUnary { .. } => Precedence::Prefix,
+            Self::As { .. }
+            | Self::Satisfies { .. }
+            | Self::Is { .. }
+            | Self::InstanceOf { .. } => Precedence::Compare,
+            Self::Await { .. } | Self::Unary { .. } => Precedence::Prefix,
             Self::Maybe { .. }
             | Self::Must { .. }
             | Self::Member { .. }
@@ -315,7 +327,6 @@ impl Expression {
             | Self::ImportCall { .. }
             | Self::New { .. } => Precedence::Postfix,
             Self::ArrowFunction { .. } => Precedence::Conditional,
-            Self::TypeBinary { operator, .. } => operator.precedence(),
             Self::Declaration { .. }
             | Self::Path { .. }
             | Self::ImportMeta
@@ -359,12 +370,5 @@ impl BinaryOperator {
             Self::Or => Precedence::LogicalOr,
             Self::Coalesce => Precedence::Coalesce,
         }
-    }
-}
-
-impl TypeBinaryOperator {
-    /// Return the local precedence for this type binary operator.
-    pub(crate) fn precedence(self) -> Precedence {
-        Precedence::Compare
     }
 }

@@ -1,7 +1,6 @@
 use crate::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    FunctionAbstraction, FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
-    VarianceModifier,
+    FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property, VarianceModifier,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -120,18 +119,12 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // abstraction
-                match signature.abstraction {
-                    FunctionAbstraction::Abstract => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                    }
-                    FunctionAbstraction::AbstractOverride => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::ConcreteOverride => {
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::Concrete => {}
+                if signature.is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                }
+
+                if signature.is_override {
+                    write!(f, [Keyword::Override, space()])?;
                 }
                 // asynchrony
                 if signature.asynchrony == Asynchrony::Async {
@@ -152,14 +145,9 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
                 // key
                 write!(f, [key])?;
-                // static parameters
-                if let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                // generic parameters
+                if !signature.generic_parameters.is_empty() {
+                    write!(f, [list_like("<", ">", ",", &signature.generic_parameters)])?;
                 }
                 // parameters
                 format_function_signature_parameters(signature, f)?;
@@ -225,18 +213,12 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // abstraction
-                match signature.abstraction {
-                    FunctionAbstraction::Abstract => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                    }
-                    FunctionAbstraction::AbstractOverride => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::ConcreteOverride => {
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::Concrete => {}
+                if signature.is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                }
+
+                if signature.is_override {
+                    write!(f, [Keyword::Override, space()])?;
                 }
                 // asynchrony
                 if signature.asynchrony == Asynchrony::Async {
@@ -257,14 +239,9 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 }
                 // key
                 write!(f, [key])?;
-                // static parameters
-                if let Some(static_parameters) = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                // generic parameters
+                if !signature.generic_parameters.is_empty() {
+                    write!(f, [list_like("<", ">", ",", &signature.generic_parameters)])?;
                 }
                 // parameters
                 format_function_signature_parameters(signature, f)?;

@@ -2,12 +2,13 @@
 
 use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
-    DependencyItem, EnumField, Expression, LocalNodeId, Member, NodeTree, NodeType, Parameter,
-    Pattern, PatternField, Property, Statement, SwitchCase, TupleElement, Type, TypeField,
-    walk_annotation, walk_argument, walk_array_element, walk_block, walk_catch_clause,
-    walk_declaration, walk_declarator, walk_dependency_item, walk_enum_field, walk_expression,
-    walk_member, walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_statement,
-    walk_switch_case, walk_tuple_element, walk_type, walk_type_field,
+    DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId, Member, NodeTree,
+    NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TupleElement,
+    Type, TypeMember, walk_annotation, walk_argument, walk_array_element, walk_block,
+    walk_catch_clause, walk_declaration, walk_declarator, walk_dependency_item, walk_enum_field,
+    walk_expression, walk_generic_parameter, walk_member, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_statement, walk_switch_case, walk_tuple_element,
+    walk_type, walk_type_member,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -121,6 +122,16 @@ pub trait NodeVisitor {
         walk_dependency_item(self, tree, id, dependency_item);
     }
 
+    /// Visit one generic parameter.
+    fn visit_generic_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<GenericParameter>,
+        parameter: &GenericParameter,
+    ) {
+        walk_generic_parameter(self, tree, id, parameter);
+    }
+
     /// Visit a parameter.
     fn visit_parameter(
         &mut self,
@@ -166,14 +177,14 @@ pub trait NodeVisitor {
         walk_tuple_element(self, tree, id, tuple_element);
     }
 
-    /// Visit a type field.
-    fn visit_type_field(
+    /// Visit a type member.
+    fn visit_type_member(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<TypeField>,
-        attribute: &TypeField,
+        id: LocalNodeId<TypeMember>,
+        attribute: &TypeMember,
     ) {
-        walk_type_field(self, tree, id, attribute);
+        walk_type_member(self, tree, id, attribute);
     }
 
     /// Visit an annotation.
@@ -303,6 +314,15 @@ impl NodeVisitor for CapturingNodeVisitor {
         _dependency_item: &DependencyItem,
     ) {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
+    }
+
+    fn visit_generic_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<GenericParameter>,
+        _parameter: &GenericParameter,
+    ) {
+        self.visit_any(tree, NodeType::GenericParameter, id.id);
     }
 
     fn visit_parameter(

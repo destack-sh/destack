@@ -72,10 +72,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         }
 
         match self {
-            Declaration::Global {
-                descriptor,
-                statements,
-            } => {
+            Declaration::Global(global) => {
+                let descriptor = &global.descriptor;
+                let statements = &global.statements;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -102,10 +102,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     ]
                 )?;
             }
-            Declaration::Namespace {
-                descriptor,
-                statements,
-            } => {
+            Declaration::Namespace(namespace) => {
+                let descriptor = &namespace.descriptor;
+                let statements = &namespace.statements;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -137,11 +137,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     ]
                 )?;
             }
-            Declaration::Type {
-                descriptor,
-                static_parameters,
-                value,
-            } => {
+            Declaration::Type(ty) => {
+                let descriptor = &ty.descriptor;
+                let generic_parameters = &ty.generic_parameters;
+                let value = ty.value;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -155,20 +155,21 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [space(), name])?;
                 }
 
-                // static parameters
-                if let Some(static_parameters) = static_parameters {
-                    format_type_parameter_list(static_parameters, f)?;
+                // generic parameters
+                if !generic_parameters.is_empty() {
+                    format_type_parameter_list(generic_parameters, f)?;
                 }
 
                 // value
-                write!(f, [space(), token("="), space(), *value])?;
+                write!(f, [space(), token("="), space(), value])?;
             }
-            Declaration::Class {
-                descriptor,
-                generics,
-                heritage,
-                members,
-            } => {
+            Declaration::Class(class) => {
+                let descriptor = &class.descriptor;
+                let generic_parameters = &class.generic_parameters;
+                let extends_expression = class.extends_expression;
+                let implements_types = &class.implements_types;
+                let members = &class.members;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -187,26 +188,18 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [space(), name])?;
                 }
 
-                // static parameters
-                if f.context().include_types()
-                    && let Some(static_parameters) = generics.static_parameters.as_ref()
-                    && !static_parameters.is_empty()
-                {
-                    format_type_parameter_list(static_parameters, f)?;
+                // generic parameters
+                if f.context().include_types() && !generic_parameters.is_empty() {
+                    format_type_parameter_list(generic_parameters, f)?;
                 }
 
-                // extends types
-                if let Some(extends_types) = heritage.extends_types.as_ref()
-                    && !extends_types.is_empty()
-                {
-                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
+                // extends expression
+                if let Some(extends_expression) = extends_expression {
+                    write!(f, [space(), Keyword::Extends, space(), extends_expression])?;
                 }
 
                 // implements types
-                if f.context().include_types()
-                    && let Some(implements_types) = heritage.implements_types.as_ref()
-                    && !implements_types.is_empty()
-                {
+                if f.context().include_types() && !implements_types.is_empty() {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
@@ -221,12 +214,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
             }
-            Declaration::Interface {
-                descriptor,
-                generics,
-                heritage,
-                members,
-            } => {
+            Declaration::Interface(interface) => {
+                let descriptor = &interface.descriptor;
+                let generic_parameters = &interface.generic_parameters;
+                let extends_types = &interface.extends_types;
+                let members = &interface.members;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -245,17 +238,13 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [space(), name])?;
                 }
 
-                // static parameters
-                if let Some(static_parameters) = generics.static_parameters.as_ref()
-                    && !static_parameters.is_empty()
-                {
-                    format_type_parameter_list(static_parameters, f)?;
+                // generic parameters
+                if !generic_parameters.is_empty() {
+                    format_type_parameter_list(generic_parameters, f)?;
                 }
 
                 // extends types
-                if let Some(extends_types) = heritage.extends_types.as_ref()
-                    && !extends_types.is_empty()
-                {
+                if !extends_types.is_empty() {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
@@ -270,7 +259,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
             }
-            Declaration::Enum { descriptor, fields } => {
+            Declaration::Enum(enum_declaration) => {
+                let descriptor = &enum_declaration.descriptor;
+                let fields = &enum_declaration.fields;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -300,11 +292,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
             }
-            Declaration::Function {
-                descriptor,
-                signature,
-                body,
-            } => {
+            Declaration::Function(function) => {
+                let descriptor = &function.descriptor;
+                let signature = &function.signature;
+                let body = function.body;
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -333,15 +325,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [space(), name])?;
                 }
 
-                // static parameters
-                if f.context().include_types()
-                    && let Some(static_parameters) = signature
-                        .generics
-                        .as_ref()
-                        .and_then(|generics| generics.static_parameters.as_ref())
-                    && !static_parameters.is_empty()
-                {
-                    format_type_parameter_list(static_parameters, f)?;
+                // generic parameters
+                if f.context().include_types() && !signature.generic_parameters.is_empty() {
+                    format_type_parameter_list(&signature.generic_parameters, f)?;
                 }
 
                 // parameters

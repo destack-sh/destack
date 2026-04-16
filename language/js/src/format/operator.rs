@@ -1,7 +1,7 @@
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{AssignOperator, BinaryOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
+use crate::{AssignOperator, BinaryOperator, UnaryOperator};
 
 use crate::{JsFormatContext, JsFormatter};
 
@@ -64,37 +64,6 @@ impl<'ast> Format<JsFormatContext<'ast>> for BinaryOperator {
             // container
             BinaryOperator::In => token("in"),
             BinaryOperator::InstanceOf => token("instanceof"),
-        };
-        write!(f, [token])
-    }
-}
-
-impl<'ast> Format<JsFormatContext<'ast>> for TypeUnaryOperator {
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
-        let token = match self {
-            TypeUnaryOperator::Type => token("type"),
-            TypeUnaryOperator::Readonly => token("readonly"),
-            TypeUnaryOperator::Typeof => token("typeof"),
-            TypeUnaryOperator::Keyof => token("keyof"),
-            TypeUnaryOperator::AsComptime => token("as comptime"),
-            TypeUnaryOperator::AsConst => token("as const"),
-            TypeUnaryOperator::Not => token("!"),
-            TypeUnaryOperator::Must => token("!"),
-        };
-        write!(f, [token])
-    }
-}
-
-impl<'ast> Format<JsFormatContext<'ast>> for TypeBinaryOperator {
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
-        let token = match self {
-            TypeBinaryOperator::Cast => token("as"),
-            TypeBinaryOperator::Is => token("is"),
-            TypeBinaryOperator::In => token("in"),
-            TypeBinaryOperator::InstanceOf => token("instanceof"),
-            TypeBinaryOperator::Satisfies => token("satisfies"),
-            TypeBinaryOperator::Extends => token("extends"),
-            TypeBinaryOperator::Implements => token("implements"),
         };
         write!(f, [token])
     }

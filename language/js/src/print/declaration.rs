@@ -1,8 +1,8 @@
 use super::printer::Printer;
 use crate::{
     Asynchrony, BindingModifier, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    Declarator, FunctionAbstraction, FunctionCardinality, FunctionSignature, JsPrintResult, Key,
-    Keyword, LocalNodeId, Member, Property,
+    Declarator, FunctionCardinality, FunctionSignature, JsPrintResult, Key, Keyword, LocalNodeId,
+    Member, Precedence, Property,
 };
 
 impl<'a> Printer<'a> {
@@ -17,20 +17,20 @@ impl<'a> Printer<'a> {
         }
 
         match declaration {
-            Declaration::Global {
-                descriptor,
-                statements,
-            } => {
+            Declaration::Global(global) => {
+                let descriptor = &global.descriptor;
+                let statements = &global.statements;
+
                 self.print_statement_descriptor(descriptor);
                 self.write_keyword(Keyword::Global);
                 self.write_punct("{");
                 self.print_statement_list(statements)?;
                 self.write_punct("}");
             }
-            Declaration::Namespace {
-                descriptor,
-                statements,
-            } => {
+            Declaration::Namespace(namespace) => {
+                let descriptor = &namespace.descriptor;
+                let statements = &namespace.statements;
+
                 self.print_statement_descriptor(descriptor);
                 self.write_keyword(Keyword::Namespace);
 
@@ -42,50 +42,48 @@ impl<'a> Printer<'a> {
                 self.print_statement_list(statements)?;
                 self.write_punct("}");
             }
-            Declaration::Type {
-                descriptor,
-                static_parameters,
-                value,
-            } => {
+            Declaration::Type(ty) => {
+                let descriptor = &ty.descriptor;
+                let generic_parameters = &ty.generic_parameters;
+                let value = ty.value;
+
                 self.print_type_declaration_prefix(descriptor);
 
-                if let Some(static_parameters) = static_parameters {
+                if !generic_parameters.is_empty() {
                     self.write_punct("<");
-                    self.print_type_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(generic_parameters)?;
                     self.write_punct(">");
                 }
 
                 self.write_punct("=");
-                self.print_type_id(*value)?;
+                self.print_type_id(value)?;
             }
-            Declaration::Class {
-                descriptor,
-                generics,
-                heritage,
-                members,
-            } => {
+            Declaration::Class(class) => {
+                let descriptor = &class.descriptor;
+                let generic_parameters = &class.generic_parameters;
+                let extends_expression = class.extends_expression;
+                let implements_types = &class.implements_types;
+                let members = &class.members;
+
                 self.print_class_like_prefix(Keyword::Class, descriptor);
 
-                if self.include_types
-                    && let Some(static_parameters) = generics.static_parameters.as_ref()
-                    && !static_parameters.is_empty()
-                {
+                if self.include_types && !generic_parameters.is_empty() {
                     self.write_punct("<");
-                    self.print_type_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(generic_parameters)?;
                     self.write_punct(">");
                 }
 
-                if let Some(extends_types) = heritage.extends_types.as_ref()
-                    && !extends_types.is_empty()
-                {
+                if let Some(extends_expression) = extends_expression {
                     self.write_keyword(Keyword::Extends);
-                    self.print_type_list(extends_types)?;
+                    let extends_expression_node = self.tree.get(extends_expression);
+                    self.print_expression(
+                        extends_expression,
+                        extends_expression_node,
+                        Precedence::Lowest,
+                    )?;
                 }
 
-                if self.include_types
-                    && let Some(implements_types) = heritage.implements_types.as_ref()
-                    && !implements_types.is_empty()
-                {
+                if self.include_types && !implements_types.is_empty() {
                     self.write_keyword(Keyword::Implements);
                     self.print_type_list(implements_types)?;
                 }
@@ -94,25 +92,21 @@ impl<'a> Printer<'a> {
                 self.print_member_list(members)?;
                 self.write_punct("}");
             }
-            Declaration::Interface {
-                descriptor,
-                generics,
-                heritage,
-                members,
-            } => {
+            Declaration::Interface(interface) => {
+                let descriptor = &interface.descriptor;
+                let generic_parameters = &interface.generic_parameters;
+                let extends_types = &interface.extends_types;
+                let members = &interface.members;
+
                 self.print_class_like_prefix(Keyword::Interface, descriptor);
 
-                if let Some(static_parameters) = generics.static_parameters.as_ref()
-                    && !static_parameters.is_empty()
-                {
+                if !generic_parameters.is_empty() {
                     self.write_punct("<");
-                    self.print_type_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(generic_parameters)?;
                     self.write_punct(">");
                 }
 
-                if let Some(extends_types) = heritage.extends_types.as_ref()
-                    && !extends_types.is_empty()
-                {
+                if !extends_types.is_empty() {
                     self.write_keyword(Keyword::Extends);
                     self.print_type_list(extends_types)?;
                 }
@@ -121,17 +115,20 @@ impl<'a> Printer<'a> {
                 self.print_member_list(members)?;
                 self.write_punct("}");
             }
-            Declaration::Enum { descriptor, fields } => {
+            Declaration::Enum(enum_declaration) => {
+                let descriptor = &enum_declaration.descriptor;
+                let fields = &enum_declaration.fields;
+
                 self.print_class_like_prefix(Keyword::Enum, descriptor);
                 self.write_punct("{");
                 self.print_enum_field_list(fields)?;
                 self.write_punct("}");
             }
-            Declaration::Function {
-                descriptor,
-                signature,
-                body,
-            } => {
+            Declaration::Function(function) => {
+                let descriptor = &function.descriptor;
+                let signature = &function.signature;
+                let body = function.body;
+
                 self.print_statement_descriptor(descriptor);
 
                 if descriptor.abstraction == DeclarationAbstraction::Abstract {
@@ -155,7 +152,7 @@ impl<'a> Printer<'a> {
                 self.print_function_signature(signature)?;
 
                 if let Some(body) = body {
-                    self.print_block_id(*body)?;
+                    self.print_block_id(body)?;
                 } else if declaration_id.id != 0 {
                     self.write_punct(";");
                 }
@@ -202,15 +199,9 @@ impl<'a> Printer<'a> {
         &mut self,
         signature: &FunctionSignature,
     ) -> JsPrintResult<()> {
-        if self.include_types
-            && let Some(static_parameters) = signature
-                .generics
-                .as_ref()
-                .and_then(|generics| generics.static_parameters.as_ref())
-            && !static_parameters.is_empty()
-        {
+        if self.include_types && !signature.generic_parameters.is_empty() {
             self.write_punct("<");
-            self.print_type_parameter_list(static_parameters)?;
+            self.print_type_parameter_list(&signature.generic_parameters)?;
             self.write_punct(">");
         }
 
@@ -238,12 +229,12 @@ impl<'a> Printer<'a> {
         {
             self.print_parameter_id(this_parameter)?;
 
-            if !signature.dynamic_parameters.is_empty() {
+            if !signature.parameters.is_empty() {
                 self.write_punct(",");
             }
         }
 
-        self.print_parameter_list(&signature.dynamic_parameters)?;
+        self.print_parameter_list(&signature.parameters)?;
 
         Ok(())
     }
@@ -365,18 +356,12 @@ impl<'a> Printer<'a> {
     ) -> JsPrintResult<()> {
         self.print_binding_modifiers_prefix(modifiers);
 
-        match signature.abstraction {
-            FunctionAbstraction::Abstract => {
-                self.write_keyword(Keyword::Abstract);
-            }
-            FunctionAbstraction::AbstractOverride => {
-                self.write_keyword(Keyword::Abstract);
-                self.write_keyword(Keyword::Override);
-            }
-            FunctionAbstraction::ConcreteOverride => {
-                self.write_keyword(Keyword::Override);
-            }
-            FunctionAbstraction::Concrete => {}
+        if signature.is_abstract {
+            self.write_keyword(Keyword::Abstract);
+        }
+
+        if signature.is_override {
+            self.write_keyword(Keyword::Override);
         }
 
         if signature.asynchrony == Asynchrony::Async {
@@ -395,19 +380,14 @@ impl<'a> Printer<'a> {
 
         self.print_optional_key(key)?;
 
-        if let Some(static_parameters) = signature
-            .generics
-            .as_ref()
-            .and_then(|generics| generics.static_parameters.as_ref())
-            && !static_parameters.is_empty()
-        {
+        if !signature.generic_parameters.is_empty() {
             self.write_punct("<");
-            self.print_type_parameter_list(static_parameters)?;
+            self.print_type_parameter_list(&signature.generic_parameters)?;
             self.write_punct(">");
         }
 
         self.write_punct("(");
-        self.print_parameter_list(&signature.dynamic_parameters)?;
+        self.print_parameter_list(&signature.parameters)?;
         self.write_punct(")");
 
         self.print_binding_modifiers_postfix(modifiers);

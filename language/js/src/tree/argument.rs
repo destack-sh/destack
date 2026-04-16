@@ -64,6 +64,29 @@ pub struct BindingModifier {
     pub accessor: Option<AccessorKind> = None,
 }
 
+/// One generic parameter.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GenericParameter {
+    /// Type parameter.
+    Type {
+        modifiers: Option<BindingModifier>,
+        name: StringId,
+        constraint: Option<LocalNodeId<Type>>,
+        default: Option<LocalNodeId<Type>>,
+    },
+    /// Value parameter.
+    Value {
+        name: StringId,
+        declared_type: Option<LocalNodeId<Type>>,
+        default: Option<LocalNodeId<Expression>>,
+        is_comptime: bool,
+    },
+}
+
+impl Node for GenericParameter {
+    const TYPE: NodeType = NodeType::GenericParameter;
+}
+
 /// Named or positional parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameter {
