@@ -1301,6 +1301,52 @@ mod tests {
         assert_eq!("abc", nodes.print().unwrap().as_str());
     }
 
+    /// Soft line indents should still keep line suffix comments inline when the group fits.
+    #[test]
+    fn test_soft_line_indent_or_space_keeps_line_suffix_inline() {
+        let nodes = format!(
+            SimpleFormatContext::empty_destack(),
+            [group(&format_args![
+                token("if (done)"),
+                soft_line_indent_or_space(&format_args![
+                    token("break;"),
+                    line_suffix(&format_args![space(), token("// break-tail")]),
+                ]),
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "if (done) break; // break-tail",
+            nodes.print().unwrap().as_str()
+        );
+    }
+
+    /// Nested control-head groups should still keep inline line suffix comments when they fit.
+    #[test]
+    fn test_grouped_control_head_keeps_inline_line_suffix_comments() {
+        let nodes = format!(
+            SimpleFormatContext::empty_destack(),
+            [group(&format_args![
+                token("if"),
+                space(),
+                token("("),
+                group(&soft_block_indent(&token("done"))),
+                token(")"),
+                soft_line_indent_or_space(&format_args![
+                    token("break;"),
+                    line_suffix(&format_args![space(), token("// break-tail")]),
+                ]),
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "if (done) break; // break-tail",
+            nodes.print().unwrap().as_str()
+        );
+    }
+
     /// Line suffix boundary forces printing of pending line suffixes
     #[test]
     fn test_line_suffix_boundary_forces_printing() {
@@ -1317,6 +1363,39 @@ mod tests {
         .unwrap();
 
         assert_eq!("abc\nd", nodes.print().unwrap().as_str());
+    }
+
+    /// Closing content after one nested trailing line comment should still print.
+    #[test]
+    fn test_nested_line_suffix_before_container_close_keeps_trailing_tokens() {
+        let nodes = format!(
+            SimpleFormatContext::empty_destack(),
+            [
+                token("switch (state)"),
+                space(),
+                token("{"),
+                group(&format_args![
+                    hard_line_break(),
+                    block_indent(&format_args![
+                        token("default:"),
+                        hard_line_break(),
+                        block_indent(&format_args![
+                            token("stop();"),
+                            line_suffix(&format_args![space(), token("// default-tail")]),
+                        ]),
+                    ]),
+                    line_suffix_boundary(),
+                    hard_line_break(),
+                ]),
+                token("}"),
+            ]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "switch (state) {\n    default:\n        stop(); // default-tail\n}",
+            nodes.print().unwrap().as_str()
+        );
     }
 
     /// Space inserts single space between tokens
