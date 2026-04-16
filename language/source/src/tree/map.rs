@@ -4,7 +4,7 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::interval::IntervalTree;
-use crate::Span;
+use crate::{FileId, Span};
 
 #[inline]
 fn empty_span() -> Span {
@@ -32,12 +32,10 @@ pub enum NodeSpanType {
     Enclosing,
     /// The main span of a node (usually its identifier).
     Main,
-    /// The semantic head span of a node.
+    /// The head span of a node.
     Head,
     /// The leading owned prefix span of a node.
     Leading,
-    /// The infix separator span that structurally leads into a node.
-    Separator,
     /// The trailing owned suffix span of a node.
     Trailing,
     /// One indexed segment span of a compound node.
