@@ -36,43 +36,6 @@ enum ParenthesizedLambdaHeadShape {
 }
 
 impl Parser {
-    /// Parse a block with temporary parser options.
-    #[inline]
-    fn eat_block_with_options(
-        &mut self,
-        options: ParserOptions,
-        block_context: BlockContext,
-    ) -> ParseResult<LocalNodeId<destack_ast::Block>> {
-        if self.options == options {
-            return self.eat_block(block_context);
-        }
-
-        self.stats.record_with_options_call();
-
-        let old_options = self.swap_options(options);
-        let result = self.eat_block(block_context);
-        self.restore_options(old_options);
-        result
-    }
-
-    /// Parse function parameters with temporary parser options.
-    #[inline]
-    fn eat_parameters_body_with_options(
-        &mut self,
-        options: ParserOptions,
-    ) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
-        if self.options == options {
-            return self.eat_parameters_body();
-        }
-
-        self.stats.record_with_options_call();
-
-        let old_options = self.swap_options(options);
-        let result = self.eat_parameters_body();
-        self.restore_options(old_options);
-        result
-    }
-
     /// Return true when the plain lambda path can be used.
     fn can_parse_plain_lambda(
         &self,
@@ -120,7 +83,8 @@ impl Parser {
                 .in_before_block()
                 .not_in_decorator();
             options.set_allow_sequence_expression(true);
-            let block_id = self.eat_block_with_options(options, BlockContext::Expression)?;
+            let block_id =
+                self.with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
             let body = self
                 .tree
                 .insert(Expression::Block(block_id), self.get_span_from(body_start));
@@ -493,7 +457,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
         let open_index = self.pos_index();
-        let Some(close_index) = self.plain_parenthesized_lambda_close_index(open_index) else {
+        let Some((close_index, _)) = self.scan_plain_parenthesized_lambda_head(open_index) else {
             return Ok(None);
         };
         if close_index <= open_index {
@@ -515,7 +479,7 @@ impl Parser {
         let parameters = if self.peek_is(TokenType::CloseParenthesis) {
             vec![]
         } else {
-            self.eat_parameters_body_with_options(parameter_options)?
+            self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
         };
         self.eat_newlines_maybe()?;
         self.eat_list_close_token_or_recover_missing(
@@ -809,7 +773,7 @@ impl Parser {
                         .options
                         .with_generator(is_generator)
                         .with_forbid_yield(is_generator);
-                    self.eat_parameters_body_with_options(parameter_options)?
+                    self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
                 };
                 self.eat_newlines_maybe()?;
                 self.eat_list_close_token_or_recover_missing(
@@ -868,7 +832,7 @@ impl Parser {
                 )?;
                 let return_type_span = self.get_span_from(&type_start);
 
-                // where clauses are a destack only feature
+                // where clauses are only enabled in the extended grammar
                 let where_clauses = if self.language.is_destack() {
                     self.eat_where_maybe()?
                 } else {
@@ -908,7 +872,7 @@ impl Parser {
                     (None, None)
                 };
 
-                // where clauses are a destack only feature
+                // where clauses are only enabled in the extended grammar
                 let where_clauses = if self.language.is_destack() {
                     self.eat_where_maybe()?
                 } else {
@@ -926,7 +890,7 @@ impl Parser {
         // body
         // only for functions or lambda values
         let body = {
-            // function bodies may start on the next line in js and ts
+            // semicolon statement function bodies may start on the next line
             if kind == FunctionKind::Function && !self.options.is_in_type() {
                 self.eat_newlines_maybe()?;
             }
@@ -950,7 +914,8 @@ impl Parser {
                 options.set_allow_sequence_expression(true);
                 options.set_forbid_await(options.is_forbid_await() && !is_async);
                 let body_start = self.mark_span();
-                let block_id = self.eat_block_with_options(options, BlockContext::Expression)?;
+                let block_id = self
+                    .with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
                 let body = self
                     .tree
                     .insert(Expression::Block(block_id), self.get_span_from(&body_start));
@@ -974,8 +939,9 @@ impl Parser {
                     // block bodies are delimited, so sequence expressions stay local
                     options.set_allow_sequence_expression(true);
                     options.set_forbid_await(options.is_forbid_await() && !is_async);
-                    let block_id =
-                        self.eat_block_with_options(options, BlockContext::Expression)?;
+                    let block_id = self.with_options(options, |parser| {
+                        parser.eat_block(BlockContext::Expression)
+                    })?;
                     self.tree
                         .insert(Expression::Block(block_id), self.get_span_from(&body_start))
                 } else {
@@ -1072,11 +1038,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BlockContext, BlockFormat, CommentKind, Declaration, Declarator,
-        Expression, FunctionCardinality, FunctionDeclaration, FunctionKind, FunctionMode,
-        GenericArgument, GenericParameter, IntType, NodeType, Parameter, Pattern, ScalarLiteral,
-        TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause,
-        YieldCardinality,
+        Argument, Asynchrony, BlockContext, BlockFormat, ClassDeclaration, CommentKind,
+        Declaration, Declarator, Expression, FunctionCardinality, FunctionDeclaration,
+        FunctionKind, FunctionMode, GenericArgument, GenericParameter, IntType, NodeType,
+        Parameter, Pattern, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+        VarianceModifier, WhereClause, YieldCardinality,
     };
 
     use destack_source::LanguageType;
@@ -1676,7 +1642,7 @@ function h<T>
     }
 
     #[test]
-    fn test_parse_function_with_newline_before_return_type_colon_typescript() {
+    fn test_parse_function_with_newline_before_return_type_colon() {
         let mut test = TestParser::new_with_options(
             r#"function f<T>(value: T)
   : T {
@@ -1853,7 +1819,7 @@ async function* foo() => int32 {
 
     /// Parse a generator function with a bare yield call argument.
     #[test]
-    fn test_parse_function_generator_call_argument_with_bare_yield_javascript() {
+    fn test_parse_function_generator_call_argument_with_bare_yield() {
         // source: function* a() { b.c(yield); }
         let mut test =
             TestParser::new_with_options("function* a() { b.c(yield); }", LanguageType::JavaScript);
@@ -1948,7 +1914,7 @@ function main() {
 
     /// Parse nested generator yield expressions.
     #[test]
-    fn test_parse_function_generator_nested_yield_javascript() {
+    fn test_parse_function_generator_nested_yield() {
         // source: function *a() { yield yield }
         let mut test =
             TestParser::new_with_options("function *a() { yield yield }", LanguageType::JavaScript);
@@ -1981,7 +1947,7 @@ function main() {
 
     /// Parse delegated generator yield with a direct identifier operand.
     #[test]
-    fn test_parse_function_generator_delegate_yield_javascript() {
+    fn test_parse_function_generator_delegate_yield() {
         // source: function *a() { yield *a }
         let mut test =
             TestParser::new_with_options("function *a() { yield *a }", LanguageType::JavaScript);
@@ -2010,7 +1976,7 @@ function main() {
 
     /// Parse delegated generator yield with a nested bare yield operand.
     #[test]
-    fn test_parse_function_generator_delegate_nested_yield_javascript() {
+    fn test_parse_function_generator_delegate_nested_yield() {
         // source: function *a() { yield *yield }
         let mut test = TestParser::new_with_options(
             "function *a() { yield *yield }",
@@ -2045,7 +2011,7 @@ function main() {
 
     /// Recover delegated generator yield when a line terminator appears before `*`.
     #[test]
-    fn test_recover_function_generator_delegate_after_newline_javascript() {
+    fn test_recover_function_generator_delegate_after_newline() {
         // source: function *a(){yield
         // *a}
         let mut test =
@@ -2080,7 +2046,7 @@ function main() {
 
     /// Recover delegated generator yield without an operand before a following const statement.
     #[test]
-    fn test_recover_function_generator_delegate_before_following_const_javascript() {
+    fn test_recover_function_generator_delegate_before_following_const() {
         // source: function *a(){yield*
         // const value = 1}
         let mut test = TestParser::new_with_options(
@@ -2120,9 +2086,9 @@ function main() {
         });
     }
 
-    /// Recover generator yield in class heritage expression.
+    /// Parse generator yield in class heritage expression.
     #[test]
-    fn test_parse_function_generator_yield_in_class_heritage_javascript_recovers_error() {
+    fn test_parse_function_generator_yield_in_class_heritage() {
         // source: function* a(){(class extends (yield) {});}
         let mut test = TestParser::new_with_options(
             "function* a(){(class extends (yield) {});}",
@@ -2140,7 +2106,18 @@ function main() {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.leading_expressions.len(), 1);
                     assert!(block.tail_expression.is_none());
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Error);
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Declaration(class_id) => {
+                            assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+                                assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
+                                    assert_node!(parser.tree, *expression, Expression::Yield { cardinality, value } => {
+                                        assert_eq!(*cardinality, YieldCardinality::Scalar);
+                                        assert!(value.is_none());
+                                    });
+                                });
+                            });
+                        });
+                    });
                 });
             });
         });
@@ -2148,7 +2125,7 @@ function main() {
 
     /// Parse generator yield in computed property keys and assignment targets.
     #[test]
-    fn test_parse_function_generator_yield_in_computed_keys_javascript() {
+    fn test_parse_function_generator_yield_in_computed_keys() {
         // source: function* a(){(class {[yield](){}})};
         let mut test = TestParser::new_with_options(
             "function* a(){(class {[yield](){}})};",
@@ -2225,7 +2202,7 @@ function onResolve(
                             assert_eq!(elements.len(), 2);
 
                             // { .. }
-                            assert_node!(parser.tree, elements[0], TypeExpression::Object { properties } => {
+                            assert_node!(parser.tree, elements[0], TypeExpression::Object { members: properties } => {
                                 assert_eq!(properties.len(), 2);
                             });
 

@@ -3,7 +3,7 @@
 use destack_ast::{
     Ambientness, AssignOperator, Asynchrony, BlockContext, Expression, FunctionCardinality,
     FunctionKind, FunctionMode, FunctionSignature, Key, Keyword, LocalNodeId, Member, Name,
-    NodeType, Parameter, Property, StringId, TokenType, TypeExpression, TypeProperty, Visibility,
+    NodeType, Parameter, Property, StringId, TokenType, TypeExpression, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanType, Span};
 
@@ -187,8 +187,8 @@ impl Parser {
         modifiers: Option<&BindingModifiers>,
         is_async: bool,
     ) -> ParseResult<()> {
-        // private keys usually cannot have explicit visibility modifiers
-        // TS compatibility: allow `private accessor #name` forms (:c)
+        // private keys do not take explicit visibility modifiers
+        // typed member forms allow `private accessor #name`
         let allow_private_accessor_visibility = matches!(key, Some(Key::Private(_)))
             && modifiers.is_some_and(|modifiers| {
                 modifiers.visibility == Some(Visibility::Private) && modifiers.is_accessor
@@ -241,7 +241,7 @@ impl Parser {
 
     /// Return true when `readonly` starts a type property modifier.
     #[inline]
-    fn type_property_readonly_modifier_maybe(&mut self) -> bool {
+    fn type_member_readonly_modifier_maybe(&mut self) -> bool {
         if !self.is_keyword(Keyword::Readonly) {
             return false;
         }
@@ -255,7 +255,7 @@ impl Parser {
 
     /// Return true when `abstract` starts a type property modifier.
     #[inline]
-    fn type_property_abstract_modifier_maybe(&mut self) -> bool {
+    fn type_member_abstract_modifier_maybe(&mut self) -> bool {
         if !self.is_keyword(Keyword::Abstract) {
             return false;
         }
@@ -274,7 +274,7 @@ impl Parser {
 
     /// Return true when the current `[` starts an index signature.
     #[inline]
-    fn type_property_starts_index_signature(&mut self) -> bool {
+    fn type_member_starts_index_signature(&mut self) -> bool {
         if !self.peek_is(TokenType::OpenBracket) {
             return false;
         }
@@ -290,7 +290,7 @@ impl Parser {
 
     /// Return true when the current type property head must parse as a method.
     #[inline]
-    fn type_property_head_starts_method(&mut self, mode: Option<FunctionMode>) -> bool {
+    fn type_member_head_starts_method(&mut self, mode: Option<FunctionMode>) -> bool {
         self.peek_is(TokenType::LessThan)
             || self.peek_is(TokenType::OpenParenthesis)
             || matches!(
@@ -304,7 +304,7 @@ impl Parser {
             )
     }
 
-    /// Eat a spread or embed value expression.
+    /// Eat one spread or embed value expression.
     #[inline]
     fn eat_property_value_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let ambient_context = self.options;
@@ -346,7 +346,7 @@ impl Parser {
         )
     }
 
-    /// Eat a method or field type expression.
+    /// Eat one method or field type expression.
     #[inline]
     fn eat_method_return_type(
         &mut self,
@@ -369,7 +369,7 @@ impl Parser {
         )
     }
 
-    /// Eat a method body expression.
+    /// Eat one method body expression.
     #[inline]
     fn eat_method_body_expression(
         &mut self,
@@ -391,7 +391,7 @@ impl Parser {
         )
     }
 
-    /// Eat a shared property or member head.
+    /// Eat one shared property or member head.
     fn eat_property_member_head(
         &mut self,
         mut modifiers: Option<BindingModifiers>,
@@ -443,6 +443,15 @@ impl Parser {
     }
 
     /// Eat the shared tail of one method head.
+    ///
+    /// Examples:
+    /// ```
+    /// (): int32
+    /// <T>(value: T): T
+    /// get value(): int32
+    /// set value(next: int32): void
+    /// where T: Copy { value }
+    /// ```
     fn eat_method_tail(
         &mut self,
         owner: NodeType,
@@ -539,49 +548,7 @@ impl Parser {
         })
     }
 
-    /// Eat a property field type expression.
-    #[inline]
-    fn eat_property_field_type(
-        &mut self,
-        is_type_context: bool,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        let ambient_context = self.options.nested().with_type(is_type_context);
-        let expression_context = self
-            .options
-            .not_in_position()
-            .not_in_left_precedence()
-            .not_in_sequence_expression();
-        self.eat_expression(
-            self.options
-                .with_ambient_context(ambient_context)
-                .with_expression_context(expression_context),
-        )
-    }
-
-    /// Eat a property field default expression.
-    #[inline]
-    fn eat_property_default_expression(
-        &mut self,
-        preserve_nested_context: bool,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        let ambient_context = if preserve_nested_context {
-            self.options.nested()
-        } else {
-            self.options
-        };
-        let expression_context = self
-            .options
-            .not_in_position()
-            .not_in_left_precedence()
-            .not_in_sequence_expression();
-        self.eat_expression(
-            self.options
-                .with_ambient_context(ambient_context)
-                .with_expression_context(expression_context),
-        )
-    }
-
-    /// Eat a member type expression.
+    /// Eat one member type expression.
     #[inline]
     fn eat_member_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         let ambient_context = self.options.with_type(true);
@@ -601,29 +568,16 @@ impl Parser {
         )
     }
 
-    /// Try to eat one embed member.
-    fn try_eat_embed_member(&mut self) -> ParseResult<Option<LocalNodeId<Member>>> {
-        if !self.peek_is(TokenType::Spread) {
-            return Ok(None);
-        }
-
-        let embed_start = self.mark_span();
-        self.bump(); // eat spread
-        let value = self.eat_member_type_expression()?;
-        let member = Member::Embed {
-            value,
-            visibility: None,
-            ambient: Ambientness::Concrete,
-            is_static: false,
-        };
-
-        Ok(Some(
-            self.insert_node(member, self.get_span_from(&embed_start)),
-        ))
-    }
-
-    /// Try to eat one type member.
-    fn try_eat_type_member(
+    /// Try to eat one associated type member.
+    ///
+    /// Examples:
+    /// ```
+    /// type Item
+    /// type Item = string
+    /// type Item: Display
+    /// type Item<T> where T: Copy = Vec<T>
+    /// ```
+    fn try_eat_associated_type_member(
         &mut self,
         start: &ParserMark,
         modifiers: Option<BindingModifiers>,
@@ -643,11 +597,11 @@ impl Parser {
         let where_clauses = self.eat_where_maybe()?.unwrap_or_default();
 
         // declared type
-        let declared_type = if self.peek_colon_is() {
+        let constraint = if self.peek_colon_is() {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
 
-            let declared_type = if self.peek_is(TokenType::Assign)
+            let constraint = if self.peek_is(TokenType::Assign)
                 || self.peek_is(TokenType::CloseBrace)
                 || self.is_any_stop()
             {
@@ -656,7 +610,7 @@ impl Parser {
                 self.eat_member_type_expression()?
             };
 
-            Some(declared_type)
+            Some(constraint)
         } else {
             None
         };
@@ -678,11 +632,11 @@ impl Parser {
         };
 
         // member
-        let member = Member::Type {
+        let member = Member::AssociatedType {
             name,
             generic_parameters,
             where_clauses,
-            declared_type,
+            constraint,
             value,
             visibility: modifiers.and_then(|modifiers| modifiers.visibility),
             ambient: self.ambientness_for_modifiers(modifiers.as_ref()),
@@ -694,58 +648,6 @@ impl Parser {
         self.tree.set_main_span(member_id, name_span);
 
         Ok(Some(member_id))
-    }
-
-    /// Try to eat one static block member.
-    fn try_eat_static_block_member(
-        &mut self,
-        start: &ParserMark,
-        modifiers: Option<BindingModifiers>,
-    ) -> ParseResult<Option<LocalNodeId<Member>>> {
-        if !modifiers.is_some_and(|modifiers| modifiers.is_static)
-            || !self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-        {
-            return Ok(None);
-        }
-
-        self.eat_newlines_maybe()?;
-        let body_start = self.mark_span();
-        let body_block = self.eat_block(BlockContext::Statement)?;
-        let body = self.insert_node(
-            Expression::Block(body_block),
-            self.get_span_from(&body_start),
-        );
-
-        Ok(Some(self.insert_node(
-            Member::StaticBlock { body },
-            self.get_span_from(start),
-        )))
-    }
-
-    /// Try to eat one comptime block member.
-    fn try_eat_comptime_block_member(
-        &mut self,
-        start: &ParserMark,
-        modifiers: Option<BindingModifiers>,
-    ) -> ParseResult<Option<LocalNodeId<Member>>> {
-        if !modifiers.is_some_and(|modifiers| modifiers.is_comptime)
-            || !self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-        {
-            return Ok(None);
-        }
-
-        self.eat_newlines_maybe()?;
-        let body_start = self.mark_span();
-        let body_block = self.eat_block(BlockContext::Statement)?;
-        let body = self.insert_node(
-            Expression::Block(body_block),
-            self.get_span_from(&body_start),
-        );
-
-        Ok(Some(self.insert_node(
-            Member::ComptimeBlock { body },
-            self.get_span_from(start),
-        )))
     }
 
     /// Try to eat a property and recover into one error slot when possible.
@@ -898,7 +800,7 @@ impl Parser {
                     self.bump(); // eat colon
                     self.eat_newlines_maybe()?;
 
-                    // parse type annotations in type or variant contexts
+                    // field type
                     let is_type_context = self.options.is_in_variant() || self.options.is_in_type();
                     let value = if self.peek_is(TokenType::Assign)
                         || self.peek_is(TokenType::Comma)
@@ -907,7 +809,17 @@ impl Parser {
                     {
                         self.recover_missing_expression_here(NodeType::Property)
                     } else {
-                        self.eat_property_field_type(is_type_context)?
+                        let ambient_context = self.options.nested().with_type(is_type_context);
+                        let expression_context = self
+                            .options
+                            .not_in_position()
+                            .not_in_left_precedence()
+                            .not_in_sequence_expression();
+                        self.eat_expression(
+                            self.options
+                                .with_ambient_context(ambient_context)
+                                .with_expression_context(expression_context),
+                        )?
                     };
                     let type_span = self.get_span_from(&type_start);
                     (Some(value), Some(type_span))
@@ -928,7 +840,21 @@ impl Parser {
                 {
                     self.recover_missing_expression_here(NodeType::Property)
                 } else {
-                    self.eat_property_default_expression(associated_comptime_name.is_some())?
+                    let ambient_context = if associated_comptime_name.is_some() {
+                        self.options.nested()
+                    } else {
+                        self.options
+                    };
+                    let expression_context = self
+                        .options
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression();
+                    self.eat_expression(
+                        self.options
+                            .with_ambient_context(ambient_context)
+                            .with_expression_context(expression_context),
+                    )?
                 };
                 (Some(default), Some(self.get_span_from(&assign_start)))
             } else {
@@ -1061,30 +987,30 @@ impl Parser {
         Ok(properties)
     }
 
-    /// Try to eat a type property and recover into one error slot when possible.
-    pub fn try_eat_type_property(
+    /// Try to eat a type member and recover into one error slot when possible.
+    pub fn try_eat_type_member(
         &mut self,
         _recover: TokenType,
-    ) -> ParseResult<LocalNodeId<TypeProperty>> {
-        match self.eat_type_property() {
-            Ok(property_id) => Ok(property_id),
+    ) -> ParseResult<LocalNodeId<TypeMember>> {
+        match self.eat_type_member() {
+            Ok(member_id) => Ok(member_id),
             Err(err) => {
-                let err = err.for_node_type(NodeType::TypeProperty);
+                let err = err.for_node_type(NodeType::TypeMember);
                 let span = err.leaf_span();
                 let start = ParserMark::from_span(span);
                 self.try_recover_in_body(&start, Some(err.clone()))?;
 
-                Ok(self.insert_node(TypeProperty::Error, self.get_span_from(&start)))
+                Ok(self.insert_node(TypeMember::Error, self.get_span_from(&start)))
             }
         }
     }
 
-    /// Eat a type property.
-    pub fn eat_type_property(&mut self) -> ParseResult<LocalNodeId<TypeProperty>> {
+    /// Eat a type member.
+    pub fn eat_type_member(&mut self) -> ParseResult<LocalNodeId<TypeMember>> {
         let start = self.mark_span();
 
         // readonly
-        let is_readonly = if self.type_property_readonly_modifier_maybe() {
+        let is_readonly = if self.type_member_readonly_modifier_maybe() {
             self.bump(); // eat readonly
             self.eat_newlines_maybe()?;
             true
@@ -1093,7 +1019,7 @@ impl Parser {
         };
 
         // abstract
-        let is_abstract = if self.type_property_abstract_modifier_maybe() {
+        let is_abstract = if self.type_member_abstract_modifier_maybe() {
             self.bump(); // eat abstract
             self.eat_newlines_maybe()?;
             true
@@ -1110,7 +1036,7 @@ impl Parser {
         }
 
         // index signature
-        if self.type_property_starts_index_signature() {
+        if self.type_member_starts_index_signature() {
             if is_abstract {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
@@ -1129,13 +1055,13 @@ impl Parser {
                     .not_in_left_precedence()
                     .not_in_sequence_expression()
                     .in_type(),
-                NodeType::TypeProperty,
+                NodeType::TypeMember,
             )?;
 
             self.eat_newlines_maybe()?;
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseBracket,
-                NodeType::TypeProperty,
+                NodeType::TypeMember,
                 |_, token_type| {
                     Self::is_close_delimiter_boundary_token(token_type)
                         || matches!(token_type, TokenType::Colon | TokenType::Maybe)
@@ -1151,30 +1077,30 @@ impl Parser {
             self.eat_newlines_maybe()?;
 
             let value_type = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
-                self.recover_missing_type_expression_here(NodeType::TypeProperty)
+                self.recover_missing_type_expression_here(NodeType::TypeMember)
             } else {
-                self.eat_method_return_type(NodeType::TypeProperty)?
+                self.eat_method_return_type(NodeType::TypeMember)?
             };
 
-            let property = TypeProperty::IndexSignature {
+            let member = TypeMember::IndexSignature {
                 is_optional,
                 is_readonly,
                 name,
                 key_type,
                 value_type,
             };
-            let property_id = self.insert_node(property, self.get_span_from(&start));
+            let member_id = self.insert_node(member, self.get_span_from(&start));
 
-            self.tree.set_main_span(property_id, name_span);
+            self.tree.set_main_span(member_id, name_span);
             self.tree
-                .set_head_span(property_id, self.get_span_from(&key_start));
+                .set_head_span(member_id, self.get_span_from(&key_start));
             self.tree.set_side_span(
-                property_id,
+                member_id,
                 NodeSpanType::Type,
                 self.get_span_from(&type_start),
             );
 
-            return Ok(property_id);
+            return Ok(member_id);
         }
 
         // key
@@ -1193,7 +1119,7 @@ impl Parser {
         let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
 
         // method
-        let is_method = self.type_property_head_starts_method(mode);
+        let is_method = self.type_member_head_starts_method(mode);
         if is_method {
             if is_readonly {
                 return Err(ParseError::unexpected(self.peek()?.span));
@@ -1214,7 +1140,7 @@ impl Parser {
                 body: _,
                 return_type_span,
             } = self.eat_method_tail(
-                NodeType::TypeProperty,
+                NodeType::TypeMember,
                 mode,
                 Asynchrony::Sync,
                 FunctionCardinality::Scalar,
@@ -1223,23 +1149,23 @@ impl Parser {
                 false,
             )?;
 
-            let property = TypeProperty::Method {
+            let member = TypeMember::Method {
                 is_optional,
                 key,
                 signature,
+                body: None,
             };
-            let property_id = self.insert_node(property, self.get_span_from(&start));
+            let member_id = self.insert_node(member, self.get_span_from(&start));
 
             if let Some(span) = key_span {
-                self.tree.set_main_span(property_id, span);
+                self.tree.set_main_span(member_id, span);
             }
 
             if let Some(span) = return_type_span {
-                self.tree
-                    .set_side_span(property_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(member_id, NodeSpanType::Type, span);
             }
 
-            return Ok(property_id);
+            return Ok(member_id);
         }
 
         // field
@@ -1258,50 +1184,50 @@ impl Parser {
         self.eat_token(TokenType::Colon)?;
         self.eat_newlines_maybe()?;
         let declared_type = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
-            self.recover_missing_type_expression_here(NodeType::TypeProperty)
+            self.recover_missing_type_expression_here(NodeType::TypeMember)
         } else {
-            self.eat_method_return_type(NodeType::TypeProperty)?
+            self.eat_method_return_type(NodeType::TypeMember)?
         };
 
-        let property = TypeProperty::Field {
+        let member = TypeMember::Field {
             is_optional,
             is_readonly,
             key,
             declared_type,
         };
-        let property_id = self.insert_node(property, self.get_span_from(&start));
+        let member_id = self.insert_node(member, self.get_span_from(&start));
 
         if let Some(span) = key_span {
-            self.tree.set_main_span(property_id, span);
+            self.tree.set_main_span(member_id, span);
         }
 
         self.tree.set_side_span(
-            property_id,
+            member_id,
             NodeSpanType::Type,
             self.get_span_from(&type_start),
         );
 
-        Ok(property_id)
+        Ok(member_id)
     }
 
-    /// Eat type properties inside one object type body.
-    pub fn eat_type_properties(&mut self) -> ParseResult<Vec<LocalNodeId<TypeProperty>>> {
-        let mut properties: Vec<LocalNodeId<TypeProperty>> = Vec::new();
-        let mut pending_property_decorators = PendingDecorators::new();
+    /// Eat type members inside one object type body.
+    pub fn eat_type_members(&mut self) -> ParseResult<Vec<LocalNodeId<TypeMember>>> {
+        let mut members: Vec<LocalNodeId<TypeMember>> = Vec::new();
+        let mut pending_member_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             self.eat_newlines_maybe()?;
             let token_type = self.peek_token_type();
 
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
-                if !pending_property_decorators.is_empty() {
+                if !pending_member_decorators.is_empty() {
                     let error = ParseError::unexpected(self.peek()?.span);
                     self.error(&error);
-                    pending_property_decorators.clear();
+                    pending_member_decorators.clear();
                 }
                 break;
             } else if token_type == TokenType::At {
                 let decorators = self.eat_decorators_maybe()?;
-                pending_property_decorators.extend(decorators);
+                pending_member_decorators.extend(decorators);
                 continue;
             } else if token_type == TokenType::Comma {
                 self.eat_item_stop_with_newlines()?;
@@ -1310,22 +1236,22 @@ impl Parser {
                 self.eat_any_stop_with_newlines()?;
                 continue;
             } else {
-                match self.try_eat_type_property(TokenType::Newline) {
-                    Ok(property_id) => {
-                        if !pending_property_decorators.is_empty() {
+                match self.try_eat_type_member(TokenType::Newline) {
+                    Ok(member_id) => {
+                        if !pending_member_decorators.is_empty() {
                             self.attach_decorators(
-                                property_id.id,
-                                std::mem::take(&mut pending_property_decorators),
+                                member_id.id,
+                                std::mem::take(&mut pending_member_decorators),
                             );
                         }
-                        properties.push(property_id);
+                        members.push(member_id);
                     }
                     Err(_) => continue,
                 }
             }
         }
 
-        Ok(properties)
+        Ok(members)
     }
 
     /// Try to eat a member and recover into one error slot when possible.
@@ -1370,8 +1296,18 @@ impl Parser {
         let start = self.mark_span();
 
         // embed (type embedding via ...Type)
-        if let Some(member_id) = self.try_eat_embed_member()? {
-            return Ok(member_id);
+        if self.peek_is(TokenType::Spread) {
+            let embed_start = self.mark_span();
+            self.bump(); // eat spread
+            let value = self.eat_member_type_expression()?;
+            let member = Member::Embed {
+                value,
+                visibility: None,
+                ambient: Ambientness::Concrete,
+                is_static: false,
+            };
+
+            return Ok(self.insert_node(member, self.get_span_from(&embed_start)));
         }
 
         // modifiers prefix
@@ -1407,18 +1343,38 @@ impl Parser {
 
         // static block: `static { ... }` or `static\n{ ... }`
         // must check before key parsing since static is already a modifier
-        if let Some(member_id) = self.try_eat_static_block_member(&start, modifiers)? {
-            return Ok(member_id);
+        if modifiers.is_some_and(|modifiers| modifiers.is_static)
+            && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+        {
+            self.eat_newlines_maybe()?;
+            let body_start = self.mark_span();
+            let body_block = self.eat_block(BlockContext::Statement)?;
+            let body = self.insert_node(
+                Expression::Block(body_block),
+                self.get_span_from(&body_start),
+            );
+
+            return Ok(self.insert_node(Member::StaticBlock { body }, self.get_span_from(&start)));
         }
 
         // type member: `type Name<U> = ...` or `type Name: Bound`
-        if let Some(member_id) = self.try_eat_type_member(&start, modifiers)? {
+        if let Some(member_id) = self.try_eat_associated_type_member(&start, modifiers)? {
             return Ok(member_id);
         }
 
         // comptime block: `comptime { ... }` (timing modifier already consumed)
-        if let Some(member_id) = self.try_eat_comptime_block_member(&start, modifiers)? {
-            return Ok(member_id);
+        if modifiers.is_some_and(|modifiers| modifiers.is_comptime)
+            && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+        {
+            self.eat_newlines_maybe()?;
+            let body_start = self.mark_span();
+            let body_block = self.eat_block(BlockContext::Statement)?;
+            let body = self.insert_node(
+                Expression::Block(body_block),
+                self.get_span_from(&body_start),
+            );
+
+            return Ok(self.insert_node(Member::ComptimeBlock { body }, self.get_span_from(&start)));
         }
 
         // head
@@ -1573,7 +1529,7 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
             let member = if let Some(name) = associated_comptime_name {
-                Member::ComptimeConst {
+                Member::AssociatedConst {
                     name,
                     declared_type: comptime_type,
                     value: default,
@@ -1678,7 +1634,7 @@ mod tests {
         Ambientness, Argument, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
         Declaration, Expression, FunctionDeclaration, FunctionKind, FunctionMode, GenericArgument,
         GenericParameter, IntType, InterfaceDeclaration, Key, Member, Name, Parameter, Property,
-        ScalarLiteral, TypeExpression, TypeLiteral, TypePredicateSubject, Visibility,
+        ScalarLiteral, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1856,7 +1812,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_method_parameter_type_then_default_value_typescript() {
+    fn test_parse_member_method_parameter_type_then_default_value() {
         let mut test = TestParser::new_with_options(
             "usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {}",
             LanguageType::TypeScript,
@@ -1894,7 +1850,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_method_generic_with_newline_before_parameters_typescript() {
+    fn test_parse_member_method_generic_with_newline_before_parameters() {
         let mut test = TestParser::new_with_options(
             "private method<T>\n(value: T): T { return value }",
             LanguageType::TypeScript,
@@ -1927,7 +1883,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_method_with_newline_before_return_type_typescript() {
+    fn test_parse_member_method_with_newline_before_return_type() {
         let mut test = TestParser::new_with_options(
             "method(value: string)\n: string { return value }",
             LanguageType::TypeScript,
@@ -1958,7 +1914,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_method_object_union_return_type_typescript() {
+    fn test_parse_member_method_object_union_return_type() {
         let mut test = TestParser::new_with_options(
             "overlaps(): { overlaps: false } | { overlaps: true; reason: string }",
             LanguageType::TypeScript,
@@ -1972,10 +1928,10 @@ port2 = {
 
             assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 2);
-                assert_node!(parser.tree, elements[0], TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, elements[0], TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 1);
                 });
-                assert_node!(parser.tree, elements[1], TypeExpression::Object { properties } => {
+                assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
                     assert_eq!(properties.len(), 2);
                 });
             });
@@ -1983,7 +1939,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_method_body_boundary_comment_on_return_type_typescript() {
+    fn test_parse_member_method_body_boundary_comment_on_return_type() {
         let mut test = TestParser::new_with_options(
             "method(): number // method-body\n{ return 1 }",
             LanguageType::TypeScript,
@@ -2050,7 +2006,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_method_named_public_in_javascript() {
+    fn test_parse_member_method_named_public() {
         let mut test = TestParser::new_with_options("public() {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
@@ -2062,7 +2018,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_static_method_named_protected_in_javascript() {
+    fn test_parse_member_static_method_named_protected() {
         let mut test =
             TestParser::new_with_options("static protected() {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -2075,7 +2031,7 @@ port2 = {
     }
 
     #[test]
-    fn test_parse_member_field_named_static_in_javascript() {
+    fn test_parse_member_field_named_static() {
         let mut test = TestParser::new_with_options("static", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
@@ -2156,7 +2112,7 @@ port2 = {
                 let mut getter: Option<Key> = None;
                 let mut setter: Option<Key> = None;
                 for member_id in members {
-                    if let Member::Method { signature, key, .. } = parser.tree.get(*member_id) {
+                    if let TypeMember::Method { signature, key, .. } = parser.tree.get(*member_id) {
                         match signature.mode {
                             Some(FunctionMode::Getter) => getter = *key,
                             Some(FunctionMode::Setter) => setter = *key,
@@ -2348,7 +2304,7 @@ foo(): string;"#,
 
         assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
             assert_string!(parser, *name, "method");
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Object { properties } => {
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
             });
         });
@@ -2413,7 +2369,7 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { name, generic_parameters, where_clauses, declared_type: None, value: Some(value), visibility, ambient, .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(value), visibility, ambient, .. } => {
             assert_string!(parser, *name, "Item");
             assert!(generic_parameters.is_empty());
             assert!(where_clauses.is_empty());
@@ -2430,7 +2386,7 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item: Hashable");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { name, generic_parameters, where_clauses, declared_type: Some(ty), value: None, .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: Some(ty), value: None, .. } => {
             assert_string!(parser, *name, "Item");
             assert!(generic_parameters.is_empty());
             assert!(where_clauses.is_empty());
@@ -2447,7 +2403,7 @@ foo(): string;"#,
         );
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { name, declared_type: Some(ty), value: None, .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: None, .. } => {
             assert_string!(parser, *name, "Item");
             assert_node!(parser.tree, *ty, TypeExpression::Union { .. });
         });
@@ -2458,7 +2414,7 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item: Hashable = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { name, declared_type: Some(ty), value: Some(value), .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: Some(value), .. } => {
             assert_string!(parser, *name, "Item");
             assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
@@ -2472,7 +2428,7 @@ foo(): string;"#,
         let mut test = TestParser::new("public type Item = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { name, value: Some(_), visibility, .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, value: Some(_), visibility, .. } => {
             assert_eq!(*visibility, Some(Visibility::Public));
             assert_string!(parser, *name, "Item");
         });
@@ -2483,7 +2439,7 @@ foo(): string;"#,
         let mut test = TestParser::new("type View<U> = [Item, U]");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { name, generic_parameters, where_clauses, declared_type: None, value: Some(_), .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(_), .. } => {
             assert_string!(parser, *name, "View");
             assert!(where_clauses.is_empty());
             assert_eq!(generic_parameters.len(), 1);
@@ -2498,7 +2454,7 @@ foo(): string;"#,
         let mut test = TestParser::new("comptime const Rows: number = 128");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::ComptimeConst { name, declared_type: Some(ty), value: Some(value), is_static, .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), is_static, .. } => {
             assert_string!(parser, *name, "Rows");
             assert!(!*is_static);
             assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
@@ -2515,7 +2471,7 @@ foo(): string;"#,
         let mut test = TestParser::new("comptime const LaneWidth: number = WidthHint * 2");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::ComptimeConst { value: Some(value), .. } => {
+        assert_node!(parser.tree, member_id, Member::AssociatedConst { value: Some(value), .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::Multiply);
             });

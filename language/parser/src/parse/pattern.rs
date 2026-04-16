@@ -336,7 +336,7 @@ impl Parser {
                 break;
             }
 
-            // in JS/TS: spread fields must be terminal
+            // spread fields must be terminal in typed and untyped patterns
             if enforce_terminal_spread && has_spread_field {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
@@ -507,7 +507,7 @@ impl Parser {
             }
             fields.push(pattern_field_id);
 
-            // in JS/TS: no separator after spread fields
+            // typed and untyped object patterns require spread fields to terminate the list
             if enforce_terminal_spread
                 && matches!(self.tree.get(pattern_field_id), PatternField::Spread { .. })
             {
@@ -649,7 +649,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_underscore_identifier_typescript() {
+    fn test_parse_pattern_underscore_identifier() {
         // _ in TypeScript patterns is a normal binding name
         let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -822,7 +822,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_object_field_const_alias_in_typescript() {
+    fn test_parse_pattern_object_field_const_alias() {
         let mut test =
             TestParser::new_with_options("{ const: value, title }", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -846,7 +846,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_tuple_spread_non_terminal_destack() {
+    fn test_parse_pattern_tuple_spread_non_terminal() {
         let mut test = TestParser::new("(x, ...rest, z)");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
@@ -977,7 +977,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_named_default_after_comment_newline_javascript() {
+    fn test_parse_pattern_named_default_after_comment_newline() {
         let mut test = TestParser::new_with_options("{d //comment\n= b}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
@@ -1147,7 +1147,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_object_readonly_shorthand_typescript() {
+    fn test_parse_pattern_object_readonly_shorthand() {
         let mut test = TestParser::new_with_options("{ readonly }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
@@ -1161,7 +1161,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_object_readonly_shorthand_with_newline_javascript() {
+    fn test_parse_pattern_object_readonly_shorthand_with_newline() {
         let mut test = TestParser::new_with_options("{ readonly\n}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
@@ -1174,7 +1174,7 @@ mod tests {
         });
     }
     #[test]
-    fn test_parse_pattern_object_readonly_shorthand_destack() {
+    fn test_parse_pattern_object_readonly_shorthand_in_value_block_mode() {
         let mut test = TestParser::new("{ readonly }");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
@@ -1188,7 +1188,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_array_readonly_identifier_typescript() {
+    fn test_parse_pattern_array_readonly_identifier() {
         let mut test =
             TestParser::new_with_options("[readonly, setReadonly]", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -1206,7 +1206,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_array_readonly_identifier_destack() {
+    fn test_parse_pattern_array_readonly_identifier_in_value_block_mode() {
         let mut test = TestParser::new("[readonly, setReadonly]");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
@@ -1223,7 +1223,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reject_pattern_object_readonly_modifier_with_name_destack() {
+    fn test_reject_pattern_object_readonly_modifier_with_name_in_value_block_mode() {
         let mut test = TestParser::new("{ readonly value }");
         let mut parser = test.prepare();
 
@@ -1233,7 +1233,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_object_spread_newline_before_terminator_typescript() {
+    fn test_parse_pattern_object_spread_newline_before_terminator() {
         let mut test =
             TestParser::new_with_options("{\n  onSuccess,\n  ...rest\n}", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -1386,7 +1386,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_object_pattern_defaults_do_not_consume_following_fields_javascript() {
+    fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
         // {a,b=1,c:d,e:f=2,[g]:[h]}
         let mut test =
             TestParser::new_with_options("{a,b=1,c:d,e:f=2,[g]:[h]}", LanguageType::JavaScript);
@@ -1419,7 +1419,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_object_pattern_alias_and_computed_defaults_javascript() {
+    fn test_parse_object_pattern_alias_and_computed_defaults() {
         // {c, d:e=1, [f]:g=2, h=i}
         let mut test =
             TestParser::new_with_options("{c, d:e=1, [f]:g=2, h=i}", LanguageType::JavaScript);
@@ -1447,7 +1447,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_object_pattern_computed_field_with_newline_after_colon_javascript() {
+    fn test_parse_object_pattern_computed_field_with_newline_after_colon() {
         // { [key]:\nvalue }
         let mut test = TestParser::new_with_options("{ [key]:\nvalue }", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -1469,7 +1469,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_object_pattern_alias_with_newline_after_colon_javascript() {
+    fn test_parse_object_pattern_alias_with_newline_after_colon() {
         // { source:\ntarget }
         let mut test =
             TestParser::new_with_options("{ source:\ntarget }", LanguageType::JavaScript);

@@ -330,7 +330,7 @@ declare module A {
 
     /// Parse a global augmentation inside a module declaration.
     #[test]
-    fn test_parse_nested_global_block_in_module() {
+    fn test_parse_nested_global_block_in_string_module() {
         let mut test = TestParser::new_with_options(
             r###"
 declare module "buffer" {
@@ -365,7 +365,7 @@ declare module "buffer" {
     }
 
     #[test]
-    fn test_parse_nested_global_block_in_module_typescript() {
+    fn test_parse_nested_global_block_in_module() {
         let mut test = TestParser::new_with_options(
             r###"
 declare module "m" {
@@ -400,7 +400,7 @@ declare module "m" {
     }
 
     #[test]
-    fn test_parse_module_block_destack_declaration() {
+    fn test_parse_module_block_declaration() {
         let mut test = TestParser::new_with_options(
             r###"
 module "foo" {
@@ -426,7 +426,7 @@ module "foo" {
     }
 
     #[test]
-    fn test_parse_module_block_destack() {
+    fn test_parse_module_block() {
         let mut test = TestParser::new_with_options(
             r###"
 module "foo" {
@@ -451,7 +451,7 @@ module "foo" {
     }
 
     #[test]
-    fn test_reject_identifier_module_without_body_in_destack() {
+    fn test_reject_identifier_module_without_body() {
         let mut test = TestParser::new_with_options("module Foo;", LanguageType::Destack);
         let mut parser = test.prepare();
         let result = parser.eat_expression(parser.options);

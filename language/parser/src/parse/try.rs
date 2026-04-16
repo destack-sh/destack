@@ -364,7 +364,7 @@ try {
         });
     }
 
-    /// Parse typed catch binding without parentheses in destack.
+    /// Parse typed catch binding without parentheses.
     #[test]
     fn test_try_expression_with_typed_catch_pattern_without_parentheses() {
         let mut test = TestParser::new(
@@ -388,7 +388,7 @@ try {
         });
     }
 
-    /// Parse typed destructuring catch patterns in ts.
+    /// Parse typed destructuring catch patterns.
     #[test]
     fn test_try_expression_with_typed_destructuring_catch_pattern() {
         let mut test = TestParser::new_with_options(
@@ -439,9 +439,9 @@ try {
         });
     }
 
-    /// Parse js catch expression parameters as expression patterns.
+    /// Parse untyped catch expression parameters as expression patterns.
     #[test]
-    fn test_parse_js_catch_expression_parameter() {
+    fn test_parse_untyped_catch_expression_parameter() {
         // source: try {} catch (answer()) {}
         let mut test =
             TestParser::new_with_options("try {} catch (answer()) {}", LanguageType::JavaScript);
@@ -457,9 +457,9 @@ try {
         });
     }
 
-    /// Parse js catch literal parameters as expression patterns.
+    /// Parse untyped catch literal parameters as expression patterns.
     #[test]
-    fn test_parse_js_catch_literal_parameter() {
+    fn test_parse_untyped_catch_literal_parameter() {
         // source: try {} catch (42) {}
         let mut test =
             TestParser::new_with_options("try {} catch (42) {}", LanguageType::JavaScript);
@@ -474,9 +474,9 @@ try {
         });
     }
 
-    /// Parse js catch blocks separated from try by a newline.
+    /// Parse untyped catch blocks separated from try by a newline.
     #[test]
-    fn test_parse_js_catch_without_binding_after_newline() {
+    fn test_parse_untyped_catch_without_binding_after_newline() {
         let mut test = TestParser::new_with_options(
             "try {\n  foo()\n}\ncatch {\n  bar()\n}",
             LanguageType::JavaScript,
@@ -497,9 +497,9 @@ try {
         });
     }
 
-    /// Parse js try/catch/finally with comment and newline seams around keyword boundaries.
+    /// Parse untyped try/catch/finally with comment and newline breaks around keyword boundaries.
     #[test]
-    fn test_parse_js_try_with_comment_newline_seams() {
+    fn test_parse_untyped_try_with_comment_newline_boundaries() {
         let mut test = TestParser::new_with_options(
             "try // Comment 1\n{\n}\ncatch(\n// Comment 2\ne\n) {\n}\nfinally // Comment 3\n{\n}\n",
             LanguageType::JavaScript,

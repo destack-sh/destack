@@ -1,18 +1,18 @@
 use crate::Parser;
 
 impl Parser {
-    /// Return true when content contains a js line terminator code point.
+    /// Return true when content contains a regex line terminator code point.
     ///
     /// Regex literal bodies cannot contain raw line terminators.
     /// This stays in parser validation because the lexer intentionally tokenizes
     /// regex literals broadly and defers syntax-specific checks to parse.
-    pub(super) fn contains_js_line_terminator(&self, content: &str) -> bool {
+    pub(super) fn contains_regex_line_terminator(&self, content: &str) -> bool {
         content
             .chars()
             .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
     }
 
-    /// Return true when regex flags are valid for modern JS/TS.
+    /// Return true when regex flags are valid in typed and untyped regex literals.
     pub(super) fn regex_flags_are_valid(&self, flags: &str) -> bool {
         let mut seen_d = false;
         let mut seen_g = false;

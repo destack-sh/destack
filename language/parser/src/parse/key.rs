@@ -30,7 +30,7 @@ impl Parser {
         let token = *self.eat_token(TokenType::Identifier)?;
         let has_escape = self.identifier_has_escape_for_index(index);
 
-        // reject escaped keywords in JS/TS
+        // reject escaped keywords in typed and untyped identifier forms
         if has_escape && (self.language.is_javascript() || self.language.is_typescript()) {
             let raw = self.file.span_str(token.span);
             if self.identifier_is_escaped_keyword(raw)
@@ -761,9 +761,9 @@ string
         assert_eq!(parser.get_span_str(error.leaf_span()), ":");
     }
 
-    /// Reject computed keys with sequence expressions in javascript.
+    /// Reject computed keys with sequence expressions in typed and untyped object forms.
     #[test]
-    fn test_reject_key_computed_sequence_expression_javascript() {
+    fn test_reject_key_computed_sequence_expression_in_typed_and_untyped_object_forms() {
         // source: [a,b]
         let mut test = TestParser::new_with_options("[a,b]", LanguageType::JavaScript);
         let mut parser = test.prepare();
@@ -773,9 +773,9 @@ string
         assert_eq!(parser.get_span_str(error.leaf_span()), ",");
     }
 
-    /// Reject legacy octal numeric keys in javascript.
+    /// Reject legacy octal numeric keys in typed and untyped object forms.
     #[test]
-    fn test_reject_legacy_octal_numeric_key_javascript() {
+    fn test_reject_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
         // source: 021
         let mut test = TestParser::new_with_options("021", LanguageType::JavaScript);
         let mut parser = test.prepare();
