@@ -138,7 +138,7 @@ pub enum Expression {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<Type>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Dynamic import call.
     ImportCall {
@@ -157,7 +157,7 @@ pub enum Expression {
     New {
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<Type>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Arrow function expression.
     ArrowFunction {
