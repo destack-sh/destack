@@ -224,7 +224,7 @@ fn generic_parameters_for_declaration(
         };
     }
 
-    // handle member symbols that can declare static parameters
+    // handle member symbols that can declare generic parameters
     if declaration_id.ty == dir::NodeType::Member {
         let member = tree.get(declaration_id.into_typed::<dir::Member>());
         return match member {
@@ -283,7 +283,7 @@ fn generic_arguments_are_explicit(
     })
 }
 
-/// One explicit generic argument value.
+/// One explicit generic argument.
 #[derive(Debug, Clone, Copy)]
 enum GenericArgumentValue {
     /// One type argument.
@@ -292,7 +292,7 @@ enum GenericArgumentValue {
     Value(dir::LocalNodeId<dir::Expression>),
 }
 
-/// Return one explicit generic argument value.
+/// Return one explicit generic argument.
 fn generic_argument_value(
     tree: &dir::NodeTree,
     argument_id: dir::LocalNodeId<dir::GenericArgument>,

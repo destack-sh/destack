@@ -953,7 +953,7 @@ pub fn expression_is_potentially_tainted(
         } | dir::Expression::Call {
             left: _,
             generic_arguments: _,
-            dynamic_arguments: _,
+            arguments: _,
         } | dir::Expression::Index { left: _, right: _ }
             | dir::Expression::Binary {
                 left: _,

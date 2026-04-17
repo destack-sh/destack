@@ -274,14 +274,10 @@ impl<'a> TaintAnalysis<'a> {
                 }
             }
             dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             }
             | dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => {
                 // call results can be marked tainted by callee decorators
                 let callee_expression = self.tree.get(*left);
@@ -290,7 +286,7 @@ impl<'a> TaintAnalysis<'a> {
                 labels.merge(&callee_labels);
 
                 // propagate taint from call arguments
-                for argument_id in dynamic_arguments.iter().copied() {
+                for argument_id in arguments.iter().copied() {
                     let argument = self.tree.get(argument_id);
                     let argument_labels = self.expression_taint_labels_inner(
                         argument.value(),

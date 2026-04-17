@@ -311,7 +311,7 @@ fn expression_require_target_specifier(
     let dir::Expression::Call {
         left,
         generic_arguments,
-        dynamic_arguments,
+        arguments,
     } = expression
     else {
         return None;
@@ -320,7 +320,7 @@ fn expression_require_target_specifier(
     if !generic_arguments.is_empty() {
         return None;
     }
-    if dynamic_arguments.len() != 1 {
+    if arguments.len() != 1 {
         return None;
     }
 
@@ -342,7 +342,7 @@ fn expression_require_target_specifier(
         return None;
     }
 
-    let argument = tree.get(dynamic_arguments[0]);
+    let argument = tree.get(arguments[0]);
     let dir::Argument::Positional { value, .. } = argument else {
         return None;
     };

@@ -95,7 +95,7 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
         }
 
         // get the executor argument
-        let Some(argument_id) = call_like.dynamic_arguments.first() else {
+        let Some(argument_id) = call_like.arguments.first() else {
             return;
         };
         let argument = self.ctx.tree.get(*argument_id);

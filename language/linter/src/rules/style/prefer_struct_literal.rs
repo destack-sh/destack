@@ -135,7 +135,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
         // skip generic constructor calls until we support generic argument rendering
         if !generic_arguments.is_empty() {
@@ -144,13 +144,13 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
 
         // require a field mapping in declaration order
         let field_names = self.constructor_field_names(callee_id)?;
-        if field_names.len() != dynamic_arguments.len() {
+        if field_names.len() != arguments.len() {
             return None;
         }
 
         // build field initializers from positional constructor arguments
         let mut field_initializers = Vec::new();
-        for (field_name, argument_id) in field_names.into_iter().zip(dynamic_arguments.iter()) {
+        for (field_name, argument_id) in field_names.into_iter().zip(arguments.iter()) {
             let argument = self.ctx.tree.get(*argument_id);
             let dir::Argument::Positional { value, .. } = argument else {
                 return None;
@@ -187,7 +187,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // only lint real struct constructors
         if !self.is_struct_constructor(callee_id) {
@@ -214,12 +214,9 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         .with_label("replace this constructor call with a tagged struct literal");
 
         // attach fix when argument to field mapping is unambiguous
-        if let Some(fix) = self.struct_literal_fix(
-            expression_id,
-            callee_id,
-            generic_arguments,
-            dynamic_arguments,
-        ) {
+        if let Some(fix) =
+            self.struct_literal_fix(expression_id, callee_id, generic_arguments, arguments)
+        {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -242,10 +239,10 @@ impl NodeVisitor for PreferStructLiteralVisitor<'_, '_> {
         if let dir::Expression::New {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         {
-            self.check_new_expression(id, *left, generic_arguments.as_slice(), dynamic_arguments);
+            self.check_new_expression(id, *left, generic_arguments.as_slice(), arguments);
         }
 
         // walk expression children

@@ -82,7 +82,7 @@ fn report_recursive_only_parameters(
 ) {
     let mut parameter_by_symbol = HashMap::new();
 
-    // collect dynamic parameters for this callable
+    // collect parameters for this callable
     for parameter_id in &signature.parameters {
         let parameter = ctx.tree.get(*parameter_id);
         parameter_by_symbol.insert(parameter.symbol(), *parameter_id);
@@ -334,7 +334,7 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
         if let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         {
             // visit callee first
@@ -361,8 +361,8 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
                 }
             }
 
-            // visit dynamic arguments in recursive context when needed
-            for argument_id in dynamic_arguments {
+            // visit arguments in recursive context when needed
+            for argument_id in arguments {
                 let argument = tree.get(*argument_id);
                 if is_recursive_call {
                     self.recursive_argument_depth += 1;

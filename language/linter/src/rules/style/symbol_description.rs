@@ -78,9 +78,7 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
 
         // match call expressions only (Symbol() is always called, never new)
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return;
@@ -95,7 +93,7 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
         }
 
         // if there are arguments, the description is provided
-        if !dynamic_arguments.is_empty() {
+        if !arguments.is_empty() {
             return;
         }
 

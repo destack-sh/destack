@@ -245,12 +245,10 @@ impl<'a> LintAstContext<'a> {
         let expression_id = self.unwrap_decorator_expression(decorator.expression);
         match self.tree.get(expression_id) {
             Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => DecoratorCall {
                 callee: self.unwrap_decorator_expression(*left),
-                arguments: Some(dynamic_arguments.as_slice()),
+                arguments: Some(arguments.as_slice()),
             },
             _ => DecoratorCall {
                 callee: expression_id,

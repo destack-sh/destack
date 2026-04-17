@@ -126,18 +126,15 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
 
         // get the callback argument
         let expression = tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        else {
+        let dir::Expression::Call { arguments, .. } = expression else {
             return;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return;
         }
 
         // get the callback expression
-        let callback_arg = tree.get(dynamic_arguments[0]);
+        let callback_arg = tree.get(arguments[0]);
         let callback_id = callback_arg.value();
         let callback = tree.get(callback_id);
 
@@ -251,17 +248,14 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
 
         // require at least two arguments and an empty object seed
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        else {
+        let dir::Expression::Call { arguments, .. } = expression else {
             return;
         };
-        if dynamic_arguments.len() < 2 {
+        if arguments.len() < 2 {
             return;
         }
 
-        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let first_argument = self.ctx.tree.get(arguments[0]);
         let dir::Argument::Positional {
             value: first_value, ..
         } = first_argument
@@ -278,7 +272,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
 
         // require accumulator usage in following arguments
         let mut has_accumulator_argument = false;
-        for argument_id in dynamic_arguments.iter().skip(1) {
+        for argument_id in arguments.iter().skip(1) {
             let argument = self.ctx.tree.get(*argument_id);
             let dir::Argument::Positional { value, .. } = argument else {
                 continue;

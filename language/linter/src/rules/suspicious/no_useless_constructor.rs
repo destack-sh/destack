@@ -212,7 +212,7 @@ fn is_redundant_super_passthrough_constructor(
     let dir::Expression::Call {
         left,
         generic_arguments,
-        dynamic_arguments,
+        arguments,
     } = expression
     else {
         return false;
@@ -227,13 +227,13 @@ fn is_redundant_super_passthrough_constructor(
     }
 
     // require one positional or spread argument per parameter in source order
-    if parameter_ids.len() != dynamic_arguments.len() {
+    if parameter_ids.len() != arguments.len() {
         return false;
     }
 
     parameter_ids
         .iter()
-        .zip(dynamic_arguments.iter())
+        .zip(arguments.iter())
         .all(|(parameter_id, argument_id)| {
             match (
                 constructor_parameter_binding(ctx, *parameter_id),

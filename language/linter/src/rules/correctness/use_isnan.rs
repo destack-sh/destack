@@ -50,12 +50,10 @@ impl LintRule for UseIsnan {
             // check indexOf and lastIndexOf calls when enabled
             if ctx.options.correctness.use_isnan_enforce_for_index_of
                 && let Expression::Call {
-                    left,
-                    dynamic_arguments,
-                    ..
+                    left, arguments, ..
                 } = expression
             {
-                check_index_of_nan_call(ctx, meta, node_id, *left, dynamic_arguments);
+                check_index_of_nan_call(ctx, meta, node_id, *left, arguments);
                 continue;
             }
 

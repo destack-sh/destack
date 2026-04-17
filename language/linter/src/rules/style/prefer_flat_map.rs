@@ -94,7 +94,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // skip static call arguments until we support rendering them
         if !generic_arguments.is_empty() {
@@ -122,7 +122,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // check flat() arguments: must be no args or literal 1
-        if !self.is_valid_flat_depth(dynamic_arguments) {
+        if !self.is_valid_flat_depth(arguments) {
             return;
         }
 
@@ -138,7 +138,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         if !map_call.generic_arguments.is_empty() {
             return;
         }
-        if map_call.dynamic_arguments.is_empty() {
+        if map_call.arguments.is_empty() {
             return;
         }
 
@@ -166,7 +166,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // report the match and attach fix when safe
-        self.report(expression_id, map_member_id, map_call.dynamic_arguments);
+        self.report(expression_id, map_member_id, map_call.arguments);
     }
 
     /// Check if flat() depth argument is valid (none or literal 1).
@@ -256,7 +256,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         map_member_id: dir::LocalNodeId<dir::Expression>,
         map_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
-        // require at least one dynamic argument
+        // require at least one argument
         let first_argument_id = *map_arguments.first()?;
         let last_argument_id = *map_arguments.last()?;
 
@@ -308,11 +308,11 @@ impl NodeVisitor for PreferFlatMapVisitor<'_, '_> {
         // check call expressions
         if let dir::Expression::Call {
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } = expression
         {
-            self.check_call(id, generic_arguments.as_slice(), dynamic_arguments);
+            self.check_call(id, generic_arguments.as_slice(), arguments);
         }
 
         // walk expression children

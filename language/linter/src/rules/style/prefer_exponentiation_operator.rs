@@ -97,7 +97,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // match Math.pow calls
         if !self.is_math_pow(left) {
@@ -122,7 +122,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             span,
         )
         .with_label("use base ** exponent instead");
-        if let Some(fix) = self.math_pow_fix(expression_id, generic_arguments, dynamic_arguments) {
+        if let Some(fix) = self.math_pow_fix(expression_id, generic_arguments, arguments) {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -134,7 +134,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
         // skip static arguments until we support rendering them
         if !generic_arguments.is_empty() {
@@ -142,7 +142,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         }
 
         // require exactly two positional arguments
-        let [base_argument_id, exponent_argument_id] = dynamic_arguments else {
+        let [base_argument_id, exponent_argument_id] = arguments else {
             return None;
         };
         let base_argument = self.ctx.tree.get(*base_argument_id);
@@ -221,10 +221,10 @@ impl NodeVisitor for ExponentiationVisitor<'_, '_> {
         if let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         {
-            self.check_call(id, *left, generic_arguments.as_slice(), dynamic_arguments);
+            self.check_call(id, *left, generic_arguments.as_slice(), arguments);
         }
 
         // walk expression children

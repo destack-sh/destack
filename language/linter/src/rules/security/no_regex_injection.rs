@@ -205,22 +205,18 @@ impl NodeVisitor for NoRegexInjectionVisitor<'_, '_> {
     ) {
         // check new RegExp()
         if let dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_new(id, *left, dynamic_arguments);
+            self.check_new(id, *left, arguments);
         }
 
         // check RegExp() call without new
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_call(id, *left, dynamic_arguments);
+            self.check_call(id, *left, arguments);
         }
 
         walk_expression(self, tree, id, expression);

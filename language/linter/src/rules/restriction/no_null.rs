@@ -240,15 +240,13 @@ fn find_call_argument_usage(
     let call_expression_id = ast::LocalNodeId::<ast::Expression>::new(call_node_id);
     let call_expression = ctx.tree.get(call_expression_id);
     let ast::Expression::Call {
-        left,
-        dynamic_arguments,
-        ..
+        left, arguments, ..
     } = call_expression
     else {
         return None;
     };
 
-    dynamic_arguments
+    arguments
         .iter()
         .position(|current_argument_id| *current_argument_id == argument_id)
         .map(|argument_index| (*left, argument_index))

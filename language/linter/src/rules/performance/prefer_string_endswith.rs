@@ -138,7 +138,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         else {
             return None;
@@ -146,7 +146,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         if !generic_arguments.is_empty() {
             return None;
         }
-        let [argument_id] = dynamic_arguments.as_slice() else {
+        let [argument_id] = arguments.as_slice() else {
             return None;
         };
         let argument = self.ctx.tree.get(*argument_id);
@@ -233,7 +233,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         else {
             return;
@@ -241,7 +241,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         if !generic_arguments.is_empty() {
             return;
         }
-        if dynamic_arguments.len() != 1 {
+        if arguments.len() != 1 {
             return;
         }
 
@@ -268,7 +268,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         };
 
         // require one positional string argument
-        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let first_argument = self.ctx.tree.get(arguments[0]);
         let dir::Argument::Positional {
             value: argument_id, ..
         } = first_argument

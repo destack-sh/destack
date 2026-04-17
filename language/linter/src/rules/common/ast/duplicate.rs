@@ -124,19 +124,19 @@ fn expression_coarse_key(
         }
         ast::Expression::Call {
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } => {
             (!generic_arguments.is_empty()).hash(&mut hasher);
-            dynamic_arguments.len().hash(&mut hasher);
+            arguments.len().hash(&mut hasher);
         }
         ast::Expression::New {
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } => {
             (!generic_arguments.is_empty()).hash(&mut hasher);
-            dynamic_arguments.len().hash(&mut hasher);
+            arguments.len().hash(&mut hasher);
         }
         ast::Expression::ArrayExpression { elements }
         | ast::Expression::TupleExpression { elements } => {
@@ -219,19 +219,19 @@ fn expression_structural_key(
         ast::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         }
         | ast::Expression::New {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } => {
             hash_expression_kind(ctx, &mut hasher, *left);
             (!generic_arguments.is_empty()).hash(&mut hasher);
-            dynamic_arguments.len().hash(&mut hasher);
-            for argument_id in dynamic_arguments {
+            arguments.len().hash(&mut hasher);
+            for argument_id in arguments {
                 hash_argument_shape(ctx, &mut hasher, *argument_id);
             }
         }

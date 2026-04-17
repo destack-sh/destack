@@ -139,7 +139,7 @@ impl NodeVisitor for CallbackVisitor<'_> {
         argument: &Argument,
     ) {
         // only count callback arguments for call expressions
-        if !argument_is_call_dynamic_argument(tree, self.parents, argument_id) {
+        if !argument_is_call_argument(tree, self.parents, argument_id) {
             walk_argument(self, tree, argument_id, argument);
             return;
         }
@@ -183,8 +183,8 @@ fn argument_value_expression_id(argument: &Argument) -> Option<LocalNodeId<Expre
     }
 }
 
-/// Return true when one argument id belongs to call dynamic arguments.
-fn argument_is_call_dynamic_argument(
+/// Return true when one argument id belongs to call arguments.
+fn argument_is_call_argument(
     tree: &NodeTree,
     parents: &ast::NodeParentIndex,
     argument_id: LocalNodeId<Argument>,
@@ -197,17 +197,14 @@ fn argument_is_call_dynamic_argument(
         return false;
     }
 
-    // require dynamic argument membership on call expressions only
+    // require argument membership on call expressions only
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = tree.get(parent_expression_id);
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = parent_expression
-    else {
+    let Expression::Call { arguments, .. } = parent_expression else {
         return false;
     };
 
-    dynamic_arguments.contains(&argument_id)
+    arguments.contains(&argument_id)
 }
 
 #[cfg(test)]

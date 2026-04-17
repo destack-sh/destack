@@ -95,7 +95,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } = expression
         else {
@@ -108,12 +108,12 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         }
 
         // need exactly 2 arguments (string and radix)
-        if dynamic_arguments.len() != 2 {
+        if arguments.len() != 2 {
             return;
         }
 
         // check if first argument is a static string
-        let string_arg = self.ctx.tree.get(dynamic_arguments[0]);
+        let string_arg = self.ctx.tree.get(arguments[0]);
         let string_expr_id = string_arg.value();
         let Some(string_value) = expression_static_string_literal(self.ctx.tree, string_expr_id)
         else {
@@ -121,7 +121,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         };
 
         // check if radix is a constant 2, 8, or 16
-        let radix_arg = self.ctx.tree.get(dynamic_arguments[1]);
+        let radix_arg = self.ctx.tree.get(arguments[1]);
         let radix_expr_id = radix_arg.value();
         let Some(const_value) = self.ctx.const_value(radix_expr_id) else {
             return;
@@ -159,7 +159,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         if let Some(fix) = self.numeric_literal_fix(
             expression_id,
             generic_arguments.as_slice(),
-            dynamic_arguments.as_slice(),
+            arguments.as_slice(),
             string_value,
             radix,
             prefix,
@@ -175,7 +175,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         string_value: StringId,
         radix: i64,
         prefix: &str,
@@ -186,10 +186,10 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         }
 
         // require both call arguments to be positional
-        if dynamic_arguments.len() != 2 {
+        if arguments.len() != 2 {
             return None;
         }
-        for argument_id in dynamic_arguments {
+        for argument_id in arguments {
             let argument = self.ctx.tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return None;

@@ -49,15 +49,11 @@ pub fn regex_pattern_info(
     // support `RegExp(...)` and `new RegExp(...)`
     let (callee_id, arguments) = match expression {
         ast::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         }
         | ast::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
-        } => (*left, dynamic_arguments.as_slice()),
+            left, arguments, ..
+        } => (*left, arguments.as_slice()),
         _ => return None,
     };
 

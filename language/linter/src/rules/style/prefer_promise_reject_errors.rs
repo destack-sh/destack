@@ -93,25 +93,21 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
 
         // direct Promise.reject(...)
-        if let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
+        if let dir::Expression::Call { arguments, .. } = expression
             && let Some(method_call) = expression_method_call(self.ctx.tree, expression_id)
             && method_call.method_name == self.reject_name
             && is_promise_receiver(self.ctx, method_call.receiver_id, self.promise_symbol)
         {
-            self.check_reject_payload(expression_id, dynamic_arguments);
+            self.check_reject_payload(expression_id, arguments);
         }
 
         // executor reject(...)
         if let dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
             && expression_target_symbol(self.ctx.tree, *left) == Some(self.promise_symbol)
         {
-            self.check_executor_reject_calls(dynamic_arguments);
+            self.check_executor_reject_calls(arguments);
         }
     }
 
@@ -119,14 +115,14 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
     fn check_reject_payload(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         if !reject_payload_is_obviously_non_error(
             self.ctx,
-            value_id_from_arguments(self.ctx.tree, dynamic_arguments),
+            value_id_from_arguments(self.ctx.tree, arguments),
             self.ok_name,
             self.err_name,
-            dynamic_arguments,
+            arguments,
             self.error_symbol,
             self.result_symbol,
         ) {
@@ -154,11 +150,8 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
     }
 
     /// Check reject(...) calls inside one Promise executor.
-    fn check_executor_reject_calls(
-        &mut self,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) {
-        let Some(executor_id) = value_id_from_arguments(self.ctx.tree, dynamic_arguments) else {
+    fn check_executor_reject_calls(&mut self, arguments: &[dir::LocalNodeId<dir::Argument>]) {
+        let Some(executor_id) = value_id_from_arguments(self.ctx.tree, arguments) else {
             return;
         };
         let Some(executor_declaration_id) = executor_declaration(self.ctx, executor_id) else {
@@ -184,9 +177,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
             let parent_id = parent.into_typed::<dir::Expression>();
             let parent_expression = self.ctx.tree.get(parent_id);
             let dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } = parent_expression
             else {
                 continue;
@@ -195,7 +186,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
                 continue;
             }
 
-            self.check_reject_payload(parent_id, dynamic_arguments);
+            self.check_reject_payload(parent_id, arguments);
         }
     }
 }
@@ -227,11 +218,11 @@ fn reject_payload_is_obviously_non_error(
     value_id: Option<dir::LocalNodeId<dir::Expression>>,
     ok_name: destack_core::StringId,
     err_name: destack_core::StringId,
-    dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    arguments: &[dir::LocalNodeId<dir::Argument>],
     error_symbol: Option<dir::GlobalSymbolId>,
     result_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
-    if dynamic_arguments.is_empty() {
+    if arguments.is_empty() {
         return !ctx
             .options
             .style
@@ -272,9 +263,9 @@ fn reject_payload_is_obviously_non_error(
 /// Return the first positional argument expression id when available.
 fn value_id_from_arguments(
     tree: &dir::NodeTree,
-    dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    arguments: &[dir::LocalNodeId<dir::Argument>],
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let first_argument = tree.get(*dynamic_arguments.first()?);
+    let first_argument = tree.get(*arguments.first()?);
     let dir::Argument::Positional { value, .. } = first_argument else {
         return None;
     };

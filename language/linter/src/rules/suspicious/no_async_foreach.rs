@@ -174,14 +174,14 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         else {
             return None;
         };
 
         // require no static args and exactly one callback arg
-        if !generic_arguments.is_empty() || dynamic_arguments.len() != 1 {
+        if !generic_arguments.is_empty() || arguments.len() != 1 {
             return None;
         }
 
@@ -205,7 +205,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         }
 
         // require an inline async function callback
-        let callback_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let callback_argument = self.ctx.tree.get(arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
@@ -276,12 +276,10 @@ impl NodeVisitor for AsyncForeachVisitor<'_, '_> {
     ) {
         // check call expressions for async forEach
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_foreach_call(id, *left, dynamic_arguments);
+            self.check_foreach_call(id, *left, arguments);
         }
 
         // walk expression children

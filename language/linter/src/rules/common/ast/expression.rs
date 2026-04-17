@@ -1409,12 +1409,12 @@ pub fn expression_is_equal(
         (
             ast::Expression::Call {
                 left: left_callee,
-                dynamic_arguments: left_args,
+                arguments: left_args,
                 ..
             },
             ast::Expression::Call {
                 left: right_callee,
-                dynamic_arguments: right_args,
+                arguments: right_args,
                 ..
             },
         ) => {

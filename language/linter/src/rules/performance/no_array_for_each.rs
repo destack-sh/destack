@@ -137,7 +137,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let method_call = expression_method_call(self.ctx.tree, expression_id)?;
 
         // require no static args and exactly one dynamic callback arg
-        if !method_call.generic_arguments.is_empty() || method_call.dynamic_arguments.len() != 1 {
+        if !method_call.generic_arguments.is_empty() || method_call.arguments.len() != 1 {
             return None;
         }
 
@@ -150,7 +150,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         }
 
         // require an inline non-async function callback
-        let callback_argument = self.ctx.tree.get(method_call.dynamic_arguments[0]);
+        let callback_argument = self.ctx.tree.get(method_call.arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument

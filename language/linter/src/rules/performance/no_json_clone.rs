@@ -206,14 +206,12 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         // match call expressions
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return None;
         };
-        if dynamic_arguments.len() != 1 {
+        if arguments.len() != 1 {
             return None;
         }
 
@@ -221,7 +219,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             return None;
         }
 
-        let argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let argument = self.ctx.tree.get(arguments[0]);
         Some(expression_unwrap_parenthesized(
             self.ctx.tree,
             argument.value(),
@@ -270,12 +268,10 @@ impl NodeVisitor for NoJsonCloneVisitor<'_, '_> {
     ) {
         // check call expressions for JSON clone usage
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_call(id, *left, dynamic_arguments);
+            self.check_call(id, *left, arguments);
         }
 
         // walk expression children

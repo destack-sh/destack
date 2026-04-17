@@ -43,15 +43,11 @@ impl LintRule for NoArgumentsOrderMismatch {
         for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             let (callee_expression_id, argument_ids) = match expression {
                 dir::Expression::Call {
-                    left,
-                    dynamic_arguments,
-                    ..
+                    left, arguments, ..
                 }
                 | dir::Expression::New {
-                    left,
-                    dynamic_arguments,
-                    ..
-                } => (*left, dynamic_arguments.as_slice()),
+                    left, arguments, ..
+                } => (*left, arguments.as_slice()),
                 _ => continue,
             };
 
@@ -302,7 +298,7 @@ fn expression_name_hint(
     }
 }
 
-/// Return stable dynamic parameter names for one call target.
+/// Return stable parameter names for one call target.
 ///
 /// When multiple resolution candidates disagree about parameter names, this
 /// returns none to avoid noisy false positives.
@@ -343,7 +339,7 @@ fn stable_parameter_names_for_call_target(
     candidate_parameter_names.into_iter().next()
 }
 
-/// Return dynamic parameter names for one symbol declaration.
+/// Return parameter names for one symbol declaration.
 fn parameter_names_for_symbol(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::GlobalSymbolId,
@@ -365,7 +361,7 @@ fn parameter_names_for_symbol(
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 
-/// Return dynamic parameter names for one declaration node id.
+/// Return parameter names for one declaration node id.
 fn declaration_parameter_names(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeIdAny,
@@ -397,7 +393,7 @@ fn parameter_declared_or_inferred_type_id(
     ctx.types.get_value_type_id(parameter_symbol)
 }
 
-/// Return dynamic parameter ids for one callable declaration node.
+/// Return parameter ids for one callable declaration node.
 fn declaration_parameters(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeIdAny,
@@ -429,9 +425,9 @@ fn declaration_parameters(
     None
 }
 
-/// Return constructor dynamic parameters for a class or struct when stable.
+/// Return constructor parameters for a class or struct when stable.
 ///
-/// When multiple constructors disagree on dynamic parameter shape, this
+/// When multiple constructors disagree on parameter shape, this
 /// returns none to avoid noisy false positives.
 fn constructor_parameters(
     tree: &dir::NodeTree,
