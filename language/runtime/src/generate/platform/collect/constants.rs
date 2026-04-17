@@ -181,13 +181,11 @@ fn evaluate_integer_constant_expression(
             let argument = tree.get::<Argument>(*argument_id);
             evaluate_integer_constant_expression(tree, argument.value(), strings, known_values)
         }
-        Expression::Call {
-            dynamic_arguments, ..
-        } => {
-            let Some(argument_id) = dynamic_arguments.first() else {
+        Expression::Call { arguments, .. } => {
+            let Some(argument_id) = arguments.first() else {
                 panic!("constant call expression must contain one argument");
             };
-            if dynamic_arguments.len() != 1 {
+            if arguments.len() != 1 {
                 panic!("constant call expression must contain exactly one argument");
             }
 

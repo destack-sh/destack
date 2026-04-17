@@ -218,7 +218,7 @@ pub(crate) fn format_declared_signature(
     };
 
     let parameters_text = signature
-        .dynamic_parameters
+        .parameters
         .iter()
         .map(|parameter_id| {
             format_parameter_declared(*parameter_id, module.id, context, &tree, &types, strings)
@@ -242,7 +242,7 @@ pub(crate) fn collect_binding_params(
 ) -> Vec<BindingParameter> {
     // build binding parameters from the signature list
     signature
-        .dynamic_parameters
+        .parameters
         .iter()
         .map(|parameter_id| {
             let name = parameter_name(*parameter_id, context.tree, context.strings);
@@ -485,7 +485,7 @@ pub(crate) fn binding_type_from_type_id(
         }
         dir::Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } => {
             let symbol = compiler.canonical_declared_artifact_symbol_for_revision(
                 context.revision(),
@@ -493,7 +493,7 @@ pub(crate) fn binding_type_from_type_id(
                 *symbol,
             );
             if symbols.is_result(symbol) || symbols.is_async_result(symbol) {
-                if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
+                if let Some(inner) = unwrap_first_type_argument(generic_arguments.as_ref()) {
                     return binding_type_from_type_id(
                         compiler,
                         context,
@@ -511,7 +511,7 @@ pub(crate) fn binding_type_from_type_id(
             }
 
             if let Some(kind) = symbols.slice_kind(symbol) {
-                if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
+                if let Some(inner) = unwrap_first_type_argument(generic_arguments.as_ref()) {
                     let inner_binding = binding_type_from_type_id(
                         compiler,
                         context,
@@ -1441,10 +1441,10 @@ fn unsupported_binding_type(type_text: &str, reason: &str) -> ! {
 
 /// Extract the first static type argument from committed artifact state.
 fn unwrap_first_type_argument(
-    static_arguments: Option<&Vec<StaticArgument>>,
+    generic_arguments: Option<&Vec<StaticArgument>>,
 ) -> Option<dir::LocalTypeId> {
-    let static_arguments = static_arguments?;
-    let first = static_arguments.first()?;
+    let generic_arguments = generic_arguments?;
+    let first = generic_arguments.first()?;
     match first {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => Some(*ty),
@@ -1536,7 +1536,7 @@ fn format_type_expression(
         Expression::TypeImport {
             target,
             qualifier,
-            static_arguments,
+            generic_arguments,
             ..
         } => {
             let target = format_type_expression(*target, tree, strings)?;
@@ -1545,7 +1545,7 @@ fn format_type_expression(
                 out.push('.');
                 out.push_str(&format_path_segments(qualifier, strings));
             }
-            if let Some(arguments) = static_arguments {
+            if let Some(arguments) = generic_arguments {
                 let argument_text = format_argument_list(arguments, tree, strings)?;
                 out.push('<');
                 out.push_str(&argument_text);
@@ -1556,7 +1556,7 @@ fn format_type_expression(
         Expression::Member {
             left,
             name,
-            static_arguments,
+            generic_arguments,
         } => {
             let left_text = format_type_expression(*left, tree, strings)?;
             let mut out = match name {
@@ -1564,7 +1564,7 @@ fn format_type_expression(
                 Some(name) => format!("{left_text}.{}", strings.get(*name).as_ref()),
                 None => left_text,
             };
-            if let Some(arguments) = static_arguments {
+            if let Some(arguments) = generic_arguments {
                 let argument_text = format_argument_list(arguments, tree, strings)?;
                 out.push('<');
                 out.push_str(&argument_text);
@@ -1574,26 +1574,26 @@ fn format_type_expression(
         }
         Expression::UnresolvedPath {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         }
         | Expression::LocalReference {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         }
         | Expression::ModuleReference {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         }
         | Expression::GlobalReference {
             path,
-            static_arguments,
+            generic_arguments,
             ..
         } => {
             let mut out = format_path_segments(path, strings);
-            if let Some(arguments) = static_arguments {
+            if let Some(arguments) = generic_arguments {
                 let argument_text = format_argument_list(arguments, tree, strings)?;
                 out.push('<');
                 out.push_str(&argument_text);
