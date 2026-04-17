@@ -17,8 +17,8 @@ impl FunctionLowerer<'_> {
             dir::Expression::Labelled { body, symbol, .. } => {
                 self.lower_labelled_statement(expression_id, *symbol, *body)
             }
-            dir::Expression::Block { block } => {
-                let block = self.context.dir_tree.get(*block);
+            dir::Expression::Block(block_id) => {
+                let block = self.context.dir_tree.get(*block_id);
                 for expr_id in block.iter_expressions() {
                     let terminated = self.lower_statement_expression(expr_id)?;
                     if terminated.is_yes() {
@@ -132,15 +132,10 @@ impl FunctionLowerer<'_> {
 
             dir::Expression::Call {
                 left,
-                dynamic_arguments,
-                static_arguments,
+                arguments,
+                generic_arguments,
             } => {
-                self.lower_call_statement(
-                    expression_id,
-                    left,
-                    dynamic_arguments,
-                    static_arguments,
-                )?;
+                self.lower_call_statement(expression_id, left, arguments, generic_arguments)?;
                 Ok(Terminates::No)
             }
 
@@ -837,7 +832,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
-        type_expression: Option<dir::LocalNodeId<dir::Expression>>,
+        type_expression: Option<dir::LocalNodeId<dir::TypeExpression>>,
         mutability: Option<dir::Mutability>,
     ) -> LowerResult<()> {
         // read the pattern
@@ -885,7 +880,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
         symbol_id: dir::LocalSymbolId,
-        type_expression: Option<dir::LocalNodeId<dir::Expression>>,
+        _type_expression: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the analyzed value type for the symbol
         let symbol = symbol_id.into_global(self.context.module_id);
@@ -894,13 +889,6 @@ impl FunctionLowerer<'_> {
 
         // use prelowered aggregate/reference types when available
         if let Some(mir_type) = self.context.type_lowerer.cached_type(type_id) {
-            return Ok(mir_type);
-        }
-
-        // use explicit annotation when available
-        if let Some(type_expression) = type_expression
-            && let Ok(mir_type) = self.lower_type_for_expression(type_expression)
-        {
             return Ok(mir_type);
         }
 

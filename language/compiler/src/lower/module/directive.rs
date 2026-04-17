@@ -22,7 +22,7 @@ impl ModuleLowerer<'_> {
 
         // map parameter names to indices
         let mut param_name_to_index: HashMap<dir::StringId, u32> = HashMap::new();
-        for (index, param_id) in signature.dynamic_parameters.iter().enumerate() {
+        for (index, param_id) in signature.parameters.iter().enumerate() {
             let param: &dir::Parameter = self.dir_tree.get(*param_id);
             let param_name = match param {
                 dir::Parameter::Named { name, .. } => Some(*name),

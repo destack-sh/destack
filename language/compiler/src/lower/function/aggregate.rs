@@ -115,7 +115,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_tagged_object_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        _ty_expr: dir::LocalNodeId<dir::Expression>,
+        _ty_expr: dir::LocalNodeId<dir::TypeExpression>,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the struct type from type inference
@@ -139,30 +139,12 @@ impl FunctionLowerer<'_> {
             let property = self.context.dir_tree.get(*property_id);
             match property {
                 dir::Property::Field { key, value, .. } => {
-                    // get the property key
-                    let key = key
-                        .as_ref()
-                        .ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
-                            message: "struct field missing key".to_string(),
-                        })?;
-
                     // resolve key to field index using the cached layout
                     let field_index =
                         self.resolve_property_key_to_field_index(expression_id, key, layout)?;
 
-                    // get the initializer value
-                    let value_expr = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                        message: "struct field missing initializer".to_string(),
-                    })?;
-
                     // lower the value
-                    let (value, _) = self.lower_value_expression(value_expr)?;
+                    let (value, _) = self.lower_value_expression(*value)?;
 
                     // check for duplicate field
                     if field_values[field_index].is_some() {
@@ -257,7 +239,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_tagged_scalar_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        _ty_expr: dir::LocalNodeId<dir::Expression>,
+        _ty_expr: dir::LocalNodeId<dir::TypeExpression>,
         value_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the newtype result type from type inference
@@ -332,7 +314,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_tagged_tuple_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        _ty_expr: dir::LocalNodeId<dir::Expression>,
+        _ty_expr: dir::LocalNodeId<dir::TypeExpression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the newtype result type from type inference
@@ -428,19 +410,16 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_new_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // reject static arguments for now
-        if static_arguments
-            .as_ref()
-            .is_some_and(|args| !args.is_empty())
-        {
+        // reject generic arguments for now
+        if !generic_arguments.is_empty() {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.context.module_id)
                     .into_anchored(Some(self.context.profile)),
-                message: "static arguments are not supported".to_string(),
+                message: "generic arguments are not supported".to_string(),
             });
         }
 
@@ -473,8 +452,8 @@ impl FunctionLowerer<'_> {
             let signature = self.signature_type_for_function(expression_id, function_id)?;
 
             // lower constructor arguments
-            let mut arguments = Vec::with_capacity(dynamic_arguments.len());
-            for argument_id in dynamic_arguments {
+            let mut argument_values = Vec::with_capacity(arguments.len());
+            for argument_id in arguments {
                 let argument = self.context.dir_tree.get(*argument_id);
                 // reject non positional constructor arguments
                 if !matches!(argument, dir::Argument::Positional { .. }) {
@@ -486,14 +465,14 @@ impl FunctionLowerer<'_> {
                     });
                 }
                 let (value, _) = self.lower_value_expression(argument.value())?;
-                arguments.push(value);
+                argument_values.push(value);
             }
 
             // emit the constructor call
             let value = self
                 .state
                 .builder
-                .call(function_id, signature, arguments)
+                .call(function_id, signature, argument_values)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(self.context.module_id)
@@ -551,7 +530,7 @@ impl FunctionLowerer<'_> {
             .count();
 
         // reject mismatched argument counts
-        if dynamic_arguments.len() != field_count {
+        if arguments.len() != field_count {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.context.module_id)
@@ -562,7 +541,7 @@ impl FunctionLowerer<'_> {
 
         // initialize field values array in layout order
         let mut field_values: Vec<Option<mir::Value>> = vec![None; layout.fields.len()];
-        for (source_index, argument_id) in dynamic_arguments.iter().enumerate() {
+        for (source_index, argument_id) in arguments.iter().enumerate() {
             let argument = self.context.dir_tree.get(*argument_id);
             // reject non positional constructor arguments
             let dir::Argument::Positional { value, .. } = argument else {
@@ -724,60 +703,31 @@ impl FunctionLowerer<'_> {
     fn resolve_property_key_to_field_index(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        key: &dir::DynamicKey,
+        key: &dir::Key,
         layout: &StructLayout,
     ) -> LowerResult<usize> {
         match key {
-            dir::DynamicKey::Name(name) => {
-                // find field by name using layout's field_index method
-                layout
-                    .field_index(*name)
-                    .map(|i| i as usize)
-                    .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                        message: "struct field not found".to_string(),
-                    })
-            }
-            dir::DynamicKey::Private(_) => Err(LowerError::UnsupportedConstruct {
+            dir::Key::Name(name) => layout
+                .field_index(name.string())
+                .map(|i| i as usize)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                    message: "struct field not found".to_string(),
+                }),
+            dir::Key::Private(_) => Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.context.module_id)
                     .into_anchored(Some(self.context.profile)),
                 message: "private field key not supported in struct layout".to_string(),
             }),
-            dir::DynamicKey::Number(num_str) => {
-                // parse numeric key as source index
-                let index_str = self.context.strings.get(*num_str);
-                let source_index: u32 =
-                    index_str
-                        .parse()
-                        .map_err(|_| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
-                            message: "invalid numeric field key".to_string(),
-                        })?;
-                // map source index to layout index
-                layout
-                    .field_index_by_source(source_index)
-                    .map(|i| i as usize)
-                    .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                        message: "field index out of bounds".to_string(),
-                    })
-            }
-            dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => {
-                // reject computed property keys
-                Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                    message: "computed property keys not supported".to_string(),
-                })
-            }
+            dir::Key::Expression(_) => Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+                message: "computed property keys not supported".to_string(),
+            }),
         }
     }
 
@@ -839,8 +789,8 @@ impl FunctionLowerer<'_> {
             let declaration = self.context.dir_tree.get(declaration_id);
             // select struct or class members
             let members = match declaration {
-                dir::Declaration::Struct { members, .. }
-                | dir::Declaration::Class { members, .. } => members,
+                dir::Declaration::Struct(declaration) => &declaration.members,
+                dir::Declaration::Class(declaration) => &declaration.members,
                 _ => continue,
             };
 

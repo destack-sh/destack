@@ -60,8 +60,8 @@ impl MethodKey {
 pub(crate) struct VtableMethod {
     /// The slot identity for overrides.
     key: MethodKey,
-    /// The abstraction mode for override handling.
-    abstraction: dir::FunctionAbstraction,
+    /// Whether this method is declared as an override.
+    is_override: bool,
     /// The member node for diagnostics.
     member_id: dir::LocalNodeId<dir::Member>,
     /// The method symbol for this implementation.
@@ -271,7 +271,7 @@ impl ModuleLowerer<'_> {
             let declaration = self.dir_tree.get(declaration_id);
             // select the class members
             let members = match declaration {
-                dir::Declaration::Class { members, .. } => members,
+                dir::Declaration::Class(declaration) => &declaration.members,
                 _ => continue,
             };
 
@@ -279,7 +279,6 @@ impl ModuleLowerer<'_> {
                 let member = self.dir_tree.get(*member_id);
                 // skip non method members
                 let dir::Member::Method {
-                    modifiers,
                     key,
                     signature,
                     symbol: method_symbol,
@@ -290,13 +289,16 @@ impl ModuleLowerer<'_> {
                 };
 
                 // skip non virtual methods
-                if !self.method_is_virtual(modifiers.as_ref(), signature) {
+                if !self.method_is_virtual(member, signature) {
                     continue;
                 }
 
                 // resolve the method name
-                let name =
-                    self.member_dispatch_name_or_error(key.as_ref(), signature.mode, *member_id)?;
+                let name = self.member_dispatch_name_or_error(
+                    key.as_ref(),
+                    signature.mode,
+                    member_id.into_any(),
+                )?;
 
                 // resolve the signature type id
                 let signature_type_id = self.method_signature_type_id(*member_id)?;
@@ -305,7 +307,7 @@ impl ModuleLowerer<'_> {
                 let method_symbol = method_symbol.into_global(self.module_id);
                 methods.push(VtableMethod {
                     key,
-                    abstraction: signature.abstraction,
+                    is_override: signature.is_override,
                     member_id: *member_id,
                     symbol: method_symbol,
                 });
@@ -318,11 +320,11 @@ impl ModuleLowerer<'_> {
     /// Return true when a method should participate in virtual dispatch.
     pub(crate) fn method_is_virtual(
         &self,
-        modifiers: Option<&dir::BindingModifier>,
+        member: &dir::Member,
         signature: &dir::FunctionSignature,
     ) -> bool {
         // reject static and private methods
-        if self.member_is_static(modifiers) || self.member_is_private(modifiers) {
+        if member.is_static() || self.member_is_private(member) {
             return false;
         }
 
@@ -366,11 +368,7 @@ impl ModuleLowerer<'_> {
                     // append a new slot for fresh methods
                     None => {
                         // reject overrides without a base slot
-                        if matches!(
-                            method.abstraction,
-                            dir::FunctionAbstraction::ConcreteOverride
-                                | dir::FunctionAbstraction::AbstractOverride
-                        ) {
+                        if method.is_override {
                             return Err(LowerError::UnsupportedConstruct {
                                 node: method
                                     .member_id
@@ -431,8 +429,20 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return true when a member is private.
-    pub(crate) fn member_is_private(&self, modifiers: Option<&dir::BindingModifier>) -> bool {
-        // check for private visibility
-        modifiers.is_some_and(|modifiers| modifiers.visibility == Some(dir::Visibility::Private))
+    pub(crate) fn member_is_private(&self, member: &dir::Member) -> bool {
+        // check visibility carrying members directly
+        match member {
+            dir::Member::AssociatedType { visibility, .. }
+            | dir::Member::AssociatedConst { visibility, .. }
+            | dir::Member::Field { visibility, .. }
+            | dir::Member::Method { visibility, .. }
+            | dir::Member::Embed { visibility, .. } => {
+                *visibility == Some(dir::Visibility::Private)
+            }
+
+            dir::Member::StaticBlock { .. }
+            | dir::Member::ComptimeBlock { .. }
+            | dir::Member::Error { .. } => false,
+        }
     }
 }

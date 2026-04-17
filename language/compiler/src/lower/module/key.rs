@@ -9,12 +9,12 @@ impl ModuleLowerer<'_> {
     /// Resolve a dispatchable member name from a key and signature mode.
     pub(crate) fn member_dispatch_name_or_error(
         &self,
-        key: Option<&dir::DynamicKey>,
+        key: Option<&dir::Key>,
         mode: Option<dir::FunctionMode>,
-        node: dir::LocalNodeId<dir::Member>,
+        node: dir::LocalNodeIdAny,
     ) -> LowerResult<StringId> {
-        if let Some(dir::DynamicKey::Name(name)) = key {
-            return Ok(*name);
+        if let Some(dir::Key::Name(name)) = key {
+            return Ok(name.string());
         }
 
         match mode {
@@ -24,7 +24,7 @@ impl ModuleLowerer<'_> {
             }
             _ => Err(LowerError::UnsupportedConstruct {
                 node: node
-                    .into_global_any(self.module_id)
+                    .into_global(self.module_id)
                     .into_anchored(Some(self.profile)),
                 message: "method must have a static name".to_string(),
             }),

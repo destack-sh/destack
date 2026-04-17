@@ -298,16 +298,11 @@ impl TestProgram {
 
         // scan for the named function declaration
         for (_, declaration) in tree.iter_nodes_of_type::<dir::Declaration>() {
-            let dir::Declaration::Function {
-                descriptor,
-                signature,
-                ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
-            let Some(name) = descriptor.name else {
+            let Some(name) = declaration.name else {
                 continue;
             };
 
@@ -316,8 +311,8 @@ impl TestProgram {
                 continue;
             }
 
-            let parameter_id = signature.dynamic_parameters.get(index)?;
-            let parameter = tree.get(*parameter_id);
+            let parameter_id = declaration.signature.parameters.get(index)?;
+            let parameter: &dir::Parameter = tree.get(*parameter_id);
             let symbol_id = parameter.symbol();
             let global_symbol = dir::GlobalSymbolId::new(module_id, symbol_id);
             return types.get_value_type_id(global_symbol);

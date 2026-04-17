@@ -131,7 +131,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
         resolution_receiver: Option<dir::LocalTypeId>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<Option<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)>> {
         // resolve the intrinsic binding name
         let name_id = match self.resolve_intrinsic_binding_name_id(target_symbol)? {
@@ -148,12 +148,8 @@ impl FunctionLowerer<'_> {
         // resolve the result type
         let result_type = self.lower_type_for_expression(expression_id)?;
 
-        let result = self.lower_intrinsic_by_name(
-            expression_id,
-            name.as_ref(),
-            result_type,
-            dynamic_arguments,
-        )?;
+        let result =
+            self.lower_intrinsic_by_name(expression_id, name.as_ref(), result_type, arguments)?;
 
         Ok(Some(result))
     }
@@ -164,14 +160,14 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // numeric cast intrinsics
         if name == "fcvt_to_sint.sat" {
             return self
                 .lower_saturating_cast_intrinsic(
                     expression_id,
-                    dynamic_arguments,
+                    arguments,
                     result_type,
                     mir::CastOperator::FloatToSignedIntSaturating,
                     "fcvt_to_sint.sat",
@@ -182,7 +178,7 @@ impl FunctionLowerer<'_> {
             return self
                 .lower_saturating_cast_intrinsic(
                     expression_id,
-                    dynamic_arguments,
+                    arguments,
                     result_type,
                     mir::CastOperator::FloatToUnsignedIntSaturating,
                     "fcvt_to_uint.sat",
@@ -193,18 +189,18 @@ impl FunctionLowerer<'_> {
         // vector intrinsics
         if name == "splat" {
             return self
-                .lower_vector_splat_intrinsic(expression_id, dynamic_arguments, result_type)
+                .lower_vector_splat_intrinsic(expression_id, arguments, result_type)
                 .map(|(value, ty)| (Some(value), ty));
         }
         if name == "select" {
             return self
-                .lower_vector_select_intrinsic(expression_id, dynamic_arguments, result_type)
+                .lower_vector_select_intrinsic(expression_id, arguments, result_type)
                 .map(|(value, ty)| (Some(value), ty));
         }
 
         // vector reductions are name-driven and otherwise fall through to MIR intrinsics
         if let Some(result) =
-            self.lower_vector_reduce_intrinsic(expression_id, name, result_type, dynamic_arguments)?
+            self.lower_vector_reduce_intrinsic(expression_id, name, result_type, arguments)?
         {
             return Ok((Some(result.0), result.1));
         }
@@ -214,13 +210,13 @@ impl FunctionLowerer<'_> {
             return self.lower_atomic_intrinsic_binding_call(
                 expression_id,
                 kind,
-                dynamic_arguments,
+                arguments,
                 result_type,
             );
         }
 
         // remaining names map to MIR intrinsics
-        self.lower_direct_intrinsic(expression_id, name, result_type, dynamic_arguments)
+        self.lower_direct_intrinsic(expression_id, name, result_type, arguments)
             .map(|(value, ty)| (Some(value), ty))
     }
 
@@ -228,12 +224,12 @@ impl FunctionLowerer<'_> {
     fn lower_saturating_cast_intrinsic(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
         operator: mir::CastOperator,
         intrinsic_name: &str,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let arguments = self.lower_positional_arguments(expression_id, dynamic_arguments)?;
+        let arguments = self.lower_positional_arguments(expression_id, arguments)?;
         let argument = match arguments.as_slice() {
             [argument] => *argument,
             _ => {
@@ -252,11 +248,11 @@ impl FunctionLowerer<'_> {
     fn lower_vector_splat_intrinsic(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (argument, argument_type) =
-            self.lower_single_positional_argument(expression_id, dynamic_arguments, "splat")?;
+            self.lower_single_positional_argument(expression_id, arguments, "splat")?;
         let element_type = self.vector_element_type(expression_id, result_type, "splat")?;
         if argument_type != element_type {
             return Err(self.error(
@@ -274,10 +270,10 @@ impl FunctionLowerer<'_> {
     fn lower_vector_select_intrinsic(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let argument_ids = match dynamic_arguments {
+        let argument_ids = match arguments {
             [mask_id, then_id, else_id] => (*mask_id, *then_id, *else_id),
             _ => {
                 return Err(self.error(expression_id, "select expects a mask and two values"));
@@ -341,7 +337,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         let operator = match mir::VectorReduceOperator::try_from(name) {
             Ok(operator) => operator,
@@ -349,7 +345,7 @@ impl FunctionLowerer<'_> {
         };
 
         let (argument, argument_type) =
-            self.lower_single_positional_argument(expression_id, dynamic_arguments, name)?;
+            self.lower_single_positional_argument(expression_id, arguments, name)?;
         let element_type = self.vector_element_type(expression_id, argument_type, name)?;
         if result_type != element_type {
             return Err(self.error(
@@ -369,7 +365,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let intrinsic: mir::Intrinsic = name.parse().map_err(|_| {
             self.error(
@@ -385,7 +381,7 @@ impl FunctionLowerer<'_> {
             ));
         }
 
-        let arguments = self.lower_positional_arguments(expression_id, dynamic_arguments)?;
+        let arguments = self.lower_positional_arguments(expression_id, arguments)?;
         let value = self
             .state
             .builder
@@ -398,10 +394,10 @@ impl FunctionLowerer<'_> {
     fn lower_single_positional_argument(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         intrinsic_name: &str,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let argument_id = match dynamic_arguments {
+        let argument_id = match arguments {
             [argument_id] => *argument_id,
             _ => {
                 return Err(self.error(
@@ -466,19 +462,19 @@ impl FunctionLowerer<'_> {
     fn lower_positional_arguments(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> LowerResult<Vec<mir::Value>> {
-        let mut arguments = Vec::with_capacity(dynamic_arguments.len());
-        for argument_id in dynamic_arguments {
+        let mut argument_values = Vec::with_capacity(arguments.len());
+        for argument_id in arguments {
             let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(self.error(expression_id, "unsupported non-positional argument"));
             }
             let (value, _) = self.lower_value_expression(argument.value())?;
-            arguments.push(value);
+            argument_values.push(value);
         }
 
-        Ok(arguments)
+        Ok(argument_values)
     }
 
     /// Lower atomic intrinsics with explicit metadata arguments.
@@ -486,20 +482,20 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         kind: AtomicIntrinsicKind,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let base_args = kind.value_argument_count();
         let metadata_args = ATOMIC_METADATA_SLOTS.len();
 
-        if dynamic_arguments.len() != base_args + metadata_args {
+        if arguments.len() != base_args + metadata_args {
             return Err(self.error(
                 expression_id,
                 "atomic intrinsic arguments must include explicit ordering and semantics",
             ));
         }
 
-        let (value_args, metadata_args) = dynamic_arguments.split_at(base_args);
+        let (value_args, metadata_args) = arguments.split_at(base_args);
         let arguments = self.lower_positional_arguments(expression_id, value_args)?;
 
         let metadata = self.parse_atomic_metadata(expression_id, metadata_args)?;

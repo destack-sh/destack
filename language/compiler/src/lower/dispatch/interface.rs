@@ -10,8 +10,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         interface_symbol: dir::GlobalSymbolId,
         interface_type: mir::LocalNodeId<mir::Type>,
-        member_id: dir::LocalNodeId<dir::Member>,
-        key: Option<&dir::DynamicKey>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+        key: Option<&dir::Key>,
         signature: &dir::FunctionSignature,
         method_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
@@ -19,7 +19,8 @@ impl ModuleLowerer<'_> {
             return Ok(function_id);
         }
 
-        let method_name = self.member_dispatch_name_or_error(key, signature.mode, member_id)?;
+        let method_name =
+            self.member_dispatch_name_or_error(key, signature.mode, member_id.into_any())?;
         let method_name = self
             .compiler
             .repository
@@ -33,8 +34,21 @@ impl ModuleLowerer<'_> {
         };
 
         // resolve return type for the interface method
-        let return_type =
-            self.resolve_method_return_type(member_id, member_id.into_global_any(self.module_id))?;
+        let signature_type_id =
+            self.signature_type_id_for_node(member_id.into_global_any(self.module_id))?;
+        let dir::Type::Function { return_type, .. } = self.types.get_type(signature_type_id) else {
+            return Err(self.missing_type_error(member_id.into_global_any(self.module_id)));
+        };
+        let return_type = if let Some(return_type_id) = return_type {
+            self.lower_type(
+                *return_type_id,
+                member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+            )?
+        } else {
+            self.type_lowerer.ty_void
+        };
 
         // resolve parameter types, including the interface receiver
         let parameter_types = self.method_parameter_types(signature, Some(interface_type))?;

@@ -141,23 +141,18 @@ impl FunctionLowerer<'_> {
         self.context.types.get_declared_or_inferred_type_id(node_id)
     }
 
-    /// Resolve the type id encoded in a type expression node.
+    /// Resolve the type id encoded in one type expression node.
     pub(crate) fn type_id_for_type_expression(
         &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> Option<dir::LocalTypeId> {
         // read the type expression node
         let expression = self.context.dir_tree.get(expression_id);
 
-        // use the explicit type id when available
-        if let dir::Expression::Type { value } = expression {
-            return Some(*value);
-        }
-
-        // resolve symbol references directly for type expressions
-        if let dir::Expression::LocalReference { target_symbol, .. }
-        | dir::Expression::ModuleReference { target_symbol, .. }
-        | dir::Expression::GlobalReference { target_symbol, .. } = expression
+        // resolve reference nodes directly through symbol metadata
+        if let dir::TypeExpression::LocalReference { target_symbol, .. }
+        | dir::TypeExpression::ModuleReference { target_symbol, .. }
+        | dir::TypeExpression::GlobalReference { target_symbol, .. } = expression
         {
             if let Some(instance_type_id) = self.context.types.get_instance_type_id(*target_symbol)
             {
@@ -173,7 +168,7 @@ impl FunctionLowerer<'_> {
             }
         }
 
-        // fall back to declared or inferred type ids
+        // fall back to the analyzed node type
         let type_id = self.context.types.get_declared_or_inferred_type_id(
             expression_id.into_global_any(self.context.module_id),
         )?;

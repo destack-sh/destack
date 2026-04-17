@@ -19,11 +19,11 @@ impl TypeLowerer {
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
-        static_arguments: Option<&[dir::StaticArgument]>,
+        generic_arguments: Option<&[dir::StaticArgument]>,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // require static arguments for Vector<T, N>
-        let static_arguments = static_arguments.ok_or_else(|| LowerError::UnsupportedType {
+        let generic_arguments = generic_arguments.ok_or_else(|| LowerError::UnsupportedType {
             node,
             ty: type_id.into_global(module_id),
             message: "Vector<T, N> requires static arguments".to_string(),
@@ -31,7 +31,7 @@ impl TypeLowerer {
 
         // resolve element and lane arguments
         let (element_expression, lane_expression) =
-            self.vector_static_argument_pair(type_id, module_id, node, static_arguments, builder)?;
+            self.vector_static_argument_pair(type_id, module_id, node, generic_arguments, builder)?;
 
         // parse lane count
         let lanes = self.vector_lane_count(type_id, module_id, node, &lane_expression)?;
@@ -53,14 +53,14 @@ impl TypeLowerer {
         _type_id: dir::LocalTypeId,
         _module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
-        static_arguments: &[dir::StaticArgument],
+        generic_arguments: &[dir::StaticArgument],
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<(dir::StaticExpression, dir::StaticExpression)> {
         let element_name = builder.strings().intern("T");
         let lane_name = builder.strings().intern("N");
 
         let resolver =
-            StaticArgumentResolver::new(static_arguments, "Vector<T, N>").map_err(|error| {
+            StaticArgumentResolver::new(generic_arguments, "Vector<T, N>").map_err(|error| {
                 LowerError::InvalidStaticArgument {
                     node,
                     message: error.to_string(),

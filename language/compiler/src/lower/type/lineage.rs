@@ -78,9 +78,9 @@ impl ModuleLowerer<'_> {
             || self
                 .declaration_ids_for_symbol(symbol)
                 .iter()
-                .any(|declaration_id| {
-                    self.dir_tree.get(*declaration_id).descriptor().abstraction
-                        == dir::DeclarationAbstraction::Abstract
+                .any(|declaration_id| match self.dir_tree.get(*declaration_id) {
+                    dir::Declaration::Class(declaration) => declaration.is_abstract,
+                    _ => false,
                 });
         let type_lineage = mir::TypeLineage {
             parent,

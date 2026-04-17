@@ -169,11 +169,11 @@ impl<'a> BuiltinTypeLayouts<'a> {
             .ok()?;
 
         // extract struct members
-        let dir::Declaration::Struct { members, .. } = tree.get(declaration_id) else {
+        let dir::Declaration::Struct(declaration) = tree.get(declaration_id) else {
             return None;
         };
 
-        Some(members.clone())
+        Some(declaration.members.clone())
     }
 
     /// Collect struct field inputs for layout computation.
@@ -202,31 +202,34 @@ impl<'a> BuiltinTypeLayouts<'a> {
         );
 
         for (source_index, member_id) in members.iter().enumerate() {
-            let dir::Member::Field { key, value, .. } = tree.get(*member_id) else {
+            let dir::Member::Field {
+                key, declared_type, ..
+            } = tree.get(*member_id)
+            else {
                 continue;
             };
 
             // resolve a static key for the field
-            let Some(key) = key.and_then(|key| {
-                self.compiler.static_key_from_dynamic_key(
-                    self.revision,
-                    self.profile,
-                    tree,
-                    symbols,
-                    types,
-                    key,
-                )
-            }) else {
+            let Some(key) = self.compiler.static_key_from_key(
+                self.revision,
+                self.profile,
+                tree,
+                symbols,
+                types,
+                *key,
+            ) else {
                 continue;
             };
 
-            // resolve the field type
-            let Some(value) = value else {
+            // require an explicit field type for builtin layouts
+            let Some(declared_type) = declared_type else {
                 return Err(self.missing_type_error(member_id.into_global_any(module_id)));
             };
+
+            // resolve the field type
             let type_id = types
-                .get_declared_or_inferred_type_id(value.into_global_any(module_id))
-                .ok_or_else(|| self.missing_type_error(value.into_global_any(module_id)))?;
+                .get_declared_or_inferred_type_id(declared_type.into_global_any(module_id))
+                .ok_or_else(|| self.missing_type_error(declared_type.into_global_any(module_id)))?;
             let type_id = self.resolve_layout_type_id(tree, symbols, types, module_id, type_id);
 
             // lower the field type to MIR
@@ -351,16 +354,16 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let Ok(declaration_id) = primary.local_id.try_into_typed::<dir::Declaration>() else {
             return type_id;
         };
-        let dir::Declaration::Type { kind, value, .. } = tree.get(declaration_id) else {
+        let dir::Declaration::Type(declaration) = tree.get(declaration_id) else {
             return type_id;
         };
-        if *kind != dir::TypeKind::Nominal {
+        if !declaration.is_nominal {
             return type_id;
         }
 
         // return the resolved layout type when available
         types
-            .get_declared_or_inferred_type_id(value.into_global_any(module_id))
+            .get_declared_or_inferred_type_id(declaration.value.into_global_any(module_id))
             .unwrap_or(type_id)
     }
 }

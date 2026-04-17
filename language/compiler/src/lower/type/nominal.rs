@@ -208,17 +208,17 @@ impl ModuleLowerer<'_> {
         for declaration_id in declaration_ids {
             let declaration = self.dir_tree.get(declaration_id);
             let members = match declaration {
-                dir::Declaration::Struct { members, .. }
-                | dir::Declaration::Class { members, .. } => members,
+                dir::Declaration::Struct(declaration) => &declaration.members,
+                dir::Declaration::Class(declaration) => &declaration.members,
                 _ => continue,
             };
 
             for member_id in members {
                 let member = self.dir_tree.get(*member_id);
                 let dir::Member::Field {
-                    modifiers,
                     key,
-                    value,
+                    declared_type,
+                    is_static,
                     ..
                 } = member
                 else {
@@ -226,21 +226,19 @@ impl ModuleLowerer<'_> {
                 };
 
                 // skip static fields for instance layout
-                if self.member_is_static(modifiers.as_ref()) {
+                if *is_static {
                     continue;
                 }
 
                 // resolve a static key for layout naming
-                let Some(key) = key.and_then(|key| {
-                    self.compiler.static_key_from_dynamic_key(
-                        self.context.revision(),
-                        self.profile,
-                        self.dir_tree,
-                        self.symbols,
-                        self.types,
-                        key,
-                    )
-                }) else {
+                let Some(key) = self.compiler.static_key_from_key(
+                    self.context.revision(),
+                    self.profile,
+                    self.dir_tree,
+                    self.symbols,
+                    self.types,
+                    *key,
+                ) else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: member_id
                             .into_global_any(self.module_id)
@@ -250,11 +248,11 @@ impl ModuleLowerer<'_> {
                 };
 
                 // require a declared field type
-                let value_id = value.ok_or_else(|| {
+                let declared_type = declared_type.ok_or_else(|| {
                     self.missing_type_error(member_id.into_global_any(self.module_id))
                 })?;
                 let type_id = self.declared_or_inferred_type_id_for_node_or_error(
-                    value_id.into_global_any(self.module_id),
+                    declared_type.into_global_any(self.module_id),
                 )?;
 
                 // lower the field type and compute layout metrics
@@ -310,10 +308,10 @@ impl ModuleLowerer<'_> {
         let mut class_symbols = Vec::new();
         for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
-            let dir::Declaration::Class { descriptor, .. } = declaration else {
+            let dir::Declaration::Class(declaration) = declaration else {
                 continue;
             };
-            class_symbols.push(descriptor.symbol.into_global(self.module_id));
+            class_symbols.push(declaration.symbol.into_global(self.module_id));
         }
 
         // deduplicate and sort for determinism
@@ -365,10 +363,5 @@ impl ModuleLowerer<'_> {
         }
 
         declaration_ids
-    }
-
-    /// Return true if a member is marked static.
-    pub(crate) fn member_is_static(&self, modifiers: Option<&dir::BindingModifier>) -> bool {
-        modifiers.is_some_and(|modifiers| modifiers.anchor == Some(dir::BindingAnchor::Static))
     }
 }

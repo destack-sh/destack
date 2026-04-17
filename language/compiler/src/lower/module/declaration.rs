@@ -4,16 +4,16 @@ use destack_dir as dir;
 use crate::lower::{GlobalBinding, ModuleLowerer, lower_mutability};
 
 impl ModuleLowerer<'_> {
-    /// Get the descriptor for a nominal declaration.
-    pub(crate) fn descriptor_for_declaration_or_error<'a>(
+    /// Get the symbol for a nominal declaration.
+    pub(crate) fn nominal_symbol_for_declaration_or_error(
         &self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        declaration: &'a dir::Declaration,
-    ) -> LowerResult<&'a dir::DeclarationDescriptor> {
+        declaration: &dir::Declaration,
+    ) -> LowerResult<dir::GlobalSymbolId> {
         // require a nominal declaration for constructor lowering
         let is_nominal = matches!(
             declaration,
-            dir::Declaration::Struct { .. } | dir::Declaration::Class { .. }
+            dir::Declaration::Struct(_) | dir::Declaration::Class(_)
         );
         if !is_nominal {
             return Err(LowerError::UnsupportedConstruct {
@@ -24,8 +24,10 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        // return the declaration descriptor
-        Ok(declaration.descriptor())
+        // resolve the declaration symbol
+        let symbol = declaration.symbol().into_global(self.module_id);
+
+        Ok(symbol)
     }
 
     /// Lower a declaration into MIR.
@@ -35,18 +37,15 @@ impl ModuleLowerer<'_> {
         declaration: &dir::Declaration,
     ) -> LowerResult<()> {
         match declaration {
-            dir::Declaration::Function { .. } => {
+            dir::Declaration::Function(declaration) => {
                 self.lower_function(declaration_id, declaration)?;
                 Ok(())
             }
 
             // struct declarations: lower the type and its methods
-            dir::Declaration::Struct {
-                descriptor,
-                members,
-                ..
-            } => {
-                let type_symbol = descriptor.symbol.into_global(self.module_id);
+            dir::Declaration::Struct(declaration) => {
+                let type_symbol = declaration.symbol.into_global(self.module_id);
+                let members = &declaration.members;
 
                 // lower the struct type so it's cached
                 let struct_mir_type =
@@ -84,12 +83,9 @@ impl ModuleLowerer<'_> {
             }
 
             // class declarations: lower the type and its methods
-            dir::Declaration::Class {
-                descriptor,
-                members,
-                ..
-            } => {
-                let type_symbol = descriptor.symbol.into_global(self.module_id);
+            dir::Declaration::Class(declaration) => {
+                let type_symbol = declaration.symbol.into_global(self.module_id);
+                let members = &declaration.members;
 
                 // lower the nominal reference type for class methods
                 let anchor = declaration_id
@@ -124,12 +120,9 @@ impl ModuleLowerer<'_> {
             }
 
             // enum declarations: lower the backing type and its methods
-            dir::Declaration::Enum {
-                descriptor,
-                members,
-                ..
-            } => {
-                let type_symbol = descriptor.symbol.into_global(self.module_id);
+            dir::Declaration::Enum(declaration) => {
+                let type_symbol = declaration.symbol.into_global(self.module_id);
+                let members = &declaration.members;
                 let anchor = declaration_id
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile));
@@ -163,8 +156,8 @@ impl ModuleLowerer<'_> {
             }
 
             // interface declarations are metadata only during lower
-            dir::Declaration::Interface { .. } => Ok(()),
-            dir::Declaration::Type { .. } => Ok(()),
+            dir::Declaration::Interface(_) => Ok(()),
+            dir::Declaration::Type(_) => Ok(()),
             _ => Err(LowerError::UnsupportedConstruct {
                 node: declaration_id
                     .into_global_any(self.module_id)
@@ -185,16 +178,16 @@ impl ModuleLowerer<'_> {
             // skip static non-field members
             let member = self.dir_tree.get(*member_id);
             let dir::Member::Field {
-                modifiers,
                 key,
                 default,
+                mutability,
                 symbol,
                 ..
             } = member
             else {
                 continue;
             };
-            if !self.member_is_static(modifiers.as_ref()) {
+            if !member.is_static() {
                 continue;
             }
 
@@ -231,20 +224,18 @@ impl ModuleLowerer<'_> {
                 })?;
 
             // decide mutability from modifiers
-            let mutability = modifiers
-                .and_then(|modifiers| modifiers.mutability)
-                .unwrap_or(dir::Mutability::Immutable);
+            let mutability = mutability.unwrap_or(dir::Mutability::Immutable);
             let mir_mutability = lower_mutability(mutability);
 
             // resolve the global name from the static member path
-            let name = self.static_member_name(owner_symbol, *key).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
+            let name = self
+                .static_member_name(owner_symbol, Some(*key))
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: member_id
                         .into_global_any(self.module_id)
                         .into_anchored(Some(self.profile)),
                     message: "static field is missing a stable name".to_string(),
-                }
-            })?;
+                })?;
 
             // create the MIR global and register the binding
             let global_id = self

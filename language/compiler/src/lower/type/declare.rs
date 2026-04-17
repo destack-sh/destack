@@ -120,13 +120,19 @@ impl ModuleLowerer<'_> {
                     self.declare_nominal_layouts_for_type(*target, visited)?;
                 }
             }
-            dir::Type::Unary { right, .. }
+            dir::Type::Readonly { target_type: right }
+            | dir::Type::KeyOf { target_type: right }
+            | dir::Type::Must { target_type: right }
+            | dir::Type::AsComptime { target_type: right }
+            | dir::Type::Not { target_type: right }
             | dir::Type::ValueOf { right, .. }
             | dir::Type::ReferenceOf { right, .. }
             | dir::Type::PointerOf { right, .. } => {
                 self.declare_nominal_layouts_for_type(*right, visited)?;
             }
-            dir::Type::Binary { left, right, .. } => {
+            dir::Type::In { left, right }
+            | dir::Type::Extends { left, right }
+            | dir::Type::Implements { left, right } => {
                 self.declare_nominal_layouts_for_type(*left, visited)?;
                 self.declare_nominal_layouts_for_type(*right, visited)?;
             }
@@ -164,19 +170,19 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::Type::Function {
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
                 ..
             } => {
-                for parameter in static_parameters {
+                for parameter in generic_parameters {
                     self.declare_nominal_layouts_for_type(*parameter, visited)?;
                 }
                 if let Some(this_parameter) = this_parameter {
                     self.declare_nominal_layouts_for_type(*this_parameter, visited)?;
                 }
-                for parameter in dynamic_parameters {
+                for parameter in parameters {
                     self.declare_nominal_layouts_for_type(*parameter, visited)?;
                 }
                 if let Some(return_type) = return_type {

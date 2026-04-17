@@ -188,11 +188,11 @@ impl ModuleLowerer<'_> {
     /// Resolve the interface method function id for an itab slot.
     fn interface_method_stub(
         &self,
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // resolve the interface method symbol
         let member = self.dir_tree.get(member_id);
-        let dir::Member::Method { symbol, .. } = member else {
+        let dir::TypeMember::Method { symbol, .. } = member else {
             return Err(LowerError::UnsupportedConstruct {
                 node: member_id
                     .into_global_any(self.module_id)
@@ -203,7 +203,13 @@ impl ModuleLowerer<'_> {
 
         // resolve the lowered method function id
         let method_symbol = symbol.into_global(self.module_id);
-        self.method_function_id(member_id, method_symbol)
+        self.function_for_symbol(method_symbol)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: "missing method function".to_string(),
+            })
     }
 
     /// Resolve the concrete field offset for an interface field.
@@ -211,7 +217,7 @@ impl ModuleLowerer<'_> {
         &self,
         concrete_mir_type: mir::LocalNodeId<mir::Type>,
         field_name: StringId,
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<u32> {
         // resolve the struct layout for the concrete type
@@ -250,7 +256,7 @@ impl ModuleLowerer<'_> {
         concrete: dir::GlobalSymbolId,
         method_name: StringId,
         signature_type_id: dir::LocalTypeId,
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // decide the search order for concrete methods
         let mut symbols = Vec::new();
@@ -269,8 +275,8 @@ impl ModuleLowerer<'_> {
             for declaration_id in declaration_ids {
                 let declaration = self.dir_tree.get(declaration_id);
                 let members = match declaration {
-                    dir::Declaration::Class { members, .. }
-                    | dir::Declaration::Struct { members, .. } => members,
+                    dir::Declaration::Class(declaration) => &declaration.members,
+                    dir::Declaration::Struct(declaration) => &declaration.members,
                     _ => continue,
                 };
 
@@ -278,7 +284,6 @@ impl ModuleLowerer<'_> {
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
                     let dir::Member::Method {
-                        modifiers,
                         key,
                         signature,
                         symbol: method_symbol,
@@ -289,9 +294,7 @@ impl ModuleLowerer<'_> {
                     };
 
                     // skip non instance members
-                    if self.member_is_static(modifiers.as_ref())
-                        || self.member_is_private(modifiers.as_ref())
-                    {
+                    if member.is_static() || self.member_is_private(member) {
                         continue;
                     }
 
@@ -299,7 +302,7 @@ impl ModuleLowerer<'_> {
                     let name = self.member_dispatch_name_or_error(
                         key.as_ref(),
                         signature.mode,
-                        *member_id,
+                        member_id.into_any(),
                     )?;
                     if name != method_name {
                         continue;

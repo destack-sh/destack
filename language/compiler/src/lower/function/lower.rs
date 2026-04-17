@@ -397,12 +397,30 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_scalar_literal(expression_id, value)
             }
 
-            dir::Expression::Cast {
-                operator,
-                value,
+            dir::Expression::As {
+                expression,
                 target_type: _,
-                source: _,
-            } => self.lower_cast_expression(expression_id, *operator, *value),
+            } => {
+                // use the analyzed cast result type, which should already be prelowered
+                let (value, _) = self.lower_value_expression(*expression)?;
+                let target_type_id = self.type_for_expression_or_error(expression_id)?;
+                let target_type_id = self.unwrap_value_type_id(target_type_id);
+                let target_type = self
+                    .context
+                    .type_lowerer
+                    .cached_type(target_type_id)
+                    .ok_or_else(|| {
+                        self.missing_type_error_for_node(
+                            expression_id.into_global_any(self.context.module_id),
+                        )
+                    })?;
+
+                Ok((self.state.builder.bitcast(value, target_type), target_type))
+            }
+
+            dir::Expression::Satisfies { expression, .. } => {
+                self.lower_value_expression(*expression)
+            }
 
             dir::Expression::Binary {
                 left,
@@ -410,11 +428,15 @@ impl<'a> FunctionLowerer<'a> {
                 right,
             } => self.lower_binary_expression(expression_id, *left, *operator, *right),
 
-            dir::Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => self.lower_type_binary_expression(expression_id, *left, *operator, *right),
+            dir::Expression::Is { value, target_type } => {
+                let target_type_id = self.is_target_type_id(*target_type)?;
+                self.lower_runtime_type_guard_expression(expression_id, *value, target_type_id)
+            }
+
+            dir::Expression::InstanceOf { value, target } => {
+                let target_type_id = self.type_for_expression_or_error(*target)?;
+                self.lower_runtime_type_guard_expression(expression_id, *value, target_type_id)
+            }
 
             dir::Expression::Assign { left, right } => {
                 self.lower_assign_expression(expression_id, *left, *right)
@@ -422,17 +444,15 @@ impl<'a> FunctionLowerer<'a> {
 
             dir::Expression::Call {
                 left,
-                dynamic_arguments,
-                static_arguments,
-            } => {
-                self.lower_call_expression(expression_id, left, dynamic_arguments, static_arguments)
-            }
+                generic_arguments,
+                arguments,
+            } => self.lower_call_expression(expression_id, left, arguments, generic_arguments),
 
             dir::Expression::New {
-                static_arguments,
-                dynamic_arguments,
+                generic_arguments,
+                arguments,
                 ..
-            } => self.lower_new_expression(expression_id, static_arguments, dynamic_arguments),
+            } => self.lower_new_expression(expression_id, generic_arguments, arguments),
 
             dir::Expression::TupleExpression { elements } => {
                 self.lower_tuple_expression(expression_id, elements)
@@ -445,19 +465,19 @@ impl<'a> FunctionLowerer<'a> {
             dir::Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             }
             | dir::Expression::PrivateMember {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
-                if static_arguments.is_some() {
+                if !generic_arguments.is_empty() {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.context.module_id)
                             .into_anchored(Some(self.context.profile)),
-                        message: "static arguments on member access are not supported".to_string(),
+                        message: "generic arguments on member access are not supported".to_string(),
                     })?;
                 }
                 let Some(name) = *name else {
@@ -528,10 +548,10 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_tagged_tuple_expression(expression_id, *ty, elements)
             }
 
-            dir::Expression::Declaration { declaration } => {
+            dir::Expression::Declaration(declaration_id) => {
                 // lower function declarations used as values
-                let declaration = self.context.dir_tree.get(*declaration);
-                let dir::Declaration::Function { descriptor, .. } = declaration else {
+                let declaration = self.context.dir_tree.get(*declaration_id);
+                let dir::Declaration::Function(declaration) = declaration else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.context.module_id)
@@ -540,7 +560,7 @@ impl<'a> FunctionLowerer<'a> {
                     });
                 };
 
-                let symbol = descriptor.symbol.into_global(self.context.module_id);
+                let symbol = declaration.symbol.into_global(self.context.module_id);
                 self.lower_reference_expression(expression_id, symbol)
             }
 
@@ -720,20 +740,20 @@ impl<'a> FunctionLowerer<'a> {
             dir::Expression::Member {
                 left: receiver_id,
                 name,
-                static_arguments,
+                generic_arguments,
             }
             | dir::Expression::PrivateMember {
                 left: receiver_id,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
-                // reject static arguments on assignment
-                if static_arguments.is_some() {
+                // reject generic arguments on assignment
+                if !generic_arguments.is_empty() {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.context.module_id)
                             .into_anchored(Some(self.context.profile)),
-                        message: "static arguments on member assignment not supported".to_string(),
+                        message: "generic arguments on member assignment not supported".to_string(),
                     });
                 }
 

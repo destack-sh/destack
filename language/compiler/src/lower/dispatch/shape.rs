@@ -17,7 +17,7 @@ pub(crate) enum InterfaceEntry {
         /// The canonical interface dispatch field id.
         field: mir::LocalNodeId<mir::Field>,
         /// The member node for diagnostics.
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
     },
     /// A method slot for interface method dispatch.
     Method {
@@ -26,7 +26,7 @@ pub(crate) enum InterfaceEntry {
         /// The signature type id for the interface method.
         signature: dir::LocalTypeId,
         /// The member node for diagnostics.
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
     },
 }
 
@@ -131,7 +131,7 @@ impl ModuleLowerer<'_> {
             // load interface members from the declaration
             let declaration = self.dir_tree.get(declaration_id);
             let members = match declaration {
-                dir::Declaration::Interface { members, .. } => members,
+                dir::Declaration::Interface(declaration) => &declaration.members,
                 _ => continue,
             };
 
@@ -156,7 +156,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         interface_symbol: dir::GlobalSymbolId,
         interface_type: mir::LocalNodeId<mir::Type>,
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
         slots: &mut Vec<InterfaceEntry>,
         seen_fields: &mut HashMap<StringId, dir::LocalTypeId>,
         seen_methods: &mut HashMap<StringId, Vec<dir::LocalTypeId>>,
@@ -166,39 +166,15 @@ impl ModuleLowerer<'_> {
 
         // handle member slots by kind
         match member {
-            dir::Member::Field {
-                modifiers,
-                key,
-                value,
-                ..
+            dir::TypeMember::Field {
+                key, declared_type, ..
             } => {
-                // reject index signatures for native lowering
-                if matches!(key, Some(dir::DynamicKey::NamedExpression { .. })) {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: member_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
-                        message: "index signatures are not supported for native lowering"
-                            .to_string(),
-                    });
-                }
-
-                // skip non instance fields
-                if self.member_is_static(modifiers.as_ref())
-                    || self.member_is_private(modifiers.as_ref())
-                {
-                    return Ok(());
-                }
-
                 // resolve the field name
                 let field_name = self.interface_field_name(member_id, *key)?;
 
                 // resolve the field type
-                let value_id = value.ok_or_else(|| {
-                    self.missing_type_error(member_id.into_global_any(self.module_id))
-                })?;
                 let field_type = self.declared_or_inferred_type_id_for_node_or_error(
-                    value_id.into_global_any(self.module_id),
+                    declared_type.into_global_any(self.module_id),
                 )?;
 
                 // only keep the first matching field type
@@ -223,26 +199,22 @@ impl ModuleLowerer<'_> {
                     member_id,
                 });
             }
-            dir::Member::Method {
-                modifiers,
+            dir::TypeMember::Method {
                 key,
                 signature,
                 symbol,
                 ..
             } => {
-                // skip non instance methods
-                if self.member_is_static(modifiers.as_ref())
-                    || self.member_is_private(modifiers.as_ref())
-                {
-                    return Ok(());
-                }
-
                 // resolve the method name
-                let method_name =
-                    self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
+                let method_name = self.member_dispatch_name_or_error(
+                    key.as_ref(),
+                    signature.mode,
+                    member_id.into_any(),
+                )?;
 
                 // resolve the signature type
-                let signature_type_id = self.method_signature_type_id(member_id)?;
+                let signature_type_id =
+                    self.signature_type_id_for_node(member_id.into_global_any(self.module_id))?;
 
                 // detect duplicate method slots
                 if let Some(signature_ids) = seen_methods.get_mut(&method_name) {
@@ -273,6 +245,14 @@ impl ModuleLowerer<'_> {
                     member_id,
                 });
             }
+            dir::TypeMember::IndexSignature { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "index signatures are not supported for native lowering".to_string(),
+                });
+            }
             _ => {}
         }
 
@@ -282,19 +262,17 @@ impl ModuleLowerer<'_> {
     /// Resolve a static interface field name for dispatch metadata.
     fn interface_field_name(
         &mut self,
-        member_id: dir::LocalNodeId<dir::Member>,
-        key: Option<dir::DynamicKey>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+        key: dir::Key,
     ) -> LowerResult<StringId> {
-        let Some(key) = key.and_then(|key| {
-            self.compiler.static_key_from_dynamic_key(
-                self.context.revision(),
-                self.profile,
-                self.dir_tree,
-                self.symbols,
-                self.types,
-                key,
-            )
-        }) else {
+        let Some(key) = self.compiler.static_key_from_key(
+            self.context.revision(),
+            self.profile,
+            self.dir_tree,
+            self.symbols,
+            self.types,
+            key,
+        ) else {
             return Err(LowerError::UnsupportedConstruct {
                 node: member_id
                     .into_global_any(self.module_id)
@@ -309,7 +287,7 @@ impl ModuleLowerer<'_> {
     /// Return the canonical interface dispatch field node for a member.
     fn interface_dispatch_field(
         &mut self,
-        member_id: dir::LocalNodeId<dir::Member>,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
         field_name: StringId,
         field_type: dir::LocalTypeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Field>> {

@@ -106,7 +106,12 @@ impl<'a> AddressTakenCollector<'a> {
             dir::Expression::Parenthesized { expression } => {
                 self.record_reference_target(tree, *expression);
             }
-            dir::Expression::Cast { value, .. } => {
+            dir::Expression::As {
+                expression: value, ..
+            }
+            | dir::Expression::Satisfies {
+                expression: value, ..
+            } => {
                 self.record_reference_target(tree, *value);
             }
             dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
@@ -198,18 +203,13 @@ impl ModuleLowerer<'_> {
         for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
             // skip non function declarations
-            let dir::Declaration::Function {
-                descriptor,
-                signature,
-                body,
-                ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
             // skip type-only lambda signatures
-            if body.is_none() && signature.kind == dir::FunctionKind::Lambda {
+            if declaration.body.is_none() && declaration.signature.kind == dir::FunctionKind::Lambda
+            {
                 continue;
             }
 
@@ -217,8 +217,8 @@ impl ModuleLowerer<'_> {
             self.declare_function(declaration_id, declaration)?;
 
             // resolve capture layouts early for closure values
-            if body.is_some() {
-                let symbol_id = descriptor.symbol.into_global(self.module_id);
+            if declaration.body.is_some() {
+                let symbol_id = declaration.symbol.into_global(self.module_id);
                 self.function_environment_layout_for_symbol(symbol_id)?;
                 self.enqueue_function_declaration(declaration_id);
             }
@@ -235,20 +235,17 @@ impl ModuleLowerer<'_> {
 
             // require a function declaration
             let declaration = self.dir_tree.get(declaration_id);
-            let dir::Declaration::Function {
-                descriptor, body, ..
-            } = declaration
-            else {
+            let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
             // skip declaration-only functions
-            if body.is_none() {
+            if declaration.body.is_none() {
                 continue;
             }
 
             // skip functions without bindings
-            let symbol_id = descriptor.symbol.into_global(self.module_id);
+            let symbol_id = declaration.symbol.into_global(self.module_id);
             let Some(function_id) = self.function_for_symbol(symbol_id) else {
                 continue;
             };
@@ -270,29 +267,11 @@ impl ModuleLowerer<'_> {
     pub(crate) fn declare_function(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        declaration: &dir::Declaration,
+        declaration: &dir::FunctionDeclaration,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
-        // require a function declaration
-        let dir::Declaration::Function {
-            descriptor,
-            signature,
-            ..
-        } = declaration
-        else {
-            return Err(LowerError::UnsupportedConstruct {
-                node: declaration_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: format!(
-                    "unsupported non-function declaration '{}'",
-                    declaration.kind_name()
-                ),
-            })?;
-        };
-
         // resolve function name and symbol
-        let symbol_id = descriptor.symbol.into_global(self.module_id);
-        let name = self.function_name_for_descriptor(descriptor)?;
+        let symbol_id = declaration.symbol.into_global(self.module_id);
+        let name = self.function_name_for_declaration(symbol_id, declaration.name)?;
 
         // skip when the function is already registered
         if let Some(function_id) = self.function_for_symbol(symbol_id) {
@@ -305,7 +284,7 @@ impl ModuleLowerer<'_> {
         // resolve parameter types
         let mut parameter_types = Vec::new();
         let mut parameter_names = Vec::new();
-        for parameter_id in &signature.dynamic_parameters {
+        for parameter_id in &declaration.signature.parameters {
             let parameter_node = dir::GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty =
                 self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
@@ -329,7 +308,8 @@ impl ModuleLowerer<'_> {
         }
 
         // extract return lifetime from @lifetime decorator
-        let return_lifetime = self.extract_lifetime_annotation(descriptor.symbol, signature);
+        let return_lifetime =
+            self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
 
         // build a MIR signature type aligned with the lowered parameters
         let signature_type = self
@@ -402,8 +382,8 @@ impl ModuleLowerer<'_> {
                 type_sources.entry(type_id).or_insert(node_id);
             }
 
-            if let dir::Expression::Type { value } = self.dir_tree.get(*expression_id) {
-                let dir_type = self.types.get_type(*value);
+            if let dir::Expression::Type { resolved_type, .. } = self.dir_tree.get(*expression_id) {
+                let dir_type = self.types.get_type(*resolved_type);
                 if matches!(
                     dir_type,
                     dir::Type::TypeLiteral {
@@ -412,7 +392,7 @@ impl ModuleLowerer<'_> {
                 ) {
                     continue;
                 }
-                type_sources.entry(*value).or_insert(node_id);
+                type_sources.entry(*resolved_type).or_insert(node_id);
             }
 
             // include local binding symbol types for uninitialized lets
@@ -489,30 +469,11 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_function(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        declaration: &dir::Declaration,
+        declaration: &dir::FunctionDeclaration,
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
-        // require a function declaration
-        let dir::Declaration::Function {
-            descriptor,
-            signature,
-            body,
-            ..
-        } = declaration
-        else {
-            return Err(LowerError::UnsupportedConstruct {
-                node: declaration_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: format!(
-                    "unsupported non-function declaration '{}'",
-                    declaration.kind_name()
-                ),
-            })?;
-        };
-
         // resolve function name and symbol
-        let symbol_id = descriptor.symbol.into_global(self.module_id);
-        let name = self.function_name_for_descriptor(descriptor)?;
+        let symbol_id = declaration.symbol.into_global(self.module_id);
+        let name = self.function_name_for_declaration(symbol_id, declaration.name)?;
 
         // resolve capture layout
         let capture_layout = self.function_environment_layout_for_symbol(symbol_id)?;
@@ -523,7 +484,7 @@ impl ModuleLowerer<'_> {
         // resolve parameter types
         let mut parameter_types = Vec::new();
         let mut parameter_names = Vec::new();
-        for parameter_id in &signature.dynamic_parameters {
+        for parameter_id in &declaration.signature.parameters {
             let parameter_node = dir::GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty =
                 self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
@@ -547,7 +508,8 @@ impl ModuleLowerer<'_> {
         }
 
         // extract return lifetime from @lifetime decorator
-        let return_lifetime = self.extract_lifetime_annotation(descriptor.symbol, signature);
+        let return_lifetime =
+            self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
 
         // build a MIR signature type aligned with the lowered parameters
         let signature_type = self
@@ -555,18 +517,19 @@ impl ModuleLowerer<'_> {
             .type_function_pointer(parameter_types.clone(), return_type);
 
         // prelower body expression types
-        if let Some(body_id) = body {
-            self.declare_call_targets_for_expression(*body_id)?;
-            self.prelower_expression_types(*body_id)?;
+        if let Some(body_id) = declaration.body {
+            self.declare_call_targets_for_expression(body_id)?;
+            self.prelower_expression_types(body_id)?;
         }
 
         // collect address taken locals
-        let address_taken = body
+        let address_taken = declaration
+            .body
             .map(|body_id| self.collect_address_taken_bindings(body_id))
             .unwrap_or_else(AddressTakenBindings::empty);
 
         // resolve the implicit this symbol
-        let this_symbol = self.resolve_this_symbol_for_function(symbol_id, signature);
+        let this_symbol = self.resolve_this_symbol_for_function(symbol_id, &declaration.signature);
 
         // resolve allocation mode
         let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
@@ -591,7 +554,7 @@ impl ModuleLowerer<'_> {
         };
 
         // skip declared functions without bodies
-        if body.is_none() {
+        if declaration.body.is_none() {
             return Ok(function_id);
         }
 
@@ -674,25 +637,22 @@ impl ModuleLowerer<'_> {
         }
 
         // add parameter locals
-        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+        for (index, parameter_id) in declaration.signature.parameters.iter().enumerate() {
             let parameter = self.dir_tree.get(*parameter_id);
             let ty = parameter_types[index];
             let value = function_lowerer.state.builder.function_parameter(index);
-            let mutability = parameter
-                .modifiers()
-                .and_then(|modifier| modifier.mutability);
             function_lowerer.define_local_binding(
                 parameter_id.into_any(),
                 parameter.symbol(),
-                mutability,
+                None,
                 value,
                 ty,
             )?;
         }
 
         // lower body
-        if let Some(body_id) = body {
-            let terminated = function_lowerer.lower_body(*body_id)?;
+        if let Some(body_id) = declaration.body {
+            let terminated = function_lowerer.lower_body(body_id)?;
             if terminated == Terminates::No {
                 if return_type == self.type_lowerer.ty_void {
                     function_lowerer.state.builder.return_(None);
@@ -715,15 +675,14 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve the name used for MIR functions, including anonymous lambdas.
-    fn function_name_for_descriptor(
+    fn function_name_for_declaration(
         &self,
-        descriptor: &dir::DeclarationDescriptor,
+        symbol_id: dir::GlobalSymbolId,
+        name: Option<dir::Name>,
     ) -> LowerResult<String> {
         // prefer explicit declaration names
-        let symbol_id = descriptor.symbol.into_global(self.module_id);
         let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
-        let name_id = descriptor
-            .name
+        let name_id = name
             .map(|name| name.string())
             .or_else(|| symbol_data.name());
         if let Some(name_id) = name_id {
@@ -839,10 +798,10 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<()> {
         // require a method member
         let dir::Member::Method {
-            modifiers,
             key,
             signature,
             body,
+            is_static,
             symbol,
             ..
         } = member
@@ -853,7 +812,7 @@ impl ModuleLowerer<'_> {
             signature.mode,
             Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
         );
-        let is_static = self.member_is_static(modifiers.as_ref());
+        let is_static = *is_static;
 
         // track constructor declaration symbol when needed
         let mut constructor_symbol = None;
@@ -875,13 +834,13 @@ impl ModuleLowerer<'_> {
 
             // resolve the nominal declaration descriptor
             let declaration = self.dir_tree.get(parent_declaration_id);
-            let descriptor =
-                self.descriptor_for_declaration_or_error(parent_declaration_id, declaration)?;
-            constructor_symbol = Some(descriptor.symbol.into_global(self.module_id));
+            let symbol =
+                self.nominal_symbol_for_declaration_or_error(parent_declaration_id, declaration)?;
+            constructor_symbol = Some(symbol);
 
             // require a declaration name for constructor
-            let name = descriptor
-                .name
+            let name = declaration
+                .name()
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: parent_declaration_id
                         .into_global_any(self.module_id)
@@ -908,8 +867,11 @@ impl ModuleLowerer<'_> {
             })?
         } else {
             // resolve the static method key or dispatch name
-            let method_name =
-                self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
+            let method_name = self.member_dispatch_name_or_error(
+                key.as_ref(),
+                signature.mode,
+                member_id.into_any(),
+            )?;
             let method_name = self
                 .compiler
                 .repository
@@ -999,7 +961,7 @@ impl ModuleLowerer<'_> {
                 let name_id = self.compiler.repository.strings.intern("this");
                 parameter_names.push(Some(name_id));
             }
-            for parameter_id in &signature.dynamic_parameters {
+            for parameter_id in &signature.parameters {
                 let parameter = self.dir_tree.get(*parameter_id);
                 let name = match parameter {
                     dir::Parameter::Named { name, .. }
@@ -1128,7 +1090,7 @@ impl ModuleLowerer<'_> {
         }
 
         // add declared parameter locals
-        for parameter_id in &signature.dynamic_parameters {
+        for parameter_id in &signature.parameters {
             // resolve the parameter symbol
             let parameter = self.dir_tree.get(*parameter_id);
 
@@ -1138,13 +1100,10 @@ impl ModuleLowerer<'_> {
                 .state
                 .builder
                 .function_parameter(param_index);
-            let mutability = parameter
-                .modifiers()
-                .and_then(|modifier| modifier.mutability);
             function_lowerer.define_local_binding(
                 parameter_id.into_any(),
                 parameter.symbol(),
-                mutability,
+                None,
                 value,
                 ty,
             )?;
@@ -1250,7 +1209,7 @@ impl ModuleLowerer<'_> {
         }
 
         // lower declared parameter types
-        for parameter_id in &signature.dynamic_parameters {
+        for parameter_id in &signature.parameters {
             // resolve the parameter type id
             let parameter_node = dir::GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty_id =
