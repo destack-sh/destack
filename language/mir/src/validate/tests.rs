@@ -1074,14 +1074,14 @@ type B {
 function bad(): void {
 b0:
     v0: ref<A, raw> = stack.alloc A
-    v1: ref<B, raw, addressSpace(global)> = intrinsic.addressSpace.cast(v0)
+    v1: ref<B, raw, space(global)> = intrinsic.space.cast(v0)
     return
 }"#;
 
     let error = parse_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: addressSpace.cast requires matching reference kind, mutability, and pointee"
+        "metadata invariant violation: space.cast requires matching reference kind, mutability, and pointee"
     );
 }
 

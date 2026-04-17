@@ -657,10 +657,10 @@ fn type_key_for_alias_inner(
             // append address space when explicit
             if !address_space.is_generic() {
                 let addrspace = match address_space.keyword() {
-                    Some(name) => format!("addressSpace({name})"),
+                    Some(name) => format!("space({name})"),
                     None => match address_space {
-                        AddressSpace::Target(id) => format!("addressSpace({id})"),
-                        _ => "addressSpace(unknown)".to_string(),
+                        AddressSpace::Target(id) => format!("space({id})"),
+                        _ => "space(unknown)".to_string(),
                     },
                 };
                 result.push_str(", ");
@@ -752,10 +752,10 @@ fn type_key_for_alias_inner(
             }
             if !address_space.is_generic() {
                 let addrspace = match address_space.keyword() {
-                    Some(name) => format!("addressSpace({name})"),
+                    Some(name) => format!("space({name})"),
                     None => match address_space {
-                        AddressSpace::Target(id) => format!("addressSpace({id})"),
-                        _ => "addressSpace(unknown)".to_string(),
+                        AddressSpace::Target(id) => format!("space({id})"),
+                        _ => "space(unknown)".to_string(),
                     },
                 };
                 result.push_str(", ");

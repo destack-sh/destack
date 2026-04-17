@@ -9,7 +9,7 @@ global counter: int32 = zeroInit
 
 function increment(): void {
 entry0:
-    value0: ref<int32, raw, addressSpace(global)> = global.address counter
+    value0: ref<int32, raw, space(global)> = global.address counter
     value1: int32 = load value0
     value2: int32 = 1int32
     value3: int32 = int.add value1, value2

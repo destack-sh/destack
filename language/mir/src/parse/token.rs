@@ -81,7 +81,7 @@ pub enum TokenType {
     TensorReference,
     /// `tensorRef?`
     TensorReferenceNullable,
-    /// `addressSpace`
+    /// `space`
     AddressSpace,
     /// `struct`
     Struct,

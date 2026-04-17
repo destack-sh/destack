@@ -5,13 +5,13 @@ use super::assert_format;
 fn test_format_allocation_family() {
     assert_format(
         r#"
-function allocFamily(value0: int64): ref<int32, raw, addressSpace(stack)> {
+function allocFamily(value0: int64): ref<int32, raw, space(stack)> {
 entry0(value0: int64):
     value1: ref<int32, managed> = managed.alloc int32
     value2: ref<int32, managed> = managed.allocArray int32, value0
     value3: ref<int32, raw> = raw.alloc int32
     raw.free value3
-    value4: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    value4: ref<int32, raw, space(stack)> = stack.alloc int32
     return value4
 }
 "#,
@@ -29,8 +29,8 @@ function memory(value0: ref<int32, raw>): int32 {
     local local0: int32, owned
 
 entry0(value0: ref<int32, raw>):
-    value1: ref<int32, raw, addressSpace(global)> = global.address counter
-    value2: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    value1: ref<int32, raw, space(global)> = global.address counter
+    value2: ref<int32, borrowed, space(stack)> = local.address local0
     value3: int32 = load value0
     store value0, value3
     local.set local0, value3

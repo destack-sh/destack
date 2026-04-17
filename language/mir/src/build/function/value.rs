@@ -444,7 +444,7 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Publish one execution and memory barrier.
+    /// Publish one execution and memory synchronization barrier.
     pub fn barrier(
         &mut self,
         scope: AtomicScope,

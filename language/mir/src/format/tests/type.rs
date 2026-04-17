@@ -10,8 +10,8 @@ use destack_core::StringPool;
 fn test_format_reference_and_builtin_types() {
     assert_format(
         r#"
-function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, addressSpace(shared)>, value6: ref<int32, raw, addressSpace(7)>, value7: ref<int32, owned, readonly>): ref?<int32, managed> {
-entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, addressSpace(shared)>, value6: ref<int32, raw, addressSpace(7)>, value7: ref<int32, owned, readonly>):
+function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(7)>, value7: ref<int32, owned, readonly>): ref?<int32, managed> {
+entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(7)>, value7: ref<int32, owned, readonly>):
     return value4
 }
 "#,
