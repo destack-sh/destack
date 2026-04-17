@@ -24,19 +24,15 @@ fn test_parse_type_import_expression_with_generic_arguments() {
                 });
                 assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
                 assert_eq!(generic_arguments.len(), 2);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
-                    });
                 });
-                assert_node!(parser.tree, generic_arguments[1], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
-                    });
                 });
             });
         });

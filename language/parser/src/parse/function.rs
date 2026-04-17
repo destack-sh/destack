@@ -1781,10 +1781,10 @@ function invariant<in out T>(value: T): T {
             assert_node!(parser.tree, return_type, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "AliasBranch");
                 assert_eq!(generic_arguments.len(), 2);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_expression_path!(parser, parser.tree.get(*value), "T");
                 });
-                assert_node!(parser.tree, generic_arguments[1], GenericArgument::Positional { value } => {
+                assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
                     assert_expression_path!(parser, parser.tree.get(*value), "E");
                 });
             });

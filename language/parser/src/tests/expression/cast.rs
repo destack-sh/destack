@@ -357,12 +357,10 @@ fn test_parse_typed_arrow_body_with_as_parameter_member_access() {
                 assert_node!(parser.tree, *declared_type, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "Array");
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
                             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
                             });
-                        });
                     });
                 });
             });
@@ -689,14 +687,12 @@ fn test_parse_cast_with_keyof_typeof_type_argument() {
         assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
             assert_path!(parser, *path, "Array");
             assert_eq!(generic_arguments.len(), 1);
-            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Type { value } => {
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::KeyOf { target_type } => {
                         assert_node!(parser.tree, *target_type, TypeExpression::TypeOfValue { value } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "touchedFields");
                         });
                     });
-                });
             });
         });
     });

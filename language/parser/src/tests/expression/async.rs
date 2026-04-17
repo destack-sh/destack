@@ -70,7 +70,7 @@ fn test_parse_async_generic_false_positive() {
 
             let generic_arguments = generic_arguments.as_slice();
             assert_eq!(generic_arguments.len(), 1);
-            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "T");
             });
         });

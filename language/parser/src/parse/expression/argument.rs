@@ -12,18 +12,13 @@ impl Parser {
         generic_arguments: &[LocalNodeId<GenericArgument>],
     ) -> bool {
         generic_arguments.first().is_some_and(|argument| {
-            // unwrap one positional generic argument
-            let GenericArgument::Positional { value } = self.tree.get(*argument) else {
-                return false;
-            };
-
-            // require one wrapped type expression
-            let Some(value) = self.wrapped_type_expression_maybe(*value) else {
+            // require one type generic argument
+            let GenericArgument::Type { value } = self.tree.get(*argument) else {
                 return false;
             };
 
             // require one declaration-backed type expression
-            let TypeExpression::Declaration { declaration } = self.tree.get(value) else {
+            let TypeExpression::Declaration { declaration } = self.tree.get(*value) else {
                 return false;
             };
 

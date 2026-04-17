@@ -20,13 +20,11 @@ fn test_parse_type_template_literal_with_generic_arguments() {
                 assert_node!(parser.tree, spans[0], TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "Capitalize");
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                 assert!(generic_arguments.is_empty());
                                 assert_path!(parser, *path, "K");
                             });
-                        });
                     });
                 });
             });
@@ -670,12 +668,10 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "intrinsic");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
-                    });
                 });
             });
         });

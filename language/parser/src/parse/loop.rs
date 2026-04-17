@@ -655,8 +655,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
                     assert_eq!(generic_arguments.len(), 1);
 
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                                 assert_eq!(properties.len(), 1);
                                 assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: value, .. } => {
@@ -666,7 +665,6 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
                                     });
                                 });
                             });
-                        });
                     });
                 });
             });

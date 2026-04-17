@@ -1988,12 +1988,10 @@ port2 = {
             assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Promise");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Boolean);
                         });
-                    });
                 });
             });
             assert_node!(parser.tree, body.expect("expected method body"), Expression::Block(block_id) => {

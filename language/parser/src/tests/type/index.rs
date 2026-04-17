@@ -60,8 +60,7 @@ fn test_parse_type_arguments_with_conditional() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Reference { generic_arguments, .. } => {
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                             assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                                 assert!(generic_arguments.is_empty());
@@ -87,7 +86,6 @@ fn test_parse_type_arguments_with_conditional() {
                                 assert_eq!(*value, TypeLiteral::Any);
                             });
                         });
-                    });
                 });
             });
         });
@@ -168,15 +166,13 @@ fn test_parse_generic_with_indexed_access_type() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_eq!(path.segments.len(), 1);
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "T");
                             assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::Number);
                             });
                         });
-                    });
                 });
             });
         });
@@ -223,15 +219,13 @@ fn test_parse_generic_indexed_access_with_array_suffix() {
                 assert_node!(parser.tree, *element, TypeExpression::Reference { path, generic_arguments } => {
                     assert_eq!(path.segments.len(), 1);
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                                 assert_expression_path!(parser, parser.tree.get(*left), "T");
                                 assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
                                     assert_eq!(*value, TypeLiteral::Number);
                                 });
                             });
-                        });
                     });
                 });
             });
@@ -276,30 +270,24 @@ fn test_parse_type_associated_projection_with_generic_arguments() {
             assert_node!(parser.tree, *value, TypeExpression::Member { left, name, generic_arguments } => {
                 assert_string!(parser, *name, "Swap");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Boolean);
                         });
-                    });
                 });
 
                 assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "Pair");
                     assert_eq!(generic_arguments.len(), 2);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                                 assert!(matches!(value, TypeLiteral::Int(_)));
                             });
-                        });
                     });
-                    assert_node!(parser.tree, generic_arguments[1], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
-                        });
                     });
                 });
             });
@@ -326,15 +314,13 @@ fn test_parse_generic_indexed_access_in_declaration_file() {
                 assert_node!(parser.tree, *element, TypeExpression::Reference { path, generic_arguments } => {
                     assert_eq!(path.segments.len(), 1);
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                                 assert_expression_path!(parser, parser.tree.get(*left), "T");
                                 assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
                                     assert_eq!(*value, TypeLiteral::Number);
                                 });
                             });
-                        });
                     });
                 });
             });
@@ -354,24 +340,20 @@ fn test_parse_nested_generic_closings_in_type() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_eq!(path.segments.len(), 1);
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                         assert_eq!(path.segments.len(), 1);
                         assert_eq!(generic_arguments.len(), 1);
-                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                 assert_eq!(path.segments.len(), 1);
                                 assert_path!(parser, *path, "Baz");
                                 assert_eq!(generic_arguments.len(), 1);
-                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                     assert_expression_path!(parser, parser.tree.get(*value), "Qux");
                                 });
                             });
-                            });
                         });
-                    });
                     });
                 });
             });
@@ -394,8 +376,7 @@ fn test_parse_tuple_generic_argument() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "And");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                         assert_eq!(elements.len(), 2);
                         assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
@@ -404,7 +385,6 @@ fn test_parse_tuple_generic_argument() {
                         assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "Right");
                         });
-                    });
                     });
                 });
             });
@@ -427,8 +407,7 @@ fn test_parse_parenthesized_union_generic_argument() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Wrap");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
                             assert_node!(parser.tree, *expression, TypeExpression::Union { elements } => {
                             assert_eq!(elements.len(), 2);
@@ -440,7 +419,6 @@ fn test_parse_parenthesized_union_generic_argument() {
                                 });
                             });
                         });
-                    });
                 });
             });
         });
@@ -463,7 +441,7 @@ fn test_parse_value_expression_generic_argument() {
                 assert_eq!(generic_arguments.len(), 1);
 
                 // 1 + 2
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Value { value } => {
                     assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
@@ -493,11 +471,9 @@ fn test_parse_tuple_generic_argument_with_nested_generics() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Reference { generic_arguments, .. } => {
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                         assert_eq!(elements.len(), 2);
-                    });
                     });
                 });
             });
@@ -520,11 +496,9 @@ fn test_parse_tuple_generic_argument_in_type_conditional() {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { left, .. } => {
                 assert_node!(parser.tree, *left, TypeExpression::Reference { generic_arguments, .. } => {
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                             assert_eq!(elements.len(), 2);
-                        });
                         });
                     });
                 });
@@ -553,15 +527,13 @@ fn test_parse_readonly_generic_indexed_access() {
                     assert_eq!(path.segments.len(), 1);
                     assert_eq!(generic_arguments.len(), 1);
                     // T[number]
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "T");
                                 assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
                                     assert_eq!(*value, TypeLiteral::Number);
                                 });
                             });
-                        });
                     });
                 });
             });
@@ -591,15 +563,13 @@ fn test_parse_readonly_generic_indexed_access_array() {
                         assert_eq!(path.segments.len(), 1);
                         assert_eq!(generic_arguments.len(), 1);
                         // T[number]
-                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                 assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
                                 assert_expression_path!(parser, parser.tree.get(*left), "T");
                                     assert_node!(parser.tree, *index, TypeExpression::Literal { value } => {
                                         assert_eq!(*value, TypeLiteral::Number);
                                     });
                                 });
-                            });
                         });
                     });
                 });
