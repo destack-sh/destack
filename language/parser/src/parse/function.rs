@@ -1836,12 +1836,12 @@ async function* foo() => int32 {
                     assert_eq!(block.leading_expressions.len(), 1);
                     assert!(block.tail_expression.is_none());
                     // b.c(yield);
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Call { left, dynamic_arguments, .. } => {
-                            assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Call { left, arguments, .. } => {
+                            assert_eq!(arguments.len(), 1);
                             // b.c
                             assert_expression_path!(parser, parser.tree.get(*left), "b.c");
                             // yield
-                            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                                 assert_node!(parser.tree, *value, Expression::Yield { cardinality, value } => {
                                     assert_eq!(*cardinality, YieldCardinality::Scalar);
                                     assert!(value.is_none());
@@ -1897,15 +1897,15 @@ function main() {
                     });
 
                     // greet(userName,
-                    assert_node!(parser.tree, tail_expression, Expression::Call { left, dynamic_arguments, .. } => {
+                    assert_node!(parser.tree, tail_expression, Expression::Call { left, arguments, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "greet");
-                        assert_eq!(dynamic_arguments.len(), 2);
+                        assert_eq!(arguments.len(), 2);
 
-                        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "userName");
                         });
 
-                        assert_node!(parser.tree, dynamic_arguments[1], Argument::Error);
+                        assert_node!(parser.tree, arguments[1], Argument::Error);
                     });
                 });
             });

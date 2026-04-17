@@ -53,8 +53,8 @@ fn test_parse_import_source_call_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
         assert_qualified_reference_path!(parser, parser.tree.get(*left), "import.source");
     });
 }
@@ -69,10 +69,10 @@ fn test_parse_import_source_call_expression_with_template_argument() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
         assert_qualified_reference_path!(parser, parser.tree.get(*left), "import.source");
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::TaggedTemplateExpression { .. });
         });
     });
@@ -195,11 +195,11 @@ fn test_parse_typed_object_method_in_call_argument() {
 
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "connect");
-        assert_eq!(dynamic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 2);
 
@@ -260,11 +260,11 @@ fn test_parse_typed_object_method_in_decorator_argument() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "connect");
-        assert_eq!(dynamic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 2);
 
@@ -393,10 +393,10 @@ fn test_parse_extension_identifier_in_ternary_expression() {
             });
         });
 
-        assert_node!(parser.tree, *then_expression, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_node!(parser.tree, *then_expression, Expression::Call { left, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "extension");
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "cloned");
             });
         });

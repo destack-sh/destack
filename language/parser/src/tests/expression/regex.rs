@@ -58,10 +58,10 @@ fn test_parse_regex_literal_after_binary_add() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // RegExp(prefix + /[A-Z]/.source)
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "RegExp");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::Add);
                 assert_expression_path!(parser, parser.tree.get(*left), "prefix");
@@ -84,10 +84,10 @@ fn test_parse_regex_literal_after_binary_subtract() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // RegExp(prefix - /[A-Z]/.source)
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "RegExp");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::Subtract);
                 assert_expression_path!(parser, parser.tree.get(*left), "prefix");
@@ -117,9 +117,9 @@ fn test_parse_regex_literal_after_binary_divide() {
         assert_expression_path!(parser, parser.tree.get(*left), "value");
         assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "length");
-            assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
-                assert_eq!(dynamic_arguments.len(), 1);
-                assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+                assert_eq!(arguments.len(), 1);
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*value), "text");
                 });
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
@@ -144,9 +144,9 @@ fn test_parse_regex_literal_after_binary_less_than() {
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::LessThan);
         assert_expression_path!(parser, parser.tree.get(*left), "value");
-        assert_node!(parser.tree, *right, Expression::Call { left, dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, *right, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "text");
             });
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
@@ -205,8 +205,8 @@ fn test_parse_regex_literal_after_assign_newline() {
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
-            assert_node!(parser.tree, value.expect("expected initializer"), Expression::Call { left, dynamic_arguments, .. } => {
-                assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, value.expect("expected initializer"), Expression::Call { left, arguments, .. } => {
+                assert_eq!(arguments.len(), 1);
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "exec");
                     assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
@@ -228,8 +228,8 @@ fn test_parse_regex_literal_after_arrow() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
             let body = body.expect("expected body");
-            assert_node!(parser.tree, body, Expression::Call { left, dynamic_arguments, .. } => {
-                assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, body, Expression::Call { left, arguments, .. } => {
+                assert_eq!(arguments.len(), 1);
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "test");
                     assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
@@ -250,8 +250,8 @@ fn test_parse_regex_literal_after_unary_not() {
     // !/[A-Z]/.test(k)
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Not);
-        assert_node!(parser.tree, *right, Expression::Call { left, dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, *right, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "test");
                 assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
@@ -273,8 +273,8 @@ fn test_parse_regex_literal_after_coalesce_assign() {
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::CoalesceAssign);
         assert_expression_path!(parser, parser.tree.get(*left), "encoded");
-        assert_node!(parser.tree, *right, Expression::Call { left, dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, *right, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "test");
                 assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));

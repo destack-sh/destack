@@ -211,8 +211,8 @@ fn test_parse_mixed_index_call_postfix() {
     // .?
     assert_node!(parser.tree, expr_id, Expression::Maybe { left, position: PostfixPosition::Indirect } => {
         // ()
-        assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 0);
+        assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 0);
             // ?
             assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
                 // .y<T>

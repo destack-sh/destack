@@ -96,10 +96,10 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
     // await (new Promise<void>(...))
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
         assert_node!(parser.tree, *expression, Expression::Parenthesized { expression: parenthesized_expression } => {
-            assert_node!(parser.tree, *parenthesized_expression, Expression::New { left, generic_arguments, dynamic_arguments } => {
+            assert_node!(parser.tree, *parenthesized_expression, Expression::New { left, generic_arguments, arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "Promise");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_eq!(dynamic_arguments.len(), 1);
+                assert_eq!(arguments.len(), 1);
             });
         });
     });
@@ -186,8 +186,8 @@ fn test_parse_reference_member_call() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(Mutability::Mutable), variance: None, right } => {
-        assert_node!(parser.tree, *right, Expression::Call { left, generic_arguments: _, dynamic_arguments, .. } => {
-            assert!(dynamic_arguments.is_empty());
+        assert_node!(parser.tree, *right, Expression::Call { left, generic_arguments: _, arguments, .. } => {
+            assert!(arguments.is_empty());
             assert_expression_path!(parser, parser.tree.get(*left), "self.foo");
         });
     });
@@ -225,10 +225,10 @@ fn test_parse_new_constructor_call() {
     let mut test = TestParser::new("new Foo()");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expr_id, Expression::New { left, generic_arguments, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Foo");
         assert!(generic_arguments.is_empty());
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 

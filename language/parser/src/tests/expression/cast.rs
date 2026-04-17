@@ -655,10 +655,10 @@ fn test_parse_namespace_identifier_as_cast_call_argument() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "render");
-        assert_eq!(dynamic_arguments.len(), 3);
-        assert_node!(parser.tree, dynamic_arguments[2], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 3);
+        assert_node!(parser.tree, arguments[2], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "namespace");
                 assert_expression_path!(parser, parser.tree.get(*target_type), "ElementNamespace");
@@ -677,10 +677,10 @@ fn test_parse_cast_with_keyof_typeof_type_argument() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
-        assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Object.keys");
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "touchedFields");
             });
         });
@@ -786,15 +786,15 @@ fn test_parse_parenthesized_cast_followed_by_flat_map_call() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "flatMap");
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, Expression::As { .. } => {});
             });
         });
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.parameters.len(), 1);
@@ -866,11 +866,11 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Set");
         assert_eq!(generic_arguments.len(), 1);
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
                 assert_node!(parser.tree, *target_type, TypeExpression::Const);
                 assert_node!(parser.tree, *expression, Expression::ArrayExpression { elements } => {

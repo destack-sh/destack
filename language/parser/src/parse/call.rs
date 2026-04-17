@@ -169,14 +169,14 @@ impl Parser {
         }
 
         // dynamic arguments: untyped value mode accepts `new Foo` without parentheses
-        let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
+        let arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call
         let call_id = self.insert_node(
             Expression::New {
                 left,
                 generic_arguments: generic_arguments.unwrap_or_default(),
-                dynamic_arguments,
+                arguments,
             },
             self.get_span_from(&start),
         );
@@ -237,7 +237,7 @@ impl Parser {
         };
 
         // dynamic arguments (may be empty)
-        let dynamic_arguments = self.eat_dynamic_arguments()?;
+        let arguments = self.eat_dynamic_arguments()?;
 
         // call
         let call_id = self.insert_node(
@@ -245,7 +245,7 @@ impl Parser {
                 position,
                 left: receiver_id,
                 generic_arguments: generic_arguments.unwrap_or_default(),
-                dynamic_arguments,
+                arguments,
             },
             {
                 let call_span = self.get_span_from(&start);

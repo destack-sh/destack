@@ -109,12 +109,12 @@ fn test_parse_call_with_function_expression_newline_before_body() {
     test.assert_no_errors(&parser);
 
     // defer(function nextTick_callback() { ... });
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "defer");
-        assert_eq!(dynamic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
 
         // function nextTick_callback() { ... }
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, signature, body, .. }) => {
                     assert_eq!(signature.kind, FunctionKind::Function);
@@ -127,13 +127,13 @@ fn test_parse_call_with_function_expression_newline_before_body() {
                         let block = parser.tree.get(*block_id);
                         let expressions = block_expression_ids(block);
                         assert_eq!(expressions.len(), 1);
-                        assert_node!(parser.tree, expressions[0], Expression::Call { left, dynamic_arguments, .. } => {
+                        assert_node!(parser.tree, expressions[0], Expression::Call { left, arguments, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "callback");
-                            assert_eq!(dynamic_arguments.len(), 2);
-                            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                            assert_eq!(arguments.len(), 2);
+                            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                                 assert_expression_path!(parser, parser.tree.get(*value), "err");
                             });
-                            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
                                 assert_expression_path!(parser, parser.tree.get(*value), "result");
                             });
                         });
@@ -497,11 +497,11 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "morgan");
-        assert_eq!(dynamic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 2);
 
@@ -588,11 +588,11 @@ fn test_eat_decorator_call_with_function_expression_argument() {
         })
         .unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "computed");
-        assert_eq!(dynamic_arguments.len(), 2);
+        assert_eq!(arguments.len(), 2);
 
-        assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
                     assert!(signature.this_parameter.is_some());

@@ -64,9 +64,9 @@ fn test_parse_async_generic_false_positive() {
 
     assert_node!(parser.tree, expressions[1], Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::Equal);
-        assert_node!(parser.tree, *left, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
+        assert_node!(parser.tree, *left, Expression::Call { left, generic_arguments, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "async");
-            assert!(dynamic_arguments.is_empty());
+            assert!(arguments.is_empty());
 
             let generic_arguments = generic_arguments.as_slice();
             assert_eq!(generic_arguments.len(), 1);
