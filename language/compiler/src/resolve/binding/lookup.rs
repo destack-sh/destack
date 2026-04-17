@@ -30,18 +30,16 @@ impl Compiler {
                 let declaration = tree.get(declaration_id);
 
                 // remember when we are inside a global declaration
-                if matches!(declaration, Declaration::Global { .. }) {
+                if matches!(declaration, Declaration::Global(_)) {
                     saw_global = true;
                 }
 
                 // resolve module binding scopes that contain a global declaration
                 if saw_global
-                    && let Declaration::Namespace {
-                        descriptor, scope, ..
-                    } = declaration
-                    && matches!(descriptor.name, Some(Name::String(_)))
+                    && let Declaration::Namespace(declaration) = declaration
+                    && matches!(declaration.name, Name::String(_))
                 {
-                    return Some(*scope);
+                    return Some(declaration.scope);
                 }
             }
 

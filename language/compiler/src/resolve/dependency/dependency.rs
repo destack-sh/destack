@@ -1,14 +1,15 @@
 use destack_artifact::{ExportedSymbolTable, ImportedModuleTable};
 use destack_ast::StringId;
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, GlobalNodeIdAny,
-    GlobalSymbolId, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleTarget, Name,
-    NamespaceExport, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    DependencyItem, DependencyKind, DependencyMode, GlobalNodeIdAny, GlobalSymbolId, ImportSource,
+    LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleTarget, Name, NamespaceExport,
+    NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::workspace::{Module, ProfileId};
 use rustc_hash::FxHashSet;
 
+use crate::resolve::binding::ResolveState;
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};
 use crate::timing::tags;
 use crate::{
@@ -280,7 +281,7 @@ impl Compiler {
                         let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_NAMESPACE);
 
                         // prefer export assignment for import equals
-                        if source == DependencySource::ImportEquals {
+                        if source == ImportSource::ImportEquals {
                             if let Some(symbol) = self.resolve_export_assignment_symbol(
                                 revision,
                                 module.id,
@@ -300,9 +301,7 @@ impl Compiler {
                             }
                         } else {
                             // check for namespace exports without alias
-                            if alias.is_none()
-                                && matches!(source, DependencySource::ExportStatement)
-                            {
+                            if alias.is_none() && matches!(source, ImportSource::ExportStatement) {
                                 // register `export * from` in module scope
                                 let (item_scope_id, _) = tree.get_scope(item_id);
                                 if item_scope_id == namespace_scope {
@@ -363,20 +362,23 @@ impl Compiler {
                 let node = item_id.into_global_any(module.id);
 
                 // resolve in local scope first
-                let local_symbol_id = self.resolve_absolute_symbol_from_builder(
+                let pass = ResolveState::current(
                     revision,
                     module,
                     profile,
                     node,
-                    (scope_id, scope, mark),
-                    key,
                     space_order,
                     symbols,
                     namespace_symbol,
                     namespace_scope,
                     global_augmentation_scope,
                     exported_symbols,
-                    tree,
+                    Some(tree),
+                );
+                let local_symbol_id = self.resolve_absolute_symbol(
+                    pass,
+                    (scope_id, scope, mark),
+                    key,
                     cache.as_mut().map(|cache| cache.scope_indices()),
                 );
 
@@ -387,20 +389,24 @@ impl Compiler {
                     Err(ResolveError::MissingSymbol { .. }) => {
                         let global_scope_id = global_augmentation_scope;
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
-                        self.resolve_absolute_symbol_from_builder(
+                        let pass = ResolveState::current(
                             revision,
                             module,
                             profile,
                             node,
-                            (global_scope_id, global_scope, LocalScopeMark::end()),
-                            key,
                             space_order,
                             symbols,
                             namespace_symbol,
                             namespace_scope,
                             global_augmentation_scope,
                             exported_symbols,
-                            tree,
+                            Some(tree),
+                        );
+
+                        self.resolve_absolute_symbol(
+                            pass,
+                            (global_scope_id, global_scope, LocalScopeMark::end()),
+                            key,
                             cache.as_mut().map(|cache| cache.scope_indices()),
                         )
                     }

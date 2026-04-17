@@ -90,7 +90,7 @@ macro_rules! assert_expression_path {
         match $expr {
             ::destack_dir::Expression::Path {
                 path,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 assert_path!($program, *path, $expected);
             }

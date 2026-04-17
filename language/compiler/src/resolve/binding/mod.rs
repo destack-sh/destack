@@ -10,4 +10,4 @@ mod symbol;
 mod r#type;
 
 pub use operator::*;
-pub(crate) use path::ResolvedPathSymbolTargets;
+pub(crate) use path::{ResolveState, ResolvedPathSymbolTargets};

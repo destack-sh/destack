@@ -1,6 +1,6 @@
 use destack_core::StringId;
 use destack_dir::{
-    DependencySource, Expression, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
+    Expression, ImportSource, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
     ScalarLiteral, SymbolTable, TypeTable,
 };
 use destack_source::{NodeSpanType, SourcePartKey};
@@ -85,7 +85,7 @@ impl Compiler {
                     ImportTarget::Expression { target }
                         if matches!(
                             source,
-                            DependencySource::ImportCall | DependencySource::RequireCall
+                            ImportSource::ImportCall | ImportSource::RequireCall
                         ) =>
                     {
                         self.static_import_target_string(tree, *target)
@@ -95,8 +95,9 @@ impl Compiler {
 
                 if let Some(target) = target {
                     let loader_override = match self.loader_from_import_attributes(
-                        attributes.as_ref().map(|attributes| &attributes.arguments),
-                        tree,
+                        attributes
+                            .as_ref()
+                            .map(|attributes| attributes.attributes.as_slice()),
                     ) {
                         LoaderAttribute::None => None,
                         LoaderAttribute::Loader(loader) => Some(loader),
@@ -144,8 +145,9 @@ impl Compiler {
                 ref attributes,
             } => {
                 let loader_override = match self.loader_from_import_attributes(
-                    attributes.as_ref().map(|attributes| &attributes.arguments),
-                    tree,
+                    attributes
+                        .as_ref()
+                        .map(|attributes| attributes.attributes.as_slice()),
                 ) {
                     LoaderAttribute::None => None,
                     LoaderAttribute::Loader(loader) => Some(loader),
@@ -164,7 +166,7 @@ impl Compiler {
                     imported_modules,
                     profile,
                     expression_id.into_global_any(module.id),
-                    DependencySource::ExportStatement,
+                    ImportSource::ExportStatement,
                     *target,
                     kind,
                     loader_override,
@@ -183,13 +185,18 @@ impl Compiler {
 
             Expression::UnresolvedPath {
                 ref path,
-                ref static_arguments,
+                ref generic_arguments,
                 space_order,
             } => {
                 // clone path data to release immutable tree borrows before resolution
                 let path = path.clone();
-                let static_arguments = static_arguments.clone();
-                let resolve_result = if static_arguments.is_none() && path.segments.len() == 1 {
+                let generic_arguments = generic_arguments.clone();
+                let generic_arguments = if generic_arguments.is_empty() {
+                    None
+                } else {
+                    Some(generic_arguments)
+                };
+                let resolve_result = if generic_arguments.is_none() && path.segments.len() == 1 {
                     let name = path.first_segment().expect("path is empty");
                     let module_binding_scope_id =
                         self.module_binding_scope_for_global_expression(tree, expression_id);
@@ -218,7 +225,7 @@ impl Compiler {
                             profile,
                             (scope.0, &scope.1, scope.2),
                             &path,
-                            static_arguments.clone(),
+                            generic_arguments.clone(),
                             space_order,
                             symbols,
                             tree,
@@ -245,7 +252,7 @@ impl Compiler {
                         profile,
                         (scope.0, &scope.1, scope.2),
                         &path,
-                        static_arguments.clone(),
+                        generic_arguments.clone(),
                         space_order,
                         symbols,
                         tree,

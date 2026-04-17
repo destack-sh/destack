@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_dir::{DependencySource, StaticKey};
+use destack_dir::{ImportSource, StaticKey};
 
 use crate::{ResolveError, TestProgram};
 
@@ -73,10 +73,13 @@ export {};
         test.program.current_revision(),
         &ArtifactKey::module_graph(profile),
     );
+    let module_version = graph
+        .module_version_for(module_id)
+        .unwrap_or_else(|| panic!("expected module graph version for {module_id:?}"));
     graph.update_module_dependencies(
         module_id,
         destack_artifact::ModuleKind::Code,
-        test.module_version(module_id),
+        module_version,
         vec![module_id],
     );
     test.compiler
@@ -128,17 +131,16 @@ fn test_collect_global_symbols_from_triple_slash_declaration_script() {
 
     // normalize one bare reference path target to same-directory relative form
     let bare_target = test.program.strings.intern("global.d.ts");
-    let normalized_target = test.compiler.resolve_target_for_dependency_source(
-        DependencySource::ReferencePathDirective,
-        bare_target,
-    );
+    let normalized_target = test
+        .compiler
+        .resolve_target_for_dependency_source(ImportSource::ReferencePathDirective, bare_target);
     let normalized_text = test.program.strings.get(normalized_target);
     assert_eq!(normalized_text.as_ref(), "./global.d.ts");
 
     // keep explicit relative path targets unchanged
     let explicit_target = test.program.strings.intern("./global.d.ts");
     let explicit_result = test.compiler.resolve_target_for_dependency_source(
-        DependencySource::ReferencePathDirective,
+        ImportSource::ReferencePathDirective,
         explicit_target,
     );
     assert_eq!(explicit_result, explicit_target);

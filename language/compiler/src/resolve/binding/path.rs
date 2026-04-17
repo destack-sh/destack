@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirPrepared, ExportedSymbolTable};
+use destack_artifact::ExportedSymbolTable;
 use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
-    Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Declaration, Expression, GenericArgument, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
+    LocalScopeId, LocalScopeMark, LocalSymbolId, Node, NodeTree, NodeType, Path, Scope, ScopeKind,
+    StaticKey, StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeExpression,
 };
 use destack_source::ModuleId;
 use destack_workspace::Revision;
@@ -42,7 +42,7 @@ fn single_path_segment_target(symbol_id: GlobalSymbolId) -> ResolvedPathSymbolTa
 
 /// Shared resolve state for one unresolved path pass.
 #[derive(Clone, Copy)]
-struct ResolveState<'a> {
+pub(crate) struct ResolveState<'a> {
     /// The pinned revision for remote module reads.
     revision: Revision,
     /// The module being resolved.
@@ -69,7 +69,7 @@ struct ResolveState<'a> {
 
 impl<'a> ResolveState<'a> {
     /// Build resolve state for one current-module pass.
-    fn current(
+    pub(crate) fn current(
         revision: Revision,
         module: &'a Module,
         profile_id: ProfileId,
@@ -98,7 +98,7 @@ impl<'a> ResolveState<'a> {
     }
 
     /// Build resolve state for one artifact-backed pass.
-    fn artifact(
+    pub(crate) fn artifact(
         revision: Revision,
         module: &'a Module,
         profile_id: ProfileId,
@@ -143,6 +143,155 @@ impl<'a> ResolveState<'a> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve the target symbol for one bound path.
+    pub(crate) fn resolve_path_target_symbol<T: Node>(
+        &self,
+        revision: Revision,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        exported_symbols: &ExportedSymbolTable,
+        node_id: LocalNodeId<T>,
+        path: &Path,
+        space_order: SymbolSpaceOrder,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        // bound paths should always have at least one segment
+        let Some(first_segment) = path.first_segment() else {
+            return Ok(None);
+        };
+
+        // resolve the root symbol in the local scope
+        let key = StaticKey::Name(first_segment);
+        let scope = symbols.get_scope(LocalNodeId::<T>::new(node_id.id), tree);
+        let node_id_for_root = LocalNodeId::<T>::new(node_id.id);
+        let node_id_for_library = LocalNodeId::<T>::new(node_id.id);
+        let node_id_for_local_relative = LocalNodeId::<T>::new(node_id.id);
+        let mut scope_cache = ResolveScopeIndexCache::default();
+        let current_pass = ResolveState::current(
+            revision,
+            module,
+            profile,
+            node_id_for_root.into_global_any(module.id),
+            space_order,
+            symbols,
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            exported_symbols,
+            Some(tree),
+        );
+        let local_target =
+            match self.resolve_absolute_symbol(current_pass, scope, key, Some(&mut scope_cache)) {
+                Ok(symbol_id) => Some(symbol_id.into_global(module.id)),
+                Err(ResolveError::MissingSymbol { .. }) => None,
+                Err(error) => return Err(error),
+            };
+
+        // fall back to selected library symbols when the local scope misses
+        let library_target = if local_target.is_none() {
+            self.resolve_selected_lib_symbol(
+                revision,
+                module,
+                profile,
+                node_id_for_library.into_global_any(module.id),
+                key,
+                space_order,
+                None,
+            )?
+        } else {
+            None
+        };
+        let Some(mut target_symbol) = local_target.or(library_target) else {
+            return Ok(None);
+        };
+
+        // stop after the root when the path has one segment
+        if path.segments.len() == 1 {
+            return Ok(Some(target_symbol));
+        }
+
+        // resolve namespace segments before switching to static member lookup
+        let remaining_path = path.slice(1..);
+        let resolved_relative = if target_symbol.module_id == module.id {
+            let current_pass = ResolveState::current(
+                revision,
+                module,
+                profile,
+                node_id_for_local_relative.into_global_any(module.id),
+                space_order,
+                symbols,
+                namespace_symbol,
+                namespace_scope,
+                global_augmentation_scope,
+                exported_symbols,
+                Some(tree),
+            );
+
+            self.resolve_relative_symbol_with_ambient_merge(
+                current_pass,
+                target_symbol.local_id,
+                &remaining_path,
+                Some(&mut scope_cache),
+            )?
+        } else {
+            let target_module = self
+                .cache_module_snapshot(revision, target_symbol.module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
+            let target_dir =
+                self.require_artifact_dir_prepared(revision, target_symbol.module_id, profile)?;
+            let artifact_pass = ResolveState::artifact(
+                revision,
+                &target_module,
+                profile,
+                node_id.into_global_any(module.id),
+                space_order,
+                &target_dir.symbols,
+                target_dir.namespace_symbol,
+                target_dir.namespace_scope,
+                target_dir.global_augmentation_scope,
+                &target_dir.exported_symbols,
+                Some(&target_dir.tree),
+            );
+
+            self.resolve_relative_symbol_with_ambient_merge(
+                artifact_pass,
+                target_symbol.local_id,
+                &remaining_path,
+                None,
+            )?
+        };
+        target_symbol = resolved_relative.0;
+
+        // walk the remaining static member segments on the resolved owner
+        let Some(remaining_path) = resolved_relative.1 else {
+            return Ok(Some(target_symbol));
+        };
+        for segment in remaining_path.segments.iter().copied() {
+            let member_key = StaticKey::Name(segment);
+            let Some(member_symbol) = self.query_static_member_symbol(
+                revision,
+                module,
+                profile,
+                target_symbol,
+                member_key,
+                tree,
+                symbols,
+            ) else {
+                return Ok(None);
+            };
+
+            target_symbol = member_symbol;
+        }
+
+        Ok(Some(target_symbol))
+    }
+
     /// Return true when one module should receive implicit prelude lookup.
     fn module_uses_prelude(&self, module: &Module) -> bool {
         match module.source {
@@ -154,11 +303,13 @@ impl Compiler {
         }
     }
 
-    fn allow_runtime_namespace_member_fallback(
+    /// Return whether namespace lookup may continue as value member access.
+    fn namespace_lookup_may_continue_as_value_member_access(
         &self,
         module: &Module,
         space_order: SymbolSpaceOrder,
     ) -> bool {
+        // namespace values are only modeled as runtime objects in JS and TS value space
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
             return false;
         }
@@ -203,7 +354,7 @@ impl Compiler {
         pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         tree: &mut NodeTree,
     ) -> Option<Expression> {
         // only value space lookups can resolve runtime commonjs names
@@ -237,14 +388,14 @@ impl Compiler {
             };
             let root_expression = Expression::GlobalReference {
                 path: root_path,
-                static_arguments: None,
+                generic_arguments: Vec::new(),
                 target_symbol: namespace_symbol,
             };
 
             if path.segments.len() == 1 {
                 return Some(Expression::GlobalReference {
                     path: path.clone(),
-                    static_arguments,
+                    generic_arguments: generic_arguments.clone().unwrap_or_default(),
                     target_symbol: namespace_symbol,
                 });
             }
@@ -253,7 +404,7 @@ impl Compiler {
                 expression_id,
                 root_expression,
                 &path.slice(1..),
-                static_arguments,
+                generic_arguments.clone(),
                 tree,
             ));
         }
@@ -265,14 +416,14 @@ impl Compiler {
             };
             let root_expression = Expression::GlobalReference {
                 path: root_path.clone(),
-                static_arguments: None,
+                generic_arguments: Vec::new(),
                 target_symbol: namespace_symbol,
             };
 
             if path.segments.len() == 1 {
                 return Some(Expression::GlobalReference {
                     path: root_path,
-                    static_arguments,
+                    generic_arguments: generic_arguments.clone().unwrap_or_default(),
                     target_symbol: namespace_symbol,
                 });
             }
@@ -281,7 +432,7 @@ impl Compiler {
                 expression_id,
                 root_expression,
                 &path.slice(1..),
-                static_arguments,
+                generic_arguments.clone(),
                 tree,
             ));
         }
@@ -293,14 +444,14 @@ impl Compiler {
         };
         let exports_expression = Expression::GlobalReference {
             path: exports_path.clone(),
-            static_arguments: None,
+            generic_arguments: Vec::new(),
             target_symbol: namespace_symbol,
         };
 
         if path.segments.len() == 1 {
             return Some(Expression::GlobalReference {
                 path: exports_path,
-                static_arguments,
+                generic_arguments: generic_arguments.clone().unwrap_or_default(),
                 target_symbol: namespace_symbol,
             });
         }
@@ -309,7 +460,7 @@ impl Compiler {
             expression_id,
             exports_expression,
             &path.slice(1..),
-            static_arguments,
+            generic_arguments,
             tree,
         ))
     }
@@ -366,15 +517,20 @@ impl Compiler {
 
             let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
             let declaration = tree.get(declaration_id);
-            let heritage = match declaration {
-                Declaration::Struct { heritage, .. }
-                | Declaration::Class { heritage, .. }
-                | Declaration::Enum { heritage, .. }
-                | Declaration::Interface { heritage, .. }
-                | Declaration::Extension { heritage, .. } => Some(heritage),
-                _ => None,
+            let heritage_types: Vec<LocalNodeId<TypeExpression>> = match declaration {
+                Declaration::Struct(declaration) => declaration
+                    .implements_types
+                    .iter()
+                    .chain(declaration.embedded_types.iter())
+                    .copied()
+                    .collect(),
+                Declaration::Class(declaration) => declaration.implements_types.clone(),
+                Declaration::Enum(declaration) => declaration.implements_types.clone(),
+                Declaration::Interface(declaration) => declaration.extends_types.clone(),
+                Declaration::Extension(declaration) => declaration.implements_types.clone(),
+                _ => Vec::new(),
             };
-            let Some(heritage) = heritage else {
+            if heritage_types.is_empty() {
                 if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
                     current_scope = (
                         parent_scope_id,
@@ -384,14 +540,12 @@ impl Compiler {
                     continue;
                 }
                 return Ok(None);
-            };
+            }
 
             // try heritage targets in declaration order
-            let extends_types = heritage.extends_types.as_deref().unwrap_or_default();
-            let implements_types = heritage.implements_types.as_deref().unwrap_or_default();
-            for heritage_expression_id in extends_types.iter().chain(implements_types.iter()) {
-                let Some(heritage_symbol) = tree.get(*heritage_expression_id).target_symbol()
-                else {
+            for heritage_expression_id in &heritage_types {
+                let heritage_expression = tree.get(*heritage_expression_id);
+                let Some(heritage_symbol) = heritage_expression.target_symbol() else {
                     continue;
                 };
 
@@ -423,74 +577,8 @@ impl Compiler {
         }
     }
 
-    /// Resolve one absolute symbol from one mutable phase-local DIR builder.
-    pub(crate) fn resolve_absolute_symbol_from_builder(
-        &self,
-        revision: Revision,
-        module: &Module,
-        profile_id: ProfileId,
-        node: GlobalNodeIdAny,
-        scope: (LocalScopeId, &Scope, LocalScopeMark),
-        key: StaticKey,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        namespace_symbol: LocalSymbolId,
-        namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        exported_symbols: &ExportedSymbolTable,
-        tree: &NodeTree,
-        scope_cache: Option<&mut ResolveScopeIndexCache>,
-    ) -> ResolveResult<LocalSymbolId> {
-        let pass = ResolveState::current(
-            revision,
-            module,
-            profile_id,
-            node,
-            space_order,
-            symbols,
-            namespace_symbol,
-            namespace_scope,
-            global_augmentation_scope,
-            exported_symbols,
-            Some(tree),
-        );
-
-        self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
-    }
-
-    /// Resolve one absolute symbol from one immutable DIR artifact.
-    pub(crate) fn resolve_absolute_symbol_from_artifact(
-        &self,
-        revision: Revision,
-        module: &Module,
-        dir: &DirPrepared,
-        profile_id: ProfileId,
-        node: GlobalNodeIdAny,
-        scope: (LocalScopeId, &Scope, LocalScopeMark),
-        key: StaticKey,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        scope_cache: Option<&mut ResolveScopeIndexCache>,
-    ) -> ResolveResult<LocalSymbolId> {
-        let pass = ResolveState::artifact(
-            revision,
-            module,
-            profile_id,
-            node,
-            space_order,
-            symbols,
-            dir.namespace_symbol,
-            dir.namespace_scope,
-            dir.global_augmentation_scope,
-            &dir.exported_symbols,
-            Some(&dir.tree),
-        );
-
-        self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
-    }
-
     /// Resolve an absolute symbol from one pass state.
-    fn resolve_absolute_symbol_from_state(
+    pub(crate) fn resolve_absolute_symbol(
         &self,
         pass: ResolveState<'_>,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
@@ -578,7 +666,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
@@ -591,7 +679,7 @@ impl Compiler {
             if scope.1.kind == ScopeKind::Namespace
                 && let Some(owner_id) = scope.1.owner_id
             {
-                match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                match self.resolve_relative_symbol_with_ambient_merge(
                     ResolveState {
                         current_tree: Some(&*tree),
                         ..pass
@@ -607,7 +695,7 @@ impl Compiler {
                                     pass.module,
                                     resolved_id.local_id,
                                     path,
-                                    static_arguments,
+                                    generic_arguments.clone(),
                                     pass.symbols,
                                 ),
                                 resolved_targets,
@@ -617,7 +705,7 @@ impl Compiler {
                         return Ok(Some((
                             Expression::GlobalReference {
                                 path: path.clone(),
-                                static_arguments,
+                                generic_arguments: generic_arguments.clone().unwrap_or_default(),
                                 target_symbol: resolved_id,
                             },
                             resolved_targets,
@@ -638,7 +726,7 @@ impl Compiler {
                             } else {
                                 Expression::GlobalReference {
                                     path: resolved_path,
-                                    static_arguments: None,
+                                    generic_arguments: Vec::new(),
                                     target_symbol: resolved_id,
                                 }
                             };
@@ -647,7 +735,7 @@ impl Compiler {
                                     expression_id,
                                     root_expr,
                                     &remaining,
-                                    static_arguments,
+                                    generic_arguments.clone(),
                                     tree,
                                 ),
                                 resolved_targets,
@@ -743,7 +831,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         prelude_symbol: GlobalSymbolId,
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         tree: &mut NodeTree,
     ) -> ResolveResult<(Expression, ResolvedPathSymbolTargets)> {
         let remaining_segments = &path.segments[1..];
@@ -754,7 +842,7 @@ impl Compiler {
             return Ok((
                 Expression::GlobalReference {
                     path: path.clone(),
-                    static_arguments,
+                    generic_arguments: generic_arguments.clone().unwrap_or_default(),
                     target_symbol: prelude_symbol,
                 },
                 receiver_targets,
@@ -811,7 +899,7 @@ impl Compiler {
                 &target_dir.exported_symbols,
                 Some(&target_dir.tree),
             );
-            match self.resolve_relative_symbol_with_ambient_merge_from_state(
+            match self.resolve_relative_symbol_with_ambient_merge(
                 prelude_pass,
                 local_symbol_id,
                 &remaining_path,
@@ -822,7 +910,7 @@ impl Compiler {
                     return Ok((
                         Expression::GlobalReference {
                             path: path.clone(),
-                            static_arguments,
+                            generic_arguments: generic_arguments.clone().unwrap_or_default(),
                             target_symbol: resolved_id,
                         },
                         resolved_targets,
@@ -834,7 +922,7 @@ impl Compiler {
                         path.slice(0..path.segments.len() - remaining.segments.len());
                     let root_expr = Expression::GlobalReference {
                         path: resolved_path,
-                        static_arguments: None,
+                        generic_arguments: Vec::new(),
                         target_symbol: resolved_id,
                     };
                     return Ok((
@@ -842,7 +930,7 @@ impl Compiler {
                             expression_id,
                             root_expr,
                             &remaining,
-                            static_arguments,
+                            generic_arguments.clone(),
                             tree,
                         ),
                         resolved_targets,
@@ -858,7 +946,7 @@ impl Compiler {
         };
         let root_expr = Expression::GlobalReference {
             path: root_path,
-            static_arguments: None,
+            generic_arguments: Vec::new(),
             target_symbol: prelude_symbol,
         };
         Ok((
@@ -866,7 +954,7 @@ impl Compiler {
                 expression_id,
                 root_expr,
                 &path.slice(1..),
-                static_arguments,
+                generic_arguments,
                 tree,
             ),
             receiver_targets,
@@ -879,7 +967,7 @@ impl Compiler {
         pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
@@ -932,7 +1020,7 @@ impl Compiler {
                     return Ok(Some((
                         Expression::GlobalReference {
                             path: path.clone(),
-                            static_arguments,
+                            generic_arguments: generic_arguments.clone().unwrap_or_default(),
                             target_symbol: symbol_id,
                         },
                         single_path_segment_target(symbol_id),
@@ -963,7 +1051,7 @@ impl Compiler {
                         .map(|dir| &*dir.tree)
                         .or(pass.current_tree)
                         .or(Some(&*tree));
-                    match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                    match self.resolve_relative_symbol_with_ambient_merge(
                         ambient_pass,
                         symbol_id.local_id,
                         &remaining_path,
@@ -973,7 +1061,9 @@ impl Compiler {
                             return Ok(Some((
                                 Expression::GlobalReference {
                                     path: path.clone(),
-                                    static_arguments,
+                                    generic_arguments: generic_arguments
+                                        .clone()
+                                        .unwrap_or_default(),
                                     target_symbol: resolved_id,
                                 },
                                 resolved_targets,
@@ -984,7 +1074,7 @@ impl Compiler {
                                 path.slice(0..path.segments.len() - remaining.segments.len());
                             let root_expr = Expression::GlobalReference {
                                 path: resolved_path,
-                                static_arguments: None,
+                                generic_arguments: Vec::new(),
                                 target_symbol: resolved_id,
                             };
                             return Ok(Some((
@@ -992,7 +1082,7 @@ impl Compiler {
                                     expression_id,
                                     root_expr,
                                     &remaining,
-                                    static_arguments,
+                                    generic_arguments.clone(),
                                     tree,
                                 ),
                                 resolved_targets,
@@ -1007,7 +1097,7 @@ impl Compiler {
                 };
                 let root_expr = Expression::GlobalReference {
                     path: root_path,
-                    static_arguments: None,
+                    generic_arguments: Vec::new(),
                     target_symbol: symbol_id,
                 };
                 return Ok(Some((
@@ -1015,7 +1105,7 @@ impl Compiler {
                         expression_id,
                         root_expr,
                         &path.slice(1..),
-                        static_arguments,
+                        generic_arguments.clone(),
                         tree,
                     ),
                     single_path_segment_target(symbol_id),
@@ -1056,7 +1146,7 @@ impl Compiler {
 
             // find symbol in the ambient module namespace scope first
             let namespace_scope = symbols.get_scope_by_id(ambient_dir.namespace_scope);
-            let symbol_id = self.resolve_absolute_symbol_from_state(
+            let symbol_id = self.resolve_absolute_symbol(
                 ambient_pass,
                 (
                     ambient_dir.namespace_scope,
@@ -1072,7 +1162,7 @@ impl Compiler {
                     // otherwise fall back to ambient global augmentation scope
                     let global_scope =
                         symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
-                    match self.resolve_absolute_symbol_from_state(
+                    match self.resolve_absolute_symbol(
                         ambient_pass,
                         (
                             ambient_dir.global_augmentation_scope,
@@ -1095,7 +1185,7 @@ impl Compiler {
                 return Ok(Some((
                     Expression::GlobalReference {
                         path: path.clone(),
-                        static_arguments,
+                        generic_arguments: generic_arguments.clone().unwrap_or_default(),
                         target_symbol: symbol_id.into_global(module_id),
                     },
                     single_path_segment_target(symbol_id.into_global(module_id)),
@@ -1106,7 +1196,7 @@ impl Compiler {
             let symbol = symbols.get_symbol(symbol_id);
             if symbol.kind == SymbolKind::Namespace {
                 let remaining_path = path.slice(1..);
-                match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                match self.resolve_relative_symbol_with_ambient_merge(
                     ambient_pass,
                     symbol_id,
                     &remaining_path,
@@ -1116,7 +1206,7 @@ impl Compiler {
                         return Ok(Some((
                             Expression::GlobalReference {
                                 path: path.clone(),
-                                static_arguments,
+                                generic_arguments: generic_arguments.clone().unwrap_or_default(),
                                 target_symbol: resolved_id,
                             },
                             resolved_targets,
@@ -1127,7 +1217,7 @@ impl Compiler {
                             path.slice(0..path.segments.len() - remaining.segments.len());
                         let root_expr = Expression::GlobalReference {
                             path: resolved_path,
-                            static_arguments: None,
+                            generic_arguments: Vec::new(),
                             target_symbol: resolved_id,
                         };
                         return Ok(Some((
@@ -1135,7 +1225,7 @@ impl Compiler {
                                 expression_id,
                                 root_expr,
                                 &remaining,
-                                static_arguments,
+                                generic_arguments.clone(),
                                 tree,
                             ),
                             resolved_targets,
@@ -1151,7 +1241,7 @@ impl Compiler {
             };
             let root_expr = Expression::GlobalReference {
                 path: root_path,
-                static_arguments: None,
+                generic_arguments: Vec::new(),
                 target_symbol: symbol_id.into_global(module_id),
             };
             return Ok(Some((
@@ -1159,7 +1249,7 @@ impl Compiler {
                     expression_id,
                     root_expr,
                     &path.slice(1..),
-                    static_arguments,
+                    generic_arguments.clone(),
                     tree,
                 ),
                 single_path_segment_target(symbol_id.into_global(module_id)),
@@ -1196,44 +1286,8 @@ impl Compiler {
         Ok(self.get_library_symbol_from(profile_id, name, space_order))
     }
 
-    /// Resolve one relative symbol from one immutable DIR artifact with ambient merge rules.
-    pub(crate) fn resolve_relative_symbol_with_ambient_merge_from_artifact(
-        &self,
-        revision: Revision,
-        module: &Module,
-        dir: &DirPrepared,
-        profile_id: ProfileId,
-        node: GlobalNodeIdAny,
-        symbol_id: LocalSymbolId,
-        path: &Path,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        scope_cache: Option<&mut ResolveScopeIndexCache>,
-    ) -> ResolveResult<(GlobalSymbolId, Option<Path>, ResolvedPathSymbolTargets)> {
-        let pass = ResolveState::artifact(
-            revision,
-            module,
-            profile_id,
-            node,
-            space_order,
-            symbols,
-            dir.namespace_symbol,
-            dir.namespace_scope,
-            dir.global_augmentation_scope,
-            &dir.exported_symbols,
-            Some(&dir.tree),
-        );
-
-        self.resolve_relative_symbol_with_ambient_merge_from_state(
-            pass,
-            symbol_id,
-            path,
-            scope_cache,
-        )
-    }
-
     /// Resolve a relative symbol with ambient namespace merge sources.
-    fn resolve_relative_symbol_with_ambient_merge_from_state(
+    pub(crate) fn resolve_relative_symbol_with_ambient_merge(
         &self,
         pass: ResolveState<'_>,
         symbol_id: LocalSymbolId,
@@ -1241,12 +1295,8 @@ impl Compiler {
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>, ResolvedPathSymbolTargets)> {
         // try resolving within the current module first
-        let resolved = self.resolve_relative_symbol_from_state(
-            pass,
-            symbol_id,
-            path,
-            scope_cache.as_deref_mut(),
-        );
+        let resolved =
+            self.resolve_relative_symbol(pass, symbol_id, path, scope_cache.as_deref_mut());
         let missing = match resolved {
             Ok((resolved_id, remaining, traversed_targets)) => {
                 return Ok((
@@ -1289,7 +1339,7 @@ impl Compiler {
                 }
 
                 // resolve using the existing symbols table
-                match self.resolve_relative_symbol_from_state(
+                match self.resolve_relative_symbol(
                     pass,
                     source_symbol.local_id,
                     path,
@@ -1340,7 +1390,7 @@ impl Compiler {
             );
 
             // resolve using the source module symbols table
-            match self.resolve_relative_symbol_from_state(
+            match self.resolve_relative_symbol(
                 source_pass,
                 source_symbol.local_id,
                 path,
@@ -1362,7 +1412,7 @@ impl Compiler {
     }
 
     /// Resolve a relative symbol from one pass state.
-    fn resolve_relative_symbol_from_state(
+    fn resolve_relative_symbol(
         &self,
         pass: ResolveState<'_>,
         symbol_id: LocalSymbolId,
@@ -1432,8 +1482,10 @@ impl Compiler {
                 }
             }
 
-            // fall back to runtime member access in JS/TS value paths
-            if self.allow_runtime_namespace_member_fallback(pass.module, pass.space_order) {
+            // preserve the remaining suffix as value member access
+            if self
+                .namespace_lookup_may_continue_as_value_member_access(pass.module, pass.space_order)
+            {
                 let remaining = path.slice(i..);
                 return Ok((current_symbol_id, Some(remaining), traversed_targets));
             }
@@ -1466,7 +1518,7 @@ impl Compiler {
         profile: ProfileId,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
         tree: &mut NodeTree,
@@ -1508,7 +1560,7 @@ impl Compiler {
                         expression_id,
                         root_expr,
                         &path.slice(2..),
-                        static_arguments,
+                        generic_arguments.clone(),
                         tree,
                     ),
                     ResolvedPathSymbolTargets::new(),
@@ -1523,7 +1575,7 @@ impl Compiler {
             if second_segment_str.as_str() == "target" {
                 let expression = Expression::UnresolvedPath {
                     path: path.clone(),
-                    static_arguments,
+                    generic_arguments: generic_arguments.clone().unwrap_or_default(),
                     space_order,
                 };
 
@@ -1542,7 +1594,7 @@ impl Compiler {
                     expression_id,
                     root_expr,
                     &path.slice(1..),
-                    static_arguments,
+                    generic_arguments.clone(),
                     tree,
                 ),
                 ResolvedPathSymbolTargets::new(),
@@ -1560,7 +1612,7 @@ impl Compiler {
                     expression_id,
                     root_expr,
                     &path.slice(1..),
-                    static_arguments,
+                    generic_arguments.clone(),
                     tree,
                 ),
                 ResolvedPathSymbolTargets::new(),
@@ -1584,7 +1636,7 @@ impl Compiler {
                     current_tree: Some(&*tree),
                     ..pass
                 };
-                self.resolve_absolute_symbol_from_state(
+                self.resolve_absolute_symbol(
                     pass,
                     scope,
                     StaticKey::Name(first_segment),
@@ -1604,7 +1656,7 @@ impl Compiler {
                 expression_id,
                 local_id,
                 path,
-                static_arguments,
+                generic_arguments.clone(),
                 tree,
                 Some(cache.scope_indices()),
             );
@@ -1615,7 +1667,7 @@ impl Compiler {
             pass,
             expression_id,
             path,
-            static_arguments.clone(),
+            generic_arguments.clone(),
             tree,
         ) {
             return Ok((expression, ResolvedPathSymbolTargets::new()));
@@ -1638,7 +1690,7 @@ impl Compiler {
                             module,
                             associated_symbol.local_id,
                             path,
-                            static_arguments,
+                            generic_arguments.clone(),
                             symbols,
                         ),
                         single_path_segment_target(associated_symbol),
@@ -1648,7 +1700,7 @@ impl Compiler {
                 return Ok((
                     Expression::GlobalReference {
                         path: path.clone(),
-                        static_arguments,
+                        generic_arguments: generic_arguments.clone().unwrap_or_default(),
                         target_symbol: associated_symbol,
                     },
                     single_path_segment_target(associated_symbol),
@@ -1669,7 +1721,7 @@ impl Compiler {
             } else {
                 Expression::GlobalReference {
                     path: root_path,
-                    static_arguments: None,
+                    generic_arguments: Vec::new(),
                     target_symbol: associated_symbol,
                 }
             };
@@ -1678,7 +1730,7 @@ impl Compiler {
                     expression_id,
                     root_expr,
                     &path.slice(1..),
-                    static_arguments,
+                    generic_arguments.clone(),
                     tree,
                 ),
                 single_path_segment_target(associated_symbol),
@@ -1697,7 +1749,7 @@ impl Compiler {
                     expression_id,
                     root_expr,
                     &path.slice(1..),
-                    static_arguments,
+                    generic_arguments.clone(),
                     tree,
                 ),
                 ResolvedPathSymbolTargets::new(),
@@ -1716,7 +1768,7 @@ impl Compiler {
                     current_tree: Some(&*tree),
                     ..pass
                 };
-                self.resolve_absolute_symbol_from_state(
+                self.resolve_absolute_symbol(
                     pass,
                     (module_scope_id, module_scope, module_mark),
                     StaticKey::Name(first_segment),
@@ -1731,7 +1783,7 @@ impl Compiler {
                     expression_id,
                     local_id,
                     path,
-                    static_arguments,
+                    generic_arguments.clone(),
                     tree,
                     Some(cache.scope_indices()),
                 );
@@ -1744,7 +1796,7 @@ impl Compiler {
             expression_id,
             scope,
             path,
-            static_arguments.clone(),
+            generic_arguments.clone(),
             tree,
             Some(cache.scope_indices()),
         )? {
@@ -1759,7 +1811,7 @@ impl Compiler {
             node,
             profile,
             path,
-            static_arguments.clone(),
+            generic_arguments.clone(),
             space_order,
             Some(cache.scope_indices()),
             tree,
@@ -1785,7 +1837,7 @@ impl Compiler {
                 expression_id,
                 prelude_symbol,
                 path,
-                static_arguments,
+                generic_arguments.clone(),
                 tree,
             );
         }
@@ -1795,7 +1847,7 @@ impl Compiler {
             pass,
             expression_id,
             path,
-            static_arguments,
+            generic_arguments,
             tree,
             Some(cache.scope_indices()),
         )? {
@@ -1813,7 +1865,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         local_id: LocalSymbolId,
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         tree: &mut NodeTree,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(Expression, ResolvedPathSymbolTargets)> {
@@ -1828,7 +1880,7 @@ impl Compiler {
                     pass.module,
                     local_id,
                     path,
-                    static_arguments,
+                    generic_arguments.clone(),
                     pass.symbols,
                 ),
                 receiver_targets,
@@ -1839,7 +1891,7 @@ impl Compiler {
         let symbol = pass.symbols.get_symbol(local_id);
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol_with_ambient_merge_from_state(
+            match self.resolve_relative_symbol_with_ambient_merge(
                 ResolveState {
                     current_tree: Some(&*tree),
                     ..pass
@@ -1855,7 +1907,7 @@ impl Compiler {
                                 pass.module,
                                 resolved_id.local_id,
                                 path,
-                                static_arguments,
+                                generic_arguments.clone(),
                                 pass.symbols,
                             ),
                             resolved_targets,
@@ -1865,7 +1917,7 @@ impl Compiler {
                     return Ok((
                         Expression::GlobalReference {
                             path: path.clone(),
-                            static_arguments,
+                            generic_arguments: generic_arguments.clone().unwrap_or_default(),
                             target_symbol: resolved_id,
                         },
                         resolved_targets,
@@ -1885,7 +1937,7 @@ impl Compiler {
                     } else {
                         Expression::GlobalReference {
                             path: resolved_path,
-                            static_arguments: None,
+                            generic_arguments: Vec::new(),
                             target_symbol: resolved_id,
                         }
                     };
@@ -1894,7 +1946,7 @@ impl Compiler {
                             expression_id,
                             root_expr,
                             &remaining,
-                            static_arguments,
+                            generic_arguments.clone(),
                             tree,
                         ),
                         resolved_targets,
@@ -1921,7 +1973,7 @@ impl Compiler {
                 expression_id,
                 root_expr,
                 &remaining_path,
-                static_arguments,
+                generic_arguments,
                 tree,
             ),
             receiver_targets,

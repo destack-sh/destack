@@ -252,11 +252,11 @@ class Box {
 
             // confirm @if annotations were attached
             assert!(
-                tree.has_annotations(getter_id.id),
+                !tree.get_decorators(getter_id.id).is_empty(),
                 "expected getter annotations"
             );
             assert!(
-                tree.has_annotations(setter_id.id),
+                !tree.get_decorators(setter_id.id).is_empty(),
                 "expected setter annotations"
             );
 

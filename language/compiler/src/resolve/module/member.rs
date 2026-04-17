@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    BindingAnchor, Declaration, DynamicKey, Expression, GlobalSymbolId, Heritage, LocalNodeId,
-    NodeTree, StaticKey, SymbolTable,
+    Declaration, Expression, GlobalSymbolId, Key, LocalNodeId, Name, NodeTree, StaticKey,
+    SymbolTable, TypeExpression, TypeMember,
 };
 use destack_workspace::{Module, ProfileId, Revision};
 
@@ -10,6 +10,104 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return the nominal owner symbol denoted by one expression.
+    fn nominal_owner_symbol_for_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<GlobalSymbolId> {
+        let expression = tree.get(expression_id);
+
+        // direct resolved references own themselves
+        if let Some(target_symbol) = expression.target_symbol() {
+            return Some(target_symbol);
+        }
+
+        // parenthesized wrappers preserve ownership
+        if let Expression::Parenthesized { expression } = expression {
+            return self.nominal_owner_symbol_for_expression(tree, *expression);
+        }
+
+        // instantiation wrappers preserve the nominal owner on the left
+        if let Expression::Instantiation { left, .. } = expression {
+            return self.nominal_owner_symbol_for_expression(tree, *left);
+        }
+
+        None
+    }
+
+    /// Return the nominal owner symbol denoted by one type expression.
+    pub(crate) fn nominal_owner_symbol_for_type_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> Option<GlobalSymbolId> {
+        let expression = tree.get(expression_id);
+
+        // direct resolved references own themselves
+        if let Some(target_symbol) = expression.target_symbol() {
+            return Some(target_symbol);
+        }
+
+        // parenthesized wrappers preserve ownership
+        if let TypeExpression::Parenthesized { expression } = expression {
+            return self.nominal_owner_symbol_for_type_expression(tree, *expression);
+        }
+
+        None
+    }
+
+    /// Return the inherited type expressions for one declaration.
+    fn inherited_type_expressions(
+        &self,
+        declaration: &Declaration,
+    ) -> Vec<LocalNodeId<TypeExpression>> {
+        // struct heritage
+        if let Declaration::Struct(declaration) = declaration {
+            let mut inherited = declaration.implements_types.clone();
+            inherited.extend(declaration.embedded_types.iter().copied());
+            return inherited;
+        }
+
+        // class heritage
+        if let Declaration::Class(declaration) = declaration {
+            return declaration.implements_types.clone();
+        }
+
+        // enum heritage
+        if let Declaration::Enum(declaration) = declaration {
+            return declaration.implements_types.clone();
+        }
+
+        // interface heritage
+        if let Declaration::Interface(declaration) = declaration {
+            return declaration.extends_types.clone();
+        }
+
+        // extension heritage
+        if let Declaration::Extension(declaration) = declaration {
+            return declaration.implements_types.clone();
+        }
+
+        Vec::new()
+    }
+
+    /// Convert one member key into a static lookup key when possible.
+    fn static_key_from_member_key(&self, key: Option<&Key>) -> Option<StaticKey> {
+        let key = key?;
+
+        match key {
+            // named keys
+            Key::Name(Name::Identifier(name)) | Key::Name(Name::String(name)) => {
+                Some(StaticKey::Name(*name))
+            }
+            Key::Name(Name::Number(name)) => Some(StaticKey::Number(*name)),
+
+            // private and computed keys are never static exports
+            Key::Private(_) | Key::Expression(_) => None,
+        }
+    }
+
     /// Get one resolved dir snapshot for a module when available.
     fn dir_resolved_snapshot(
         &self,
@@ -89,7 +187,7 @@ impl Compiler {
         symbols: &SymbolTable,
         visited_targets: &mut HashSet<GlobalSymbolId>,
     ) -> Option<GlobalSymbolId> {
-        // stop recursive cycles in interface fallback traversal
+        // stop recursive cycles in inherited member traversal
         if !visited_targets.insert(target_symbol) {
             return None;
         }
@@ -110,33 +208,20 @@ impl Compiler {
                 continue;
             };
             let declaration = tree.get(declaration_id);
-            let (members, enum_fields, heritage, fields_static_by_default) = match declaration {
-                Declaration::Class {
-                    members, heritage, ..
-                } => (members.as_slice(), None, Some(heritage), false),
-                Declaration::Struct {
-                    members, heritage, ..
-                } => (members.as_slice(), None, Some(heritage), false),
-                Declaration::Enum {
-                    fields,
-                    members,
-                    heritage,
-                    ..
-                } => (
-                    members.as_slice(),
-                    Some(fields.as_slice()),
-                    Some(heritage),
-                    true,
-                ),
-                Declaration::Interface {
-                    members, heritage, ..
-                } => (members.as_slice(), None, Some(heritage), false),
+            let (enum_fields, fields_static_by_default) = match declaration {
+                Declaration::Class(_) => (None, false),
+                Declaration::Struct(_) => (None, false),
+                Declaration::Enum(declaration) => (Some(declaration.fields.as_slice()), true),
+                Declaration::Interface(_) => (None, false),
                 _ => continue,
             };
+
+            let inherited_types = self.inherited_type_expressions(declaration);
 
             if let Some(enum_fields) = enum_fields
                 && let Some(symbol) = self.resolve_static_member_symbol_in_enum_fields(
                     target_symbol.module_id,
+                    declaration_id,
                     enum_fields,
                     member_key,
                     tree,
@@ -146,23 +231,59 @@ impl Compiler {
                 return Some(symbol);
             }
 
-            if let Some(symbol) = self.resolve_static_member_symbol_in_members(
-                target_symbol.module_id,
-                members,
-                member_key,
-                fields_static_by_default,
-                tree,
-                symbols,
-            ) {
+            if let Some(member_ids) = declaration.member_ids()
+                && let Some(symbol) = self.resolve_static_member_symbol_in_members(
+                    target_symbol.module_id,
+                    member_ids,
+                    member_key,
+                    fields_static_by_default,
+                    tree,
+                    symbols,
+                )
+            {
                 return Some(symbol);
             }
 
-            if let Some(heritage) = heritage
+            if let Some(member_ids) = declaration.type_member_ids()
+                && let Some(symbol) = self.resolve_static_member_symbol_in_type_members(
+                    target_symbol.module_id,
+                    member_ids,
+                    member_key,
+                    tree,
+                    symbols,
+                )
+            {
+                return Some(symbol);
+            }
+
+            // check the class extends target after the class's own members
+            if let Declaration::Class(declaration) = declaration
+                && let Some(extends_expression_id) = declaration.extends_expression
+                && let Some(heritage_symbol) =
+                    self.nominal_owner_symbol_for_expression(tree, extends_expression_id)
+            {
+                let heritage_symbol =
+                    self.canonical_symbol_in_tables(module, profile, heritage_symbol, symbols);
+                if let Some(symbol) = self.query_static_member_symbol_inner(
+                    revision,
+                    module,
+                    profile,
+                    heritage_symbol,
+                    member_key,
+                    tree,
+                    symbols,
+                    visited_targets,
+                ) {
+                    return Some(symbol);
+                }
+            }
+
+            if !inherited_types.is_empty()
                 && let Some(symbol) = self.query_static_member_symbol_in_heritage(
                     revision,
                     module,
                     profile,
-                    heritage,
+                    &inherited_types,
                     member_key,
                     tree,
                     symbols,
@@ -176,36 +297,38 @@ impl Compiler {
         // scan extension declarations in this module
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
             let declaration = tree.get(declaration_id);
-            let Declaration::Extension {
-                target_symbol: Some(extension_target),
-                heritage,
-                members,
-                ..
-            } = declaration
-            else {
+            let Declaration::Extension(declaration) = declaration else {
+                continue;
+            };
+            let Some(extension_target) = declaration.target_symbol else {
                 continue;
             };
 
             // require a canonical target match
             let canonical_target =
-                self.canonical_symbol_in_tables(module, profile, *extension_target, symbols);
+                self.canonical_symbol_in_tables(module, profile, extension_target, symbols);
             if canonical_target != target_symbol {
                 continue;
             }
 
-            // resolve extension members before interface fallback
+            // check extension members before inherited types
             if let Some(symbol) = self.resolve_static_member_symbol_in_members(
-                module.id, members, member_key, false, tree, symbols,
+                module.id,
+                &declaration.members,
+                member_key,
+                false,
+                tree,
+                symbols,
             ) {
                 return Some(symbol);
             }
 
-            // fall back to implemented interfaces when no extension member matches
+            // then check the inherited types for the extension
             if let Some(symbol) = self.query_static_member_symbol_in_heritage(
                 revision,
                 module,
                 profile,
-                heritage,
+                &declaration.implements_types,
                 member_key,
                 tree,
                 symbols,
@@ -222,6 +345,7 @@ impl Compiler {
     fn resolve_static_member_symbol_in_enum_fields(
         &self,
         module_id: destack_source::ModuleId,
+        declaration_id: LocalNodeId<Declaration>,
         fields: &[LocalNodeId<destack_dir::EnumField>],
         member_key: StaticKey,
         tree: &NodeTree,
@@ -229,11 +353,15 @@ impl Compiler {
     ) -> Option<GlobalSymbolId> {
         for field_id in fields {
             let field = tree.get(*field_id);
-            let field_key = StaticKey::Name(field.name);
+            let field_key = StaticKey::Name(field.name.string());
             if field_key.matches(&member_key) {
-                let symbol_entry = symbols.get_symbol(field.symbol);
-                let symbol_id = field.symbol.with_type(symbol_entry.ty);
-                return Some(GlobalSymbolId::new(module_id, symbol_id));
+                if let Some(symbol_id) =
+                    self.enum_field_symbol_maybe(tree, symbols, declaration_id, *field_id)
+                {
+                    let symbol_entry = symbols.get_symbol(symbol_id);
+                    let symbol_id = symbol_id.with_type(symbol_entry.ty);
+                    return Some(GlobalSymbolId::new(module_id, symbol_id));
+                }
             }
         }
 
@@ -252,55 +380,18 @@ impl Compiler {
     ) -> Option<GlobalSymbolId> {
         for member_id in members {
             let member = tree.get(*member_id);
-            let (modifiers, static_key, symbol, requires_static_anchor) = match member {
-                destack_dir::Member::Type { name, symbol, .. } => {
-                    (None, Some(StaticKey::Name(*name)), *symbol, false)
-                }
-                destack_dir::Member::ComptimeConst { name, symbol, .. } => {
-                    (None, Some(StaticKey::Name(*name)), *symbol, false)
-                }
-                destack_dir::Member::Field {
-                    modifiers,
-                    key,
-                    symbol,
-                    ..
-                } => (
-                    modifiers.as_ref(),
-                    key.as_ref().and_then(|key| match key {
-                        DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
-                        DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
-                        _ => None,
-                    }),
-                    *symbol,
-                    true,
-                ),
-                destack_dir::Member::Method {
-                    modifiers,
-                    key,
-                    symbol,
-                    ..
-                } => (
-                    modifiers.as_ref(),
-                    key.as_ref().and_then(|key| match key {
-                        DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
-                        DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
-                        _ => None,
-                    }),
-                    *symbol,
-                    true,
-                ),
-                _ => continue,
+            let requires_static_member = member.key().is_some();
+
+            // member key
+            let static_key = if let Some(name) = member.name() {
+                Some(StaticKey::Name(name))
+            } else {
+                self.static_key_from_member_key(member.key())
             };
 
             // require static members when the member kind needs it
-            if requires_static_anchor {
-                let has_static_anchor = modifiers
-                    .and_then(|modifiers| modifiers.anchor)
-                    .is_some_and(|anchor| anchor == BindingAnchor::Static);
-                let is_static = has_static_anchor || fields_static_by_default;
-                if !is_static {
-                    continue;
-                }
+            if requires_static_member && !member.is_static() && !fields_static_by_default {
+                continue;
             }
 
             // match the member key against the static key
@@ -308,6 +399,40 @@ impl Compiler {
                 continue;
             };
             if static_key.matches(&member_key) {
+                let symbol = member.symbol();
+                let symbol_entry = symbols.get_symbol(symbol);
+                let symbol_id = symbol.with_type(symbol_entry.ty);
+                return Some(GlobalSymbolId::new(module_id, symbol_id));
+            }
+        }
+
+        None
+    }
+
+    /// Resolve a static member symbol within a type member list.
+    fn resolve_static_member_symbol_in_type_members(
+        &self,
+        module_id: destack_source::ModuleId,
+        members: &[LocalNodeId<TypeMember>],
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        for member_id in members {
+            let member = tree.get(*member_id);
+
+            // member key
+            let static_key = if let Some(name) = member.name() {
+                Some(StaticKey::Name(name))
+            } else {
+                self.static_key_from_member_key(member.key())
+            };
+
+            let Some(static_key) = static_key else {
+                continue;
+            };
+            if static_key.matches(&member_key) {
+                let symbol = member.symbol();
                 let symbol_entry = symbols.get_symbol(symbol);
                 let symbol_id = symbol.with_type(symbol_entry.ty);
                 return Some(GlobalSymbolId::new(module_id, symbol_id));
@@ -323,23 +448,15 @@ impl Compiler {
         revision: Revision,
         module: &Module,
         profile: ProfileId,
-        heritage: &Heritage,
+        inherited_types: &[LocalNodeId<TypeExpression>],
         member_key: StaticKey,
         tree: &NodeTree,
         symbols: &SymbolTable,
         visited_targets: &mut HashSet<GlobalSymbolId>,
     ) -> Option<GlobalSymbolId> {
-        let extends_types = heritage.extends_types.as_deref().unwrap_or_default();
-        let implements_types = heritage.implements_types.as_deref().unwrap_or_default();
-
-        for heritage_expression_id in extends_types.iter().chain(implements_types.iter()) {
-            let heritage_expression = tree.get(*heritage_expression_id);
-
-            // generic heritage expressions keep the nominal target on the left reference
-            let heritage_symbol = match heritage_expression {
-                Expression::Instantiation { left, .. } => tree.get(*left).target_symbol(),
-                _ => heritage_expression.target_symbol(),
-            };
+        for heritage_expression_id in inherited_types {
+            let heritage_symbol =
+                self.nominal_owner_symbol_for_type_expression(tree, *heritage_expression_id);
             let Some(heritage_symbol) = heritage_symbol else {
                 continue;
             };

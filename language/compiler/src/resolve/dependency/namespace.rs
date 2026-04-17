@@ -3,8 +3,8 @@ use std::collections::VecDeque;
 use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalNodeIdAny,
-    GlobalSymbolId, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
+    DependencyItem, DependencyKind, DependencyMode, Expression, GlobalNodeIdAny, GlobalSymbolId,
+    ImportSource, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
 };
 use destack_source::ModuleId;
 use destack_workspace::workspace::{Module, ProfileId};
@@ -181,7 +181,7 @@ impl Compiler {
             return Ok(None);
         }
         if let Some(source) = source
-            && source != DependencySource::ExportStatement
+            && source != ImportSource::ExportStatement
         {
             return Ok(None);
         }
@@ -223,7 +223,7 @@ impl Compiler {
                 dir,
                 profile,
                 item_id.into_global_any(module.id),
-                source.unwrap_or(DependencySource::ExportStatement),
+                source.unwrap_or(ImportSource::ExportStatement),
                 target,
                 kind,
                 loader_override,
@@ -402,13 +402,13 @@ impl Compiler {
             | Expression::UnresolvedReExport { attributes, .. }
             | Expression::Import { attributes, .. }
             | Expression::ReExport { attributes, .. } => {
-                attributes.as_ref().map(|attributes| &attributes.arguments)
+                attributes.as_ref().map(|attributes| &attributes.attributes)
             }
             _ => return Ok(None),
         };
 
         // parse the optional loader override
-        match self.loader_from_import_attributes(arguments, tree) {
+        match self.loader_from_import_attributes(arguments.map(|arguments| arguments.as_slice())) {
             LoaderAttribute::None => Ok(None),
             LoaderAttribute::Loader(loader) => Ok(Some(loader)),
             LoaderAttribute::InvalidType { value } => {

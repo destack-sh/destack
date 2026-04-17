@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_dir::{
-    Annotation, BinaryOperator, Block, Declaration, Expression, LocalNodeId, LocalNodeIdAny,
+    BinaryOperator, Block, Declaration, Decorator, Expression, LocalNodeId, LocalNodeIdAny, Member,
     NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, SymbolTable, Type,
-    TypeLiteral, TypeTable, walk_any,
+    TypeLiteral, TypeMember, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImportMeta, ProfileEnv, ProfileId};
@@ -101,8 +101,8 @@ impl Compiler {
         let mut seen_declarations = HashSet::new();
         let mut seen_expressions = HashSet::new();
 
-        // gather parent nodes for @if annotations
-        for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
+        // gather parent nodes for @if decorators
+        for annotation_id in tree.iter_node_ids_of_type::<Decorator>() {
             if self
                 .decorator_call_named(tree, annotation_id, if_name)
                 .is_none()
@@ -121,7 +121,7 @@ impl Compiler {
                         declaration_targets.push(declaration_id);
                     }
                 }
-                NodeType::Member | NodeType::EnumField => {
+                NodeType::Member | NodeType::TypeMember | NodeType::EnumField => {
                     let Some(parent_declaration) = tree.get_parent(parent_id.id) else {
                         continue;
                     };
@@ -228,7 +228,7 @@ impl Compiler {
             if !condition {
                 // capture declaration nodes gated out at the expression level
                 let declaration_id = match tree.get(expression_id) {
-                    Expression::Declaration { declaration } => Some(*declaration),
+                    Expression::Declaration(declaration) => Some(*declaration),
                     _ => None,
                 };
 
@@ -253,7 +253,7 @@ impl Compiler {
             }
 
             // drop inactive declaration roots
-            let Expression::Declaration { declaration } = tree.get(root_id) else {
+            let Expression::Declaration(declaration) = tree.get(root_id) else {
                 kept_roots.push(root_id);
                 continue;
             };
@@ -281,7 +281,7 @@ impl Compiler {
                 }
 
                 // skip inactive declaration expressions
-                if let Expression::Declaration { declaration } = tree.get(expression_id) {
+                if let Expression::Declaration(declaration) = tree.get(expression_id) {
                     let declaration = tree.get(*declaration);
                     if symbols.get_active_symbol(declaration.symbol()).is_none() {
                         continue;
@@ -295,8 +295,7 @@ impl Compiler {
             if let Some(tail_expression_id) = block.tail_expression {
                 if removed_expressions.contains(&tail_expression_id.id) {
                     kept_tail = None;
-                } else if let Expression::Declaration { declaration } = tree.get(tail_expression_id)
-                {
+                } else if let Expression::Declaration(declaration) = tree.get(tail_expression_id) {
                     let declaration = tree.get(*declaration);
                     if symbols.get_active_symbol(declaration.symbol()).is_none() {
                         kept_tail = None;
@@ -325,8 +324,8 @@ impl Compiler {
         // cache the decorator identifier
         let if_name = self.repository.strings.intern("if");
 
-        // walk all annotations looking for @if decorators
-        for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
+        // walk all decorators looking for @if decorators
+        for annotation_id in tree.iter_node_ids_of_type::<Decorator>() {
             if self
                 .decorator_call_named(tree, annotation_id, if_name)
                 .is_none()
@@ -348,13 +347,14 @@ impl Compiler {
             match parent_id.ty {
                 destack_dir::NodeType::Declaration
                 | destack_dir::NodeType::Member
+                | destack_dir::NodeType::TypeMember
                 | destack_dir::NodeType::EnumField => {}
                 destack_dir::NodeType::Expression => {
                     let expression_id = LocalNodeId::<Expression>::new(parent_id.id);
                     let is_statement_position =
                         tree.expression_is_in_statement_position(expression_id);
                     if !is_statement_position
-                        && !matches!(tree.get(expression_id), Expression::Declaration { .. })
+                        && !matches!(tree.get(expression_id), Expression::Declaration(_))
                     {
                         return Err(self.invalid_static_if(
                             module_id,
@@ -378,13 +378,13 @@ impl Compiler {
         Ok(())
     }
 
-    /// Mark static if annotations inactive after they are processed.
+    /// Mark static if decorators inactive after they are processed.
     fn mark_static_if_annotations_inactive(&self, tree: &mut NodeTree, types: &TypeTable) {
         // cache the decorator identifier
         let if_name = self.repository.strings.intern("if");
 
-        // mark @if annotations inactive
-        for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
+        // mark @if decorators inactive
+        for annotation_id in tree.iter_node_ids_of_type::<Decorator>() {
             if self
                 .decorator_call_named(tree, annotation_id, if_name)
                 .is_none()
@@ -396,7 +396,7 @@ impl Compiler {
         }
     }
 
-    /// Mark a subtree and its annotations inactive.
+    /// Mark a subtree and its decorators inactive.
     fn mark_inactive_subtree(&self, tree: &mut NodeTree, types: &TypeTable, root: LocalNodeIdAny) {
         // collect nodes in the main subtree
         let mut collector = InactiveNodeCollector::default();
@@ -443,10 +443,10 @@ impl Compiler {
             tree.mark_inactive(LocalNodeIdAny::new(node_id, node_type));
         }
 
-        // collect annotation roots attached to the subtree
+        // collect decorator roots attached to the subtree
         let mut annotation_roots = Vec::new();
         for node_id in inactive_ids.iter().copied() {
-            let annotations = tree.get_annotations(node_id);
+            let annotations = tree.get_decorators(node_id);
             for annotation_id in annotations {
                 annotation_roots.push(annotation_id.into_any());
             }
@@ -473,28 +473,28 @@ impl Compiler {
         import_meta: &ImportMeta,
     ) -> ResolveResult<()> {
         // capture the member and field lists
-        let (members, fields) = {
+        let (members, type_members, fields) = {
             let declaration = tree.get(declaration_id);
-            let members = match declaration {
-                Declaration::Struct { members, .. }
-                | Declaration::Class { members, .. }
-                | Declaration::Enum { members, .. }
-                | Declaration::Interface { members, .. }
-                | Declaration::Extension { members, .. } => members.clone(),
-                _ => Vec::new(),
-            };
+            let members = declaration
+                .member_ids()
+                .map(<[_]>::to_vec)
+                .unwrap_or_default();
+            let type_members = declaration
+                .type_member_ids()
+                .map(<[_]>::to_vec)
+                .unwrap_or_default();
             let fields = match declaration {
-                Declaration::Enum { fields, .. } => fields.clone(),
+                Declaration::Enum(declaration) => declaration.fields.clone(),
                 _ => Vec::new(),
             };
-            (members, fields)
+            (members, type_members, fields)
         };
 
         // filter members based on static if
         let mut filtered_members = Vec::with_capacity(members.len());
         for member_id in members {
             // keep members without annotations
-            if !tree.has_annotations(member_id.id) {
+            if !tree.has_decorators(member_id.id) {
                 filtered_members.push(member_id);
                 continue;
             }
@@ -512,7 +512,7 @@ impl Compiler {
             if matches!(condition, Some(false)) {
                 // mark member symbols inactive
                 let symbol_id = {
-                    let member = tree.get(member_id);
+                    let member: &Member = tree.get(member_id);
                     member.symbol()
                 };
                 let symbol = symbols.get_symbol_mut(symbol_id);
@@ -526,11 +526,47 @@ impl Compiler {
             filtered_members.push(member_id);
         }
 
+        // filter type members based on static if
+        let mut filtered_type_members = Vec::with_capacity(type_members.len());
+        for member_id in type_members {
+            // keep members without annotations
+            if !tree.has_decorators(member_id.id) {
+                filtered_type_members.push(member_id);
+                continue;
+            }
+
+            // evaluate the member gate
+            let condition = self.static_if_condition_for_node(
+                module_id,
+                profile_id,
+                member_id.into_any(),
+                tree,
+                import_meta,
+            )?;
+
+            // deactivate members that are gated out
+            if matches!(condition, Some(false)) {
+                // mark member symbols inactive
+                let symbol_id = {
+                    let member: &TypeMember = tree.get(member_id);
+                    member.symbol()
+                };
+                let symbol = symbols.get_symbol_mut(symbol_id);
+                symbol.is_active = false;
+
+                // mark the member subtree inactive
+                self.mark_inactive_subtree(tree, types, member_id.into_any());
+                continue;
+            }
+
+            filtered_type_members.push(member_id);
+        }
+
         // filter enum fields based on static if
         let mut filtered_fields = Vec::with_capacity(fields.len());
         for field_id in fields {
             // keep fields without annotations
-            if !tree.has_annotations(field_id.id) {
+            if !tree.has_decorators(field_id.id) {
                 filtered_fields.push(field_id);
                 continue;
             }
@@ -547,12 +583,12 @@ impl Compiler {
             // deactivate fields that are gated out
             if matches!(condition, Some(false)) {
                 // mark enum field symbols inactive
-                let symbol_id = {
-                    let field = tree.get(field_id);
-                    field.symbol
-                };
-                let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.is_active = false;
+                if let Some(symbol_id) =
+                    self.enum_field_symbol_maybe(tree, symbols, declaration_id, field_id)
+                {
+                    let symbol = symbols.get_symbol_mut(symbol_id);
+                    symbol.is_active = false;
+                }
 
                 // mark the enum field subtree inactive
                 self.mark_inactive_subtree(tree, types, field_id.into_any());
@@ -565,18 +601,18 @@ impl Compiler {
         // update the declaration slots
         let declaration = tree.get_mut(declaration_id);
         match declaration {
-            Declaration::Struct { members: slot, .. }
-            | Declaration::Class { members: slot, .. }
-            | Declaration::Interface { members: slot, .. }
-            | Declaration::Extension { members: slot, .. }
-            | Declaration::Enum { members: slot, .. } => {
-                *slot = filtered_members;
+            Declaration::Struct(declaration) => declaration.members = filtered_members.clone(),
+            Declaration::Class(declaration) => declaration.members = filtered_members.clone(),
+            Declaration::Interface(declaration) => {
+                declaration.members = filtered_type_members.clone();
             }
+            Declaration::Extension(declaration) => declaration.members = filtered_members.clone(),
+            Declaration::Enum(declaration) => declaration.members = filtered_members.clone(),
             _ => {}
         }
 
-        if let Declaration::Enum { fields: slot, .. } = declaration {
-            *slot = filtered_fields;
+        if let Declaration::Enum(declaration) = declaration {
+            declaration.fields = filtered_fields;
         }
 
         Ok(())
@@ -591,15 +627,18 @@ impl Compiler {
         declaration_id: LocalNodeId<Declaration>,
     ) {
         // collect declaration ids for later updates
-        let (symbol_id, members, fields) = {
+        let (symbol_id, members, type_members, fields) = {
             let declaration = tree.get(declaration_id);
             let symbol_id = declaration.symbol();
             let members = declaration.member_ids().map(|members| members.to_vec());
+            let type_members = declaration
+                .type_member_ids()
+                .map(|members| members.to_vec());
             let fields = match declaration {
-                Declaration::Enum { fields, .. } => Some(fields.clone()),
+                Declaration::Enum(declaration) => Some(declaration.fields.clone()),
                 _ => None,
             };
-            (symbol_id, members, fields)
+            (symbol_id, members, type_members, fields)
         };
 
         // deactivate the declaration symbol
@@ -618,14 +657,57 @@ impl Compiler {
             }
         }
 
-        // deactivate enum field symbols
-        if let Some(fields) = fields {
-            for field_id in fields {
-                let field = tree.get(field_id);
-                let symbol = symbols.get_symbol_mut(field.symbol);
+        // deactivate type member symbols
+        if let Some(members) = type_members {
+            for member_id in members {
+                let member = tree.get(member_id);
+                let symbol = symbols.get_symbol_mut(member.symbol());
                 symbol.is_active = false;
             }
         }
+
+        // deactivate enum field symbols
+        if let Some(fields) = fields {
+            for field_id in fields {
+                if let Some(symbol_id) =
+                    self.enum_field_symbol_maybe(tree, symbols, declaration_id, field_id)
+                {
+                    let symbol = symbols.get_symbol_mut(symbol_id);
+                    symbol.is_active = false;
+                }
+            }
+        }
+    }
+
+    /// Resolve the symbol declared by one enum field.
+    pub(super) fn enum_field_symbol_maybe(
+        &self,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        declaration_id: LocalNodeId<Declaration>,
+        field_id: LocalNodeId<destack_dir::EnumField>,
+    ) -> Option<destack_dir::LocalSymbolId> {
+        // enum fields live in the enum declaration scope
+        let Declaration::Enum(declaration) = tree.get(declaration_id) else {
+            return None;
+        };
+        let scope = symbols.get_scope_by_id(declaration.scope);
+
+        // match the field symbol by its primary declaration
+        for (_, symbol_id) in symbols.active_named_symbols(scope) {
+            let symbol = symbols.get_symbol(symbol_id);
+            let is_field_symbol = symbol
+                .primary_declaration
+                .is_some_and(|primary_declaration| {
+                    primary_declaration.local_id.ty == destack_dir::NodeType::EnumField
+                        && primary_declaration.local_id.id == field_id.id
+                });
+            if is_field_symbol {
+                return Some(symbol_id);
+            }
+        }
+
+        None
     }
 
     /// Evaluate the static if condition for a node.
@@ -641,8 +723,8 @@ impl Compiler {
         let mut saw_if = false;
         let mut combined = true;
 
-        // iterate annotations for the node
-        let annotations = tree.get_annotations(node_id.id);
+        // iterate decorators for the node
+        let annotations = tree.get_decorators(node_id.id);
         let if_name = self.repository.strings.intern("if");
         for annotation_id in annotations {
             let Some(call) = self.decorator_call_named(tree, annotation_id, if_name) else {

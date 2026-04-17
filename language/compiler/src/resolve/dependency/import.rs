@@ -1,8 +1,8 @@
 use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalNodeIdAny,
-    GlobalSymbolId, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
+    DependencyItem, DependencyKind, DependencyMode, Expression, GlobalNodeIdAny, GlobalSymbolId,
+    ImportSource, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Revision};
@@ -74,7 +74,7 @@ impl Compiler {
                     .map_err(ResolveError::from)?;
                 let tree = &dir.tree;
                 let declaration = tree.get(binding_ref.declaration);
-                let symbol_id = declaration.descriptor().symbol;
+                let symbol_id = declaration.symbol();
                 Ok(symbol_id.into_global(binding_ref.module_id))
             }
             ModuleTarget::External(specifier) => Err(ResolveError::UnresolvedModule {
@@ -578,7 +578,7 @@ impl Compiler {
             let item = tree.get(*item_id);
             match item {
                 DependencyItem::UnresolvedRemote {
-                    source: DependencySource::ImportEquals | DependencySource::RequireCall,
+                    source: ImportSource::ImportEquals | ImportSource::RequireCall,
                     mode: DependencyMode::Namespace,
                     kind,
                     name,
@@ -675,7 +675,7 @@ impl Compiler {
                     ..
                 } if matches!(
                     source,
-                    DependencySource::ImportEquals | DependencySource::RequireCall
+                    ImportSource::ImportEquals | ImportSource::RequireCall
                 ) && alias.or(item_name.map(|name| name.string())) == Some(name) =>
                 {
                     // found `import X = require("target")` where X is our name
