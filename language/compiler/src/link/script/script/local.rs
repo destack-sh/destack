@@ -35,7 +35,7 @@ impl Compiler {
                 path: js::Path {
                     segments: smallvec::smallvec![synthetic_default_name],
                 },
-                static_arguments: None,
+                generic_arguments: vec![],
             },
             statement_id,
         );
@@ -415,7 +415,7 @@ impl Compiler {
                 path: js::Path {
                     segments: smallvec::smallvec![content],
                 },
-                static_arguments: None,
+                generic_arguments: vec![],
             },
             statement_id,
         );
@@ -507,7 +507,7 @@ impl Compiler {
                     path: js::Path {
                         segments: smallvec::smallvec![target_name],
                     },
-                    static_arguments: None,
+                    generic_arguments: vec![],
                 },
                 property_id,
             );
@@ -587,14 +587,15 @@ impl Compiler {
                     modifiers: None,
                     key: Some(key),
                     signature: js::FunctionSignature {
-                        abstraction: js::FunctionAbstraction::Concrete,
+                        is_abstract: false,
+                        is_override: false,
                         asynchrony: js::Asynchrony::Sync,
                         cardinality: js::FunctionCardinality::Scalar,
                         mode: Some(js::FunctionMode::Getter),
                         kind: js::FunctionKind::Function,
-                        generics: None,
+                        generic_parameters: Vec::new(),
                         this_parameter: None,
-                        dynamic_parameters: Vec::new(),
+                        parameters: Vec::new(),
                         return_type: None,
                     },
                     body: Some(block),

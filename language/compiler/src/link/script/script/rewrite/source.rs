@@ -171,7 +171,7 @@ impl ScriptLinker<'_> {
         let declaration = module.tree.get(declaration_id);
         if !matches!(
             declaration,
-            js::Declaration::Class { .. } | js::Declaration::Function { .. }
+            js::Declaration::Class(_) | js::Declaration::Function(_)
         ) {
             return Ok(module.tree.symbol(declaration_id));
         }

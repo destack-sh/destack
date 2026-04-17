@@ -58,7 +58,7 @@ impl TestModuleBuilder {
             path: js::Path {
                 segments: smallvec::smallvec![name],
             },
-            static_arguments: None,
+            generic_arguments: vec![],
         })
     }
 
@@ -145,7 +145,7 @@ impl TestModuleBuilder {
         self.expression(js::Expression::Member {
             left,
             name,
-            static_arguments: None,
+            generic_arguments: vec![],
         })
     }
 
@@ -184,8 +184,8 @@ impl TestModuleBuilder {
         self.expression(js::Expression::Call {
             position: js::PostfixPosition::Direct,
             left,
-            static_arguments: None,
-            dynamic_arguments: arguments,
+            generic_arguments: vec![],
+            arguments: arguments,
         })
     }
 
@@ -259,7 +259,7 @@ impl TestModuleBuilder {
         let declaration_source_id = self.source_id(dir::NodeType::Declaration);
 
         self.tree.insert_from_source_any(
-            js::Declaration::Function {
+            js::Declaration::Function(js::FunctionDeclaration {
                 descriptor: js::DeclarationDescriptor {
                     kind: js::DeclarationKind::Declaration,
                     abstraction: js::DeclarationAbstraction::Concrete,
@@ -268,18 +268,19 @@ impl TestModuleBuilder {
                     export: None,
                 },
                 signature: js::FunctionSignature {
-                    abstraction: js::FunctionAbstraction::Concrete,
+                    is_abstract: false,
+                    is_override: false,
                     asynchrony,
                     cardinality,
                     mode: None,
                     kind: js::FunctionKind::Function,
-                    generics: None,
+                    generic_parameters: Vec::new(),
                     this_parameter: None,
-                    dynamic_parameters: Vec::new(),
+                    parameters: Vec::new(),
                     return_type: None,
                 },
                 body,
-            },
+            }),
             ModuleId::EPHEMERAL,
             declaration_source_id,
         )
@@ -1163,7 +1164,7 @@ fn test_rewrites_es2020_optional_call_ternary() {
     let js::Expression::Call {
         position,
         left,
-        dynamic_arguments,
+        arguments,
         ..
     } = rewritten
     else {
@@ -1174,7 +1175,7 @@ fn test_rewrites_es2020_optional_call_ternary() {
     };
     let js::Argument::Positional {
         value: rewritten_arg,
-    } = rewriter.module().tree.get(dynamic_arguments[0])
+    } = rewriter.module().tree.get(arguments[0])
     else {
         panic!("expected positional argument");
     };

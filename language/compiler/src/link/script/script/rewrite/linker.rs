@@ -243,16 +243,16 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     *expression = js::Expression::Member {
                         left,
                         name,
-                        static_arguments: None,
+                        generic_arguments: vec![],
                     };
                 }
 
                 js::Expression::Member {
                     left,
                     name,
-                    static_arguments,
+                    generic_arguments,
                 } => {
-                    if static_arguments.is_some()
+                    if !generic_arguments.is_empty()
                         || self.can_use_identifier_property_name(&self.module.strings.get(name))
                     {
                         continue;
@@ -284,8 +284,12 @@ impl<'module, 'a> Rewriter<'module, 'a> {
             match expression {
                 js::Expression::Path {
                     path,
-                    static_arguments: None,
+                    generic_arguments,
                 } => {
+                    if !generic_arguments.is_empty() {
+                        continue;
+                    }
+
                     if let Some(rewritten) =
                         self.fold_global_infinity_reference(expression_id, path)
                     {
