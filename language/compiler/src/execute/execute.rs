@@ -85,7 +85,13 @@ impl Compiler {
             self.require_dir_elaborated_data(context.revision(), module_id, profile_id)?;
         let mut tree = elaborated.tree.as_ref().clone();
         for patch in patches {
-            self.apply_comptime_patch(module_id, profile_id, &mut tree, patch);
+            self.apply_comptime_patch(
+                module_id,
+                profile_id,
+                &mut tree,
+                elaborated.types.as_ref(),
+                patch,
+            );
         }
 
         // publish the patched artifact with updated comptime tree state

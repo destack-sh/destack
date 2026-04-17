@@ -22,6 +22,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         tree: &mut dir::NodeTree,
+        types: &dir::TypeTable,
         patch: ComptimePatch,
     ) {
         // resolve the expression to patch
@@ -62,6 +63,7 @@ impl Compiler {
         let scope = tree.get_scope(expression_id);
         let replacement = match self.static_expression_to_expression(
             tree,
+            types,
             module_id,
             profile_id,
             expression_id.into_any(),
