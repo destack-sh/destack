@@ -396,10 +396,8 @@ fn binding_decorator_value(
         let expression = tree.get::<Expression>(decorator_expression);
         let (decorator_expression, arguments) = match expression {
             Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
-            } => (*left, Some(dynamic_arguments.as_slice())),
+                left, arguments, ..
+            } => (*left, Some(arguments.as_slice())),
             _ => (decorator_expression, None),
         };
 
