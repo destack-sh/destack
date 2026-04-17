@@ -366,8 +366,8 @@ define_language_symbols! {
         /// `@lifetime` marker
         Lifetime => (Newtype, "primitive/decorator", "lifetime"),
 
-        /// `@addrspace` marker
-        Addrspace => (Newtype, "primitive/decorator", "addrspace"),
+        /// `@space` marker
+        Space => (Newtype, "primitive/decorator", "space"),
     }
 }
 

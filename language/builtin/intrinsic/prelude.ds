@@ -1,3 +1,11 @@
+// ownership and place
+export {
+    type Borrowed,
+    type Owned,
+    type Shared,
+    type Space,
+} from "./ownership.ds";
+
 // reflection
 export { Type, typeOf } from "./reflect/type.ds";
 
@@ -87,7 +95,7 @@ export {
     sanitizer,
     tag,
     lifetime,
-    addrspace,
+    space,
 } from "./primitive/decorator.ds";
 
 // binding decorators (intrinsics)
