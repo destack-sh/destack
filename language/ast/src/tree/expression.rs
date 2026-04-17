@@ -701,7 +701,7 @@ pub enum Expression {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
 
     /// New constructor call.
@@ -716,7 +716,7 @@ pub enum Expression {
     New {
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
 
     /// Delete expression.

@@ -1134,7 +1134,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 position,
                 generic_arguments: _,
                 left: _,
-                dynamic_arguments: _,
+                arguments: _,
             } => {
                 self.node("Expression::Call", _id.id)
                     .field("position", position)
@@ -1143,7 +1143,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::New {
                 left: _,
                 generic_arguments: _,
-                dynamic_arguments: _,
+                arguments: _,
             } => {
                 self.node("Expression::New", _id.id).end();
             }
