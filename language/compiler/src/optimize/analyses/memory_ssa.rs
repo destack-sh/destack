@@ -1150,8 +1150,10 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.call_effects(instruction, call.arguments, None)
             }
             mir::Instruction::RawFree { .. }
-            | mir::Instruction::RawDrop { .. }
-            | mir::Instruction::StackDrop { .. }
+            | mir::Instruction::Dispose { .. }
+            | mir::Instruction::AsyncDispose { .. }
+            | mir::Instruction::Drop { .. }
+            | mir::Instruction::AsyncDrop { .. }
             | mir::Instruction::ManagedAlloc { .. }
             | mir::Instruction::ManagedAllocArray { .. }
             | mir::Instruction::RawAlloc { .. }
@@ -3069,7 +3071,7 @@ b0:
             r#"
 function test(v0: int32): int32 {
 b0(v0: int32):
-    raw.drop v0
+    drop v0
     v1: int32 = 0int32
     return v1
 }"#,

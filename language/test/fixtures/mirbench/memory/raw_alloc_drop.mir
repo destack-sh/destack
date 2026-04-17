@@ -10,7 +10,7 @@ b2:
     v6: ref<int64, raw> = raw.alloc int64
     store v6, v3
     v7: int64 = load v6
-    raw.drop v6
+    drop v6
     v8: int64 = int.add v4, v7
     v9: int64 = 1int64
     v10: int64 = int.add v3, v9

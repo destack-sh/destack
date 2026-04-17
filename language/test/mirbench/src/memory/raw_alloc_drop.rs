@@ -21,7 +21,7 @@ fn expected_raw_alloc_drop(iterations: i64) -> i64 {
 }
 
 declare_program! {
-    /// Raw allocations that end with raw.drop.
+    /// Raw allocations that end with drop.
     pub const RAW_ALLOC_DROP,
     name: "raw_alloc_drop",
     source: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/mirbench/memory/raw_alloc_drop.mir")),

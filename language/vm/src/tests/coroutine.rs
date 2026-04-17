@@ -356,7 +356,7 @@ fn test_yield_allows_retired_stack_alloc_in_current_frame() {
 function yieldRetiredStackLocal(): int32 {
 b0:
     v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
-    stack.drop v0
+    drop v0
     v1: int32 = 1int32
     yield v1, b1
 b1(v2: int32):

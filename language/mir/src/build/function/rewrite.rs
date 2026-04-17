@@ -108,8 +108,10 @@ impl<'a> FunctionBuilder<'a> {
                     tensor: argument, ..
                 }
                 | Instruction::RawFree { pointer: argument }
-                | Instruction::RawDrop { value: argument }
-                | Instruction::StackDrop { value: argument }
+                | Instruction::Dispose { value: argument }
+                | Instruction::AsyncDispose { value: argument }
+                | Instruction::Drop { value: argument }
+                | Instruction::AsyncDrop { value: argument }
                 | Instruction::AtomicLoad {
                     pointer: argument, ..
                 } => {

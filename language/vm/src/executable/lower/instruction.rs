@@ -1,11 +1,12 @@
 use destack_mir as mir;
 
-use destack_heap::{ManagedReference, RawPointer, SharedPointer, Value};
+use destack_heap::{
+    ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer, StorageLayoutId, Value,
+};
 
 use crate::executable::value::ValueKind;
 use crate::executable::{
-    ConstValue, Instruction, InstructionData, InstructionOperation, UNKNOWN_ARRAY_LENGTH,
-    UNKNOWN_FIELD_COUNT, pack_optional_value,
+    ConstValue, Instruction, InstructionData, InstructionOperation, pack_optional_value,
 };
 use crate::{Error, Result};
 
@@ -343,6 +344,17 @@ impl<'a> BlockLowerer<'a> {
                     let reference =
                         reference_meta_for_type(self.tree, self.value_type_for_value(destination)?);
                     let value = match reference.kind() {
+                        Some(mir::ReferenceKind::Managed)
+                            if matches!(
+                                reference.address_space(),
+                                destack_heap::ReferenceAddressSpace::Shared
+                            ) =>
+                        {
+                            Value::shared_managed_reference_with_meta(
+                                SharedManagedReference::NULL,
+                                reference,
+                            )
+                        }
                         Some(mir::ReferenceKind::Managed) => {
                             Value::managed_reference_with_meta(ManagedReference::NULL, reference)
                         }
@@ -351,7 +363,7 @@ impl<'a> BlockLowerer<'a> {
                             destack_heap::ReferenceAddressSpace::Shared
                         ) =>
                         {
-                            Value::shared_pointer_with_meta(SharedPointer::NULL, reference)
+                            Value::shared_raw_pointer_with_meta(SharedRawPointer::NULL, reference)
                         }
                         _ => Value::raw_pointer_with_meta(RawPointer::NULL, reference),
                     };
@@ -983,25 +995,47 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Instruction::RawDrop { value } => {
+            mir::Instruction::Dispose { value } => {
                 let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "raw drop value".to_string(),
+                    context: "dispose value".to_string(),
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::RawDrop,
-                    data: InstructionData::RawDrop { value },
+                    operation: InstructionOperation::Dispose,
+                    data: InstructionData::Dispose { value },
                 }
             }
 
-            mir::Instruction::StackDrop { value } => {
+            mir::Instruction::AsyncDispose { value } => {
                 let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "stack drop value".to_string(),
+                    context: "async dispose value".to_string(),
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::StackDrop,
-                    data: InstructionData::StackDrop { value },
+                    operation: InstructionOperation::AsyncDispose,
+                    data: InstructionData::AsyncDispose { value },
+                }
+            }
+
+            mir::Instruction::Drop { value } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "drop value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::Drop,
+                    data: InstructionData::Drop { value },
+                }
+            }
+
+            mir::Instruction::AsyncDrop { value } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "async drop value".to_string(),
+                })?;
+
+                Instruction {
+                    operation: InstructionOperation::AsyncDrop,
+                    data: InstructionData::AsyncDrop { value },
                 }
             }
 
@@ -2338,11 +2372,14 @@ impl<'a> BlockLowerer<'a> {
                     storage_type: (*layout).ty().ok_or_else(|| Error::ConcreteMirRequired {
                         context: "managed alloc layout".to_string(),
                     })?,
-                    layout_id: self.tree.type_layout_id((*layout).ty().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
-                            context: "managed alloc layout".to_string(),
-                        }
-                    })?),
+                    layout_id: self
+                        .tree
+                        .type_layout_id((*layout).ty().ok_or_else(|| {
+                            Error::ConcreteMirRequired {
+                                context: "managed alloc layout".to_string(),
+                            }
+                        })?)
+                        .map(StorageLayoutId::from_layout),
                     byte_len: self.layout_byte_len((*layout).ty().ok_or_else(|| {
                         Error::ConcreteMirRequired {
                             context: "managed alloc layout".to_string(),
@@ -2615,19 +2652,17 @@ impl<'a> BlockLowerer<'a> {
         })
     }
     /// Return one lowered field count for one value.
-    fn field_count_for_value(&self, value: mir::Value) -> u32 {
+    fn field_count_for_value(&self, value: mir::Value) -> Option<u32> {
         self.value_kind_map()
             .get(value)
             .and_then(|kind| field_count_from_kind(self.tree, kind))
-            .unwrap_or(UNKNOWN_FIELD_COUNT)
     }
 
     /// Return one lowered array length for one value.
-    fn array_length_for_value(&self, value: mir::Value) -> u64 {
+    fn array_length_for_value(&self, value: mir::Value) -> Option<u64> {
         self.value_kind_map()
             .get(value)
             .and_then(|kind| array_length_from_kind(self.tree, kind))
-            .unwrap_or(UNKNOWN_ARRAY_LENGTH)
     }
 
     /// Return one lowered byte length for one layout.

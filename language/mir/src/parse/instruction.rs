@@ -89,8 +89,10 @@ impl Parser {
                 opcode_text,
                 "local.set"
                     | "store"
-                    | "raw.drop"
-                    | "stack.drop"
+                    | "dispose"
+                    | "dispose.async"
+                    | "drop"
+                    | "drop.async"
                     | "atomic.store"
                     | "atomic.fence"
                     | "barrier"
@@ -124,13 +126,21 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Store { pointer, value }
             }
-            "raw.drop" => {
+            "dispose" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::RawDrop { value }
+                Instruction::Dispose { value }
             }
-            "stack.drop" => {
+            "dispose.async" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::StackDrop { value }
+                Instruction::AsyncDispose { value }
+            }
+            "drop" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Drop { value }
+            }
+            "drop.async" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::AsyncDrop { value }
             }
             "atomic.store" => {
                 let pointer = self.parse_value_segment(&mut segment_spans)?;

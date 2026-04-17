@@ -1463,9 +1463,11 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::ManagedAllocArray { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
-        | mir::Instruction::RawDrop { .. }
-        | mir::Instruction::StackAlloc { .. }
-        | mir::Instruction::StackDrop { .. } => INLINE_COST_ALLOC,
+        | mir::Instruction::Dispose { .. }
+        | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Drop { .. }
+        | mir::Instruction::AsyncDrop { .. }
+        | mir::Instruction::StackAlloc { .. } => INLINE_COST_ALLOC,
         mir::Instruction::Intrinsic { intrinsic, .. } => {
             if intrinsic.has_memory_effects() {
                 INLINE_COST_MEMORY + 2

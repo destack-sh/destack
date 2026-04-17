@@ -166,7 +166,7 @@ These run before optimization passes.
 | `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, borrow, alias, lifetime | Verify borrow rules, exclusivity, and lifetime annotations |
 | `stack-check` | StackCheck | function | V | ✓ | cfg, lifetime | Verify stack safety: no returns of references to locals, no stack pointer escapes |
 | `lifetime-check` | LifetimeCheck | function | V | ✓ | cfg, lifetime | Verify explicit lifetime annotations against returned borrows |
-| `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `raw.drop`/`stack.drop` at last-use points for owned refs |
+| `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `drop` at last-use points for owned refs |
 
 `drop-insert` is the ownership lifetime placement pass.
 It inserts ownership cleanup markers only, and does not implement `using` protocol disposal.

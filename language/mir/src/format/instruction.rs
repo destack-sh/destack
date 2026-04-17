@@ -319,9 +319,17 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::RawDrop { value } => write!(f, [token("raw.drop"), space(), value]),
+            Instruction::Dispose { value } => write!(f, [token("dispose"), space(), value]),
 
-            Instruction::StackDrop { value } => write!(f, [token("stack.drop"), space(), value]),
+            Instruction::AsyncDispose { value } => {
+                write!(f, [token("dispose.async"), space(), value])
+            }
+
+            Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
+
+            Instruction::AsyncDrop { value } => {
+                write!(f, [token("drop.async"), space(), value])
+            }
 
             Instruction::Assume { condition } => {
                 write!(f, [token("assume"), space(), condition])

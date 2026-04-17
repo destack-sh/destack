@@ -625,9 +625,11 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::ManagedAllocArray { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
-        | mir::Instruction::RawDrop { .. }
+        | mir::Instruction::Dispose { .. }
+        | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Drop { .. }
+        | mir::Instruction::AsyncDrop { .. }
         | mir::Instruction::StackAlloc { .. }
-        | mir::Instruction::StackDrop { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }

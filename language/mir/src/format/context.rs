@@ -1006,8 +1006,10 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::ElementGet { .. }
             | Instruction::ElementSet { .. }
             | Instruction::RawFree { .. }
-            | Instruction::RawDrop { .. }
-            | Instruction::StackDrop { .. }
+            | Instruction::Dispose { .. }
+            | Instruction::AsyncDispose { .. }
+            | Instruction::Drop { .. }
+            | Instruction::AsyncDrop { .. }
             | Instruction::Assume { .. }
             | Instruction::Intrinsic { .. } => {}
             _ => {}

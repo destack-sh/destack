@@ -1,6 +1,6 @@
 use super::prelude::*;
 use crate::telemetry::stat_inc;
-use destack_heap::ReferenceMap;
+use destack_heap::{HeapError, ReferenceMap};
 
 /// Record one load in the VM statistics.
 #[inline(always)]
@@ -109,7 +109,10 @@ pub(crate) fn step_local_addr(
 
     // build local pointer
     let pointer = LocalPointer::new(state.frame_index, *local as usize);
-    let value = Value::local_pointer_with_meta(pointer, *reference);
+    let value = match local_pointer_value_with_meta(pointer, *reference) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
@@ -140,7 +143,10 @@ pub(crate) fn step_global_addr(
     };
 
     // build global pointer
-    let pointer = Value::global_pointer_with_meta(global_id(*global), 0, *reference);
+    let pointer = match global_pointer_value_with_meta(global_id(*global), 0, *reference) {
+        Ok(pointer) => pointer,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
@@ -505,7 +511,7 @@ pub(crate) fn step_atomic_fence(
     next!(state, block, pc)
 }
 
-/// Step a synchronization barrier.
+/// Step one execution and memory synchronization barrier.
 pub(crate) fn step_barrier(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
@@ -942,12 +948,14 @@ pub(crate) fn step_managed_alloc(
 
     // allocate managed storage
     let managed_reference = {
+        let layout_id =
+            layout_id.or_else(|| state.executable.storage_layout_id_for_type(*storage_type));
         let heap = state.heap_mut();
         if heap.managed_allocation_count() >= max_managed_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
 
-        heap.allocate_managed_zeroed_borrowed_typed(*byte_len, trace, *layout_id, storage_type.id)
+        heap.allocate_managed_zeroed(*byte_len, trace.clone(), layout_id)
     };
     let managed_reference = match managed_reference {
         Ok(reference) => reference,
@@ -1034,25 +1042,24 @@ pub(crate) fn step_managed_alloc_array(
 
         match trace {
             ReferenceMap::ReferenceOffsets { offsets } if offsets.is_empty() => {
-                heap.allocate_managed_zeroed_borrowed(byte_len, &ReferenceMap::None, None)
+                heap.allocate_managed_zeroed(byte_len, ReferenceMap::None, None)
             }
-            ReferenceMap::ReferenceOffsets { offsets } => heap
-                .allocate_managed_zeroed_repeated_reference_offsets(
-                    byte_len,
-                    repeated_count,
-                    repeated_stride,
-                    offsets,
-                    None,
-                ),
+            ReferenceMap::ReferenceOffsets { offsets } => {
+                let reference_map = ReferenceMap::RepeatedReferenceOffsets {
+                    count: repeated_count,
+                    element_size: repeated_stride,
+                    offsets: offsets.clone(),
+                };
+
+                heap.allocate_managed_zeroed(byte_len, reference_map, None)
+            }
             ReferenceMap::RepeatedReferenceOffsets { .. } => {
                 return Transfer::Error(Error::AllocationFailed);
             }
             ReferenceMap::ValueOffsets { .. } => {
                 return Transfer::Error(Error::AllocationFailed);
             }
-            ReferenceMap::None => {
-                heap.allocate_managed_zeroed_borrowed(byte_len, &ReferenceMap::None, None)
-            }
+            ReferenceMap::None => heap.allocate_managed_zeroed(byte_len, ReferenceMap::None, None),
         }
     };
     let managed_reference = match managed_reference {
@@ -1140,8 +1147,13 @@ pub(crate) fn step_raw_free(
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid reference
         let heap = state.heap_mut();
-        if !heap.free_raw(p) {
-            return Transfer::Error(Error::InvalidManagedReference);
+        match heap.free_raw(p) {
+            Ok(true) => {}
+            Ok(false) => return Transfer::Error(Error::InvalidManagedReference),
+            Err(HeapError::InvalidRawPointer { .. }) => {
+                return Transfer::Error(Error::InvalidManagedReference);
+            }
+            Err(error) => return Transfer::Error(Error::from(error)),
         }
     }
     // otherwise report type mismatch
@@ -1156,38 +1168,126 @@ pub(crate) fn step_raw_free(
     next!(state, block, pc)
 }
 
-/// Step raw drop (compiler-inserted deallocation at ownership end).
-/// Semantically equivalent to raw_free but signals ownership transfer.
-pub(crate) fn step_raw_drop(
+/// Step explicit synchronous cleanup.
+pub(crate) fn step_dispose(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction data
-    let InstructionData::RawDrop { value } = &block[pc].data else {
+    let InstructionData::Dispose { value } = &block[pc].data else {
         unreachable!()
     };
 
-    // load pointer value
-    let ptr = state.get(*value);
+    // cleanup hooks are not lowered yet
+    let _ = state.get(*value);
 
-    // accept raw pointer values - deallocate like raw_free
-    if let Some(p) = ptr.as_raw_pointer() {
-        // report invalid reference
+    next!(state, block, pc)
+}
+
+/// Step explicit asynchronous cleanup.
+pub(crate) fn step_async_dispose(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::AsyncDispose { value } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // async cleanup hooks are not lowered yet
+    let _ = state.get(*value);
+
+    next!(state, block, pc)
+}
+
+/// Drop one runtime value according to its storage class.
+fn drop_value(state: &mut StepState<'_, '_>, value: Value) -> Result<(), Error> {
+    // raw owners free their backing storage
+    if let Some(pointer) = value.as_raw_pointer() {
         let heap = state.heap_mut();
-        if !heap.free_raw(p) {
-            return Transfer::Error(Error::InvalidManagedReference);
+        match heap.free_raw(pointer) {
+            Ok(true) => return Ok(()),
+            Ok(false) => return Err(Error::InvalidManagedReference),
+            Err(HeapError::InvalidRawPointer { .. }) => {
+                return Err(Error::InvalidManagedReference);
+            }
+            Err(error) => return Err(Error::from(error)),
         }
     }
-    // otherwise report type mismatch
-    else {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "raw_pointer".to_string(),
-            actual: format!("{ptr:?}"),
-        });
+
+    // stack owners retire the current-frame allocation
+    if let Some(pointer) = value.as_stack_pointer() {
+        if pointer.frame_idx != state.frame_index {
+            return Err(Error::InvalidPointerType {
+                actual: format!("{pointer:?}"),
+            });
+        }
+
+        if !state
+            .current_frame_mut()
+            .retire_stack_allocation(pointer.slot)
+        {
+            return Err(Error::InvalidPointerType {
+                actual: format!("{pointer:?}"),
+            });
+        }
+
+        return Ok(());
     }
 
-    // continue to next instruction
+    // managed references stay GC-managed after ownership ends
+    if value.as_managed_reference().is_some() || value.as_shared_managed_reference().is_some() {
+        return Ok(());
+    }
+
+    Err(Error::TypeMismatch {
+        expected: "droppable reference".to_string(),
+        actual: format!("{value:?}"),
+    })
+}
+
+/// Step ownership end.
+pub(crate) fn step_drop(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::Drop { value } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load the dropped value
+    let value = state.get(*value);
+
+    // perform the storage-specific drop work first
+    if let Err(error) = drop_value(state, value) {
+        return Transfer::Error(error);
+    }
+
+    next!(state, block, pc)
+}
+
+/// Step asynchronous ownership end.
+pub(crate) fn step_async_drop(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::AsyncDrop { value } = &block[pc].data else {
+        unreachable!()
+    };
+
+    let value = state.get(*value);
+
+    // async drop hooks are not lowered yet, so only the storage-specific path remains
+    if let Err(error) = drop_value(state, value) {
+        return Transfer::Error(error);
+    }
+
     next!(state, block, pc)
 }
 
@@ -1218,7 +1318,10 @@ pub(crate) fn step_stack_alloc(
         .current_frame_mut()
         .allocate_stack_allocation(allocation);
     let sp = destack_heap::StackPointer::new(frame_index, slot);
-    let value = Value::stack_pointer_with_meta(sp, *reference);
+    let value = match stack_pointer_value_with_meta(sp, *reference) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
@@ -1226,49 +1329,6 @@ pub(crate) fn step_stack_alloc(
     }
 
     state.set(*dest, value);
-
-    // continue to next instruction
-    next!(state, block, pc)
-}
-
-/// Step stack drop (compiler-inserted lifetime end marker).
-pub(crate) fn step_stack_drop(
-    state: &mut StepState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
-) -> Transfer {
-    // decode instruction data
-    let InstructionData::StackDrop { value } = &block[pc].data else {
-        unreachable!()
-    };
-
-    // load the stack pointer being retired
-    let pointer = state.get(*value);
-
-    // reject non-stack values
-    let Some(pointer) = pointer.as_stack_pointer() else {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "stack_pointer".to_string(),
-            actual: format!("{pointer:?}"),
-        });
-    };
-
-    // reject cross-frame access
-    if pointer.frame_idx != state.frame_index {
-        return Transfer::Error(Error::InvalidPointerType {
-            actual: format!("{pointer:?}"),
-        });
-    }
-
-    // retire the stack allocation
-    if !state
-        .current_frame_mut()
-        .retire_stack_allocation(pointer.slot)
-    {
-        return Transfer::Error(Error::InvalidPointerType {
-            actual: format!("{pointer:?}"),
-        });
-    }
 
     next!(state, block, pc)
 }
