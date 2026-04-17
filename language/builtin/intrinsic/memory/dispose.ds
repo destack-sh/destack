@@ -1,0 +1,19 @@
+import { type Promise } from "../control/result.ds";
+
+/// Deterministic synchronous cleanup capability.
+///
+/// The compiler uses `Dispose` for ownership based cleanup and for explicit
+/// `using` scopes.
+/// Automatic insertion is only valid when the value has one deterministic end
+/// of life.
+export newtype interface Dispose {
+    dispose(): void;
+}
+
+/// Deterministic asynchronous cleanup capability.
+///
+/// The compiler uses `AsyncDispose` for async ownership cleanup and for
+/// `await using` scopes.
+export newtype interface AsyncDispose {
+    asyncDispose(): Promise<void>;
+}
